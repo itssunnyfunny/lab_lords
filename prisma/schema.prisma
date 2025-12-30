@@ -19,6 +19,7 @@ model User {
   createdAt DateTime @default(now())
 
   organizations Organization[]
+  staff Staff[]
 }
 
 model Organization {
@@ -42,6 +43,7 @@ model Branch {
   seats        Seat[]
   shifts       Shift[]
   payments     Payment[]
+  staff        Staff[]
 }
 
 model Student {
@@ -134,4 +136,24 @@ enum PaymentStatus {
   DUE
   PAID
 }
+
+model Staff {
+  id        String    @id @default(cuid())
+  userId    String
+  branchId  String
+  role      StaffRole
+  createdAt DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([userId, branchId])
+  @@index([branchId])
+}
+
+enum StaffRole {
+  MANAGER
+  STAFF
+}
+
 
