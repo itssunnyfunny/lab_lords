@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { PaymentStatus, StudentStatus } from "@prisma/client";
-import { startOfMonth, endOfMonth, addDays } from "date-fns";
+import { addMonths, differenceInMonths, startOfDay, isBefore } from "date-fns";
 
 export class PaymentService {
     /**
@@ -26,8 +26,39 @@ export class PaymentService {
     }
 
     /**
-     * Generates due payments for all ACTIVE students in a branch for the current month.
-     * Skips students who already have a payment record for this period.
+     * Calculates the current billing period for a student based on their join date.
+     * Uses anniversary billing logic.
+     */
+    static getNextBillingPeriod(joinedAt: Date) {
+        const now = new Date();
+        const startOfToday = startOfDay(now);
+
+        // Calculate the most recent anniversary
+        const monthsDiff = differenceInMonths(startOfToday, joinedAt);
+        const cycle1 = addMonths(joinedAt, monthsDiff);
+        const cycle2 = addMonths(joinedAt, monthsDiff + 1);
+
+        // Ideally, if today is Feb 28 and joined Jan 31, diff is 0?
+        // If date-fns returns 0, cycle1 = Jan 31, cycle2 = Feb 28.
+        // usage of startOfToday ensures we compare dates properly.
+
+        let periodStart = cycle1;
+        // If we have passed or met the *next* cycle start, use that.
+        // e.g. Today Feb 28. cycle2 = Feb 28.
+        // !isBefore(Feb 28, Feb 28) -> true (it is equivalent or after) -> Use cycle2.
+        if (!isBefore(startOfToday, startOfDay(cycle2))) {
+            periodStart = cycle2;
+        }
+
+        const periodEnd = addMonths(periodStart, 1);
+        const dueDate = periodStart; // Due immediately upon cycle start
+
+        return { periodStart, periodEnd, dueDate };
+    }
+
+    /**
+     * Generates due payments for all ACTIVE students in a branch.
+     * Uses student-specific anniversary dates.
      */
     static async generateDuePaymentsForBranch(
         userId: string,
@@ -35,11 +66,6 @@ export class PaymentService {
         amount: number
     ) {
         await this.assertBranchOwnership(userId, branchId);
-
-        const now = new Date();
-        const periodStart = startOfMonth(now);
-        const periodEnd = endOfMonth(now);
-        const dueDate = addDays(now, 7); // Default due date to 7 days from now
 
         // Get all active students
         const students = await prisma.student.findMany({
@@ -53,13 +79,15 @@ export class PaymentService {
         let skippedCount = 0;
 
         for (const student of students) {
-            // Check if payment already exists for this period
-            const existingPayment = await prisma.payment.findUnique({
+            const { periodStart, periodEnd, dueDate } = this.getNextBillingPeriod(student.joinedAt);
+
+            // Check if payment already exists for this periodStart
+            const existingPayment = await prisma.payment.findFirst({
                 where: {
-                    studentId_periodStart: {
-                        studentId: student.id,
-                        periodStart: periodStart,
-                    },
+                    studentId: student.id,
+                    periodStart: {
+                        equals: periodStart // Exact match on calculated start date
+                    }
                 },
             });
 
@@ -111,6 +139,7 @@ export class PaymentService {
                         id: true,
                         name: true,
                         phone: true,
+                        joinedAt: true,
                     },
                 },
             },
@@ -121,16 +150,50 @@ export class PaymentService {
     }
 
     /**
-     * Generates a single payment for a specific student (Wrapper mainly for reusing logic if needed, 
-     * but currently `generateDuePaymentsForBranch` does the bulk work).
-     * Keeping it placeholder or simple if specific single generation is needed later.
+     * Marks a payment as PAID.
      */
+    static async markPaymentAsPaid(userId: string, paymentId: string) {
+        const payment = await prisma.payment.findUnique({
+            where: { id: paymentId },
+            include: {
+                branch: {
+                    include: { organization: true }
+                }
+            }
+        });
+
+        if (!payment) {
+            throw new Error("Payment not found");
+        }
+
+        if (payment.branch.organization.ownerId !== userId) {
+            throw new Error("Unauthorized: User does not own this branch");
+        }
+
+        if (payment.status === PaymentStatus.PAID) {
+            return payment; // Already paid, idempotent
+        }
+
+        return prisma.payment.update({
+            where: { id: paymentId },
+            data: {
+                status: PaymentStatus.PAID,
+                paidAt: new Date(),
+            },
+        });
+    }
+
+    // Deprecated/unused for now but kept for interface/future use if single gen needed
     static async generatePaymentForStudent(
         userId: string,
         studentId: string,
         amount: number
     ) {
-        // Retrieve student to get branchId
+        // ... existing logic or remove if strictly unused. 
+        // For now, I'll remove it to keep file clean as it wasn't strictly requested in the updated list, 
+        // but `generateDuePaymentsForBranch` is the main one.
+        // Actually user originally asked for it, I'll update it to use the new logic just in case.
+
         const student = await prisma.student.findUnique({
             where: { id: studentId },
             include: { branch: { include: { organization: true } } }
@@ -139,21 +202,17 @@ export class PaymentService {
         if (!student) throw new Error("Student not found");
         if (student.branch.organization.ownerId !== userId) throw new Error("Unauthorized");
 
-        const now = new Date();
-        const periodStart = startOfMonth(now);
+        const { periodStart, periodEnd, dueDate } = this.getNextBillingPeriod(student.joinedAt);
 
-        // Specific check for this student
-        const existing = await prisma.payment.findUnique({
+        const existing = await prisma.payment.findFirst({
             where: {
-                studentId_periodStart: {
-                    studentId: student.id,
-                    periodStart
-                }
+                studentId: student.id,
+                periodStart: { equals: periodStart }
             }
         });
 
         if (existing) {
-            throw new Error("Payment already exists for this month");
+            throw new Error("Payment already exists for this cycle");
         }
 
         return prisma.payment.create({
@@ -163,8 +222,8 @@ export class PaymentService {
                 amount,
                 status: PaymentStatus.DUE,
                 periodStart,
-                periodEnd: endOfMonth(now),
-                dueDate: addDays(now, 7),
+                periodEnd,
+                dueDate,
             }
         });
     }
