@@ -1,9 +1,14 @@
 // analytics/branch.analytics.ts
 
 import { getPaymentSnapshot } from "./payment.analytics"
-// later:
-// import { getSeatUtilization } from "./seat.analytics"
-// import { getStudentStatusSnapshot } from "./student.analytics"
+import {
+  getSeatUtilization,
+  getSeatUtilizationByShift,
+} from "./seat.analytics"
+import {
+  getStudentStatusSnapshot,
+  getStudentSeatingSnapshot,
+} from "./student.analytics"
 
 type AsOf = Date | undefined
 
@@ -12,7 +17,7 @@ function resolveAsOf(asOf?: Date): Date {
 }
 
 /**
- * Snapshot of overall branch health
+ * Aggregated, snapshot-first view of branch health
  * Read-only, deterministic, AI-friendly
  */
 export async function getBranchHealthSnapshot(
@@ -22,32 +27,32 @@ export async function getBranchHealthSnapshot(
   const date = resolveAsOf(asOf)
 
   const [
-    paymentSnapshot,
-    // seatSnapshot,
-    // studentSnapshot,
+    payment,
+    seatOverall,
+    seatByShift,
+    studentStatus,
+    studentSeating,
   ] = await Promise.all([
     getPaymentSnapshot(branchId, date),
-    // getSeatUtilization(branchId, date),
-    // getStudentStatusSnapshot(branchId, date),
+    getSeatUtilization(branchId, date),
+    getSeatUtilizationByShift(branchId, date),
+    getStudentStatusSnapshot(branchId, date),
+    getStudentSeatingSnapshot(branchId, date),
   ])
 
   return {
     asOf: date,
 
-    payments: {
-      dueCount: paymentSnapshot.dueCount,
-      paidCount: paymentSnapshot.paidCount,
-      dueAmount: paymentSnapshot.dueAmount,
-      paidAmount: paymentSnapshot.paidAmount,
+    seats: {
+      overall: seatOverall,
+      byShift: seatByShift,
     },
 
-    // seats: {
-    //   utilizationRatio: seatSnapshot.utilizationRatio,
-    // },
+    students: {
+      status: studentStatus,
+      seating: studentSeating,
+    },
 
-    // students: {
-    //   active: studentSnapshot.active,
-    //   inactive: studentSnapshot.inactive,
-    // },
+    payments: payment,
   }
 }
