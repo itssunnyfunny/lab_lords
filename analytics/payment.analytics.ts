@@ -11,7 +11,7 @@ function resolveAsOf(asOf?: Date): Date {
 /**
  * Snapshot of payment state for a branch
  */
-export async function getPaymentSnapshot(
+export async function getPaymentStats(
   branchId: string,
   asOf?: AsOf
 ) {
@@ -94,4 +94,41 @@ export async function getDueStudents(
       daysOverdue,
     }
   })
+}
+
+/**
+ * AI-ready snapshot including summary and buckets
+ */
+export async function getPaymentSnapshot(
+  branchId: string,
+  asOf?: AsOf
+) {
+  const date = resolveAsOf(asOf)
+  const [stats, dueStudents] = await Promise.all([
+    getPaymentStats(branchId, date),
+    getDueStudents(branchId, date)
+  ])
+
+  // Calculate overdue buckets
+  const buckets = new Map<number, number>()
+  for (const student of dueStudents) {
+    const days = student.daysOverdue
+    buckets.set(days, (buckets.get(days) || 0) + 1)
+  }
+
+  const overdueBuckets = Array.from(buckets.entries()).map(([days, count]) => ({
+    days,
+    count
+  })).sort((a, b) => b.days - a.days)
+
+  return {
+    branchId,
+    summary: {
+      totalDue: stats.dueAmount,
+      totalPaid: stats.paidAmount,
+      totalOverdue: stats.dueCount
+    },
+    overdueBuckets,
+    asOf: date,
+  }
 }

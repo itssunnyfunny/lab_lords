@@ -1,6 +1,6 @@
 // analytics/trends/payment.trends.ts
 
-import { getPaymentSnapshot } from "../payment.analytics"
+import { getPaymentStats } from "../payment.analytics"
 
 type TrendInterval = "DAY"
 
@@ -25,7 +25,7 @@ export async function getPaymentTrend(
   let cursor = new Date(from)
 
   while (cursor <= to) {
-    const snapshot = await getPaymentSnapshot(branchId, cursor)
+    const snapshot = await getPaymentStats(branchId, cursor)
 
     points.push({
       asOf: new Date(cursor),

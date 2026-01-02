@@ -92,3 +92,43 @@ export async function getOrganizationHealthSnapshot(
     branches: branchSnapshots, // AI & UI gold
   }
 }
+
+/**
+ * AI-ready snapshot for organization
+ * Flattens structure and includes metadata
+ */
+export async function getOrgSnapshot(
+  orgId: string,
+  asOf?: AsOf
+) {
+  const date = resolveAsOf(asOf)
+
+  const [org, health] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { name: true }
+    }),
+    getOrganizationHealthSnapshot(orgId, date)
+  ])
+
+  return {
+    orgId,
+    orgName: org?.name ?? "Unknown",
+
+    branches: health.branches.map(b => ({
+      branchId: b.branchId,
+      branchName: b.branchName,
+      seatUtilizationPercent: b.snapshot.seats.overall.utilizationRatio * 100,
+      overduePayments: b.snapshot.payments.dueCount,
+    })),
+
+    totals: {
+      totalBranches: health.organization.totalBranches,
+      totalStudents: health.students.total,
+      totalSeats: health.seats.totalSeats,
+      totalOverduePayments: health.payments.dueCount,
+    },
+
+    asOf: date,
+  }
+}

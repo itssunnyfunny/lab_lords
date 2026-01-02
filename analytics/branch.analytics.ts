@@ -1,6 +1,7 @@
 // analytics/branch.analytics.ts
 
-import { getPaymentSnapshot } from "./payment.analytics"
+import { prisma } from "@/lib/prisma"
+import { getPaymentStats } from "./payment.analytics"
 import {
   getSeatUtilization,
   getSeatUtilizationByShift,
@@ -33,7 +34,7 @@ export async function getBranchHealthSnapshot(
     studentStatus,
     studentSeating,
   ] = await Promise.all([
-    getPaymentSnapshot(branchId, date),
+    getPaymentStats(branchId, date),
     getSeatUtilization(branchId, date),
     getSeatUtilizationByShift(branchId, date),
     getStudentStatusSnapshot(branchId, date),
@@ -54,5 +55,50 @@ export async function getBranchHealthSnapshot(
     },
 
     payments: payment,
+  }
+}
+
+/**
+ * AI-ready snapshot for branch
+ * Flattens structure and includes metadata
+ */
+export async function getBranchSnapshot(
+  branchId: string,
+  asOf?: AsOf
+) {
+  const date = resolveAsOf(asOf)
+
+  const [branch, health] = await Promise.all([
+    prisma.branch.findUnique({
+      where: { id: branchId },
+      select: { name: true }
+    }),
+    getBranchHealthSnapshot(branchId, date)
+  ])
+
+  return {
+    branchId,
+    branchName: branch?.name ?? "Unknown",
+
+    seats: {
+      total: health.seats.overall.totalSeats,
+      occupied: health.seats.overall.occupiedSeats,
+      available: health.seats.overall.totalSeats - health.seats.overall.occupiedSeats,
+      utilizationPercent: health.seats.overall.utilizationRatio * 100,
+    },
+
+    students: {
+      total: health.students.status.active + health.students.status.inactive,
+      active: health.students.status.active,
+      inactive: health.students.status.inactive,
+    },
+
+    payments: {
+      dueCount: health.payments.dueCount,
+      paidCount: health.payments.paidCount,
+      overdueCount: health.payments.dueCount, // Simplifying assumptions as before
+    },
+
+    asOf: date,
   }
 }
