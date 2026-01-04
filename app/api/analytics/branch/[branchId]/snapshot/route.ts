@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 
 export async function GET(
     _: Request,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     const user = await getSessionUser()
     if (!user) {
@@ -12,7 +12,8 @@ export async function GET(
     }
 
     try {
-        const snapshot = await getBranchHealthSnapshot(params.branchId)
+        const { branchId } = await params;
+        const snapshot = await getBranchHealthSnapshot(branchId)
         return NextResponse.json(snapshot)
     } catch (error) {
         console.error("Error fetching branch snapshot:", error)

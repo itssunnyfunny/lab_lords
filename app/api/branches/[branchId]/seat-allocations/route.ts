@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 // POST: Assign a seat
 export async function POST(
     req: NextRequest,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
         const user = await getSessionUser(); // Get user
@@ -45,10 +45,10 @@ export async function POST(
 // GET: List allocations
 export async function GET(
     req: NextRequest,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
-        const { branchId } = params;
+        const { branchId } = await params;
         const { searchParams } = new URL(req.url);
         const studentId = searchParams.get("studentId") || undefined;
         const shiftId = searchParams.get("shiftId") || undefined;

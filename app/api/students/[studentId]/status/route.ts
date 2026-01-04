@@ -5,7 +5,7 @@ import { StudentStatus } from "@prisma/client";
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { studentId: string } }
+    { params }: { params: Promise<{ studentId: string }> }
 ) {
     try {
         const user = await getSessionUser();
@@ -13,7 +13,7 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { studentId } = params;
+        const { studentId } = await params;
         const body = await req.json();
 
         if (!body.status || !Object.keys(StudentStatus).includes(body.status)) {

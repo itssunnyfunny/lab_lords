@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
         const user = await getSessionUser();
@@ -12,7 +12,7 @@ export async function POST(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { branchId } = params;
+        const { branchId } = await params;
         const body = await req.json();
 
         if (!body.name) {
@@ -38,7 +38,7 @@ export async function POST(
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
         const user = await getSessionUser();
@@ -46,7 +46,7 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { branchId } = params;
+        const { branchId } = await params;
         const students = await StudentService.getStudentsByBranch(user.id, branchId);
 
         return NextResponse.json(students);

@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
     req: Request,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
         const session = await getSessionUser();
@@ -21,9 +21,11 @@ export async function GET(
             status = statusParam as PaymentStatus;
         }
 
+        const { branchId } = await params;
+
         const payments = await PaymentService.listPayments(
             session.id,
-            params.branchId,
+            branchId,
             status
         );
 

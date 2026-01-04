@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
     req: Request,
-    { params }: { params: { paymentId: string } }
+    { params }: { params: Promise<{ paymentId: string }> }
 ) {
     try {
         const session = await getSessionUser();
@@ -12,9 +12,11 @@ export async function POST(
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
+        const { paymentId } = await params;
+
         const payment = await PaymentService.markPaymentAsPaid(
             session.id,
-            params.paymentId
+            paymentId
         );
 
         return NextResponse.json(payment);

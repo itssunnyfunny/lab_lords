@@ -6,12 +6,13 @@ import { getSeatUtilizationTrend } from "@/analytics/trends/seat.trends"
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     const user = await getSessionUser()
     if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { branchId } = await params;
 
     const searchParams = request.nextUrl.searchParams
     const fromParam = searchParams.get("from")
@@ -36,17 +37,17 @@ export async function GET(
         let result
         switch (type) {
             case "seat":
-                result = await getSeatUtilizationTrend(params.branchId, from, to)
+                result = await getSeatUtilizationTrend(branchId, from, to)
                 break
             case "payment":
-                result = await getPaymentTrend(params.branchId, from, to)
+                result = await getPaymentTrend(branchId, from, to)
                 break
             case "health":
-                result = await getBranchHealthTrend(params.branchId, from, to)
+                result = await getBranchHealthTrend(branchId, from, to)
                 break
             default:
                 // Defaulting to health if unknown type, or could return error
-                result = await getBranchHealthTrend(params.branchId, from, to)
+                result = await getBranchHealthTrend(branchId, from, to)
                 break
         }
 

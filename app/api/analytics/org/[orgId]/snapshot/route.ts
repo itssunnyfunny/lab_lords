@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 
 export async function GET(
     _: Request,
-    { params }: { params: { orgId: string } }
+    { params }: { params: Promise<{ orgId: string }> }
 ) {
     const user = await getSessionUser()
     if (!user) {
@@ -12,7 +12,8 @@ export async function GET(
     }
 
     try {
-        const snapshot = await getOrganizationHealthSnapshot(params.orgId)
+        const { orgId } = await params;
+        const snapshot = await getOrganizationHealthSnapshot(orgId)
         return NextResponse.json(snapshot)
     } catch (error) {
         console.error("Error fetching organization snapshot:", error)

@@ -9,7 +9,7 @@ const generateSchema = z.object({
 
 export async function POST(
     req: Request,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
         const session = await getSessionUser();
@@ -19,7 +19,7 @@ export async function POST(
 
         const body = await req.json();
         const { amount } = generateSchema.parse(body);
-        const branchId = params.branchId;
+        const { branchId } = await params;
 
         const result = await PaymentService.generateDuePaymentsForBranch(
             session.id,

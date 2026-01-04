@@ -4,10 +4,10 @@ import { SeatAllocationService } from "@/services/seatAllocation.service";
 // PUT: Release a seat (Unassign)
 export async function PUT(
     req: NextRequest,
-    { params }: { params: { allocationId: string } }
+    { params }: { params: Promise<{ allocationId: string }> }
 ) {
     try {
-        const { allocationId } = params;
+        const { allocationId } = await params;
 
         // We can accept a body if we want future extensibility, but for now just accessing the route is enough action.
         // However, to be RESTful and explicit, let's enforce a simple body check or just proceed.
