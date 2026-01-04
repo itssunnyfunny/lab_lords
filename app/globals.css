@@ -1,30 +1,24 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-surface-highlight: var(--surface-highlight);
-  --color-primary: var(--primary);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
-  
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@import "./tokens.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #0a0a0c;
-  --foreground: #ededed;
-  --surface: #121216;
-  --surface-highlight: #1c1c24;
-  --primary: #6366f1;
-  --border: #27272a;
-  --muted: #a1a1aa;
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-feature-settings: "cv02","cv03","cv04","cv11";
 }
+
+* {
+  border-color: var(--border-subtle);
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
