@@ -18,6 +18,7 @@ const config: Config = {
                 success: "var(--accent-success)",
                 warning: "var(--accent-warning)",
                 danger: "var(--accent-danger)",
+                cyan: "var(--accent-cyan)",
 
                 textPrimary: "var(--text-primary)",
                 textSecondary: "var(--text-secondary)",
@@ -31,9 +32,19 @@ const config: Config = {
             boxShadow: {
                 card: "var(--shadow-card)",
             },
+            animation: {
+                "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                shimmer: "shimmer 2s linear infinite",
+            },
+            keyframes: {
+                shimmer: {
+                    "0%": { transform: "translateX(-100%)" },
+                    "100%": { transform: "translateX(100%)" },
+                },
+            },
         },
     },
-    plugins: [],
+    plugins: [require("tailwind-scrollbar")],
 }
 
 export default config
