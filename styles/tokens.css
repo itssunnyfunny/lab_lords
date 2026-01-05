@@ -1,34 +1,49 @@
 :root {
-  /* === COLORS === */
-  --bg-app: #0b1020;
-  --bg-surface: #0f172a;
-  --bg-card: #111c3c;
-  --bg-card-hover: #162454;
+    /* === COLORS === */
+    /* Main Background: Deep Cosmic Blue/Black */
+    --bg-app: #050508;
+    
+    /* Secondary/Sidebar: Glassy dark */
+    --bg-surface: #0f111a;
+    
+    /* Cards: Glassy deep blue with transparency */
+    --bg-card: rgba(15, 17, 26, 0.4);
+    --bg-card-hover: rgba(22, 24, 34, 0.5);
 
-  --border-subtle: rgba(255,255,255,0.06);
+    /* Glass Effects */
+    --glass-border: rgba(255, 255, 255, 0.05);
+    --glass-surface: rgba(15, 17, 26, 0.4);
+    --glass-highlight: rgba(255, 255, 255, 0.1);
 
-  --text-primary: #e5e7eb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+    --border-subtle: rgba(255, 255, 255, 0.05);
 
-  --accent-primary: #4f46e5;
-  --accent-secondary: #7c3aed;
-  --accent-success: #22c55e;
-  --accent-warning: #facc15;
-  --accent-danger: #ef4444;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af; /* gray-400 */
+    --text-muted: #6b7280; /* gray-500 */
 
-  /* === RADII === */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+    /* Accents */
+    --accent-primary: #7c3aed; /* violet-600 */
+    --accent-glow: rgba(124, 58, 237, 0.3);
 
-  /* === SHADOWS === */
-  --shadow-card: 0 10px 30px rgba(0,0,0,0.4);
+    --accent-success: #10b981; /* emerald-500 */
+    --accent-warning: #f59e0b; /* amber-500 */
+    --accent-danger: #f43f5e; /* rose-500 */
+    --accent-cyan: #06b6d4; /* cyan-500 */
 
-  /* === SPACING === */
-  --space-xs: 6px;
-  --space-sm: 10px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
+    /* === RADII === */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+
+    /* === SHADOWS === */
+    --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+    --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.3);
+
+    /* === SPACING === */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
 }
