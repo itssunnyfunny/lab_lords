@@ -3,8 +3,37 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useEffect, useState, use } from "react";
+import { branches } from "@/lib/api/branches";
+import { Loader2 } from "lucide-react";
 
-export default function SettingsPage() {
+export default function SettingsPage({ params }: { params: Promise<{ branchId: string }> }) {
+    const { branchId } = use(params);
+    const [branch, setBranch] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadBranch = async () => {
+            try {
+                const data = await branches.getDetails(branchId);
+                setBranch(data);
+            } catch (error) {
+                console.error("Failed to load branch details", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadBranch();
+    }, [branchId]);
+
+    if (loading) {
+        return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading settings...</div>;
+    }
+
+    if (!branch) {
+        return <div className="p-8 text-white">Branch not found</div>;
+    }
+
     return (
         <div className="p-8 max-w-4xl">
             <PageHeader title="Branch Settings" subtitle="Configure branch details and preferences." />
@@ -16,11 +45,11 @@ export default function SettingsPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm text-textSecondary">Branch Name</label>
-                                <input type="text" defaultValue="Ashok Vihar Center" className="w-full bg-app border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-white focus:border-primary outline-none transition-colors" />
+                                <input type="text" defaultValue={branch.name} className="w-full bg-app border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-white focus:border-primary outline-none transition-colors" />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm text-textSecondary">Location</label>
-                                <input type="text" defaultValue="New Delhi, India" className="w-full bg-app border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-white focus:border-primary outline-none transition-colors" />
+                                <label className="text-sm text-textSecondary">Organization</label>
+                                <input type="text" defaultValue={branch.organization?.name || "N/A"} disabled className="w-full bg-app/50 border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-gray-400 cursor-not-allowed" />
                             </div>
                         </div>
                         <div className="flex justify-end pt-4">
@@ -56,3 +85,4 @@ export default function SettingsPage() {
         </div>
     );
 }
+
