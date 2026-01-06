@@ -15,7 +15,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   // 🔴 QUICK FIX:
   // Hardcoded user for development
   return {
-    id: "dev-user-1",
-    email: "dev@example.com",
+    id: "user_alice",
+    email: "alice@example.com",
   }
 }
