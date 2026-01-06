@@ -4,11 +4,49 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { MOCK_STUDENTS } from "@/lib/mock-data";
-import { Edit2, MoreHorizontal, Trash2 } from "lucide-react";
-import Image from "next/image";
+import { Edit2, Loader2, Trash2 } from "lucide-react";
+import { useEffect, useState, use } from "react";
+import { students } from "@/lib/api/students";
+import { Student } from "@prisma/client";
+import { format } from "date-fns";
 
-export default function StudentsPage() {
+export default function StudentsPage({ params }: { params: Promise<{ branchId: string }> }) {
+    const { branchId } = use(params);
+    const [data, setData] = useState<Student[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadStudents = async () => {
+            try {
+                const list = await students.list(branchId);
+                setData(list);
+            } catch (error) {
+                console.error("Failed to load students", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadStudents();
+    }, [branchId]);
+
+    const handleAddStudent = async () => {
+        // TODO: Implement Add Student Modal/Form
+        // For Phase 0/1 testing, one could add a prompt here:
+        /*
+        const name = prompt("Enter Name");
+        const phone = prompt("Enter Phone");
+        if (name) {
+             await students.create(branchId, { name, phone: phone || undefined });
+             // reload
+        }
+        */
+        console.log("Add student clicked");
+    };
+
+    if (loading) {
+        return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading students...</div>;
+    }
+
     return (
         <div className="p-8">
             <PageHeader
@@ -17,12 +55,12 @@ export default function StudentsPage() {
                 onSearch={() => { }}
                 onFilter={() => { }}
                 onExport={() => { }}
-                onAdd={() => { }}
+                onAdd={handleAddStudent}
                 actionLabel="Add Student"
             />
 
             <DataTable
-                data={MOCK_STUDENTS}
+                data={data}
                 columns={[
                     {
                         header: "Student Name",
@@ -33,19 +71,22 @@ export default function StudentsPage() {
                                 </div>
                                 <div>
                                     <p className="font-medium text-white">{item.name}</p>
-                                    <p className="text-xs text-textmuted">{item.course}</p>
+                                    <p className="text-xs text-textmuted">{item.phone || "No phone"}</p>
                                 </div>
                             </div>
                         )
                     },
-                    { header: "Joined", accessor: "joined" },
-                    { header: "Fee Breakdown", accessor: (item) => `$${item.fee}` },
+                    {
+                        header: "Joined",
+                        accessor: (item) => format(new Date(item.joinedAt), "PP")
+                    },
+                    { header: "Fee Breakdown", accessor: (item) => `$0` }, // Placeholder for now
                     {
                         header: "Attendance",
                         accessor: (item) => (
                             <div className="flex items-center gap-2">
-                                <span className={item.attendance === "12%" ? "text-danger" : "text-success font-medium"}>
-                                    {item.attendance}
+                                <span className="text-textMuted font-medium">
+                                    -
                                 </span>
                             </div>
                         )
@@ -53,7 +94,7 @@ export default function StudentsPage() {
                     {
                         header: "Status",
                         accessor: (item) => (
-                            <Badge variant={item.status === "Active" ? "success" : "neutral"}>
+                            <Badge variant={item.status === "ACTIVE" ? "success" : "default"}>
                                 {item.status}
                             </Badge>
                         )
@@ -73,3 +114,4 @@ export default function StudentsPage() {
         </div>
     );
 }
+
