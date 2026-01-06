@@ -2,8 +2,9 @@
 
 import { Card } from "@/components/ui/Card";
 import { Bar, BarChart, ResponsiveContainer, XAxis, Tooltip } from "recharts";
+import { BranchSnapshot } from "@/lib/api/analytics";
 
-const DATA_ACTIVE = [
+const DATA_MOCK = [
     { name: 'Mon', active: 400, inactive: 240 },
     { name: 'Tue', active: 300, inactive: 139 },
     { name: 'Wed', active: 200, inactive: 980 },
@@ -13,13 +14,15 @@ const DATA_ACTIVE = [
     { name: 'Sun', active: 349, inactive: 430 },
 ];
 
-export function SnapshotFooter() {
+export function SnapshotFooter({ snapshot }: { snapshot?: BranchSnapshot }) {
+    if (!snapshot) return null;
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             {/* Active vs Inactive */}
             <Card title="Active vs. Inactive Students" className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={DATA_ACTIVE}>
+                    <BarChart data={DATA_MOCK}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
                         <Tooltip
                             cursor={{ fill: 'rgba(255,255,255,0.05)' }}
@@ -37,16 +40,16 @@ export function SnapshotFooter() {
                     <div className="space-y-4">
                         <div>
                             <p className="text-textSecondary text-sm">Collected</p>
-                            <h3 className="text-2xl font-bold text-white">$182,500</h3>
+                            <h3 className="text-2xl font-bold text-white">${snapshot.paidAmount.toLocaleString()}</h3>
                         </div>
                         <div>
                             <p className="text-textSecondary text-sm">Pending</p>
-                            <h3 className="text-2xl font-bold text-rose-400">$36,780</h3>
+                            <h3 className="text-2xl font-bold text-rose-400">${snapshot.dueAmount.toLocaleString()}</h3>
                         </div>
                     </div>
                     <div className="flex-1 h-[200px] ml-10">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={DATA_ACTIVE}>
+                            <BarChart data={DATA_MOCK}>
                                 <Bar dataKey="active" fill="#10b981" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
@@ -56,3 +59,4 @@ export function SnapshotFooter() {
         </div>
     );
 }
+
