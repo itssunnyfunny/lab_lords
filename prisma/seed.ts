@@ -6,8 +6,8 @@ import { PrismaPg } from "@prisma/adapter-pg"
 
 const prisma = new PrismaClient({
     adapter: new PrismaPg({
-    connectionString: process.env.DATABASE_URL!,
-  })
+        connectionString: process.env.DATABASE_URL!,
+    })
 });
 const logStream = fs.createWriteStream('seed.log', { flags: 'a' });
 
@@ -36,6 +36,7 @@ async function main() {
 
     const alice = await prisma.user.create({
         data: {
+            id: 'user_alice',
             email: 'alice@example.com',
             name: 'Alice Admin',
         }
@@ -43,26 +44,28 @@ async function main() {
 
     const bob = await prisma.user.create({
         data: {
+            id: 'user_bob',
             email: 'bob@example.com',
             name: 'Bob Builder',
         }
     });
 
     // 3. Create Data for Alice
-    await createWorldForUser(alice, 'Alice EduCorp', ['Downtown Library', 'Uptown Study Hall']);
+    await createWorldForUser(alice, 'Alice EduCorp', ['Downtown Library', 'Uptown Study Hall'], 'org_alice');
 
     // 4. Create Data for Bob
-    await createWorldForUser(bob, "Bob's Coaching", ['Main Campus']);
+    await createWorldForUser(bob, "Bob's Coaching", ['Main Campus'], 'org_bob');
 
     log('✅ Seed completed successfully.');
 }
 
-async function createWorldForUser(user: any, orgName: string, branchNames: string[]) {
+async function createWorldForUser(user: any, orgName: string, branchNames: string[], orgId?: string) {
     log(`Building world for ${user.name}...`);
 
     // Create Org
     const org = await prisma.organization.create({
         data: {
+            id: orgId,
             name: orgName,
             ownerId: user.id,
         }

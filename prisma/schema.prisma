@@ -19,7 +19,7 @@ model User {
   createdAt DateTime @default(now())
 
   organizations Organization[]
-  staff Staff[]
+  staff         Staff[]
 }
 
 model Organization {
@@ -56,7 +56,7 @@ model Student {
   createdAt       DateTime         @default(now())
   seatAllocations SeatAllocation[]
 
-  branch Branch @relation(fields: [branchId], references: [id])
+  branch   Branch    @relation(fields: [branchId], references: [id])
   payments Payment[]
 
   @@index([branchId])
@@ -112,7 +112,7 @@ model SeatAllocation {
 }
 
 model Payment {
-  id        String        @id @default(cuid())
+  id        String @id @default(cuid())
   branchId  String
   studentId String
 
@@ -155,5 +155,3 @@ enum StaffRole {
   MANAGER
   STAFF
 }
-
-
