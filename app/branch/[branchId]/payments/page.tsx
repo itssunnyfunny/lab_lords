@@ -4,10 +4,35 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { MOCK_PAYMENTS } from "@/lib/mock-data";
-import { Eye, FileText, MoreHorizontal } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
+import { useEffect, useState, use } from "react";
+import { payments } from "@/lib/api/payments";
+import { Payment } from "@prisma/client";
+import { format } from "date-fns";
 
-export default function PaymentsPage() {
+export default function PaymentsPage({ params }: { params: Promise<{ branchId: string }> }) {
+    const { branchId } = use(params);
+    const [data, setData] = useState<Payment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadPayments = async () => {
+            try {
+                const list = await payments.list(branchId);
+                setData(list);
+            } catch (error) {
+                console.error("Failed to load payments", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadPayments();
+    }, [branchId]);
+
+    if (loading) {
+        return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading payments...</div>;
+    }
+
     return (
         <div className="p-8">
             <PageHeader
@@ -21,20 +46,20 @@ export default function PaymentsPage() {
             />
 
             <DataTable
-                data={MOCK_PAYMENTS}
+                data={data}
                 columns={[
-                    { header: "Transaction ID", accessor: (item) => <span className="font-mono text-xs text-textSecondary">#{item.id}</span> },
-                    { header: "Student", accessor: "student" },
-                    { header: "Date", accessor: "date" },
+                    { header: "Transaction ID", accessor: (item) => <span className="font-mono text-xs text-textSecondary">#{item.id.slice(-6)}</span> },
+                    { header: "Student", accessor: (item) => (item as any).student?.name || "Unknown" }, // Assuming API expands student
+                    { header: "Due Date", accessor: (item) => format(new Date(item.dueDate), "PP") },
                     { header: "Amount", accessor: (item) => <span className="font-bold text-white">${item.amount}</span> },
-                    { header: "Method", accessor: "method" },
+                    { header: "Method", accessor: () => "Manual" }, // Mocking method as schema doesn't have it yet (only status)
                     {
                         header: "Status",
                         accessor: (item) => (
                             <Badge
                                 variant={
-                                    item.status === "Paid" ? "success" :
-                                        item.status === "Pending" ? "warning" :
+                                    item.status === "PAID" ? "success" :
+                                        item.status === "DUE" ? "warning" :
                                             "danger"
                                 }
                             >
@@ -54,3 +79,4 @@ export default function PaymentsPage() {
         </div>
     );
 }
+
