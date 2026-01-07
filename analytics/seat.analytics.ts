@@ -30,7 +30,8 @@ export async function getSeatUtilization(
   }
 
   // Active allocations as of date (any shift)
-  const occupiedSeats = await prisma.seatAllocation.count({
+  // Active allocations as of date (any shift)
+  const distinctAllocations = await prisma.seatAllocation.findMany({
     where: {
       seat: { branchId },
       startDate: { lte: date },
@@ -39,9 +40,11 @@ export async function getSeatUtilization(
         { endDate: { gt: date } },
       ],
     },
-    //@ts-ignore  
-    distinct: ["seatId"], // one seat counted once // TODO: fix type
+    distinct: ["seatId"],
+    select: { seatId: true },
   })
+
+  const occupiedSeats = distinctAllocations.length
 
   return {
     totalSeats,

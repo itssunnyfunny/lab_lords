@@ -34,20 +34,33 @@ export async function GET(
     }
 
     try {
-        let result
+        let result: { date: string; value: number; category?: string }[] = []
+
         switch (type) {
             case "seat":
-                result = await getSeatUtilizationTrend(branchId, from, to)
+                const seatData = await getSeatUtilizationTrend(branchId, from, to)
+                result = seatData.map(item => ({
+                    date: item.asOf.toISOString(),
+                    value: item.utilizationRatio * 100,
+                    category: "Seat Utilization"
+                }))
                 break
             case "payment":
-                result = await getPaymentTrend(branchId, from, to)
+                const paymentData = await getPaymentTrend(branchId, from, to)
+                result = paymentData.map(item => ({
+                    date: item.asOf.toISOString(),
+                    value: item.paidAmount,
+                    category: "Revenue Collection"
+                }))
                 break
             case "health":
-                result = await getBranchHealthTrend(branchId, from, to)
-                break
             default:
-                // Defaulting to health if unknown type, or could return error
-                result = await getBranchHealthTrend(branchId, from, to)
+                const healthData = await getBranchHealthTrend(branchId, from, to)
+                result = healthData.map(item => ({
+                    date: item.asOf.toISOString(),
+                    value: item.snapshot.seats.overall.utilizationRatio * 100,
+                    category: "Health Score"
+                }))
                 break
         }
 
