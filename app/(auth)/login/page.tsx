@@ -6,9 +6,29 @@ import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { GlowText } from "@/components/ui/GlowText";
 import { useRouter } from "next/navigation";
 import { Building2 } from "lucide-react";
+import { useState } from "react";
 
 export default function LoginPage() {
     const router = useRouter();
+    const [email, setEmail] = useState("admin@nebula.com");
+    const [password, setPassword] = useState("");
+
+    const handleLogin = () => {
+        // Mock Auth Logic
+        let userId = "user_alice"; // Default to Alice
+
+        if (email.toLowerCase().includes("bob")) {
+            userId = "user_bob";
+        } else if (email.toLowerCase().includes("alice")) {
+            userId = "user_alice";
+        }
+
+        // Set the session
+        localStorage.setItem("x-user-id", userId);
+
+        // Navigate
+        router.push("/org"); // Go to org selection
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#050508]">
@@ -34,7 +54,9 @@ export default function LoginPage() {
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Email Access</label>
                             <input
                                 type="email"
-                                placeholder="admin@nebula.com"
+                                placeholder="alice@example.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="w-full bg-[#050508]/50 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-gray-700 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 focus:outline-none transition-all"
                             />
                         </div>
@@ -43,13 +65,15 @@ export default function LoginPage() {
                             <input
                                 type="password"
                                 placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
                                 className="w-full bg-[#050508]/50 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-gray-700 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 focus:outline-none transition-all"
                             />
                         </div>
                         <Button
                             variant="primary"
                             className="w-full py-3.5 mt-2 text-base shadow-[0_0_20px_rgba(124,58,237,0.4)]"
-                            onClick={() => router.push("/")}
+                            onClick={handleLogin}
                         >
                             Initialize Session
                         </Button>
