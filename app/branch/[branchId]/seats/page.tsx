@@ -4,20 +4,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
-import { User, Loader2 } from "lucide-react";
+import { User, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { branches } from "@/lib/api/branches";
 import { Seat } from "@prisma/client";
+import { Button } from "@/components/ui/Button";
+import { useRouter } from "next/navigation";
 
 // Extended Seat type to include temporary allocation info if available
-// Or we might need to fetch allocations separately. 
-// For now, assuming seat list might return some status or we default to Available.
-// The raw Seat model has: id, label. It doesn't have status directly unless joined.
-// The `listSeats` service method might include allocations.
-// Let's assume for this step we display what we have, and if status is missing, we default to "Available" 
-// or fetch allocations in parallel if needed.
-// Checking `branches.getSeats`, it returns `Seat[]`.
-// Use `any` for seat temporarily to check if it has extra props from backend join.
 interface SeatWithStatus extends Seat {
     status?: "Occupied" | "Available" | "Maintenance";
     studentName?: string;
@@ -25,25 +19,28 @@ interface SeatWithStatus extends Seat {
 
 export default function SeatsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+    const router = useRouter();
     const [seats, setSeats] = useState<SeatWithStatus[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadSeats = async () => {
             try {
                 const data = await branches.getSeats(branchId);
-                // Data mapping: if the backend returns just Seat (id, label), we don't know status.
-                // We'll mark as Available for now unless we fetch allocations.
-                // TODO: Enhance backend to return status or fetch allocations here.
-                // For valid display, we map them.
                 const mapped = data.map((s: any) => ({
                     ...s,
                     status: s.seatAllocations && s.seatAllocations.length > 0 ? "Occupied" : "Available",
                     studentName: s.seatAllocations && s.seatAllocations.length > 0 ? s.seatAllocations[0].student.name : undefined
                 }));
                 setSeats(mapped);
-            } catch (error) {
-                console.error("Failed to load seats", error);
+            } catch (err: any) {
+                console.error("Failed to load seats", err);
+                if (err.message?.includes("Branch not found") || err.response?.status === 404) {
+                    setError("Branch not found. Matches no existing records.");
+                } else {
+                    setError("Failed to load seats.");
+                }
             } finally {
                 setLoading(false);
             }
@@ -53,6 +50,20 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
 
     if (loading) {
         return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading seats...</div>;
+    }
+
+    if (error) {
+        return (
+            <div className="p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
+                <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
+                <h2 className="text-xl font-semibold">Something went wrong</h2>
+                <p className="text-gray-400">{error}</p>
+                <Button variant="outline" onClick={() => router.push("/org")}>
+                    <ArrowLeft size={16} className="mr-2" />
+                    Back to Workspace
+                </Button>
+            </div>
+        );
     }
 
     return (

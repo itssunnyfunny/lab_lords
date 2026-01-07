@@ -4,24 +4,32 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Edit2, Loader2, Trash2 } from "lucide-react";
+import { Edit2, Loader2, Trash2, AlertCircle, ArrowLeft } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { students } from "@/lib/api/students";
 import { Student } from "@prisma/client";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 
 export default function StudentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+    const router = useRouter();
     const [data, setData] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadStudents = async () => {
             try {
                 const list = await students.list(branchId);
                 setData(list);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to load students", error);
+                if (error.message?.includes("Branch not found") || error.response?.status === 404) {
+                    setError("Branch not found.");
+                } else {
+                    setError("Failed to load students.");
+                }
             } finally {
                 setLoading(false);
             }
@@ -30,21 +38,25 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
     }, [branchId]);
 
     const handleAddStudent = async () => {
-        // TODO: Implement Add Student Modal/Form
-        // For Phase 0/1 testing, one could add a prompt here:
-        /*
-        const name = prompt("Enter Name");
-        const phone = prompt("Enter Phone");
-        if (name) {
-             await students.create(branchId, { name, phone: phone || undefined });
-             // reload
-        }
-        */
         console.log("Add student clicked");
     };
 
     if (loading) {
         return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading students...</div>;
+    }
+
+    if (error) {
+        return (
+            <div className="p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
+                <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
+                <h2 className="text-xl font-semibold">Something went wrong</h2>
+                <p className="text-gray-400">{error}</p>
+                <Button variant="outline" onClick={() => router.push("/org")}>
+                    <ArrowLeft size={16} className="mr-2" />
+                    Back to Workspace
+                </Button>
+            </div>
+        );
     }
 
     return (

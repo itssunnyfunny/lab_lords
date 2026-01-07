@@ -4,24 +4,32 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { payments } from "@/lib/api/payments";
 import { Payment } from "@prisma/client";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 
 export default function PaymentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+    const router = useRouter();
     const [data, setData] = useState<Payment[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadPayments = async () => {
             try {
                 const list = await payments.list(branchId);
                 setData(list);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to load payments", error);
+                if (error.message?.includes("Branch not found") || error.response?.status === 404) {
+                    setError("Branch not found.");
+                } else {
+                    setError("Failed to load payments.");
+                }
             } finally {
                 setLoading(false);
             }
@@ -31,6 +39,20 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
 
     if (loading) {
         return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading payments...</div>;
+    }
+
+    if (error) {
+        return (
+            <div className="p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
+                <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
+                <h2 className="text-xl font-semibold">Something went wrong</h2>
+                <p className="text-gray-400">{error}</p>
+                <Button variant="outline" onClick={() => router.push("/org")}>
+                    <ArrowLeft size={16} className="mr-2" />
+                    Back to Workspace
+                </Button>
+            </div>
+        );
     }
 
     return (
