@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,11 +7,10 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  createdAt     DateTime       @default(now())
   organizations Organization[]
   staff         Staff[]
 }
@@ -27,23 +20,21 @@ model Organization {
   name      String
   ownerId   String
   createdAt DateTime @default(now())
-
-  owner    User     @relation(fields: [ownerId], references: [id])
-  branches Branch[]
+  branches  Branch[]
+  owner     User     @relation(fields: [ownerId], references: [id])
 }
 
 model Branch {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   name           String
-  createdAt      DateTime @default(now())
-
-  organization Organization @relation(fields: [organizationId], references: [id])
-  students     Student[]
-  seats        Seat[]
-  shifts       Shift[]
-  payments     Payment[]
-  staff        Staff[]
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  payments       Payment[]
+  seats          Seat[]
+  shifts         Shift[]
+  staff          Staff[]
+  students       Student[]
 }
 
 model Student {
@@ -54,25 +45,18 @@ model Student {
   status          StudentStatus    @default(ACTIVE)
   joinedAt        DateTime         @default(now())
   createdAt       DateTime         @default(now())
+  payments        Payment[]
   seatAllocations SeatAllocation[]
-
-  branch   Branch    @relation(fields: [branchId], references: [id])
-  payments Payment[]
+  branch          Branch           @relation(fields: [branchId], references: [id])
 
   @@index([branchId])
 }
 
-enum StudentStatus {
-  ACTIVE
-  INACTIVE
-}
-
 model Seat {
-  id        String   @id @default(cuid())
-  branchId  String
-  label     String // e.g. "A1", "12", "Desk-05"
-  createdAt DateTime @default(now())
-
+  id              String           @id @default(cuid())
+  branchId        String
+  label           String
+  createdAt       DateTime         @default(now())
   branch          Branch           @relation(fields: [branchId], references: [id])
   seatAllocations SeatAllocation[]
 
@@ -83,13 +67,12 @@ model Seat {
 model Shift {
   id              String           @id @default(cuid())
   branchId        String
-  name            String // "Morning", "Evening", "Reserved"
-  startTime       String? // "06:00" (string for now)
-  endTime         String? // "12:00"
+  name            String
+  startTime       String?
+  endTime         String?
   createdAt       DateTime         @default(now())
   seatAllocations SeatAllocation[]
-
-  branch Branch @relation(fields: [branchId], references: [id])
+  branch          Branch           @relation(fields: [branchId], references: [id])
 
   @@unique([branchId, name])
   @@index([branchId])
@@ -102,39 +85,30 @@ model SeatAllocation {
   shiftId   String
   startDate DateTime  @default(now())
   endDate   DateTime?
-
-  seat    Seat    @relation(fields: [seatId], references: [id])
-  student Student @relation(fields: [studentId], references: [id])
-  shift   Shift   @relation(fields: [shiftId], references: [id])
+  seat      Seat      @relation(fields: [seatId], references: [id])
+  shift     Shift     @relation(fields: [shiftId], references: [id])
+  student   Student   @relation(fields: [studentId], references: [id])
 
   @@index([seatId, shiftId])
   @@index([studentId])
 }
 
 model Payment {
-  id        String @id @default(cuid())
-  branchId  String
-  studentId String
-
+  id          String        @id @default(cuid())
+  branchId    String
+  studentId   String
   periodStart DateTime
   periodEnd   DateTime
   dueDate     DateTime
-
-  amount    Int
-  status    PaymentStatus @default(DUE)
-  paidAt    DateTime?
-  createdAt DateTime      @default(now())
-
-  branch  Branch  @relation(fields: [branchId], references: [id])
-  student Student @relation(fields: [studentId], references: [id])
+  amount      Int
+  status      PaymentStatus @default(DUE)
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+  branch      Branch        @relation(fields: [branchId], references: [id])
+  student     Student       @relation(fields: [studentId], references: [id])
 
   @@unique([studentId, periodStart])
   @@index([branchId, dueDate])
-}
-
-enum PaymentStatus {
-  DUE
-  PAID
 }
 
 model Staff {
@@ -143,12 +117,21 @@ model Staff {
   branchId  String
   role      StaffRole
   createdAt DateTime  @default(now())
-
-  user   User   @relation(fields: [userId], references: [id])
-  branch Branch @relation(fields: [branchId], references: [id])
+  branch    Branch    @relation(fields: [branchId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
 
   @@unique([userId, branchId])
   @@index([branchId])
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PaymentStatus {
+  DUE
+  PAID
 }
 
 enum StaffRole {
