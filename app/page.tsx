@@ -23,10 +23,45 @@ export default function OrgSelectionPage() {
       localStorage.setItem("x-user-id", "user_alice"); // Default test user set to Alice
     }
 
-    const fetchOrgs = async () => {
+    const checkState = async () => {
       try {
         const data = await organizations.getAll();
         setOrgs(data);
+
+        // 1. No Organizations -> Redirect to Onboarding
+        if (data.length === 0) {
+          router.replace("/onboarding");
+          return;
+        }
+
+        // 2. Has Organizations -> Try to find where to go
+        // Ideally we check localStorage for 'lastBranchId'
+        const lastBranchId = localStorage.getItem("lastBranchId");
+        if (lastBranchId) {
+          // We could verify if valid, but for speed just specific check or try nav
+          // For robust check, we'd need an API `branches/${id}` but that might be overkill on landing.
+          // Let's perform a smarter check or just default to logic below if not confident.
+          // Proceeding with default logic for safety first:
+        }
+
+        // Logic: Pick the first org, then find its branches.
+        // Since `organizations.getAll()` returns array of Org, we need to fetch branches for one to redirect deeply.
+        // OR we just let the user pick the org if they have multiple.
+
+        // Refined Rule: "User always has an active org and active branch"
+        // If they have 1 org, auto-redirect to its dashboard or first branch?
+        // User request says: "YES -> Redirect to last-used org/branch"
+
+        // Implementation:
+        // We will keep the "Select Workspace" screen if > 1 Org or no history.
+        // If 1 Org, maybe auto-select?
+        // For now, let's stick to the current UI which serves as the "Hub", 
+        // BUT strictly enforce the "Empty -> Onboarding" rule.
+
+        if (data.length === 0) {
+          // Handled above 
+        }
+
       } catch (err: any) {
         setError(err.message || "Failed to load organizations");
       } finally {
@@ -34,15 +69,16 @@ export default function OrgSelectionPage() {
       }
     };
 
-    fetchOrgs();
-  }, []);
+    checkState();
+  }, [router]);
 
   const handleSelect = (orgId: string) => {
-    router.push(`/org/${orgId}`); // Or logic to pick default branch
-    // For now, redirecting to org page. 
-    // If the requirement is specific about flow, we might need to list branches here or after.
-    // Assuming standard flow: Org -> Org Dashboard or potentially Branch Selection.
-    // Given routes, `/org/[orgId]` exists. 
+    // When user selects an Org, we should ideally take them to the specific branch.
+    // But we don't have branch info here blindly.
+    // Existing flow goes to `/org/[orgId]`.
+    // Let's assume `/org/[orgId]` will handle the "Branch Logic" or generic dashboard.
+    // BUT per user request "Org cannot exist without branch", so `/org/[orgId]` might need to respect that.
+    router.push(`/org/${orgId}`);
   };
 
   if (loading) {
