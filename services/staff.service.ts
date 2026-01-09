@@ -1,26 +1,16 @@
 import { prisma as db } from "@/lib/prisma";
-import { StaffRole } from "@prisma/client";
+import { StaffRole, StaffAction, EntityPermissionMatrix } from "@/types";
 
 // ==========================================
 // 1. TYPES & PERMISSION MATRIX
 // ==========================================
-
-export type StaffAction =
-    | "manage_org"
-    | "manage_branch"
-    | "students"
-    | "seat_allocation"
-    | "generate_payments"
-    | "mark_payment_paid"
-    | "analytics"
-    | "staff_management";
 
 /**
  * Roles allowed to perform an action (IN ADDITION to Organization Owner).
  * If a role is listed here, it is allowed.
  * Owner is implicitly allowed for everything on their own org/branch.
  */
-export const PERMISSION_MATRIX: Record<StaffAction, StaffRole[]> = {
+export const PERMISSION_MATRIX: EntityPermissionMatrix = {
     manage_org: [], // OWNER only
     manage_branch: [StaffRole.MANAGER],
     students: [StaffRole.MANAGER, StaffRole.STAFF],

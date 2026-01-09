@@ -1,11 +1,6 @@
 
 import { prisma } from "@/lib/prisma";
-
-export interface CreateShiftDto {
-    name: string;
-    startTime?: string;
-    endTime?: string;
-}
+import { CreateShiftDto } from "@/types";
 
 export class ShiftService {
     /**

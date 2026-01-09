@@ -1,10 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { StudentStatus } from "@prisma/client";
-
-export type CreateStudentDto = {
-    name: string;
-    phone?: string;
-};
+import { StudentStatus } from "@/types";
+import { CreateStudentDto } from "@/types";
 
 export class StudentService {
     /**
