@@ -16,18 +16,21 @@ model User {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  ownerId   String
-  createdAt DateTime @default(now())
-  branches  Branch[]
-  owner     User     @relation(fields: [ownerId], references: [id])
+  id           String   @id @default(cuid())
+  name         String
+  ownerId      String
+  businessType String? // e.g. Library, Study Hall
+  createdAt    DateTime @default(now())
+  branches     Branch[]
+  owner        User     @relation(fields: [ownerId], references: [id])
 }
 
 model Branch {
   id             String       @id @default(cuid())
   organizationId String
   name           String
+  city           String?
+  defaultFee     Int?         @default(0)
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id])
   payments       Payment[]
