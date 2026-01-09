@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { CreateOrganizationDto } from "@/types";
 
 export class OrganizationService {
-    static async createOrganization(data: { name: string; ownerId: string }) {
+    static async createOrganization(data: CreateOrganizationDto) {
         return await prisma.organization.create({
             data: {
                 name: data.name,

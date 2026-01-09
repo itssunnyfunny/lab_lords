@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { CreateBranchDto } from "@/types";
 
 export class BranchService {
-    static async createBranch(data: { name: string; organizationId: string }) {
+    static async createBranch(data: CreateBranchDto) {
         return await prisma.branch.create({
             data: {
                 name: data.name,
