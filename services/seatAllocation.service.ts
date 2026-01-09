@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { StudentStatus } from "@prisma/client";
+import { StudentStatus, SeatAllocationFilters } from "@/types";
 
 export class SeatAllocationService {
     /**
@@ -99,11 +99,7 @@ export class SeatAllocationService {
      */
     static async listAllocations(
         branchId: string,
-        filters?: {
-            studentId?: string;
-            shiftId?: string;
-            activeOnly?: boolean;
-        }
+        filters?: SeatAllocationFilters
     ) {
         return prisma.seatAllocation.findMany({
             where: {
