@@ -11,12 +11,15 @@ import { Student } from "@prisma/client";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 
+import { AddStudentDialog } from "./AddStudentDialog";
+
 export default function StudentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
     const router = useRouter();
     const [data, setData] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     useEffect(() => {
         const loadStudents = async () => {
@@ -37,8 +40,12 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
         loadStudents();
     }, [branchId]);
 
-    const handleAddStudent = async () => {
-        console.log("Add student clicked");
+    const handleAddStudent = () => {
+        setIsAddModalOpen(true);
+    };
+
+    const handleStudentAdded = (newStudent: Student) => {
+        setData((prev) => [newStudent, ...prev]);
     };
 
     if (loading) {
@@ -122,6 +129,13 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                         </Button>
                     </div>
                 )}
+            />
+
+            <AddStudentDialog
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSuccess={handleStudentAdded}
+                branchId={branchId}
             />
         </div>
     );

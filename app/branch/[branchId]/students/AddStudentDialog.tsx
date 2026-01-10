@@ -1,0 +1,131 @@
+"use client";
+
+import { useState } from "react";
+import { X, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { students } from "@/lib/api/students";
+import { CreateStudentDto } from "@/types";
+
+interface AddStudentDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess: (student: any) => void;
+    branchId: string;
+}
+
+export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddStudentDialogProps) {
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [formData, setFormData] = useState<CreateStudentDto>({
+        name: "",
+        phone: ""
+    });
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!formData.name.trim()) {
+            setError("Name is required");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const newStudent = await students.create(branchId, formData);
+            onSuccess(newStudent);
+            onClose();
+            // Reset form
+            setFormData({ name: "", phone: "" });
+        } catch (err: any) {
+            console.error("Failed to create student:", err);
+            setError(err.response?.data?.message || "Failed to create student. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+                className="w-full max-w-md bg-surface border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5">
+                    <h2 className="text-lg font-semibold text-white">Add New Student</h2>
+                    <button
+                        onClick={onClose}
+                        className="text-textMuted hover:text-white transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {error && (
+                        <div className="p-3 text-sm text-red-200 bg-red-900/30 border border-red-900/50 rounded-md">
+                            {error}
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <label htmlFor="name" className="text-sm font-medium text-textMuted">
+                            Full Name <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                            id="name"
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
+                            placeholder="e.g. John Doe"
+                            autoFocus
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label htmlFor="phone" className="text-sm font-medium text-textMuted">
+                            Phone Number
+                        </label>
+                        <input
+                            id="phone"
+                            type="tel"
+                            value={formData.phone || ""}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
+                            placeholder="e.g. +91 98765 43210"
+                        />
+                    </div>
+
+                    <div className="pt-2 flex justify-end gap-3">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={onClose}
+                            disabled={isLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isLoading}
+                            className="min-w-[100px]"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Adding...
+                                </>
+                            ) : (
+                                "Add Student"
+                            )}
+                        </Button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
