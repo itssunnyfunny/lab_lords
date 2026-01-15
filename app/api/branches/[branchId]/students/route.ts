@@ -25,6 +25,8 @@ export async function POST(
         const student = await StudentService.createStudent(user.id, branchId, {
             name: body.name,
             phone: body.phone,
+            shiftId: body.shiftId,
+            seatId: body.seatId,
         });
 
         return NextResponse.json(student, { status: 201 });

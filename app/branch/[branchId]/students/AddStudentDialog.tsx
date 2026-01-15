@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { students } from "@/lib/api/students";
+import { branches } from "@/lib/api/branches";
 import { CreateStudentDto } from "@/types";
+import type { Shift, Seat } from "@prisma/client";
 
 interface AddStudentDialogProps {
     isOpen: boolean;
@@ -20,6 +22,33 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
         name: "",
         phone: ""
     });
+
+    const [shifts, setShifts] = useState<Shift[]>([]);
+    const [seats, setSeats] = useState<Seat[]>([]);
+    const [isFetchingOptions, setIsFetchingOptions] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchOptions();
+        }
+    }, [isOpen, branchId]);
+
+    const fetchOptions = async () => {
+        setIsFetchingOptions(true);
+        try {
+            const [fetchedShifts, fetchedSeats] = await Promise.all([
+                branches.getShifts(branchId),
+                branches.getSeats(branchId)
+            ]);
+            setShifts(fetchedShifts);
+            setSeats(fetchedSeats);
+        } catch (err) {
+            console.error("Failed to fetch shifts/seats:", err);
+            // We continue even if this fails, just fields will be empty
+        } finally {
+            setIsFetchingOptions(false);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -42,7 +71,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             setFormData({ name: "", phone: "" });
         } catch (err: any) {
             console.error("Failed to create student:", err);
-            setError(err.response?.data?.message || "Failed to create student. Please try again.");
+            setError(err.response?.data?.error || err.response?.data?.message || err.message || "Failed to create student.");
         } finally {
             setIsLoading(false);
         }
@@ -98,6 +127,48 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                             className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
                             placeholder="e.g. +91 98765 43210"
                         />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label htmlFor="shift" className="text-sm font-medium text-textMuted">
+                                Shift (Optional)
+                            </label>
+                            <select
+                                id="shift"
+                                value={formData.shiftId || ""}
+                                onChange={(e) => setFormData({ ...formData, shiftId: e.target.value || undefined })}
+                                className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white"
+                                disabled={isFetchingOptions}
+                            >
+                                <option value="">None</option>
+                                {shifts.map((shift) => (
+                                    <option key={shift.id} value={shift.id}>
+                                        {shift.name} ({shift.startTime}-{shift.endTime})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="seat" className="text-sm font-medium text-textMuted">
+                                Seat (Optional)
+                            </label>
+                            <select
+                                id="seat"
+                                value={formData.seatId || ""}
+                                onChange={(e) => setFormData({ ...formData, seatId: e.target.value || undefined })}
+                                className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white"
+                                disabled={isFetchingOptions}
+                            >
+                                <option value="">None</option>
+                                {seats.map((seat) => (
+                                    <option key={seat.id} value={seat.id}>
+                                        {seat.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <div className="pt-2 flex justify-end gap-3">
