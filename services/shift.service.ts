@@ -48,6 +48,7 @@ export class ShiftService {
                 name: data.name,
                 startTime: data.startTime,
                 endTime: data.endTime,
+                price: data.price ?? 0,
             },
         });
     }
@@ -76,6 +77,7 @@ export class ShiftService {
                         name: def.name,
                         startTime: def.startTime,
                         endTime: def.endTime,
+                        price: 0,
                     },
                 });
             }

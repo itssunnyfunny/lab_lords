@@ -58,13 +58,55 @@ export class StudentService {
     ) {
         await this.verifyBranchOwnership(userId, branchId);
 
-        return prisma.student.create({
-            data: {
-                branchId,
-                name: data.name,
-                phone: data.phone,
-                status: StudentStatus.ACTIVE,
-            },
+        return prisma.$transaction(async (tx) => {
+            // 1. Create Student
+            const student = await tx.student.create({
+                data: {
+                    branchId,
+                    name: data.name,
+                    phone: data.phone,
+                    status: StudentStatus.ACTIVE,
+                },
+            });
+
+            // 2. If seat and shift are provided, perform allocation
+            if (data.seatId && data.shiftId) {
+                // Fetch seat and shift to validate
+                const seat = await tx.seat.findUnique({ where: { id: data.seatId } });
+                const shift = await tx.shift.findUnique({ where: { id: data.shiftId } });
+
+                if (!seat) throw new Error("Seat not found");
+                if (!shift) throw new Error("Shift not found");
+
+                // Validate "Same Branch" Rule
+                if (seat.branchId !== branchId || shift.branchId !== branchId) {
+                    throw new Error("Seat and Shift must belong to the same branch");
+                }
+
+                // Check for existing active allocation for this seat in this shift
+                const existingAllocation = await tx.seatAllocation.findFirst({
+                    where: {
+                        seatId: data.seatId,
+                        shiftId: data.shiftId,
+                        endDate: null,
+                    },
+                });
+
+                if (existingAllocation) {
+                    throw new Error("Seat is already assigned in this shift");
+                }
+
+                // Create Allocation
+                await tx.seatAllocation.create({
+                    data: {
+                        seatId: data.seatId,
+                        studentId: student.id,
+                        shiftId: data.shiftId,
+                    },
+                });
+            }
+
+            return student;
         });
     }
 
