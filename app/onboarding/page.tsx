@@ -6,7 +6,7 @@ import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { GlowText } from "@/components/ui/GlowText";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ArrowRight, Building2, MapPin, Loader2 } from "lucide-react";
+import { ArrowRight, Building2, MapPin, Loader2, X } from "lucide-react";
 import { apiClient } from "@/lib/api/core";
 
 export default function OnboardingPage() {
@@ -21,13 +21,36 @@ export default function OnboardingPage() {
         businessType: "",
         branchName: "",
         city: "",
-        defaultFee: "",
-        shifts: { morning: false, afternoon: false, evening: false, reserved: false } // placeholder for UI
+        seatCount: "",
+        shifts: [
+            { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
+            { name: "Evening", startTime: "16:00", endTime: "22:00", price: 0 }
+        ]
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleShiftChange = (index: number, field: string, value: any) => {
+        const newShifts = [...formData.shifts];
+        newShifts[index] = { ...newShifts[index], [field]: value };
+        setFormData(prev => ({ ...prev, shifts: newShifts }));
+    };
+
+    const addShift = () => {
+        setFormData(prev => ({
+            ...prev,
+            shifts: [...prev.shifts, { name: "", startTime: "", endTime: "", price: 0 }]
+        }));
+    };
+
+    const removeShift = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            shifts: prev.shifts.filter((_, i) => i !== index)
+        }));
     };
 
     const handleNext = () => {
@@ -44,6 +67,10 @@ export default function OnboardingPage() {
             setError("Branch name is required.");
             return;
         }
+        if (!formData.seatCount || parseInt(formData.seatCount) <= 0) {
+            setError("Please enter a valid number of seats.");
+            return;
+        }
 
         setLoading(true);
         setError(null);
@@ -54,7 +81,11 @@ export default function OnboardingPage() {
                 businessType: formData.businessType,
                 branchName: formData.branchName,
                 city: formData.city,
-                defaultFee: formData.defaultFee,
+                seatCount: parseInt(formData.seatCount),
+                shifts: formData.shifts.map(s => ({
+                    ...s,
+                    price: Number(s.price) // ensure number
+                }))
             });
 
             // Success -> Redirect to the new branch dashboard
@@ -72,7 +103,7 @@ export default function OnboardingPage() {
         <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans text-white bg-[#050508]">
             <AmbientBackground />
 
-            <div className="relative z-10 max-w-lg w-full">
+            <div className="relative z-10 max-w-2xl w-full">
                 <div className="text-center mb-10">
                     <h2 className="text-3xl font-bold text-white mb-2">
                         <GlowText>
@@ -82,11 +113,11 @@ export default function OnboardingPage() {
                     <p className="text-gray-400">
                         {step === 1
                             ? "This represents your business identity."
-                            : "Where the real work happens."}
+                            : "Define your capacity and operations."}
                     </p>
                 </div>
 
-                <Card className="p-8 bg-[#0f111a]/60 backdrop-blur-xl border-white/10">
+                <Card className="p-8 bg-[#0f111a]/60 backdrop-blur-xl border-white/10 max-h-[80vh] overflow-y-auto">
                     {step === 1 && (
                         <div className="space-y-6">
                             <div>
@@ -172,29 +203,89 @@ export default function OnboardingPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                                        Default Fee <span className="text-gray-500">(Opt)</span>
+                                        Total Seats <span className="text-red-400">*</span>
                                     </label>
                                     <input
                                         type="number"
-                                        name="defaultFee"
-                                        value={formData.defaultFee}
+                                        name="seatCount"
+                                        value={formData.seatCount}
                                         onChange={handleInputChange}
-                                        placeholder="0"
+                                        placeholder="e.g. 50"
                                         className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
                                     />
                                 </div>
                             </div>
 
-                            <div className="pt-2">
-                                <p className="text-xs text-gray-500 mb-3">
-                                    Default shifts (Morning/Evening) will be created automatically. You can edit them later.
-                                </p>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="block text-sm font-medium text-gray-300">
+                                        Shifts & Pricing
+                                    </label>
+                                    <button
+                                        onClick={addShift}
+                                        className="text-xs text-cyan-400 hover:text-cyan-300"
+                                    >
+                                        + Add Shift
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {formData.shifts.map((shift, idx) => (
+                                        <div key={idx} className="flex gap-2 items-start p-3 bg-white/5 rounded-lg border border-white/5">
+                                            <div className="flex-1 grid grid-cols-12 gap-2">
+                                                <div className="col-span-4">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Name"
+                                                        value={shift.name}
+                                                        onChange={(e) => handleShiftChange(idx, "name", e.target.value)}
+                                                        className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
+                                                    />
+                                                </div>
+                                                <div className="col-span-3">
+                                                    <input
+                                                        type="time"
+                                                        value={shift.startTime || ""}
+                                                        onChange={(e) => handleShiftChange(idx, "startTime", e.target.value)}
+                                                        className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
+                                                    />
+                                                </div>
+                                                <div className="col-span-3">
+                                                    <input
+                                                        type="time"
+                                                        value={shift.endTime || ""}
+                                                        onChange={(e) => handleShiftChange(idx, "endTime", e.target.value)}
+                                                        className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 relative">
+                                                    <span className="absolute left-0 top-1 text-gray-500 text-xs">₹</span>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Price"
+                                                        value={shift.price}
+                                                        onChange={(e) => handleShiftChange(idx, "price", e.target.value)}
+                                                        className="w-full bg-transparent border-b border-white/10 py-1 pl-3 text-sm text-white focus:outline-none focus:border-cyan-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                            {formData.shifts.length > 1 && (
+                                                <button
+                                                    onClick={() => removeShift(idx)}
+                                                    className="text-gray-500 hover:text-red-400 mt-1"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
                             <Button
                                 onClick={handleSubmit}
                                 className="w-full justify-center mt-4"
-                                disabled={loading || !formData.branchName}
+                                disabled={loading || !formData.branchName || !formData.seatCount}
                                 variant="cyan"
                             >
                                 {loading ? <Loader2 className="animate-spin mr-2" /> : null}

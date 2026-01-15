@@ -12,6 +12,13 @@ interface CreateNetworkParams {
         city?: string;
         defaultFee?: number;
     };
+    seatCount?: number;
+    shifts?: {
+        name: string;
+        startTime: string | null;
+        endTime: string | null;
+        price: number;
+    }[];
 }
 
 export class OnboardingService {
@@ -43,21 +50,38 @@ export class OnboardingService {
             // Since service methods might use global `prisma`, we should replicate crucial logic or pass tx if refactored.
             // For safety in transaction, we'll implement the creation directly here to ensure it uses `tx`.
 
-            const defaults = [
-                { name: "Morning", startTime: "06:00", endTime: "12:00" },
-                { name: "Evening", startTime: "16:00", endTime: "22:00" },
-                { name: "Reserved", startTime: null, endTime: null },
-            ];
+            // 3. Create Custom Shifts (or defaults if not provided, though generic defaults lack price context)
+            const shiftsToCreate = params.shifts && params.shifts.length > 0
+                ? params.shifts
+                : [
+                    { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
+                    { name: "Evening", startTime: "16:00", endTime: "22:00", price: 0 },
+                    { name: "Reserved", startTime: null, endTime: null, price: 0 },
+                ];
 
-            for (const def of defaults) {
+            for (const shift of shiftsToCreate) {
                 await tx.shift.create({
                     data: {
                         branchId: branch.id,
-                        name: def.name,
-                        startTime: def.startTime,
-                        endTime: def.endTime,
+                        name: shift.name,
+                        startTime: shift.startTime,
+                        endTime: shift.endTime,
+                        price: shift.price,
                     },
                 });
+            }
+
+            // 4. Create Seats
+            // Generate seats based on seatCount (e.g. "1", "2", ...)
+            if (params.seatCount && params.seatCount > 0) {
+                for (let i = 1; i <= params.seatCount; i++) {
+                    await tx.seat.create({
+                        data: {
+                            branchId: branch.id,
+                            label: `${i}`,
+                        },
+                    });
+                }
             }
 
             // 4. (Optional) Assign User as STAFF/MANAGER to this branch?
