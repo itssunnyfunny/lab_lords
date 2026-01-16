@@ -91,9 +91,9 @@ async function createWorldForUser(user: any, orgName: string, branchNames: strin
         // Create Shifts
         const shifts = [];
         const shiftData = [
-            { name: 'Morning', startTime: '06:00', endTime: '12:00' },
-            { name: 'Evening', startTime: '12:00', endTime: '18:00' },
-            { name: 'Full Day', startTime: '08:00', endTime: '20:00' }
+            { name: 'Morning', startTime: '06:00', endTime: '12:00', price: 800 },
+            { name: 'Evening', startTime: '12:00', endTime: '18:00', price: 800 },
+            { name: 'Full Day', startTime: '08:00', endTime: '20:00', price: 1500 }
         ];
         for (const s of shiftData) {
             shifts.push(await prisma.shift.create({
@@ -107,7 +107,7 @@ async function createWorldForUser(user: any, orgName: string, branchNames: strin
             seats.push(await prisma.seat.create({
                 data: {
                     branchId: branch.id,
-                    label: `S-${i.toString().padStart(3, '0')}`
+                    label: `${i}`
                 }
             }));
         }
