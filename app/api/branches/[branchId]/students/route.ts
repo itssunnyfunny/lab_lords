@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StudentService } from "@/services/student.service";
 import { getSessionUser } from "@/lib/auth";
+import { StudentStatus } from "@prisma/client";
 
 export async function POST(
     req: NextRequest,
@@ -49,7 +50,12 @@ export async function GET(
         }
 
         const { branchId } = await params;
-        const students = await StudentService.getStudentsByBranch(user.id, branchId);
+        const { searchParams } = new URL(req.url);
+        const status = searchParams.get("status") as StudentStatus | undefined;
+
+        const students = await StudentService.getStudentsByBranch(user.id, branchId, {
+            status,
+        });
 
         return NextResponse.json(students);
     } catch (error: any) {

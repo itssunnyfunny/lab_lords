@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { SeatService } from "@/services/seat.service";
+import { getSessionUser } from "@/lib/auth";
 
 interface Params {
     params: Promise<{
@@ -10,16 +11,16 @@ interface Params {
 export async function GET(req: Request, { params }: Params) {
     try {
         const { branchId } = await params;
-        const userId = req.headers.get("x-user-id");
+        const user = await getSessionUser();
 
-        if (!userId) {
+        if (!user) {
             return NextResponse.json(
-                { error: "Unauthorized: x-user-id header missing" },
+                { error: "Unauthorized" },
                 { status: 401 }
             );
         }
 
-        const seats = await SeatService.listSeats(userId, branchId);
+        const seats = await SeatService.listSeats(user.id, branchId);
         return NextResponse.json(seats);
     } catch (error: any) {
         console.error("Error fetching seats:", error);
@@ -39,11 +40,11 @@ export async function GET(req: Request, { params }: Params) {
 export async function POST(req: Request, { params }: Params) {
     try {
         const { branchId } = await params;
-        const userId = req.headers.get("x-user-id");
+        const user = await getSessionUser();
 
-        if (!userId) {
+        if (!user) {
             return NextResponse.json(
-                { error: "Unauthorized: x-user-id header missing" },
+                { error: "Unauthorized" },
                 { status: 401 }
             );
         }
@@ -57,7 +58,7 @@ export async function POST(req: Request, { params }: Params) {
             );
         }
 
-        const seat = await SeatService.createSeat(userId, branchId, body.label);
+        const seat = await SeatService.createSeat(user.id, branchId, body.label);
 
         return NextResponse.json(seat, { status: 201 });
     } catch (error: any) {
