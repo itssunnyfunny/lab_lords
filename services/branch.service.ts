@@ -1,14 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { CreateBranchDto } from "@/types";
+import { ShiftService } from "./shift.service";
 
 export class BranchService {
     static async createBranch(data: CreateBranchDto) {
-        return await prisma.branch.create({
+        const branch = await prisma.branch.create({
             data: {
                 name: data.name,
                 organizationId: data.organizationId,
             },
         });
+
+        await ShiftService.ensureDefaultShifts(branch.id);
+
+        return branch;
     }
 
     static async getBranchesByOrganizationId(organizationId: string) {

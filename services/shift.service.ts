@@ -49,15 +49,16 @@ export class ShiftService {
                 startTime: data.startTime,
                 endTime: data.endTime,
                 price: data.price ?? 0,
+                isReserved: data.isReserved ?? false,
             },
         });
     }
 
     static async ensureDefaultShifts(branchId: string) {
         const defaults = [
-            { name: "Morning", startTime: "06:00", endTime: "12:00" },
-            { name: "Evening", startTime: "16:00", endTime: "22:00" },
-            { name: "Reserved", startTime: null, endTime: null },
+            { name: "Morning", startTime: "06:00", endTime: "12:00", isReserved: false },
+            { name: "Evening", startTime: "16:00", endTime: "22:00", isReserved: false },
+            { name: "Reserved", startTime: null, endTime: null, isReserved: true },
         ];
 
         for (const def of defaults) {
@@ -78,6 +79,7 @@ export class ShiftService {
                         startTime: def.startTime,
                         endTime: def.endTime,
                         price: 0,
+                        isReserved: def.isReserved,
                     },
                 });
             }

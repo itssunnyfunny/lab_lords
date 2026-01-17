@@ -56,20 +56,46 @@ export class SeatAllocationService {
                 throw new Error("Only ACTIVE students can be assigned a seat");
             }
 
-            // 5. Validate "Single active allocation per seat per shift" Rule
-            const existingAllocation = await tx.seatAllocation.findFirst({
+            // 5. Validate Seat Conflicts (Reserved vs Timed)
+            // Fetch all active allocations for this seat to check for conflicts
+            const seatAllocations = await tx.seatAllocation.findMany({
+                where: { seatId, endDate: null },
+                include: { shift: true },
+            });
+
+            // Rule: If target shift is RESERVED, seat must be completely empty
+            if (shift.isReserved) {
+                if (seatAllocations.length > 0) {
+                    throw new Error("Cannot allocate RESERVED shift. Seat is already assigned in other shifts.");
+                }
+            } else {
+                // Rule: If target shift is TIMED, seat must not be RESERVED
+                const hasReservedAllocation = seatAllocations.some(a => a.shift.isReserved);
+                if (hasReservedAllocation) {
+                    throw new Error("Cannot allocate in this shift. Seat is explicitly RESERVED.");
+                }
+
+                // Rule: Seat cannot be allocated twice in the SAME shift
+                const sameShiftAllocation = seatAllocations.find(a => a.shiftId === shiftId);
+                if (sameShiftAllocation) {
+                    throw new Error("Seat is already assigned in this shift");
+                }
+            }
+
+            // 6. Validate Student Conflicts (One seat per shift)
+            const studentAllocations = await tx.seatAllocation.findFirst({
                 where: {
-                    seatId,
+                    studentId,
                     shiftId,
-                    endDate: null, // Active allocation
+                    endDate: null,
                 },
             });
 
-            if (existingAllocation) {
-                throw new Error("Seat is already assigned in this shift");
+            if (studentAllocations) {
+                throw new Error("Student already has a seat in this shift.");
             }
 
-            // 6. Create Allocation
+            // 7. Create Allocation
             return tx.seatAllocation.create({
                 data: {
                     seatId,
