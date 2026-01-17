@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Users, CreditCard, Settings, UserCircle, Grid, FileText, Sparkles, MessageSquare, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, UserCircle, Grid, FileText, Sparkles, MessageSquare, ChevronRight, CalendarCheck } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -13,11 +13,6 @@ export function BranchSidebar({ className }: SidebarProps) {
     const router = useRouter();
 
     const handleOrgDash = () => {
-        // Find org id from path or context if possible, otherwise default or just go back
-        // For now, assuming standard route structure /branch/[branchId]/...
-        // We might not have orgId readily available here without props or parsing.
-        // I'll just use router.push('/org/1') as placeholder or try to navigate up.
-        // Actually, existing code might handle this. I'll just keep the structure.
         router.push('/org'); // Simplistic
     };
 
@@ -25,11 +20,7 @@ export function BranchSidebar({ className }: SidebarProps) {
         router.push(path);
     };
 
-    // Helper to check active state more robustly could be added
-    const isActive = (path: string) => pathname === path || pathname?.startsWith(path + "/");
-
-    // Extract branch ID from pathname for links?
-    // Assuming pathname starts with /branch/[id]
+    // Extract branch ID from pathname for links
     const segments = pathname?.split('/') || [];
     const branchId = segments[2];
     const basePath = `/branch/${branchId}`;
@@ -59,6 +50,7 @@ export function BranchSidebar({ className }: SidebarProps) {
                     <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 px-2">Operations</div>
                     <SidebarItem icon={Users} label="Students" isActive={pathname === `${basePath}/students`} onClick={() => navigate(`${basePath}/students`)} />
                     <SidebarItem icon={Grid} label="Seats & Maps" isActive={pathname === `${basePath}/seats`} onClick={() => navigate(`${basePath}/seats`)} />
+                    <SidebarItem icon={CalendarCheck} label="Allocations" isActive={pathname?.startsWith(`${basePath}/allocations`)} onClick={() => navigate(`${basePath}/allocations`)} />
                     <SidebarItem icon={CreditCard} label="Payments" isActive={pathname === `${basePath}/payments`} onClick={() => navigate(`${basePath}/payments`)} />
                     <SidebarItem icon={UserCircle} label="Staff" isActive={pathname === `${basePath}/staff`} onClick={() => navigate(`${basePath}/staff`)} />
                 </div>
