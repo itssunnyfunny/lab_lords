@@ -74,6 +74,7 @@ model Shift {
   startTime       String?
   endTime         String?
   price           Int              @default(0)
+  isReserved      Boolean          @default(false)
   createdAt       DateTime         @default(now())
   seatAllocations SeatAllocation[]
   branch          Branch           @relation(fields: [branchId], references: [id])

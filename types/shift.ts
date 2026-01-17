@@ -3,4 +3,5 @@ export interface CreateShiftDto {
     startTime?: string;
     endTime?: string;
     price?: number;
+    isReserved?: boolean;
 }
