@@ -110,12 +110,27 @@ export class StudentService {
         });
     }
 
-    static async getStudentsByBranch(userId: string, branchId: string) {
+    static async getStudentsByBranch(
+        userId: string,
+        branchId: string,
+        filters?: { status?: StudentStatus; shiftId?: string }
+    ) {
         await this.verifyBranchOwnership(userId, branchId);
 
         return prisma.student.findMany({
             where: {
                 branchId,
+                ...(filters?.status ? { status: filters.status } : {}),
+                ...(filters?.shiftId
+                    ? {
+                        seatAllocations: {
+                            some: {
+                                shiftId: filters.shiftId,
+                                endDate: null,
+                            },
+                        },
+                    }
+                    : {}),
             },
             orderBy: {
                 name: "asc",

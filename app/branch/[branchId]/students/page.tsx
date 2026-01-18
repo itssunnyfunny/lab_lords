@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Edit2, Loader2, Trash2, AlertCircle, ArrowLeft } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { students } from "@/lib/api/students";
-import { Student } from "@prisma/client";
+import { branches } from "@/lib/api/branches";
+import { Student, Shift } from "@prisma/client";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 
@@ -17,14 +18,31 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
     const { branchId } = use(params);
     const router = useRouter();
     const [data, setData] = useState<Student[]>([]);
+    const [shifts, setShifts] = useState<Shift[]>([]);
+    const [selectedShift, setSelectedShift] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+    // Initial load for Shifts
+    useEffect(() => {
+        const loadShifts = async () => {
+            try {
+                const list = await branches.getShifts(branchId);
+                setShifts(list);
+            } catch (err) {
+                console.error("Failed to load shifts", err);
+            }
+        };
+        loadShifts();
+    }, [branchId]);
+
+    // Load Students on change
     useEffect(() => {
         const loadStudents = async () => {
+            setLoading(true);
             try {
-                const list = await students.list(branchId);
+                const list = await students.list(branchId, selectedShift || undefined);
                 setData(list);
             } catch (error: any) {
                 console.error("Failed to load students", error);
@@ -38,13 +56,18 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
             }
         };
         loadStudents();
-    }, [branchId]);
+    }, [branchId, selectedShift]);
 
     const handleAddStudent = () => {
         setIsAddModalOpen(true);
     };
 
     const handleStudentAdded = (newStudent: Student) => {
+        // If we are filtering, we might need to re-fetch if the new student doesn't match filter
+        // But for simplicity, we add to list if no filter or re-fetch.
+        // Actually simplest is to re-fetch or just append.
+        // If filter is active, we don't know if student belongs to shift (unless we check logic).
+        // Let's just append for now to give immediate feedback.
         setData((prev) => [newStudent, ...prev]);
     };
 
@@ -77,6 +100,23 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                 onAdd={handleAddStudent}
                 actionLabel="Add Student"
             />
+
+            {/* Filter UI */}
+            <div className="flex items-center gap-3 mb-6">
+                <span className="text-sm text-textMuted">Filter by Allocated Shift:</span>
+                <select
+                    className="bg-surface border border-white/10 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary/50"
+                    value={selectedShift}
+                    onChange={(e) => setSelectedShift(e.target.value)}
+                >
+                    <option value="" className="bg-zinc-900">All Shifts</option>
+                    {shifts.map((s) => (
+                        <option key={s.id} value={s.id} className="bg-zinc-900">
+                            {s.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
 
             <DataTable
                 data={data}

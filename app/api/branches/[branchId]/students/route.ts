@@ -52,9 +52,11 @@ export async function GET(
         const { branchId } = await params;
         const { searchParams } = new URL(req.url);
         const status = searchParams.get("status") as StudentStatus | undefined;
+        const shiftId = searchParams.get("shiftId") || undefined;
 
         const students = await StudentService.getStudentsByBranch(user.id, branchId, {
             status,
+            shiftId,
         });
 
         return NextResponse.json(students);
