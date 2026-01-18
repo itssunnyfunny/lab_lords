@@ -48,12 +48,25 @@ export class SeatService {
         });
     }
 
-    static async listSeats(userId: string, branchId: string) {
+    static async listSeats(userId: string, branchId: string, shiftId?: string) {
         await this.assertBranchOwnership(userId, branchId);
 
         return prisma.seat.findMany({
             where: {
                 branchId,
+            },
+            include: {
+                seatAllocations: {
+                    where: {
+                        endDate: null, // Only active allocations
+                        ...(shiftId ? { shiftId } : {}),
+                    },
+                    include: {
+                        student: {
+                            select: { name: true },
+                        },
+                    },
+                },
             },
             orderBy: {
                 label: "asc",

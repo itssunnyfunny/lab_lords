@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { User, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { branches } from "@/lib/api/branches";
-import { Seat } from "@prisma/client";
+import { Seat, Shift } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 
@@ -21,15 +21,37 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
     const { branchId } = use(params);
     const router = useRouter();
     const [seats, setSeats] = useState<SeatWithStatus[]>([]);
+    const [shifts, setShifts] = useState<Shift[]>([]);
+    const [selectedShift, setSelectedShift] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Initial load of shifts
+    useEffect(() => {
+        const loadShifts = async () => {
+            try {
+                const shiftsData = await branches.getShifts(branchId);
+                setShifts(shiftsData);
+            } catch (err) {
+                console.error("Failed to load shifts", err);
+            }
+        };
+        loadShifts();
+    }, [branchId]);
+
+    // Load seats whenever branchId or selectedShift changes
     useEffect(() => {
         const loadSeats = async () => {
+            setLoading(true);
             try {
-                const data = await branches.getSeats(branchId);
+                // Fetch seats with optional shift filter
+                // If selectedShift is empty, it returns seats with ALL active allocations
+                // If selectedShift is set, it returns seats with allocations ONLY for that shift
+                const data = await branches.getSeats(branchId, selectedShift || undefined);
+
                 const mapped = data.map((s: any) => ({
                     ...s,
+                    // If any allocation exists (after backend filtering), it is Occupied
                     status: s.seatAllocations && s.seatAllocations.length > 0 ? "Occupied" : "Available",
                     studentName: s.seatAllocations && s.seatAllocations.length > 0 ? s.seatAllocations[0].student.name : undefined
                 }));
@@ -46,7 +68,7 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
             }
         };
         loadSeats();
-    }, [branchId]);
+    }, [branchId, selectedShift]);
 
     if (loading) {
         return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading seats...</div>;
@@ -76,16 +98,36 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
                 actionLabel="Add Seat"
             />
 
-            {/* Legend */}
-            <div className="flex gap-6 mb-6 text-sm text-textSecondary">
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/50" /> Occupied
+            {/* Controls & Legend */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                {/* Shift Filter */}
+                <div className="flex items-center gap-3">
+                    <span className="text-sm text-textMuted">Filter by Shift:</span>
+                    <select
+                        className="bg-surface border border-white/10 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary/50"
+                        value={selectedShift}
+                        onChange={(e) => setSelectedShift(e.target.value)}
+                    >
+                        <option value="" className="bg-zinc-900">All Shifts</option>
+                        {shifts.map((s) => (
+                            <option key={s.id} value={s.id} className="bg-zinc-900">
+                                {s.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-slate-500/20 border border-slate-500/50" /> Available
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-rose-500/20 border border-rose-500/50" /> Maintenance
+
+                {/* Legend */}
+                <div className="flex gap-6 text-sm text-textSecondary">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/50" /> Occupied
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-slate-500/20 border border-slate-500/50" /> Available
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-rose-500/20 border border-rose-500/50" /> Maintenance
+                    </div>
                 </div>
             </div>
 
@@ -123,4 +165,3 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
         </div>
     );
 }
-

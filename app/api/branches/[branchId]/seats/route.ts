@@ -20,7 +20,10 @@ export async function GET(req: Request, { params }: Params) {
             );
         }
 
-        const seats = await SeatService.listSeats(user.id, branchId);
+        const { searchParams } = new URL(req.url);
+        const shiftId = searchParams.get("shiftId") || undefined;
+
+        const seats = await SeatService.listSeats(user.id, branchId, shiftId);
         return NextResponse.json(seats);
     } catch (error: any) {
         console.error("Error fetching seats:", error);
