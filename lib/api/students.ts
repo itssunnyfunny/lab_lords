@@ -4,8 +4,9 @@ import { CreateStudentDto, StudentStatus } from "@/types";
 
 export const students = {
     // List students for a branch
-    list: async (branchId: string): Promise<Student[]> => {
-        return apiClient.get(`/branches/${branchId}/students`);
+    list: async (branchId: string, shiftId?: string): Promise<Student[]> => {
+        const query = shiftId ? `?shiftId=${shiftId}` : "";
+        return apiClient.get(`/branches/${branchId}/students${query}`);
     },
 
     // Create a new student in a branch

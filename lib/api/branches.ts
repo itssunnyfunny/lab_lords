@@ -6,16 +6,18 @@ export const branches = {
         return apiClient.get(`/branches/${branchId}`);
     },
 
-    getStudents: async (branchId: string): Promise<Student[]> => {
-        return apiClient.get(`/branches/${branchId}/students`);
+    getStudents: async (branchId: string, shiftId?: string): Promise<Student[]> => {
+        const query = shiftId ? `?shiftId=${shiftId}` : "";
+        return apiClient.get(`/branches/${branchId}/students${query}`);
     },
 
     createStudent: async (branchId: string, data: { name: string; phone?: string }): Promise<Student> => {
         return apiClient.post(`/branches/${branchId}/students`, data);
     },
 
-    getSeats: async (branchId: string): Promise<Seat[]> => {
-        return apiClient.get(`/branches/${branchId}/seats`);
+    getSeats: async (branchId: string, shiftId?: string): Promise<Seat[]> => {
+        const query = shiftId ? `?shiftId=${shiftId}` : "";
+        return apiClient.get(`/branches/${branchId}/seats${query}`);
     },
 
     createSeat: async (branchId: string, label: string): Promise<Seat> => {

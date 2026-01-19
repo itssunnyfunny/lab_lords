@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { students } from "@/lib/api/students";
 import { branches } from "@/lib/api/branches";
@@ -80,10 +80,10 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div
-                className="w-full max-w-md bg-surface border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+                className="w-full max-w-md bg-surface border border-white/10 rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5">
+                <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5 rounded-t-xl">
                     <h2 className="text-lg font-semibold text-white">Add New Student</h2>
                     <button
                         onClick={onClose}
@@ -134,40 +134,29 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                             <label htmlFor="shift" className="text-sm font-medium text-textMuted">
                                 Shift (Optional)
                             </label>
-                            <select
-                                id="shift"
-                                value={formData.shiftId || ""}
-                                onChange={(e) => setFormData({ ...formData, shiftId: e.target.value || undefined })}
-                                className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white"
+                            <CustomSelect
+                                value={formData.shiftId}
+                                onChange={(val) => setFormData({ ...formData, shiftId: val })}
+                                options={shifts.map(s => ({
+                                    label: `${s.name} (${s.startTime}-${s.endTime})`,
+                                    value: s.id
+                                }))}
+                                placeholder="None"
                                 disabled={isFetchingOptions}
-                            >
-                                <option value="">None</option>
-                                {shifts.map((shift) => (
-                                    <option key={shift.id} value={shift.id}>
-                                        {shift.name} ({shift.startTime}-{shift.endTime})
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         </div>
 
                         <div className="space-y-2">
                             <label htmlFor="seat" className="text-sm font-medium text-textMuted">
                                 Seat (Optional)
                             </label>
-                            <select
-                                id="seat"
-                                value={formData.seatId || ""}
-                                onChange={(e) => setFormData({ ...formData, seatId: e.target.value || undefined })}
-                                className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white"
+                            <CustomSelect
+                                value={formData.seatId}
+                                onChange={(val) => setFormData({ ...formData, seatId: val })}
+                                options={seats.map(s => ({ label: s.label, value: s.id }))}
+                                placeholder="None"
                                 disabled={isFetchingOptions}
-                            >
-                                <option value="">None</option>
-                                {seats.map((seat) => (
-                                    <option key={seat.id} value={seat.id}>
-                                        {seat.label}
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         </div>
                     </div>
 
@@ -197,6 +186,73 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                     </div>
                 </form>
             </div>
+        </div>
+    );
+}
+
+interface CustomSelectProps {
+    value?: string;
+    onChange: (value: string | undefined) => void;
+    options: { label: string; value: string }[];
+    placeholder?: string;
+    disabled?: boolean;
+}
+
+function CustomSelect({ value, onChange, options, placeholder = "Select...", disabled }: CustomSelectProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
+
+    return (
+        <div className="relative">
+            {isOpen && (
+                <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => setIsOpen(false)}
+                />
+            )}
+            <button
+                type="button"
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                disabled={disabled}
+                className={`w-full px-3 py-2 bg-app border border-white/10 rounded-lg flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-primary/50 text-white transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : "hover:border-white/20"
+                    }`}
+            >
+                <span className={!value ? "text-white/50" : ""}>{selectedLabel}</span>
+                <ChevronDown size={16} className={`text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-surface border border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100 p-1">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onChange(undefined);
+                            setIsOpen(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-white/70 hover:bg-white/5 rounded-md transition-colors flex items-center gap-2"
+                    >
+                        <span>None</span>
+                        {!value && <Check size={14} className="ml-auto text-primary" />}
+                    </button>
+                    {options.map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => {
+                                onChange(option.value);
+                                setIsOpen(false);
+                            }}
+                            className={`w-full px-3 py-2 text-left text-sm rounded-md transition-colors flex items-center gap-2 ${value === option.value
+                                ? "bg-primary/10 text-primary"
+                                : "text-white hover:bg-white/5"
+                                }`}
+                        >
+                            <span className="truncate">{option.label}</span>
+                            {value === option.value && <Check size={14} className="ml-auto" />}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
