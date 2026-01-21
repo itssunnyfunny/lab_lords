@@ -20,7 +20,8 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<CreateStudentDto>({
         name: "",
-        phone: ""
+        phone: "",
+        monthlyFee: undefined
     });
 
     const [shifts, setShifts] = useState<Shift[]>([]);
@@ -126,6 +127,20 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                             className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
                             placeholder="e.g. +91 98765 43210"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label htmlFor="monthlyFee" className="text-sm font-medium text-textMuted">
+                            Monthly Fee (Optional)
+                        </label>
+                        <input
+                            id="monthlyFee"
+                            type="number"
+                            value={formData.monthlyFee || ""}
+                            onChange={(e) => setFormData({ ...formData, monthlyFee: e.target.value ? Number(e.target.value) : undefined })}
+                            className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
+                            placeholder="Leave empty for branch default"
                         />
                     </div>
 

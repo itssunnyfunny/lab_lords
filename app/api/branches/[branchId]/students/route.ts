@@ -28,6 +28,7 @@ export async function POST(
             phone: body.phone,
             shiftId: body.shiftId,
             seatId: body.seatId,
+            monthlyFee: body.monthlyFee ? Number(body.monthlyFee) : undefined,
         });
 
         return NextResponse.json(student, { status: 201 });

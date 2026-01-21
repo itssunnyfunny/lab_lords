@@ -56,7 +56,7 @@ export class StudentService {
         branchId: string,
         data: CreateStudentDto
     ) {
-        await this.verifyBranchOwnership(userId, branchId);
+        const branch = await this.verifyBranchOwnership(userId, branchId);
 
         return prisma.$transaction(async (tx) => {
             // 1. Create Student
@@ -66,6 +66,8 @@ export class StudentService {
                     name: data.name,
                     phone: data.phone,
                     status: StudentStatus.ACTIVE,
+                    monthlyFee: data.monthlyFee ?? branch.defaultFee ?? 0,
+                    joinedAt: new Date(), // Explicitly setting it, though default is now()
                 },
             });
 
