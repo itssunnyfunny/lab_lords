@@ -18,6 +18,6 @@ export const payments = {
     // Mark payment as paid
     // Based on routes: `payments/[paymentId]/pay/route.ts`
     markAsPaid: async (paymentId: string): Promise<Payment> => {
-        return apiClient.post(`/payments/${paymentId}/pay`, {});
+        return apiClient.patch(`/payments/${paymentId}/pay`, {});
     }
 };

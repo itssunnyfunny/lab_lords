@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { FileText, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { FileText, Loader2, AlertCircle, ArrowLeft, Check } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { payments } from "@/lib/api/payments";
 import { Payment } from "@prisma/client";
@@ -63,8 +63,6 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                 onSearch={() => { }}
                 onFilter={() => { }}
                 onExport={() => { }}
-                onAdd={() => { }}
-                actionLabel="Record Payment"
             />
 
             <DataTable
@@ -90,8 +88,29 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                         )
                     },
                 ]}
-                actions={() => (
+                actions={(item) => (
                     <div className="flex justify-end gap-2">
+                        {item.status === "DUE" && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
+                                onClick={async () => {
+                                    if (confirm("Are you sure you want to mark this as PAID?")) {
+                                        try {
+                                            await payments.markAsPaid(item.id);
+                                            // Refresh data
+                                            const list = await payments.list(branchId);
+                                            setData(list);
+                                        } catch (err) {
+                                            alert("Failed to mark as paid");
+                                        }
+                                    }
+                                }}
+                            >
+                                <Check size={14} /> Mark Paid
+                            </Button>
+                        )}
                         <Button variant="ghost" size="sm" className="gap-2 text-xs">
                             <FileText size={14} /> Invoice
                         </Button>
