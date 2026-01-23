@@ -19,7 +19,7 @@ export function SideStats({ snapshot }: { snapshot?: BranchSnapshot }) {
                         <DollarSign size={80} className="text-primary" />
                     </div>
                     <p className="text-textSecondary text-sm">Total Revenue</p>
-                    <h3 className="text-3xl font-bold text-white mt-1">${snapshot.monthlyRevenue.toLocaleString()}</h3>
+                    <h3 className="text-3xl font-bold text-white mt-1">₹{snapshot.monthlyRevenue.toLocaleString()}</h3>
                     <div className="flex items-center gap-2 mt-2">
                         <Badge variant="success" className="bg-emerald-500/20 text-emerald-400">+12%</Badge>
                         <span className="text-xs text-textmuted">vs last month</span>
@@ -32,7 +32,7 @@ export function SideStats({ snapshot }: { snapshot?: BranchSnapshot }) {
                         <Wallet size={80} className="text-purple-500" />
                     </div>
                     <p className="text-textSecondary text-sm">Pending Fees</p>
-                    <h3 className="text-3xl font-bold text-white mt-1">${snapshot.dueAmount.toLocaleString()}</h3>
+                    <h3 className="text-3xl font-bold text-white mt-1">₹{snapshot.dueAmount.toLocaleString()}</h3>
                     <div className="flex items-center gap-2 mt-2">
                         <Badge variant="warning" className="bg-amber-500/20 text-amber-400">Due</Badge>
                         <span className="text-xs text-textmuted">students</span>

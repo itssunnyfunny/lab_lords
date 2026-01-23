@@ -40,11 +40,11 @@ export function SnapshotFooter({ snapshot }: { snapshot?: BranchSnapshot }) {
                     <div className="space-y-4">
                         <div>
                             <p className="text-textSecondary text-sm">Collected</p>
-                            <h3 className="text-2xl font-bold text-white">${snapshot.paidAmount.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-bold text-white">₹{snapshot.paidAmount.toLocaleString()}</h3>
                         </div>
                         <div>
                             <p className="text-textSecondary text-sm">Pending</p>
-                            <h3 className="text-2xl font-bold text-rose-400">${snapshot.dueAmount.toLocaleString()}</h3>
+                            <h3 className="text-2xl font-bold text-rose-400">₹{snapshot.dueAmount.toLocaleString()}</h3>
                         </div>
                     </div>
                     <div className="flex-1 h-[200px] ml-10">

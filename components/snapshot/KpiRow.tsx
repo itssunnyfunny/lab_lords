@@ -73,7 +73,7 @@ export function KpiRow({ snapshot }: { snapshot?: BranchSnapshot }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <KpiCard
                 title="Revenue"
-                value={`$${snapshot.monthlyRevenue.toLocaleString()}`}
+                value={`₹${snapshot.monthlyRevenue.toLocaleString()}`}
                 trend="+12%"
             />
             <KpiCard
@@ -83,7 +83,7 @@ export function KpiRow({ snapshot }: { snapshot?: BranchSnapshot }) {
             />
             <KpiCard
                 title="Due Payments"
-                value={`$${snapshot.dueAmount.toLocaleString()}`}
+                value={`₹${snapshot.dueAmount.toLocaleString()}`}
                 trend="-4%"
                 trendUp={false}
             />

@@ -74,13 +74,13 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
                         { header: "Branch Name", accessor: "branch", className: "font-medium text-white" },
                         { header: "Total Students", accessor: "students" },
                         { header: "Seat Utilization", accessor: (item) => <Badge variant="default">{item.util}</Badge> },
-                        { header: "Revenue", accessor: (item) => `$${item.revenue.toLocaleString()}` },
-                        { header: "Expenses", accessor: (item) => `$${item.expenses.toLocaleString()}` },
+                        { header: "Revenue", accessor: (item) => `₹${item.revenue.toLocaleString()}` },
+                        { header: "Expenses", accessor: (item) => `₹${item.expenses.toLocaleString()}` },
                         {
                             header: "Net Profit",
                             accessor: (item) => (
                                 <span className="text-emerald-400 font-bold">
-                                    ${(item.revenue - item.expenses).toLocaleString()}
+                                    ₹{(item.revenue - item.expenses).toLocaleString()}
                                 </span>
                             )
                         },
