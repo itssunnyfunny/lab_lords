@@ -4,4 +4,5 @@ export type CreateStudentDto = {
     shiftId?: string;
     seatId?: string;
     monthlyFee?: number;
+    admissionFee?: number;
 };

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { StudentStatus } from "@/types";
+import { StudentStatus, PaymentType, PaymentStatus } from "@/types";
 import { CreateStudentDto } from "@/types";
 
 export class StudentService {
@@ -71,7 +71,23 @@ export class StudentService {
                 },
             });
 
-            // 2. If seat and shift are provided, perform allocation
+            // 2. Create Admission Payment if applicable
+            if (data.admissionFee && data.admissionFee > 0) {
+                await tx.payment.create({
+                    data: {
+                        branchId,
+                        studentId: student.id,
+                        amount: data.admissionFee,
+                        status: PaymentStatus.DUE, // Starts as DUE, specifically requested
+                        type: PaymentType.ADMISSION,
+                        dueDate: student.joinedAt, // Due on joining
+                        periodStart: student.joinedAt, // For admission, period is point in time? or N/A. Filling to satisfy schema
+                        periodEnd: student.joinedAt,
+                    },
+                });
+            }
+
+            // 3. If seat and shift are provided, perform allocation
             if (data.seatId && data.shiftId) {
                 // Fetch seat and shift to validate
                 const seat = await tx.seat.findUnique({ where: { id: data.seatId } });

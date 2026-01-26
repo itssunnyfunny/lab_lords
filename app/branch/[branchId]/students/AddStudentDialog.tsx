@@ -21,7 +21,8 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     const [formData, setFormData] = useState<CreateStudentDto>({
         name: "",
         phone: "",
-        monthlyFee: undefined
+        monthlyFee: undefined,
+        admissionFee: undefined
     });
 
     const [shifts, setShifts] = useState<Shift[]>([]);
@@ -144,6 +145,20 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                         />
                     </div>
 
+                    <div className="space-y-2">
+                        <label htmlFor="admissionFee" className="text-sm font-medium text-textMuted">
+                            Admission Fee (One-time)
+                        </label>
+                        <input
+                            id="admissionFee"
+                            type="number"
+                            value={formData.admissionFee || ""}
+                            onChange={(e) => setFormData({ ...formData, admissionFee: e.target.value ? Number(e.target.value) : undefined })}
+                            className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
+                            placeholder="e.g. 500"
+                        />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label htmlFor="shift" className="text-sm font-medium text-textMuted">
@@ -158,6 +173,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                 }))}
                                 placeholder="None"
                                 disabled={isFetchingOptions}
+                                direction="up"
                             />
                         </div>
 
@@ -171,6 +187,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                 options={seats.map(s => ({ label: s.label, value: s.id }))}
                                 placeholder="None"
                                 disabled={isFetchingOptions}
+                                direction="up"
                             />
                         </div>
                     </div>
@@ -211,9 +228,10 @@ interface CustomSelectProps {
     options: { label: string; value: string }[];
     placeholder?: string;
     disabled?: boolean;
+    direction?: "up" | "down";
 }
 
-function CustomSelect({ value, onChange, options, placeholder = "Select...", disabled }: CustomSelectProps) {
+function CustomSelect({ value, onChange, options, placeholder = "Select...", disabled, direction = "down" }: CustomSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
 
@@ -221,7 +239,7 @@ function CustomSelect({ value, onChange, options, placeholder = "Select...", dis
         <div className="relative">
             {isOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-transparent"
+                    className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
                     onClick={() => setIsOpen(false)}
                 />
             )}
@@ -237,7 +255,8 @@ function CustomSelect({ value, onChange, options, placeholder = "Select...", dis
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-surface border border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100 p-1">
+                <div className={`absolute z-50 w-full bg-[#0f111a] border border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100 p-1 ${direction === "up" ? "bottom-full mb-1" : "top-full mt-1"
+                    }`}>
                     <button
                         type="button"
                         onClick={() => {

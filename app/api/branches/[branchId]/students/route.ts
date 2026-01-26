@@ -29,6 +29,7 @@ export async function POST(
             shiftId: body.shiftId,
             seatId: body.seatId,
             monthlyFee: body.monthlyFee ? Number(body.monthlyFee) : undefined,
+            admissionFee: body.admissionFee ? Number(body.admissionFee) : undefined,
         });
 
         return NextResponse.json(student, { status: 201 });
