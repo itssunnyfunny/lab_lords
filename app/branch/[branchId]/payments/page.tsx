@@ -69,6 +69,14 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                 data={data}
                 columns={[
                     { header: "Transaction ID", accessor: (item) => <span className="font-mono text-xs text-textSecondary">#{item.id.slice(-6)}</span> },
+                    {
+                        header: "Type",
+                        accessor: (item) => (
+                            <Badge variant={item.type === "ADMISSION" ? "purple" : "default"}>
+                                {item.type}
+                            </Badge>
+                        )
+                    },
                     { header: "Student", accessor: (item) => (item as any).student?.name || "Unknown" }, // Assuming API expands student
                     { header: "Due Date", accessor: (item) => format(new Date(item.dueDate), "PP") },
                     { header: "Amount", accessor: (item) => <span className="font-bold text-white">${item.amount}</span> },

@@ -109,6 +109,7 @@ model Payment {
   amount      Int
   status      PaymentStatus @default(DUE)
   paidAt      DateTime?
+  type        PaymentType   @default(MONTHLY)
   createdAt   DateTime      @default(now())
   branch      Branch        @relation(fields: [branchId], references: [id])
   student     Student       @relation(fields: [studentId], references: [id])
@@ -143,4 +144,9 @@ enum PaymentStatus {
 enum StaffRole {
   MANAGER
   STAFF
+}
+
+enum PaymentType {
+  ADMISSION
+  MONTHLY
 }

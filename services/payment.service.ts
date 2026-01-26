@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PaymentStatus, StudentStatus } from "@/types";
+import { PaymentStatus, StudentStatus, PaymentType } from "@/types";
 import { addMonths, differenceInMonths, startOfDay, isBefore } from "date-fns";
 
 export class PaymentService {
@@ -55,6 +55,9 @@ export class PaymentService {
             },
             include: {
                 payments: {
+                    where: {
+                        type: PaymentType.MONTHLY,
+                    },
                     take: 1,
                     orderBy: {
                         dueDate: "desc",
