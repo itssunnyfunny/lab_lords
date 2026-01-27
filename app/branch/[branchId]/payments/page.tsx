@@ -4,42 +4,77 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { FileText, Loader2, AlertCircle, ArrowLeft, Check } from "lucide-react";
+import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { payments } from "@/lib/api/payments";
 import { Payment } from "@prisma/client";
-import { format } from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, isBefore } from "date-fns";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export default function PaymentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
     const router = useRouter();
+
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [activeTab, setActiveTab] = useState<"DUE" | "PAID">("DUE");
+
     const [data, setData] = useState<Payment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const loadPayments = async () => {
-            try {
-                const list = await payments.list(branchId);
-                setData(list);
-            } catch (error: any) {
-                console.error("Failed to load payments", error);
-                if (error.message?.includes("Branch not found") || error.response?.status === 404) {
-                    setError("Branch not found.");
-                } else {
-                    setError("Failed to load payments.");
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadPayments();
-    }, [branchId]);
+    const loadPayments = async () => {
+        setLoading(true);
+        try {
+            // Fetch payments for the selected month
+            // API expects `month=YYYY-MM`
+            // If tab is DUE, it fetches all Due items <= end of month
+            // If tab is PAID, it fetches Paid items IN strict month
+            // We pass NO status param to get the hybrid view from backend, then filter in UI?
+            // Actually, backend implements the "View Logic" if we pass month.
+            // But we can also just fetch everything relevant to this month view.
+            const monthStr = format(currentDate, "yyyy-MM");
 
-    if (loading) {
-        return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading payments...</div>;
-    }
+            const res = await fetch(`/api/branches/${branchId}/payments?month=${monthStr}`, { cache: "no-store" });
+            if (!res.ok) throw new Error("Failed to fetch");
+            const list = await res.json();
+            setData(list);
+            setError(null);
+        } catch (error: any) {
+            console.error("Failed to load payments", error);
+            setError("Failed to load payments.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadPayments();
+    }, [branchId, currentDate]);
+
+    const handleMonthChange = (direction: "prev" | "next") => {
+        setCurrentDate(prev => direction === "prev" ? subMonths(prev, 1) : addMonths(prev, 1));
+    };
+
+    const handleMarkPaid = async (id: string) => {
+        if (confirm("Are you sure you want to mark this as PAID?")) {
+            try {
+                await payments.markAsPaid(id);
+                loadPayments();
+            } catch (err) {
+                alert("Failed to mark as paid");
+            }
+        }
+    };
+
+    // Filter data based on active tab
+    const filteredData = data.filter(item => {
+        if (activeTab === "DUE") return item.status === "DUE";
+        if (activeTab === "PAID") return item.status === "PAID";
+        return true;
+    });
+
+    const isCurrentMonth = (date: Date) => format(date, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
     if (error) {
         return (
@@ -56,75 +91,144 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
     }
 
     return (
-        <div className="p-8">
-            <PageHeader
-                title="Payment History"
-                subtitle="Track incoming revenue and pending dues."
-                onSearch={() => { }}
-                onFilter={() => { }}
-                onExport={() => { }}
-            />
+        <div className="p-8 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-white">Payment History</h1>
+                    <p className="text-textSecondary">Track incoming revenue and pending dues.</p>
+                </div>
 
-            <DataTable
-                data={data}
-                columns={[
-                    { header: "Transaction ID", accessor: (item) => <span className="font-mono text-xs text-textSecondary">#{item.id.slice(-6)}</span> },
-                    {
-                        header: "Type",
-                        accessor: (item) => (
-                            <Badge variant={item.type === "ADMISSION" ? "purple" : "default"}>
-                                {item.type}
-                            </Badge>
-                        )
-                    },
-                    { header: "Student", accessor: (item) => (item as any).student?.name || "Unknown" }, // Assuming API expands student
-                    { header: "Due Date", accessor: (item) => format(new Date(item.dueDate), "PP") },
-                    { header: "Amount", accessor: (item) => <span className="font-bold text-white">${item.amount}</span> },
-                    { header: "Method", accessor: () => "Manual" }, // Mocking method as schema doesn't have it yet (only status)
-                    {
-                        header: "Status",
-                        accessor: (item) => (
-                            <Badge
-                                variant={
-                                    item.status === "PAID" ? "success" :
-                                        item.status === "DUE" ? "warning" :
-                                            "danger"
-                                }
-                            >
-                                {item.status}
-                            </Badge>
-                        )
-                    },
-                ]}
-                actions={(item) => (
-                    <div className="flex justify-end gap-2">
-                        {item.status === "DUE" && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
-                                onClick={async () => {
-                                    if (confirm("Are you sure you want to mark this as PAID?")) {
-                                        try {
-                                            await payments.markAsPaid(item.id);
-                                            // Refresh data
-                                            const list = await payments.list(branchId);
-                                            setData(list);
-                                        } catch (err) {
-                                            alert("Failed to mark as paid");
-                                        }
-                                    }
-                                }}
-                            >
-                                <Check size={14} /> Mark Paid
-                            </Button>
+                {/* Month Selector */}
+                <div className="flex items-center gap-4 bg-surfaceHighlight/50 p-2 rounded-lg border border-white/5">
+                    <Button variant="ghost" size="icon" onClick={() => handleMonthChange("prev")}>
+                        <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <div className="text-center min-w-[120px]">
+                        <div className="font-semibold text-white">{format(currentDate, "MMMM yyyy")}</div>
+                        {isCurrentMonth(currentDate) && (
+                            <div className="text-xs text-brand-400 font-medium">Current Month</div>
                         )}
-                        <Button variant="ghost" size="sm" className="gap-2 text-xs">
-                            <FileText size={14} /> Invoice
-                        </Button>
                     </div>
-                )}
-            />
+                    <Button variant="ghost" size="icon" onClick={() => handleMonthChange("next")}>
+                        <ChevronRight className="w-4 h-4" />
+                    </Button>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center gap-2 border-b border-white/10">
+                <button
+                    onClick={() => setActiveTab("DUE")}
+                    className={cn(
+                        "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                        activeTab === "DUE"
+                            ? "border-brand-500 text-brand-400"
+                            : "border-transparent text-textSecondary hover:text-white"
+                    )}
+                >
+                    Due Payments
+                    {data.filter(i => i.status === "DUE").length > 0 && (
+                        <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                            {data.filter(i => i.status === "DUE").length}
+                        </span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab("PAID")}
+                    className={cn(
+                        "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                        activeTab === "PAID"
+                            ? "border-green-500 text-green-400"
+                            : "border-transparent text-textSecondary hover:text-white"
+                    )}
+                >
+                    Paid History
+                </button>
+            </div>
+
+            {loading ? (
+                <div className="py-20 flex items-center justify-center text-white">
+                    <Loader2 className="animate-spin mr-2" /> Loading payments...
+                </div>
+            ) : (
+                <DataTable
+                    data={filteredData}
+                    columns={[
+                        { header: "Transaction ID", accessor: (item) => <span className="font-mono text-xs text-textSecondary">#{item.id.slice(-6)}</span> },
+                        {
+                            header: "Student",
+                            accessor: (item) => (
+                                <div>
+                                    <div className="text-white font-medium">{(item as any).student?.name || "Unknown"}</div>
+                                    <div className="text-xs text-textSecondary">{(item as any).student?.phone}</div>
+                                </div>
+                            )
+                        },
+                        {
+                            header: "Due Date",
+                            accessor: (item) => {
+                                const isOverdue = item.status === "DUE" && isBefore(new Date(item.dueDate), startOfMonth(currentDate));
+                                return (
+                                    <div className="flex items-center gap-2">
+                                        <span className={cn(isOverdue ? "text-red-400 font-medium" : "text-textSecondary")}>
+                                            {format(new Date(item.dueDate), "PP")}
+                                        </span>
+                                        {isOverdue && (
+                                            <Badge variant="danger" className="text-[10px] px-1 py-0 h-5">OVERDUE</Badge>
+                                        )}
+                                    </div>
+                                );
+                            }
+                        },
+                        {
+                            header: "Amount",
+                            accessor: (item) => (
+                                <span className="font-bold text-white">
+                                    {new Intl.NumberFormat('en-IN', {
+                                        style: 'currency',
+                                        currency: 'INR',
+                                        maximumFractionDigits: 0
+                                    }).format(item.amount)}
+                                </span>
+                            )
+                        },
+                        {
+                            header: "Status",
+                            accessor: (item) => (
+                                <Badge
+                                    variant={
+                                        item.status === "PAID" ? "success" :
+                                            item.status === "DUE" ? "warning" :
+                                                "danger"
+                                    }
+                                >
+                                    {item.status}
+                                </Badge>
+                            )
+                        },
+                    ]}
+                    actions={(item) => (
+                        <div className="flex justify-end gap-2">
+                            {item.status === "DUE" && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
+                                    onClick={() => handleMarkPaid(item.id)}
+                                >
+                                    <Check size={14} /> Mark Paid
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                />
+            )}
+
+            {!loading && filteredData.length === 0 && (
+                <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
+                    <p className="text-textSecondary">No payments found for this view.</p>
+                </div>
+            )}
         </div>
     );
 }
