@@ -15,10 +15,19 @@ export async function GET(
 
         const { searchParams } = new URL(req.url);
         const statusParam = searchParams.get("status");
+        const monthParam = searchParams.get("month"); // YYYY-MM
 
         let status: PaymentStatus | undefined;
         if (statusParam && Object.values(PaymentStatus).includes(statusParam as PaymentStatus)) {
             status = statusParam as PaymentStatus;
+        }
+
+        let month: Date | undefined;
+        if (monthParam) {
+            month = new Date(monthParam + "-01"); // Append day to make it parseable
+            if (isNaN(month.getTime())) {
+                month = undefined; // Fallback if invalid
+            }
         }
 
         const { branchId } = await params;
@@ -26,7 +35,8 @@ export async function GET(
         const payments = await PaymentService.listPayments(
             session.id,
             branchId,
-            status
+            status,
+            month
         );
 
         return NextResponse.json(payments);

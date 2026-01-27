@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { PaymentStatus, StudentStatus, PaymentType } from "@/types";
-import { addMonths, differenceInMonths, startOfDay, isBefore } from "date-fns";
+import { addMonths, differenceInMonths, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
 
 export class PaymentService {
     /**
@@ -157,19 +157,68 @@ export class PaymentService {
 
     /**
      * Lists payments for a branch with optional status filter.
+     * Supports strict monthly view logic:
+     * - If month provided:
+     *   - DUE: All due payments <= end of that month (includes overdue).
+     *   - PAID: Only payments paid/due IN that month (strict filter).
      */
     static async listPayments(
         userId: string,
         branchId: string,
-        status?: PaymentStatus
+        status?: PaymentStatus,
+        month?: Date
     ) {
         await this.assertBranchOwnership(userId, branchId);
 
+        let whereClause: any = {
+            branchId,
+            ...(status ? { status } : {}),
+        };
+
+        if (month) {
+            const start = startOfMonth(month);
+            const end = endOfMonth(month);
+
+            if (status === PaymentStatus.DUE) {
+                // If asking strictly for DUE, show everything due before or during this month
+                whereClause = {
+                    ...whereClause,
+                    status: PaymentStatus.DUE,
+                    dueDate: { lte: end }
+                };
+            } else if (status === PaymentStatus.PAID) {
+                // If asking strictly for PAID, show only this month
+                whereClause = {
+                    ...whereClause,
+                    status: PaymentStatus.PAID,
+                    dueDate: { gte: start, lte: end }
+                };
+            } else {
+                // Mixed view (default):
+                // Show DUE if (dueDate <= end)    <-- Includes past due
+                // Show PAID if (start <= dueDate <= end) <-- Strict window for paid
+                whereClause = {
+                    branchId,
+                    AND: [
+                        {
+                            OR: [
+                                {
+                                    status: PaymentStatus.DUE,
+                                    dueDate: { lte: end }
+                                },
+                                {
+                                    status: PaymentStatus.PAID,
+                                    dueDate: { gte: start, lte: end }
+                                }
+                            ]
+                        }
+                    ]
+                };
+            }
+        }
+
         return prisma.payment.findMany({
-            where: {
-                branchId,
-                ...(status ? { status } : {}),
-            },
+            where: whereClause,
             include: {
                 student: {
                     select: {
@@ -181,7 +230,7 @@ export class PaymentService {
                 },
             },
             orderBy: {
-                createdAt: "desc",
+                dueDate: "asc", // Sort by due date ascending (oldest first) so overdue shows at top provided we group/sort in UI
             },
         });
     }
