@@ -1,27 +1,31 @@
 import { runBranchAI } from "@/ai/orchestrator/branchAI.orchestrator"
 
 export async function GET(
-  request: Request,
-  { params }: { params: { branchId: string } }
+    request: Request,
+    props: { params: Promise<{ branchId: string }> }
 ) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const langParam = searchParams.get("lang")
+    try {
+        const params = await props.params;
+        const { searchParams } = new URL(request.url)
+        const langParam = searchParams.get("lang")
 
-    const language =
-      langParam === "hi" ? "hi" : "en"
+        const language =
+            langParam === "hi" ? "hi" : "en"
 
-    const result = await runBranchAI(
-      params.branchId,
-      language
-    )
+        const result = await runBranchAI(
+            params.branchId,
+            language
+        )
 
-    return Response.json(result)
+        console.log("API Result:", JSON.stringify(result, null, 2));
 
-  } catch (error) {
-    return Response.json(
-      { error: "Failed to generate AI insights" },
-      { status: 500 }
-    )
-  }
+        return Response.json(result)
+
+    } catch (error) {
+        console.error("AI GENERATION ERROR:", error);
+        return Response.json(
+            { error: "Failed to generate AI insights", details: String(error) },
+            { status: 500 }
+        )
+    }
 }
