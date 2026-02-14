@@ -15,18 +15,21 @@ export async function callGemini(prompt: string): Promise<string | null> {
     }
 
     try {
-        console.log("🤖 Calling Gemini with model: gemini-2.0-flash");
+        console.log("🤖 Calling Gemini with model: gemini-2.5-flash");
         const response = await genAI.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash",
             contents: [
                 {
                     role: "user",
                     parts: [{ text: prompt }],
                 },
             ],
+            config: {
+                responseMimeType: "application/json",
+            }
         });
 
-        const text = response.text;
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
         console.log("✅ Gemini Response Logic:", text ? "Success" : "Empty");
         return text ?? null;
     } catch (error: any) {
