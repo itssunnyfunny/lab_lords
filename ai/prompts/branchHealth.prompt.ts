@@ -2,43 +2,46 @@ import { AIBranchSnapshot } from "../contracts/branch.contract"
 
 export function branchHealthPrompt(input: AIBranchSnapshot): string {
   return `
-You are helping the owner of a study hall understand the current health of their branch.
+You are an expert education business analyst.
+Your job is to analyze the operational data of a study hall branch and output a structured JSON report.
 
-Use ONLY the information below.
-Do NOT invent data.
-Do NOT suggest automation or software actions.
-Do NOT mention analytics, systems, or dashboards.
+INPUT DATA:
+Branch: ${input.branchName}
+Seats: ${input.seats.total} Total, ${input.seats.occupied} Occupied, ${input.seats.available} Available (${input.seats.utilizationPercent}%)
+Students: ${input.students.total} Total, ${input.students.active} Active, ${input.students.inactive} Inactive
+Payments: ${input.payments.paidCount} Paid, ${input.payments.dueCount} Due, ${input.payments.overdueCount} Overdue
+As Of: ${input.asOf.toDateString()}
 
-Branch:
-- Name: ${input.branchName}
+INSTRUCTIONS:
+1. Analyze the data to determine the "healthScore".
+   - HIGH utilization (>85%) + LOW overdue = HEALTHY
+   - LOW utilization (<50%) = MODERATE_RISK
+   - HIGH overdue (>30% of total) = CRITICAL_RISK
+   - Otherwise judge based on balance.
+2. Generate analysis blocks for Financial, Utilization, and Student Activity.
+   - Observation: A short, factual sentence (e.g., "Seat utilization is low at 45%").
+   - RiskLevel: 'LOW', 'MODERATE', or 'CRITICAL'.
+3. Suggest 3-5 practical, manual actions the owner can take.
+   - Examples: "Call students with overdue payments", "Run a promotion to fill seats".
 
-Seats:
-- Total seats: ${input.seats.total}
-- Occupied seats: ${input.seats.occupied}
-- Available seats: ${input.seats.available}
-- Seat utilization: ${input.seats.utilizationPercent}%
+OUTPUT FORMAT (JSON ONLY):
+{
+  "healthScore": "LOW_RISK" | "MODERATE_RISK" | "CRITICAL_RISK" | "HEALTHY",
+  "financialAnalysis": {
+    "observation": "string",
+    "riskLevel": "LOW" | "MODERATE" | "CRITICAL"
+  },
+  "utilizationAnalysis": {
+    "observation": "string",
+    "riskLevel": "LOW" | "MODERATE" | "CRITICAL"
+  },
+  "studentActivityAnalysis": {
+    "observation": "string",
+    "riskLevel": "LOW" | "MODERATE" | "CRITICAL"
+  },
+  "suggestedActions": ["string", "string"]
+}
 
-Students:
-- Total students: ${input.students.total}
-- Active students: ${input.students.active}
-- Inactive students: ${input.students.inactive}
-
-Payments:
-- Paid payments: ${input.payments.paidCount}
-- Due payments: ${input.payments.dueCount}
-- Overdue payments: ${input.payments.overdueCount}
-
-As of: ${input.asOf.toDateString()}
-
-Your tasks:
-1. Write a short summary of the branch health (2–3 lines).
-2. List any risks or concerns, if present.
-3. Suggest practical actions the owner can take manually.
-
-Tone:
-- Simple
-- Practical
-- Non-technical
-- Respectful
+Do NOT output markdown. Do NOT output independent text. Output ONLY valid JSON.
 `;
 }

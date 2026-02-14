@@ -4,6 +4,7 @@ import { suggestActionsForBranch } from "../actionSuggestions/branchActionSugges
 import { draftMessagesForBranch } from "../messageDrafting/branchMessageDrafter"
 import { generateBranchHealthReport } from "../branchHealthReport"
 import { generateBranchFullReport } from "../reports/branchFullReport.generator"
+import { AIStructuredBranchReport } from "../contracts/structuredReport.contract"
 
 
 export interface BranchAIResponse {
@@ -15,14 +16,9 @@ export interface BranchAIResponse {
         generatedAt: string
     }
 
-    health: {
-        summary: string
-    }
+    report: AIStructuredBranchReport
 
-    report: {
-        full: string
-    }
-
+    // Legacy fields kept for compatibility if needed, but 'report' is now the main structured object
     risks: {
         total: number
         items: any[]
@@ -43,6 +39,7 @@ export interface BranchAIResponse {
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+// Fix cache type to match new response
 const responseCache = new Map<string, { timestamp: number; data: BranchAIResponse }>();
 
 export async function runBranchAI(
@@ -63,32 +60,23 @@ export async function runBranchAI(
     console.log(`[CACHE MISS] Generating new AI result for ${branchId}`);
 
     // 1️⃣ [DETERMINISTIC] Read analytics snapshot
-    // This is the source of truth. No AI here.
     const snapshot = await readBranchSnapshotForAI(branchId)
 
-    // 2️⃣ [DETERMINISTIC] Detect risks
-    // We use hard-coded business rules to find risks.
-    // NEVER use LLM to decide what is a risk.
+    // 2️⃣ [DETERMINISTIC] Detect risks (Legacy/Parallel)
     const risks = detectBranchRisks(snapshot)
 
-    // 3️⃣ [DETERMINISTIC] Suggest actions
-    // We map specific risks to specific actions using a switch case.
-    // NEVER use LLM to invent actions.
+    // 3️⃣ [DETERMINISTIC] Suggest actions (Legacy/Parallel)
     const actions = suggestActionsForBranch(risks)
 
-    // 4️⃣ [AI - GEMINI] Generate health narrative
-    // Gemini explains the health status in human language.
-    // It does NOT decide the status, only describes it.
-    const healthReport = await generateBranchHealthReport(snapshot)
+    // 4️⃣ [AI - GEMINI] Generate STRUCTURED health report
+    // This now returns the JSON object we defined
+    const structuredReport = await generateBranchHealthReport(snapshot)
 
-    // 5️⃣ [AI - GEMINI] Generate full report
-    // Gemini writes a detailed report using the snapshot, risks, and actions.
-    // It provides the "narrative layer".
-    const fullReport = await generateBranchFullReport(snapshot, risks, actions)
+    // 5️⃣ [AI - GEMINI] Generate full report (Legacy Text)
+    // We might depreciate this if structured report is sufficient, but keeping for now.
+    // const fullReport = await generateBranchFullReport(snapshot, risks, actions) 
 
     // 6️⃣ [DETERMINISTIC] Draft messages
-    // We use a safe message drafter.
-    // (In future phases, this might have an optional AI tone-enhancer)
     const messages = draftMessagesForBranch(actions, language)
 
     const result: BranchAIResponse = {
@@ -100,12 +88,7 @@ export async function runBranchAI(
             generatedAt: new Date().toISOString(),
         },
 
-        health: {
-            summary: healthReport.summary,
-        },
-        report: {
-            full: fullReport
-        },
+        report: structuredReport,
 
         risks: {
             total: risks.length,
