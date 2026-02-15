@@ -1,3 +1,5 @@
+import { AIActionSuggestion } from "./actionSuggestion.contract"
+
 export interface AIStructuredBranchReport {
     healthScore: 'LOW_RISK' | 'MODERATE_RISK' | 'CRITICAL_RISK' | 'HEALTHY'
     financialAnalysis: {
@@ -12,6 +14,6 @@ export interface AIStructuredBranchReport {
         observation: string
         riskLevel: 'LOW' | 'MODERATE' | 'CRITICAL'
     }
-    suggestedActions: string[]
+    suggestedActions: AIActionSuggestion[]
     generatedAt: string // ISO Date string
 }
