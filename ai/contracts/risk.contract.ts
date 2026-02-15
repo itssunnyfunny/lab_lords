@@ -2,6 +2,7 @@ export type AIRiskType =
   | "PAYMENT_OVERDUE"
   | "LOW_SEAT_UTILIZATION"
   | "HIGH_INACTIVE_STUDENTS"
+  | "NO_DATA"
 
 export type AIRiskSeverity = "LOW" | "MEDIUM" | "HIGH"
 
