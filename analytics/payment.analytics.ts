@@ -27,18 +27,27 @@ export async function getPaymentStats(
     select: {
       status: true,
       amount: true,
+      dueDate: true, // Add dueDate to select for comparison
     },
   })
 
   let dueCount = 0
   let paidCount = 0
+  let overdueCount = 0
   let dueAmount = 0
   let paidAmount = 0
+
+  const startOfToday = new Date(date);
+  startOfToday.setHours(0, 0, 0, 0);
 
   for (const p of payments) {
     if (p.status === "DUE") {
       dueCount++
       dueAmount += p.amount
+
+      if (p.dueDate < startOfToday) {
+        overdueCount++
+      }
     } else if (p.status === "PAID") {
       paidCount++
       paidAmount += p.amount
@@ -48,6 +57,7 @@ export async function getPaymentStats(
   return {
     dueCount,
     paidCount,
+    overdueCount,
     dueAmount,
     paidAmount,
   }
@@ -94,6 +104,57 @@ export async function getDueStudents(
       daysOverdue,
     }
   })
+}
+
+/**
+ * Detailed list of overdue payments for manual follow-up
+ * Canonical Rule: status = DUE AND dueDate < today AND type = MONTHLY
+ */
+export async function getOverduePayments(
+  branchId: string,
+  asOf?: AsOf
+) {
+  const date = resolveAsOf(asOf)
+
+  // 1. Get raw payments
+  const payments = await prisma.payment.findMany({
+    where: {
+      branchId,
+      status: "DUE",
+      dueDate: {
+        lt: date, // Strictly less than today (overdue)
+      },
+      type: "MONTHLY" // Canonical rule for "Overdue" in Phase 6
+    },
+    select: {
+      id: true,
+      amount: true,
+      dueDate: true,
+      student: {
+        select: {
+          id: true,
+          name: true,
+          phone: true
+        }
+      }
+    },
+    orderBy: {
+      dueDate: 'asc' // Oldest due date first
+    }
+  })
+
+  // 2. Format for UI
+  return {
+    count: payments.length,
+    payments: payments.map(p => ({
+      paymentId: p.id,
+      studentId: p.student.id,
+      studentName: p.student.name,
+      phone: p.student.phone,
+      dueDate: p.dueDate,
+      amount: p.amount
+    }))
+  }
 }
 
 /**

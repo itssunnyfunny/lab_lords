@@ -96,7 +96,7 @@ export async function getBranchSnapshot(
     payments: {
       dueCount: health.payments.dueCount,
       paidCount: health.payments.paidCount,
-      overdueCount: health.payments.dueCount, // Simplifying assumptions as before
+      overdueCount: health.payments.overdueCount, // Now using strict overdue count
     },
 
     asOf: date,
