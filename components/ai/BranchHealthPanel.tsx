@@ -106,10 +106,19 @@ export function BranchHealthPanel({ report, isLoading }: BranchHealthPanelProps)
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium text-muted-foreground">Suggested Actions</h4>
                     <ul className="space-y-2">
-                        {report.suggestedActions.map((action, idx) => (
+                        {report.suggestedActions.map((actionItem, idx) => (
                             <li key={idx} className="flex items-start gap-2 text-sm text-gray-300">
                                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
-                                <span>{action}</span>
+                                {actionItem.action === 'FOLLOW_UP_OVERDUE_PAYMENTS' ? (
+                                    <a
+                                        href={`overdue`}
+                                        className="text-primary hover:underline cursor-pointer"
+                                    >
+                                        {actionItem.reason}
+                                    </a>
+                                ) : (
+                                    <span>{actionItem.reason}</span>
+                                )}
                             </li>
                         ))}
                     </ul>

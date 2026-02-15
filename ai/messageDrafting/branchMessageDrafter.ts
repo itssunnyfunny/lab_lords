@@ -35,4 +35,5 @@ export function draftMessagesForBranch(
         }
     }
   })
+    .filter((draft): draft is AIMessageDraft => draft !== undefined)
 }
