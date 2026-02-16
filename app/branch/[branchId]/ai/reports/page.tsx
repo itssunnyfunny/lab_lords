@@ -7,23 +7,7 @@ import { Loader2 } from "lucide-react";
 import { BranchHealthPanel } from "@/components/ai/BranchHealthPanel";
 
 // Define the interface locally or import it if shared
-interface AIStructuredBranchReport {
-    healthScore: 'LOW_RISK' | 'MODERATE_RISK' | 'CRITICAL_RISK' | 'HEALTHY'
-    financialAnalysis: {
-        observation: string
-        riskLevel: 'LOW' | 'MODERATE' | 'CRITICAL'
-    }
-    utilizationAnalysis: {
-        observation: string
-        riskLevel: 'LOW' | 'MODERATE' | 'CRITICAL'
-    }
-    studentActivityAnalysis: {
-        observation: string
-        riskLevel: 'LOW' | 'MODERATE' | 'CRITICAL'
-    }
-    suggestedActions: string[]
-    generatedAt: string
-}
+import { AIStructuredBranchReport } from "@/ai/contracts/structuredReport.contract";
 
 interface AIResponse {
     report: AIStructuredBranchReport;
