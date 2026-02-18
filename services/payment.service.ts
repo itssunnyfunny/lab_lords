@@ -78,72 +78,49 @@ export class PaymentService {
                 nextDueDate = addMonths(lastPayment.dueDate, 1);
             } else {
                 // First payment is due 1 month after joining
-                // NOTE: User said "joinedAt + 1 month"
                 nextDueDate = addMonths(student.joinedAt, 1);
             }
 
-            // If the calculated due date is in the future relative to asOfDate, skip
-            // (We only generate if it's due on or before active date)
-            // Actually user said: "if dueDate <= asOfDate"
-            if (!isBefore(asOfDate, startOfDay(nextDueDate))) {
-                // Check if payment already exists for this dueDate (Efficiency check, though Logic should prevent it if we trust lastPayment)
-                // But if lastPayment was "Payment A (Due Jan 1)", next is "Payment B (Due Feb 1)".
-                // If Payment B already exists, it would have been the lastPayment!
-                // So purely relying on `payments take 1` is safe IF we are sure we are not running this twice concurrently.
-                // But better to be safe and check if we are about to create a duplicate if for some reason lastPayment query was stale or race condition.
-                // However, since we queried `take: 1`, if Payment B existed, nextDueDate would be Mar 1.
-                // So we shouldn't theoretically need to check, but let's double check to be robust.
+            let paymentsGeneratedForStudent = 0;
 
-                // Wait, if we just created it in this loop? No, loop is per student.
-
-                // Let's stick to the plan: "if no payment already exists for this dueDate"
-                // The `lastPayment` query might have missed it if we didn't fetch all? No `take: 1 desc` gives latest.
-                // So if latest is Feb 1, we calculate Mar 1. Mar 1 definitely doesn't exist.
-                // UNLESS `asOfDate` is way in future (e.g. Apr 1) and we need to generate Feb 1 AND Mar 1.
-                // The current loop only generates one payment per run.
-                // If we want to generate catch-up payments, we should probably loop?
-                // User didn't explicitly say loop, but "Repeat forever".
-                // "For each ACTIVE student... if dueDate <= asOfDate ... create Payment".
-                // If I run it today (Apr 15) and last payment was Jan 15.
-                // next = Feb 15. Feb 15 <= Apr 15. Create Feb 15.
-                // Next run (tomorrow or re-trigger): Last = Feb 15. Next = Mar 15. Create.
-                // So calling it once generates ONE pending payment. To catch up, you call it multiple times.
-                // This seems safe and correct for a daily job.
-
-                const periodStart = nextDueDate; // For simplicity, let's say period starts on due date?
-                // User didn't specify periodStart logic in pseudo-code, just "dueDate".
-                // But Payment model has periodStart/End.
-                // Let's assume periodStart = dueDate - 1 month? Or just dueDate?
-                // User said: "One payment = one billing cycle"
-                // "joined on 12 Jan ... dueDate: 12 Feb".
-                // So period is likely Jan 12 - Feb 12.
-                // If dueDate is Feb 12, periodStart should probably be Jan 12 (or Feb 12? Billing usually forward or backward?)
-                // "joined 12 Jan -> Payment 12 Feb". This implies Post-paid or Pre-paid?
-                // Usually "Monthly fee" for Jan 12-Feb 12 is due on Jan 12 (Prepaid) or Feb 12 (Postpaid).
-                // User says: "Joined 12 Jan... On 12 Feb: Payment... Due 12 Feb".
-                // This looks like Post-paid (pay after month) OR Prepaid with 1 month grace?
-                // "Student should not be due before completing a full cycle".
-                // So it's Post-paid. You use the facility for a month, then pay.
-                // So for DueDate Feb 12, Period is Jan 12 - Feb 12.
-                // PeriodStart = addMonths(nextDueDate, -1). PeriodEnd = nextDueDate.
-
-                const pStart = addMonths(nextDueDate, -1);
-                const pEnd = nextDueDate;
-
-                // Create Payment
-                await prisma.payment.create({
-                    data: {
-                        branchId,
+            // Catch-up loop: generate all due payments up to asOfDate
+            // Check if nextDueDate is on or before asOfDate (ignoring time if desired, but here specific logic)
+            // Using !isBefore(asOfDate, startOfDay(nextDueDate)) ensures that if today is 15th, and due is 15th, we generate.
+            while (!isBefore(asOfDate, startOfDay(nextDueDate))) {
+                // Check if payment already exists for this dueDate (Idempotency)
+                // We trust strict date equality from addMonths logic, but validation is safer
+                const existing = await prisma.payment.findFirst({
+                    where: {
                         studentId: student.id,
-                        amount: student.monthlyFee, // Use student's fee
-                        status: PaymentStatus.DUE,
-                        periodStart: pStart,
-                        periodEnd: pEnd,
                         dueDate: nextDueDate,
-                    },
+                        type: PaymentType.MONTHLY
+                    }
                 });
-                generatedCount++;
-            } else {
+
+                if (!existing) {
+                    const pStart = addMonths(nextDueDate, -1);
+                    const pEnd = nextDueDate;
+
+                    await prisma.payment.create({
+                        data: {
+                            branchId,
+                            studentId: student.id,
+                            amount: student.monthlyFee,
+                            status: PaymentStatus.DUE,
+                            periodStart: pStart,
+                            periodEnd: pEnd,
+                            dueDate: nextDueDate,
+                        },
+                    });
+                    paymentsGeneratedForStudent++;
+                    generatedCount++;
+                }
+
+                // Advance to next month for catch-up
+                nextDueDate = addMonths(nextDueDate, 1);
+            }
+
+            if (paymentsGeneratedForStudent === 0) {
                 skippedCount++;
             }
         }
