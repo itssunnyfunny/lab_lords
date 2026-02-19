@@ -21,6 +21,11 @@ export interface AIBranchSnapshot {
     dueCount: number
     paidCount: number
     overdueCount: number
+    overduePayments: Array<{
+      studentId: string
+      amount: number
+      dueDate: Date
+    }>
   }
 
   asOf: Date

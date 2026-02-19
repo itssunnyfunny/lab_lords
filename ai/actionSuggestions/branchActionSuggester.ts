@@ -12,6 +12,7 @@ export function suggestActionsForBranch(
         actions.push({
           action: "FOLLOW_UP_OVERDUE_PAYMENTS",
           reason: risk.explanation,
+          meta: risk.meta,
         })
         break
 

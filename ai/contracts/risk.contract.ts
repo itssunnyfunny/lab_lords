@@ -10,4 +10,7 @@ export interface AIRisk {
   type: AIRiskType
   severity: AIRiskSeverity
   explanation: string
+  meta?: {
+    relatedEntityIds?: string[]
+  }
 }

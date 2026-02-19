@@ -1,7 +1,7 @@
 // analytics/branch.analytics.ts
 
 import { prisma } from "@/lib/prisma"
-import { getPaymentStats } from "./payment.analytics"
+import { getPaymentStats, getOverduePayments } from "./payment.analytics"
 import {
   getSeatUtilization,
   getSeatUtilizationByShift,
@@ -68,12 +68,13 @@ export async function getBranchSnapshot(
 ) {
   const date = resolveAsOf(asOf)
 
-  const [branch, health] = await Promise.all([
+  const [branch, health, overdueList] = await Promise.all([
     prisma.branch.findUnique({
       where: { id: branchId },
       select: { name: true }
     }),
-    getBranchHealthSnapshot(branchId, date)
+    getBranchHealthSnapshot(branchId, date),
+    getOverduePayments(branchId, date)
   ])
 
   return {
@@ -96,7 +97,12 @@ export async function getBranchSnapshot(
     payments: {
       dueCount: health.payments.dueCount,
       paidCount: health.payments.paidCount,
-      overdueCount: health.payments.overdueCount, // Now using strict overdue count
+      overdueCount: health.payments.overdueCount,
+      overduePayments: overdueList.payments.map(p => ({
+        studentId: p.studentId,
+        amount: p.amount,
+        dueDate: p.dueDate
+      }))
     },
 
     asOf: date,

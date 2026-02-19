@@ -15,7 +15,10 @@ export async function readBranchSnapshotForAI(
 
         seats: snapshot.seats,
         students: snapshot.students,
-        payments: snapshot.payments,
+        payments: {
+            ...snapshot.payments,
+            overduePayments: snapshot.payments.overduePayments
+        },
 
         asOf,
     }

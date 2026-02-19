@@ -27,13 +27,19 @@ export function detectBranchRisks(
     risks.push({
       type: "PAYMENT_OVERDUE",
       severity: "HIGH",
-      explanation: `Critical: ${overduePercent.toFixed(1)}% of students have overdue payments.`
+      explanation: `Critical: ${overduePercent.toFixed(1)}% of students have overdue payments.`,
+      meta: {
+        relatedEntityIds: snapshot.payments.overduePayments.map(p => p.studentId)
+      }
     })
   } else if (snapshot.payments.overdueCount > 0) {
     risks.push({
       type: "PAYMENT_OVERDUE",
       severity: snapshot.payments.overdueCount > 5 ? "HIGH" : "MEDIUM",
       explanation: `${snapshot.payments.overdueCount} payments are overdue.`,
+      meta: {
+        relatedEntityIds: snapshot.payments.overduePayments.map(p => p.studentId)
+      }
     })
   }
 

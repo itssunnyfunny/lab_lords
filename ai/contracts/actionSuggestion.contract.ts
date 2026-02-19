@@ -7,4 +7,7 @@ export type AIActionType =
 export interface AIActionSuggestion {
   action: AIActionType
   reason: string
+  meta?: {
+    relatedEntityIds?: string[]
+  }
 }
