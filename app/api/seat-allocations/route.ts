@@ -26,6 +26,13 @@ export async function POST(req: NextRequest) {
             shiftId
         );
 
+        // Update Branch lastDataChange
+        // We need branchId. seatAllocation returns it implicitly via seat, usually.
+        // But assignSeat returns the allocation. loading seat from it might be needed.
+        // Actually, assignSeat in service ALREADY updates the branch using tx!
+        // So I DON'T need to do it here for assignSeat.
+        // Let me check unassign logic.
+
         return NextResponse.json(allocation, { status: 201 });
     } catch (error: any) {
         const status = error.message.includes("Unauthorized") ? 403 : 400;
