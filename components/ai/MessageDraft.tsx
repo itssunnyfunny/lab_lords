@@ -31,6 +31,11 @@ export function MessageDraft({ draft, actionType }: MessageDraftProps) {
                 </div>
 
                 <div className="bg-black/40 p-3 rounded-md border border-white/5 relative group">
+                    {draft.isOutdated && (
+                        <div className="absolute -top-3 right-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-[10px] px-2 py-0.5 rounded shadow-sm backdrop-blur-md flex items-center gap-1">
+                            ⚠️ Outdated
+                        </div>
+                    )}
                     <p className="text-sm text-gray-300 italic min-h-[80px]">
                         "{draft.message}"
                     </p>

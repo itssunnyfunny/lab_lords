@@ -80,7 +80,11 @@ export default function AIMessagesPage() {
                     {data.messages.items.map((item, i) => (
                         <MessageDraft
                             key={i}
-                            draft={{ message: item.message, language: data.messages.language }}
+                            draft={{
+                                message: item.message,
+                                language: data.messages.language,
+                                isOutdated: (item as any).isOutdated // Cast strictly if interface update isn't picked up yet
+                            }}
                             actionType={item.action}
                         />
                     ))}

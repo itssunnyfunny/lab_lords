@@ -12,6 +12,8 @@ import { AIStructuredBranchReport } from "@/ai/contracts/structuredReport.contra
 interface AIResponse {
     report: AIStructuredBranchReport;
     meta: { generatedAt: string };
+    hasPendingChanges?: boolean;
+    nextAllowedCallAt?: string;
 }
 
 export default function AIReportsPage() {
@@ -21,20 +23,22 @@ export default function AIReportsPage() {
     const [data, setData] = useState<AIResponse | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        async function fetchData() {
-            try {
-                const res = await fetch(`/api/ai/branch/${branchId}`);
-                if (!res.ok) throw new Error("Failed to fetch report");
-                const json = await res.json();
-                console.log("AI Report Data:", json);
-                setData(json);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/ai/branch/${branchId}`);
+            if (!res.ok) throw new Error("Failed to fetch report");
+            const json = await res.json();
+            console.log("AI Report Data:", json);
+            setData(json);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
         }
+    };
+
+    useEffect(() => {
         fetchData();
     }, [branchId]);
 
@@ -54,7 +58,12 @@ export default function AIReportsPage() {
             />
 
             <div className="max-w-5xl mx-auto w-full">
-                <BranchHealthPanel report={data?.report || null} />
+                <BranchHealthPanel
+                    report={data?.report || null}
+                    hasPendingChanges={data?.hasPendingChanges}
+                    nextAllowedCallAt={data?.nextAllowedCallAt}
+                    onRefresh={fetchData}
+                />
             </div>
         </div>
     );
