@@ -3,8 +3,8 @@ import { detectBranchRisks } from "../riskDetection/branchRiskDetector"
 import { suggestActionsForBranch } from "../actionSuggestions/branchActionSuggester"
 import { draftMessagesForBranch } from "../messageDrafting/branchMessageDrafter"
 import { generateBranchHealthReport } from "../branchHealthReport"
-import { generateBranchFullReport } from "../reports/branchFullReport.generator"
 import { AIStructuredBranchReport } from "../contracts/structuredReport.contract"
+import { prisma } from "@/lib/prisma"
 
 
 export interface BranchAIResponse {
@@ -15,6 +15,9 @@ export interface BranchAIResponse {
         branchName: string
         generatedAt: string
     }
+
+    hasPendingChanges?: boolean
+    nextAllowedCallAt?: string
 
     report: AIStructuredBranchReport
 
@@ -39,76 +42,170 @@ export interface BranchAIResponse {
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-// Fix cache type to match new response
-const responseCache = new Map<string, { timestamp: number; data: BranchAIResponse }>();
+const STUCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - force reset if stuck running
 
 export async function runBranchAI(
     branchId: string,
     language: "en" | "hi" = "en"
 ): Promise<BranchAIResponse> {
-    const cacheKey = `${branchId}:${language}`;
-    const now = Date.now();
+    const now = new Date();
 
-    if (responseCache.has(cacheKey)) {
-        const cached = responseCache.get(cacheKey)!;
-        if (now - cached.timestamp < CACHE_TTL_MS) {
-            console.log(`[CACHE HIT] Returning cached AI result for ${branchId}`);
-            return cached.data;
+    // 0️⃣ Check Caching & Rate Limiting & Concurrency
+    const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { lastDataChange: true, name: true, aiLastCalledAt: true, aiStatus: true }
+    });
+
+    if (!branch) throw new Error("Branch not found");
+
+    const lastReport = await prisma.branchAIReport.findFirst({
+        where: { branchId },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    const lastCalledAt = branch.aiLastCalledAt ? branch.aiLastCalledAt.getTime() : 0;
+    const timeSinceLastCall = now.getTime() - lastCalledAt;
+
+    // Status Calculations
+    const isRateLimited = timeSinceLastCall < CACHE_TTL_MS;
+    const hasDataChanged = branch.lastDataChange.getTime() > lastCalledAt;
+
+    // Check if currently running (and not stuck)
+    const isRunning = branch.aiStatus === "RUNNING";
+    const runsForTooLong = isRunning && timeSinceLastCall > STUCK_TIMEOUT_MS;
+    const actuallyRunning = isRunning && !runsForTooLong;
+
+    // Derived fields for response
+    const nextAllowedCallAt = new Date(lastCalledAt + CACHE_TTL_MS).toISOString();
+    const responseExtras = {
+        hasPendingChanges: hasDataChanged,
+        nextAllowedCallAt: isRateLimited ? nextAllowedCallAt : now.toISOString()
+    };
+
+    let shouldRun = true;
+
+    if (actuallyRunning) {
+        console.log(`[AI CONCURRENCY] Blocked for ${branchId} (Already IDLE -> RUNNING)`);
+        // If running, we MUST return cached report if available, else error/wait
+        if (lastReport) {
+            return {
+                ...lastReport.data as unknown as BranchAIResponse,
+                ...responseExtras // Update extras
+            };
+        }
+        throw new Error("AI is currently generating. Please wait.");
+    }
+
+    if (isRateLimited && !runsForTooLong) {
+        // Normal rate limit block
+        console.log(`[AI RATE LIMIT] Blocked for ${branchId} (Wait ${((CACHE_TTL_MS - timeSinceLastCall) / 1000).toFixed(0)}s)`);
+        shouldRun = false;
+    } else if (!hasDataChanged && lastReport && !runsForTooLong) {
+        console.log(`[AI STALENESS] Blocked for ${branchId} (No data change since last AI call)`);
+        shouldRun = false;
+    }
+
+    // 🛑 CONCURRENCY LOCK ACQUISITION
+    // If we decided to run, we must transition IDLE -> RUNNING atomically
+    if (shouldRun) {
+        // If it was "stuck" (runsForTooLong), we reset it. 
+        // Or if it was IDLE, we set it to RUNNING.
+        const updateResult = await prisma.branch.updateMany({
+            where: {
+                id: branchId,
+                // Optimistic lock: ensure it matches what we read (unless we are forcing a reset of a stuck job)
+                aiStatus: runsForTooLong ? "RUNNING" : "IDLE"
+            },
+            data: {
+                aiStatus: "RUNNING",
+                aiLastCalledAt: now // Update timestamp to mark start of this run
+            }
+        });
+
+        if (updateResult.count === 0 && !runsForTooLong) {
+            console.log(`[AI CONCURRENCY] Blocked for ${branchId} (Race condition: IDLE check failed)`);
+            shouldRun = false;
         }
     }
 
-    console.log(`[CACHE MISS] Generating new AI result for ${branchId}`);
-
-    // 1️⃣ [DETERMINISTIC] Read analytics snapshot
-    const snapshot = await readBranchSnapshotForAI(branchId)
-
-    // 2️⃣ [DETERMINISTIC] Detect risks (Legacy/Parallel)
-    const risks = detectBranchRisks(snapshot)
-
-    // 3️⃣ [DETERMINISTIC] Suggest actions (Legacy/Parallel)
-    const actions = suggestActionsForBranch(risks)
-
-    // 4️⃣ [AI - GEMINI] Generate STRUCTURED health report
-    // This now returns the JSON object we defined
-    const structuredReport = await generateBranchHealthReport(snapshot)
-
-    // 5️⃣ [AI - GEMINI] Generate full report (Legacy Text)
-    // We might depreciate this if structured report is sufficient, but keeping for now.
-    // const fullReport = await generateBranchFullReport(snapshot, risks, actions) 
-
-    // 6️⃣ [DETERMINISTIC] Draft messages
-    const messages = draftMessagesForBranch(actions, language)
-
-    const result: BranchAIResponse = {
-        version: "1.0",
-
-        meta: {
-            branchId,
-            branchName: snapshot.branchName,
-            generatedAt: new Date().toISOString(),
-        },
-
-        report: structuredReport,
-
-        risks: {
-            total: risks.length,
-            items: risks,
-        },
-
-        actions: {
-            total: actions.length,
-            items: actions,
-        },
-
-        messages: {
-            language,
-            items: messages.map((m, i) => ({
-                action: actions[i]?.action,
-                message: m.message,
-            })),
-        },
+    if (!shouldRun && lastReport) {
+        return {
+            ...lastReport.data as unknown as BranchAIResponse,
+            ...responseExtras
+        };
     }
 
-    responseCache.set(cacheKey, { timestamp: Date.now(), data: result });
-    return result;
+    console.log(`[AI RUNNING] Generating new AI result for ${branchId}`);
+
+    try {
+        // 1️⃣ [DETERMINISTIC] Read analytics snapshot
+        const snapshot = await readBranchSnapshotForAI(branchId)
+
+        // 2️⃣ [DETERMINISTIC] Detect risks (Legacy/Parallel)
+        const risks = detectBranchRisks(snapshot)
+
+        // 3️⃣ [DETERMINISTIC] Suggest actions (Legacy/Parallel)
+        const actions = suggestActionsForBranch(risks)
+
+        // 4️⃣ [AI - GEMINI] Generate STRUCTURED health report
+        const structuredReport = await generateBranchHealthReport(snapshot)
+
+        // 5️⃣ [DETERMINISTIC] Draft messages (Now Persistent & Async)
+        const messages = await draftMessagesForBranch(branchId, actions, language)
+
+        const result: BranchAIResponse = {
+            version: "1.0",
+
+            meta: {
+                branchId,
+                branchName: snapshot.branchName,
+                generatedAt: new Date().toISOString(),
+            },
+
+            ...responseExtras,
+            // After run, pending changes are cleared (conceptually, though specifically we check timestamps next time)
+            hasPendingChanges: false,
+
+            report: structuredReport,
+
+            risks: {
+                total: risks.length,
+                items: risks,
+            },
+
+            actions: {
+                total: actions.length,
+                items: actions,
+            },
+
+            messages: {
+                language,
+                items: messages.map((m) => ({
+                    action: m.action || "UNKNOWN",
+                    message: m.message,
+                    isOutdated: m.isOutdated
+                })),
+            },
+        }
+
+        // Save report to DB
+        await prisma.branchAIReport.create({
+            data: {
+                branchId,
+                data: result as any
+            }
+        });
+
+        return result;
+
+    } finally {
+        // 🏁 RELEASE LOCK -> IDLE
+        // Only release if WE were the ones running it (which we know because we got past the lock check)
+        if (shouldRun) {
+            await prisma.branch.update({
+                where: { id: branchId },
+                data: { aiStatus: "IDLE" }
+            });
+        }
+    }
 }
