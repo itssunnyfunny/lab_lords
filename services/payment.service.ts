@@ -125,6 +125,15 @@ export class PaymentService {
             }
         }
 
+
+        // If any payments were generated, update branch.lastDataChange
+        if (generatedCount > 0) {
+            await prisma.branch.update({
+                where: { id: branchId },
+                data: { lastDataChange: new Date() }
+            });
+        }
+
         return {
             generatedCount,
             skippedCount,
@@ -237,12 +246,32 @@ export class PaymentService {
             return payment; // Already paid, idempotent
         }
 
-        return prisma.payment.update({
-            where: { id: paymentId },
-            data: {
-                status: PaymentStatus.PAID,
-                paidAt: new Date(),
-            },
+        return prisma.$transaction(async (tx) => {
+            // 1. Mark as PAID
+            const updatedPayment = await tx.payment.update({
+                where: { id: paymentId },
+                data: {
+                    status: PaymentStatus.PAID,
+                    paidAt: new Date(),
+                },
+            });
+
+            // 2. Delete associated MessageDrafts (Stop pestering)
+            await tx.messageDraft.deleteMany({
+                where: {
+                    studentId: payment.studentId,
+                    branchId: payment.branchId,
+                    action: "OVERDUE_PAYMENT_FOLLOWUP" // Only delete relevant drafts
+                }
+            });
+
+            // 3. Update Branch lastDataChange
+            await tx.branch.update({
+                where: { id: payment.branchId },
+                data: { lastDataChange: new Date() }
+            });
+
+            return updatedPayment;
         });
     }
 

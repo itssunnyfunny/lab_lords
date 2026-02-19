@@ -124,6 +124,12 @@ export class StudentService {
                 });
             }
 
+            // 4. Update Branch lastDataChange
+            await tx.branch.update({
+                where: { id: branchId },
+                data: { lastDataChange: new Date() },
+            });
+
             return student;
         });
     }
@@ -161,13 +167,20 @@ export class StudentService {
         studentId: string,
         status: StudentStatus
     ) {
-        await this.verifyStudentOwnership(userId, studentId);
+        const verifiedStudent = await this.verifyStudentOwnership(userId, studentId);
 
-        return prisma.student.update({
-            where: { id: studentId },
-            data: {
-                status,
-            },
+        return prisma.$transaction(async (tx) => {
+            const student = await tx.student.update({
+                where: { id: studentId },
+                data: { status },
+            });
+
+            await tx.branch.update({
+                where: { id: verifiedStudent.branch.id },
+                data: { lastDataChange: new Date() },
+            });
+
+            return student;
         });
     }
 }

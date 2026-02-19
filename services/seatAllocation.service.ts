@@ -96,13 +96,20 @@ export class SeatAllocationService {
             }
 
             // 7. Create Allocation
-            return tx.seatAllocation.create({
+            const allocation = await tx.seatAllocation.create({
                 data: {
                     seatId,
                     studentId,
                     shiftId,
                 },
             });
+            // 8. Update Branch lastDataChange
+            await tx.branch.update({
+                where: { id: branchId },
+                data: { lastDataChange: new Date() },
+            });
+
+            return allocation;
         });
     }
 
@@ -112,11 +119,27 @@ export class SeatAllocationService {
      * Does NOT delete the record.
      */
     static async unassignSeat(allocationId: string) {
-        return prisma.seatAllocation.update({
-            where: { id: allocationId },
-            data: {
-                endDate: new Date(),
-            },
+        return prisma.$transaction(async (tx) => {
+            const allocation = await tx.seatAllocation.findUnique({
+                where: { id: allocationId },
+                include: { seat: true }
+            });
+
+            if (!allocation) throw new Error("Allocation not found");
+
+            const updatedAllocation = await tx.seatAllocation.update({
+                where: { id: allocationId },
+                data: {
+                    endDate: new Date(),
+                },
+            });
+
+            await tx.branch.update({
+                where: { id: allocation.seat.branchId },
+                data: { lastDataChange: new Date() }
+            });
+
+            return updatedAllocation;
         });
     }
 
