@@ -26,18 +26,23 @@ model Organization {
 }
 
 model Branch {
-  id             String       @id @default(cuid())
+  id             String           @id @default(cuid())
   organizationId String
   name           String
   city           String?
-  defaultFee     Int?         @default(0)
-  createdAt      DateTime     @default(now())
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  defaultFee     Int?             @default(0)
+  createdAt      DateTime         @default(now())
+  lastDataChange DateTime         @default(now())
+  aiLastCalledAt DateTime?
+  organization   Organization     @relation(fields: [organizationId], references: [id])
   payments       Payment[]
   seats          Seat[]
   shifts         Shift[]
   staff          Staff[]
   students       Student[]
+  aiReports      BranchAIReport[]
+  messageDrafts  MessageDraft[]
+  aiStatus       BranchAIStatus   @default(IDLE)
 }
 
 model Student {
@@ -51,6 +56,7 @@ model Student {
   createdAt       DateTime         @default(now())
   payments        Payment[]
   seatAllocations SeatAllocation[]
+  messageDrafts   MessageDraft[]
   branch          Branch           @relation(fields: [branchId], references: [id])
 
   @@index([branchId])
@@ -131,6 +137,30 @@ model Staff {
   @@index([branchId])
 }
 
+model BranchAIReport {
+  id        String   @id @default(cuid())
+  branchId  String
+  data      Json // Stores the entire BranchAIResponse
+  createdAt DateTime @default(now())
+  branch    Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([branchId, createdAt])
+}
+
+model MessageDraft {
+  id        String   @id @default(cuid())
+  branchId  String
+  studentId String?
+  action    String // e.g. "OVERDUE_PAYMENT_FOLLOWUP"
+  language  String   @default("en")
+  message   String
+  createdAt DateTime @default(now())
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  @@index([branchId, studentId])
+}
+
 enum StudentStatus {
   ACTIVE
   INACTIVE
@@ -149,4 +179,9 @@ enum StaffRole {
 enum PaymentType {
   ADMISSION
   MONTHLY
+}
+
+enum BranchAIStatus {
+  IDLE
+  RUNNING
 }
