@@ -54,6 +54,7 @@ model Student {
   joinedAt        DateTime         @default(now())
   monthlyFee      Int              @default(0)
   createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   payments        Payment[]
   seatAllocations SeatAllocation[]
   messageDrafts   MessageDraft[]

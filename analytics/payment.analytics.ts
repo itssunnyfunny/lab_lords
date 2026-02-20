@@ -20,14 +20,27 @@ export async function getPaymentStats(
   const payments = await prisma.payment.findMany({
     where: {
       branchId,
-      dueDate: {
-        lte: date,
-      },
+      OR: [
+        {
+          // Standard due payments logic
+          dueDate: {
+            lte: date,
+          },
+        },
+        {
+          // Include ANY paid payment (even if paid early before due date)
+          status: "PAID",
+          paidAt: {
+            lte: date
+          }
+        }
+      ]
     },
     select: {
       status: true,
       amount: true,
-      dueDate: true, // Add dueDate to select for comparison
+      dueDate: true,
+      type: true, // Need type for canonical overdue check
     },
   })
 
@@ -37,15 +50,13 @@ export async function getPaymentStats(
   let dueAmount = 0
   let paidAmount = 0
 
-  const startOfToday = new Date(date);
-  startOfToday.setHours(0, 0, 0, 0);
-
   for (const p of payments) {
     if (p.status === "DUE") {
       dueCount++
       dueAmount += p.amount
 
-      if (p.dueDate < startOfToday) {
+      // Canonical Overdue Logic: DUE + MONTHLY + dueDate < asOf (strict)
+      if (p.type === "MONTHLY" && p.dueDate < date) {
         overdueCount++
       }
     } else if (p.status === "PAID") {
@@ -187,7 +198,7 @@ export async function getPaymentSnapshot(
     summary: {
       totalDue: stats.dueAmount,
       totalPaid: stats.paidAmount,
-      totalOverdue: stats.dueCount
+      totalOverdue: stats.overdueCount
     },
     overdueBuckets,
     asOf: date,

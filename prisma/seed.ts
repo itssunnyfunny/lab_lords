@@ -21,6 +21,16 @@ async function main() {
 
     // 1. Cleanup
     log('🧹 Cleaning up existing data...');
+
+    // NEW TABLES FIRST (Foreign Keys depend on older tables)
+    try {
+        await prisma.messageDraft.deleteMany();
+    } catch (e) { } // Catch if table doesn't exist yet (though schema has it)
+    try {
+        await prisma.branchAIReport.deleteMany();
+    } catch (e) { }
+
+    // Existing Cleanup
     await prisma.payment.deleteMany();
     await prisma.seatAllocation.deleteMany();
     await prisma.student.deleteMany();
@@ -57,6 +67,13 @@ async function main() {
     await createWorldForUser(bob, "Bob's Coaching", ['Main Campus'], 'org_bob');
 
     log('✅ Seed completed successfully.');
+
+    // Log valid URLs for developer convenience
+    const branches = await prisma.branch.findMany({ include: { organization: true } });
+    log('\n🔎 Valid Branch URLs:');
+    branches.forEach(b => {
+        log(`- ${b.name} (${b.organization.name}): http://localhost:3000/branch/${b.id}`);
+    });
 }
 
 async function createWorldForUser(user: any, orgName: string, branchNames: string[], orgId?: string) {
