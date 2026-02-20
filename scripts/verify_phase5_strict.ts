@@ -11,7 +11,7 @@ const zeroDataSnapshot: AIBranchSnapshot = {
     branchName: "Test Branch",
     seats: { total: 0, occupied: 0, available: 0, utilizationPercent: 0 },
     students: { total: 0, active: 0, inactive: 0 },
-    payments: { dueCount: 0, paidCount: 0, overdueCount: 0 },
+    payments: { dueCount: 0, paidCount: 0, overdueCount: 0, overduePayments: [] },
     asOf: new Date()
 };
 
@@ -20,7 +20,7 @@ const riskySnapshot: AIBranchSnapshot = {
     branchName: "Test Branch",
     seats: { total: 100, occupied: 10, available: 90, utilizationPercent: 10 },
     students: { total: 20, active: 5, inactive: 15 }, // High inactive
-    payments: { dueCount: 5, paidCount: 0, overdueCount: 5 }, // 100% overdue
+    payments: { dueCount: 5, paidCount: 0, overdueCount: 5, overduePayments: [] }, // 100% overdue
     asOf: new Date()
 };
 
@@ -56,8 +56,8 @@ async function runVerification() {
 
     // 3. Verify Message Drafting (No Sending)
     console.log("\nTEST 3: Message Drafting");
-    const messagesEn = draftMessagesForBranch(suggestActionsForBranch(strictRisks), "en");
-    const messagesHi = draftMessagesForBranch(suggestActionsForBranch(strictRisks), "hi");
+    const messagesEn = await draftMessagesForBranch(riskySnapshot.branchId, suggestActionsForBranch(strictRisks), "en");
+    const messagesHi = await draftMessagesForBranch(riskySnapshot.branchId, suggestActionsForBranch(strictRisks), "hi");
 
     if (messagesEn.length > 0 && messagesHi.length > 0 && messagesEn[0].message !== messagesHi[0].message) {
         console.log("✅ Messages: Drafts generated in English and Hindi.");
