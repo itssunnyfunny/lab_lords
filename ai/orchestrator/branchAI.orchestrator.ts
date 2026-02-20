@@ -37,6 +37,8 @@ export interface BranchAIResponse {
         items: Array<{
             action: string
             message: string
+            isOutdated?: boolean
+            studentId?: string
         }>
     }
 }
@@ -183,7 +185,8 @@ export async function runBranchAI(
                 items: messages.map((m) => ({
                     action: m.action || "UNKNOWN",
                     message: m.message,
-                    isOutdated: m.isOutdated
+                    isOutdated: m.isOutdated,
+                    studentId: m.studentId
                 })),
             },
         }

@@ -5,4 +5,5 @@ export interface AIMessageDraft {
   message: string
   action?: string
   isOutdated?: boolean
+  studentId?: string
 }

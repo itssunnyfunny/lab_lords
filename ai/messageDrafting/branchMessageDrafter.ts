@@ -16,7 +16,7 @@ export async function draftMessagesForBranch(
       const studentIds = action.meta?.relatedEntityIds || []
 
       // Filter out students who already have a draft for this action
-      const studentsNeedingDrafts = [];
+      const studentsNeedingDrafts: string[] = [];
       for (const studentId of studentIds) {
         const existingDraft = await prisma.messageDraft.findFirst({
           where: { branchId, studentId, action: action.action, language },
@@ -24,14 +24,15 @@ export async function draftMessagesForBranch(
         });
 
         if (existingDraft) {
-          const isOutdated = existingDraft.student
-            ? existingDraft.student.updatedAt > existingDraft.createdAt
+          const isOutdated = (existingDraft as any).student
+            ? (existingDraft as any).student.updatedAt > existingDraft.createdAt
             : false;
 
           drafts.push({
             language: existingDraft.language as "en" | "hi",
             message: existingDraft.message,
-            isOutdated
+            isOutdated,
+            studentId: existingDraft.studentId ?? undefined
           });
         } else {
           studentsNeedingDrafts.push(studentId);
@@ -76,14 +77,16 @@ ${JSON.stringify(students.map(s => ({ id: s.id, name: s.name, due: s.monthlyFee 
                   message: msg
                 }
               });
-              drafts.push({ language, message: msg });
+              drafts.push({ language, message: msg, studentId: item.studentId ?? undefined });
             }
           }
         } catch (error) {
           console.error("Failed to generate batch messages via Gemini", error);
           // Fallback to static if AI fails
           const fallbackMsg = language === "en" ? "Reminder: Payment is due." : "स्मरण: भुगतान देय है।";
-          drafts.push({ language, message: fallbackMsg });
+          for (const sid of studentsNeedingDrafts) {
+            drafts.push({ language, message: fallbackMsg, studentId: sid });
+          }
         }
       }
     } else {
