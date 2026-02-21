@@ -19,7 +19,7 @@ model Organization {
   id           String   @id @default(cuid())
   name         String
   ownerId      String
-  businessType String? // e.g. Library, Study Hall
+  businessType String?
   createdAt    DateTime @default(now())
   branches     Branch[]
   owner        User     @relation(fields: [ownerId], references: [id])
@@ -34,15 +34,15 @@ model Branch {
   createdAt      DateTime         @default(now())
   lastDataChange DateTime         @default(now())
   aiLastCalledAt DateTime?
+  aiStatus       BranchAIStatus   @default(IDLE)
   organization   Organization     @relation(fields: [organizationId], references: [id])
+  aiReports      BranchAIReport[]
+  messageDrafts  MessageDraft[]
   payments       Payment[]
   seats          Seat[]
   shifts         Shift[]
   staff          Staff[]
   students       Student[]
-  aiReports      BranchAIReport[]
-  messageDrafts  MessageDraft[]
-  aiStatus       BranchAIStatus   @default(IDLE)
 }
 
 model Student {
@@ -55,9 +55,9 @@ model Student {
   monthlyFee      Int              @default(0)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  messageDrafts   MessageDraft[]
   payments        Payment[]
   seatAllocations SeatAllocation[]
-  messageDrafts   MessageDraft[]
   branch          Branch           @relation(fields: [branchId], references: [id])
 
   @@index([branchId])
@@ -141,7 +141,7 @@ model Staff {
 model BranchAIReport {
   id        String   @id @default(cuid())
   branchId  String
-  data      Json // Stores the entire BranchAIResponse
+  data      Json
   createdAt DateTime @default(now())
   branch    Branch   @relation(fields: [branchId], references: [id])
 
@@ -152,7 +152,7 @@ model MessageDraft {
   id        String   @id @default(cuid())
   branchId  String
   studentId String?
-  action    String // e.g. "OVERDUE_PAYMENT_FOLLOWUP"
+  action    String
   language  String   @default("en")
   message   String
   createdAt DateTime @default(now())
