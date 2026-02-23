@@ -35,11 +35,17 @@ export async function GET(
             activeStudents: health.students.status.active,
             assignedSeats,
             totalSeats,
-            occupancyRate: health.seats.overall.utilizationRatio * 100,
+            // Replace legacy AI occupancyRate with deterministic SeatService percent
+            occupancyRate: health.seats.occupancySnapshot.totalOccupancyPercent,
             monthlyRevenue,
             dueAmount,
             paidAmount,
-            collectionRate
+            collectionRate,
+            seatDetails: {
+                totalUsedSlots: health.seats.occupancySnapshot.totalUsedSlots,
+                totalShiftCapacity: health.seats.occupancySnapshot.totalShiftCapacity,
+                shifts: health.seats.occupancySnapshot.shifts
+            }
         };
 
         return NextResponse.json(snapshot)

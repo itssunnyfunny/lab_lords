@@ -88,9 +88,13 @@ export function KpiRow({ snapshot }: { snapshot?: BranchSnapshot }) {
                 trendUp={false}
             />
             <KpiCard
-                title="Occupancy"
+                title="Total Utilization"
                 value={`${snapshot.occupancyRate.toFixed(1)}%`}
-                trend="+7%"
+                trend={
+                    snapshot.seatDetails
+                        ? `${snapshot.seatDetails.totalUsedSlots} / ${snapshot.seatDetails.totalShiftCapacity} slots`
+                        : undefined
+                }
             />
         </div>
     );

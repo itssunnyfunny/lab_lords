@@ -10,6 +10,17 @@ export interface BranchSnapshot {
     dueAmount: number;
     paidAmount: number;
     collectionRate: number;
+    seatDetails?: {
+        totalUsedSlots: number;
+        totalShiftCapacity: number;
+        shifts: {
+            shiftId: string;
+            shiftName: string;
+            used: number;
+            capacity: number;
+            occupancyPercent: number;
+        }[];
+    };
 }
 
 export type TrendData = {
