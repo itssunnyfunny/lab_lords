@@ -113,3 +113,12 @@ export async function getSeatUtilizationByShift(
 
   return result
 }
+
+import { SeatService } from "@/services/seat.service"
+
+export async function getSeatOccupancySnapshot(
+  branchId: string,
+  asOf?: AsOf
+) {
+  return SeatService.generateOccupancySnapshot(branchId, resolveAsOf(asOf))
+}

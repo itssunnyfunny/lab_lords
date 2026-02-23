@@ -5,6 +5,7 @@ import { getPaymentStats, getOverduePayments } from "./payment.analytics"
 import {
   getSeatUtilization,
   getSeatUtilizationByShift,
+  getSeatOccupancySnapshot,
 } from "./seat.analytics"
 import {
   getStudentStatusSnapshot,
@@ -33,12 +34,14 @@ export async function getBranchHealthSnapshot(
     seatByShift,
     studentStatus,
     studentSeating,
+    occupancySnapshot,
   ] = await Promise.all([
     getPaymentStats(branchId, date),
     getSeatUtilization(branchId, date),
     getSeatUtilizationByShift(branchId, date),
     getStudentStatusSnapshot(branchId, date),
     getStudentSeatingSnapshot(branchId, date),
+    getSeatOccupancySnapshot(branchId, date),
   ])
 
   return {
@@ -47,6 +50,7 @@ export async function getBranchHealthSnapshot(
     seats: {
       overall: seatOverall,
       byShift: seatByShift,
+      occupancySnapshot,
     },
 
     students: {
