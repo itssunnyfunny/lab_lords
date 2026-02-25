@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { BranchService } from "@/services/branch.service";
 import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
     req: Request,
@@ -50,4 +51,37 @@ export async function GET(
         );
     }
 }
-import { prisma } from "@/lib/prisma";
+
+export async function PATCH(
+    req: Request,
+    { params }: { params: Promise<{ branchId: string }> }
+) {
+    try {
+        const { branchId } = await params;
+        const user = await getSessionUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const body = await req.json();
+        const { name } = body;
+
+        if (!name || typeof name !== "string" || name.trim().length === 0) {
+            return NextResponse.json({ error: "Branch name is required" }, { status: 400 });
+        }
+
+        const updated = await prisma.branch.update({
+            where: { id: branchId },
+            data: { name: name.trim() },
+            include: { organization: true },
+        });
+
+        return NextResponse.json(updated);
+    } catch (error) {
+        console.error("Error updating branch:", error);
+        return NextResponse.json(
+            { error: "Internal Server Error" },
+            { status: 500 }
+        );
+    }
+}
