@@ -9,12 +9,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { organizations } from "@/lib/api/organizations";
 import { Organization } from "@prisma/client";
+import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
 
 export default function OrgSelectionPage() {
   const router = useRouter();
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Dialog state
+  const [dialogOrgId, setDialogOrgId] = useState<string | null>(null);
 
   useEffect(() => {
     // Temporary: Ensure a user ID exists for testing
@@ -33,35 +37,6 @@ export default function OrgSelectionPage() {
           router.replace("/onboarding");
           return;
         }
-
-        // 2. Has Organizations -> Try to find where to go
-        // Ideally we check localStorage for 'lastBranchId'
-        const lastBranchId = localStorage.getItem("lastBranchId");
-        if (lastBranchId) {
-          // We could verify if valid, but for speed just specific check or try nav
-          // For robust check, we'd need an API `branches/${id}` but that might be overkill on landing.
-          // Let's perform a smarter check or just default to logic below if not confident.
-          // Proceeding with default logic for safety first:
-        }
-
-        // Logic: Pick the first org, then find its branches.
-        // Since `organizations.getAll()` returns array of Org, we need to fetch branches for one to redirect deeply.
-        // OR we just let the user pick the org if they have multiple.
-
-        // Refined Rule: "User always has an active org and active branch"
-        // If they have 1 org, auto-redirect to its dashboard or first branch?
-        // User request says: "YES -> Redirect to last-used org/branch"
-
-        // Implementation:
-        // We will keep the "Select Workspace" screen if > 1 Org or no history.
-        // If 1 Org, maybe auto-select?
-        // For now, let's stick to the current UI which serves as the "Hub", 
-        // BUT strictly enforce the "Empty -> Onboarding" rule.
-
-        if (data.length === 0) {
-          // Handled above 
-        }
-
       } catch (err: any) {
         setError(err.message || "Failed to load organizations");
       } finally {
@@ -72,13 +47,14 @@ export default function OrgSelectionPage() {
     checkState();
   }, [router]);
 
-  const handleSelect = (orgId: string) => {
-    // When user selects an Org, we should ideally take them to the specific branch.
-    // But we don't have branch info here blindly.
-    // Existing flow goes to `/org/[orgId]`.
-    // Let's assume `/org/[orgId]` will handle the "Branch Logic" or generic dashboard.
-    // BUT per user request "Org cannot exist without branch", so `/org/[orgId]` might need to respect that.
+  const handleSelectOrg = (orgId: string) => {
     router.push(`/org/${orgId}`);
+  };
+
+  const handleBranchCreated = (branch: { id: string; name: string }) => {
+    setDialogOrgId(null);
+    // Navigate directly to the new branch
+    router.push(`/branch/${branch.id}`);
   };
 
   if (loading) {
@@ -122,27 +98,50 @@ export default function OrgSelectionPage() {
             </div>
           ) : (
             orgs.map(org => (
-              <button key={org.id} onClick={() => handleSelect(org.id)} className="group text-left h-full w-full">
-                <Card className="h-full hover:scale-[1.02] transition-all duration-500 hover:shadow-[0_0_40px_rgba(6,182,212,0.15)] hover:border-cyan-500/30 bg-[#0f111a]/40">
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-800/50 to-black/50 border border-white/5 flex items-center justify-center text-gray-400 group-hover:text-cyan-300 group-hover:border-cyan-500/30 transition-all shadow-lg">
-                      <Building2 size={32} />
+              <div key={org.id} className="flex flex-col h-full">
+                {/* Org card — click goes to org dashboard */}
+                <button onClick={() => handleSelectOrg(org.id)} className="group text-left h-full w-full flex-1">
+                  <Card className="h-full hover:scale-[1.02] transition-all duration-500 hover:shadow-[0_0_40px_rgba(6,182,212,0.15)] hover:border-cyan-500/30 bg-[#0f111a]/40">
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-800/50 to-black/50 border border-white/5 flex items-center justify-center text-gray-400 group-hover:text-cyan-300 group-hover:border-cyan-500/30 transition-all shadow-lg">
+                        <Building2 size={32} />
+                      </div>
+                      <Badge variant="cyan">Active</Badge>
                     </div>
-                    {/* Status is not on Organization model standard, assuming Active for now or checking mock content */}
-                    <Badge variant="cyan">Active</Badge>
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-cyan-100 transition-colors">{org.name}</h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <span>Plan:</span>
-                    <span className="text-white font-medium bg-white/5 px-2 py-0.5 rounded">Enterprise</span>
-                  </div>
-                </Card>
-              </button>
+                    <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-cyan-100 transition-colors">{org.name}</h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <span>Plan:</span>
+                      <span className="text-white font-medium bg-white/5 px-2 py-0.5 rounded">Enterprise</span>
+                    </div>
+                  </Card>
+                </button>
+
+                {/* Add Branch button — separate from org card click */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDialogOrgId(org.id);
+                  }}
+                  className="mt-3 flex items-center justify-center gap-2 w-full py-2 text-sm text-gray-500 hover:text-cyan-400 border border-dashed border-white/10 hover:border-cyan-500/30 rounded-lg transition-all"
+                >
+                  <Plus size={14} />
+                  Add New Branch
+                </button>
+              </div>
             ))
           )}
         </div>
       </div>
+
+      {/* Create Branch Dialog */}
+      {dialogOrgId && (
+        <CreateBranchDialog
+          isOpen={true}
+          onClose={() => setDialogOrgId(null)}
+          organizationId={dialogOrgId}
+          onSuccess={handleBranchCreated}
+        />
+      )}
     </div>
   );
 }
-
