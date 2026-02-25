@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Users, CreditCard, Settings, UserCircle, Grid, FileText, Sparkles, MessageSquare, ChevronRight, CalendarCheck } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, UserCircle, Grid, FileText, Sparkles, MessageSquare, ChevronRight, CalendarCheck, UserCircle2 } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -61,6 +61,16 @@ export function BranchSidebar({ className }: SidebarProps) {
                     <SidebarItem icon={Sparkles} label="Insights" isActive={pathname === `${basePath}/ai/insights`} onClick={() => navigate(`${basePath}/ai/insights`)} />
                     <SidebarItem icon={MessageSquare} label="Assistant" isActive={pathname === `${basePath}/ai/messages`} onClick={() => navigate(`${basePath}/ai/messages`)} />
                 </div>
+            </div>
+
+            {/* Account link — pinned at bottom */}
+            <div className="px-6 pb-6 border-t border-white/5 pt-4">
+                <SidebarItem
+                    icon={UserCircle2}
+                    label="My Account"
+                    isActive={pathname === "/account"}
+                    onClick={() => navigate("/account")}
+                />
             </div>
         </div>
     );
