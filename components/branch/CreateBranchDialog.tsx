@@ -22,8 +22,11 @@ interface CreateBranchDialogProps {
 
 const DEFAULT_SHIFTS: ShiftDraft[] = [
     { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
-    { name: "Evening", startTime: "16:00", endTime: "22:00", price: 0 },
+    { name: "Afternoon", startTime: "12:00", endTime: "17:00", price: 0 },
+    { name: "Evening", startTime: "17:00", endTime: "22:00", price: 0 },
+    { name: "Full Time", startTime: "06:00", endTime: "22:00", price: 0 },
 ];
+
 
 export function CreateBranchDialog({
     isOpen,
