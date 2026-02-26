@@ -29,39 +29,38 @@ export class PaymentService {
 
     /**
      * Generates due payments for all ACTIVE students in a branch.
-     * Uses student-specific anniversary dates.
-     */
-    /**
-     * Generates due payments for all ACTIVE students in a branch.
-     * STRICT LOGIC:
-     * - Iterate active students.
-     * - Find last payment.
-     * - Calculate nextDueDate = lastPayment.dueDate + 1 month (or joinedAt + 1 month if none).
-     * - If nextDueDate <= asOfDate, create payment.
-     * - Idempotent: check if payment exists for that dueDate.
+     *
+     * ANCHOR-BASED LOGIC (idempotent):
+     * - For each active student, compute due dates as addMonths(joinedAt, N)
+     *   for N = 1, 2, 3 … until dueDate > today.
+     * - This anchors permanently on the join day-of-month (e.g. always the 19th).
+     * - Check if a MONTHLY payment already exists for each dueDate — skip if yes.
+     * - Works correctly whether the previous month was PAID or DUE.
+     * - Handles catch-up: if the app was not opened for 10 months, generates all 10.
      */
     static async generateDuePaymentsForBranch(
         userId: string,
         branchId: string,
-        asOfDate: Date = new Date() // Default to now
+        asOfDate: Date = new Date()
     ) {
         await this.assertBranchOwnership(userId, branchId);
 
-        // Get all active students with their latest payment
+        const today = startOfDay(asOfDate);
+
+        // Fetch all active students and their existing MONTHLY payment dueDates
+        // (so we can skip already-generated dates without hitting DB per-date)
         const students = await prisma.student.findMany({
             where: {
                 branchId,
                 status: StudentStatus.ACTIVE,
             },
-            include: {
+            select: {
+                id: true,
+                joinedAt: true,
+                monthlyFee: true,
                 payments: {
-                    where: {
-                        type: PaymentType.MONTHLY,
-                    },
-                    take: 1,
-                    orderBy: {
-                        dueDate: "desc",
-                    },
+                    where: { type: PaymentType.MONTHLY },
+                    select: { dueDate: true },
                 },
             },
         });
@@ -70,54 +69,41 @@ export class PaymentService {
         let skippedCount = 0;
 
         for (const student of students) {
-            const lastPayment = student.payments[0];
-            let nextDueDate: Date;
-
-            if (lastPayment) {
-                // Next due date is strictly 1 month after last payment's due date
-                nextDueDate = addMonths(lastPayment.dueDate, 1);
-            } else {
-                // First payment is due 1 month after joining
-                nextDueDate = addMonths(student.joinedAt, 1);
-            }
+            // Build a Set of existing due dates (as ISO strings) for O(1) lookup
+            const existingDueDates = new Set(
+                student.payments.map((p) => startOfDay(p.dueDate).toISOString())
+            );
 
             let paymentsGeneratedForStudent = 0;
+            let month = 1;
 
-            // Catch-up loop: generate all due payments up to asOfDate
-            // Check if nextDueDate is on or before asOfDate (ignoring time if desired, but here specific logic)
-            // Using !isBefore(asOfDate, startOfDay(nextDueDate)) ensures that if today is 15th, and due is 15th, we generate.
-            while (!isBefore(asOfDate, startOfDay(nextDueDate))) {
-                // Check if payment already exists for this dueDate (Idempotency)
-                // We trust strict date equality from addMonths logic, but validation is safer
-                const existing = await prisma.payment.findFirst({
-                    where: {
-                        studentId: student.id,
-                        dueDate: nextDueDate,
-                        type: PaymentType.MONTHLY
-                    }
-                });
+            // Walk anchor-based due dates: joinedAt + 1 month, +2 months, …
+            while (true) {
+                const dueDate = addMonths(student.joinedAt, month);
+                const dueDateNormalized = startOfDay(dueDate);
 
-                if (!existing) {
-                    const pStart = addMonths(nextDueDate, -1);
-                    const pEnd = nextDueDate;
+                // Stop when dueDate is in the future
+                if (isBefore(today, dueDateNormalized)) break;
 
+                // Skip if already generated (idempotent)
+                if (!existingDueDates.has(dueDateNormalized.toISOString())) {
                     await prisma.payment.create({
                         data: {
                             branchId,
                             studentId: student.id,
                             amount: student.monthlyFee,
                             status: PaymentStatus.DUE,
-                            periodStart: pStart,
-                            periodEnd: pEnd,
-                            dueDate: nextDueDate,
+                            // periodStart = previous anchor, periodEnd = this anchor
+                            periodStart: addMonths(student.joinedAt, month - 1),
+                            periodEnd: dueDate,
+                            dueDate: dueDate,
                         },
                     });
-                    paymentsGeneratedForStudent++;
                     generatedCount++;
+                    paymentsGeneratedForStudent++;
                 }
 
-                // Advance to next month for catch-up
-                nextDueDate = addMonths(nextDueDate, 1);
+                month++;
             }
 
             if (paymentsGeneratedForStudent === 0) {
@@ -125,12 +111,10 @@ export class PaymentService {
             }
         }
 
-
-        // If any payments were generated, update branch.lastDataChange
         if (generatedCount > 0) {
             await prisma.branch.update({
                 where: { id: branchId },
-                data: { lastDataChange: new Date() }
+                data: { lastDataChange: new Date() },
             });
         }
 

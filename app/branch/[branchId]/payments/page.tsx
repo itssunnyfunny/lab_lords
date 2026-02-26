@@ -22,19 +22,11 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
     const [data, setData] = useState<Payment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [newlyGenerated, setNewlyGenerated] = useState<number | null>(null);
 
     const loadPayments = async () => {
-        setLoading(true);
         try {
-            // Fetch payments for the selected month
-            // API expects `month=YYYY-MM`
-            // If tab is DUE, it fetches all Due items <= end of month
-            // If tab is PAID, it fetches Paid items IN strict month
-            // We pass NO status param to get the hybrid view from backend, then filter in UI?
-            // Actually, backend implements the "View Logic" if we pass month.
-            // But we can also just fetch everything relevant to this month view.
             const monthStr = format(currentDate, "yyyy-MM");
-
             const res = await fetch(`/api/branches/${branchId}/payments?month=${monthStr}`, { cache: "no-store" });
             if (!res.ok) throw new Error("Failed to fetch");
             const list = await res.json();
@@ -43,14 +35,43 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
         } catch (error: any) {
             console.error("Failed to load payments", error);
             setError("Failed to load payments.");
+        }
+    };
+
+    const generateAndLoad = async () => {
+        setLoading(true);
+        setNewlyGenerated(null);
+        try {
+            // 1. Auto-generate all missed due payments (anchor-based, idempotent)
+            const genRes = await fetch(`/api/branches/${branchId}/payments/generate`, {
+                method: "POST",
+                cache: "no-store",
+            });
+            if (genRes.ok) {
+                const genData = await genRes.json();
+                if (genData.generatedCount > 0) {
+                    setNewlyGenerated(genData.generatedCount);
+                }
+            }
+        } catch {
+            // Silent — generation failure shouldn't block viewing existing payments
         } finally {
+            // 2. Always fetch the current month's payments after generation
+            await loadPayments();
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadPayments();
-    }, [branchId, currentDate]);
+        generateAndLoad();
+    }, [branchId]);
+
+    // Re-fetch (without re-generating) when month changes
+    useEffect(() => {
+        if (!loading) {
+            loadPayments();
+        }
+    }, [currentDate]);
 
     const handleMonthChange = (direction: "prev" | "next") => {
         setCurrentDate(prev => direction === "prev" ? subMonths(prev, 1) : addMonths(prev, 1));
@@ -114,6 +135,14 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                     </Button>
                 </div>
             </div>
+
+            {/* Auto-generation banner */}
+            {newlyGenerated !== null && newlyGenerated > 0 && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-brand-500/10 border border-brand-500/30 rounded-lg text-sm text-brand-400">
+                    <FileText size={14} />
+                    <span>{newlyGenerated} new due payment{newlyGenerated > 1 ? "s" : ""} generated for this billing cycle.</span>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex items-center gap-2 border-b border-white/10">
