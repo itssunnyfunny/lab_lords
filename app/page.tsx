@@ -4,7 +4,7 @@ import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { GlowText } from "@/components/ui/GlowText";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Building2, Plus, Loader2 } from "lucide-react";
+import { Building2, Plus, Loader2, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { organizations } from "@/lib/api/organizations";
@@ -116,17 +116,29 @@ export default function OrgSelectionPage() {
                   </Card>
                 </button>
 
-                {/* Add Branch button — separate from org card click */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDialogOrgId(org.id);
-                  }}
-                  className="mt-3 flex items-center justify-center gap-2 w-full py-2 text-sm text-gray-500 hover:text-cyan-400 border border-dashed border-white/10 hover:border-cyan-500/30 rounded-lg transition-all"
-                >
-                  <Plus size={14} />
-                  Add New Branch
-                </button>
+                {/* Org-level action buttons */}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDialogOrgId(org.id);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-gray-500 hover:text-cyan-400 border border-dashed border-white/10 hover:border-cyan-500/30 rounded-lg transition-all"
+                  >
+                    <Plus size={14} />
+                    Add Branch
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/org/${org.id}/settings`);
+                    }}
+                    className="flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition-all"
+                    title="Org Settings"
+                  >
+                    <Settings size={14} />
+                  </button>
+                </div>
               </div>
             ))
           )}
