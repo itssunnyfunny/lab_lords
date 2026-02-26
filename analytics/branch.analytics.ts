@@ -86,10 +86,18 @@ export async function getBranchSnapshot(
     branchName: branch?.name ?? "Unknown",
 
     seats: {
-      total: health.seats.overall.totalSeats,
-      occupied: health.seats.overall.occupiedSeats,
-      available: health.seats.overall.totalSeats - health.seats.overall.occupiedSeats,
-      utilizationPercent: health.seats.overall.utilizationRatio * 100,
+      // Shift-slot based occupancy (new logic: 30 slots × N shifts = totalShiftCapacity)
+      total: health.seats.occupancySnapshot.totalShiftCapacity,
+      occupied: health.seats.occupancySnapshot.totalUsedSlots,
+      available: health.seats.occupancySnapshot.totalShiftCapacity - health.seats.occupancySnapshot.totalUsedSlots,
+      utilizationPercent: health.seats.occupancySnapshot.totalOccupancyPercent,
+      // Per-shift breakdown for detailed LLM context
+      shiftBreakdown: health.seats.occupancySnapshot.shifts.map(s => ({
+        shiftName: s.shiftName,
+        used: s.used,
+        capacity: s.capacity,
+        occupancyPercent: s.occupancyPercent,
+      })),
     },
 
     students: {

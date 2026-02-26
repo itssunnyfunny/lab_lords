@@ -13,7 +13,9 @@ Your job is to generate a NARRATIVE summary based on the provided data and pre-c
 
 INPUT DATA:
 Branch: ${input.branchName}
-Seats: ${input.seats.total} Total, ${input.seats.occupied} Occupied, ${input.seats.available} Available (${input.seats.utilizationPercent}%)
+Seats (shift-slot based): ${input.seats.total} Total Slots, ${input.seats.occupied} Used Slots, ${input.seats.available} Available (${input.seats.utilizationPercent.toFixed(1)}%)
+Per-Shift Breakdown:
+${input.seats.shiftBreakdown.map(s => `  - ${s.shiftName}: ${s.used}/${s.capacity} slots used (${s.occupancyPercent.toFixed(1)}%)`).join('\n')}
 Students: ${input.students.total} Total, ${input.students.active} Active, ${input.students.inactive} Inactive
 Payments: ${input.payments.paidCount} Paid, ${input.payments.dueCount} Due, ${input.payments.overdueCount} Overdue
 As Of: ${input.asOf.toDateString()}

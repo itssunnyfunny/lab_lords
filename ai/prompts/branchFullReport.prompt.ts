@@ -17,10 +17,11 @@ Do not mention AI or systems.
 
 Branch: ${snapshot.branchName}
 
-Seats:
-- Total: ${snapshot.seats.total}
-- Occupied: ${snapshot.seats.occupied}
-- Utilization: ${snapshot.seats.utilizationPercent}%
+Seats (shift-slot based):
+- Total Slots: ${snapshot.seats.total} (${snapshot.seats.occupied} used, ${snapshot.seats.available} available)
+- Overall Utilization: ${snapshot.seats.utilizationPercent.toFixed(1)}%
+- Per-Shift Breakdown:
+${snapshot.seats.shiftBreakdown.map(s => `  • ${s.shiftName}: ${s.used}/${s.capacity} slots used (${s.occupancyPercent.toFixed(1)}%)`).join("\n")}
 
 Students:
 - Total: ${snapshot.students.total}

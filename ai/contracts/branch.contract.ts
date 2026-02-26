@@ -5,10 +5,17 @@ export interface AIBranchSnapshot {
   branchName: string
 
   seats: {
-    total: number
-    occupied: number
+    // Shift-slot based totals (e.g. 30 seats × 3 shifts = 90 total capacity)
+    total: number         // totalShiftCapacity
+    occupied: number      // totalUsedSlots
     available: number
     utilizationPercent: number
+    shiftBreakdown: Array<{
+      shiftName: string
+      used: number
+      capacity: number
+      occupancyPercent: number
+    }>
   }
 
   students: {
