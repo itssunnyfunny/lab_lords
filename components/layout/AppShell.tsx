@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { Search, Bell } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface User {
     name: string;
@@ -23,6 +24,7 @@ const DEFAULT_USER = {
 };
 
 export function AppShell({ children, sidebar, user = DEFAULT_USER }: AppShellProps) {
+    const router = useRouter();
     return (
         <div className="flex h-screen text-white font-sans overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-50">
             <AmbientBackground />
@@ -53,7 +55,10 @@ export function AppShell({ children, sidebar, user = DEFAULT_USER }: AppShellPro
                             <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse" />
                         </button>
                         <div className="h-6 w-[1px] bg-white/10 mx-2" />
-                        <div className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer">
+                        <button
+                            onClick={() => router.push('/account')}
+                            className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer"
+                        >
                             <div className="text-right hidden sm:block">
                                 <p className="text-xs font-bold text-white tracking-wide">{user.name}</p>
                                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">{user.role}</p>
@@ -63,7 +68,7 @@ export function AppShell({ children, sidebar, user = DEFAULT_USER }: AppShellPro
                                     {user.avatar}
                                 </div>
                             </div>
-                        </div>
+                        </button>
                     </div>
                 </header>
 
