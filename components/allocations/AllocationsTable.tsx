@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -73,7 +74,7 @@ export function AllocationsTable({ allocations, onEndAllocation }: AllocationsTa
                                     )}
                                 </td>
                                 <td className="px-6 py-4 text-zinc-400">
-                                    {new Date(alloc.startDate).toLocaleDateString()}
+                                    {format(new Date(alloc.startDate), "PP")}
                                 </td>
                                 <td className="px-6 py-4">
                                     {isActive ? (
