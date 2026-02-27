@@ -20,15 +20,14 @@ export async function getPaymentStats(
   const payments = await prisma.payment.findMany({
     where: {
       branchId,
+      status: { not: "WAIVED" }, // WAIVED = resolved debt, exclude from analytics
       OR: [
         {
-          // Standard due payments logic
           dueDate: {
             lte: date,
           },
         },
         {
-          // Include ANY paid payment (even if paid early before due date)
           status: "PAID",
           paidAt: {
             lte: date
@@ -40,7 +39,7 @@ export async function getPaymentStats(
       status: true,
       amount: true,
       dueDate: true,
-      type: true, // Need type for canonical overdue check
+      type: true,
     },
   })
 
@@ -88,7 +87,7 @@ export async function getDueStudents(
   const payments = await prisma.payment.findMany({
     where: {
       branchId,
-      status: "DUE",
+      status: "DUE", // WAIVED excluded — not status "DUE" by definition
       dueDate: {
         lte: date,
       },
@@ -131,11 +130,11 @@ export async function getOverduePayments(
   const payments = await prisma.payment.findMany({
     where: {
       branchId,
-      status: "DUE",
+      status: "DUE", // WAIVED excluded — not status "DUE" by definition
       dueDate: {
         lt: date, // Strictly less than today (overdue)
       },
-      type: "MONTHLY" // Canonical rule for "Overdue" in Phase 6
+      type: "MONTHLY" // Canonical rule for "Overdue"
     },
     select: {
       id: true,
