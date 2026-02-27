@@ -11,7 +11,7 @@ interface DataTableProps<T> {
 
 export function DataTable<T extends { id: string | number }>({ columns, data, actions }: DataTableProps<T>) {
     return (
-        <div className="w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-card shadow-card">
+        <div className="w-full overflow-visible rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-card shadow-card">
             <table className="w-full text-left text-sm">
                 <thead className="bg-white/[0.02]">
                     <tr>

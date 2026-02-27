@@ -212,6 +212,7 @@ interface RowAction { label: string; icon: React.ElementType; onClick: () => voi
 function RowActions({ actions }: { actions: RowAction[] }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         if (!open) return;
         const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -220,7 +221,7 @@ function RowActions({ actions }: { actions: RowAction[] }) {
     }, [open]);
 
     return (
-        <div ref={ref} className="relative">
+        <div ref={ref} className="relative flex justify-end">
             <button onClick={() => setOpen(v => !v)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-all">
                 <MoreVertical size={16} />
             </button>
@@ -350,7 +351,7 @@ export default function ShiftsPage() {
                     </button>
                 </div>
             ) : (
-                <Card className="overflow-hidden p-0">
+                <Card className="overflow-visible p-0">
                     <table className="w-full text-left text-sm">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02] text-zinc-400">

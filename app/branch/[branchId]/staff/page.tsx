@@ -26,6 +26,7 @@ interface RowAction { label: string; icon: React.ElementType; onClick: () => voi
 function RowActions({ actions }: { actions: RowAction[] }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         if (!open) return;
         const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -366,7 +367,7 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                     </button>
                 </div>
             ) : (
-                <Card className="overflow-hidden p-0">
+                <Card className="overflow-visible p-0">
                     <table className="w-full text-left text-sm">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02] text-zinc-400">
