@@ -43,7 +43,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
                 {isLoading && <Loader2 className="h-4 w-4 animate-spin relative z-10" />}
                 {!isLoading && Icon && <Icon size={16} className="relative z-10" />}
-                <span className="relative z-10">{children}</span>
+                <span className="relative z-10 inline-flex items-center gap-2">{children}</span>
             </button>
         );
     }

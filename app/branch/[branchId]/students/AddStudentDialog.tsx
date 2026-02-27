@@ -204,7 +204,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="min-w-[100px]"
+                            className="w-auto whitespace-nowrap"
                         >
                             {isLoading ? (
                                 <>

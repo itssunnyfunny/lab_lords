@@ -47,7 +47,7 @@ export function PageHeader({ title, subtitle, onSearch, onFilter, onAdd, onExpor
                 )}
 
                 {onAdd && (
-                    <Button onClick={onAdd} className="gap-2 shadow-lg shadow-primary/20">
+                    <Button onClick={onAdd} className="gap-2 shadow-lg shadow-primary/20 whitespace-nowrap flex-shrink-0">
                         <Plus size={16} />
                         {actionLabel}
                     </Button>
