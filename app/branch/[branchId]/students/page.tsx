@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import {
     Loader2, AlertCircle, ArrowLeft, X,
     MoreVertical, Eye, Pencil, PowerOff, Power,
+    AlertTriangle, CheckCircle2, MinusCircle, Clock,
 } from "lucide-react";
 import { useEffect, useState, use, useMemo, useRef } from "react";
 import { students } from "@/lib/api/students";
@@ -18,6 +19,8 @@ import { useRouter } from "next/navigation";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { EditStudentDialog } from "./EditStudentDialog";
 import { cn } from "@/lib/utils";
+
+type DueResolution = "PAID" | "WAIVED" | "KEEP";
 
 const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
@@ -80,6 +83,141 @@ function RowActions({ actions }: { actions: ActionItem[] }) {
     );
 }
 
+// ─── Inactivate Dialog ────────────────────────────────────────────────────────
+
+interface InactivateDialogProps {
+    student: Student | null;
+    duePayments: Payment[];
+    onConfirm: (resolution: DueResolution) => void;
+    onCancel: () => void;
+    loading: boolean;
+}
+
+function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }: InactivateDialogProps) {
+    const [resolution, setResolution] = useState<DueResolution>("WAIVED");
+
+    if (!student) return null;
+
+    const totalDue = duePayments.reduce((sum, p) => sum + p.amount, 0);
+    const hasDues = duePayments.length > 0;
+
+    const resolutionOptions: { value: DueResolution; label: string; sublabel: string; icon: React.ElementType; color: string }[] = [
+        {
+            value: "PAID",
+            label: "Mark as Paid",
+            sublabel: "Student paid before leaving. Record it.",
+            icon: CheckCircle2,
+            color: "text-green-400",
+        },
+        {
+            value: "WAIVED",
+            label: "Mark as Waived",
+            sublabel: "Owner chose not to pursue. Cleans analytics.",
+            icon: MinusCircle,
+            color: "text-amber-400",
+        },
+        {
+            value: "KEEP",
+            label: "Keep as Due",
+            sublabel: "Still expecting payment. Stays in overdue.",
+            icon: Clock,
+            color: "text-red-400",
+        },
+    ];
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+            <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="flex items-start gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <AlertTriangle size={18} className="text-red-400" />
+                    </div>
+                    <div>
+                        <h3 className="text-white font-semibold text-lg leading-tight">Deactivate {student.name}?</h3>
+                        <p className="text-sm text-gray-400 mt-0.5">
+                            Their seat allocation will be ended immediately.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Due payments summary */}
+                {hasDues ? (
+                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 mb-5">
+                        <p className="text-amber-300 text-sm font-medium mb-1">
+                            {duePayments.length} unpaid billing cycle{duePayments.length > 1 ? "s" : ""} — {formatCurrency(totalDue)} total
+                        </p>
+                        <p className="text-amber-200/60 text-xs">How should these be resolved?</p>
+
+                        <div className="mt-3 space-y-2">
+                            {resolutionOptions.map(opt => {
+                                const Icon = opt.icon;
+                                const selected = resolution === opt.value;
+                                return (
+                                    <label
+                                        key={opt.value}
+                                        className={cn(
+                                            "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                            selected
+                                                ? "border-white/20 bg-white/5"
+                                                : "border-white/5 hover:border-white/10 hover:bg-white/3"
+                                        )}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="resolution"
+                                            value={opt.value}
+                                            checked={selected}
+                                            onChange={() => setResolution(opt.value)}
+                                            className="mt-0.5 accent-current"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className={cn("text-sm font-medium flex items-center gap-1.5", opt.color)}>
+                                                <Icon size={13} />
+                                                {opt.label}
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-0.5">{opt.sublabel}</div>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-green-500/5 border border-green-500/15 rounded-xl p-4 mb-5">
+                        <p className="text-green-400 text-sm font-medium">✓ No outstanding payments</p>
+                        <p className="text-gray-500 text-xs mt-0.5">This student has a clean financial record.</p>
+                    </div>
+                )}
+
+                {/* Billing note */}
+                <p className="text-xs text-gray-500 mb-5 border-l-2 border-white/10 pl-3">
+                    No future billing cycles will be generated after deactivation.
+                </p>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>
+                        Cancel
+                    </Button>
+                    <button
+                        onClick={() => onConfirm(hasDues ? resolution : "KEEP")}
+                        disabled={loading}
+                        className={cn(
+                            "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                            "bg-red-500/80 hover:bg-red-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        )}
+                    >
+                        {loading ? <Loader2 size={14} className="animate-spin" /> : <PowerOff size={14} />}
+                        {loading ? "Deactivating…" : "Confirm Deactivate"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function StudentsPage({ params }: { params: Promise<{ branchId: string }> }) {
@@ -107,6 +245,10 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+    // Inactivate dialog
+    const [inactivateTarget, setInactivateTarget] = useState<Student | null>(null);
+    const [inactivateLoading, setInactivateLoading] = useState(false);
+
     const loadData = async () => {
         setLoading(true);
         try {
@@ -128,29 +270,16 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
 
     useEffect(() => { loadData(); }, [branchId, selectedShift]);
 
-    const toggleStudentStatus = async (student: Student) => {
-        const newStatus = student.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-        if (!confirm(`${newStatus === "INACTIVE" ? "Deactivate" : "Activate"} ${student.name}?`)) return;
-        try {
-            const res = await fetch(`/api/branches/${branchId}/students`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: student.id, status: newStatus }),
-            });
-            if (!res.ok) throw new Error();
-            setAllStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: newStatus as StudentStatus } : s));
-        } catch {
-            alert("Failed to update status.");
-        }
-    };
-
+    // ── Financial map ─────────────────────────────────────────────────────────
     const studentFinancials = useMemo(() => {
-        const map = new Map<string, { totalDue: number; totalPaid: number; admissionPaid: boolean; payments: Payment[] }>();
+        const map = new Map<string, { totalDue: number; totalPaid: number; totalWaived: number; admissionPaid: boolean; payments: Payment[] }>();
         allStudents.forEach(s => {
             const sp = allPayments.filter(p => p.studentId === s.id);
             map.set(s.id, {
+                // WAIVED excluded from totalDue — it's resolved
                 totalDue: sp.filter(p => p.status === "DUE").reduce((sum, p) => sum + p.amount, 0),
                 totalPaid: sp.filter(p => p.status === "PAID").reduce((sum, p) => sum + p.amount, 0),
+                totalWaived: sp.filter(p => p.status === "WAIVED").reduce((sum, p) => sum + p.amount, 0),
                 admissionPaid: sp.some(p => p.type === "ADMISSION" && p.status === "PAID"),
                 payments: sp,
             });
@@ -163,6 +292,46 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
         const q = searchQuery.toLowerCase();
         return matchesTab && (s.name.toLowerCase().includes(q) || (s.phone && s.phone.includes(q)));
     });
+
+    // ── Inactivate Student ────────────────────────────────────────────────────
+    const handleInactivateConfirm = async (resolution: DueResolution) => {
+        if (!inactivateTarget) return;
+        setInactivateLoading(true);
+        try {
+            const res = await fetch(`/api/branches/${branchId}/students`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: inactivateTarget.id,
+                    status: "INACTIVE",
+                    dueResolution: resolution,
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to update status.");
+            setInactivateTarget(null);
+            await loadData();
+        } catch {
+            alert("Failed to deactivate student.");
+        } finally {
+            setInactivateLoading(false);
+        }
+    };
+
+    // ── Activate Student (simple — no dialog) ─────────────────────────────────
+    const handleActivate = async (student: Student) => {
+        if (!confirm(`Reactivate ${student.name}?`)) return;
+        try {
+            const res = await fetch(`/api/branches/${branchId}/students`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: student.id, status: "ACTIVE" }),
+            });
+            if (!res.ok) throw new Error();
+            setAllStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: "ACTIVE" as StudentStatus } : s));
+        } catch {
+            alert("Failed to activate student.");
+        }
+    };
 
     if (loading) return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading data...</div>;
 
@@ -253,13 +422,16 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                     {
                         header: "Fee Summary",
                         accessor: (item) => {
-                            const fin = studentFinancials.get(item.id) || { totalDue: 0, totalPaid: 0 };
+                            const fin = studentFinancials.get(item.id) || { totalDue: 0, totalPaid: 0, totalWaived: 0 };
                             return (
-                                <div className="text-xs">
+                                <div className="text-xs space-y-0.5">
                                     <div className={cn("font-medium", fin.totalDue > 0 ? "text-red-400" : "text-textMuted")}>
                                         Due: {formatCurrency(fin.totalDue)}
                                     </div>
                                     <div className="text-textSecondary">Paid: {formatCurrency(fin.totalPaid)}</div>
+                                    {fin.totalWaived > 0 && (
+                                        <div className="text-amber-500/70">Waived: {formatCurrency(fin.totalWaived)}</div>
+                                    )}
                                 </div>
                             );
                         }
@@ -282,12 +454,18 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                                 icon: Pencil,
                                 onClick: () => setEditTarget(item),
                             },
-                            {
-                                label: item.status === "ACTIVE" ? "Deactivate" : "Activate",
-                                icon: item.status === "ACTIVE" ? PowerOff : Power,
-                                variant: item.status === "ACTIVE" ? "danger" : "default",
-                                onClick: () => toggleStudentStatus(item),
-                            },
+                            item.status === "ACTIVE"
+                                ? {
+                                    label: "Deactivate",
+                                    icon: PowerOff,
+                                    variant: "danger",
+                                    onClick: () => setInactivateTarget(item),
+                                }
+                                : {
+                                    label: "Activate",
+                                    icon: Power,
+                                    onClick: () => handleActivate(item),
+                                },
                         ]}
                     />
                 )}
@@ -313,6 +491,18 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                 }}
             />
 
+            {/* Inactivate dialog */}
+            <InactivateDialog
+                student={inactivateTarget}
+                duePayments={inactivateTarget
+                    ? (allPayments.filter(p => p.studentId === inactivateTarget.id && p.status === "DUE"))
+                    : []
+                }
+                onConfirm={handleInactivateConfirm}
+                onCancel={() => setInactivateTarget(null)}
+                loading={inactivateLoading}
+            />
+
             {/* Fee drawer */}
             <FeeDetailsDrawer
                 isOpen={isDrawerOpen}
@@ -324,17 +514,28 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
     );
 }
 
-// ─── Fee Drawer (unchanged) ───────────────────────────────────────────────────
+// ─── Fee Drawer ───────────────────────────────────────────────────────────────
 
 interface FeeDetailsDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     student: Student | null;
-    financials?: { totalDue: number; totalPaid: number; admissionPaid: boolean; payments: Payment[] };
+    financials?: { totalDue: number; totalPaid: number; totalWaived: number; admissionPaid: boolean; payments: Payment[] };
 }
 
 function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDrawerProps) {
     if (!isOpen || !student) return null;
+
+    const paymentBadge = (status: string) => {
+        if (status === "PAID") return <Badge variant="success" className="text-[10px] h-5 px-1.5">PAID</Badge>;
+        if (status === "DUE") return <Badge variant="warning" className="text-[10px] h-5 px-1.5">DUE</Badge>;
+        if (status === "WAIVED") return (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                WAIVED
+            </span>
+        );
+        return <Badge className="text-[10px] h-5 px-1.5">{status}</Badge>;
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -355,7 +556,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                     <div className="space-y-4">
                         <h4 className="text-sm font-semibold uppercase tracking-wider text-textMuted border-b border-white/10 pb-2">Payment History</h4>
 
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="grid grid-cols-2 gap-3 mb-1">
                             <div className="bg-white/5 p-3 rounded-lg text-center">
                                 <div className="text-xs text-textSecondary">Total Paid</div>
                                 <div className="text-lg font-bold text-green-400">{formatCurrency(financials?.totalPaid || 0)}</div>
@@ -366,11 +567,24 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                             </div>
                         </div>
 
-                        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                        {/* Waived summary — only show if > 0 */}
+                        {(financials?.totalWaived || 0) > 0 && (
+                            <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-3 text-center">
+                                <div className="text-xs text-amber-400/70">Waived (resolved, not pursued)</div>
+                                <div className="text-base font-bold text-amber-400">{formatCurrency(financials?.totalWaived || 0)}</div>
+                            </div>
+                        )}
+
+                        <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-2">
                             {(financials?.payments || [])
                                 .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
                                 .map(p => (
-                                    <div key={p.id} className="p-3 bg-white/5 rounded-lg border border-white/5 flex justify-between items-center">
+                                    <div key={p.id} className={cn(
+                                        "p-3 rounded-lg border flex justify-between items-center",
+                                        p.status === "WAIVED"
+                                            ? "bg-amber-500/5 border-amber-500/15 opacity-70"
+                                            : "bg-white/5 border-white/5"
+                                    )}>
                                         <div>
                                             <div className="text-sm font-medium text-white">
                                                 {p.type === "ADMISSION" ? "Admission Fee" : "Monthly Fee"}
@@ -379,9 +593,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm font-bold text-white">{formatCurrency(p.amount)}</div>
-                                            <Badge variant={p.status === "PAID" ? "success" : p.status === "DUE" ? "warning" : "danger"} className="text-[10px] h-5 px-1.5">
-                                                {p.status}
-                                            </Badge>
+                                            {paymentBadge(p.status)}
                                         </div>
                                     </div>
                                 ))}

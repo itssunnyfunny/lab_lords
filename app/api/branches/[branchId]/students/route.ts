@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { StudentService } from "@/services/student.service";
 import { getSessionUser } from "@/lib/auth";
 import { StudentStatus } from "@prisma/client";
+import { DueResolution } from "@/types";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
@@ -100,7 +101,12 @@ export async function PATCH(
             return NextResponse.json({ error: "Invalid status" }, { status: 400 });
         }
 
-        const student = await StudentService.updateStudentStatus(user.id, body.id, body.status as StudentStatus);
+        const student = await StudentService.updateStudentStatus(
+            user.id,
+            body.id,
+            body.status as StudentStatus,
+            (body.dueResolution ?? "KEEP") as DueResolution
+        );
         return NextResponse.json(student);
     } catch (error: any) {
         if (error.message.includes("Unauthorized")) return NextResponse.json({ error: error.message }, { status: 403 });
