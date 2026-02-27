@@ -170,6 +170,7 @@ enum StudentStatus {
 enum PaymentStatus {
   DUE
   PAID
+  WAIVED
 }
 
 enum StaffRole {

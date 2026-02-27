@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { StudentStatus, PaymentType, PaymentStatus } from "@/types";
-import { CreateStudentDto } from "@/types";
+import { CreateStudentDto, DueResolution } from "@/types";
 
 export class StudentService {
     /**
@@ -81,7 +81,7 @@ export class StudentService {
                         status: PaymentStatus.DUE, // Starts as DUE, specifically requested
                         type: PaymentType.ADMISSION,
                         dueDate: student.joinedAt, // Due on joining
-                        periodStart: student.joinedAt, // For admission, period is point in time? or N/A. Filling to satisfy schema
+                        periodStart: student.joinedAt,
                         periodEnd: student.joinedAt,
                     },
                 });
@@ -89,19 +89,16 @@ export class StudentService {
 
             // 3. If seat and shift are provided, perform allocation
             if (data.seatId && data.shiftId) {
-                // Fetch seat and shift to validate
                 const seat = await tx.seat.findUnique({ where: { id: data.seatId } });
                 const shift = await tx.shift.findUnique({ where: { id: data.shiftId } });
 
                 if (!seat) throw new Error("Seat not found");
                 if (!shift) throw new Error("Shift not found");
 
-                // Validate "Same Branch" Rule
                 if (seat.branchId !== branchId || shift.branchId !== branchId) {
                     throw new Error("Seat and Shift must belong to the same branch");
                 }
 
-                // Check for existing active allocation for this seat in this shift
                 const existingAllocation = await tx.seatAllocation.findFirst({
                     where: {
                         seatId: data.seatId,
@@ -114,7 +111,6 @@ export class StudentService {
                     throw new Error("Seat is already assigned in this shift");
                 }
 
-                // Create Allocation
                 await tx.seatAllocation.create({
                     data: {
                         seatId: data.seatId,
@@ -162,22 +158,76 @@ export class StudentService {
         });
     }
 
+    /**
+     * Updates student status.
+     *
+     * When INACTIVATING:
+     * 1. Ends all active seat allocations (sets endDate = now)
+     * 2. Resolves DUE payments based on dueResolution:
+     *    - PAID  → marks as PAID with paidAt = now
+     *    - WAIVED → marks as WAIVED
+     *    - KEEP (default) → leaves DUE payments untouched
+     *
+     * When ACTIVATING: simply sets status = ACTIVE.
+     */
     static async updateStudentStatus(
         userId: string,
         studentId: string,
-        status: StudentStatus
+        status: StudentStatus,
+        dueResolution: DueResolution = "KEEP"
     ) {
         const verifiedStudent = await this.verifyStudentOwnership(userId, studentId);
+        const now = new Date();
 
         return prisma.$transaction(async (tx) => {
+            // 1. Update student status
             const student = await tx.student.update({
                 where: { id: studentId },
                 data: { status },
             });
 
+            if (status === StudentStatus.INACTIVE) {
+                // 2. End all active seat allocations
+                await tx.seatAllocation.updateMany({
+                    where: {
+                        studentId,
+                        endDate: null,
+                    },
+                    data: {
+                        endDate: now,
+                    },
+                });
+
+                // 3. Resolve DUE payments based on owner's choice
+                if (dueResolution === "PAID") {
+                    await tx.payment.updateMany({
+                        where: {
+                            studentId,
+                            status: PaymentStatus.DUE,
+                        },
+                        data: {
+                            status: PaymentStatus.PAID,
+                            paidAt: now,
+                        },
+                    });
+                } else if (dueResolution === "WAIVED") {
+                    await tx.payment.updateMany({
+                        where: {
+                            studentId,
+                            status: PaymentStatus.DUE,
+                        },
+                        data: {
+                            status: PaymentStatus.WAIVED,
+                        },
+                    });
+                }
+                // KEEP: do nothing, DUE payments stay as-is
+            }
+
+            // 4. Update Branch lastDataChange
             await tx.branch.update({
                 where: { id: verifiedStudent.branch.id },
-                data: { lastDataChange: new Date() },
+                data: { lastDataChange: now },
             });
 
             return student;

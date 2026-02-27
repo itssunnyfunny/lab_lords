@@ -140,9 +140,10 @@ export class PaymentService {
     ) {
         await this.assertBranchOwnership(userId, branchId);
 
+        // Default: exclude WAIVED when no specific status requested
         let whereClause: any = {
             branchId,
-            ...(status ? { status } : {}),
+            ...(status ? { status } : { status: { not: "WAIVED" } }),
         };
 
         if (month) {
@@ -259,6 +260,48 @@ export class PaymentService {
         });
     }
 
-    // Deprecated/unused for now but kept for interface/future use if single gen needed
+    /**
+     * Marks a payment as WAIVED.
+     * WAIVED = owner consciously decided not to pursue this debt.
+     * Preserves history; excluded from overdue/due analytics.
+     */
+    static async markPaymentAsWaived(userId: string, paymentId: string) {
+        const payment = await prisma.payment.findUnique({
+            where: { id: paymentId },
+            include: {
+                branch: {
+                    include: { organization: true }
+                }
+            }
+        });
+
+        if (!payment) {
+            throw new Error("Payment not found");
+        }
+
+        if (payment.branch.organization.ownerId !== userId) {
+            throw new Error("Unauthorized: User does not own this branch");
+        }
+
+        if (payment.status === PaymentStatus.WAIVED) {
+            return payment; // Already waived, idempotent
+        }
+
+        return prisma.$transaction(async (tx) => {
+            const updatedPayment = await tx.payment.update({
+                where: { id: paymentId },
+                data: {
+                    status: PaymentStatus.WAIVED,
+                },
+            });
+
+            await tx.branch.update({
+                where: { id: payment.branchId },
+                data: { lastDataChange: new Date() }
+            });
+
+            return updatedPayment;
+        });
+    }
 
 }
