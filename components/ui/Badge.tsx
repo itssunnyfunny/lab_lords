@@ -19,7 +19,7 @@ export const Badge = ({ children, variant = "default", className }: BadgeProps) 
 
     return (
         <span className={cn(
-            "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border",
+            "inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border",
             variants[variant] || variants.default,
             className
         )}>
