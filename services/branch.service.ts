@@ -95,6 +95,15 @@ export class BranchService {
         return await prisma.branch.findMany({
             where: { organizationId },
             orderBy: { createdAt: "desc" },
+            include: {
+                _count: {
+                    select: {
+                        students: true,
+                        seats: true,
+                        shifts: true,
+                    },
+                },
+            },
         });
     }
 
