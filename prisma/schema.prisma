@@ -83,12 +83,15 @@ model Shift {
   endTime         String?
   price           Int              @default(0)
   isReserved      Boolean          @default(false)
+  status          ShiftStatus      @default(ACTIVE)
+  deletedAt       DateTime?
   createdAt       DateTime         @default(now())
   seatAllocations SeatAllocation[]
   branch          Branch           @relation(fields: [branchId], references: [id])
 
   @@unique([branchId, name])
   @@index([branchId])
+  @@index([branchId, status])
 }
 
 model SeatAllocation {
@@ -163,6 +166,11 @@ model MessageDraft {
 }
 
 enum StudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ShiftStatus {
   ACTIVE
   INACTIVE
 }

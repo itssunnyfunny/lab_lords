@@ -9,6 +9,23 @@ export const DEFAULT_SHIFTS = [
     { name: "Full Time", startTime: "06:00", endTime: "22:00", price: 0, isReserved: false },
 ];
 
+// ─── Resolution Plan Types ─────────────────────────────────────────────────────
+
+export type ResolutionPlan =
+    | { type: "END_ALL" }
+    | { type: "REALLOCATE_BULK"; targetShiftId: string }
+    | { type: "REALLOCATE_MANUAL"; assignments: { allocationId: string; targetShiftId: string }[] };
+
+export interface ShiftImpactAnalysis {
+    studentsInShift: number;
+    allocations: { allocationId: string; studentId: string; studentName: string; seatLabel: string }[];
+    otherShifts: { shiftId: string; name: string; totalSeats: number; activeAllocations: number; emptySeats: number }[];
+    totalEmptyElsewhere: number;
+    shiftsWithEnoughCapacity: string[];
+    willOverflowBy: number;
+    isLastActiveShift: boolean;
+}
+
 export class ShiftService {
     private static async assertBranchOwnership(userId: string, branchId: string) {
         const branch = await prisma.branch.findUnique({
@@ -68,19 +85,242 @@ export class ShiftService {
         });
     }
 
-    static async deleteShift(userId: string, shiftId: string) {
+    // ─── Analyze shift deletion impact (read-only) ────────────────────────────
+
+    static async analyzeShiftDeletion(userId: string, shiftId: string): Promise<ShiftImpactAnalysis> {
         const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
         if (!shift) throw new Error("Shift not found");
         await this.assertBranchOwnership(userId, shift.branchId);
 
-        const activeAllocations = await prisma.seatAllocation.count({
-            where: { shiftId, endDate: null },
+        const branchId = shift.branchId;
+
+        // Count active shifts in branch
+        const activeShiftCount = await prisma.shift.count({
+            where: { branchId, status: "ACTIVE" },
         });
-        if (activeAllocations > 0) {
-            throw new Error(`Cannot delete: ${activeAllocations} active seat allocation(s) use this shift.`);
+        const isLastActiveShift = activeShiftCount <= 1;
+
+        // Active allocations in this shift
+        const rawAllocations = await prisma.seatAllocation.findMany({
+            where: { shiftId, endDate: null },
+            include: {
+                student: { select: { id: true, name: true } },
+                seat: { select: { label: true } },
+            },
+        });
+
+        const allocations = rawAllocations.map(a => ({
+            allocationId: a.id,
+            studentId: a.student.id,
+            studentName: a.student.name,
+            seatLabel: a.seat.label,
+        }));
+
+        const studentsInShift = allocations.length;
+
+        // Other active shifts with their capacity
+        const otherActiveShifts = await prisma.shift.findMany({
+            where: { branchId, status: "ACTIVE", id: { not: shiftId } },
+            include: {
+                _count: { select: { seatAllocations: { where: { endDate: null } } } },
+            },
+        });
+
+        // Total seats per shift = branch.seats count? No — seats are branch-wide.
+        // Capacity per shift = branch total seats - allocations in that shift.
+        // Actually seats are per-branch, not per-shift. Each seat can be in one shift at a time.
+        // So emptySeats for a shift = totalBranchSeats - activeAllocationsInThatShift.
+        const totalBranchSeats = await prisma.seat.count({ where: { branchId } });
+
+        const otherShifts = otherActiveShifts.map(s => {
+            const activeAllocations = s._count.seatAllocations;
+            const emptySeats = Math.max(0, totalBranchSeats - activeAllocations);
+            return {
+                shiftId: s.id,
+                name: s.name,
+                totalSeats: totalBranchSeats,
+                activeAllocations,
+                emptySeats,
+            };
+        });
+
+        const totalEmptyElsewhere = otherShifts.reduce((sum, s) => sum + s.emptySeats, 0);
+        const willOverflowBy = Math.max(0, studentsInShift - totalEmptyElsewhere);
+        const shiftsWithEnoughCapacity = otherShifts
+            .filter(s => s.emptySeats >= studentsInShift)
+            .map(s => s.shiftId);
+
+        return {
+            studentsInShift,
+            allocations,
+            otherShifts,
+            totalEmptyElsewhere,
+            shiftsWithEnoughCapacity,
+            willOverflowBy,
+            isLastActiveShift,
+        };
+    }
+
+    // ─── Delete shift with resolution (transactional) ─────────────────────────
+
+    static async deleteShift(userId: string, shiftId: string, resolution: ResolutionPlan) {
+        const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
+        if (!shift) throw new Error("Shift not found");
+        await this.assertBranchOwnership(userId, shift.branchId);
+
+        const branchId = shift.branchId;
+
+        // Hard block: cannot delete last active shift
+        const activeShiftCount = await prisma.shift.count({
+            where: { branchId, status: "ACTIVE" },
+        });
+        if (activeShiftCount <= 1) {
+            throw new Error("Cannot delete the last active shift in this branch.");
         }
 
-        return prisma.shift.delete({ where: { id: shiftId } });
+        const now = new Date();
+
+        if (resolution.type === "END_ALL") {
+            await prisma.$transaction(async (tx) => {
+                await tx.seatAllocation.updateMany({
+                    where: { shiftId, endDate: null },
+                    data: { endDate: now },
+                });
+                await tx.shift.update({
+                    where: { id: shiftId },
+                    data: { status: "INACTIVE", deletedAt: now },
+                });
+            });
+            return { success: true };
+        }
+
+        if (resolution.type === "REALLOCATE_BULK") {
+            const { targetShiftId } = resolution;
+
+            await prisma.$transaction(async (tx) => {
+                // Validate target shift
+                const target = await tx.shift.findUnique({ where: { id: targetShiftId } });
+                if (!target || target.status !== "ACTIVE") throw new Error("Target shift not found or inactive.");
+                if (target.id === shiftId) throw new Error("Target shift cannot be the same shift.");
+
+                // Validate capacity
+                const totalSeats = await tx.seat.count({ where: { branchId } });
+                const targetActive = await tx.seatAllocation.count({
+                    where: { shiftId: targetShiftId, endDate: null },
+                });
+                const sourceAllocations = await tx.seatAllocation.findMany({
+                    where: { shiftId, endDate: null },
+                    include: { seat: true },
+                });
+
+                if (targetActive + sourceAllocations.length > totalSeats) {
+                    throw new Error("Target shift does not have enough capacity for all students.");
+                }
+
+                // Find available seats in branchId not occupied in targetShift
+                const occupiedSeatIds = (await tx.seatAllocation.findMany({
+                    where: { shiftId: targetShiftId, endDate: null },
+                    select: { seatId: true },
+                })).map(a => a.seatId);
+
+                const availableSeats = await tx.seat.findMany({
+                    where: { branchId, id: { notIn: occupiedSeatIds } },
+                    orderBy: { label: "asc" },
+                    take: sourceAllocations.length,
+                });
+
+                if (availableSeats.length < sourceAllocations.length) {
+                    throw new Error("Not enough unoccupied seats available in target shift.");
+                }
+
+                // End old allocations + create new
+                for (let i = 0; i < sourceAllocations.length; i++) {
+                    const oldAlloc = sourceAllocations[i];
+                    const newSeat = availableSeats[i];
+                    await tx.seatAllocation.update({
+                        where: { id: oldAlloc.id },
+                        data: { endDate: now },
+                    });
+                    await tx.seatAllocation.create({
+                        data: {
+                            studentId: oldAlloc.studentId,
+                            shiftId: targetShiftId,
+                            seatId: newSeat.id,
+                            startDate: now,
+                        },
+                    });
+                }
+
+                await tx.shift.update({
+                    where: { id: shiftId },
+                    data: { status: "INACTIVE", deletedAt: now },
+                });
+            });
+            return { success: true };
+        }
+
+        if (resolution.type === "REALLOCATE_MANUAL") {
+            const { assignments } = resolution;
+
+            await prisma.$transaction(async (tx) => {
+                const totalSeats = await tx.seat.count({ where: { branchId } });
+
+                // Group assignments by targetShiftId to validate capacity
+                const targetShiftCounts = new Map<string, number>();
+                for (const a of assignments) {
+                    targetShiftCounts.set(a.targetShiftId, (targetShiftCounts.get(a.targetShiftId) ?? 0) + 1);
+                }
+
+                for (const [targetShiftId, incoming] of targetShiftCounts.entries()) {
+                    const target = await tx.shift.findUnique({ where: { id: targetShiftId } });
+                    if (!target || target.status !== "ACTIVE") throw new Error(`Target shift not found or inactive.`);
+                    if (target.id === shiftId) throw new Error(`Target shift cannot be the same shift being deleted.`);
+
+                    const currentActive = await tx.seatAllocation.count({
+                        where: { shiftId: targetShiftId, endDate: null },
+                    });
+                    if (currentActive + incoming > totalSeats) {
+                        throw new Error(`Shift "${target.name}" does not have enough capacity.`);
+                    }
+                }
+
+                // Execute assignments
+                for (const assignment of assignments) {
+                    // Find an available seat in target shift
+                    const occupiedSeatIds = (await tx.seatAllocation.findMany({
+                        where: { shiftId: assignment.targetShiftId, endDate: null },
+                        select: { seatId: true },
+                    })).map(a => a.seatId);
+
+                    const availableSeat = await tx.seat.findFirst({
+                        where: { branchId, id: { notIn: occupiedSeatIds } },
+                        orderBy: { label: "asc" },
+                    });
+                    if (!availableSeat) throw new Error("No available seat found in target shift.");
+
+                    await tx.seatAllocation.update({
+                        where: { id: assignment.allocationId },
+                        data: { endDate: now },
+                    });
+                    await tx.seatAllocation.create({
+                        data: {
+                            studentId: (await tx.seatAllocation.findUnique({ where: { id: assignment.allocationId } }))!.studentId,
+                            shiftId: assignment.targetShiftId,
+                            seatId: availableSeat.id,
+                            startDate: now,
+                        },
+                    });
+                }
+
+                await tx.shift.update({
+                    where: { id: shiftId },
+                    data: { status: "INACTIVE", deletedAt: now },
+                });
+            });
+            return { success: true };
+        }
+
+        throw new Error("Invalid resolution type.");
     }
 
     static async ensureDefaultShifts(branchId: string) {
@@ -107,7 +347,7 @@ export class ShiftService {
         await this.assertBranchOwnership(userId, branchId);
         await this.ensureDefaultShifts(branchId);
         return prisma.shift.findMany({
-            where: { branchId },
+            where: { branchId, status: "ACTIVE" },
             orderBy: { name: "asc" },
         });
     }
