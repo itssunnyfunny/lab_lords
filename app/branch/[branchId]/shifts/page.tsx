@@ -9,7 +9,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import {
     MoreVertical, Plus, Pencil, Trash2,
     Loader2, AlertCircle, Clock, IndianRupee,
-    CheckCircle2, X, Shield,
+    CheckCircle2, X, Shield, AlertTriangle,
+    Users, ArrowRight, RefreshCw, Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,31 @@ interface Shift {
     endTime: string | null;
     isReserved: boolean;
     price: number;
+}
+
+interface ShiftAllocation {
+    allocationId: string;
+    studentId: string;
+    studentName: string;
+    seatLabel: string;
+}
+
+interface OtherShift {
+    shiftId: string;
+    name: string;
+    totalSeats: number;
+    activeAllocations: number;
+    emptySeats: number;
+}
+
+interface ShiftImpactAnalysis {
+    studentsInShift: number;
+    allocations: ShiftAllocation[];
+    otherShifts: OtherShift[];
+    totalEmptyElsewhere: number;
+    shiftsWithEnoughCapacity: string[];
+    willOverflowBy: number;
+    isLastActiveShift: boolean;
 }
 
 // ─── Add/Edit Dialog ────────────────────────────────────────────────────────────
@@ -205,6 +231,496 @@ function ShiftDialog({ isOpen, mode, initial, branchId, onClose, onSuccess }: Sh
     );
 }
 
+// ─── Delete Shift Dialog ────────────────────────────────────────────────────────
+
+type ResolutionMode = "END_ALL" | "REALLOCATE_BULK" | "REALLOCATE_MANUAL" | "RENAME";
+
+interface DeleteShiftDialogProps {
+    shift: Shift;
+    branchId: string;
+    onClose: () => void;
+    onDeleted: (shiftId: string) => void;
+    onRenamed: (shift: Shift) => void;
+}
+
+function DeleteShiftDialog({ shift, branchId, onClose, onDeleted, onRenamed }: DeleteShiftDialogProps) {
+    const [step, setStep] = useState<"loading" | "blocked" | "confirm-empty" | "resolve">("loading");
+    const [analysis, setAnalysis] = useState<ShiftImpactAnalysis | null>(null);
+    const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+    // Resolution state
+    const [mode, setMode] = useState<ResolutionMode>("END_ALL");
+    const [bulkTargetId, setBulkTargetId] = useState("");
+    const [manualAssignments, setManualAssignments] = useState<Record<string, string>>({}); // allocationId → targetShiftId
+
+    // Rename state
+    const [renameName, setRenameName] = useState(shift.name);
+    const [renameStart, setRenameStart] = useState(shift.startTime ?? "");
+    const [renameEnd, setRenameEnd] = useState(shift.endTime ?? "");
+
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
+    // Load analysis on mount
+    useEffect(() => {
+        const run = async () => {
+            try {
+                const res = await fetch(`/api/branches/${branchId}/shifts/${shift.id}/analyze`);
+                if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    throw new Error(d.error || "Failed to analyze shift.");
+                }
+                const data: ShiftImpactAnalysis = await res.json();
+                setAnalysis(data);
+
+                if (data.isLastActiveShift) { setStep("blocked"); return; }
+                if (data.studentsInShift === 0) { setStep("confirm-empty"); return; }
+                setStep("resolve");
+
+                // Pre-select bulk target if one shift has enough capacity
+                if (data.shiftsWithEnoughCapacity.length > 0) {
+                    setMode("REALLOCATE_BULK");
+                    setBulkTargetId(data.shiftsWithEnoughCapacity[0]);
+                } else {
+                    setMode("END_ALL");
+                }
+            } catch (e: any) {
+                setAnalyzeError(e.message || "Could not load shift analysis.");
+                setStep("resolve"); // fallback to END_ALL only
+            }
+        };
+        run();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleDelete = async () => {
+        setSubmitting(true);
+        setSubmitError(null);
+        try {
+            let resolution: any;
+            if (mode === "END_ALL") {
+                resolution = { type: "END_ALL" };
+            } else if (mode === "REALLOCATE_BULK") {
+                if (!bulkTargetId) throw new Error("Please select a target shift.");
+                resolution = { type: "REALLOCATE_BULK", targetShiftId: bulkTargetId };
+            } else if (mode === "REALLOCATE_MANUAL") {
+                const assignments = analysis?.allocations.map(a => ({
+                    allocationId: a.allocationId,
+                    targetShiftId: manualAssignments[a.allocationId] ?? "",
+                })) ?? [];
+                if (assignments.some(a => !a.targetShiftId)) throw new Error("Assign a shift for every student.");
+                resolution = { type: "REALLOCATE_MANUAL", assignments };
+            }
+
+            const res = await fetch(`/api/branches/${branchId}/shifts/${shift.id}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ resolution }),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || "Delete failed.");
+            }
+            onDeleted(shift.id);
+            onClose();
+        } catch (e: any) {
+            setSubmitError(e.message || "Something went wrong.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleRename = async () => {
+        if (!renameName.trim()) { setSubmitError("Shift name is required."); return; }
+        setSubmitting(true);
+        setSubmitError(null);
+        try {
+            const res = await fetch(`/api/branches/${branchId}/shifts/${shift.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: renameName.trim(),
+                    startTime: renameStart || null,
+                    endTime: renameEnd || null,
+                }),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || "Update failed.");
+            }
+            const updated: Shift = await res.json();
+            onRenamed(updated);
+            onClose();
+        } catch (e: any) {
+            setSubmitError(e.message || "Something went wrong.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // ── Check manual assignment validity
+    const manualValid = analysis
+        ? analysis.allocations.every(a => !!manualAssignments[a.allocationId])
+        : false;
+
+    // ── Per-target overflow detection for manual mode
+    const manualTargetCounts = Object.values(manualAssignments).reduce<Record<string, number>>((acc, sid) => {
+        acc[sid] = (acc[sid] ?? 0) + 1;
+        return acc;
+    }, {});
+    const manualOverflow = analysis
+        ? Object.entries(manualTargetCounts).some(([sid, count]) => {
+            const t = analysis.otherShifts.find(s => s.shiftId === sid);
+            return t ? count > t.emptySeats : false;
+        })
+        : false;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={submitting ? undefined : onClose} />
+            <div className="relative w-full max-w-lg bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 sticky top-0 bg-[#0f111a] z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                            <Trash2 size={15} className="text-red-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-bold text-white">Delete &ldquo;{shift.name}&rdquo;</h2>
+                            <p className="text-xs text-gray-500">Resolve before removing this shift</p>
+                        </div>
+                    </div>
+                    {!submitting && (
+                        <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                            <X size={18} />
+                        </button>
+                    )}
+                </div>
+
+                {/* ── Loading state */}
+                {step === "loading" && (
+                    <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-400">
+                        <Loader2 size={28} className="animate-spin text-cyan-500" />
+                        <p className="text-sm">Analyzing shift impact...</p>
+                    </div>
+                )}
+
+                {/* ── Blocked: last active shift */}
+                {step === "blocked" && (
+                    <div className="p-6 space-y-4">
+                        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                            <Ban size={18} className="text-amber-400 mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-sm font-semibold text-amber-300">Cannot delete this shift</p>
+                                <p className="text-xs text-amber-400/80 mt-1">
+                                    This is the only active shift in the branch. A branch must have at least one active shift.
+                                    Add another shift first, then you can delete this one.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end">
+                            <Button onClick={onClose} variant="ghost" className="text-sm h-8 px-4">Close</Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Confirm empty shift delete */}
+                {step === "confirm-empty" && (
+                    <div className="p-6 space-y-4">
+                        <p className="text-sm text-gray-300">
+                            This shift has <span className="text-white font-semibold">no active students</span>. It will be removed permanently.
+                        </p>
+                        {submitError && (
+                            <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                                <AlertCircle size={13} /> {submitError}
+                            </div>
+                        )}
+                        <div className="flex justify-end gap-3">
+                            <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-3">Cancel</Button>
+                            <Button
+                                onClick={handleDelete}
+                                disabled={submitting}
+                                className="text-sm h-8 px-4 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 min-w-[100px] justify-center"
+                            >
+                                {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Deleting...</> : "Delete Shift"}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Resolution dialog */}
+                {step === "resolve" && analysis && (
+                    <div className="p-6 space-y-5">
+
+                        {/* Impact summary */}
+                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-2">
+                            <div className="flex items-center gap-2 text-sm">
+                                <Users size={14} className="text-cyan-400" />
+                                <span className="text-white font-semibold">{analysis.studentsInShift} student{analysis.studentsInShift !== 1 ? "s" : ""}</span>
+                                <span className="text-gray-500">currently in this shift</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <ArrowRight size={12} />
+                                <span>Empty seats elsewhere: <span className="text-white">{analysis.totalEmptyElsewhere}</span></span>
+                                {analysis.willOverflowBy > 0 && (
+                                    <span className="text-amber-400 flex items-center gap-1">
+                                        <AlertTriangle size={11} /> {analysis.willOverflowBy} cannot be reallocated
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {analyzeError && (
+                            <div className="flex items-center gap-2 text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                                <AlertTriangle size={13} /> {analyzeError} — Only &ldquo;End All&rdquo; is available.
+                            </div>
+                        )}
+
+                        {/* Option cards */}
+                        <div className="space-y-2.5">
+
+                            {/* Option A — End All */}
+                            <OptionCard
+                                selected={mode === "END_ALL"}
+                                onClick={() => setMode("END_ALL")}
+                                icon={<Ban size={15} className="text-red-400" />}
+                                title="End All Allocations"
+                                description="All students become unallocated. They remain in the system — only their seat assignment ends."
+                                variant="danger"
+                            >
+                                {mode === "END_ALL" && (
+                                    <p className="text-xs text-red-400/80 mt-2 pl-1">
+                                        {analysis.studentsInShift} student{analysis.studentsInShift !== 1 ? "s" : ""} will be unallocated.
+                                    </p>
+                                )}
+                            </OptionCard>
+
+                            {/* Option B — Move All to One Shift (only if enough capacity exists in a single shift) */}
+                            {analysis.shiftsWithEnoughCapacity.length > 0 && (
+                                <OptionCard
+                                    selected={mode === "REALLOCATE_BULK"}
+                                    onClick={() => { setMode("REALLOCATE_BULK"); if (!bulkTargetId) setBulkTargetId(analysis.shiftsWithEnoughCapacity[0]); }}
+                                    icon={<RefreshCw size={15} className="text-emerald-400" />}
+                                    title="Move All to One Shift"
+                                    description="All students are moved to a single shift in one step."
+                                    variant="success"
+                                >
+                                    {mode === "REALLOCATE_BULK" && (
+                                        <div className="mt-3">
+                                            <label className="text-xs text-gray-500 mb-1.5 block">Select target shift</label>
+                                            <select
+                                                value={bulkTargetId}
+                                                onChange={e => setBulkTargetId(e.target.value)}
+                                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                            >
+                                                <option value="" disabled>Choose a shift…</option>
+                                                {analysis.otherShifts
+                                                    .filter(s => analysis.shiftsWithEnoughCapacity.includes(s.shiftId))
+                                                    .map(s => (
+                                                        <option key={s.shiftId} value={s.shiftId}>
+                                                            {s.name} — {s.emptySeats} empty seat{s.emptySeats !== 1 ? "s" : ""}
+                                                        </option>
+                                                    ))
+                                                }
+                                            </select>
+                                        </div>
+                                    )}
+                                </OptionCard>
+                            )}
+
+                            {/* Option C — Per-student assignment */}
+                            <OptionCard
+                                selected={mode === "REALLOCATE_MANUAL"}
+                                onClick={() => setMode("REALLOCATE_MANUAL")}
+                                icon={<Users size={15} className="text-cyan-400" />}
+                                title="Assign Per Student"
+                                description="Choose a target shift individually for each student."
+                            >
+                                {mode === "REALLOCATE_MANUAL" && (
+                                    <div className="mt-3 space-y-2">
+                                        {analysis.allocations.map(alloc => {
+                                            const chosenId = manualAssignments[alloc.allocationId] ?? "";
+                                            const chosenShift = analysis.otherShifts.find(s => s.shiftId === chosenId);
+                                            const wouldOverflow = chosenShift
+                                                ? (manualTargetCounts[chosenId] ?? 0) > chosenShift.emptySeats
+                                                : false;
+                                            return (
+                                                <div key={alloc.allocationId} className="flex items-center gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs text-white font-medium truncate">{alloc.studentName}</p>
+                                                        <p className="text-[10px] text-gray-600">Seat {alloc.seatLabel}</p>
+                                                    </div>
+                                                    <select
+                                                        value={chosenId}
+                                                        onChange={e => setManualAssignments(prev => ({
+                                                            ...prev,
+                                                            [alloc.allocationId]: e.target.value,
+                                                        }))}
+                                                        className={cn(
+                                                            "bg-white/5 border rounded-lg py-1.5 px-2 text-white text-xs focus:outline-none focus:border-cyan-500/50 min-w-[160px]",
+                                                            wouldOverflow ? "border-red-500/50" : "border-white/10"
+                                                        )}
+                                                    >
+                                                        <option value="" disabled>Select shift…</option>
+                                                        {analysis.otherShifts.map(s => (
+                                                            <option key={s.shiftId} value={s.shiftId} disabled={s.emptySeats === 0}>
+                                                                {s.name} ({s.emptySeats} empty)
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            );
+                                        })}
+                                        {manualOverflow && (
+                                            <p className="text-xs text-red-400 flex items-center gap-1 mt-1">
+                                                <AlertTriangle size={11} /> One or more shifts would overflow. Reassign those students.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </OptionCard>
+
+                            {/* Option D — Rename / Retime Instead */}
+                            <OptionCard
+                                selected={mode === "RENAME"}
+                                onClick={() => setMode("RENAME")}
+                                icon={<Pencil size={15} className="text-gray-400" />}
+                                title="Rename / Retime Instead"
+                                description="Don't delete — just change the name or time window. Students stay allocated."
+                            >
+                                {mode === "RENAME" && (
+                                    <div className="mt-3 space-y-3">
+                                        <div>
+                                            <label className="text-xs text-gray-500 mb-1 block">New name</label>
+                                            <input
+                                                type="text"
+                                                value={renameName}
+                                                onChange={e => { setRenameName(e.target.value); setSubmitError(null); }}
+                                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-xs text-gray-500 mb-1 block">Start time</label>
+                                                <input
+                                                    type="time"
+                                                    value={renameStart}
+                                                    onChange={e => setRenameStart(e.target.value)}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-500 mb-1 block">End time</label>
+                                                <input
+                                                    type="time"
+                                                    value={renameEnd}
+                                                    onChange={e => setRenameEnd(e.target.value)}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </OptionCard>
+                        </div>
+
+                        {/* Submit error */}
+                        {submitError && (
+                            <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                                <AlertCircle size={13} /> {submitError}
+                            </div>
+                        )}
+
+                        {/* Footer actions */}
+                        <div className="flex justify-end gap-3 pt-2">
+                            <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-3">
+                                Cancel
+                            </Button>
+                            {mode === "RENAME" ? (
+                                <Button
+                                    onClick={handleRename}
+                                    disabled={submitting || !renameName.trim()}
+                                    className="text-sm h-8 px-4 min-w-[130px] justify-center"
+                                >
+                                    {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" />Saving...</> : "Save Changes"}
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={handleDelete}
+                                    disabled={
+                                        submitting ||
+                                        (mode === "REALLOCATE_BULK" && !bulkTargetId) ||
+                                        (mode === "REALLOCATE_MANUAL" && (!manualValid || manualOverflow))
+                                    }
+                                    className={cn(
+                                        "text-sm h-8 px-4 min-w-[130px] justify-center",
+                                        "bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30"
+                                    )}
+                                >
+                                    {submitting
+                                        ? <><Loader2 size={12} className="animate-spin mr-1.5" />Processing...</>
+                                        : mode === "END_ALL" ? "End All & Delete"
+                                            : mode === "REALLOCATE_BULK" ? "Move All & Delete"
+                                                : "Assign & Delete"
+                                    }
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── Option Card helper ─────────────────────────────────────────────────────────
+
+interface OptionCardProps {
+    selected: boolean;
+    onClick: () => void;
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    variant?: "danger" | "success";
+    children?: React.ReactNode;
+}
+
+function OptionCard({ selected, onClick, icon, title, description, variant, children }: OptionCardProps) {
+    const borderColor = selected
+        ? variant === "danger" ? "border-red-500/40" : variant === "success" ? "border-emerald-500/40" : "border-cyan-500/40"
+        : "border-white/8";
+    const bgColor = selected
+        ? variant === "danger" ? "bg-red-500/5" : variant === "success" ? "bg-emerald-500/5" : "bg-cyan-500/5"
+        : "bg-white/[0.02]";
+
+    return (
+        <div
+            onClick={onClick}
+            className={cn(
+                "border rounded-xl p-4 cursor-pointer transition-all",
+                borderColor, bgColor,
+                !selected && "hover:border-white/15 hover:bg-white/[0.04]"
+            )}
+        >
+            <div className="flex items-start gap-3">
+                <div className="mt-0.5 shrink-0">{icon}</div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">{title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</p>
+                    {children}
+                </div>
+                <div className={cn(
+                    "w-4 h-4 rounded-full border shrink-0 mt-0.5 transition-all flex items-center justify-center",
+                    selected ? "border-cyan-500 bg-cyan-500" : "border-white/20"
+                )}>
+                    {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Row dropdown ──────────────────────────────────────────────────────────────
 
 interface RowAction { label: string; icon: React.ElementType; onClick: () => void; variant?: "danger" }
@@ -260,6 +776,9 @@ export default function ShiftsPage() {
         open: false, mode: "add",
     });
 
+    // Delete dialog state
+    const [deleteTarget, setDeleteTarget] = useState<Shift | null>(null);
+
     const showToast = (msg: string, type: "success" | "error" = "success") => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3500);
@@ -282,21 +801,6 @@ export default function ShiftsPage() {
 
     useEffect(() => { loadShifts(); }, [branchId]);
 
-    const handleDelete = async (shift: Shift) => {
-        if (!confirm(`Delete shift "${shift.name}"? This cannot be undone.`)) return;
-        try {
-            const res = await fetch(`/api/branches/${branchId}/shifts/${shift.id}`, { method: "DELETE" });
-            if (!res.ok) {
-                const d = await res.json().catch(() => ({}));
-                throw new Error(d.error || "Delete failed");
-            }
-            setShifts(prev => prev.filter(s => s.id !== shift.id));
-            showToast(`"${shift.name}" deleted.`);
-        } catch (err: any) {
-            showToast(err.message || "Delete failed.", "error");
-        }
-    };
-
     const handleDialogSuccess = (saved: Shift) => {
         setShifts(prev => {
             const idx = prev.findIndex(s => s.id === saved.id);
@@ -304,6 +808,17 @@ export default function ShiftsPage() {
             return [...prev, saved];
         });
         showToast(dialog.mode === "add" ? `"${saved.name}" added.` : `"${saved.name}" updated.`);
+    };
+
+    const handleDeleted = (shiftId: string) => {
+        const deleted = shifts.find(s => s.id === shiftId);
+        setShifts(prev => prev.filter(s => s.id !== shiftId));
+        showToast(`"${deleted?.name}" deleted.`);
+    };
+
+    const handleRenamed = (updated: Shift) => {
+        setShifts(prev => prev.map(s => s.id === updated.id ? updated : s));
+        showToast(`"${updated.name}" updated.`);
     };
 
     // ── Loading
@@ -399,7 +914,7 @@ export default function ShiftsPage() {
                                                 label: "Delete",
                                                 icon: Trash2,
                                                 variant: "danger",
-                                                onClick: () => handleDelete(shift),
+                                                onClick: () => setDeleteTarget(shift),
                                             },
                                         ]} />
                                     </td>
@@ -418,6 +933,16 @@ export default function ShiftsPage() {
                 onClose={() => setDialog(d => ({ ...d, open: false }))}
                 onSuccess={handleDialogSuccess}
             />
+
+            {deleteTarget && (
+                <DeleteShiftDialog
+                    shift={deleteTarget}
+                    branchId={branchId}
+                    onClose={() => setDeleteTarget(null)}
+                    onDeleted={handleDeleted}
+                    onRenamed={handleRenamed}
+                />
+            )}
         </div>
     );
 }
