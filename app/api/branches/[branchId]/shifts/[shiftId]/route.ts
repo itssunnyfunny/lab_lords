@@ -40,10 +40,13 @@ export async function PATCH(
 
 /**
  * DELETE /api/branches/[branchId]/shifts/[shiftId]
- * Delete a shift, blocked if active allocations exist.
+ * Requires a JSON body with a resolution plan:
+ *   { "resolution": { "type": "END_ALL" } }
+ *   { "resolution": { "type": "REALLOCATE_BULK", "targetShiftId": "..." } }
+ *   { "resolution": { "type": "REALLOCATE_MANUAL", "assignments": [...] } }
  */
 export async function DELETE(
-    _request: NextRequest,
+    request: NextRequest,
     context: { params: Promise<{ branchId: string; shiftId: string }> }
 ) {
     const userId = await getUserId();
@@ -51,13 +54,26 @@ export async function DELETE(
 
     const { shiftId } = await context.params;
 
+    let resolution;
     try {
-        await ShiftService.deleteShift(userId, shiftId);
+        const body = await request.json();
+        resolution = body?.resolution;
+    } catch {
+        return NextResponse.json({ error: "Request body is required." }, { status: 400 });
+    }
+
+    if (!resolution?.type) {
+        return NextResponse.json({ error: "A resolution plan is required to delete a shift." }, { status: 400 });
+    }
+
+    try {
+        await ShiftService.deleteShift(userId, shiftId, resolution);
         return NextResponse.json({ success: true });
     } catch (error: any) {
         const status = error.message.includes("not found") ? 404
             : error.message.includes("Unauthorized") ? 403
-                : 409; // conflict for active allocations
+                : error.message.includes("last active") ? 422
+                    : 409;
         return NextResponse.json({ error: error.message }, { status });
     }
 }
