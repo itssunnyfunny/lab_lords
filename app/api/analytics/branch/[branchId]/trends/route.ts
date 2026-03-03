@@ -45,13 +45,35 @@ export async function GET(
                     category: "Seat Utilization"
                 }))
                 break
+            case "students":
+                const studentData = await getBranchHealthTrend(branchId, from, to)
+                result = studentData.flatMap(item => [
+                    {
+                        date: item.asOf.toISOString(),
+                        value: item.snapshot.students.status.active,
+                        category: "Active"
+                    },
+                    {
+                        date: item.asOf.toISOString(),
+                        value: item.snapshot.students.status.inactive,
+                        category: "Inactive"
+                    }
+                ])
+                break
             case "payment":
                 const paymentData = await getPaymentTrend(branchId, from, to)
-                result = paymentData.map(item => ({
-                    date: item.asOf.toISOString(),
-                    value: item.paidAmount,
-                    category: "Revenue Collection"
-                }))
+                result = paymentData.flatMap(item => [
+                    {
+                        date: item.asOf.toISOString(),
+                        value: item.paidAmount,
+                        category: "Collected"
+                    },
+                    {
+                        date: item.asOf.toISOString(),
+                        value: item.dueAmount,
+                        category: "Pending"
+                    }
+                ])
                 break
             case "health":
             default:

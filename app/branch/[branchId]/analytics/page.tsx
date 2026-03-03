@@ -16,7 +16,6 @@ interface BranchAnalyticsRow {
     students: number;
     util: string;
     revenue: number;
-    expenses: number; // Not in snapshot, placeholder
 }
 
 export default function AnalyticsPage({ params }: { params: Promise<{ branchId: string }> }) {
@@ -41,8 +40,7 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
                     branch: branchDetails.name,
                     students: snap.totalStudents,
                     util: `${snap.occupancyRate.toFixed(1)}%`,
-                    revenue: snap.monthlyRevenue,
-                    expenses: 0 // Placeholder
+                    revenue: snap.monthlyRevenue
                 };
 
                 setData([row]);
@@ -78,12 +76,11 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
                         { header: "Total Students", accessor: "students" },
                         { header: "Seat Utilization", accessor: (item) => <Badge variant="default">{item.util}</Badge> },
                         { header: "Revenue", accessor: (item) => `₹${item.revenue.toLocaleString()}` },
-                        { header: "Expenses", accessor: (item) => `₹${item.expenses.toLocaleString()}` },
                         {
                             header: "Net Profit",
                             accessor: (item) => (
                                 <span className="text-emerald-400 font-bold">
-                                    ₹{(item.revenue - item.expenses).toLocaleString()}
+                                    ₹{item.revenue.toLocaleString()}
                                 </span>
                             )
                         },

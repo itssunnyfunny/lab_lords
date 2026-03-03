@@ -1,20 +1,53 @@
 "use client";
 
 import { Card } from "@/components/ui/Card";
-import { Bar, BarChart, ResponsiveContainer, XAxis, Tooltip } from "recharts";
-import { BranchSnapshot } from "@/lib/api/analytics";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { useEffect, useState } from "react";
+import { analytics, BranchSnapshot } from "@/lib/api/analytics";
+import { format } from "date-fns";
 
-const DATA_MOCK = [
-    { name: 'Mon', active: 400, inactive: 240 },
-    { name: 'Tue', active: 300, inactive: 139 },
-    { name: 'Wed', active: 200, inactive: 980 },
-    { name: 'Thu', active: 278, inactive: 390 },
-    { name: 'Fri', active: 189, inactive: 480 },
-    { name: 'Sat', active: 239, inactive: 380 },
-    { name: 'Sun', active: 349, inactive: 430 },
-];
+export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapshot, branchId?: string }) {
+    const [studentData, setStudentData] = useState<{ name: string, active: number, inactive: number }[]>([]);
+    const [paymentData, setPaymentData] = useState<{ name: string, paid: number, due: number }[]>([]);
 
-export function SnapshotFooter({ snapshot }: { snapshot?: BranchSnapshot }) {
+    useEffect(() => {
+        if (!branchId) return;
+        const loadTrends = async () => {
+            try {
+                const to = new Date().toISOString();
+                const from = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
+
+                const [stu, pay] = await Promise.all([
+                    analytics.getTrends(branchId, { from, to, type: "students" }),
+                    analytics.getTrends(branchId, { from, to, type: "payment" })
+                ]);
+
+                // Group stu by date
+                const stuMap = new Map();
+                stu.forEach(t => {
+                    const d = format(new Date(t.date), "EEE"); // Mon, Tue...
+                    if (!stuMap.has(d)) stuMap.set(d, { name: d, active: 0, inactive: 0 });
+                    if (t.category === "Active") stuMap.get(d).active = t.value;
+                    if (t.category === "Inactive") stuMap.get(d).inactive = t.value;
+                });
+                setStudentData(Array.from(stuMap.values()));
+
+                const payMap = new Map();
+                pay.forEach(t => {
+                    const d = format(new Date(t.date), "EEE");
+                    if (!payMap.has(d)) payMap.set(d, { name: d, paid: 0, due: 0 });
+                    if (t.category === "Collected") payMap.get(d).paid = t.value;
+                    if (t.category === "Pending") payMap.get(d).due = t.value;
+                });
+                setPaymentData(Array.from(payMap.values()));
+
+            } catch (err) {
+                console.error("Failed to load footer trends", err);
+            }
+        };
+        loadTrends();
+    }, [branchId]);
+
     if (!snapshot) return null;
 
     return (
@@ -22,14 +55,15 @@ export function SnapshotFooter({ snapshot }: { snapshot?: BranchSnapshot }) {
             {/* Active vs Inactive */}
             <Card title="Active vs. Inactive Students" className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={DATA_MOCK}>
+                    <BarChart data={studentData.length > 0 ? studentData : [{ name: 'Loading', active: 0, inactive: 0 }]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                         <Tooltip
                             cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                             contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
                         />
-                        <Bar dataKey="active" fill="#6366f1" radius={[4, 4, 0, 0]} stackId="a" />
-                        <Bar dataKey="inactive" fill="#1e293b" radius={[4, 4, 0, 0]} stackId="a" />
+                        <Bar name="Active" dataKey="active" fill="#6366f1" radius={[4, 4, 0, 0]} stackId="a" />
+                        <Bar name="Inactive" dataKey="inactive" fill="#475569" radius={[4, 4, 0, 0]} stackId="a" />
                     </BarChart>
                 </ResponsiveContainer>
             </Card>
@@ -49,8 +83,16 @@ export function SnapshotFooter({ snapshot }: { snapshot?: BranchSnapshot }) {
                     </div>
                     <div className="flex-1 h-[200px] ml-10">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={DATA_MOCK}>
-                                <Bar dataKey="active" fill="#10b981" radius={[4, 4, 0, 0]} />
+                            <BarChart data={paymentData.length > 0 ? paymentData : [{ name: 'Loading', paid: 0, due: 0 }]} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                                <Tooltip
+                                    cursor={{ fill: 'transparent' }}
+                                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                    formatter={(value: any, name: any) => [`₹${value}`, name]}
+                                />
+                                <Bar name="Collected" dataKey="paid" fill="#10b981" radius={[4, 4, 0, 0]} stackId="b" />
+                                <Bar name="Pending" dataKey="due" fill="#ef4444" radius={[4, 4, 0, 0]} stackId="b" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

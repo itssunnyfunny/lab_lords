@@ -70,7 +70,7 @@ export default function BranchSnapshotPage({ params }: { params: Promise<{ branc
             </div>
 
             {/* KPI Cards */}
-            <KpiRow snapshot={snapshot} />
+            <KpiRow snapshot={snapshot} branchId={branchId} />
 
             {/* Main Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -79,7 +79,7 @@ export default function BranchSnapshotPage({ params }: { params: Promise<{ branc
             </div>
 
             {/* Bottom Section */}
-            <SnapshotFooter snapshot={snapshot} />
+            <SnapshotFooter snapshot={snapshot} branchId={branchId} />
         </div>
     );
 }

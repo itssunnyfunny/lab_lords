@@ -2,7 +2,8 @@
 
 import { Card } from "@/components/ui/Card";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
-import { BranchSnapshot } from "@/lib/api/analytics";
+import { useEffect, useState } from "react";
+import { analytics, BranchSnapshot } from "@/lib/api/analytics";
 
 interface KpiRowProps {
     title: string;
@@ -13,13 +14,8 @@ interface KpiRowProps {
     prefix?: string;
 }
 
-// Mock data for sparklines if not provided
-const DEFAULT_DATA = [
-    { v: 10 }, { v: 15 }, { v: 13 }, { v: 20 }, { v: 18 }, { v: 25 }, { v: 30 }
-];
-
 export function KpiCard({ title, value, trend, trendUp = true, data }: KpiRowProps) {
-    const chartData = data ? data.map(v => ({ v })) : DEFAULT_DATA;
+    const chartData = data ? data.map(v => ({ v })) : [];
     const color = trendUp ? "#10b981" : "#ef4444"; // Emerald or Red
 
     return (
@@ -38,7 +34,7 @@ export function KpiCard({ title, value, trend, trendUp = true, data }: KpiRowPro
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                         <defs>
-                            <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id={`gradient-${title.replace(/\s+/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor={color} stopOpacity={0.3} />
                                 <stop offset="95%" stopColor={color} stopOpacity={0} />
                             </linearGradient>
@@ -48,7 +44,7 @@ export function KpiCard({ title, value, trend, trendUp = true, data }: KpiRowPro
                             dataKey="v"
                             stroke={color}
                             strokeWidth={2}
-                            fill={`url(#gradient-${title})`}
+                            fill={`url(#gradient-${title.replace(/\s+/g, '-')})`}
                         />
                     </AreaChart>
                 </ResponsiveContainer>
@@ -57,35 +53,65 @@ export function KpiCard({ title, value, trend, trendUp = true, data }: KpiRowPro
     );
 }
 
-export function KpiRow({ snapshot }: { snapshot?: BranchSnapshot }) {
+export function KpiRow({ snapshot, branchId }: { snapshot?: BranchSnapshot, branchId?: string }) {
+    const [seatTrend, setSeatTrend] = useState<number[] | undefined>();
+    const [paymentTrend, setPaymentTrend] = useState<number[] | undefined>();
+    const [studentTrend, setStudentTrend] = useState<number[] | undefined>();
+    const [dueTrend, setDueTrend] = useState<number[] | undefined>();
+
+    useEffect(() => {
+        if (!branchId) return;
+        const loadTrends = async () => {
+            try {
+                const to = new Date().toISOString();
+                const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+                const [seat, pay, stu] = await Promise.all([
+                    analytics.getTrends(branchId, { from, to, type: "seat" }),
+                    analytics.getTrends(branchId, { from, to, type: "payment" }),
+                    analytics.getTrends(branchId, { from, to, type: "students" })
+                ]);
+
+                setSeatTrend(seat.map(t => t.value));
+                setPaymentTrend(pay.filter(t => t.category === "Collected").map(t => t.value));
+                setDueTrend(pay.filter(t => t.category === "Pending").map(t => t.value));
+                setStudentTrend(stu.filter(t => t.category === "Active").map(t => t.value));
+            } catch (err) {
+                console.error("Failed to load KPI trends", err);
+            }
+        };
+        loadTrends();
+    }, [branchId]);
+
     if (!snapshot) {
-        // Skull placeholder or skeletons could go here
         return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <KpiCard title="Revenue" value="-" />
+            <KpiCard title="Collected Revenue" value="-" />
             <KpiCard title="Active Students" value="-" />
             <KpiCard title="Due Payments" value="-" />
-            <KpiCard title="Occupancy" value="-" />
+            <KpiCard title="Total Utilization" value="-" />
         </div>;
     }
 
-    // Determine trends or use dummy trends for now as Snapshot might not have trend data yet
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <KpiCard
                 title="Collected Revenue"
                 value={`₹${snapshot.paidAmount.toLocaleString()}`}
                 trend="+12%"
+                data={paymentTrend}
             />
             <KpiCard
                 title="Active Students"
                 value={snapshot.activeStudents.toString()}
                 trend="+5%"
+                data={studentTrend}
             />
             <KpiCard
                 title="Due Payments"
                 value={`₹${snapshot.dueAmount.toLocaleString()}`}
                 trend="-4%"
                 trendUp={false}
+                data={dueTrend}
             />
             <KpiCard
                 title="Total Utilization"
@@ -95,6 +121,7 @@ export function KpiRow({ snapshot }: { snapshot?: BranchSnapshot }) {
                         ? `${snapshot.seatDetails.totalUsedSlots} / ${snapshot.seatDetails.totalShiftCapacity} slots`
                         : undefined
                 }
+                data={seatTrend}
             />
         </div>
     );

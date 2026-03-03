@@ -34,7 +34,7 @@ export const analytics = {
         return apiClient.get(`/analytics/branch/${branchId}/snapshot`);
     },
 
-    getTrends: async (branchId: string, params: { from: string; to: string; type: "health" | "seat" | "payment" }): Promise<TrendData> => {
+    getTrends: async (branchId: string, params: { from: string; to: string; type: "health" | "seat" | "payment" | "students" }): Promise<TrendData> => {
         const query = new URLSearchParams({
             from: params.from,
             to: params.to,
