@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Loader2, ChevronDown, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { students } from "@/lib/api/students";
-import { branches } from "@/lib/api/branches";
 import { CreateStudentDto } from "@/types";
-import type { Shift, Seat } from "@prisma/client";
+import { SeatPicker, ShiftCapacity } from "@/components/allocations/SeatPicker";
 
 interface AddStudentDialogProps {
     isOpen: boolean;
@@ -22,43 +21,39 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
         name: "",
         phone: "",
         monthlyFee: undefined,
-        admissionFee: undefined
+        admissionFee: undefined,
     });
 
-    const [shifts, setShifts] = useState<Shift[]>([]);
-    const [seats, setSeats] = useState<Seat[]>([]);
-    const [isFetchingOptions, setIsFetchingOptions] = useState(false);
+    // Integrated allocation state
+    const [wantsAllocation, setWantsAllocation] = useState(false);
+    const [selectedShift, setSelectedShift] = useState<ShiftCapacity | null>(null);
+    const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
+    const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (isOpen) {
-            fetchOptions();
+        if (!isOpen) {
+            setError(null);
+            setFormData({ name: "", phone: "", monthlyFee: undefined, admissionFee: undefined });
+            setWantsAllocation(false);
+            setSelectedShift(null);
+            setSelectedSeatId(null);
+            setCreatedStudentId(null);
         }
-    }, [isOpen, branchId]);
-
-    const fetchOptions = async () => {
-        setIsFetchingOptions(true);
-        try {
-            const [fetchedShifts, fetchedSeats] = await Promise.all([
-                branches.getShifts(branchId),
-                branches.getSeats(branchId)
-            ]);
-            setShifts(fetchedShifts);
-            setSeats(fetchedSeats);
-        } catch (err) {
-            console.error("Failed to fetch shifts/seats:", err);
-            // We continue even if this fails, just fields will be empty
-        } finally {
-            setIsFetchingOptions(false);
-        }
-    };
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!formData.name.trim()) {
+        // Validate
+        if (!createdStudentId && !formData.name.trim()) {
             setError("Name is required");
+            return;
+        }
+
+        if (wantsAllocation && (!selectedShift || !selectedSeatId)) {
+            setError("Please select both a shift and a seat, or uncheck allocation.");
             return;
         }
 
@@ -66,14 +61,40 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
         setError(null);
 
         try {
-            const newStudent = await students.create(branchId, formData);
-            onSuccess(newStudent);
+            // 1. Create student if not already created (handles race-condition retries cleanly)
+            let studentToAllocateTo = createdStudentId;
+            let finalStudentObj;
+
+            if (!studentToAllocateTo) {
+                finalStudentObj = await students.create(branchId, formData);
+                studentToAllocateTo = finalStudentObj.id;
+                setCreatedStudentId(studentToAllocateTo);
+            }
+
+            // 2. Allocate seat if toggled
+            if (wantsAllocation && selectedShift && selectedSeatId && studentToAllocateTo) {
+                const res = await fetch("/api/seat-allocations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        studentId: studentToAllocateTo,
+                        seatId: selectedSeatId,
+                        shiftId: selectedShift.shiftId,
+                    }),
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || "Student created, but seat allocation failed. Please select another seat and try again.");
+                }
+            }
+
+            // Success completely
+            onSuccess(finalStudentObj || { id: studentToAllocateTo, name: formData.name });
             onClose();
-            // Reset form
-            setFormData({ name: "", phone: "" });
         } catch (err: any) {
-            console.error("Failed to create student:", err);
-            setError(err.response?.data?.error || err.response?.data?.message || err.message || "Failed to create student.");
+            const message = err.response?.data?.error || err.response?.data?.message || err.message || "Something went wrong.";
+            setError(message);
         } finally {
             setIsLoading(false);
         }
@@ -82,211 +103,148 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div
-                className="w-full max-w-md bg-surface border border-white/10 rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
+                className="w-full max-w-2xl bg-[#0a0c14] border border-white/10 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5 rounded-t-xl">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02] flex-shrink-0">
                     <h2 className="text-lg font-semibold text-white">Add New Student</h2>
-                    <button
-                        onClick={onClose}
-                        className="text-textMuted hover:text-white transition-colors"
-                    >
+                    <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
                         <X size={20} />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {error && (
-                        <div className="p-3 text-sm text-red-200 bg-red-900/30 border border-red-900/50 rounded-md">
-                            {error}
+                <div className="p-6 overflow-y-auto custom-scrollbar">
+                    <form id="add-student-form" onSubmit={handleSubmit} className="space-y-6">
+                        {error && (
+                            <div className="p-3 text-sm text-red-200 bg-red-900/30 border border-red-900/50 rounded-md">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label htmlFor="name" className="text-sm font-medium text-zinc-400">
+                                    Full Name <span className="text-red-400">*</span>
+                                </label>
+                                <input
+                                    id="name"
+                                    type="text"
+                                    disabled={!!createdStudentId || isLoading}
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                    placeholder="e.g. John Doe"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="phone" className="text-sm font-medium text-zinc-400">
+                                    Phone Number
+                                </label>
+                                <input
+                                    id="phone"
+                                    type="tel"
+                                    disabled={!!createdStudentId || isLoading}
+                                    value={formData.phone || ""}
+                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                    placeholder="e.g. +91 98765 43210"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="monthlyFee" className="text-sm font-medium text-zinc-400">
+                                    Monthly Fee
+                                </label>
+                                <input
+                                    id="monthlyFee"
+                                    type="number"
+                                    disabled={!!createdStudentId || isLoading}
+                                    value={formData.monthlyFee || ""}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            monthlyFee: e.target.value ? Number(e.target.value) : undefined,
+                                        })
+                                    }
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                    placeholder="Branch default"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="admissionFee" className="text-sm font-medium text-zinc-400">
+                                    Admission Fee
+                                </label>
+                                <input
+                                    id="admissionFee"
+                                    type="number"
+                                    disabled={!!createdStudentId || isLoading}
+                                    value={formData.admissionFee || ""}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            admissionFee: e.target.value ? Number(e.target.value) : undefined,
+                                        })
+                                    }
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                    placeholder="One-time"
+                                />
+                            </div>
                         </div>
-                    )}
 
-                    <div className="space-y-2">
-                        <label htmlFor="name" className="text-sm font-medium text-textMuted">
-                            Full Name <span className="text-red-400">*</span>
-                        </label>
-                        <input
-                            id="name"
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
-                            placeholder="e.g. John Doe"
-                            autoFocus
-                        />
-                    </div>
+                        {createdStudentId && (
+                            <div className="p-3 text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                                Student profile saved. Pick a different seat and try allocating again.
+                            </div>
+                        )}
 
-                    <div className="space-y-2">
-                        <label htmlFor="phone" className="text-sm font-medium text-textMuted">
-                            Phone Number
-                        </label>
-                        <input
-                            id="phone"
-                            type="tel"
-                            value={formData.phone || ""}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
-                            placeholder="e.g. +91 98765 43210"
-                        />
-                    </div>
+                        <hr className="border-white/5" />
 
-                    <div className="space-y-2">
-                        <label htmlFor="monthlyFee" className="text-sm font-medium text-textMuted">
-                            Monthly Fee (Optional)
-                        </label>
-                        <input
-                            id="monthlyFee"
-                            type="number"
-                            value={formData.monthlyFee || ""}
-                            onChange={(e) => setFormData({ ...formData, monthlyFee: e.target.value ? Number(e.target.value) : undefined })}
-                            className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
-                            placeholder="Leave empty for branch default"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label htmlFor="admissionFee" className="text-sm font-medium text-textMuted">
-                            Admission Fee (One-time)
-                        </label>
-                        <input
-                            id="admissionFee"
-                            type="number"
-                            value={formData.admissionFee || ""}
-                            onChange={(e) => setFormData({ ...formData, admissionFee: e.target.value ? Number(e.target.value) : undefined })}
-                            className="w-full px-3 py-2 bg-background border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder:text-white/20"
-                            placeholder="e.g. 500"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label htmlFor="shift" className="text-sm font-medium text-textMuted">
-                                Shift (Optional)
+                        <div className="space-y-4">
+                            <label className="flex items-center gap-3 cursor-pointer group w-max">
+                                <input
+                                    type="checkbox"
+                                    checked={wantsAllocation}
+                                    onChange={(e) => setWantsAllocation(e.target.checked)}
+                                    className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
+                                />
+                                <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
+                                    Allocate seat now (Optional)
+                                </span>
                             </label>
-                            <CustomSelect
-                                value={formData.shiftId}
-                                onChange={(val) => setFormData({ ...formData, shiftId: val })}
-                                options={shifts.map(s => ({
-                                    label: `${s.name} (${s.startTime}-${s.endTime})`,
-                                    value: s.id
-                                }))}
-                                placeholder="None"
-                                disabled={isFetchingOptions}
-                                direction="up"
-                            />
-                        </div>
 
-                        <div className="space-y-2">
-                            <label htmlFor="seat" className="text-sm font-medium text-textMuted">
-                                Seat (Optional)
-                            </label>
-                            <CustomSelect
-                                value={formData.seatId}
-                                onChange={(val) => setFormData({ ...formData, seatId: val })}
-                                options={seats.map(s => ({ label: s.label, value: s.id }))}
-                                placeholder="None"
-                                disabled={isFetchingOptions}
-                                direction="up"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="pt-2 flex justify-end gap-3">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={onClose}
-                            disabled={isLoading}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-auto whitespace-nowrap"
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Adding...
-                                </>
-                            ) : (
-                                "Add Student"
+                            {wantsAllocation && (
+                                <div className="mt-4 p-5 rounded-xl border border-white/5 bg-white/[0.01]">
+                                    <SeatPicker
+                                        branchId={branchId}
+                                        selectedShift={selectedShift}
+                                        selectedSeatId={selectedSeatId}
+                                        onSelectShift={(s) => { setSelectedShift(s); setSelectedSeatId(null); }}
+                                        onSelectSeat={setSelectedSeatId}
+                                    />
+                                </div>
                             )}
-                        </Button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-interface CustomSelectProps {
-    value?: string;
-    onChange: (value: string | undefined) => void;
-    options: { label: string; value: string }[];
-    placeholder?: string;
-    disabled?: boolean;
-    direction?: "up" | "down";
-}
-
-function CustomSelect({ value, onChange, options, placeholder = "Select...", disabled, direction = "down" }: CustomSelectProps) {
-    const [isOpen, setIsOpen] = useState(false);
-    const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
-
-    return (
-        <div className="relative">
-            {isOpen && (
-                <div
-                    className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
-                    onClick={() => setIsOpen(false)}
-                />
-            )}
-            <button
-                type="button"
-                onClick={() => !disabled && setIsOpen(!isOpen)}
-                disabled={disabled}
-                className={`w-full px-3 py-2 bg-app border border-white/10 rounded-lg flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-primary/50 text-white transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : "hover:border-white/20"
-                    }`}
-            >
-                <span className={!value ? "text-white/50" : ""}>{selectedLabel}</span>
-                <ChevronDown size={16} className={`text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-            </button>
-
-            {isOpen && (
-                <div className={`absolute z-50 w-full bg-[#0f111a] border border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100 p-1 ${direction === "up" ? "bottom-full mb-1" : "top-full mt-1"
-                    }`}>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            onChange(undefined);
-                            setIsOpen(false);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm text-white/70 hover:bg-white/5 rounded-md transition-colors flex items-center gap-2"
-                    >
-                        <span>None</span>
-                        {!value && <Check size={14} className="ml-auto text-primary" />}
-                    </button>
-                    {options.map((option) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => {
-                                onChange(option.value);
-                                setIsOpen(false);
-                            }}
-                            className={`w-full px-3 py-2 text-left text-sm rounded-md transition-colors flex items-center gap-2 ${value === option.value
-                                ? "bg-primary/10 text-primary"
-                                : "text-white hover:bg-white/5"
-                                }`}
-                        >
-                            <span className="truncate">{option.label}</span>
-                            {value === option.value && <Check size={14} className="ml-auto" />}
-                        </button>
-                    ))}
+                        </div>
+                    </form>
                 </div>
-            )}
+
+                <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 bg-white/[0.01] flex-shrink-0">
+                    <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" form="add-student-form" disabled={isLoading || (wantsAllocation && (!selectedShift || !selectedSeatId))} className="min-w-[140px]">
+                        {isLoading ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                        ) : wantsAllocation ? (
+                            "Save & Allocate"
+                        ) : (
+                            "Add Student"
+                        )}
+                    </Button>
+                </div>
+            </div>
         </div>
     );
 }

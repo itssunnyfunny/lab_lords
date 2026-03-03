@@ -466,6 +466,14 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                                     icon: Power,
                                     onClick: () => handleActivate(item),
                                 },
+                            ...(item.status === "ACTIVE"
+                                ? [{
+                                    label: "Allocate Seat",
+                                    icon: CheckCircle2,
+                                    onClick: () => router.push(`/branch/${branchId}/allocations?studentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
+                                }]
+                                : []
+                            ),
                         ]}
                     />
                 )}
