@@ -98,7 +98,7 @@ export class SeatService {
             where: { id: branchId },
             select: {
                 _count: { select: { seats: true } },
-                shifts: { select: { id: true, name: true } }
+                shifts: { where: { status: "ACTIVE" }, select: { id: true, name: true } }
             }
         })
 
@@ -180,5 +180,93 @@ export class SeatService {
             shifts: shiftsResult,
             generatedAt: date
         }
+    }
+
+    /**
+     * Returns a visual seat map for a specific shift.
+     * Each seat shows whether it's occupied in that shift, and by whom.
+     */
+    static async getSeatMap(userId: string, branchId: string, shiftId: string) {
+        await this.assertBranchOwnership(userId, branchId);
+
+        const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
+        if (!shift || shift.branchId !== branchId) throw new Error("Shift not found");
+
+        const seats = await prisma.seat.findMany({
+            where: { branchId },
+            include: {
+                seatAllocations: {
+                    where: { shiftId, endDate: null },
+                    include: { student: { select: { name: true } } },
+                    take: 1,
+                },
+            },
+            orderBy: { label: "asc" },
+        });
+
+        const totalSeats = seats.length;
+        const occupiedCount = seats.filter(s => s.seatAllocations.length > 0).length;
+
+        return {
+            shiftId: shift.id,
+            shiftName: shift.name,
+            isReserved: shift.isReserved,
+            totalSeats,
+            occupiedCount,
+            availableCount: totalSeats - occupiedCount,
+            seats: seats.map(s => ({
+                seatId: s.id,
+                label: s.label,
+                occupied: s.seatAllocations.length > 0,
+                occupiedBy: s.seatAllocations[0]?.student.name ?? null,
+            })),
+        };
+    }
+
+    /**
+     * Returns all active shifts with current capacity counts.
+     * Used by the AllocateSeatDialog shift selection step.
+     */
+    static async getShiftsCapacity(userId: string, branchId: string, studentId?: string) {
+        await this.assertBranchOwnership(userId, branchId);
+
+        const totalSeats = await prisma.seat.count({ where: { branchId } });
+
+        const shifts = await prisma.shift.findMany({
+            where: { branchId, status: "ACTIVE" },
+            include: {
+                _count: { select: { seatAllocations: { where: { endDate: null } } } },
+            },
+            orderBy: { name: "asc" },
+        });
+
+        // If studentId provided, find which shifts the student is already allocated in
+        const studentAllocatedShiftIds = new Set<string>();
+        if (studentId) {
+            const studentAllocations = await prisma.seatAllocation.findMany({
+                where: { studentId, endDate: null },
+                select: { shiftId: true },
+            });
+            studentAllocations.forEach(a => studentAllocatedShiftIds.add(a.shiftId));
+        }
+
+        return shifts.map(shift => {
+            const used = shift._count.seatAllocations;
+            const available = Math.max(0, totalSeats - used);
+            const occupancyPercent = totalSeats === 0 ? 0 : (used / totalSeats) * 100;
+            return {
+                shiftId: shift.id,
+                name: shift.name,
+                startTime: shift.startTime,
+                endTime: shift.endTime,
+                isReserved: shift.isReserved,
+                totalSeats,
+                used,
+                available,
+                occupancyPercent,
+                isFull: available === 0,
+                studentAlreadyAllocated: studentAllocatedShiftIds.has(shift.id),
+            };
+        });
     }
 }
