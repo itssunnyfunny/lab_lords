@@ -12,6 +12,7 @@ import {
     UserPlus, User, Mail,
 } from "lucide-react";
 import { staff, StaffWithUser } from "@/lib/api/staff";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -293,6 +294,9 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
     const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
     const [addOpen, setAddOpen] = useState(false);
 
+    const [removeTarget, setRemoveTarget] = useState<StaffMember | null>(null);
+    const [removeLoading, setRemoveLoading] = useState(false);
+
     const showToast = (msg: string, type: "success" | "error" = "success") => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3500);
@@ -312,18 +316,26 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
 
     useEffect(() => { loadStaff(); }, [branchId]);
 
-    const handleRemove = async (member: StaffMember) => {
-        if (!confirm(`Remove ${member.user?.name || member.user?.email} from this branch?`)) return;
+    const handleRemoveClick = (member: StaffMember) => {
+        setRemoveTarget(member);
+    };
+
+    const confirmRemove = async () => {
+        if (!removeTarget) return;
+        setRemoveLoading(true);
         try {
-            const res = await fetch(`/api/branches/${branchId}/staff/${member.id}`, { method: "DELETE" });
+            const res = await fetch(`/api/branches/${branchId}/staff/${removeTarget.id}`, { method: "DELETE" });
             if (!res.ok) {
                 const d = await res.json().catch(() => ({}));
                 throw new Error(d.error || "Remove failed");
             }
-            setData(prev => prev.filter(s => s.id !== member.id));
-            showToast(`${member.user?.name || "Member"} removed.`);
+            setData(prev => prev.filter(s => s.id !== removeTarget.id));
+            setRemoveTarget(null);
+            showToast(`${removeTarget.user?.name || "Member"} removed.`);
         } catch (err: any) {
             showToast(err.message || "Remove failed.", "error");
+        } finally {
+            setRemoveLoading(false);
         }
     };
 
@@ -419,7 +431,7 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                                                 label: "Remove",
                                                 icon: Trash2,
                                                 variant: "danger",
-                                                onClick: () => handleRemove(member),
+                                                onClick: () => handleRemoveClick(member),
                                             },
                                         ]} />
                                     </td>
@@ -452,6 +464,18 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                     setData(prev => [...prev, member]);
                     showToast(`Staff member added.`);
                 }}
+            />
+
+            {/* Remove staff dialog */}
+            <ConfirmDialog
+                isOpen={!!removeTarget}
+                onClose={() => setRemoveTarget(null)}
+                onConfirm={confirmRemove}
+                title="Remove Staff"
+                description={`Are you sure you want to remove ${removeTarget?.user?.name || removeTarget?.user?.email} from this branch?`}
+                confirmText="Remove"
+                variant="danger"
+                loading={removeLoading}
             />
         </div>
     );

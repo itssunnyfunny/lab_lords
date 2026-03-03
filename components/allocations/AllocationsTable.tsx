@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface Allocation {
     id: string;
@@ -22,12 +23,18 @@ interface AllocationsTableProps {
 
 export function AllocationsTable({ allocations, onEndAllocation }: AllocationsTableProps) {
     const [endingId, setEndingId] = useState<string | null>(null);
+    const [confirmId, setConfirmId] = useState<string | null>(null);
 
-    const handleEndClick = async (id: string) => {
-        if (!confirm("End this seat allocation? This will free the seat for future use.")) return;
-        setEndingId(id);
+    const handleEndClick = (id: string) => {
+        setConfirmId(id);
+    };
+
+    const confirmEnd = async () => {
+        if (!confirmId) return;
+        setEndingId(confirmId);
         try {
-            await onEndAllocation(id);
+            await onEndAllocation(confirmId);
+            setConfirmId(null);
         } finally {
             setEndingId(null);
         }
@@ -109,6 +116,17 @@ export function AllocationsTable({ allocations, onEndAllocation }: AllocationsTa
                     )}
                 </tbody>
             </table>
+
+            <ConfirmDialog
+                isOpen={!!confirmId}
+                onClose={() => setConfirmId(null)}
+                onConfirm={confirmEnd}
+                title="End Seat Allocation"
+                description="Are you sure you want to end this seat allocation? This will free the seat for future use."
+                confirmText="End Allocation"
+                variant="danger"
+                loading={!!endingId}
+            />
         </Card>
     );
 }

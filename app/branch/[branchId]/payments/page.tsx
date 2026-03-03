@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { payments } from "@/lib/api/payments";
@@ -23,6 +24,9 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [newlyGenerated, setNewlyGenerated] = useState<number | null>(null);
+
+    const [paymentToMark, setPaymentToMark] = useState<string | null>(null);
+    const [marking, setMarking] = useState(false);
 
     const loadPayments = async () => {
         try {
@@ -77,14 +81,21 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
         setCurrentDate(prev => direction === "prev" ? subMonths(prev, 1) : addMonths(prev, 1));
     };
 
-    const handleMarkPaid = async (id: string) => {
-        if (confirm("Are you sure you want to mark this as PAID?")) {
-            try {
-                await payments.markAsPaid(id);
-                loadPayments();
-            } catch (err) {
-                alert("Failed to mark as paid");
-            }
+    const handleMarkPaid = (id: string) => {
+        setPaymentToMark(id);
+    };
+
+    const confirmMarkPaid = async () => {
+        if (!paymentToMark) return;
+        setMarking(true);
+        try {
+            await payments.markAsPaid(paymentToMark);
+            await loadPayments();
+            setPaymentToMark(null);
+        } catch (err) {
+            alert("Failed to mark as paid");
+        } finally {
+            setMarking(false);
         }
     };
 
@@ -258,6 +269,16 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                     <p className="text-textSecondary">No payments found for this view.</p>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={!!paymentToMark}
+                onClose={() => setPaymentToMark(null)}
+                onConfirm={confirmMarkPaid}
+                title="Mark as Paid"
+                description="Are you sure you want to mark this payment as PAID? This action will record the payment and update the analytics."
+                confirmText="Yes, Mark Paid"
+                loading={marking}
+            />
         </div>
     );
 }

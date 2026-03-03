@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { EditStudentDialog } from "./EditStudentDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
 type DueResolution = "PAID" | "WAIVED" | "KEEP";
@@ -249,6 +250,10 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
     const [inactivateTarget, setInactivateTarget] = useState<Student | null>(null);
     const [inactivateLoading, setInactivateLoading] = useState(false);
 
+    // Activate confirm dialog
+    const [activateTarget, setActivateTarget] = useState<Student | null>(null);
+    const [activateLoading, setActivateLoading] = useState(false);
+
     const loadData = async () => {
         setLoading(true);
         try {
@@ -317,19 +322,27 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
         }
     };
 
-    // ── Activate Student (simple — no dialog) ─────────────────────────────────
-    const handleActivate = async (student: Student) => {
-        if (!confirm(`Reactivate ${student.name}?`)) return;
+    // ── Activate Student (simple) ─────────────────────────────────
+    const handleActivateClick = (student: Student) => {
+        setActivateTarget(student);
+    };
+
+    const confirmActivate = async () => {
+        if (!activateTarget) return;
+        setActivateLoading(true);
         try {
             const res = await fetch(`/api/branches/${branchId}/students`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: student.id, status: "ACTIVE" }),
+                body: JSON.stringify({ id: activateTarget.id, status: "ACTIVE" }),
             });
             if (!res.ok) throw new Error();
-            setAllStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: "ACTIVE" as StudentStatus } : s));
+            setAllStudents(prev => prev.map(s => s.id === activateTarget.id ? { ...s, status: "ACTIVE" as StudentStatus } : s));
+            setActivateTarget(null);
         } catch {
             alert("Failed to activate student.");
+        } finally {
+            setActivateLoading(false);
         }
     };
 
@@ -464,7 +477,7 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                                 : {
                                     label: "Activate",
                                     icon: Power,
-                                    onClick: () => handleActivate(item),
+                                    onClick: () => handleActivateClick(item),
                                 },
                             ...(item.status === "ACTIVE"
                                 ? [{
@@ -509,6 +522,17 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                 onConfirm={handleInactivateConfirm}
                 onCancel={() => setInactivateTarget(null)}
                 loading={inactivateLoading}
+            />
+
+            {/* Activate dialog */}
+            <ConfirmDialog
+                isOpen={!!activateTarget}
+                onClose={() => setActivateTarget(null)}
+                onConfirm={confirmActivate}
+                title="Reactivate Student"
+                description={`Are you sure you want to reactivate ${activateTarget?.name}? They will be able to be allocated a seat again.`}
+                confirmText="Reactivate"
+                loading={activateLoading}
             />
 
             {/* Fee drawer */}
