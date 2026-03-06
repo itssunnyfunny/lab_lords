@@ -512,13 +512,14 @@ function DeleteShiftDialog({ shift, branchId, onClose, onDeleted, onRenamed }: D
                                             <select
                                                 value={bulkTargetId}
                                                 onChange={e => setBulkTargetId(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                style={{ colorScheme: 'dark', backgroundColor: '#0f111a' }}
+                                                className="w-full border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
                                             >
-                                                <option value="" disabled>Choose a shift…</option>
+                                                <option value="" disabled className="bg-[#0f111a] text-white">Choose a shift…</option>
                                                 {analysis.otherShifts
                                                     .filter(s => analysis.shiftsWithEnoughCapacity.includes(s.shiftId))
                                                     .map(s => (
-                                                        <option key={s.shiftId} value={s.shiftId}>
+                                                        <option key={s.shiftId} value={s.shiftId} className="bg-[#0f111a] text-white">
                                                             {s.name} — {s.emptySeats} empty seat{s.emptySeats !== 1 ? "s" : ""}
                                                         </option>
                                                     ))
@@ -557,14 +558,15 @@ function DeleteShiftDialog({ shift, branchId, onClose, onDeleted, onRenamed }: D
                                                             ...prev,
                                                             [alloc.allocationId]: e.target.value,
                                                         }))}
+                                                        style={{ colorScheme: 'dark', backgroundColor: '#0f111a' }}
                                                         className={cn(
-                                                            "bg-white/5 border rounded-lg py-1.5 px-2 text-white text-xs focus:outline-none focus:border-cyan-500/50 min-w-[160px]",
+                                                            "border rounded-lg py-1.5 px-2 text-white text-xs focus:outline-none focus:border-cyan-500/50 min-w-[160px]",
                                                             wouldOverflow ? "border-red-500/50" : "border-white/10"
                                                         )}
                                                     >
-                                                        <option value="" disabled>Select shift…</option>
+                                                        <option value="" disabled className="bg-[#0f111a] text-white">Select shift…</option>
                                                         {analysis.otherShifts.map(s => (
-                                                            <option key={s.shiftId} value={s.shiftId} disabled={s.emptySeats === 0}>
+                                                            <option key={s.shiftId} value={s.shiftId} disabled={s.emptySeats === 0} className="bg-[#0f111a] text-white">
                                                                 {s.name} ({s.emptySeats} empty)
                                                             </option>
                                                         ))}
