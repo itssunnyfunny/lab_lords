@@ -35,6 +35,7 @@ export class SeatAllocationService {
             if (!seat) throw new Error("Seat not found");
             if (!student) throw new Error("Student not found");
             if (!shift) throw new Error("Shift not found");
+            if (shift.status !== "ACTIVE") throw new Error("Cannot allocate seat in an inactive shift");
 
             // 2. Validate Ownership
             if (seat.branch.organization.ownerId !== userId) {

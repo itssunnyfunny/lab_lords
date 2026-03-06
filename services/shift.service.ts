@@ -40,8 +40,8 @@ export class ShiftService {
     static async createShift(userId: string, branchId: string, data: CreateShiftDto) {
         await this.assertBranchOwnership(userId, branchId);
 
-        const existingShift = await prisma.shift.findUnique({
-            where: { branchId_name: { branchId, name: data.name } },
+        const existingShift = await prisma.shift.findFirst({
+            where: { branchId, name: data.name, status: "ACTIVE" },
         });
         if (existingShift) throw new Error(`Shift with name "${data.name}" already exists in this branch.`);
 
@@ -67,8 +67,8 @@ export class ShiftService {
         await this.assertBranchOwnership(userId, shift.branchId);
 
         if (data.name && data.name !== shift.name) {
-            const duplicate = await prisma.shift.findUnique({
-                where: { branchId_name: { branchId: shift.branchId, name: data.name } },
+            const duplicate = await prisma.shift.findFirst({
+                where: { branchId: shift.branchId, name: data.name, status: "ACTIVE", id: { not: shiftId } },
             });
             if (duplicate) throw new Error(`Shift with name "${data.name}" already exists in this branch.`);
         }
@@ -325,8 +325,8 @@ export class ShiftService {
 
     static async ensureDefaultShifts(branchId: string) {
         for (const def of DEFAULT_SHIFTS) {
-            const existing = await prisma.shift.findUnique({
-                where: { branchId_name: { branchId, name: def.name } },
+            const existing = await prisma.shift.findFirst({
+                where: { branchId, name: def.name, status: "ACTIVE" },
             });
             if (!existing) {
                 await prisma.shift.create({

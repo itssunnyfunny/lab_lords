@@ -89,7 +89,6 @@ model Shift {
   seatAllocations SeatAllocation[]
   branch          Branch           @relation(fields: [branchId], references: [id])
 
-  @@unique([branchId, name])
   @@index([branchId])
   @@index([branchId, status])
 }
