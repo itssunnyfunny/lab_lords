@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, BarChart3, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, BarChart3, Settings } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -31,18 +31,20 @@ export function OrgSidebar({ className }: SidebarProps) {
                 </div>
             </div>
 
-            <div className="p-6 space-y-2">
+            <div className="flex-1 p-6 space-y-2">
                 <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-4 px-2">Organization</div>
                 <SidebarItem icon={LayoutDashboard} label="Dashboard" isActive={pathname === basePath} onClick={() => navigate(basePath)} />
                 <SidebarItem icon={BarChart3} label="Global Analytics" isActive={pathname === `${basePath}/analytics`} onClick={() => navigate(`${basePath}/analytics`)} />
-                <SidebarItem icon={Settings} label="System Settings" isActive={pathname === `${basePath}/settings`} onClick={() => navigate(`${basePath}/settings`)} />
             </div>
 
-            <div className="mt-auto p-6 border-t border-white/5 bg-gradient-to-t from-black/20 to-transparent">
-                <button onClick={() => router.push('/org-select')} className="flex items-center gap-3 text-gray-400 hover:text-white text-sm transition-colors group">
-                    <LogOut size={16} className="group-hover:text-rose-400 transition-colors" />
-                    <span className="font-medium">Disconnect Org</span>
-                </button>
+            {/* Bottom pinned: System Settings */}
+            <div className="px-6 pb-6 border-t border-white/5 pt-4">
+                <SidebarItem
+                    icon={Settings}
+                    label="System Settings"
+                    isActive={pathname === `${basePath}/settings`}
+                    onClick={() => navigate(`${basePath}/settings`)}
+                />
             </div>
         </div>
     );
