@@ -35,7 +35,29 @@ export async function GET(
 
         const branch = await prisma.branch.findUnique({
             where: { id: branchId },
-            include: { organization: true }
+            include: {
+                organization: true,
+                _count: {
+                    select: {
+                        seats: true,
+                        students: { where: { status: "ACTIVE" } },
+                        shifts: { where: { status: "ACTIVE" } },
+                        payments: { where: { status: "DUE" } },
+                    },
+                },
+                shifts: {
+                    where: { status: "ACTIVE" },
+                    select: {
+                        id: true,
+                        name: true,
+                        startTime: true,
+                        endTime: true,
+                        price: true,
+                        isReserved: true,
+                    },
+                    orderBy: { createdAt: "asc" },
+                },
+            },
         });
 
         if (!branch) {
