@@ -49,7 +49,7 @@ export function detectBranchRisks(
     risks.push({
       type: "LOW_SEAT_UTILIZATION",
       severity: "MEDIUM",
-      explanation: `Seat utilization is low at ${snapshot.seats.utilizationPercent}%.`,
+      explanation: `Seat utilization is low at ${snapshot.seats.utilizationPercent.toFixed(2)}%.`,
     })
   }
 

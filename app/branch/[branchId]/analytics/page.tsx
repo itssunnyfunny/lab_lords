@@ -39,7 +39,7 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
                     id: branchDetails.id,
                     branch: branchDetails.name,
                     students: snap.totalStudents,
-                    util: `${snap.occupancyRate.toFixed(1)}%`,
+                    util: `${snap.occupancyRate.toFixed(2)}%`,
                     revenue: snap.monthlyRevenue
                 };
 
@@ -102,7 +102,7 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
                                         {shift.used} / {shift.capacity}
                                     </span>
                                     <span className="text-sm text-emerald-400">
-                                        {shift.occupancyPercent.toFixed(1)}%
+                                        {shift.occupancyPercent.toFixed(2)}%
                                     </span>
                                 </div>
                                 <div className="w-full bg-white/5 h-1.5 mt-4 rounded-full overflow-hidden">
