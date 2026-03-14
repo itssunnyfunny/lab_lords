@@ -1,7 +1,6 @@
 import { readBranchSnapshotForAI } from "../readers/branch.reader"
 import { detectBranchRisks } from "../riskDetection/branchRiskDetector"
 import { suggestActionsForBranch } from "../actionSuggestions/branchActionSuggester"
-import { draftMessagesForBranch } from "../messageDrafting/branchMessageDrafter"
 import { generateBranchHealthReport } from "../branchHealthReport"
 import { AIStructuredBranchReport } from "../contracts/structuredReport.contract"
 import { prisma } from "@/lib/prisma"
@@ -32,23 +31,13 @@ export interface BranchAIResponse {
         items: any[]
     }
 
-    messages: {
-        language: "en" | "hi"
-        items: Array<{
-            action: string
-            message: string
-            isOutdated?: boolean
-            studentId?: string
-        }>
-    }
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const STUCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - force reset if stuck running
 
 export async function runBranchAI(
-    branchId: string,
-    language: "en" | "hi" = "en"
+    branchId: string
 ): Promise<BranchAIResponse> {
     const now = new Date();
 
@@ -152,9 +141,6 @@ export async function runBranchAI(
         // 4️⃣ [AI - GEMINI] Generate STRUCTURED health report
         const structuredReport = await generateBranchHealthReport(snapshot)
 
-        // 5️⃣ [DETERMINISTIC] Draft messages (Now Persistent & Async)
-        const messages = await draftMessagesForBranch(branchId, actions, language)
-
         const result: BranchAIResponse = {
             version: "1.0",
 
@@ -178,16 +164,6 @@ export async function runBranchAI(
             actions: {
                 total: actions.length,
                 items: actions,
-            },
-
-            messages: {
-                language,
-                items: messages.map((m) => ({
-                    action: m.action || "UNKNOWN",
-                    message: m.message,
-                    isOutdated: m.isOutdated,
-                    studentId: m.studentId
-                })),
             },
         }
 

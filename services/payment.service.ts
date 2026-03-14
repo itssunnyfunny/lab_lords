@@ -241,12 +241,12 @@ export class PaymentService {
                 },
             });
 
-            // 2. Delete associated MessageDrafts (Stop pestering)
+            // 2. Delete associated MessageDrafts (stop pestering once paid)
             await tx.messageDraft.deleteMany({
                 where: {
                     studentId: payment.studentId,
                     branchId: payment.branchId,
-                    action: "OVERDUE_PAYMENT_FOLLOWUP" // Only delete relevant drafts
+                    action: "FOLLOW_UP_OVERDUE_PAYMENTS"
                 }
             });
 

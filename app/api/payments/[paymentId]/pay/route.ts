@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PaymentService } from "@/services/payment.service";
 import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
     req: NextRequest,
@@ -15,21 +14,8 @@ export async function PATCH(
 
         const { paymentId } = await params;
 
+        // markPaymentAsPaid handles: marking PAID, deleting message drafts, updating lastDataChange
         const payment = await PaymentService.markPaymentAsPaid(user.id, paymentId);
-
-        // Update Branch lastDataChange & Delete Message Drafts for this student
-        await prisma.$transaction([
-            prisma.branch.update({
-                where: { id: payment.branchId },
-                data: { lastDataChange: new Date() }
-            }),
-            prisma.messageDraft.deleteMany({
-                where: {
-                    branchId: payment.branchId,
-                    studentId: payment.studentId
-                }
-            })
-        ]);
 
         return NextResponse.json(payment);
     } catch (error: any) {

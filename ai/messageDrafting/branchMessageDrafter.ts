@@ -1,123 +1,174 @@
-import { AIActionSuggestion } from "../contracts/actionSuggestion.contract"
-import { AIMessageDraft } from "../contracts/messageDraft.contract"
 import { prisma } from "@/lib/prisma"
 import { callGemini } from "../llm/gemini.client"
+import { format } from "date-fns"
 
-export async function draftMessagesForBranch(
+export interface OverdueMessageDraft {
+  studentId: string
+  studentName: string
+  dueDate: string        // ISO string
+  language: "en" | "hi"
+  message: string
+  isOutdated?: boolean
+}
+
+const ACTION = "FOLLOW_UP_OVERDUE_PAYMENTS"
+
+/**
+ * Standalone function — independent from the AI reports pipeline.
+ *
+ * Logic:
+ * 1. Fetch all DUE payments for the branch where dueDate < today (actual overdue).
+ * 2. For each overdue payment, check if a MessageDraft already exists in DB.
+ * 3. Return cached drafts immediately (skip Gemini).
+ * 4. Batch the remaining students → call Gemini once with name + dueDate.
+ * 5. Persist new drafts, return everything.
+ */
+export async function draftOverdueMessages(
   branchId: string,
-  actions: AIActionSuggestion[],
   language: "en" | "hi" = "en"
-): Promise<AIMessageDraft[]> {
-  const drafts: AIMessageDraft[] = []
+): Promise<OverdueMessageDraft[]> {
+  const today = new Date()
 
-  for (const action of actions) {
-    if (action.action === "FOLLOW_UP_OVERDUE_PAYMENTS") {
-      // 1. Get relevant students
-      const studentIds = action.meta?.relatedEntityIds || []
+  // 1️⃣ Fetch all DUE payments that are actually overdue (dueDate < today)
+  const overduePayments = await prisma.payment.findMany({
+    where: {
+      branchId,
+      status: "DUE",
+      dueDate: { lt: today }
+    },
+    include: {
+      student: { select: { id: true, name: true } }
+    },
+    orderBy: { dueDate: "asc" }
+  })
 
-      // Filter out students who already have a draft for this action
-      const studentsNeedingDrafts: string[] = [];
-      for (const studentId of studentIds) {
-        const existingDraft = await prisma.messageDraft.findFirst({
-          where: { branchId, studentId, action: action.action, language },
-          include: { student: { select: { updatedAt: true } } }
-        });
+  if (overduePayments.length === 0) {
+    return []
+  }
 
-        if (existingDraft) {
-          const isOutdated = (existingDraft as any).student
-            ? (existingDraft as any).student.updatedAt > existingDraft.createdAt
-            : false;
+  const results: OverdueMessageDraft[] = []
+  const needsGeneration: Array<{ studentId: string; studentName: string; dueDate: Date; amount: number }> = []
 
-          drafts.push({
-            language: existingDraft.language as "en" | "hi",
-            message: existingDraft.message,
-            isOutdated,
-            studentId: existingDraft.studentId ?? undefined
-          });
-        } else {
-          studentsNeedingDrafts.push(studentId);
-        }
-      }
+  // 2️⃣ For each, check if draft already exists in DB
+  for (const payment of overduePayments) {
+    // De-duplicate: if same student has multiple overdue payments, only one draft per student per language
+    const alreadyQueued = needsGeneration.some(n => n.studentId === payment.studentId)
+    const alreadyInResults = results.some(r => r.studentId === payment.studentId)
+    if (alreadyQueued || alreadyInResults) continue
 
-      if (studentsNeedingDrafts.length > 0) {
-        // Fetch student details for the prompt
-        const students = await prisma.student.findMany({
-          where: { id: { in: studentsNeedingDrafts } },
-          select: { id: true, name: true, monthlyFee: true }
-        });
+    const existing = await prisma.messageDraft.findFirst({
+      where: { branchId, studentId: payment.studentId, action: ACTION, language },
+      include: { student: { select: { updatedAt: true } } }
+    })
 
-        // Generate Prompt
-        const prompt = `
+    if (existing) {
+      // 3️⃣ Return cached
+      const isOutdated = (existing as any).student
+        ? (existing as any).student.updatedAt > existing.createdAt
+        : false
+
+      results.push({
+        studentId: payment.studentId,
+        studentName: payment.student.name,
+        dueDate: payment.dueDate.toISOString(),
+        language: existing.language as "en" | "hi",
+        message: existing.message,
+        isOutdated
+      })
+    } else {
+      // 4️⃣ Queue for generation
+      needsGeneration.push({
+        studentId: payment.studentId,
+        studentName: payment.student.name,
+        dueDate: payment.dueDate,
+        amount: payment.amount
+      })
+    }
+  }
+
+  console.log(`[Messages] ${results.length} cached, generating for ${needsGeneration.length} student(s)`)
+
+  // 5️⃣ Batch call Gemini for students without drafts
+  if (needsGeneration.length > 0) {
+    const studentList = needsGeneration.map(s => ({
+      id: s.studentId,
+      name: s.studentName,
+      dueDate: format(s.dueDate, "dd MMM yyyy"),
+      amount: `₹${s.amount}`
+    }))
+
+    const prompt = `
 You are an assistant for a study hall manager.
-Generate polite follow-up messages for overdue payments for the following students.
-Language: ${language === 'hi' ? 'Hindi (Polite, Formal)' : 'English (Polite, Professional)'}.
-Keep it short (under 20 words).
-Output specifically a JSON array of objects: { "studentId": "...", "message": "..." }.
-Do NOT output markdown.
+Generate short, polite payment reminder messages for overdue students.
+Language: ${language === "hi" ? "Hindi (Polite, Formal)" : "English (Polite, Professional)"}.
+Every message MUST include ALL THREE of: the student's name, the due date, and the amount due.
+Keep it SHORT — under 30 words per message.
+Output ONLY a JSON array: [{ "studentId": "...", "message": "..." }]
+Do NOT output markdown or code blocks.
 
 Students:
-${JSON.stringify(students.map(s => ({ id: s.id, name: s.name, due: s.monthlyFee })))}
-`;
+${JSON.stringify(studentList)}
+`
 
-        try {
-          const aiResponse = await callGemini(prompt);
-          // Clean and parse
-          const cleanJson = aiResponse?.replace(/```json/g, '').replace(/```/g, '').trim() || "[]";
-          const generatedMessages = JSON.parse(cleanJson);
+    try {
+      const aiResponse = await callGemini(prompt)
+      const clean = aiResponse?.replace(/```json/g, "").replace(/```/g, "").trim() || "[]"
+      const generated: Array<{ studentId: string; message: string }> = JSON.parse(clean)
 
-          for (const item of generatedMessages) {
-            const msg = item.message;
-            if (msg) {
-              await prisma.messageDraft.create({
-                data: {
-                  branchId,
-                  studentId: item.studentId,
-                  action: action.action,
-                  language,
-                  message: msg
-                }
-              });
-              drafts.push({ language, message: msg, studentId: item.studentId ?? undefined });
-            }
+      for (const item of generated) {
+        const meta = needsGeneration.find(n => n.studentId === item.studentId)
+        if (!meta || !item.message) continue
+
+        // Persist to DB
+        await prisma.messageDraft.create({
+          data: {
+            branchId,
+            studentId: item.studentId,
+            action: ACTION,
+            language,
+            message: item.message
           }
-        } catch (error) {
-          console.error("Failed to generate batch messages via Gemini", error);
-          // Fallback to static if AI fails
-          const fallbackMsg = language === "en" ? "Reminder: Payment is due." : "स्मरण: भुगतान देय है।";
-          for (const sid of studentsNeedingDrafts) {
-            drafts.push({ language, message: fallbackMsg, studentId: sid });
-          }
-        }
-      }
-    } else {
-      // For other actions, we might need different logic.
-      // Current implementation only had static messages for seat util etc.
-      // But the user requirement specifically emphasized overdue students.
-      // We will keep the legacy static logic for others for now, but WITHOUT persistence if they are not student-specific.
-      // Actually, let's just emit them as transient drafts if they are general.
+        })
 
-      let message = ""
-      switch (action.action) {
-        case "REVIEW_SEAT_UTILIZATION":
-          message = language === "en"
-            ? "We are reviewing seating availability. If you are interested in adjusting your study timing, please contact us."
-            : "हम बैठने की उपलब्धता की समीक्षा कर रहे हैं। यदि आप अपने अध्ययन समय में बदलाव करना चाहते हैं, तो कृपया संपर्क करें。"
-          break
-        case "REENGAGE_INACTIVE_STUDENTS":
-          message = language === "en"
-            ? "We noticed you haven’t been attending recently. Let us know if you’d like to resume or need any support."
-            : "हमने देखा कि आप हाल ही में उपस्थित नहीं हो पाए हैं। यदि आप फिर से शुरू करना चाहते हैं या सहायता चाहिए तो कृपया बताएं。"
-          break
-      }
-
-      if (message) {
-        drafts.push({
+        results.push({
+          studentId: item.studentId,
+          studentName: meta.studentName,
+          dueDate: meta.dueDate.toISOString(),
           language,
-          message
+          message: item.message,
+          isOutdated: false
+        })
+      }
+    } catch (err) {
+      console.error("[Messages] Gemini call failed, using fallback", err)
+      // Fallback — static message with student name
+      for (const meta of needsGeneration) {
+        const fallback = language === "en"
+          ? `Hi ${meta.studentName}, your payment of ₹${meta.amount} due on ${format(meta.dueDate, "dd MMM yyyy")} is pending. Please clear it at your earliest.`
+          : `प्रिय ${meta.studentName}, ${format(meta.dueDate, "dd MMM yyyy")} का ₹${meta.amount} का भुगतान अभी बाकी है। कृपया जल्द से जल्द जमा करें।`
+
+        // Persist fallback too so we don't call AI again
+        await prisma.messageDraft.create({
+          data: {
+            branchId,
+            studentId: meta.studentId,
+            action: ACTION,
+            language,
+            message: fallback
+          }
+        })
+
+        results.push({
+          studentId: meta.studentId,
+          studentName: meta.studentName,
+          dueDate: meta.dueDate.toISOString(),
+          language,
+          message: fallback,
+          isOutdated: false
         })
       }
     }
   }
 
-  return drafts
+  return results
 }
