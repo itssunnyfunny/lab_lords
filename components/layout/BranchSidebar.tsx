@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Users, CreditCard, Settings, UserCircle, Grid, FileText, Sparkles, MessageSquare, ChevronRight, CalendarCheck } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, UserCircle, Grid, FileText, MessageSquare, ChevronRight, CalendarCheck } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -67,7 +67,6 @@ export function BranchSidebar({ className }: SidebarProps) {
                 <div className="space-y-2">
                     <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 px-2">Intelligence</div>
                     <SidebarItem icon={FileText} label="AI Reports" isActive={pathname === `${basePath}/ai/reports`} onClick={() => navigate(`${basePath}/ai/reports`)} />
-                    <SidebarItem icon={Sparkles} label="Insights" isActive={pathname === `${basePath}/ai/insights`} onClick={() => navigate(`${basePath}/ai/insights`)} />
                     <SidebarItem icon={MessageSquare} label="Assistant" isActive={pathname === `${basePath}/ai/messages`} onClick={() => navigate(`${basePath}/ai/messages`)} />
                 </div>
             </div>
