@@ -1,21 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { StudentStatus, SeatAllocationFilters } from "@/types";
 
+/** Converts "HH:MM" to integer minutes since midnight. */
+function parseTime(time: string): number {
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
+}
+
 export class SeatAllocationService {
-    /**
-     * Assign a seat to a student for a specific shift.
-     * STRICT Validation Rules:
-     * 1. Student must be ACTIVE.
-     * 2. Seat, Student, Shift must belong to the same branch.
-     * 3. One seat can have only ONE active allocation per shift.
-     */
     /**
      * Assign a seat to a student for a specific shift.
      * STRICT Validation Rules:
      * 1. User must OWN the branch (via seat).
      * 2. Student must be ACTIVE.
      * 3. Seat, Student, Shift must belong to the same branch.
-     * 4. One seat can have only ONE active allocation per shift.
+     * 4. Seat cannot be occupied in any time-overlapping shift.
+     * 5. Student cannot be allocated in any time-overlapping shift.
      */
     static async assignSeat(
         userId: string,
@@ -57,54 +57,69 @@ export class SeatAllocationService {
                 throw new Error("Only ACTIVE students can be assigned a seat");
             }
 
-            // 5. Validate Seat Conflicts (Reserved vs Timed)
-            // Fetch all active allocations for this seat to check for conflicts
-            const seatAllocations = await tx.seatAllocation.findMany({
+            // 5. Load all ACTIVE shifts in branch for time-overlap lookups
+            const allBranchShifts = await tx.shift.findMany({
+                where: { branchId, status: "ACTIVE" },
+                select: { id: true, name: true, startTime: true, endTime: true },
+            });
+            const shiftTimeMap = new Map(allBranchShifts.map(s => [s.id, s]));
+
+            const newShiftData = shiftTimeMap.get(shiftId);
+            const newStart = newShiftData?.startTime ? parseTime(newShiftData.startTime) : null;
+            const newEnd = newShiftData?.endTime ? parseTime(newShiftData.endTime) : null;
+
+            function timesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number) {
+                return aStart < bEnd && aEnd > bStart;
+            }
+
+            // 6. Seat conflict — block if seat occupied in exact or time-overlapping shift
+            const activeSeatAllocations = await tx.seatAllocation.findMany({
                 where: { seatId, endDate: null },
-                include: { shift: true },
             });
 
-            // Rule: If target shift is RESERVED, seat must be completely empty
-            if (shift.isReserved) {
-                if (seatAllocations.length > 0) {
-                    throw new Error("Cannot allocate RESERVED shift. Seat is already assigned in other shifts.");
-                }
-            } else {
-                // Rule: If target shift is TIMED, seat must not be RESERVED
-                const hasReservedAllocation = seatAllocations.some(a => a.shift.isReserved);
-                if (hasReservedAllocation) {
-                    throw new Error("Cannot allocate in this shift. Seat is explicitly RESERVED.");
-                }
-
-                // Rule: Seat cannot be allocated twice in the SAME shift
-                const sameShiftAllocation = seatAllocations.find(a => a.shiftId === shiftId);
-                if (sameShiftAllocation) {
+            for (const alloc of activeSeatAllocations) {
+                if (alloc.shiftId === shiftId) {
                     throw new Error("Seat is already assigned in this shift");
                 }
+                if (newStart !== null && newEnd !== null) {
+                    const existing = shiftTimeMap.get(alloc.shiftId);
+                    if (existing?.startTime && existing?.endTime) {
+                        if (timesOverlap(newStart, newEnd, parseTime(existing.startTime), parseTime(existing.endTime))) {
+                            throw new Error(
+                                `Seat is already occupied during this time (conflict with "${existing.name}")`
+                            );
+                        }
+                    }
+                }
             }
 
-            // 6. Validate Student Conflicts (One seat per shift)
-            const studentAllocations = await tx.seatAllocation.findFirst({
-                where: {
-                    studentId,
-                    shiftId,
-                    endDate: null,
-                },
+            // 7. Student conflict — block if student allocated in exact or time-overlapping shift
+            const activeStudentAllocations = await tx.seatAllocation.findMany({
+                where: { studentId, endDate: null },
             });
 
-            if (studentAllocations) {
-                throw new Error("Student already has a seat in this shift.");
+            for (const alloc of activeStudentAllocations) {
+                if (alloc.shiftId === shiftId) {
+                    throw new Error("Student already has a seat in this shift.");
+                }
+                if (newStart !== null && newEnd !== null) {
+                    const existing = shiftTimeMap.get(alloc.shiftId);
+                    if (existing?.startTime && existing?.endTime) {
+                        if (timesOverlap(newStart, newEnd, parseTime(existing.startTime), parseTime(existing.endTime))) {
+                            throw new Error(
+                                `Student is already allocated in an overlapping shift ("${existing.name}")`
+                            );
+                        }
+                    }
+                }
             }
 
-            // 7. Create Allocation
+            // 8. Create Allocation
             const allocation = await tx.seatAllocation.create({
-                data: {
-                    seatId,
-                    studentId,
-                    shiftId,
-                },
+                data: { seatId, studentId, shiftId },
             });
-            // 8. Update Branch lastDataChange
+
+            // 9. Update Branch lastDataChange
             await tx.branch.update({
                 where: { id: branchId },
                 data: { lastDataChange: new Date() },
