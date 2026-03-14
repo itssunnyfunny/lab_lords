@@ -6,8 +6,21 @@ export const DEFAULT_SHIFTS = [
     { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0, isReserved: false },
     { name: "Afternoon", startTime: "12:00", endTime: "17:00", price: 0, isReserved: false },
     { name: "Evening", startTime: "17:00", endTime: "22:00", price: 0, isReserved: false },
-    { name: "Full Time", startTime: "06:00", endTime: "22:00", price: 0, isReserved: false },
 ];
+
+/** Converts "HH:MM" to integer minutes since midnight. */
+function parseTimeToMinutes(time: string): number {
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
+}
+
+/** Returns true if two time windows overlap (exclusive adjacency: 12:00==12:00 is NOT overlap). */
+function timesOverlap(
+    aStart: number, aEnd: number,
+    bStart: number, bEnd: number
+): boolean {
+    return aStart < bEnd && aEnd > bStart;
+}
 
 // ─── Resolution Plan Types ─────────────────────────────────────────────────────
 
@@ -37,6 +50,41 @@ export class ShiftService {
         return branch;
     }
 
+    /**
+     * Validates that the given time window does not overlap with any existing
+     * ACTIVE shift in the branch. Throws a descriptive error if a conflict is found.
+     * @param excludeShiftId - skip this shift ID when checking (used for updates)
+     */
+    private static async checkTimeOverlap(
+        branchId: string,
+        startTime: string,
+        endTime: string,
+        excludeShiftId?: string
+    ) {
+        const newStart = parseTimeToMinutes(startTime);
+        const newEnd = parseTimeToMinutes(endTime);
+
+        const activeShifts = await prisma.shift.findMany({
+            where: {
+                branchId,
+                status: "ACTIVE",
+                ...(excludeShiftId ? { id: { not: excludeShiftId } } : {}),
+            },
+            select: { id: true, name: true, startTime: true, endTime: true },
+        });
+
+        for (const shift of activeShifts) {
+            if (!shift.startTime || !shift.endTime) continue;
+            const existStart = parseTimeToMinutes(shift.startTime);
+            const existEnd = parseTimeToMinutes(shift.endTime);
+            if (timesOverlap(newStart, newEnd, existStart, existEnd)) {
+                throw new Error(
+                    `Shift time overlaps with an existing active shift ("${shift.name}": ${shift.startTime}–${shift.endTime})`
+                );
+            }
+        }
+    }
+
     static async createShift(userId: string, branchId: string, data: CreateShiftDto) {
         await this.assertBranchOwnership(userId, branchId);
 
@@ -44,6 +92,10 @@ export class ShiftService {
             where: { branchId, name: data.name, status: "ACTIVE" },
         });
         if (existingShift) throw new Error(`Shift with name "${data.name}" already exists in this branch.`);
+
+        if (data.startTime && data.endTime) {
+            await this.checkTimeOverlap(branchId, data.startTime, data.endTime);
+        }
 
         return prisma.shift.create({
             data: {
@@ -71,6 +123,12 @@ export class ShiftService {
                 where: { branchId: shift.branchId, name: data.name, status: "ACTIVE", id: { not: shiftId } },
             });
             if (duplicate) throw new Error(`Shift with name "${data.name}" already exists in this branch.`);
+        }
+
+        const newStart = data.startTime !== undefined ? data.startTime : shift.startTime;
+        const newEnd = data.endTime !== undefined ? data.endTime : shift.endTime;
+        if (newStart && newEnd) {
+            await this.checkTimeOverlap(shift.branchId, newStart, newEnd, shiftId);
         }
 
         return prisma.shift.update({
