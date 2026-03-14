@@ -6,18 +6,8 @@ export async function GET(
 ) {
     try {
         const params = await props.params;
-        const { searchParams } = new URL(request.url)
-        const langParam = searchParams.get("lang")
 
-        const language =
-            langParam === "hi" ? "hi" : "en"
-
-        const result = await runBranchAI(
-            params.branchId,
-            language
-        )
-
-        console.log("API Result:", JSON.stringify(result, null, 2));
+        const result = await runBranchAI(params.branchId)
 
         return Response.json(result)
 
