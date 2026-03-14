@@ -67,7 +67,7 @@ export function BranchSidebar({ className }: SidebarProps) {
                 <div className="space-y-2">
                     <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 px-2">Intelligence</div>
                     <SidebarItem icon={FileText} label="AI Reports" isActive={pathname === `${basePath}/ai/reports`} onClick={() => navigate(`${basePath}/ai/reports`)} />
-                    <SidebarItem icon={MessageSquare} label="Assistant" isActive={pathname === `${basePath}/ai/messages`} onClick={() => navigate(`${basePath}/ai/messages`)} />
+                    <SidebarItem icon={MessageSquare} label="AI Messages" isActive={pathname === `${basePath}/ai/messages`} onClick={() => navigate(`${basePath}/ai/messages`)} />
                 </div>
             </div>
 
