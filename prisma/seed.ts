@@ -148,8 +148,8 @@ async function main() {
     // Tests: reserved-shift conflict rules, per-shift occupancy in analytics
     const [shiftMorning, shiftAfternoon, shiftEvening, shiftFullDay] =
         await Promise.all([
-            prisma.shift.create({ data: { branchId: uptown.id, name: "Morning", startTime: "06:00", endTime: "12:00", price: 1000, isReserved: false } }),
-            prisma.shift.create({ data: { branchId: uptown.id, name: "Afternoon", startTime: "12:00", endTime: "17:00", price: 1000, isReserved: false } }),
+            prisma.shift.create({ data: { branchId: uptown.id, name: "Morning", startTime: "06:00", endTime: "11:59", price: 1000, isReserved: false } }),
+            prisma.shift.create({ data: { branchId: uptown.id, name: "Afternoon", startTime: "12:00", endTime: "16:59", price: 1000, isReserved: false } }),
             prisma.shift.create({ data: { branchId: uptown.id, name: "Evening", startTime: "17:00", endTime: "22:00", price: 1000, isReserved: false } }),
             prisma.shift.create({ data: { branchId: uptown.id, name: "Full Day", startTime: "06:00", endTime: "22:00", price: 2000, isReserved: true } }),
         ]);
