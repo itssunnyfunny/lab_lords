@@ -2,45 +2,51 @@ import { NextRequest, NextResponse } from "next/server";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { getSessionUser } from "@/lib/auth";
 
-// POST: Assign a seat
+// POST: Assign a seat across one or more shifts
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
-        const user = await getSessionUser(); // Get user
+        const user = await getSessionUser();
         if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // We don't really use params.branchId anymore for the logic, 
-        // because ownership is validated via the seat's branch organization owner.
-        // But we keep it as route parameter.
         const body = await req.json();
-        const { seatId, studentId, shiftId } = body;
+        const { seatId, studentId, shiftIds, shiftId } = body;
 
-        if (!seatId || !studentId || !shiftId) {
+        // Accept shiftIds[] or backward-compat shiftId (singular)
+        const resolvedShiftIds: string[] =
+            Array.isArray(shiftIds) && shiftIds.length > 0
+                ? shiftIds
+                : shiftId
+                    ? [shiftId]
+                    : [];
+
+        if (!seatId || !studentId || resolvedShiftIds.length === 0) {
             return NextResponse.json(
-                { error: "Missing required fields: seatId, studentId, shiftId" },
+                { error: "Missing required fields: seatId, studentId, and at least one shiftId" },
                 { status: 400 }
             );
         }
 
-        const allocation = await SeatAllocationService.assignSeat(
-            user.id, // Pass userId
+        const allocations = await SeatAllocationService.assignSeatToShifts(
+            user.id,
             seatId,
             studentId,
-            shiftId
+            resolvedShiftIds
         );
 
-        return NextResponse.json(allocation, { status: 201 });
+        return NextResponse.json(allocations, { status: 201 });
     } catch (error: any) {
         return NextResponse.json(
             { error: error.message || "Failed to assign seat" },
-            { status: 400 } // Using 400 as most errors are validation/logic errors
+            { status: 400 }
         );
     }
 }
+
 
 // GET: List allocations
 export async function GET(

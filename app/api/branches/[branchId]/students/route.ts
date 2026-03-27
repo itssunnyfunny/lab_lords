@@ -20,10 +20,18 @@ export async function POST(
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
         }
 
+        // Normalise shiftIds: accept array or singular (backward compat)
+        const shiftIds: string[] | undefined =
+            Array.isArray(body.shiftIds) && body.shiftIds.length > 0
+                ? body.shiftIds
+                : body.shiftId
+                    ? [body.shiftId]
+                    : undefined;
+
         const student = await StudentService.createStudent(user.id, branchId, {
             name: body.name,
             phone: body.phone,
-            shiftId: body.shiftId,
+            shiftIds,
             seatId: body.seatId,
             monthlyFee: body.monthlyFee ? Number(body.monthlyFee) : undefined,
             admissionFee: body.admissionFee ? Number(body.admissionFee) : undefined,
@@ -35,6 +43,7 @@ export async function POST(
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
 
 export async function GET(
     req: NextRequest,
