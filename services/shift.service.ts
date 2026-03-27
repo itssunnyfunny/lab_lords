@@ -1,26 +1,13 @@
 
 import { prisma } from "@/lib/prisma";
 import { CreateShiftDto } from "@/types";
+import { parseNullableTime, parseTime, timesOverlap } from "@/utils/shiftTime";
 
 export const DEFAULT_SHIFTS = [
-    { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0, isReserved: false },
-    { name: "Afternoon", startTime: "12:00", endTime: "17:00", price: 0, isReserved: false },
+    { name: "Morning", startTime: "06:00", endTime: "11:59", price: 0, isReserved: false },
+    { name: "Afternoon", startTime: "12:00", endTime: "16:59", price: 0, isReserved: false },
     { name: "Evening", startTime: "17:00", endTime: "22:00", price: 0, isReserved: false },
 ];
-
-/** Converts "HH:MM" to integer minutes since midnight. */
-function parseTimeToMinutes(time: string): number {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-}
-
-/** Returns true if two time windows overlap (exclusive adjacency: 12:00==12:00 is NOT overlap). */
-function timesOverlap(
-    aStart: number, aEnd: number,
-    bStart: number, bEnd: number
-): boolean {
-    return aStart < bEnd && aEnd > bStart;
-}
 
 // ─── Resolution Plan Types ─────────────────────────────────────────────────────
 
@@ -57,12 +44,12 @@ export class ShiftService {
      */
     private static async checkTimeOverlap(
         branchId: string,
-        startTime: string,
-        endTime: string,
+        startTime: string | null,
+        endTime: string | null,
         excludeShiftId?: string
     ) {
-        const newStart = parseTimeToMinutes(startTime);
-        const newEnd = parseTimeToMinutes(endTime);
+        const newStart = parseNullableTime(startTime);
+        const newEnd = parseNullableTime(endTime);
 
         const activeShifts = await prisma.shift.findMany({
             where: {
@@ -74,12 +61,11 @@ export class ShiftService {
         });
 
         for (const shift of activeShifts) {
-            if (!shift.startTime || !shift.endTime) continue;
-            const existStart = parseTimeToMinutes(shift.startTime);
-            const existEnd = parseTimeToMinutes(shift.endTime);
+            const existStart = parseNullableTime(shift.startTime);
+            const existEnd = parseNullableTime(shift.endTime);
             if (timesOverlap(newStart, newEnd, existStart, existEnd)) {
                 throw new Error(
-                    `Shift time overlaps with an existing active shift ("${shift.name}": ${shift.startTime}–${shift.endTime})`
+                    `Shift time overlaps with an existing active shift ("${shift.name}": ${shift.startTime ?? "?"} – ${shift.endTime ?? "?"})`
                 );
             }
         }
@@ -93,9 +79,8 @@ export class ShiftService {
         });
         if (existingShift) throw new Error(`Shift with name "${data.name}" already exists in this branch.`);
 
-        if (data.startTime && data.endTime) {
-            await this.checkTimeOverlap(branchId, data.startTime, data.endTime);
-        }
+        // Always check overlap, even for null times (null = full day, overlaps everything)
+        await this.checkTimeOverlap(branchId, data.startTime ?? null, data.endTime ?? null);
 
         return prisma.shift.create({
             data: {
@@ -127,9 +112,8 @@ export class ShiftService {
 
         const newStart = data.startTime !== undefined ? data.startTime : shift.startTime;
         const newEnd = data.endTime !== undefined ? data.endTime : shift.endTime;
-        if (newStart && newEnd) {
-            await this.checkTimeOverlap(shift.branchId, newStart, newEnd, shiftId);
-        }
+        // Always check overlap
+        await this.checkTimeOverlap(shift.branchId, newStart ?? null, newEnd ?? null, shiftId);
 
         return prisma.shift.update({
             where: { id: shiftId },
@@ -152,13 +136,11 @@ export class ShiftService {
 
         const branchId = shift.branchId;
 
-        // Count active shifts in branch
         const activeShiftCount = await prisma.shift.count({
             where: { branchId, status: "ACTIVE" },
         });
         const isLastActiveShift = activeShiftCount <= 1;
 
-        // Active allocations in this shift
         const rawAllocations = await prisma.seatAllocation.findMany({
             where: { shiftId, endDate: null },
             include: {
@@ -176,7 +158,6 @@ export class ShiftService {
 
         const studentsInShift = allocations.length;
 
-        // Other active shifts with their capacity
         const otherActiveShifts = await prisma.shift.findMany({
             where: { branchId, status: "ACTIVE", id: { not: shiftId } },
             include: {
@@ -184,10 +165,6 @@ export class ShiftService {
             },
         });
 
-        // Total seats per shift = branch.seats count? No — seats are branch-wide.
-        // Capacity per shift = branch total seats - allocations in that shift.
-        // Actually seats are per-branch, not per-shift. Each seat can be in one shift at a time.
-        // So emptySeats for a shift = totalBranchSeats - activeAllocationsInThatShift.
         const totalBranchSeats = await prisma.seat.count({ where: { branchId } });
 
         const otherShifts = otherActiveShifts.map(s => {
@@ -228,7 +205,6 @@ export class ShiftService {
 
         const branchId = shift.branchId;
 
-        // Hard block: cannot delete last active shift
         const activeShiftCount = await prisma.shift.count({
             where: { branchId, status: "ACTIVE" },
         });
@@ -268,16 +244,51 @@ export class ShiftService {
                 });
                 const sourceAllocations = await tx.seatAllocation.findMany({
                     where: { shiftId, endDate: null },
-                    include: { seat: true },
+                    include: { seat: true, student: true },
                 });
 
                 if (targetActive + sourceAllocations.length > totalSeats) {
                     throw new Error("Target shift does not have enough capacity for all students.");
                 }
 
-                // Find available seats in branchId not occupied in targetShift
+                // Load all branch shifts for overlap comparison
+                const allShifts = await tx.shift.findMany({
+                    where: { branchId, status: "ACTIVE" },
+                    select: { id: true, startTime: true, endTime: true },
+                });
+                const shiftMap = new Map(allShifts.map(s => [s.id, s]));
+
+                const targetShiftData = shiftMap.get(targetShiftId);
+                const targetStart = parseNullableTime(targetShiftData?.startTime);
+                const targetEnd = parseNullableTime(targetShiftData?.endTime);
+
+                for (const oldAlloc of sourceAllocations) {
+                    // Check: student not already in target or any time-overlapping shift
+                    const studentActiveAllocs = await tx.seatAllocation.findMany({
+                        where: { studentId: oldAlloc.studentId, endDate: null, shiftId: { not: shiftId } },
+                    });
+                    for (const sa of studentActiveAllocs) {
+                        if (sa.shiftId === targetShiftId) {
+                            throw new Error(
+                                `Student "${oldAlloc.student.name}" is already allocated in the target shift.`
+                            );
+                        }
+                        const existing = shiftMap.get(sa.shiftId);
+                        if (timesOverlap(targetStart, targetEnd, parseNullableTime(existing?.startTime), parseNullableTime(existing?.endTime))) {
+                            throw new Error(
+                                `Student "${oldAlloc.student.name}" is already in an overlapping shift.`
+                            );
+                        }
+                    }
+                }
+
+                // Find available seats in branchId not occupied in targetShift (or its time-overlapping shifts)
+                const allTargetOverlapShiftIds = allShifts
+                    .filter(s => s.id !== shiftId && timesOverlap(targetStart, targetEnd, parseNullableTime(s.startTime), parseNullableTime(s.endTime)))
+                    .map(s => s.id);
+
                 const occupiedSeatIds = (await tx.seatAllocation.findMany({
-                    where: { shiftId: targetShiftId, endDate: null },
+                    where: { shiftId: { in: allTargetOverlapShiftIds }, endDate: null },
                     select: { seatId: true },
                 })).map(a => a.seatId);
 
@@ -291,7 +302,6 @@ export class ShiftService {
                     throw new Error("Not enough unoccupied seats available in target shift.");
                 }
 
-                // End old allocations + create new
                 for (let i = 0; i < sourceAllocations.length; i++) {
                     const oldAlloc = sourceAllocations[i];
                     const newSeat = availableSeats[i];
@@ -322,16 +332,21 @@ export class ShiftService {
 
             await prisma.$transaction(async (tx) => {
                 const totalSeats = await tx.seat.count({ where: { branchId } });
+                const allShifts = await tx.shift.findMany({
+                    where: { branchId, status: "ACTIVE" },
+                    select: { id: true, name: true, startTime: true, endTime: true },
+                });
+                const shiftMap = new Map(allShifts.map(s => [s.id, s]));
 
-                // Group assignments by targetShiftId to validate capacity
+                // Group assignments by targetShiftId to validate capacity in bulk
                 const targetShiftCounts = new Map<string, number>();
                 for (const a of assignments) {
                     targetShiftCounts.set(a.targetShiftId, (targetShiftCounts.get(a.targetShiftId) ?? 0) + 1);
                 }
 
                 for (const [targetShiftId, incoming] of targetShiftCounts.entries()) {
-                    const target = await tx.shift.findUnique({ where: { id: targetShiftId } });
-                    if (!target || target.status !== "ACTIVE") throw new Error(`Target shift not found or inactive.`);
+                    const target = shiftMap.get(targetShiftId);
+                    if (!target) throw new Error(`Target shift not found.`);
                     if (target.id === shiftId) throw new Error(`Target shift cannot be the same shift being deleted.`);
 
                     const currentActive = await tx.seatAllocation.count({
@@ -342,11 +357,43 @@ export class ShiftService {
                     }
                 }
 
-                // Execute assignments
+                // Execute assignments — fetch allocation first, then create
                 for (const assignment of assignments) {
-                    // Find an available seat in target shift
+                    const oldAlloc = await tx.seatAllocation.findUnique({
+                        where: { id: assignment.allocationId },
+                        include: { student: true },
+                    });
+                    if (!oldAlloc) throw new Error(`Allocation ${assignment.allocationId} not found.`);
+
+                    const targetShiftData = shiftMap.get(assignment.targetShiftId);
+                    const targetStart = parseNullableTime(targetShiftData?.startTime);
+                    const targetEnd = parseNullableTime(targetShiftData?.endTime);
+
+                    // Check student isn't already in target or overlapping shift
+                    const studentActiveAllocs = await tx.seatAllocation.findMany({
+                        where: { studentId: oldAlloc.studentId, endDate: null, shiftId: { not: shiftId } },
+                    });
+                    for (const sa of studentActiveAllocs) {
+                        if (sa.shiftId === assignment.targetShiftId) {
+                            throw new Error(
+                                `Student "${oldAlloc.student.name}" is already in the target shift.`
+                            );
+                        }
+                        const existing = shiftMap.get(sa.shiftId);
+                        if (timesOverlap(targetStart, targetEnd, parseNullableTime(existing?.startTime), parseNullableTime(existing?.endTime))) {
+                            throw new Error(
+                                `Student "${oldAlloc.student.name}" is already in an overlapping shift.`
+                            );
+                        }
+                    }
+
+                    // Find an available seat for this specific target shift (overlap-aware)
+                    const overlapShiftIds = allShifts
+                        .filter(s => s.id !== shiftId && timesOverlap(targetStart, targetEnd, parseNullableTime(s.startTime), parseNullableTime(s.endTime)))
+                        .map(s => s.id);
+
                     const occupiedSeatIds = (await tx.seatAllocation.findMany({
-                        where: { shiftId: assignment.targetShiftId, endDate: null },
+                        where: { shiftId: { in: overlapShiftIds }, endDate: null },
                         select: { seatId: true },
                     })).map(a => a.seatId);
 
@@ -362,7 +409,7 @@ export class ShiftService {
                     });
                     await tx.seatAllocation.create({
                         data: {
-                            studentId: (await tx.seatAllocation.findUnique({ where: { id: assignment.allocationId } }))!.studentId,
+                            studentId: oldAlloc.studentId,
                             shiftId: assignment.targetShiftId,
                             seatId: availableSeat.id,
                             startDate: now,

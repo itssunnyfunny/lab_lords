@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { StudentStatus, PaymentType, PaymentStatus } from "@/types";
 import { CreateStudentDto, DueResolution } from "@/types";
+import { SeatAllocationService } from "@/services/seatAllocation.service";
 
 export class StudentService {
     /**
@@ -58,77 +59,63 @@ export class StudentService {
     ) {
         const branch = await this.verifyBranchOwnership(userId, branchId);
 
-        return prisma.$transaction(async (tx) => {
-            // 1. Create Student
-            const student = await tx.student.create({
+        // Normalise shiftId (legacy singular) → shiftIds (new array)
+        const shiftIds: string[] = data.shiftIds && data.shiftIds.length > 0
+            ? data.shiftIds
+            : data.shiftId
+                ? [data.shiftId]
+                : [];
+
+        // 1. Create student + admission payment in one transaction
+        const student = await prisma.$transaction(async (tx) => {
+            const created = await tx.student.create({
                 data: {
                     branchId,
                     name: data.name,
                     phone: data.phone,
                     status: StudentStatus.ACTIVE,
                     monthlyFee: data.monthlyFee ?? branch.defaultFee ?? 0,
-                    joinedAt: new Date(), // Explicitly setting it, though default is now()
+                    joinedAt: new Date(),
                 },
             });
 
-            // 2. Create Admission Payment if applicable
             if (data.admissionFee && data.admissionFee > 0) {
                 await tx.payment.create({
                     data: {
                         branchId,
-                        studentId: student.id,
+                        studentId: created.id,
                         amount: data.admissionFee,
-                        status: PaymentStatus.DUE, // Starts as DUE, specifically requested
+                        status: PaymentStatus.DUE,
                         type: PaymentType.ADMISSION,
-                        dueDate: student.joinedAt, // Due on joining
-                        periodStart: student.joinedAt,
-                        periodEnd: student.joinedAt,
+                        dueDate: created.joinedAt,
+                        periodStart: created.joinedAt,
+                        periodEnd: created.joinedAt,
                     },
                 });
             }
 
-            // 3. If seat and shift are provided, perform allocation
-            if (data.seatId && data.shiftId) {
-                const seat = await tx.seat.findUnique({ where: { id: data.seatId } });
-                const shift = await tx.shift.findUnique({ where: { id: data.shiftId } });
-
-                if (!seat) throw new Error("Seat not found");
-                if (!shift) throw new Error("Shift not found");
-
-                if (seat.branchId !== branchId || shift.branchId !== branchId) {
-                    throw new Error("Seat and Shift must belong to the same branch");
-                }
-
-                const existingAllocation = await tx.seatAllocation.findFirst({
-                    where: {
-                        seatId: data.seatId,
-                        shiftId: data.shiftId,
-                        endDate: null,
-                    },
-                });
-
-                if (existingAllocation) {
-                    throw new Error("Seat is already assigned in this shift");
-                }
-
-                await tx.seatAllocation.create({
-                    data: {
-                        seatId: data.seatId,
-                        studentId: student.id,
-                        shiftId: data.shiftId,
-                    },
-                });
-            }
-
-            // 4. Update Branch lastDataChange
             await tx.branch.update({
                 where: { id: branchId },
                 data: { lastDataChange: new Date() },
             });
 
-            return student;
+            return created;
         });
+
+        // 2. If seat + shifts provided, assign via SeatAllocationService
+        //    (runs its own transaction with full cross-shift conflict checks)
+        if (data.seatId && shiftIds.length > 0) {
+            await SeatAllocationService.assignSeatToShifts(
+                userId,
+                data.seatId,
+                student.id,
+                shiftIds
+            );
+        }
+
+        return student;
     }
+
 
     static async getStudentsByBranch(
         userId: string,
