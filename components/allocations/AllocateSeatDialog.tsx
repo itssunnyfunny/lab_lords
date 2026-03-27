@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Loader2, ChevronLeft } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
 
@@ -34,8 +34,9 @@ export function AllocateSeatDialog({
     const [studentName, setStudentName] = useState(preselectedStudentName ?? "");
     const [studentSearch, setStudentSearch] = useState("");
 
-    // Seat picking
-    const [selectedShift, setSelectedShift] = useState<ShiftCapacity | null>(null);
+    // Seat/shift picking — selectedShiftIds is now an array
+    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
+    const [selectedShiftNames, setSelectedShiftNames] = useState<string[]>([]);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
 
     // Submission
@@ -44,7 +45,8 @@ export function AllocateSeatDialog({
 
     useEffect(() => {
         if (!isOpen) return;
-        setSelectedShift(null);
+        setSelectedShiftIds([]);
+        setSelectedShiftNames([]);
         setSelectedSeatId(null);
         setSubmitError(null);
         setStudentId(preselectedStudentId ?? "");
@@ -57,11 +59,26 @@ export function AllocateSeatDialog({
         fetch(`/api/branches/${branchId}/students?status=ACTIVE`)
             .then(r => r.json())
             .then(setStudents)
-            .catch(() => {/* silent */ });
+            .catch(() => { /* silent */ });
     }, [isOpen, branchId, preselectedStudentId]);
 
+    const handleToggleShift = (shift: ShiftCapacity) => {
+        setSelectedSeatId(null); // Reset seat whenever shifts change
+        setSubmitError(null);
+        setSelectedShiftIds(prev => {
+            const exists = prev.includes(shift.shiftId);
+            if (exists) {
+                setSelectedShiftNames(names => names.filter(n => n !== shift.name));
+                return prev.filter(id => id !== shift.shiftId);
+            } else {
+                setSelectedShiftNames(names => [...names, shift.name]);
+                return [...prev, shift.shiftId];
+            }
+        });
+    };
+
     const handleConfirm = async () => {
-        if (!selectedSeatId || !selectedShift) return;
+        if (!selectedSeatId || selectedShiftIds.length === 0) return;
         const sid = preselectedStudentId ?? studentId;
         if (!sid) return;
 
@@ -69,13 +86,13 @@ export function AllocateSeatDialog({
         setSubmitError(null);
 
         try {
-            const res = await fetch("/api/seat-allocations", {
+            const res = await fetch(`/api/branches/${branchId}/seat-allocations`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     studentId: sid,
                     seatId: selectedSeatId,
-                    shiftId: selectedShift.shiftId,
+                    shiftIds: selectedShiftIds,  // Send array
                 }),
             });
 
@@ -98,6 +115,7 @@ export function AllocateSeatDialog({
     const effectiveStudentId = preselectedStudentId ?? studentId;
     const effectiveStudentName = preselectedStudentName ?? studentName;
     const hasStudent = !!effectiveStudentId;
+    const canConfirm = hasStudent && selectedSeatId && selectedShiftIds.length > 0;
 
     const filteredStudents = students.filter(s =>
         s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
@@ -112,35 +130,26 @@ export function AllocateSeatDialog({
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02] flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                        {selectedShift && (
-                            <button
-                                onClick={() => { setSelectedShift(null); setSelectedSeatId(null); setSubmitError(null); }}
-                                className="text-zinc-400 hover:text-white transition-colors mr-1"
-                            >
-                                <ChevronLeft size={18} />
-                            </button>
+                    <div>
+                        <h2 className="text-base font-semibold text-white">Allocate Seat</h2>
+                        {effectiveStudentName && (
+                            <p className="text-xs text-zinc-400 mt-0.5">
+                                for <span className="text-white">{effectiveStudentName}</span>
+                                {selectedShiftNames.length > 0 && (
+                                    <> · <span className="text-indigo-300">{selectedShiftNames.join(", ")}</span></>
+                                )}
+                            </p>
                         )}
-                        <div>
-                            <h2 className="text-base font-semibold text-white">Allocate Seat</h2>
-                            {effectiveStudentName && (
-                                <p className="text-xs text-zinc-400 mt-0.5">
-                                    for <span className="text-white">{effectiveStudentName}</span>
-                                    {selectedShift && (
-                                        <> · <span className="text-indigo-300">{selectedShift.name}</span></>
-                                    )}
-                                </p>
-                            )}
-                        </div>
                     </div>
                     <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
                         <X size={18} />
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto">
+                <div className="p-6 overflow-y-auto flex-1">
+                    {/* Student picker (only when not preselected) */}
                     {!hasStudent && (
-                        <div className="space-y-3">
+                        <div className="space-y-3 mb-6">
                             <p className="text-sm text-zinc-400">Select an active student:</p>
                             <input
                                 type="text"
@@ -149,12 +158,12 @@ export function AllocateSeatDialog({
                                 onChange={e => setStudentSearch(e.target.value)}
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                             />
-                            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-2">
+                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-2">
                                 {filteredStudents.map(s => (
                                     <button
                                         key={s.id}
                                         onClick={() => { setStudentId(s.id); setStudentName(s.name); }}
-                                        className="w-full text-left px-3 py-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 hover:border-white/10 transition-all group"
+                                        className="w-full text-left px-3 py-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 hover:border-white/10 transition-all"
                                     >
                                         <p className="text-sm text-white font-medium">{s.name}</p>
                                         {s.phone && <p className="text-xs text-zinc-500">{s.phone}</p>}
@@ -167,14 +176,15 @@ export function AllocateSeatDialog({
                         </div>
                     )}
 
+                    {/* Shift + Seat picker */}
                     {hasStudent && (
                         <div className="space-y-4">
                             <SeatPicker
                                 branchId={branchId}
                                 studentId={effectiveStudentId}
-                                selectedShift={selectedShift}
+                                selectedShiftIds={selectedShiftIds}
                                 selectedSeatId={selectedSeatId}
-                                onSelectShift={(s) => { setSelectedShift(s); setSelectedSeatId(null); }}
+                                onToggleShift={handleToggleShift}
                                 onSelectSeat={setSelectedSeatId}
                             />
 
@@ -187,13 +197,17 @@ export function AllocateSeatDialog({
                     )}
                 </div>
 
-                {hasStudent && selectedSeatId && (
+                {/* Footer — confirm button */}
+                {canConfirm && (
                     <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 bg-white/[0.01] flex-shrink-0">
-                        <Button variant="ghost" onClick={() => { setSelectedShift(null); setSelectedSeatId(null); setSubmitError(null); }} disabled={submitting} className="text-sm h-8 px-4">
-                            Back
+                        <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
+                            Cancel
                         </Button>
                         <Button onClick={handleConfirm} disabled={submitting} className="text-sm h-8 px-5">
-                            {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Allocating...</> : "Confirm Allocation"}
+                            {submitting
+                                ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Allocating...</>
+                                : `Confirm (${selectedShiftIds.length} shift${selectedShiftIds.length > 1 ? "s" : ""})`
+                            }
                         </Button>
                     </div>
                 )}

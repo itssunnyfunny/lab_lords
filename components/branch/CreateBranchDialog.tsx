@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { X, MapPin, Loader2, Plus, AlertCircle } from "lucide-react";
+import { X, MapPin, Loader2, Plus, AlertCircle, AlertTriangle } from "lucide-react";
+import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
+
+function formatMins(mins: number) {
+    let raw = mins;
+    if (raw < 0) raw += 1440;
+    raw = raw % 1440;
+    const h = Math.floor(raw / 60);
+    const m = raw % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
 
 interface ShiftDraft {
     name: string;
@@ -21,8 +31,8 @@ interface CreateBranchDialogProps {
 }
 
 const DEFAULT_SHIFTS: ShiftDraft[] = [
-    { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
-    { name: "Afternoon", startTime: "12:00", endTime: "17:00", price: 0 },
+    { name: "Morning", startTime: "06:00", endTime: "11:59", price: 0 },
+    { name: "Afternoon", startTime: "12:00", endTime: "16:59", price: 0 },
     { name: "Evening", startTime: "17:00", endTime: "22:00", price: 0 },
     { name: "Full Time", startTime: "06:00", endTime: "22:00", price: 0 },
 ];
@@ -43,6 +53,34 @@ export function CreateBranchDialog({
     const [shifts, setShifts] = useState<ShiftDraft[]>(DEFAULT_SHIFTS);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Compute overlaps continuously
+    const overlaps = (() => {
+        const issues = new Map<number, { targetShiftIdx: number; text: string; fix1: { idx: number; field: "startTime" | "endTime"; val: string; label: string }; fix2: { idx: number; field: "startTime" | "endTime"; val: string; label: string } }>();
+        for (let i = 0; i < shifts.length; i++) {
+            for (let j = i + 1; j < shifts.length; j++) {
+                const s1 = shifts[i];
+                const s2 = shifts[j];
+                if (!s1.startTime || !s1.endTime || !s2.startTime || !s2.endTime) continue;
+                if (s1.name.toLowerCase() === "full time" || s2.name.toLowerCase() === "full time") continue;
+
+                const start1 = parseNullableTime(s1.startTime);
+                const end1 = parseNullableTime(s1.endTime);
+                const start2 = parseNullableTime(s2.startTime);
+                const end2 = parseNullableTime(s2.endTime);
+
+                if (timesOverlap(start1, end1, start2, end2)) {
+                    issues.set(j, { // Display on the later shift
+                        targetShiftIdx: i,
+                        text: `Overlaps with "${s1.name || 'another shift'}"`,
+                        fix1: { idx: i, field: "endTime", val: formatMins(start2! - 1), label: `End ${s1.name || '1st'} at ${formatMins(start2! - 1)}` },
+                        fix2: { idx: j, field: "startTime", val: formatMins(end1! + 1), label: `Start ${s2.name || '2nd'} at ${formatMins(end1! + 1)}` }
+                    });
+                }
+            }
+        }
+        return issues;
+    })();
 
     if (!isOpen) return null;
 
@@ -73,6 +111,10 @@ export function CreateBranchDialog({
         }
         if (!formData.seatCount || parseInt(formData.seatCount) <= 0) {
             setError("Please enter a valid number of seats.");
+            return;
+        }
+        if (overlaps.size > 0) {
+            setError("Please resolve all shift time overlaps before continuing.");
             return;
         }
 
@@ -231,9 +273,10 @@ export function CreateBranchDialog({
                             </button>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {shifts.map((shift, idx) => (
-                                <div key={idx} className="flex gap-2 items-center p-3 bg-white/5 rounded-lg border border-white/5">
+                                <div key={idx} className="flex flex-col gap-1">
+                                <div className="flex gap-2 items-center p-3 bg-white/5 rounded-lg border border-white/5">
                                     <div className="flex-1 grid grid-cols-12 gap-2 items-center">
                                         <div className="col-span-4">
                                             <input
@@ -280,6 +323,23 @@ export function CreateBranchDialog({
                                         </button>
                                     )}
                                 </div>
+                                {overlaps.has(idx) && (
+                                    <div className="flex flex-col gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs mt-1">
+                                        <div className="flex items-center gap-1.5 text-amber-400">
+                                            <AlertTriangle size={12} />
+                                            <span>{overlaps.get(idx)!.text}</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleShiftChange(overlaps.get(idx)!.fix1.idx, overlaps.get(idx)!.fix1.field, overlaps.get(idx)!.fix1.val)} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1 rounded transition-colors border border-amber-500/20">
+                                                {overlaps.get(idx)!.fix1.label}
+                                            </button>
+                                            <button onClick={() => handleShiftChange(overlaps.get(idx)!.fix2.idx, overlaps.get(idx)!.fix2.field, overlaps.get(idx)!.fix2.val)} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1 rounded transition-colors border border-amber-500/20">
+                                                {overlaps.get(idx)!.fix2.label}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -300,7 +360,7 @@ export function CreateBranchDialog({
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={loading || !formData.name.trim() || !formData.seatCount}
+                        disabled={loading || !formData.name.trim() || !formData.seatCount || overlaps.size > 0}
                         className="min-w-[130px] justify-center"
                     >
                         {loading ? (

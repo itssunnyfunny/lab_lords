@@ -5,7 +5,7 @@ import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { students } from "@/lib/api/students";
 import { CreateStudentDto } from "@/types";
-import { SeatPicker, ShiftCapacity } from "@/components/allocations/SeatPicker";
+import { SeatPicker } from "@/components/allocations/SeatPicker";
 
 interface AddStudentDialogProps {
     isOpen: boolean;
@@ -26,7 +26,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
 
     // Integrated allocation state
     const [wantsAllocation, setWantsAllocation] = useState(false);
-    const [selectedShift, setSelectedShift] = useState<ShiftCapacity | null>(null);
+    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
     const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
@@ -35,7 +35,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             setError(null);
             setFormData({ name: "", phone: "", monthlyFee: undefined, admissionFee: undefined });
             setWantsAllocation(false);
-            setSelectedShift(null);
+            setSelectedShiftIds([]);
             setSelectedSeatId(null);
             setCreatedStudentId(null);
         }
@@ -52,8 +52,8 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             return;
         }
 
-        if (wantsAllocation && (!selectedShift || !selectedSeatId)) {
-            setError("Please select both a shift and a seat, or uncheck allocation.");
+        if (wantsAllocation && (selectedShiftIds.length === 0 || !selectedSeatId)) {
+            setError("Please select at least one shift and a seat, or uncheck allocation.");
             return;
         }
 
@@ -72,14 +72,14 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             }
 
             // 2. Allocate seat if toggled
-            if (wantsAllocation && selectedShift && selectedSeatId && studentToAllocateTo) {
-                const res = await fetch("/api/seat-allocations", {
+            if (wantsAllocation && selectedShiftIds.length > 0 && selectedSeatId && studentToAllocateTo) {
+                const res = await fetch(`/api/branches/${branchId}/seat-allocations`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         studentId: studentToAllocateTo,
                         seatId: selectedSeatId,
-                        shiftId: selectedShift.shiftId,
+                        shiftIds: selectedShiftIds,
                     }),
                 });
 
@@ -219,9 +219,16 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                 <div className="mt-4 p-5 rounded-xl border border-white/5 bg-white/[0.01]">
                                     <SeatPicker
                                         branchId={branchId}
-                                        selectedShift={selectedShift}
+                                        selectedShiftIds={selectedShiftIds}
                                         selectedSeatId={selectedSeatId}
-                                        onSelectShift={(s) => { setSelectedShift(s); setSelectedSeatId(null); }}
+                                        onToggleShift={(s) => {
+                                            setSelectedSeatId(null);
+                                            setSelectedShiftIds(prev =>
+                                                prev.includes(s.shiftId)
+                                                    ? prev.filter(id => id !== s.shiftId)
+                                                    : [...prev, s.shiftId]
+                                            );
+                                        }}
                                         onSelectSeat={setSelectedSeatId}
                                     />
                                 </div>
@@ -234,7 +241,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                         Cancel
                     </Button>
-                    <Button type="submit" form="add-student-form" disabled={isLoading || (wantsAllocation && (!selectedShift || !selectedSeatId))} className="min-w-[140px]">
+                    <Button type="submit" form="add-student-form" disabled={isLoading || (wantsAllocation && (selectedShiftIds.length === 0 || !selectedSeatId))} className="min-w-[140px]">
                         {isLoading ? (
                             <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
                         ) : wantsAllocation ? (

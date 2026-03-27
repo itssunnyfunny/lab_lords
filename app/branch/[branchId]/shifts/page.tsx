@@ -13,6 +13,16 @@ import {
     Users, ArrowRight, RefreshCw, Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
+
+function formatMins(mins: number) {
+    let raw = mins;
+    if (raw < 0) raw += 1440;
+    raw = raw % 1440;
+    const h = Math.floor(raw / 60);
+    const m = raw % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,11 +67,12 @@ interface ShiftDialogProps {
     mode: "add" | "edit";
     initial?: Shift;
     branchId: string;
+    existingShifts: Shift[];
     onClose: () => void;
     onSuccess: (shift: Shift) => void;
 }
 
-function ShiftDialog({ isOpen, mode, initial, branchId, onClose, onSuccess }: ShiftDialogProps) {
+function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose, onSuccess }: ShiftDialogProps) {
     const [name, setName] = useState("");
     const [startTime, setStartTime] = useState("");
     const [endTime, setEndTime] = useState("");
@@ -81,10 +92,23 @@ function ShiftDialog({ isOpen, mode, initial, branchId, onClose, onSuccess }: Sh
         }
     }, [isOpen, initial]);
 
+    // Check for overlap continuously
+    const overlapWith = existingShifts.find(s => {
+        if (s.id === initial?.id) return false;
+        if (!s.startTime || !s.endTime || !startTime || !endTime) return false;
+        if (s.name.toLowerCase() === "full time" || name.toLowerCase() === "full time") return false;
+        const start1 = parseNullableTime(startTime);
+        const end1 = parseNullableTime(endTime);
+        const start2 = parseNullableTime(s.startTime);
+        const end2 = parseNullableTime(s.endTime);
+        return timesOverlap(start1, end1, start2, end2);
+    });
+
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
         if (!name.trim()) { setError("Shift name is required."); return; }
+        if (overlapWith) { setError("Please resolve the shift time overlap."); return; }
         setLoading(true);
         setError(null);
         try {
@@ -208,6 +232,23 @@ function ShiftDialog({ isOpen, mode, initial, branchId, onClose, onSuccess }: Sh
                             <AlertCircle size={13} /> {error}
                         </div>
                     )}
+                    
+                    {overlapWith && (
+                        <div className="flex flex-col gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs mt-2">
+                            <div className="flex items-center gap-1.5 text-amber-400">
+                                <AlertTriangle size={13} />
+                                <span>Time overlaps with &ldquo;{overlapWith.name}&rdquo; ({overlapWith.startTime} - {overlapWith.endTime}).</span>
+                            </div>
+                            <div className="flex flex-col gap-1 mt-1">
+                                <button onClick={() => setEndTime(formatMins(parseNullableTime(overlapWith.startTime)! - 1))} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1.5 rounded transition-colors border border-amber-500/20 text-left">
+                                    Set End Time to {formatMins(parseNullableTime(overlapWith.startTime)! - 1)}
+                                </button>
+                                <button onClick={() => setStartTime(formatMins(parseNullableTime(overlapWith.endTime)! + 1))} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1.5 rounded transition-colors border border-amber-500/20 text-left">
+                                    Set Start Time to {formatMins(parseNullableTime(overlapWith.endTime)! + 1)}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -217,7 +258,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, onClose, onSuccess }: Sh
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={loading || !name.trim()}
+                        disabled={loading || !name.trim() || !!overlapWith}
                         className="text-sm h-8 px-4 min-w-[100px] justify-center"
                     >
                         {loading
@@ -932,7 +973,8 @@ export default function ShiftsPage() {
                 mode={dialog.mode}
                 initial={dialog.shift}
                 branchId={branchId}
-                onClose={() => setDialog(d => ({ ...d, open: false }))}
+                existingShifts={shifts}
+                onClose={() => setDialog({ open: false, mode: "add" })}
                 onSuccess={handleDialogSuccess}
             />
 
