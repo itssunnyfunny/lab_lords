@@ -1,15 +1,18 @@
 "use client";
 
+import { KpiRow } from "@/components/snapshot/KpiRow";
+import { MainChart } from "@/components/snapshot/MainChart";
+import { SideStats } from "@/components/snapshot/SideStats";
+import { SnapshotFooter } from "@/components/snapshot/SnapshotFooter";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, use } from "react";
-import { analytics, BranchSnapshot } from "@/lib/api/analytics";
+import { analytics, BranchSnapshot, TrendData } from "@/lib/api/analytics";
 import { branches } from "@/lib/api/branches";
 
-// Extended type for table display
 interface BranchAnalyticsRow {
     id: string;
     branch: string;
@@ -22,19 +25,21 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
     const { branchId } = use(params);
     const [data, setData] = useState<BranchAnalyticsRow[]>([]);
     const [snapshot, setSnapshot] = useState<BranchSnapshot | null>(null);
+    const [trends, setTrends] = useState<TrendData | undefined>(undefined);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const loadAnalytics = async () => {
             try {
-                // Fetch snapshot for current branch
-                const [branchDetails, snap] = await Promise.all([
+                const to = new Date().toISOString();
+                const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+                const [branchDetails, snap, trendData] = await Promise.all([
                     branches.getDetails(branchId),
-                    analytics.getSnapshot(branchId)
+                    analytics.getSnapshot(branchId),
+                    analytics.getTrends(branchId, { from, to, type: "health" })
                 ]);
 
-                // Transform to table row format
-                // In a real comparison, we might fetch all branches of the org.
                 const row: BranchAnalyticsRow = {
                     id: branchDetails.id,
                     branch: branchDetails.name,
@@ -45,6 +50,7 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
 
                 setData([row]);
                 setSnapshot(snap);
+                setTrends(trendData);
             } catch (error) {
                 console.error("Failed to load analytics", error);
             } finally {
@@ -55,20 +61,33 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
     }, [branchId]);
 
     if (loading) {
-        return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading analytics...</div>;
+        return (
+            <div className="p-8 flex items-center justify-center text-white">
+                <Loader2 className="animate-spin mr-2" /> Loading analytics...
+            </div>
+        );
     }
 
     return (
-        <div className="p-8">
+        <div className="p-8 space-y-8 text-white">
             <PageHeader
                 title="Analytics & Trends"
-                subtitle="Compare performance across time and branches."
+                subtitle="Real-time overview of branch performance and trends."
                 onExport={() => { }}
             />
 
-            {/* Trends Table */}
-            <div className="mb-8">
-                <h2 className="text-lg font-semibold text-white mb-4">Branch Summary Trends</h2>
+            {/* KPI Cards */}
+            <KpiRow snapshot={snapshot ?? undefined} branchId={branchId} />
+
+            {/* Main Chart + Side Stats */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <MainChart data={trends} />
+                <SideStats snapshot={snapshot ?? undefined} />
+            </div>
+
+            {/* Branch Summary Table */}
+            <div>
+                <h2 className="text-lg font-semibold text-white mb-4">Branch Summary</h2>
                 <DataTable
                     data={data}
                     columns={[
@@ -91,7 +110,7 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
 
             {/* Shift Breakdown */}
             {snapshot?.seatDetails && (
-                <div className="mb-8">
+                <div>
                     <h2 className="text-lg font-semibold text-white mb-4">Shift Breakdown</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {snapshot.seatDetails.shifts.map((shift) => (
@@ -116,7 +135,9 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
                     </div>
                 </div>
             )}
+
+            {/* Snapshot Footer */}
+            <SnapshotFooter snapshot={snapshot ?? undefined} branchId={branchId} />
         </div>
     );
 }
-
