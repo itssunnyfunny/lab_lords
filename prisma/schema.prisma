@@ -38,6 +38,7 @@ model Branch {
   organization   Organization     @relation(fields: [organizationId], references: [id])
   aiReports      BranchAIReport[]
   messageDrafts  MessageDraft[]
+  multiShifts    MultiShift[]
   payments       Payment[]
   seats          Seat[]
   shifts         Shift[]
@@ -76,36 +77,65 @@ model Seat {
 }
 
 model Shift {
-  id              String           @id @default(cuid())
-  branchId        String
-  name            String
-  startTime       String?
-  endTime         String?
-  price           Int              @default(0)
-  isReserved      Boolean          @default(false)
-  status          ShiftStatus      @default(ACTIVE)
-  deletedAt       DateTime?
-  createdAt       DateTime         @default(now())
-  seatAllocations SeatAllocation[]
-  branch          Branch           @relation(fields: [branchId], references: [id])
+  id                   String                @id @default(cuid())
+  branchId             String
+  name                 String
+  startTime            String?
+  endTime              String?
+  price                Int                   @default(0)
+  isReserved           Boolean               @default(false)
+  status               ShiftStatus           @default(ACTIVE)
+  deletedAt            DateTime?
+  createdAt            DateTime              @default(now())
+  seatAllocations      SeatAllocation[]
+  multiShiftComponents MultiShiftComponent[]
+  branch               Branch                @relation(fields: [branchId], references: [id])
 
   @@index([branchId])
   @@index([branchId, status])
 }
 
+model MultiShift {
+  id          String                @id @default(cuid())
+  branchId    String
+  name        String
+  price       Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  branch      Branch                @relation(fields: [branchId], references: [id])
+  components  MultiShiftComponent[]
+  allocations SeatAllocation[]
+
+  @@unique([branchId, name])
+  @@index([branchId])
+}
+
+model MultiShiftComponent {
+  id           String     @id @default(cuid())
+  multiShiftId String
+  shiftId      String
+  order        Int        @default(0)
+  multiShift   MultiShift @relation(fields: [multiShiftId], references: [id], onDelete: Cascade)
+  shift        Shift      @relation(fields: [shiftId], references: [id])
+
+  @@unique([multiShiftId, shiftId])
+}
+
 model SeatAllocation {
-  id        String    @id @default(cuid())
-  seatId    String
-  studentId String
-  shiftId   String
-  startDate DateTime  @default(now())
-  endDate   DateTime?
-  seat      Seat      @relation(fields: [seatId], references: [id])
-  shift     Shift     @relation(fields: [shiftId], references: [id])
-  student   Student   @relation(fields: [studentId], references: [id])
+  id           String      @id @default(cuid())
+  seatId       String
+  studentId    String
+  shiftId      String
+  multiShiftId String?
+  startDate    DateTime    @default(now())
+  endDate      DateTime?
+  seat         Seat        @relation(fields: [seatId], references: [id])
+  shift        Shift       @relation(fields: [shiftId], references: [id])
+  student      Student     @relation(fields: [studentId], references: [id])
+  multiShift   MultiShift? @relation(fields: [multiShiftId], references: [id])
 
   @@index([seatId, shiftId])
   @@index([studentId])
+  @@index([multiShiftId])
 }
 
 model Payment {
