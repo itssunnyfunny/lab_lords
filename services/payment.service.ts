@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { PaymentStatus, StudentStatus, PaymentType } from "@/types";
-import { addMonths, differenceInMonths, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
+import { addMonths, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
 
 export class PaymentService {
     /**
@@ -65,8 +65,10 @@ export class PaymentService {
             },
         });
 
+
         let generatedCount = 0;
         let skippedCount = 0;
+        const paymentsToCreate = [];
 
         for (const student of students) {
             // Build a Set of existing due dates (as ISO strings) for O(1) lookup
@@ -87,19 +89,16 @@ export class PaymentService {
 
                 // Skip if already generated (idempotent)
                 if (!existingDueDates.has(dueDateNormalized.toISOString())) {
-                    await prisma.payment.create({
-                        data: {
-                            branchId,
-                            studentId: student.id,
-                            amount: student.monthlyFee,
-                            status: PaymentStatus.DUE,
-                            // periodStart = previous anchor, periodEnd = this anchor
-                            periodStart: addMonths(student.joinedAt, month - 1),
-                            periodEnd: dueDate,
-                            dueDate: dueDate,
-                        },
+                    paymentsToCreate.push({
+                        branchId,
+                        studentId: student.id,
+                        amount: student.monthlyFee,
+                        status: PaymentStatus.DUE,
+                        // periodStart = previous anchor, periodEnd = this anchor
+                        periodStart: addMonths(student.joinedAt, month - 1),
+                        periodEnd: dueDate,
+                        dueDate: dueDate,
                     });
-                    generatedCount++;
                     paymentsGeneratedForStudent++;
                 }
 
@@ -111,7 +110,13 @@ export class PaymentService {
             }
         }
 
-        if (generatedCount > 0) {
+        if (paymentsToCreate.length > 0) {
+            // Bulk insert to avoid N+1 query problem during generation
+            const created = await prisma.payment.createMany({
+                data: paymentsToCreate,
+            });
+            generatedCount = created.count;
+
             await prisma.branch.update({
                 where: { id: branchId },
                 data: { lastDataChange: new Date() },
@@ -141,7 +146,7 @@ export class PaymentService {
         await this.assertBranchOwnership(userId, branchId);
 
         // Default: exclude WAIVED when no specific status requested
-        let whereClause: any = {
+        let whereClause: import("@prisma/client").Prisma.PaymentWhereInput = {
             branchId,
             ...(status ? { status } : { status: { not: "WAIVED" } }),
         };
