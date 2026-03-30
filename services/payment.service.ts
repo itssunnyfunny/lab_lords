@@ -68,6 +68,8 @@ export class PaymentService {
         let generatedCount = 0;
         let skippedCount = 0;
 
+        const paymentsToCreate = [];
+
         for (const student of students) {
             // Build a Set of existing due dates (as ISO strings) for O(1) lookup
             const existingDueDates = new Set(
@@ -87,17 +89,16 @@ export class PaymentService {
 
                 // Skip if already generated (idempotent)
                 if (!existingDueDates.has(dueDateNormalized.toISOString())) {
-                    await prisma.payment.create({
-                        data: {
-                            branchId,
-                            studentId: student.id,
-                            amount: student.monthlyFee,
-                            status: PaymentStatus.DUE,
-                            // periodStart = previous anchor, periodEnd = this anchor
-                            periodStart: addMonths(student.joinedAt, month - 1),
-                            periodEnd: dueDate,
-                            dueDate: dueDate,
-                        },
+                    // Collect payments in array instead of sequential awaiting to prevent N+1 queries
+                    paymentsToCreate.push({
+                        branchId,
+                        studentId: student.id,
+                        amount: student.monthlyFee,
+                        status: PaymentStatus.DUE,
+                        // periodStart = previous anchor, periodEnd = this anchor
+                        periodStart: addMonths(student.joinedAt, month - 1),
+                        periodEnd: dueDate,
+                        dueDate: dueDate,
                     });
                     generatedCount++;
                     paymentsGeneratedForStudent++;
@@ -111,7 +112,11 @@ export class PaymentService {
             }
         }
 
-        if (generatedCount > 0) {
+        if (paymentsToCreate.length > 0) {
+            await prisma.payment.createMany({
+                data: paymentsToCreate,
+            });
+
             await prisma.branch.update({
                 where: { id: branchId },
                 data: { lastDataChange: new Date() },
