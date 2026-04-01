@@ -48,25 +48,31 @@ export class BranchService {
                 ];
 
 
-            for (const shift of shiftsToCreate) {
-                await tx.shift.create({
-                    data: {
+            // ⚡ Bolt: Replaced O(n) individual shift creations with single bulk insert
+            // Expected Impact: Reduces DB roundtrips from N to 1 during branch creation
+            if (shiftsToCreate.length > 0) {
+                await tx.shift.createMany({
+                    data: shiftsToCreate.map(shift => ({
                         branchId: branch.id,
                         name: shift.name,
                         startTime: shift.startTime,
                         endTime: shift.endTime,
                         price: shift.price,
-                    },
+                    }))
                 });
             }
 
             // 3. Create seats
+            // ⚡ Bolt: Replaced O(n) individual seat creations with single bulk insert
+            // Expected Impact: Reduces DB roundtrips from N to 1 during branch creation
             if (seatCount && seatCount > 0) {
-                for (let i = 1; i <= seatCount; i++) {
-                    await tx.seat.create({
-                        data: { branchId: branch.id, label: `${i}` },
-                    });
-                }
+                const seatsData = Array.from({ length: seatCount }, (_, i) => ({
+                    branchId: branch.id,
+                    label: `${i + 1}`,
+                }));
+                await tx.seat.createMany({
+                    data: seatsData,
+                });
             }
 
             // 4. Add calling user as MANAGER on this branch

@@ -302,20 +302,25 @@ export class ShiftService {
                     throw new Error("Not enough unoccupied seats available in target shift.");
                 }
 
-                for (let i = 0; i < sourceAllocations.length; i++) {
-                    const oldAlloc = sourceAllocations[i];
-                    const newSeat = availableSeats[i];
-                    await tx.seatAllocation.update({
-                        where: { id: oldAlloc.id },
-                        data: { endDate: now },
-                    });
-                    await tx.seatAllocation.create({
-                        data: {
-                            studentId: oldAlloc.studentId,
-                            shiftId: targetShiftId,
-                            seatId: newSeat.id,
-                            startDate: now,
-                        },
+                // ⚡ Bolt: Optimizing bulk shift reassignment.
+                // Impact: Changed O(n) individual updates/creates to two batch operations (updateMany and createMany).
+                // Significantly reduces DB overhead and locks during reallocations.
+                const oldAllocIds = sourceAllocations.map(a => a.id);
+                await tx.seatAllocation.updateMany({
+                    where: { id: { in: oldAllocIds } },
+                    data: { endDate: now },
+                });
+
+                const newAllocations = sourceAllocations.map((oldAlloc, i) => ({
+                    studentId: oldAlloc.studentId,
+                    shiftId: targetShiftId,
+                    seatId: availableSeats[i].id,
+                    startDate: now,
+                }));
+
+                if (newAllocations.length > 0) {
+                    await tx.seatAllocation.createMany({
+                        data: newAllocations,
                     });
                 }
 
