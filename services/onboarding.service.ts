@@ -59,29 +59,30 @@ export class OnboardingService {
                     { name: "Reserved", startTime: null, endTime: null, price: 0 },
                 ];
 
-            for (const shift of shiftsToCreate) {
-                await tx.shift.create({
-                    data: {
+            // ⚡ Bolt: Bulk shift creation to prevent N+1 query problem during network setup
+            if (shiftsToCreate.length > 0) {
+                await tx.shift.createMany({
+                    data: shiftsToCreate.map(shift => ({
                         branchId: branch.id,
                         name: shift.name,
                         startTime: shift.startTime,
                         endTime: shift.endTime,
                         price: shift.price,
-                    },
+                    }))
                 });
             }
 
             // 4. Create Seats
             // Generate seats based on seatCount (e.g. "1", "2", ...)
+            // ⚡ Bolt: Bulk seat creation. Reduces DB roundtrips from N to 1
             if (params.seatCount && params.seatCount > 0) {
-                for (let i = 1; i <= params.seatCount; i++) {
-                    await tx.seat.create({
-                        data: {
-                            branchId: branch.id,
-                            label: `${i}`,
-                        },
-                    });
-                }
+                const seatsData = Array.from({ length: params.seatCount }, (_, i) => ({
+                    branchId: branch.id,
+                    label: `${i + 1}`,
+                }));
+                await tx.seat.createMany({
+                    data: seatsData,
+                });
             }
 
             // 4. (Optional) Assign User as STAFF/MANAGER to this branch?
