@@ -362,12 +362,35 @@ export class ShiftService {
                     }
                 }
 
-                // Execute assignments — fetch allocation first, then create
+                // ⚡ Bolt: Optimizing bulk manual shift reassignment.
+                // Impact: Consolidated O(n) DB queries (findUnique, findMany, findFirst, update, create) into bulk fetching and batch updates.
+                // Prevents N+1 query performance bottleneck during bulk shift assignments.
+
+                // Fetch all old allocations in one query
+                const oldAllocIds = assignments.map(a => a.allocationId);
+                const oldAllocs = await tx.seatAllocation.findMany({
+                    where: { id: { in: oldAllocIds } },
+                    include: { student: true },
+                });
+                const oldAllocMap = new Map(oldAllocs.map(a => [a.id, a]));
+
+                // Fetch all active student allocations for all involved students in one query
+                const studentIds = oldAllocs.map(a => a.studentId);
+                const allStudentActiveAllocs = await tx.seatAllocation.findMany({
+                    where: { studentId: { in: studentIds }, endDate: null, shiftId: { not: shiftId } },
+                });
+                const studentActiveAllocMap = new Map<string, typeof allStudentActiveAllocs>();
+                for (const sa of allStudentActiveAllocs) {
+                    const studentAllocs = studentActiveAllocMap.get(sa.studentId) || [];
+                    studentAllocs.push(sa);
+                    studentActiveAllocMap.set(sa.studentId, studentAllocs);
+                }
+
+                const newAllocationsToCreate: any[] = [];
+                const occupiedSeatMap = new Map<string, Set<string>>(); // targetShiftId -> Set<seatId>
+
                 for (const assignment of assignments) {
-                    const oldAlloc = await tx.seatAllocation.findUnique({
-                        where: { id: assignment.allocationId },
-                        include: { student: true },
-                    });
+                    const oldAlloc = oldAllocMap.get(assignment.allocationId);
                     if (!oldAlloc) throw new Error(`Allocation ${assignment.allocationId} not found.`);
 
                     const targetShiftData = shiftMap.get(assignment.targetShiftId);
@@ -375,9 +398,7 @@ export class ShiftService {
                     const targetEnd = parseNullableTime(targetShiftData?.endTime);
 
                     // Check student isn't already in target or overlapping shift
-                    const studentActiveAllocs = await tx.seatAllocation.findMany({
-                        where: { studentId: oldAlloc.studentId, endDate: null, shiftId: { not: shiftId } },
-                    });
+                    const studentActiveAllocs = studentActiveAllocMap.get(oldAlloc.studentId) || [];
                     for (const sa of studentActiveAllocs) {
                         if (sa.shiftId === assignment.targetShiftId) {
                             throw new Error(
@@ -392,33 +413,60 @@ export class ShiftService {
                         }
                     }
 
-                    // Find an available seat for this specific target shift (overlap-aware)
-                    const overlapShiftIds = allShifts
-                        .filter(s => s.id !== shiftId && timesOverlap(targetStart, targetEnd, parseNullableTime(s.startTime), parseNullableTime(s.endTime)))
-                        .map(s => s.id);
+                    // Find occupied seats for target shift (cached per shift)
+                    let occupiedSeatIds = occupiedSeatMap.get(assignment.targetShiftId);
+                    if (!occupiedSeatIds) {
+                        const overlapShiftIds = allShifts
+                            .filter(s => s.id !== shiftId && timesOverlap(targetStart, targetEnd, parseNullableTime(s.startTime), parseNullableTime(s.endTime)))
+                            .map(s => s.id);
 
-                    const occupiedSeatIds = (await tx.seatAllocation.findMany({
-                        where: { shiftId: { in: overlapShiftIds }, endDate: null },
-                        select: { seatId: true },
-                    })).map(a => a.seatId);
+                        const occupied = await tx.seatAllocation.findMany({
+                            where: { shiftId: { in: overlapShiftIds }, endDate: null },
+                            select: { seatId: true },
+                        });
+                        occupiedSeatIds = new Set(occupied.map(a => a.seatId));
+                        occupiedSeatMap.set(assignment.targetShiftId, occupiedSeatIds);
+                    }
+
+                    // Track assigned seats in memory for this transaction to avoid double booking
+                    const previouslyAssigned = newAllocationsToCreate
+                        .filter(a => {
+                            const prevShiftData = shiftMap.get(a.shiftId);
+                            const prevStart = parseNullableTime(prevShiftData?.startTime);
+                            const prevEnd = parseNullableTime(prevShiftData?.endTime);
+                            return timesOverlap(targetStart, targetEnd, prevStart, prevEnd);
+                        })
+                        .map(a => a.seatId);
+                    previouslyAssigned.forEach(seatId => occupiedSeatIds!.add(seatId));
 
                     const availableSeat = await tx.seat.findFirst({
-                        where: { branchId, id: { notIn: occupiedSeatIds } },
+                        where: { branchId, id: { notIn: Array.from(occupiedSeatIds) } },
                         orderBy: { label: "asc" },
                     });
                     if (!availableSeat) throw new Error("No available seat found in target shift.");
 
-                    await tx.seatAllocation.update({
-                        where: { id: assignment.allocationId },
+                    // Book seat in memory for next iterations
+                    occupiedSeatIds.add(availableSeat.id);
+
+                    newAllocationsToCreate.push({
+                        studentId: oldAlloc.studentId,
+                        shiftId: assignment.targetShiftId,
+                        seatId: availableSeat.id,
+                        startDate: now,
+                    });
+                }
+
+                // Batch execute DB updates/creates
+                if (oldAllocIds.length > 0) {
+                    await tx.seatAllocation.updateMany({
+                        where: { id: { in: oldAllocIds } },
                         data: { endDate: now },
                     });
-                    await tx.seatAllocation.create({
-                        data: {
-                            studentId: oldAlloc.studentId,
-                            shiftId: assignment.targetShiftId,
-                            seatId: availableSeat.id,
-                            startDate: now,
-                        },
+                }
+
+                if (newAllocationsToCreate.length > 0) {
+                    await tx.seatAllocation.createMany({
+                        data: newAllocationsToCreate,
                     });
                 }
 
@@ -434,22 +482,33 @@ export class ShiftService {
     }
 
     static async ensureDefaultShifts(branchId: string) {
-        for (const def of DEFAULT_SHIFTS) {
-            const existing = await prisma.shift.findFirst({
-                where: { branchId, name: def.name, status: "ACTIVE" },
+        const existingShifts = await prisma.shift.findMany({
+            where: {
+                branchId,
+                status: "ACTIVE",
+                name: { in: DEFAULT_SHIFTS.map(d => d.name) },
+            },
+            select: { name: true },
+        });
+
+        const existingNames = new Set(existingShifts.map(s => s.name));
+
+        const shiftsToCreate = DEFAULT_SHIFTS.filter(def => !existingNames.has(def.name)).map(def => ({
+            branchId,
+            name: def.name,
+            startTime: def.startTime,
+            endTime: def.endTime,
+            price: def.price,
+            isReserved: def.isReserved,
+        }));
+
+        // ⚡ Bolt: Optimizing bulk shift creation.
+        // Impact: Changed O(n) individual DB queries (findFirst + create) to O(1) bulk operations (findMany + createMany).
+        // Prevents N+1 query problems and significantly reduces DB roundtrips.
+        if (shiftsToCreate.length > 0) {
+            await prisma.shift.createMany({
+                data: shiftsToCreate,
             });
-            if (!existing) {
-                await prisma.shift.create({
-                    data: {
-                        branchId,
-                        name: def.name,
-                        startTime: def.startTime,
-                        endTime: def.endTime,
-                        price: def.price,
-                        isReserved: def.isReserved,
-                    },
-                });
-            }
         }
     }
 
