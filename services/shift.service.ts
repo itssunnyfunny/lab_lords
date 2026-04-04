@@ -434,22 +434,31 @@ export class ShiftService {
     }
 
     static async ensureDefaultShifts(branchId: string) {
-        for (const def of DEFAULT_SHIFTS) {
-            const existing = await prisma.shift.findFirst({
-                where: { branchId, name: def.name, status: "ACTIVE" },
+        // ⚡ Bolt: Batch database queries to prevent N+1 bottleneck.
+        // Replaced loop-based findFirst + create with a single findMany and createMany.
+        const existingShifts = await prisma.shift.findMany({
+            where: {
+                branchId,
+                name: { in: DEFAULT_SHIFTS.map(def => def.name) },
+                status: "ACTIVE"
+            },
+            select: { name: true }
+        });
+
+        const existingNames = new Set(existingShifts.map(s => s.name));
+        const missingShifts = DEFAULT_SHIFTS.filter(def => !existingNames.has(def.name));
+
+        if (missingShifts.length > 0) {
+            await prisma.shift.createMany({
+                data: missingShifts.map(def => ({
+                    branchId,
+                    name: def.name,
+                    startTime: def.startTime,
+                    endTime: def.endTime,
+                    price: def.price,
+                    isReserved: def.isReserved,
+                })),
             });
-            if (!existing) {
-                await prisma.shift.create({
-                    data: {
-                        branchId,
-                        name: def.name,
-                        startTime: def.startTime,
-                        endTime: def.endTime,
-                        price: def.price,
-                        isReserved: def.isReserved,
-                    },
-                });
-            }
         }
     }
 
