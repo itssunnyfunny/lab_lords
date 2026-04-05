@@ -10,3 +10,7 @@
 ## 2024-04-03 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested at once resulted in multiple `tx.seatAllocation.create(...)` database roundtrips. When batching these inserts, the loop also relied on updating internal state arrays to do conflict resolution within the same transaction.
 **Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(...)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
+
+## 2024-04-04 - [Batch Query Optimization in Shift Service Reallocation]
+**Learning:** Found a severe N+1 query bottleneck in `services/shift.service.ts` where manual shift reallocations executed up to 6 database queries sequentially inside a loop per student reassignment (including duplicate validation and seat search queries).
+**Action:** Replaced loop queries by pre-fetching active allocations and seats into memory using `findMany`, tracking dynamic assignment overlap states in-memory during loop execution, and finishing with batched `createMany` and `updateMany` operations. Typed intermediate payload arrays directly using Prisma's generated types (e.g., `import("@prisma/client").Prisma.SeatAllocationCreateManyInput[]`) to avoid ESLint warnings.
