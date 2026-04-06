@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { BranchService } from "@/services/branch.service";
 import { OrganizationService } from "@/services/organization.service";
+import { getSessionUser } from "@/lib/auth";
 
 // Correctly type the params as a Promise for Next.js 15+
 interface Params {
@@ -12,11 +13,12 @@ interface Params {
 export async function GET(req: Request, { params }: Params) {
     try {
         const { orgId } = await params;
-        const userId = req.headers.get("x-user-id");
+        const session = await getSessionUser();
+        const userId = session?.id;
 
         if (!userId) {
             return NextResponse.json(
-                { error: "Unauthorized: x-user-id header missing" },
+                { error: "Unauthorized" },
                 { status: 401 }
             );
         }
@@ -44,11 +46,12 @@ export async function GET(req: Request, { params }: Params) {
 export async function POST(req: Request, { params }: Params) {
     try {
         const { orgId } = await params;
-        const userId = req.headers.get("x-user-id");
+        const session = await getSessionUser();
+        const userId = session?.id;
 
         if (!userId) {
             return NextResponse.json(
-                { error: "Unauthorized: x-user-id header missing" },
+                { error: "Unauthorized" },
                 { status: 401 }
             );
         }
