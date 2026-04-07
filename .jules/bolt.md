@@ -10,3 +10,7 @@
 ## 2024-04-03 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested at once resulted in multiple `tx.seatAllocation.create(...)` database roundtrips. When batching these inserts, the loop also relied on updating internal state arrays to do conflict resolution within the same transaction.
 **Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(...)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
+
+## 2024-04-04 - [Concurrent Database Query Execution in Shift Service]
+**Learning:** Found sequential Prisma database queries (`count`, `findMany`) inside `analyzeShiftDeletion` method that caused a database query waterfall delay because they were executed one-by-one.
+**Action:** Combined independent database queries into a single `Promise.all([...])` execution block to fetch them concurrently, removing the waterfall delay. This is a highly effective way to reduce API response latency in Prisma/Node.js environments without changing any business logic.
