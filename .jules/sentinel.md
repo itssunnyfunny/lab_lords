@@ -1,0 +1,4 @@
+## 2024-05-24 - Authorization Bypass via Forged Headers
+**Vulnerability:** API routes were determining user identity by directly reading the `x-user-id` header from incoming requests (e.g., `req.headers.get("x-user-id")`).
+**Learning:** This is a critical security vulnerability because any user or attacker could forge this header in their requests and act as any other user in the system, gaining unauthorized access and the ability to perform actions on their behalf. Relying on client-provided headers for authentication or authorization is inherently insecure.
+**Prevention:** Always use a secure, server-side mechanism to determine user identity, such as session cookies or signed JWTs. In this codebase, always use `getSessionUser()` from `@/lib/auth` to securely retrieve the user's session state. Never rely on raw headers like `x-user-id`.
