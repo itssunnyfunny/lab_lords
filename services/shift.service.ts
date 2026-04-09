@@ -262,11 +262,22 @@ export class ShiftService {
                 const targetStart = parseNullableTime(targetShiftData?.startTime);
                 const targetEnd = parseNullableTime(targetShiftData?.endTime);
 
+                // ⚡ Bolt: Bulk fetch student allocations to prevent N+1 queries.
+                const studentIds = sourceAllocations.map(a => a.studentId);
+                const allActiveAllocs = await tx.seatAllocation.findMany({
+                    where: { studentId: { in: studentIds }, endDate: null, shiftId: { not: shiftId } },
+                });
+                const allocsByStudent = new Map<string, typeof allActiveAllocs>();
+                for (const alloc of allActiveAllocs) {
+                    if (!allocsByStudent.has(alloc.studentId)) {
+                        allocsByStudent.set(alloc.studentId, []);
+                    }
+                    allocsByStudent.get(alloc.studentId)!.push(alloc);
+                }
+
                 for (const oldAlloc of sourceAllocations) {
                     // Check: student not already in target or any time-overlapping shift
-                    const studentActiveAllocs = await tx.seatAllocation.findMany({
-                        where: { studentId: oldAlloc.studentId, endDate: null, shiftId: { not: shiftId } },
-                    });
+                    const studentActiveAllocs = allocsByStudent.get(oldAlloc.studentId) || [];
                     for (const sa of studentActiveAllocs) {
                         if (sa.shiftId === targetShiftId) {
                             throw new Error(
@@ -362,12 +373,30 @@ export class ShiftService {
                     }
                 }
 
+                // ⚡ Bolt: Bulk fetch old allocations to prevent N+1 query.
+                const oldAllocIds = assignments.map(a => a.allocationId);
+                const oldAllocs = await tx.seatAllocation.findMany({
+                    where: { id: { in: oldAllocIds } },
+                    include: { student: true },
+                });
+                const oldAllocMap = new Map(oldAllocs.map(a => [a.id, a]));
+
+                // ⚡ Bolt: Bulk fetch student allocations to prevent N+1 query.
+                const studentIds = oldAllocs.map(a => a.studentId);
+                const allActiveAllocs = await tx.seatAllocation.findMany({
+                    where: { studentId: { in: studentIds }, endDate: null, shiftId: { not: shiftId } },
+                });
+                const allocsByStudent = new Map<string, typeof allActiveAllocs>();
+                for (const alloc of allActiveAllocs) {
+                    if (!allocsByStudent.has(alloc.studentId)) {
+                        allocsByStudent.set(alloc.studentId, []);
+                    }
+                    allocsByStudent.get(alloc.studentId)!.push(alloc);
+                }
+
                 // Execute assignments — fetch allocation first, then create
                 for (const assignment of assignments) {
-                    const oldAlloc = await tx.seatAllocation.findUnique({
-                        where: { id: assignment.allocationId },
-                        include: { student: true },
-                    });
+                    const oldAlloc = oldAllocMap.get(assignment.allocationId);
                     if (!oldAlloc) throw new Error(`Allocation ${assignment.allocationId} not found.`);
 
                     const targetShiftData = shiftMap.get(assignment.targetShiftId);
@@ -375,9 +404,7 @@ export class ShiftService {
                     const targetEnd = parseNullableTime(targetShiftData?.endTime);
 
                     // Check student isn't already in target or overlapping shift
-                    const studentActiveAllocs = await tx.seatAllocation.findMany({
-                        where: { studentId: oldAlloc.studentId, endDate: null, shiftId: { not: shiftId } },
-                    });
+                    const studentActiveAllocs = allocsByStudent.get(oldAlloc.studentId) || [];
                     for (const sa of studentActiveAllocs) {
                         if (sa.shiftId === assignment.targetShiftId) {
                             throw new Error(

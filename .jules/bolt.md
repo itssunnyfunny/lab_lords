@@ -10,3 +10,7 @@
 ## 2024-04-03 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested at once resulted in multiple `tx.seatAllocation.create(...)` database roundtrips. When batching these inserts, the loop also relied on updating internal state arrays to do conflict resolution within the same transaction.
 **Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(...)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
+
+## 2024-04-05 - [Batch Fetching Optimization in Shift Service]
+**Learning:** Found N+1 query problems in `services/shift.service.ts` where the code executed `.findMany()` inside a loop to check if a student is already allocated in a target or overlapping shift. This occurred in `resolveShiftDeletion` for `REALLOCATE_BULK` and `REALLOCATE_MANUAL` actions.
+**Action:** Replaced the loop-based `.findMany()` calls with a single bulk fetch before the loop (`{ studentId: { in: studentIds } }`). Then, grouped the results by `studentId` using an in-memory `Map`. This turns O(N) database queries into 1, dramatically reducing database roundtrips and resolving the performance bottleneck.
