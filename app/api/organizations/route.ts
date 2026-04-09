@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { OrganizationService } from "@/services/organization.service";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET(req: Request) {
     try {
-        const userId = req.headers.get("x-user-id") ?? "user_alice";
-        if (!userId) {
+        const sessionUser = await getSessionUser();
+        if (!sessionUser?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const organizations = await OrganizationService.getOrganizationsByUserId(userId);
+        const organizations = await OrganizationService.getOrganizationsByUserId(sessionUser.id);
         return NextResponse.json(organizations);
     } catch (error) {
         console.error("Error fetching organizations:", error);
@@ -18,14 +19,14 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const userId = req.headers.get("x-user-id");
-        if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const sessionUser = await getSessionUser();
+        if (!sessionUser?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const body = await req.json();
         if (!body.name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
         const organization = await OrganizationService.createOrganization({
             name: body.name,
-            ownerId: userId,
+            ownerId: sessionUser.id,
         });
 
         return NextResponse.json(organization, { status: 201 });

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { OnboardingService } from "@/services/onboarding.service";
+import { getSessionUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
     try {
-        // TEMP AUTH: Get user from header
-        const userId = req.headers.get("x-user-id");
-        if (!userId) {
+        const sessionUser = await getSessionUser();
+        if (!sessionUser?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         }
 
         const result = await OnboardingService.createNetwork({
-            userId,
+            userId: sessionUser.id,
             orgData: {
                 name: orgName,
                 businessType,
