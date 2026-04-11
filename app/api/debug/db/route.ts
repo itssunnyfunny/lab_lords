@@ -1,4 +1,3 @@
-```typescript
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { OrganizationService } from "@/services/organization.service";
@@ -23,4 +22,3 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: error.message, stack: error.stack }, { status: 500 });
     }
 }
-```
