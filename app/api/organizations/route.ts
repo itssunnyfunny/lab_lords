@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { OrganizationService } from "@/services/organization.service";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET(req: Request) {
     try {
-        const userId = req.headers.get("x-user-id") ?? "user_alice";
+        // 🛡️ Sentinel: Replace insecure raw header with getSessionUser for authentication
+        const session = await getSessionUser();
+        const userId = session?.id ?? "user_alice";
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -18,7 +21,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const userId = req.headers.get("x-user-id");
+        // 🛡️ Sentinel: Replace insecure raw header with getSessionUser for authentication
+        const session = await getSessionUser();
+        const userId = session?.id;
         if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const body = await req.json();
         if (!body.name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
