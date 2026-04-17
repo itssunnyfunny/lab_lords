@@ -46,8 +46,13 @@ export class SeatAllocationService {
 
             const branchId = seat.branchId;
 
-            // 3. Fetch student
-            const student = await tx.student.findUnique({ where: { id: studentId } });
+            // 3. Fetch student and multiShift concurrently
+            // ⚡ Bolt: Fetch entities concurrently to prevent waterfall delay
+            const [student, ms] = await Promise.all([
+                tx.student.findUnique({ where: { id: studentId } }),
+                multiShiftId ? tx.multiShift.findUnique({ where: { id: multiShiftId } }) : Promise.resolve(null),
+            ]);
+
             if (!student) throw new Error("Student not found");
             if (student.status !== StudentStatus.ACTIVE) {
                 throw new Error("Only ACTIVE students can be assigned a seat");
@@ -58,15 +63,27 @@ export class SeatAllocationService {
 
             // 3b. Validate multiShiftId if provided
             if (multiShiftId) {
-                const ms = await tx.multiShift.findUnique({ where: { id: multiShiftId } });
                 if (!ms) throw new Error("Multi-shift not found");
                 if (ms.branchId !== branchId) throw new Error("Multi-shift does not belong to this branch");
             }
 
-            // 4. Fetch and validate all requested shifts
-            const requestedShifts = await tx.shift.findMany({
-                where: { id: { in: uniqueShiftIds } },
-            });
+            // 4. Fetch all other needed data concurrently
+            // ⚡ Bolt: Fetch entities concurrently to prevent waterfall delay
+            const [requestedShifts, allBranchShifts, activeSeatAllocations, activeStudentAllocations] = await Promise.all([
+                tx.shift.findMany({
+                    where: { id: { in: uniqueShiftIds } },
+                }),
+                tx.shift.findMany({
+                    where: { branchId, status: "ACTIVE" },
+                    select: { id: true, name: true, startTime: true, endTime: true },
+                }),
+                tx.seatAllocation.findMany({
+                    where: { seatId, endDate: null },
+                }),
+                tx.seatAllocation.findMany({
+                    where: { studentId, endDate: null },
+                }),
+            ]);
 
             if (requestedShifts.length !== uniqueShiftIds.length) {
                 throw new Error("One or more shifts were not found.");
@@ -95,20 +112,8 @@ export class SeatAllocationService {
                 }
             }
 
-            // 6. Load ALL active shifts in branch for conflict lookups
-            const allBranchShifts = await tx.shift.findMany({
-                where: { branchId, status: "ACTIVE" },
-                select: { id: true, name: true, startTime: true, endTime: true },
-            });
+            // 6. Map ALL active shifts in branch for conflict lookups
             const shiftTimeMap = new Map(allBranchShifts.map(s => [s.id, s]));
-
-            // 7. Load existing active seat allocations (for seat + student conflict checks)
-            const activeSeatAllocations = await tx.seatAllocation.findMany({
-                where: { seatId, endDate: null },
-            });
-            const activeStudentAllocations = await tx.seatAllocation.findMany({
-                where: { studentId, endDate: null },
-            });
 
             const allocationsToCreate = [];
 

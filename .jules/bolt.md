@@ -10,3 +10,6 @@
 ## 2024-04-03 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested at once resulted in multiple `tx.seatAllocation.create(...)` database roundtrips. When batching these inserts, the loop also relied on updating internal state arrays to do conflict resolution within the same transaction.
 **Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(...)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
+## 2024-05-15 - Concurrent Prisma Transaction Queries
+**Learning:** Sequential `await tx.*` queries inside a Prisma transaction block the database connection longer than necessary and cause query waterfalls.
+**Action:** Always group independent entity lookups inside a single `Promise.all` call within transactions to significantly reduce database round trips and hold times.
