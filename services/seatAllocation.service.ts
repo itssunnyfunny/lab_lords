@@ -21,7 +21,8 @@ export class SeatAllocationService {
         userId: string,
         seatId: string,
         studentId: string,
-        shiftIds: string[]
+        shiftIds: string[],
+        multiShiftId?: string
     ) {
         if (!shiftIds || shiftIds.length === 0) {
             throw new Error("At least one shift must be selected.");
@@ -53,6 +54,13 @@ export class SeatAllocationService {
             }
             if (student.branchId !== branchId) {
                 throw new Error("Student does not belong to this branch");
+            }
+
+            // 3b. Validate multiShiftId if provided
+            if (multiShiftId) {
+                const ms = await tx.multiShift.findUnique({ where: { id: multiShiftId } });
+                if (!ms) throw new Error("Multi-shift not found");
+                if (ms.branchId !== branchId) throw new Error("Multi-shift does not belong to this branch");
             }
 
             // 4. Fetch and validate all requested shifts
@@ -134,9 +142,14 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift
+                // 8. Create allocation for this shift (with optional multiShiftId)
                 const allocation = await tx.seatAllocation.create({
-                    data: { seatId, studentId, shiftId: requestedShift.id },
+                    data: {
+                        seatId,
+                        studentId,
+                        shiftId: requestedShift.id,
+                        ...(multiShiftId ? { multiShiftId } : {}),
+                    },
                 });
                 createdAllocations.push(allocation);
 
@@ -217,6 +230,7 @@ export class SeatAllocationService {
                 seat: true,
                 student: true,
                 shift: true,
+                multiShift: { select: { id: true, name: true } },
             },
             orderBy: {
                 startDate: "desc",

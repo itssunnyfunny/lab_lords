@@ -193,14 +193,82 @@ export class SeatService {
     }
 
     /**
-     * Returns a visual seat map for a specific shift.
-     * A seat is marked occupied if it has an active allocation in the requested
-     * shift OR in ANY shift whose time window overlaps with the requested shift
-     * (e.g. a Full Time allocation makes the seat appear occupied in Morning).
+     * Returns a visual seat map for a specific shift or multi-shift.
+     *
+     * PRIMARY shift mode (multiShiftId is absent):
+     *   A seat is occupied if it has an active allocation in the requested shift
+     *   OR in any shift whose time window overlaps with it.
+     *
+     * MULTI-SHIFT mode (multiShiftId is provided):
+     *   A seat is occupied if it has an active allocation in ANY of the
+     *   multi-shift's component (primary) shifts.
+     *   No time-overlap math needed — components are already validated
+     *   non-overlapping at creation time so an exact shiftId membership check
+     *   is correct and sufficient.
      */
-    static async getSeatMap(userId: string, branchId: string, shiftId: string) {
+    static async getSeatMap(
+        userId: string,
+        branchId: string,
+        shiftId: string,
+        multiShiftId?: string
+    ) {
         await this.assertBranchOwnership(userId, branchId);
 
+        // ── MULTI-SHIFT PATH ──────────────────────────────────────────────────
+        if (multiShiftId) {
+            const ms = await prisma.multiShift.findUnique({
+                where: { id: multiShiftId },
+                include: {
+                    components: { select: { shiftId: true } },
+                },
+            });
+            if (!ms || ms.branchId !== branchId) throw new Error("Multi-shift not found");
+
+            const componentShiftIds = new Set(ms.components.map(c => c.shiftId));
+            if (componentShiftIds.size === 0) throw new Error("Multi-shift has no component shifts");
+
+            const seats = await prisma.seat.findMany({
+                where: { branchId },
+                include: {
+                    seatAllocations: {
+                        where: { endDate: null },
+                        include: { student: { select: { name: true } } },
+                    },
+                },
+                orderBy: { label: "asc" },
+            });
+
+            const totalSeats = seats.length;
+            let occupiedCount = 0;
+
+            const mappedSeats = seats.map(s => {
+                // Seat is occupied if allocated in ANY component shift
+                const occupyingAlloc = s.seatAllocations.find(a =>
+                    componentShiftIds.has(a.shiftId)
+                );
+                const occupiedBy = occupyingAlloc?.student.name ?? null;
+                if (occupiedBy) occupiedCount++;
+
+                return {
+                    seatId: s.id,
+                    label: s.label,
+                    occupied: occupiedBy !== null,
+                    occupiedBy,
+                };
+            });
+
+            return {
+                shiftId: multiShiftId,       // return multiShiftId as the key so UI can correlate
+                shiftName: ms.name,
+                isReserved: false,
+                totalSeats,
+                occupiedCount,
+                availableCount: totalSeats - occupiedCount,
+                seats: mappedSeats,
+            };
+        }
+
+        // ── PRIMARY SHIFT PATH ────────────────────────────────────────────────
         const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
         if (!shift || shift.branchId !== branchId) throw new Error("Shift not found");
 
@@ -276,7 +344,7 @@ export class SeatService {
     }
 
     /**
-     * Returns all active shifts with current capacity counts.
+     * Returns all active primary shifts with current capacity counts.
      * If studentId is provided, marks a shift as studentAlreadyAllocated when
      * the student has any active allocation that time-overlaps with that shift.
      */
@@ -336,7 +404,9 @@ export class SeatService {
             }
 
             return {
+                type: "PRIMARY" as const,
                 shiftId: shift.id,
+                multiShiftId: undefined as string | undefined,
                 name: shift.name,
                 startTime: shift.startTime,
                 endTime: shift.endTime,
@@ -347,7 +417,63 @@ export class SeatService {
                 occupancyPercent,
                 isFull: available === 0,
                 studentAlreadyAllocated,
+                componentShiftIds: undefined as string[] | undefined,
+                componentShiftNames: undefined as string[] | undefined,
             };
         });
     }
+
+    /**
+     * Returns primary shifts + multi-shifts combined for the shift picker.
+     * Multi-shift entries aggregate capacity from their component primary shifts.
+     */
+    static async getShiftsCapacityWithMulti(userId: string, branchId: string, studentId?: string) {
+        const primaryItems = await this.getShiftsCapacity(userId, branchId, studentId);
+        const primaryMap = new Map(primaryItems.map(p => [p.shiftId, p]));
+
+        const multiShifts = await prisma.multiShift.findMany({
+            where: { branchId },
+            include: {
+                components: {
+                    include: { shift: { select: { id: true, name: true, startTime: true, endTime: true } } },
+                    orderBy: { order: "asc" },
+                },
+            },
+            orderBy: { name: "asc" },
+        });
+
+        const multiItems = multiShifts.map(ms => {
+            const componentShiftIds = ms.components.map(c => c.shiftId);
+            const componentShiftNames = ms.components.map(c => c.shift.name);
+            const validComponents = componentShiftIds.map(id => primaryMap.get(id)).filter(Boolean) as typeof primaryItems[number][];
+
+            const available = validComponents.length > 0 ? Math.min(...validComponents.map(c => c.available)) : 0;
+            const used = validComponents.length > 0 ? Math.max(...validComponents.map(c => c.used)) : 0;
+            const totalSeats = validComponents[0]?.totalSeats ?? 0;
+            const occupancyPercent = totalSeats === 0 ? 0 : (used / totalSeats) * 100;
+            const isFull = available === 0;
+            const studentAlreadyAllocated = validComponents.some(c => c.studentAlreadyAllocated);
+
+            return {
+                type: "MULTISHIFT" as const,
+                shiftId: ms.id,
+                multiShiftId: ms.id,
+                name: ms.name,
+                startTime: ms.components[0]?.shift.startTime ?? null,
+                endTime: ms.components[ms.components.length - 1]?.shift.endTime ?? null,
+                isReserved: false,
+                totalSeats,
+                used,
+                available,
+                occupancyPercent,
+                isFull,
+                studentAlreadyAllocated,
+                componentShiftIds,
+                componentShiftNames,
+            };
+        });
+
+        return [...primaryItems, ...multiItems];
+    }
 }
+

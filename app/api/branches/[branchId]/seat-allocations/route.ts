@@ -14,7 +14,7 @@ export async function POST(
         }
 
         const body = await req.json();
-        const { seatId, studentId, shiftIds, shiftId } = body;
+        const { seatId, studentId, shiftIds, shiftId, multiShiftId } = body;
 
         // Accept shiftIds[] or backward-compat shiftId (singular)
         const resolvedShiftIds: string[] =
@@ -35,7 +35,8 @@ export async function POST(
             user.id,
             seatId,
             studentId,
-            resolvedShiftIds
+            resolvedShiftIds,
+            typeof multiShiftId === "string" ? multiShiftId : undefined
         );
 
         return NextResponse.json(allocations, { status: 201 });
@@ -46,6 +47,7 @@ export async function POST(
         );
     }
 }
+
 
 
 // GET: List allocations

@@ -6,7 +6,7 @@ interface Params {
     params: Promise<{ branchId: string; shiftId: string }>;
 }
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(req: Request, { params }: Params) {
     try {
         const { branchId, shiftId } = await params;
         const user = await getSessionUser();
@@ -15,7 +15,10 @@ export async function GET(_req: Request, { params }: Params) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const seatMap = await SeatService.getSeatMap(user.id, branchId, shiftId);
+        const { searchParams } = new URL(req.url);
+        const multiShiftId = searchParams.get("multiShiftId") ?? undefined;
+
+        const seatMap = await SeatService.getSeatMap(user.id, branchId, shiftId, multiShiftId);
         return NextResponse.json(seatMap);
     } catch (error: any) {
         if (error.message?.includes("Unauthorized") || error.message?.includes("does not own")) {
