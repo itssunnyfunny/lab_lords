@@ -10,7 +10,7 @@ import {
     MoreVertical, Plus, Pencil, Trash2,
     Loader2, AlertCircle, Clock, IndianRupee,
     CheckCircle2, X, Shield, AlertTriangle,
-    Users, ArrowRight, RefreshCw, Ban,
+    Users, ArrowRight, RefreshCw, Ban, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
@@ -21,7 +21,7 @@ function formatMins(mins: number) {
     raw = raw % 1440;
     const h = Math.floor(raw / 60);
     const m = raw % 60;
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -33,6 +33,19 @@ interface Shift {
     endTime: string | null;
     isReserved: boolean;
     price: number;
+}
+
+interface MultiShift {
+    id: string;
+    name: string;
+    price: number;
+    components: {
+        shiftId: string;
+        shiftName: string;
+        startTime: string | null;
+        endTime: string | null;
+        order: number;
+    }[];
 }
 
 interface ShiftAllocation {
@@ -232,7 +245,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                             <AlertCircle size={13} /> {error}
                         </div>
                     )}
-                    
+
                     {overlapWith && (
                         <div className="flex flex-col gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs mt-2">
                             <div className="flex items-center gap-1.5 text-amber-400">
@@ -803,6 +816,240 @@ function RowActions({ actions }: { actions: RowAction[] }) {
     );
 }
 
+// ─── Type Picker Dialog ────────────────────────────────────────────────────────
+
+interface TypePickerDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSelect: (type: "primary" | "multi") => void;
+}
+
+function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-base font-bold text-white">What type of shift?</h2>
+                        <p className="text-xs text-gray-500 mt-0.5">Select the type of window to create</p>
+                    </div>
+                    <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-6 grid grid-cols-2 gap-4">
+                    <button
+                        onClick={() => onSelect("primary")}
+                        className="flex flex-col items-center gap-3 p-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 hover:border-yellow-500/40 transition-all group"
+                    >
+                        <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                            <Clock size={24} />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-sm font-bold text-white">Primary</p>
+                            <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-wider font-semibold">Single Time Slot</p>
+                        </div>
+                    </button>
+
+                    <button
+                        onClick={() => onSelect("multi")}
+                        className="flex flex-col items-center gap-3 p-6 rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/40 transition-all group"
+                    >
+                        <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform">
+                            <Layers size={24} />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-sm font-bold text-white">Multi-Shift</p>
+                            <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-wider font-semibold">Bundle of 2+ Primary</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Multi-Shift Dialog ─────────────────────────────────────────────────────────
+
+interface MultiShiftDialogProps {
+    isOpen: boolean;
+    mode: "add" | "edit";
+    initial?: MultiShift;
+    branchId: string;
+    primaryShifts: Shift[];
+    existingMultiShifts: MultiShift[];
+    onClose: () => void;
+    onSuccess: (ms: MultiShift) => void;
+}
+
+function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, existingMultiShifts, onClose, onSuccess }: MultiShiftDialogProps) {
+    const [name, setName] = useState("");
+    const [price, setPrice] = useState("0");
+    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setName(initial?.name ?? "");
+            setPrice(String(initial?.price ?? 0));
+            setSelectedShiftIds(initial?.components.map(c => c.shiftId) ?? []);
+            setError(null);
+        }
+    }, [isOpen, initial]);
+
+    // Validation
+    const selectedSorted = [...selectedShiftIds].sort().join(",");
+    const duplicateCombo = existingMultiShifts.find(ms => {
+        if (ms.id === initial?.id) return false;
+        return [...ms.components].map(c => c.shiftId).sort().join(",") === selectedSorted;
+    });
+
+    const duplicateName = existingMultiShifts.find(ms => {
+        if (ms.id === initial?.id) return false;
+        return ms.name.toLowerCase() === name.trim().toLowerCase();
+    });
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async () => {
+        if (!name.trim()) { setError("Name is required"); return; }
+        if (selectedShiftIds.length < 2) { setError("Select at least 2 primary shifts"); return; }
+        if (duplicateCombo) { setError(`A multi-shift with this exact combination already exists: "${duplicateCombo.name}"`); return; }
+        if (duplicateName) { setError(`A multi-shift named "${name.trim()}" already exists`); return; }
+
+        setLoading(true);
+        setError(null);
+        try {
+            const url = mode === "edit" && initial
+                ? `/api/branches/${branchId}/multi-shifts/${initial.id}`
+                : `/api/branches/${branchId}/multi-shifts`;
+            const method = mode === "edit" ? "PATCH" : "POST";
+
+            const res = await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: name.trim(),
+                    price: Number(price) || 0,
+                    shiftIds: selectedShiftIds,
+                }),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || "Operation failed");
+            }
+            const saved = await res.json();
+            onSuccess(saved);
+        } catch (err: any) {
+            setError(err.message || "Something went wrong.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleShift = (id: string) => {
+        setSelectedShiftIds(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+        setError(null);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+                <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-base font-bold text-white">{mode === "add" ? "Add Multi-Shift" : "Edit Multi-Shift"}</h2>
+                        <p className="text-xs text-gray-500 mt-0.5">Bundle of primary shifts</p>
+                    </div>
+                    <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-5">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Bundle Name *</label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="e.g. Full Time"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/50 text-sm transition-all"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Bundle Monthly Price (₹)</label>
+                        <div className="relative">
+                            <IndianRupee size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <input
+                                type="number"
+                                value={price}
+                                onChange={e => setPrice(e.target.value)}
+                                min="0"
+                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white focus:outline-none focus:border-orange-500/50 text-sm transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block">Component Shifts *</label>
+                        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                            {primaryShifts.map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => toggleShift(s.id)}
+                                    className={cn(
+                                        "flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all",
+                                        selectedShiftIds.includes(s.id)
+                                            ? "bg-orange-500/10 border-orange-500/30 text-orange-200"
+                                            : "bg-white/5 border-white/5 text-gray-400 hover:border-white/10"
+                                    )}
+                                >
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium">{s.name}</span>
+                                        <span className="text-[10px] opacity-60 font-mono">{s.startTime} - {s.endTime}</span>
+                                    </div>
+                                    <div className={cn(
+                                        "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                        selectedShiftIds.includes(s.id) ? "bg-orange-500 border-orange-500" : "border-white/20"
+                                    )}>
+                                        {selectedShiftIds.includes(s.id) && <CheckCircle2 size={10} className="text-white" />}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                            <AlertCircle size={13} /> {error}
+                        </div>
+                    )}
+                </div>
+
+                <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+                    <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={loading || !name.trim() || selectedShiftIds.length < 2 || !!duplicateCombo || !!duplicateName}
+                        className="text-sm h-8 px-4 bg-orange-500/20 border border-orange-500/30 text-orange-300 hover:bg-orange-500/30 min-w-[100px] justify-center"
+                    >
+                        {loading ? <Loader2 size={14} className="animate-spin" /> : mode === "add" ? "Create Bundle" : "Save Changes"}
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ShiftsPage() {
@@ -810,13 +1057,19 @@ export default function ShiftsPage() {
     const branchId = params?.branchId as string;
 
     const [shifts, setShifts] = useState<Shift[]>([]);
+    const [multiShifts, setMultiShifts] = useState<MultiShift[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
     // Dialog state
-    const [dialog, setDialog] = useState<{ open: boolean; mode: "add" | "edit"; shift?: Shift }>({
-        open: false, mode: "add",
+    const [dialog, setDialog] = useState<{
+        open: boolean;
+        mode: "type-picker" | "add-primary" | "add-multi" | "edit-primary" | "edit-multi";
+        shift?: Shift;
+        multiShift?: MultiShift;
+    }>({
+        open: false, mode: "add-primary",
     });
 
     // Delete dialog state
@@ -831,9 +1084,20 @@ export default function ShiftsPage() {
         if (!branchId) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/branches/${branchId}/shifts`);
-            if (!res.ok) throw new Error("Failed to load shifts");
-            setShifts(await res.json());
+            const [shiftsRes, multiRes] = await Promise.all([
+                fetch(`/api/branches/${branchId}/shifts`),
+                fetch(`/api/branches/${branchId}/multi-shifts`)
+            ]);
+            
+            if (!shiftsRes.ok || !multiRes.ok) throw new Error("Failed to load shifts");
+            
+            const [shiftsData, multiData] = await Promise.all([
+                shiftsRes.json(),
+                multiRes.json()
+            ]);
+            
+            setShifts(shiftsData);
+            setMultiShifts(multiData);
             setError(null);
         } catch (err: any) {
             setError(err.message);
@@ -850,7 +1114,7 @@ export default function ShiftsPage() {
             if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
             return [...prev, saved];
         });
-        showToast(dialog.mode === "add" ? `"${saved.name}" added.` : `"${saved.name}" updated.`);
+        showToast(dialog.mode === "add-primary" ? `"${saved.name}" added.` : `"${saved.name}" updated.`);
     };
 
     const handleDeleted = (shiftId: string) => {
@@ -893,16 +1157,16 @@ export default function ShiftsPage() {
             <PageHeader
                 title="Shifts"
                 subtitle="Manage time windows for seat allocations."
-                onAdd={() => setDialog({ open: true, mode: "add" })}
+                onAdd={() => setDialog({ open: true, mode: "type-picker" })}
                 actionLabel="Add Shift"
             />
 
-            {shifts.length === 0 ? (
+            {shifts.length === 0 && multiShifts.length === 0 ? (
                 <div className="text-center py-16 border border-dashed border-white/10 rounded-xl text-gray-500">
                     <Clock size={36} className="mx-auto mb-3 opacity-30" />
                     <p>No shifts found.</p>
                     <button
-                        onClick={() => setDialog({ open: true, mode: "add" })}
+                        onClick={() => setDialog({ open: true, mode: "type-picker" })}
                         className="mt-3 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
                     >
                         + Add your first shift
@@ -913,17 +1177,23 @@ export default function ShiftsPage() {
                     <table className="w-full text-left text-sm">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02] text-zinc-400">
-                                <th className="px-6 py-4 font-medium">Name</th>
-                                <th className="px-6 py-4 font-medium">Time Window</th>
-                                <th className="px-6 py-4 font-medium">Type</th>
-                                <th className="px-6 py-4 font-medium">Price</th>
-                                <th className="px-6 py-4 font-medium w-14" />
+                                <th className="px-6 py-4 font-semibold text-gray-400">Shift Name</th>
+                                <th className="px-6 py-4 font-semibold text-gray-400">Type</th>
+                                <th className="px-6 py-4 font-semibold text-gray-400">Time Window</th>
+                                <th className="px-6 py-4 font-semibold text-gray-400">Price</th>
+                                <th className="px-6 py-4 font-semibold text-gray-400 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
+                            {/* Primary Shifts */}
                             {shifts.map(shift => (
                                 <tr key={shift.id} className="group hover:bg-white/[0.02] transition-colors">
-                                    <td className="px-6 py-4 font-medium text-zinc-200">{shift.name}</td>
+                                    <td className="px-6 py-4 text-white font-medium">{shift.name}</td>
+                                    <td className="px-6 py-4">
+                                        <Badge variant="warning" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/20 font-bold tracking-wider text-[10px]">
+                                            PRIMARY
+                                        </Badge>
+                                    </td>
                                     <td className="px-6 py-4 text-zinc-400">
                                         {shift.startTime && shift.endTime ? (
                                             <span className="font-mono flex items-center gap-1.5">
@@ -934,24 +1204,13 @@ export default function ShiftsPage() {
                                             <span className="text-zinc-500 italic text-xs">No time limit</span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4">
-                                        {shift.isReserved
-                                            ? <Badge variant="purple"><Shield size={10} className="mr-1" />Reserved</Badge>
-                                            : <Badge variant="cyan">Standard</Badge>
-                                        }
-                                    </td>
-                                    <td className="px-6 py-4 text-zinc-400">
-                                        {shift.price > 0
-                                            ? <span className="text-white font-medium">₹{shift.price.toLocaleString("en-IN")}</span>
-                                            : <span className="text-zinc-600 italic text-xs">No price</span>
-                                        }
-                                    </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 text-white font-medium">₹{shift.price}</td>
+                                    <td className="px-6 py-4 text-right">
                                         <RowActions actions={[
                                             {
                                                 label: "Edit",
                                                 icon: Pencil,
-                                                onClick: () => setDialog({ open: true, mode: "edit", shift }),
+                                                onClick: () => setDialog({ open: true, mode: "edit-primary", shift }),
                                             },
                                             {
                                                 label: "Delete",
@@ -963,19 +1222,94 @@ export default function ShiftsPage() {
                                     </td>
                                 </tr>
                             ))}
+
+                            {/* Multi Shifts */}
+                            {multiShifts.map(ms => (
+                                <tr key={ms.id} className="group hover:bg-white/[0.02] transition-colors border-t border-white/5">
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-white font-medium">{ms.name}</span>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                {ms.components.map(c => (
+                                                    <span key={c.shiftId} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5">
+                                                        {c.shiftName}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <Badge variant="warning" className="bg-orange-500/10 text-orange-300 border-orange-500/20 font-bold tracking-wider text-[10px]">
+                                            MULTI-SHIFT
+                                        </Badge>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="text-zinc-500 text-xs">
+                                            {ms.components.length} slots combined
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-white font-medium">₹{ms.price}</td>
+                                    <td className="px-6 py-4 text-right">
+                                        <RowActions actions={[
+                                            {
+                                                label: "Edit",
+                                                icon: Pencil,
+                                                onClick: () => setDialog({ open: true, mode: "edit-multi", multiShift: ms }),
+                                            },
+                                            {
+                                                label: "Delete",
+                                                icon: Trash2,
+                                                variant: "danger",
+                                                onClick: () => {
+                                                    if (confirm("Delete this multi-shift bundle? Student allocations will remain but grouping will be lost.")) {
+                                                        fetch(`/api/branches/${branchId}/multi-shifts/${ms.id}`, { method: "DELETE" })
+                                                            .then(() => {
+                                                                setMultiShifts(prev => prev.filter(x => x.id !== ms.id));
+                                                                showToast(`"${ms.name}" deleted.`);
+                                                            });
+                                                    }
+                                                },
+                                            },
+                                        ]} />
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </Card>
             )}
 
+            {/* Dialogs */}
+            <TypePickerDialog 
+                isOpen={dialog.open && dialog.mode === "type-picker"}
+                onClose={() => setDialog({ ...dialog, open: false })}
+                onSelect={(type) => setDialog({ open: true, mode: type === "primary" ? "add-primary" : "add-multi" })}
+            />
+
             <ShiftDialog
-                isOpen={dialog.open}
-                mode={dialog.mode}
+                isOpen={dialog.open && (dialog.mode === "add-primary" || dialog.mode === "edit-primary")}
+                mode={dialog.mode === "add-primary" ? "add" : "edit"}
                 initial={dialog.shift}
                 branchId={branchId}
                 existingShifts={shifts}
-                onClose={() => setDialog({ open: false, mode: "add" })}
+                onClose={() => setDialog({ ...dialog, open: false })}
                 onSuccess={handleDialogSuccess}
+            />
+
+            <MultiShiftDialog
+                isOpen={dialog.open && (dialog.mode === "add-multi" || dialog.mode === "edit-multi")}
+                mode={dialog.mode === "add-multi" ? "add" : "edit"}
+                initial={dialog.multiShift}
+                branchId={branchId}
+                primaryShifts={shifts}
+                existingMultiShifts={multiShifts}
+                onClose={() => setDialog({ ...dialog, open: false })}
+                onSuccess={(ms) => {
+                    if (dialog.mode === "add-multi") setMultiShifts([...multiShifts, ms]);
+                    else setMultiShifts(multiShifts.map(x => x.id === ms.id ? ms : x));
+                    showToast(dialog.mode === "add-multi" ? `"${ms.name}" added.` : `"${ms.name}" updated.`);
+                    setDialog({ ...dialog, open: false });
+                }}
             />
 
             {deleteTarget && (

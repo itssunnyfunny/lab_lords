@@ -32,8 +32,8 @@ interface Student {
     id: string;
     name: string;
     status: string;
-    joinedAt?: string;
-    createdAt?: string;
+    joinedAt?: Date | string | null;
+    createdAt?: Date | string;
 }
 
 interface DashboardData {
