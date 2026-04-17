@@ -23,21 +23,15 @@ export default function AIInsightsPage() {
     useEffect(() => {
         async function fetchData() {
             try {
-                console.log("Fetching insights for branch:", branchId);
                 const res = await fetch(`/api/ai/branch/${branchId}`);
-                console.log("Response status:", res.status);
 
                 if (!res.ok) {
-                    const errorText = await res.text();
-                    console.error("Fetch failed:", errorText);
                     throw new Error("Failed to fetch insights");
                 }
 
                 const json = await res.json();
-                console.log("Received AI Data:", json);
                 setData(json);
-            } catch (err) {
-                console.error("Error in fetchData:", err);
+            } catch {
                 setError("Could not load insights. Please try again.");
             } finally {
                 setLoading(false);
@@ -61,7 +55,6 @@ export default function AIInsightsPage() {
             <div className="p-8 text-center text-red-400">
                 <AlertTriangle className="mx-auto mb-2" size={32} />
                 {error}
-                <p className="text-sm text-textMuted mt-2">Check console for details.</p>
             </div>
         );
     }

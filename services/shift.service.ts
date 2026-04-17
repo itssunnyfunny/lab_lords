@@ -302,20 +302,25 @@ export class ShiftService {
                     throw new Error("Not enough unoccupied seats available in target shift.");
                 }
 
-                for (let i = 0; i < sourceAllocations.length; i++) {
-                    const oldAlloc = sourceAllocations[i];
-                    const newSeat = availableSeats[i];
-                    await tx.seatAllocation.update({
-                        where: { id: oldAlloc.id },
-                        data: { endDate: now },
-                    });
-                    await tx.seatAllocation.create({
-                        data: {
-                            studentId: oldAlloc.studentId,
-                            shiftId: targetShiftId,
-                            seatId: newSeat.id,
-                            startDate: now,
-                        },
+                // ⚡ Bolt: Optimizing bulk shift reassignment.
+                // Impact: Changed O(n) individual updates/creates to two batch operations (updateMany and createMany).
+                // Significantly reduces DB overhead and locks during reallocations.
+                const oldAllocIds = sourceAllocations.map(a => a.id);
+                await tx.seatAllocation.updateMany({
+                    where: { id: { in: oldAllocIds } },
+                    data: { endDate: now },
+                });
+
+                const newAllocations = sourceAllocations.map((oldAlloc, i) => ({
+                    studentId: oldAlloc.studentId,
+                    shiftId: targetShiftId,
+                    seatId: availableSeats[i].id,
+                    startDate: now,
+                }));
+
+                if (newAllocations.length > 0) {
+                    await tx.seatAllocation.createMany({
+                        data: newAllocations,
                     });
                 }
 
@@ -429,22 +434,31 @@ export class ShiftService {
     }
 
     static async ensureDefaultShifts(branchId: string) {
-        for (const def of DEFAULT_SHIFTS) {
-            const existing = await prisma.shift.findFirst({
-                where: { branchId, name: def.name, status: "ACTIVE" },
+        // ⚡ Bolt: Batch database queries to prevent N+1 bottleneck.
+        // Replaced loop-based findFirst + create with a single findMany and createMany.
+        const existingShifts = await prisma.shift.findMany({
+            where: {
+                branchId,
+                name: { in: DEFAULT_SHIFTS.map(def => def.name) },
+                status: "ACTIVE"
+            },
+            select: { name: true }
+        });
+
+        const existingNames = new Set(existingShifts.map(s => s.name));
+        const missingShifts = DEFAULT_SHIFTS.filter(def => !existingNames.has(def.name));
+
+        if (missingShifts.length > 0) {
+            await prisma.shift.createMany({
+                data: missingShifts.map(def => ({
+                    branchId,
+                    name: def.name,
+                    startTime: def.startTime,
+                    endTime: def.endTime,
+                    price: def.price,
+                    isReserved: def.isReserved,
+                })),
             });
-            if (!existing) {
-                await prisma.shift.create({
-                    data: {
-                        branchId,
-                        name: def.name,
-                        startTime: def.startTime,
-                        endTime: def.endTime,
-                        price: def.price,
-                        isReserved: def.isReserved,
-                    },
-                });
-            }
         }
     }
 

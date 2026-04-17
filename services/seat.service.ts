@@ -104,13 +104,27 @@ export class SeatService {
     static async generateOccupancySnapshot(branchId: string, asOf?: Date): Promise<SeatOccupancySnapshot> {
         const date = asOf ?? new Date()
 
-        const branchInfo = await prisma.branch.findUnique({
-            where: { id: branchId },
-            select: {
-                _count: { select: { seats: true } },
-                shifts: { where: { status: "ACTIVE" }, select: { id: true, name: true } }
-            }
-        })
+        // ⚡ Bolt: Fetch branch info and active allocations concurrently to prevent waterfall delay
+        const [branchInfo, activeAllocations] = await Promise.all([
+            prisma.branch.findUnique({
+                where: { id: branchId },
+                select: {
+                    _count: { select: { seats: true } },
+                    shifts: { where: { status: "ACTIVE" }, select: { id: true, name: true } }
+                }
+            }),
+            prisma.seatAllocation.findMany({
+                where: {
+                    seat: { branchId },
+                    startDate: { lte: date },
+                    OR: [
+                        { endDate: null },
+                        { endDate: { gt: date } },
+                    ],
+                },
+                select: { shiftId: true }
+            })
+        ]);
 
         if (!branchInfo) {
             throw new Error(`Branch ${branchId} not found`)
@@ -128,18 +142,6 @@ export class SeatService {
                 capacity: seatCount,
             }
         }
-
-        const activeAllocations = await prisma.seatAllocation.findMany({
-            where: {
-                seat: { branchId },
-                startDate: { lte: date },
-                OR: [
-                    { endDate: null },
-                    { endDate: { gt: date } },
-                ],
-            },
-            select: { shiftId: true }
-        })
 
         for (const alloc of activeAllocations) {
             if (shiftBuckets[alloc.shiftId]) {
@@ -269,30 +271,32 @@ export class SeatService {
         }
 
         // ── PRIMARY SHIFT PATH ────────────────────────────────────────────────
-        const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
+        // ⚡ Fetch requested shift, all active shifts, and seats concurrently
+        const [shift, allShifts, seats] = await Promise.all([
+            prisma.shift.findUnique({ where: { id: shiftId } }),
+            prisma.shift.findMany({
+                where: { branchId, status: "ACTIVE" },
+                select: { id: true, startTime: true, endTime: true },
+            }),
+            prisma.seat.findMany({
+                where: { branchId },
+                include: {
+                    seatAllocations: {
+                        where: { endDate: null },
+                        include: { student: { select: { name: true } }, shift: { select: { startTime: true, endTime: true } } },
+                    },
+                },
+                orderBy: { label: "asc" },
+            })
+        ]);
+
         if (!shift || shift.branchId !== branchId) throw new Error("Shift not found");
 
         // Determine the time window of the requested shift
         const requestedStart = shift.startTime ? parseTime(shift.startTime) : null;
         const requestedEnd = shift.endTime ? parseTime(shift.endTime) : null;
 
-        // Load all ACTIVE shifts in this branch (to do overlap comparisons)
-        const allShifts = await prisma.shift.findMany({
-            where: { branchId, status: "ACTIVE" },
-            select: { id: true, startTime: true, endTime: true },
-        });
         const shiftTimeMap = new Map(allShifts.map(s => [s.id, s]));
-
-        const seats = await prisma.seat.findMany({
-            where: { branchId },
-            include: {
-                seatAllocations: {
-                    where: { endDate: null },
-                    include: { student: { select: { name: true } }, shift: { select: { startTime: true, endTime: true } } },
-                },
-            },
-            orderBy: { label: "asc" },
-        });
 
         const totalSeats = seats.length;
         let occupiedCount = 0;
@@ -351,24 +355,26 @@ export class SeatService {
     static async getShiftsCapacity(userId: string, branchId: string, studentId?: string) {
         await this.assertBranchOwnership(userId, branchId);
 
-        const totalSeats = await prisma.seat.count({ where: { branchId } });
-
-        const shifts = await prisma.shift.findMany({
-            where: { branchId, status: "ACTIVE" },
-            include: {
-                _count: { select: { seatAllocations: { where: { endDate: null } } } },
-            },
-            orderBy: { name: "asc" },
-        });
+        // ⚡ Bolt: Fetch total seats, active shifts, and optionally student's allocations concurrently
+        const [totalSeats, shifts, rawAllocations] = await Promise.all([
+            prisma.seat.count({ where: { branchId } }),
+            prisma.shift.findMany({
+                where: { branchId, status: "ACTIVE" },
+                include: {
+                    _count: { select: { seatAllocations: { where: { endDate: null } } } },
+                },
+                orderBy: { name: "asc" },
+            }),
+            studentId ? prisma.seatAllocation.findMany({
+                where: { studentId, endDate: null },
+                include: { shift: { select: { id: true, startTime: true, endTime: true } } },
+            }) : Promise.resolve([])
+        ]);
 
         // Load student's current allocations with their shift times
         type AllocWithTime = { shiftId: string; startTime: string | null; endTime: string | null };
         const studentAllocations: AllocWithTime[] = [];
-        if (studentId) {
-            const rawAllocations = await prisma.seatAllocation.findMany({
-                where: { studentId, endDate: null },
-                include: { shift: { select: { id: true, startTime: true, endTime: true } } },
-            });
+        if (studentId && rawAllocations.length > 0) {
             for (const a of rawAllocations) {
                 studentAllocations.push({
                     shiftId: a.shiftId,

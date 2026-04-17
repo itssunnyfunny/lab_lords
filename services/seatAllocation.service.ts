@@ -110,7 +110,7 @@ export class SeatAllocationService {
                 where: { studentId, endDate: null },
             });
 
-            const createdAllocations = [];
+            const allocationsToCreate = [];
 
             for (const requestedShift of requestedShifts) {
                 const newStart = parseNullableTime(requestedShift.startTime);
@@ -151,12 +151,14 @@ export class SeatAllocationService {
                         ...(multiShiftId ? { multiShiftId } : {}),
                     },
                 });
-                createdAllocations.push(allocation);
 
-                // Note: push into live arrays so subsequent iterations in the loop
+                // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
-                activeSeatAllocations.push(allocation);
-                activeStudentAllocations.push(allocation);
+                const mockAllocation = { shiftId: requestedShift.id } as import("@prisma/client").SeatAllocation;
+                activeSeatAllocations.push(mockAllocation);
+                activeStudentAllocations.push(mockAllocation);
+
+                allocationsToCreate.push(allocation);
             }
 
             // 9. Update Branch lastDataChange
@@ -165,7 +167,7 @@ export class SeatAllocationService {
                 data: { lastDataChange: new Date() },
             });
 
-            return createdAllocations;
+            return allocationsToCreate;
         });
     }
 
