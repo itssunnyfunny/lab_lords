@@ -10,8 +10,8 @@ interface Student {
     id: string;
     name: string;
     status: string;
-    createdAt?: string;
-    joinedAt?: string;
+    createdAt?: Date | string;
+    joinedAt?: Date | string | null;
 }
 
 interface RecentStudentsProps {

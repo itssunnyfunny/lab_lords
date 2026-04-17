@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2, Lock, Check } from "lucide-react";
+import { Loader2, CheckCircle2, Lock, Check, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
 export interface ShiftCapacity {
-    shiftId: string;
+    type: "PRIMARY" | "MULTISHIFT";
+    shiftId: string;          // For PRIMARY: shift DB id; For MULTISHIFT: multiShift DB id
+    multiShiftId?: string;    // Only set for MULTISHIFT
     name: string;
     startTime: string | null;
     endTime: string | null;
@@ -18,6 +20,8 @@ export interface ShiftCapacity {
     occupancyPercent: number;
     isFull: boolean;
     studentAlreadyAllocated: boolean;
+    componentShiftIds?: string[];
+    componentShiftNames?: string[];
 }
 
 export interface SeatCell {
@@ -64,9 +68,9 @@ function formatTime(t: string | null) {
 interface SeatPickerProps {
     branchId: string;
     studentId?: string;
-    selectedShiftIds: string[];   // Changed: array of selected shift IDs
+    selectedShiftIds: string[];
     selectedSeatId: string | null;
-    onToggleShift: (shift: ShiftCapacity) => void; // Toggle a shift on/off
+    onToggleShift: (shift: ShiftCapacity) => void;
     onSelectSeat: (seatId: string | null) => void;
 }
 
@@ -82,15 +86,15 @@ export function SeatPicker({
     const [shiftsLoading, setShiftsLoading] = useState(false);
     const [shiftsError, setShiftsError] = useState<string | null>(null);
 
-    // The seat map is always fetched for the FIRST selected shift
-    // (since shifts must be non-overlapping, all valid shifts share the same physical seats)
+    // The seat map is always fetched for the FIRST selected primary shift
+    // For multi-shifts, the first component shiftId is used
     const primaryShiftId = selectedShiftIds[0] ?? null;
     const [seatMap, setSeatMap] = useState<SeatMapData | null>(null);
     const [seatMapLoading, setSeatMapLoading] = useState(false);
     const [seatMapError, setSeatMapError] = useState<string | null>(null);
     const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
 
-    // 1. Fetch capacity cards
+    // 1. Fetch capacity cards (now includes multi-shifts)
     useEffect(() => {
         setShiftsLoading(true);
         setShiftsError(null);
@@ -115,7 +119,24 @@ export function SeatPicker({
         }
         setSeatMapLoading(true);
         setSeatMapError(null);
-        fetch(`/api/branches/${branchId}/shifts/${primaryShiftId}/seat-map`)
+
+        const selectedShift = shifts.find(
+            s => s.shiftId === primaryShiftId ||
+                (s.type === "MULTISHIFT" && s.componentShiftIds?.includes(primaryShiftId))
+        );
+
+        // For a multi-shift: use the first component shiftId as the URL path segment
+        // (required for routing) and add multiShiftId as a query param so the
+        // server checks occupancy across ALL component shifts.
+        let mapShiftId = primaryShiftId;
+        let seatMapUrl = `/api/branches/${branchId}/shifts/${mapShiftId}/seat-map`;
+
+        if (selectedShift?.type === "MULTISHIFT" && selectedShift.componentShiftIds?.[0]) {
+            mapShiftId = selectedShift.componentShiftIds[0];
+            seatMapUrl = `/api/branches/${branchId}/shifts/${mapShiftId}/seat-map?multiShiftId=${selectedShift.multiShiftId}`;
+        }
+
+        fetch(seatMapUrl)
             .then(r => {
                 if (!r.ok) throw new Error("Failed to load seat map");
                 return r.json();
@@ -123,13 +144,18 @@ export function SeatPicker({
             .then(setSeatMap)
             .catch(e => setSeatMapError(e.message))
             .finally(() => setSeatMapLoading(false));
-    }, [branchId, primaryShiftId]);
+    }, [branchId, primaryShiftId, shifts]);
+
 
     const selectedCount = selectedShiftIds.length;
 
+    // Separate primary and multi-shift items
+    const primaryShifts = shifts.filter(s => s.type === "PRIMARY");
+    const multiShifts = shifts.filter(s => s.type === "MULTISHIFT");
+
     return (
         <div className="space-y-6">
-            {/* Step 1: Shifts — multi-select */}
+            {/* Step 1: Shifts */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">
@@ -137,7 +163,7 @@ export function SeatPicker({
                     </p>
                     {selectedCount > 0 && (
                         <span className="text-xs text-indigo-300 font-medium">
-                            {selectedCount} selected
+                            {selectedCount} shift{selectedCount > 1 ? "s" : ""} selected
                         </span>
                     )}
                 </div>
@@ -155,82 +181,46 @@ export function SeatPicker({
                 )}
 
                 {!shiftsLoading && !shiftsError && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {shifts.map(shift => {
-                            const pct = shift.occupancyPercent;
-                            const blocked = shift.isFull || shift.studentAlreadyAllocated;
-                            const isSelected = selectedShiftIds.includes(shift.shiftId);
-
-                            return (
-                                <div
-                                    key={shift.shiftId}
-                                    className={cn(
-                                        "relative rounded-xl border p-3.5 transition-all text-left w-full cursor-pointer select-none",
-                                        blocked
-                                            ? "border-white/5 bg-white/[0.02] opacity-60 cursor-not-allowed"
-                                            : isSelected
-                                                ? "border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
-                                                : "border-white/10 bg-white/[0.03] hover:border-indigo-500/40 hover:bg-white/[0.06]"
-                                    )}
-                                    tabIndex={blocked ? -1 : 0}
-                                    role="checkbox"
-                                    aria-checked={isSelected}
-                                    onClick={() => !blocked && onToggleShift(shift)}
-                                    onKeyDown={(e) => { if (!blocked && (e.key === " " || e.key === "Enter")) onToggleShift(shift); }}
-                                >
-                                    {/* Multi-select checkmark */}
-                                    {!blocked && (
-                                        <span className={cn(
-                                            "absolute top-2.5 right-2.5 w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                            isSelected
-                                                ? "bg-indigo-500 border-indigo-400"
-                                                : "border-white/20 bg-white/5"
-                                        )}>
-                                            {isSelected && <Check size={10} className="text-white" strokeWidth={3} />}
-                                        </span>
-                                    )}
-
-                                    <div className="flex items-start justify-between mb-1 pr-6">
-                                        <div>
-                                            <p className={cn("font-medium text-sm", isSelected ? "text-indigo-200" : "text-white")}>
-                                                {shift.name}
-                                                {shift.isReserved && (
-                                                    <span className="ml-2 text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-full font-medium">
-                                                        RESERVED
-                                                    </span>
-                                                )}
-                                            </p>
-                                            {(shift.startTime || shift.endTime) && (
-                                                <p className="text-[11px] text-zinc-500 mt-0.5">
-                                                    {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div className="text-right flex-shrink-0 ml-4">
-                                            {shift.studentAlreadyAllocated ? (
-                                                <span className="inline-flex items-center gap-1 text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
-                                                    <Lock size={10} /> Allocated
-                                                </span>
-                                            ) : shift.isFull ? (
-                                                <span className="text-xs text-red-400 font-medium">Full</span>
-                                            ) : (
-                                                <span className={cn("text-xs font-medium", capacityTextColor(pct, shift.isFull))}>
-                                                    {shift.available} / {shift.totalSeats} free
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Capacity bar */}
-                                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div
-                                            className={cn("h-full rounded-full transition-all", capacityBarColor(pct, shift.isFull))}
-                                            style={{ width: `${Math.min(100, pct)}%` }}
+                    <div className="space-y-4">
+                        {/* Primary Shifts */}
+                        {primaryShifts.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-yellow-400/70 inline-block" />
+                                    Primary Shifts
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {primaryShifts.map(shift => (
+                                        <ShiftCard
+                                            key={shift.shiftId}
+                                            shift={shift}
+                                            isSelected={selectedShiftIds.includes(shift.shiftId)}
+                                            onToggle={onToggleShift}
                                         />
-                                    </div>
+                                    ))}
                                 </div>
-                            );
-                        })}
+                            </div>
+                        )}
+
+                        {/* Multi-Shifts */}
+                        {multiShifts.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-orange-400/70 inline-block" />
+                                    Multi-Shifts
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {multiShifts.map(shift => (
+                                        <ShiftCard
+                                            key={shift.shiftId}
+                                            shift={shift}
+                                            isSelected={selectedShiftIds.includes(shift.shiftId)}
+                                            onToggle={onToggleShift}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -312,4 +302,110 @@ export function SeatPicker({
             )}
         </div>
     );
+}
+
+// ─── Shift Card ────────────────────────────────────────────────────────────────
+
+function ShiftCard({
+    shift,
+    isSelected,
+    onToggle,
+}: {
+    shift: ShiftCapacity;
+    isSelected: boolean;
+    onToggle: (s: ShiftCapacity) => void;
+}) {
+    const blocked = shift.isFull || shift.studentAlreadyAllocated;
+    const pct = shift.occupancyPercent;
+    const isMulti = shift.type === "MULTISHIFT";
+
+    return (
+        <div
+            className={cn(
+                "relative rounded-xl border p-3.5 transition-all text-left w-full cursor-pointer select-none",
+                blocked
+                    ? "border-white/5 bg-white/[0.02] opacity-60 cursor-not-allowed"
+                    : isSelected
+                        ? isMulti
+                            ? "border-orange-500/50 bg-orange-500/10 shadow-[0_0_15px_rgba(249,115,22,0.15)]"
+                            : "border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
+                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
+            )}
+            tabIndex={blocked ? -1 : 0}
+            role="checkbox"
+            aria-checked={isSelected}
+            onClick={() => !blocked && onToggle(shift)}
+            onKeyDown={(e) => { if (!blocked && (e.key === " " || e.key === "Enter")) onToggle(shift); }}
+        >
+            {/* Checkmark */}
+            {!blocked && (
+                <span className={cn(
+                    "absolute top-2.5 right-2.5 w-4 h-4 rounded border flex items-center justify-center transition-all",
+                    isSelected
+                        ? isMulti ? "bg-orange-500 border-orange-400" : "bg-indigo-500 border-indigo-400"
+                        : "border-white/20 bg-white/5"
+                )}>
+                    {isSelected && <Check size={10} className="text-white" strokeWidth={3} />}
+                </span>
+            )}
+
+            {/* Type badge */}
+            <div className="mb-1 pr-6">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                    {isMulti ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/20">
+                            <Layers size={8} /> MULTI-SHIFT
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20">
+                            PRIMARY
+                        </span>
+                    )}
+                </div>
+
+                <div className="flex items-start justify-between">
+                    <div>
+                        <p className={cn("font-medium text-sm", isSelected ? (isMulti ? "text-orange-200" : "text-indigo-200") : "text-white")}>
+                            {shift.name}
+                        </p>
+                        {isMulti && shift.componentShiftNames && (
+                            <p className="text-[11px] text-zinc-500 mt-0.5">
+                                {shift.componentShiftNames.join(" + ")}
+                            </p>
+                        )}
+                        {!isMulti && (shift.startTime || shift.endTime) && (
+                            <p className="text-[11px] text-zinc-500 mt-0.5">
+                                {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
+                            </p>
+                        )}
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                        {shift.studentAlreadyAllocated ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
+                                <Lock size={10} /> Allocated
+                            </span>
+                        ) : shift.isFull ? (
+                            <span className="text-xs text-red-400 font-medium">Full</span>
+                        ) : (
+                            <span className={cn("text-xs font-medium", capacityTextColor(pct, shift.isFull))}>
+                                {shift.available} / {shift.totalSeats} free
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Capacity bar */}
+            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div
+                    className={cn("h-full rounded-full transition-all", capacityBarColor(pct, shift.isFull))}
+                    style={{ width: `${Math.min(100, pct)}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
+function capacityBarColorFn(pct: number, isFull: boolean) {
+    return capacityBarColor(pct, isFull);
 }

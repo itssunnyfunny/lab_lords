@@ -34,10 +34,15 @@ export function AllocateSeatDialog({
     const [studentName, setStudentName] = useState(preselectedStudentName ?? "");
     const [studentSearch, setStudentSearch] = useState("");
 
-    // Seat/shift picking — selectedShiftIds is now an array
+    // Shift selection state
+    // selectedShiftIds = the actual primary shift IDs to allocate (expanded from multi-shifts)
+    // selectedShiftNames = display names of selected shifts/multi-shifts
     const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
     const [selectedShiftNames, setSelectedShiftNames] = useState<string[]>([]);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
+    // Track if a multi-shift was selected (for display + payload)
+    const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(null);
+    const [selectedMultiShiftName, setSelectedMultiShiftName] = useState<string | null>(null);
 
     // Submission
     const [submitting, setSubmitting] = useState(false);
@@ -48,6 +53,8 @@ export function AllocateSeatDialog({
         setSelectedShiftIds([]);
         setSelectedShiftNames([]);
         setSelectedSeatId(null);
+        setSelectedMultiShiftId(null);
+        setSelectedMultiShiftName(null);
         setSubmitError(null);
         setStudentId(preselectedStudentId ?? "");
         setStudentName(preselectedStudentName ?? "");
@@ -63,18 +70,37 @@ export function AllocateSeatDialog({
     }, [isOpen, branchId, preselectedStudentId]);
 
     const handleToggleShift = (shift: ShiftCapacity) => {
-        setSelectedSeatId(null); // Reset seat whenever shifts change
+        setSelectedSeatId(null);
         setSubmitError(null);
-        setSelectedShiftIds(prev => {
-            const exists = prev.includes(shift.shiftId);
-            if (exists) {
-                setSelectedShiftNames(names => names.filter(n => n !== shift.name));
-                return prev.filter(id => id !== shift.shiftId);
+
+        if (shift.type === "MULTISHIFT") {
+            // Toggle multi-shift: if already selected, clear; else select and expand
+            if (selectedMultiShiftId === shift.shiftId) {
+                setSelectedMultiShiftId(null);
+                setSelectedMultiShiftName(null);
+                setSelectedShiftIds([]);
+                setSelectedShiftNames([]);
             } else {
-                setSelectedShiftNames(names => [...names, shift.name]);
-                return [...prev, shift.shiftId];
+                setSelectedMultiShiftId(shift.shiftId);
+                setSelectedMultiShiftName(shift.name);
+                setSelectedShiftIds(shift.componentShiftIds ?? []);
+                setSelectedShiftNames([shift.name]);
             }
-        });
+        } else {
+            // Primary shift toggle — clear any active multi-shift selection first
+            setSelectedMultiShiftId(null);
+            setSelectedMultiShiftName(null);
+            setSelectedShiftIds(prev => {
+                const exists = prev.includes(shift.shiftId);
+                if (exists) {
+                    setSelectedShiftNames(names => names.filter(n => n !== shift.name));
+                    return prev.filter(id => id !== shift.shiftId);
+                } else {
+                    setSelectedShiftNames(names => [...names, shift.name]);
+                    return [...prev, shift.shiftId];
+                }
+            });
+        }
     };
 
     const handleConfirm = async () => {
@@ -92,7 +118,8 @@ export function AllocateSeatDialog({
                 body: JSON.stringify({
                     studentId: sid,
                     seatId: selectedSeatId,
-                    shiftIds: selectedShiftIds,  // Send array
+                    shiftIds: selectedShiftIds,
+                    ...(selectedMultiShiftId ? { multiShiftId: selectedMultiShiftId } : {}),
                 }),
             });
 
@@ -122,6 +149,13 @@ export function AllocateSeatDialog({
         (s.phone && s.phone.includes(studentSearch))
     );
 
+    // Build confirm button label
+    const confirmLabel = selectedMultiShiftName
+        ? `Confirm (${selectedMultiShiftName})`
+        : selectedShiftIds.length > 1
+            ? `Confirm (${selectedShiftIds.length} shifts)`
+            : "Confirm";
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div
@@ -136,7 +170,7 @@ export function AllocateSeatDialog({
                             <p className="text-xs text-zinc-400 mt-0.5">
                                 for <span className="text-white">{effectiveStudentName}</span>
                                 {selectedShiftNames.length > 0 && (
-                                    <> · <span className="text-indigo-300">{selectedShiftNames.join(", ")}</span></>
+                                    <> · <span className={selectedMultiShiftId ? "text-orange-300" : "text-indigo-300"}>{selectedShiftNames.join(", ")}</span></>
                                 )}
                             </p>
                         )}
@@ -197,7 +231,7 @@ export function AllocateSeatDialog({
                     )}
                 </div>
 
-                {/* Footer — confirm button */}
+                {/* Footer */}
                 {canConfirm && (
                     <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 bg-white/[0.01] flex-shrink-0">
                         <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
@@ -206,7 +240,7 @@ export function AllocateSeatDialog({
                         <Button onClick={handleConfirm} disabled={submitting} className="text-sm h-8 px-5">
                             {submitting
                                 ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Allocating...</>
-                                : `Confirm (${selectedShiftIds.length} shift${selectedShiftIds.length > 1 ? "s" : ""})`
+                                : confirmLabel
                             }
                         </Button>
                     </div>

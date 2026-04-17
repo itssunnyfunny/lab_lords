@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Layers } from "lucide-react";
 
 interface Allocation {
     id: string;
@@ -14,6 +15,7 @@ interface Allocation {
     shift: { name: string; isReserved: boolean };
     startDate: string;
     endDate: string | null;
+    multiShift?: { id: string; name: string } | null;
 }
 
 interface AllocationsTableProps {
@@ -65,6 +67,8 @@ export function AllocationsTable({ allocations, onEndAllocation }: AllocationsTa
                 <tbody className="divide-y divide-white/5">
                     {sorted.map((alloc) => {
                         const isActive = !alloc.endDate;
+                        const isMulti = !!alloc.multiShift;
+
                         return (
                             <tr key={alloc.id} className="group hover:bg-white/5 transition-colors">
                                 <td className="px-6 py-4 font-medium text-zinc-200">
@@ -74,10 +78,21 @@ export function AllocationsTable({ allocations, onEndAllocation }: AllocationsTa
                                     {alloc.seat.label}
                                 </td>
                                 <td className="px-6 py-4">
-                                    {alloc.shift.isReserved ? (
-                                        <Badge variant="purple">{alloc.shift.name}</Badge>
+                                    {isMulti ? (
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/20 w-fit">
+                                                <Layers size={9} /> MULTI-SHIFT
+                                            </span>
+                                            <span className="text-xs text-orange-200 font-medium">{alloc.multiShift!.name}</span>
+                                            <span className="text-[10px] text-zinc-500">{alloc.shift.name}</span>
+                                        </div>
                                     ) : (
-                                        <span className="text-zinc-400">{alloc.shift.name}</span>
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20 w-fit">
+                                                PRIMARY
+                                            </span>
+                                            <span className="text-xs text-zinc-300">{alloc.shift.name}</span>
+                                        </div>
                                     )}
                                 </td>
                                 <td className="px-6 py-4 text-zinc-400">
@@ -93,9 +108,7 @@ export function AllocationsTable({ allocations, onEndAllocation }: AllocationsTa
                                 <td className="px-6 py-4">
                                     {isActive && (
                                         <Button
-                                            variant="danger" // Assuming danger variant exists or use outline-red style
-                                            // Since Button variant prop might be limited, let's check or use standard small button
-                                            // The Badge error earlier showed "danger" as valid.
+                                            variant="danger"
                                             onClick={() => handleEndClick(alloc.id)}
                                             isLoading={endingId === alloc.id}
                                             className="text-xs px-2 py-1 h-auto"
