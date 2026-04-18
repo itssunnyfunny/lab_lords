@@ -10,3 +10,7 @@
 ## 2024-04-03 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested at once resulted in multiple `tx.seatAllocation.create(...)` database roundtrips. When batching these inserts, the loop also relied on updating internal state arrays to do conflict resolution within the same transaction.
 **Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(...)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
+
+## 2024-05-15 - [Database Waterfall Delay Optimization]
+**Learning:** Sequential await calls for independent Prisma queries (e.g., `count`, `findMany` operations that don't depend on each other's results) cause a "waterfall delay", significantly increasing function execution time.
+**Action:** Replace sequential `await prisma.*` calls with concurrent execution using `Promise.all([...])` when fetching multiple independent entities in service layer methods.

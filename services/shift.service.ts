@@ -136,18 +136,29 @@ export class ShiftService {
 
         const branchId = shift.branchId;
 
-        const activeShiftCount = await prisma.shift.count({
-            where: { branchId, status: "ACTIVE" },
-        });
-        const isLastActiveShift = activeShiftCount <= 1;
+        // ⚡ Bolt: Fetch shift counts, allocations, other shifts, and total seats concurrently
+        // Impact: Eliminates database query waterfall delay during shift deletion analysis
+        const [activeShiftCount, rawAllocations, otherActiveShifts, totalBranchSeats] = await Promise.all([
+            prisma.shift.count({
+                where: { branchId, status: "ACTIVE" },
+            }),
+            prisma.seatAllocation.findMany({
+                where: { shiftId, endDate: null },
+                include: {
+                    student: { select: { id: true, name: true } },
+                    seat: { select: { label: true } },
+                },
+            }),
+            prisma.shift.findMany({
+                where: { branchId, status: "ACTIVE", id: { not: shiftId } },
+                include: {
+                    _count: { select: { seatAllocations: { where: { endDate: null } } } },
+                },
+            }),
+            prisma.seat.count({ where: { branchId } })
+        ]);
 
-        const rawAllocations = await prisma.seatAllocation.findMany({
-            where: { shiftId, endDate: null },
-            include: {
-                student: { select: { id: true, name: true } },
-                seat: { select: { label: true } },
-            },
-        });
+        const isLastActiveShift = activeShiftCount <= 1;
 
         const allocations = rawAllocations.map(a => ({
             allocationId: a.id,
@@ -157,15 +168,6 @@ export class ShiftService {
         }));
 
         const studentsInShift = allocations.length;
-
-        const otherActiveShifts = await prisma.shift.findMany({
-            where: { branchId, status: "ACTIVE", id: { not: shiftId } },
-            include: {
-                _count: { select: { seatAllocations: { where: { endDate: null } } } },
-            },
-        });
-
-        const totalBranchSeats = await prisma.seat.count({ where: { branchId } });
 
         const otherShifts = otherActiveShifts.map(s => {
             const activeAllocations = s._count.seatAllocations;
