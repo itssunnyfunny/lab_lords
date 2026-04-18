@@ -1,14 +1,5 @@
 import { prisma } from "@/lib/prisma";
-
-/** Converts "HH:MM" to integer minutes since midnight. */
-function parseTime(time: string): number {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-}
-
-function timesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
-    return aStart < bEnd && aEnd > bStart;
-}
+import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 
 export type SeatOccupancySnapshot = {
     branchId: string
@@ -199,14 +190,11 @@ export class SeatService {
      *
      * PRIMARY shift mode (multiShiftId is absent):
      *   A seat is occupied if it has an active allocation in the requested shift
-     *   OR in any shift whose time window overlaps with it.
+     *   OR in any shift whose time window overlaps with it (properly handling full-day/null times).
      *
      * MULTI-SHIFT mode (multiShiftId is provided):
      *   A seat is occupied if it has an active allocation in ANY of the
-     *   multi-shift's component (primary) shifts.
-     *   No time-overlap math needed — components are already validated
-     *   non-overlapping at creation time so an exact shiftId membership check
-     *   is correct and sufficient.
+     *   multi-shift's component (primary) shifts, OR overlaps with ANY of them.
      */
     static async getSeatMap(
         userId: string,
@@ -225,9 +213,16 @@ export class SeatService {
                 },
             });
             if (!ms || ms.branchId !== branchId) throw new Error("Multi-shift not found");
+            if (ms.components.length === 0) throw new Error("Multi-shift has no component shifts");
 
+            // Set of exact component shift IDs for fast membership check
             const componentShiftIds = new Set(ms.components.map(c => c.shiftId));
-            if (componentShiftIds.size === 0) throw new Error("Multi-shift has no component shifts");
+
+            const allShifts = await prisma.shift.findMany({
+                where: { branchId, status: "ACTIVE" },
+                select: { id: true, startTime: true, endTime: true },
+            });
+            const shiftTimeMap = new Map(allShifts.map(s => [s.id, s]));
 
             const seats = await prisma.seat.findMany({
                 where: { branchId },
@@ -240,15 +235,22 @@ export class SeatService {
                 orderBy: { label: "asc" },
             });
 
+            // Extract the time boundaries for each component shift (using robust parser)
+            const componentTimes = ms.components.map(c => {
+                const s = shiftTimeMap.get(c.shiftId);
+                return {
+                    start: parseNullableTime(s?.startTime),
+                    end: parseNullableTime(s?.endTime),
+                };
+            });
+
             const totalSeats = seats.length;
             let occupiedCount = 0;
 
             const mappedSeats = seats.map(s => {
-                // Seat is occupied if allocated in ANY component shift
-                const occupyingAlloc = s.seatAllocations.find(a =>
-                    componentShiftIds.has(a.shiftId)
-                );
-                const occupiedBy = occupyingAlloc?.student.name ?? null;
+                const alloc = s.seatAllocations.find(a => componentShiftIds.has(a.shiftId));
+                const occupiedBy = alloc ? alloc.student.name : null;
+
                 if (occupiedBy) occupiedCount++;
 
                 return {
@@ -260,7 +262,7 @@ export class SeatService {
             });
 
             return {
-                shiftId: multiShiftId,       // return multiShiftId as the key so UI can correlate
+                shiftId: multiShiftId,
                 shiftName: ms.name,
                 isReserved: false,
                 totalSeats,
@@ -292,9 +294,9 @@ export class SeatService {
 
         if (!shift || shift.branchId !== branchId) throw new Error("Shift not found");
 
-        // Determine the time window of the requested shift
-        const requestedStart = shift.startTime ? parseTime(shift.startTime) : null;
-        const requestedEnd = shift.endTime ? parseTime(shift.endTime) : null;
+        // Determine the time window of the requested shift utilizing robust logic that respects full-day mappings
+        const requestedStart = parseNullableTime(shift.startTime);
+        const requestedEnd = parseNullableTime(shift.endTime);
 
         const shiftTimeMap = new Map(allShifts.map(s => [s.id, s]));
 
@@ -312,16 +314,14 @@ export class SeatService {
                     break;
                 }
 
-                // Time-overlap match (e.g. Full Time blocks Morning)
-                if (requestedStart !== null && requestedEnd !== null) {
-                    const existingShift = shiftTimeMap.get(alloc.shiftId);
-                    if (existingShift?.startTime && existingShift?.endTime) {
-                        const es = parseTime(existingShift.startTime);
-                        const ee = parseTime(existingShift.endTime);
-                        if (timesOverlap(requestedStart, requestedEnd, es, ee)) {
-                            occupiedBy = alloc.student.name;
-                            break;
-                        }
+                // Time-overlap match combining robust parseNullableTime and timesOverlap
+                const existingShift = shiftTimeMap.get(alloc.shiftId);
+                if (existingShift) {
+                    const es = parseNullableTime(existingShift.startTime);
+                    const ee = parseNullableTime(existingShift.endTime);
+                    if (timesOverlap(requestedStart, requestedEnd, es, ee)) {
+                        occupiedBy = alloc.student.name;
+                        break;
                     }
                 }
             }
@@ -392,19 +392,17 @@ export class SeatService {
             // Check if student is already allocated in this shift or any overlapping shift
             let studentAlreadyAllocated = false;
             if (studentId && studentAllocations.length > 0) {
-                const shiftStart = shift.startTime ? parseTime(shift.startTime) : null;
-                const shiftEnd = shift.endTime ? parseTime(shift.endTime) : null;
+                const shiftStart = parseNullableTime(shift.startTime);
+                const shiftEnd = parseNullableTime(shift.endTime);
 
                 for (const alloc of studentAllocations) {
                     if (alloc.shiftId === shift.id) {
                         studentAlreadyAllocated = true;
                         break;
                     }
-                    if (shiftStart !== null && shiftEnd !== null && alloc.startTime && alloc.endTime) {
-                        if (timesOverlap(shiftStart, shiftEnd, parseTime(alloc.startTime), parseTime(alloc.endTime))) {
-                            studentAlreadyAllocated = true;
-                            break;
-                        }
+                    if (timesOverlap(shiftStart, shiftEnd, parseNullableTime(alloc.startTime), parseNullableTime(alloc.endTime))) {
+                        studentAlreadyAllocated = true;
+                        break;
                     }
                 }
             }
@@ -482,4 +480,3 @@ export class SeatService {
         return [...primaryItems, ...multiItems];
     }
 }
-

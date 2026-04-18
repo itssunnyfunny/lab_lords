@@ -77,20 +77,25 @@ export class SeatAllocationService {
                 if (s.branchId !== branchId) throw new Error(`Shift "${s.name}" does not belong to this branch.`);
             }
 
-            // 5. Requested shifts must not overlap with each other
-            for (let i = 0; i < requestedShifts.length; i++) {
-                for (let j = i + 1; j < requestedShifts.length; j++) {
-                    const a = requestedShifts[i];
-                    const b = requestedShifts[j];
-                    if (timesOverlap(
-                        parseNullableTime(a.startTime),
-                        parseNullableTime(a.endTime),
-                        parseNullableTime(b.startTime),
-                        parseNullableTime(b.endTime)
-                    )) {
-                        throw new Error(
-                            `Selected shifts "${a.name}" and "${b.name}" overlap with each other. You cannot assign both.`
-                        );
+            // 5. Requested shifts must not overlap with each other.
+            //    EXCEPTION: when allocating via a multi-shift (multiShiftId is set),
+            //    the component shifts are a pre-approved bundle — skip this check.
+            //    The overlap guard still protects manual multi-primary-shift selections.
+            if (!multiShiftId) {
+                for (let i = 0; i < requestedShifts.length; i++) {
+                    for (let j = i + 1; j < requestedShifts.length; j++) {
+                        const a = requestedShifts[i];
+                        const b = requestedShifts[j];
+                        if (timesOverlap(
+                            parseNullableTime(a.startTime),
+                            parseNullableTime(a.endTime),
+                            parseNullableTime(b.startTime),
+                            parseNullableTime(b.endTime)
+                        )) {
+                            throw new Error(
+                                `Selected shifts "${a.name}" and "${b.name}" overlap with each other. You cannot assign both.`
+                            );
+                        }
                     }
                 }
             }
@@ -121,11 +126,13 @@ export class SeatAllocationService {
                     if (alloc.shiftId === requestedShift.id) {
                         throw new Error(`Seat is already assigned in shift "${requestedShift.name}".`);
                     }
-                    const existing = shiftTimeMap.get(alloc.shiftId);
-                    if (existing && timesOverlap(newStart, newEnd, parseNullableTime(existing.startTime), parseNullableTime(existing.endTime))) {
-                        throw new Error(
-                            `Seat is already occupied during this time (conflict with "${existing.name}")`
-                        );
+                    if (!multiShiftId) {
+                        const existing = shiftTimeMap.get(alloc.shiftId);
+                        if (existing && timesOverlap(newStart, newEnd, parseNullableTime(existing.startTime), parseNullableTime(existing.endTime))) {
+                            throw new Error(
+                                `Seat is already occupied during this time (conflict with "${existing.name}")`
+                            );
+                        }
                     }
                 }
 
@@ -134,11 +141,13 @@ export class SeatAllocationService {
                     if (alloc.shiftId === requestedShift.id) {
                         throw new Error(`Student already has a seat in shift "${requestedShift.name}".`);
                     }
-                    const existing = shiftTimeMap.get(alloc.shiftId);
-                    if (existing && timesOverlap(newStart, newEnd, parseNullableTime(existing.startTime), parseNullableTime(existing.endTime))) {
-                        throw new Error(
-                            `Student is already allocated in an overlapping shift ("${existing.name}")`
-                        );
+                    if (!multiShiftId) {
+                        const existing = shiftTimeMap.get(alloc.shiftId);
+                        if (existing && timesOverlap(newStart, newEnd, parseNullableTime(existing.startTime), parseNullableTime(existing.endTime))) {
+                            throw new Error(
+                                `Student is already allocated in an overlapping shift ("${existing.name}")`
+                            );
+                        }
                     }
                 }
 
