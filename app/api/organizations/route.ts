@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { OrganizationService } from "@/services/organization.service";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET(req: Request) {
     try {
-        const userId = req.headers.get("x-user-id") ?? "user_alice";
+        // SECURE: Retrieve user from session instead of easily spoofed headers
+        const user = await getSessionUser();
+        const userId = user?.id;
+
         if (!userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "Unauthorized: Invalid session" }, { status: 401 });
         }
 
         const organizations = await OrganizationService.getOrganizationsByUserId(userId);
@@ -18,8 +22,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const userId = req.headers.get("x-user-id");
-        if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        // SECURE: Retrieve user from session instead of easily spoofed headers
+        const user = await getSessionUser();
+        const userId = user?.id;
+        if (!userId) return NextResponse.json({ error: "Unauthorized: Invalid session" }, { status: 401 });
         const body = await req.json();
         if (!body.name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 

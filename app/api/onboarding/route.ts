@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { OnboardingService } from "@/services/onboarding.service";
+import { getSessionUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
     try {
-        // TEMP AUTH: Get user from header
-        const userId = req.headers.get("x-user-id");
+        // SECURE: Retrieve user from session instead of easily spoofed headers
+        const user = await getSessionUser();
+        const userId = user?.id;
+
         if (!userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "Unauthorized: Invalid session" }, { status: 401 });
         }
 
         const body = await req.json();
