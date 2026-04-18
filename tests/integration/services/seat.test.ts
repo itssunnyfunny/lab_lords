@@ -1,0 +1,358 @@
+import { describe, it, expect, beforeEach, afterAll, vi, afterEach } from "vitest";
+import { SeatService } from "@/services/seat.service";
+import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
+import {
+  createTestWorld,
+  createUser,
+  createShift,
+  createSeat,
+  createStudent,
+  createAllocation,
+} from "@/tests/factories";
+
+/**
+ * INTEGRATION TESTS: SeatService
+ *
+ * Uses REAL test database.
+ * Covers:
+ * 1. createSeat — happy path, duplicate label, non-owner
+ * 2. listSeats — with active allocations, ended allocations excluded
+ * 3. generateOccupancySnapshot — math correctness, 0% baseline, used ≤ capacity invariant
+ * 4. getSeatMap — primary shift (exact hit, time-overlap), multi-shift path
+ * 5. getShiftsCapacity — used/available/isFull, studentAlreadyAllocated detection
+ */
+
+describe("SeatService Integration", () => {
+  afterAll(async () => { await disconnectDatabase(); });
+  beforeEach(async () => { await resetDatabase(); });
+
+  // ─── createSeat ────────────────────────────────────────────────────────────
+
+  describe("createSeat", () => {
+    it("happy path — creates seat with correct branchId and label", async () => {
+      const { user, branch } = await createTestWorld();
+      const seat = await SeatService.createSeat(user.id, branch.id, "A1");
+      expect(seat.branchId).toBe(branch.id);
+      expect(seat.label).toBe("A1");
+    });
+
+    it("REJECTS duplicate label in same branch", async () => {
+      const { user, branch } = await createTestWorld();
+      await SeatService.createSeat(user.id, branch.id, "A1");
+      await expect(
+        SeatService.createSeat(user.id, branch.id, "A1")
+      ).rejects.toThrow(/already exists/i);
+    });
+
+    it("REJECTS non-owner call", async () => {
+      const { branch } = await createTestWorld();
+      const wrongUser = await createUser();
+      await expect(
+        SeatService.createSeat(wrongUser.id, branch.id, "X1")
+      ).rejects.toThrow(/Unauthorized/i);
+    });
+  });
+
+  // ─── listSeats ─────────────────────────────────────────────────────────────
+
+  describe("listSeats", () => {
+    it("returns seats with their active allocations included", async () => {
+      const { user, branch, shift } = await createTestWorld();
+      const seat = await createSeat({ branchId: branch.id, label: "S1" });
+      const student = await createStudent({ branchId: branch.id });
+      await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: shift.id });
+
+      const seats = await SeatService.listSeats(user.id, branch.id);
+      const found = seats.find(s => s.id === seat.id);
+      expect(found).toBeDefined();
+      expect(found!.seatAllocations).toHaveLength(1);
+    });
+
+    it("excludes ended allocations (endDate ≠ null)", async () => {
+      const { user, branch, shift } = await createTestWorld();
+      const seat = await createSeat({ branchId: branch.id, label: "S2" });
+      const student = await createStudent({ branchId: branch.id });
+      // Create an already-ended allocation
+      await createAllocation({
+        seatId: seat.id,
+        studentId: student.id,
+        shiftId: shift.id,
+        endDate: new Date("2026-01-01"),
+      });
+
+      const seats = await SeatService.listSeats(user.id, branch.id);
+      const found = seats.find(s => s.id === seat.id);
+      // Ended allocation must not appear in the active list
+      expect(found!.seatAllocations).toHaveLength(0);
+    });
+  });
+
+  // ─── generateOccupancySnapshot ─────────────────────────────────────────────
+
+  describe("generateOccupancySnapshot", () => {
+    it("returns 0% when there are no allocations", async () => {
+      const { branch, shift } = await createTestWorld();
+      // createTestWorld creates 1 seat, 1 shift — no allocations
+      const snap = await SeatService.generateOccupancySnapshot(branch.id);
+      expect(snap.totalOccupancyPercent).toBe(0);
+      expect(snap.totalUsedSlots).toBe(0);
+      expect(snap.branchId).toBe(branch.id);
+    });
+
+    it("2 shifts × 5 seats × 3 students = correct occupancy math", async () => {
+      const { branch } = await createTestWorld();
+      const evening = await createShift({
+        branchId: branch.id,
+        name: "Evening",
+        startTime: "17:00",
+        endTime: "22:00",
+      });
+
+      // Create 4 more seats (createTestWorld already created 1)
+      const extraSeats = await Promise.all(
+        ["S2", "S3", "S4", "S5"].map(label => createSeat({ branchId: branch.id, label }))
+      );
+
+      // Get the original seat from the world
+      const seats = await testPrisma.seat.findMany({ where: { branchId: branch.id } });
+      expect(seats).toHaveLength(5);
+
+      // Create 3 students and allocate them: 2 in morning, 1 in evening
+      const students = await Promise.all([
+        createStudent({ branchId: branch.id, name: "A" }),
+        createStudent({ branchId: branch.id, name: "B" }),
+        createStudent({ branchId: branch.id, name: "C" }),
+      ]);
+      const morningShift = await testPrisma.shift.findFirst({ where: { branchId: branch.id, name: "Morning" } });
+
+      await testPrisma.seatAllocation.createMany({
+        data: [
+          { seatId: seats[0].id, studentId: students[0].id, shiftId: morningShift!.id },
+          { seatId: seats[1].id, studentId: students[1].id, shiftId: morningShift!.id },
+          { seatId: seats[2].id, studentId: students[2].id, shiftId: evening.id },
+        ],
+      });
+
+      const snap = await SeatService.generateOccupancySnapshot(branch.id);
+      // 5 seats × 2 shifts = 10 total capacity; 3 allocations used
+      expect(snap.seatCount).toBe(5);
+      expect(snap.shiftCount).toBe(2);
+      expect(snap.totalShiftCapacity).toBe(10);
+      expect(snap.totalUsedSlots).toBe(3);
+      expect(snap.totalOccupancyPercent).toBe(30);
+    });
+
+    it("invariant: used ≤ capacity per shift even with corrupted data", async () => {
+      const { branch } = await createTestWorld();
+      const morningShift = await testPrisma.shift.findFirst({ where: { branchId: branch.id, name: "Morning" } });
+
+      // Inject 3 allocations when there is only 1 seat (corrupted state)
+      const extraStudents = await Promise.all([
+        createStudent({ branchId: branch.id, name: "X" }),
+        createStudent({ branchId: branch.id, name: "Y" }),
+        createStudent({ branchId: branch.id, name: "Z" }),
+      ]);
+      const seat = await testPrisma.seat.findFirst({ where: { branchId: branch.id } });
+
+      await testPrisma.seatAllocation.createMany({
+        data: extraStudents.map(s => ({
+          seatId: seat!.id,
+          studentId: s.id,
+          shiftId: morningShift!.id,
+        })),
+      });
+
+      // Spy on console.warn to verify the invariant guard fires
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const snap = await SeatService.generateOccupancySnapshot(branch.id);
+
+      // Per-shift used must be capped at capacity (1 seat = capacity of 1)
+      for (const shiftResult of snap.shifts) {
+        expect(shiftResult.used).toBeLessThanOrEqual(shiftResult.capacity);
+      }
+      // The warning must have been emitted at least once
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+  });
+
+  // ─── getSeatMap — PRIMARY shift path ────────────────────────────────────────
+
+  describe("getSeatMap — primary shift", () => {
+    it("occupied seat shows occupied: true and occupiedBy: studentName", async () => {
+      const { user, branch, shift } = await createTestWorld();
+      const seat = await createSeat({ branchId: branch.id, label: "T1" });
+      const student = await createStudent({ branchId: branch.id, name: "Riya" });
+      await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: shift.id });
+
+      const map = await SeatService.getSeatMap(user.id, branch.id, shift.id);
+      const entry = map.seats.find(s => s.seatId === seat.id);
+      expect(entry!.occupied).toBe(true);
+      expect(entry!.occupiedBy).toBe("Riya");
+    });
+
+    it("all seats free → all occupied: false", async () => {
+      const { user, branch, shift } = await createTestWorld();
+
+      const map = await SeatService.getSeatMap(user.id, branch.id, shift.id);
+      expect(map.seats.every(s => s.occupied === false)).toBe(true);
+      expect(map.occupiedCount).toBe(0);
+    });
+
+    it("time-overlap blocks seat — Morning alloc blocks a Full-Time query", async () => {
+      const { user, branch } = await createTestWorld({ shiftStart: "06:00", shiftEnd: "11:59" });
+      // Full-Time (null/null) overlaps everything
+      const fullTime = await createShift({
+        branchId: branch.id,
+        name: "Full Time",
+        startTime: null,
+        endTime: null,
+      });
+      const morning = await testPrisma.shift.findFirst({ where: { branchId: branch.id, name: "Morning" } });
+
+      const seat = await createSeat({ branchId: branch.id, label: "X1" });
+      const student = await createStudent({ branchId: branch.id, name: "Arjun" });
+      // Allocate student in Morning
+      await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: morning!.id });
+
+      // Query map for Full-Time — should still show seat as occupied
+      const map = await SeatService.getSeatMap(user.id, branch.id, fullTime.id);
+      const entry = map.seats.find(s => s.seatId === seat.id);
+      expect(entry!.occupied).toBe(true);
+    });
+  });
+
+  // ─── getSeatMap — MULTI-SHIFT path ─────────────────────────────────────────
+
+  describe("getSeatMap — multi-shift", () => {
+    it("seat occupied in ANY component shift → blocked in multi-shift map", async () => {
+      const { user, branch } = await createTestWorld({ shiftStart: "06:00", shiftEnd: "11:59" });
+      const evening = await createShift({
+        branchId: branch.id,
+        name: "Evening",
+        startTime: "17:00",
+        endTime: "22:00",
+      });
+      const morning = await testPrisma.shift.findFirst({ where: { branchId: branch.id, name: "Morning" } });
+
+      // Create multiShift [Morning + Evening]
+      const ms = await testPrisma.multiShift.create({
+        data: {
+          branchId: branch.id,
+          name: "Full Day",
+          price: 0,
+          components: {
+            create: [
+              { shiftId: morning!.id, order: 0 },
+              { shiftId: evening.id, order: 1 },
+            ],
+          },
+        },
+      });
+
+      const seat = await createSeat({ branchId: branch.id, label: "M1" });
+      const student = await createStudent({ branchId: branch.id });
+      // Allocate in Morning only
+      await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: morning!.id });
+
+      // Multi-shift map: seat should be occupied because it's taken in a component shift
+      const map = await SeatService.getSeatMap(user.id, branch.id, morning!.id, ms.id);
+      const entry = map.seats.find(s => s.seatId === seat.id);
+      expect(entry!.occupied).toBe(true);
+    });
+
+    it("seat free in all component shifts → available in multi-shift map", async () => {
+      const { user, branch } = await createTestWorld({ shiftStart: "06:00", shiftEnd: "11:59" });
+      const evening = await createShift({
+        branchId: branch.id,
+        name: "Evening",
+        startTime: "17:00",
+        endTime: "22:00",
+      });
+      const morning = await testPrisma.shift.findFirst({ where: { branchId: branch.id, name: "Morning" } });
+
+      const ms = await testPrisma.multiShift.create({
+        data: {
+          branchId: branch.id,
+          name: "Full Day",
+          price: 0,
+          components: {
+            create: [
+              { shiftId: morning!.id, order: 0 },
+              { shiftId: evening.id, order: 1 },
+            ],
+          },
+        },
+      });
+
+      const seat = await createSeat({ branchId: branch.id, label: "M2" });
+      // No allocations
+
+      const map = await SeatService.getSeatMap(user.id, branch.id, morning!.id, ms.id);
+      const entry = map.seats.find(s => s.seatId === seat.id);
+      expect(entry!.occupied).toBe(false);
+      expect(entry!.occupiedBy).toBeNull();
+    });
+  });
+
+  // ─── getShiftsCapacity ─────────────────────────────────────────────────────
+
+  describe("getShiftsCapacity", () => {
+    it("returns correct used, available, isFull for a fully booked shift", async () => {
+      // createTestWorld gives 1 seat + 1 Morning shift
+      const { user, branch, shift } = await createTestWorld();
+      const seat = await testPrisma.seat.findFirst({ where: { branchId: branch.id } });
+      const student = await createStudent({ branchId: branch.id });
+      await createAllocation({ seatId: seat!.id, studentId: student.id, shiftId: shift.id });
+
+      const capacities = await SeatService.getShiftsCapacity(user.id, branch.id);
+      const morning = capacities.find(c => c.shiftId === shift.id);
+      expect(morning!.used).toBe(1);
+      expect(morning!.available).toBe(0);
+      expect(morning!.isFull).toBe(true);
+    });
+
+    it("studentAlreadyAllocated: true when student has overlapping shift", async () => {
+      const { user, branch } = await createTestWorld({ shiftStart: "06:00", shiftEnd: "11:59" });
+      const fullTime = await createShift({
+        branchId: branch.id,
+        name: "Full Time",
+        startTime: null,
+        endTime: null,
+      });
+      const morning = await testPrisma.shift.findFirst({ where: { branchId: branch.id, name: "Morning" } });
+
+      const seat = await createSeat({ branchId: branch.id, label: "C1" });
+      const student = await createStudent({ branchId: branch.id });
+      // Allocate student in Morning
+      await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: morning!.id });
+
+      const capacities = await SeatService.getShiftsCapacity(user.id, branch.id, student.id);
+      const ftEntry = capacities.find(c => c.shiftId === fullTime.id);
+      // Full Time overlaps Morning → must be flagged
+      expect(ftEntry!.studentAlreadyAllocated).toBe(true);
+    });
+
+    it("studentAlreadyAllocated: false for non-overlapping shift", async () => {
+      const { user, branch } = await createTestWorld({ shiftStart: "06:00", shiftEnd: "11:59" });
+      const evening = await createShift({
+        branchId: branch.id,
+        name: "Evening",
+        startTime: "17:00",
+        endTime: "22:00",
+      });
+      const morning = await testPrisma.shift.findFirst({ where: { branchId: branch.id, name: "Morning" } });
+
+      const seat = await createSeat({ branchId: branch.id, label: "C2" });
+      const student = await createStudent({ branchId: branch.id });
+      await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: morning!.id });
+
+      const capacities = await SeatService.getShiftsCapacity(user.id, branch.id, student.id);
+      const eveningEntry = capacities.find(c => c.shiftId === evening.id);
+      // Evening does NOT overlap Morning
+      expect(eveningEntry!.studentAlreadyAllocated).toBe(false);
+    });
+  });
+});
