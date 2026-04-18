@@ -30,6 +30,7 @@ jobs:
     # The global.ts guard checks that this URL contains "test" ✅
     env:
       DATABASE_URL: postgresql://postgres:password@localhost:5432/lab_lords_test
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repo
