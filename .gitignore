@@ -44,3 +44,4 @@ next-env.d.ts
 .agent
 utils
 hooks
+/test_infrastructure_plan.md
