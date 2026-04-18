@@ -26,7 +26,8 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
 
     // Integrated allocation state
     const [wantsAllocation, setWantsAllocation] = useState(false);
-    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
+    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);   // always primary shift IDs
+    const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(null);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
     const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             setFormData({ name: "", phone: "", monthlyFee: undefined, admissionFee: undefined });
             setWantsAllocation(false);
             setSelectedShiftIds([]);
+            setSelectedMultiShiftId(null);
             setSelectedSeatId(null);
             setCreatedStudentId(null);
         }
@@ -79,7 +81,8 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                     body: JSON.stringify({
                         studentId: studentToAllocateTo,
                         seatId: selectedSeatId,
-                        shiftIds: selectedShiftIds,
+                        shiftIds: selectedShiftIds,   // always primary shift IDs
+                        ...(selectedMultiShiftId ? { multiShiftId: selectedMultiShiftId } : {}),
                     }),
                 });
 
@@ -223,11 +226,24 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                         selectedSeatId={selectedSeatId}
                                         onToggleShift={(s) => {
                                             setSelectedSeatId(null);
-                                            setSelectedShiftIds(prev =>
-                                                prev.includes(s.shiftId)
-                                                    ? prev.filter(id => id !== s.shiftId)
-                                                    : [...prev, s.shiftId]
-                                            );
+                                            if (s.type === "MULTISHIFT") {
+                                                // Toggle multi-shift: expand to component primary shift IDs
+                                                if (selectedMultiShiftId === s.shiftId) {
+                                                    setSelectedMultiShiftId(null);
+                                                    setSelectedShiftIds([]);
+                                                } else {
+                                                    setSelectedMultiShiftId(s.shiftId);
+                                                    setSelectedShiftIds(s.componentShiftIds ?? []);
+                                                }
+                                            } else {
+                                                // Primary shift toggle — clear any active multi-shift
+                                                setSelectedMultiShiftId(null);
+                                                setSelectedShiftIds(prev =>
+                                                    prev.includes(s.shiftId)
+                                                        ? prev.filter(id => id !== s.shiftId)
+                                                        : [...prev, s.shiftId]
+                                                );
+                                            }
                                         }}
                                         onSelectSeat={setSelectedSeatId}
                                     />

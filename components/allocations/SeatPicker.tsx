@@ -69,6 +69,7 @@ interface SeatPickerProps {
     branchId: string;
     studentId?: string;
     selectedShiftIds: string[];
+    selectedMultiShiftId?: string | null; // set when a MULTISHIFT is selected
     selectedSeatId: string | null;
     onToggleShift: (shift: ShiftCapacity) => void;
     onSelectSeat: (seatId: string | null) => void;
@@ -78,6 +79,7 @@ export function SeatPicker({
     branchId,
     studentId,
     selectedShiftIds,
+    selectedMultiShiftId,
     selectedSeatId,
     onToggleShift,
     onSelectSeat,
@@ -86,15 +88,16 @@ export function SeatPicker({
     const [shiftsLoading, setShiftsLoading] = useState(false);
     const [shiftsError, setShiftsError] = useState<string | null>(null);
 
-    // The seat map is always fetched for the FIRST selected primary shift
-    // For multi-shifts, the first component shiftId is used
+    // The seat map is always fetched for the FIRST selected primary shift.
+    // For multi-shifts, selectedShiftIds contains the expanded component IDs,
+    // so primaryShiftId is the first component shift ID.
     const primaryShiftId = selectedShiftIds[0] ?? null;
     const [seatMap, setSeatMap] = useState<SeatMapData | null>(null);
     const [seatMapLoading, setSeatMapLoading] = useState(false);
     const [seatMapError, setSeatMapError] = useState<string | null>(null);
     const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
 
-    // 1. Fetch capacity cards (now includes multi-shifts)
+    // 1. Fetch capacity cards (includes multi-shifts)
     useEffect(() => {
         setShiftsLoading(true);
         setShiftsError(null);
@@ -111,7 +114,15 @@ export function SeatPicker({
             .finally(() => setShiftsLoading(false));
     }, [branchId, studentId]);
 
-    // 2. Fetch seat grid when primary shift changes
+    // 2. Fetch seat grid when shift selection changes.
+    //
+    //    MULTI-SHIFT: selectedMultiShiftId is set (the MultiShift DB id).
+    //      → URL: /shifts/{firstComponentId}/seat-map?multiShiftId={msId}
+    //      → Server checks ALL component shifts; seat is occupied if taken in ANY of them.
+    //
+    //    PRIMARY: selectedMultiShiftId is null.
+    //      → URL: /shifts/{shiftId}/seat-map
+    //      → Server checks single shift (+ time-overlap logic).
     useEffect(() => {
         if (!primaryShiftId) {
             setSeatMap(null);
@@ -120,21 +131,9 @@ export function SeatPicker({
         setSeatMapLoading(true);
         setSeatMapError(null);
 
-        const selectedShift = shifts.find(
-            s => s.shiftId === primaryShiftId ||
-                (s.type === "MULTISHIFT" && s.componentShiftIds?.includes(primaryShiftId))
-        );
-
-        // For a multi-shift: use the first component shiftId as the URL path segment
-        // (required for routing) and add multiShiftId as a query param so the
-        // server checks occupancy across ALL component shifts.
-        let mapShiftId = primaryShiftId;
-        let seatMapUrl = `/api/branches/${branchId}/shifts/${mapShiftId}/seat-map`;
-
-        if (selectedShift?.type === "MULTISHIFT" && selectedShift.componentShiftIds?.[0]) {
-            mapShiftId = selectedShift.componentShiftIds[0];
-            seatMapUrl = `/api/branches/${branchId}/shifts/${mapShiftId}/seat-map?multiShiftId=${selectedShift.multiShiftId}`;
-        }
+        const seatMapUrl = selectedMultiShiftId
+            ? `/api/branches/${branchId}/shifts/${primaryShiftId}/seat-map?multiShiftId=${selectedMultiShiftId}`
+            : `/api/branches/${branchId}/shifts/${primaryShiftId}/seat-map`;
 
         fetch(seatMapUrl)
             .then(r => {
@@ -144,8 +143,7 @@ export function SeatPicker({
             .then(setSeatMap)
             .catch(e => setSeatMapError(e.message))
             .finally(() => setSeatMapLoading(false));
-    }, [branchId, primaryShiftId, shifts]);
-
+    }, [branchId, primaryShiftId, selectedMultiShiftId]);
 
     const selectedCount = selectedShiftIds.length;
 
@@ -214,7 +212,13 @@ export function SeatPicker({
                                         <ShiftCard
                                             key={shift.shiftId}
                                             shift={shift}
-                                            isSelected={selectedShiftIds.includes(shift.shiftId)}
+                                            isSelected={
+                                                // A MULTISHIFT card is selected when its component IDs are in selectedShiftIds
+                                                shift.type === "MULTISHIFT"
+                                                    ? (shift.componentShiftIds?.length ?? 0) > 0 &&
+                                                      shift.componentShiftIds!.every(id => selectedShiftIds.includes(id))
+                                                    : selectedShiftIds.includes(shift.shiftId)
+                                            }
                                             onToggle={onToggleShift}
                                         />
                                     ))}
@@ -224,9 +228,15 @@ export function SeatPicker({
                     </div>
                 )}
 
-                {selectedCount > 1 && (
+                {/* Hint: only show the "first shift only" caveat for manual multi-primary selections */}
+                {selectedCount > 1 && !selectedMultiShiftId && (
                     <p className="text-xs text-zinc-400 bg-white/[0.03] border border-white/5 rounded-lg px-3 py-2">
                         💡 Seat availability is shown for the first selected shift. The same seat will be booked across all selected shifts.
+                    </p>
+                )}
+                {selectedMultiShiftId && (
+                    <p className="text-xs text-zinc-400 bg-orange-500/[0.06] border border-orange-500/10 rounded-lg px-3 py-2">
+                        💡 Showing seats free across <span className="text-orange-300 font-medium">all component shifts</span>. A seat is available only if it is unoccupied in every shift of this multi-shift.
                     </p>
                 )}
             </div>
@@ -404,8 +414,4 @@ function ShiftCard({
             </div>
         </div>
     );
-}
-
-function capacityBarColorFn(pct: number, isFull: boolean) {
-    return capacityBarColor(pct, isFull);
 }

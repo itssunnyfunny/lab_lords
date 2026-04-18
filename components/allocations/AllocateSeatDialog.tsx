@@ -35,12 +35,10 @@ export function AllocateSeatDialog({
     const [studentSearch, setStudentSearch] = useState("");
 
     // Shift selection state
-    // selectedShiftIds = the actual primary shift IDs to allocate (expanded from multi-shifts)
-    // selectedShiftNames = display names of selected shifts/multi-shifts
     const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
     const [selectedShiftNames, setSelectedShiftNames] = useState<string[]>([]);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
-    // Track if a multi-shift was selected (for display + payload)
+    // Multi-shift tracking
     const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(null);
     const [selectedMultiShiftName, setSelectedMultiShiftName] = useState<string | null>(null);
 
@@ -74,13 +72,14 @@ export function AllocateSeatDialog({
         setSubmitError(null);
 
         if (shift.type === "MULTISHIFT") {
-            // Toggle multi-shift: if already selected, clear; else select and expand
             if (selectedMultiShiftId === shift.shiftId) {
+                // deselect
                 setSelectedMultiShiftId(null);
                 setSelectedMultiShiftName(null);
                 setSelectedShiftIds([]);
                 setSelectedShiftNames([]);
             } else {
+                // select multishift — store component IDs for the submission payload
                 setSelectedMultiShiftId(shift.shiftId);
                 setSelectedMultiShiftName(shift.name);
                 setSelectedShiftIds(shift.componentShiftIds ?? []);
@@ -149,7 +148,6 @@ export function AllocateSeatDialog({
         (s.phone && s.phone.includes(studentSearch))
     );
 
-    // Build confirm button label
     const confirmLabel = selectedMultiShiftName
         ? `Confirm (${selectedMultiShiftName})`
         : selectedShiftIds.length > 1
@@ -210,13 +208,13 @@ export function AllocateSeatDialog({
                         </div>
                     )}
 
-                    {/* Shift + Seat picker */}
                     {hasStudent && (
                         <div className="space-y-4">
                             <SeatPicker
                                 branchId={branchId}
                                 studentId={effectiveStudentId}
                                 selectedShiftIds={selectedShiftIds}
+                                selectedMultiShiftId={selectedMultiShiftId}
                                 selectedSeatId={selectedSeatId}
                                 onToggleShift={handleToggleShift}
                                 onSelectSeat={setSelectedSeatId}
