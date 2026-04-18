@@ -1,0 +1,117 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+/**
+ * UNIT TESTS: StaffService.authorize()
+ *
+ * Strategy: Mock Prisma entirely — no DB needed.
+ * We're testing the PERMISSION_MATRIX logic, not DB queries.
+ *
+ * Why mock Prisma here:
+ *   The authorize() flow does only 2 DB calls:
+ *   1. branch.findUnique (to get org owner)
+ *   2. staff.findUnique (to get role)
+ *   We control both return values, so no real DB needed.
+ */
+
+// Mock BEFORE importing — Vitest hoists vi.mock() calls
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    branch: {
+      findUnique: vi.fn(),
+    },
+    staff: {
+      findUnique: vi.fn(),
+    },
+  },
+}));
+
+import { StaffService, PERMISSION_MATRIX } from "@/services/staff.service";
+import { prisma } from "@/lib/prisma";
+
+const mockBranch = (ownerId: string) =>
+  prisma.branch.findUnique = vi.fn().mockResolvedValue({
+    id: "branch_1",
+    organization: { ownerId },
+  } as never);
+
+const mockStaff = (role: "MANAGER" | "STAFF" | null) => {
+  prisma.staff.findUnique = vi.fn().mockResolvedValue(
+    role ? { id: "staff_1", role } : null
+  );
+};
+
+describe("PERMISSION_MATRIX", () => {
+  it("manage_org allows no roles (owner only)", () => {
+    expect(PERMISSION_MATRIX.manage_org).toEqual([]);
+  });
+
+  it("manage_branch allows MANAGER", () => {
+    expect(PERMISSION_MATRIX.manage_branch).toContain("MANAGER");
+    expect(PERMISSION_MATRIX.manage_branch).not.toContain("STAFF");
+  });
+
+  it("students allows MANAGER and STAFF", () => {
+    expect(PERMISSION_MATRIX.students).toContain("MANAGER");
+    expect(PERMISSION_MATRIX.students).toContain("STAFF");
+  });
+
+  it("staff_management allows no roles (owner only)", () => {
+    expect(PERMISSION_MATRIX.staff_management).toEqual([]);
+  });
+});
+
+describe("StaffService.authorize()", () => {
+  const OWNER_ID = "user_owner";
+  const OTHER_ID = "user_other";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows org OWNER for any action", async () => {
+    mockBranch(OWNER_ID);
+    await expect(StaffService.authorize(OWNER_ID, "branch_1", "staff_management")).resolves.toBe(true);
+    await expect(StaffService.authorize(OWNER_ID, "branch_1", "manage_org")).resolves.toBe(true);
+  });
+
+  it("allows MANAGER to manage_branch", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("MANAGER");
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "manage_branch")).resolves.toBe(true);
+  });
+
+  it("allows MANAGER to generate_payments", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("MANAGER");
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "generate_payments")).resolves.toBe(true);
+  });
+
+  it("allows STAFF to view students", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("STAFF");
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "students")).resolves.toBe(true);
+  });
+
+  it("REJECTS STAFF from manage_branch", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("STAFF");
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "manage_branch")).rejects.toThrow("Unauthorized");
+  });
+
+  it("REJECTS MANAGER from staff_management", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("MANAGER");
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "staff_management")).rejects.toThrow("Unauthorized");
+  });
+
+  it("REJECTS user with no staff record", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff(null);
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "students")).rejects.toThrow("Not a staff member");
+  });
+
+  it("throws Branch not found if branch doesn't exist", async () => {
+    prisma.branch.findUnique = vi.fn().mockResolvedValue(null);
+    await expect(StaffService.authorize(OWNER_ID, "nonexistent", "students")).rejects.toThrow("Branch not found");
+  });
+});
