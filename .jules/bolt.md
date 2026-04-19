@@ -10,3 +10,6 @@
 ## 2024-04-03 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested at once resulted in multiple `tx.seatAllocation.create(...)` database roundtrips. When batching these inserts, the loop also relied on updating internal state arrays to do conflict resolution within the same transaction.
 **Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(...)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
+## 2024-03-24 - Parallelize Database Reads in Prisma Transactions
+**Learning:** In interactive Prisma transactions (`prisma.$transaction(async (tx) => { ... })`), executing multiple independent database queries sequentially causes a query waterfall, adding latency equal to the sum of the roundtrips.
+**Action:** When performing multiple independent reads (e.g. `tx.student.findUnique`, `tx.shift.findMany`, etc.), bundle them into a single `Promise.all([ ... ])` call to fetch them concurrently, eliminating the waterfall effect and reducing overall transaction time.
