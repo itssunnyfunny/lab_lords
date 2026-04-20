@@ -10,3 +10,7 @@
 ## 2024-04-03 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested at once resulted in multiple `tx.seatAllocation.create(...)` database roundtrips. When batching these inserts, the loop also relied on updating internal state arrays to do conflict resolution within the same transaction.
 **Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(...)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
+
+## 2024-04-20 - [Eliminating N+1 query bottlenecks in manual shift resolutions]
+**Learning:** Moving sequential independent read operations (`findMany`) outside of loop structures enables Prisma to retrieve all required relations in a single database roundtrip, but keeping track of changes applied iteratively during loop iterations in local variables (like manually tracking `assignedSeatsPerShift`) is critical when subsequent loop items depend on those state mutations.
+**Action:** When extracting N+1 database queries to batched fetch requests outside of a loop, verify if loop iterations mutate states that would have been committed to the DB in previous architectures. Replicate this DB tracking with local HashMaps/Sets before deferring writes to `createMany/updateMany` statements.
