@@ -4,10 +4,10 @@ import { getOverduePayments } from "@/analytics/payment.analytics"
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { branchId: string } }
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
-        const { branchId } = params
+        const { branchId } = await params
         const result = await getOverduePayments(branchId)
 
         return NextResponse.json(result)
