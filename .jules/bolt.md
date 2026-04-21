@@ -10,3 +10,7 @@
 ## 2024-04-03 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested at once resulted in multiple `tx.seatAllocation.create(...)` database roundtrips. When batching these inserts, the loop also relied on updating internal state arrays to do conflict resolution within the same transaction.
 **Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(...)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
+
+## 2026-04-21 - Batched Queries in Validation Loops
+**Learning:** When validating conditions in complex transactional loops (e.g., reallocating seats across multiple students), querying the database inside the loop creates an N+1 bottleneck.
+**Action:** Pre-fetch necessary validation data (like active seat allocations) in bulk before the loop, store them in a Map grouped by relevant identifiers (like studentId), and use the map for constant-time lookups during iterations.
