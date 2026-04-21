@@ -13,10 +13,11 @@ export default function AllocationsPage() {
     const router = useRouter();
     const branchId = params?.branchId as string;
 
-    const [allocations, setAllocations] = useState([]);
+    const [allocations, setAllocations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<"ACTIVE" | "ENDED">("ACTIVE");
 
     // Optional: pre-selected student passed via query param from students page
     const preselectedStudentId = searchParams.get("studentId") ?? undefined;
@@ -47,13 +48,16 @@ export default function AllocationsPage() {
         fetchAllocations();
     }, [branchId]);
 
-    const handleEndAllocation = async (id: string) => {
-        const res = await fetch(`/api/seat-allocations/${id}/end`, {
-            method: "POST",
-        });
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || "Failed to end allocation");
+    const handleEndAllocation = async (ids: string | string[]) => {
+        const idArray = Array.isArray(ids) ? ids : [ids];
+        for (const id of idArray) {
+            const res = await fetch(`/api/seat-allocations/${id}/end`, {
+                method: "POST",
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || "Failed to end allocation");
+            }
         }
         await fetchAllocations();
     };
@@ -69,26 +73,56 @@ export default function AllocationsPage() {
     if (loading) return <div className="p-8 text-zinc-400">Loading allocations...</div>;
     if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
 
+    const filteredAllocations = allocations.filter(alloc => 
+        activeTab === "ACTIVE" ? !alloc.endDate : !!alloc.endDate
+    );
+
     return (
         <div className="p-8 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-semibold text-white">Seat Allocations</h1>
-                    <p className="text-zinc-400">Manage student seat assignments</p>
+                    <p className="text-zinc-400 mt-1">Manage student seat assignments</p>
                 </div>
                 <Button onClick={() => setIsDialogOpen(true)}>+ Allocate Seat</Button>
             </div>
 
-            {allocations.length === 0 ? (
+            <div className="flex flex-col md:flex-row md:items-center justify-end gap-4 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-2">
+                    {(["ACTIVE", "ENDED"] as const).map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === tab
+                                    ? "border-indigo-500 text-indigo-400"
+                                    : "border-transparent text-zinc-400 hover:text-zinc-200"
+                            }`}
+                        >
+                            {tab === "ACTIVE" ? "Active" : "Ended"} Allocations
+                            <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                                {allocations.filter(a => tab === "ACTIVE" ? !a.endDate : !!a.endDate).length}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {filteredAllocations.length === 0 ? (
                 <EmptyState
-                    title="No Allocations"
-                    description="No seats are currently allocated. Use Allocate Seat to assign students to seats."
-                    actionScript={<Button onClick={() => setIsDialogOpen(true)}>Allocate Seat</Button>}
+                    title={`No ${activeTab === "ACTIVE" ? "Active" : "Ended"} Allocations`}
+                    description={
+                        activeTab === "ACTIVE" 
+                            ? "No seats are currently allocated. Use Allocate Seat to assign students to seats."
+                            : "No ended allocations found."
+                    }
+                    actionScript={activeTab === "ACTIVE" ? <Button onClick={() => setIsDialogOpen(true)}>Allocate Seat</Button> : undefined}
                 />
             ) : (
                 <AllocationsTable
-                    allocations={allocations}
+                    allocations={filteredAllocations}
                     onEndAllocation={handleEndAllocation}
+                    isEndedTab={activeTab === "ENDED"}
                 />
             )}
 
