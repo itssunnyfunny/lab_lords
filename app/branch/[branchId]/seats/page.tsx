@@ -10,6 +10,7 @@ import { branches } from "@/lib/api/branches";
 import { Seat, Shift } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
+import { AddSeatDialog } from "./AddSeatDialog";
 
 // Extended Seat type to include temporary allocation info if available
 interface SeatWithStatus extends Seat {
@@ -25,6 +26,7 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
     const [selectedShift, setSelectedShift] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     // Initial load of shifts
     useEffect(() => {
@@ -39,34 +41,35 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
         loadShifts();
     }, [branchId]);
 
+    const loadSeats = async () => {
+        setLoading(true);
+        try {
+            // Fetch seats with optional shift filter
+            // If selectedShift is empty, it returns seats with ALL active allocations
+            // If selectedShift is set, it returns seats with allocations ONLY for that shift
+            const data = await branches.getSeats(branchId, selectedShift || undefined);
+
+            const mapped = data.map((s: any) => ({
+                ...s,
+                // If any allocation exists (after backend filtering), it is Occupied
+                status: s.seatAllocations && s.seatAllocations.length > 0 ? "Occupied" : "Available",
+                studentName: s.seatAllocations && s.seatAllocations.length > 0 ? s.seatAllocations[0].student.name : undefined
+            }));
+            setSeats(mapped);
+        } catch (err: any) {
+            console.error("Failed to load seats", err);
+            if (err.message?.includes("Branch not found") || err.response?.status === 404) {
+                setError("Branch not found. Matches no existing records.");
+            } else {
+                setError("Failed to load seats.");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Load seats whenever branchId or selectedShift changes
     useEffect(() => {
-        const loadSeats = async () => {
-            setLoading(true);
-            try {
-                // Fetch seats with optional shift filter
-                // If selectedShift is empty, it returns seats with ALL active allocations
-                // If selectedShift is set, it returns seats with allocations ONLY for that shift
-                const data = await branches.getSeats(branchId, selectedShift || undefined);
-
-                const mapped = data.map((s: any) => ({
-                    ...s,
-                    // If any allocation exists (after backend filtering), it is Occupied
-                    status: s.seatAllocations && s.seatAllocations.length > 0 ? "Occupied" : "Available",
-                    studentName: s.seatAllocations && s.seatAllocations.length > 0 ? s.seatAllocations[0].student.name : undefined
-                }));
-                setSeats(mapped);
-            } catch (err: any) {
-                console.error("Failed to load seats", err);
-                if (err.message?.includes("Branch not found") || err.response?.status === 404) {
-                    setError("Branch not found. Matches no existing records.");
-                } else {
-                    setError("Failed to load seats.");
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
         loadSeats();
     }, [branchId, selectedShift]);
 
@@ -94,7 +97,7 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
                 title="Seat Management"
                 subtitle="Visual map of study hall occupancy."
                 onFilter={() => { }}
-                onAdd={() => { }}
+                onAdd={() => setIsAddModalOpen(true)}
                 actionLabel="Add Seat"
             />
 
@@ -162,6 +165,13 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
                         </Card>
                     ))}
             </div>
+
+            <AddSeatDialog 
+                isOpen={isAddModalOpen} 
+                onClose={() => setIsAddModalOpen(false)} 
+                branchId={branchId} 
+                onSuccess={loadSeats} 
+            />
         </div>
     );
 }
