@@ -17,8 +17,10 @@ export async function GET(req: Request, { params }: Params) {
 
         const { searchParams } = new URL(req.url);
         const multiShiftId = searchParams.get("multiShiftId") ?? undefined;
+        const excludeRaw = searchParams.get("excludeAllocationIds");
+        const excludeAllocationIds = excludeRaw ? excludeRaw.split(",").filter(Boolean) : undefined;
 
-        const seatMap = await SeatService.getSeatMap(user.id, branchId, shiftId, multiShiftId);
+        const seatMap = await SeatService.getSeatMap(user.id, branchId, shiftId, multiShiftId, excludeAllocationIds);
         return NextResponse.json(seatMap);
     } catch (error: any) {
         if (error.message?.includes("Unauthorized") || error.message?.includes("does not own")) {

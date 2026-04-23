@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Layers } from "lucide-react";
+import { Layers, Pencil } from "lucide-react";
 
 interface Allocation {
     id: string;
+    studentId: string;
     student: { name: string; status: string };
-    seat: { label: string };
+    seat: { id: string; label: string };
     shift: { name: string; isReserved: boolean };
     startDate: string;
     endDate: string | null;
@@ -22,6 +23,7 @@ interface Allocation {
 interface AllocationsTableProps {
     allocations: Allocation[];
     onEndAllocation: (allocationIds: string | string[]) => Promise<void>;
+    onUpdateAllocation?: (ids: string[], studentId: string, studentName: string, currentSeatId: string) => void;
     isEndedTab?: boolean;
 }
 
@@ -29,8 +31,9 @@ interface GroupedAllocation {
     isMulti: boolean;
     id: string; // main key
     ids: string[]; // all ids
+    studentId: string;
     student: { name: string; status: string };
-    seat: { label: string };
+    seat: { id: string; label: string };
     startDate: string;
     endDate: string | null;
     shiftName: string; // for primary
@@ -39,7 +42,7 @@ interface GroupedAllocation {
     componentShiftNames?: string[]; // for multi
 }
 
-export function AllocationsTable({ allocations, onEndAllocation, isEndedTab = false }: AllocationsTableProps) {
+export function AllocationsTable({ allocations, onEndAllocation, onUpdateAllocation, isEndedTab = false }: AllocationsTableProps) {
     const [endingIds, setEndingIds] = useState<string[] | null>(null);
     const [confirmIds, setConfirmIds] = useState<string[] | null>(null);
 
@@ -76,6 +79,7 @@ export function AllocationsTable({ allocations, onEndAllocation, isEndedTab = fa
                     isMulti: true,
                     id: alloc.id,
                     ids: [alloc.id],
+                    studentId: alloc.studentId,
                     student: alloc.student,
                     seat: alloc.seat,
                     startDate: alloc.startDate,
@@ -92,6 +96,7 @@ export function AllocationsTable({ allocations, onEndAllocation, isEndedTab = fa
                 isMulti: false,
                 id: alloc.id,
                 ids: [alloc.id],
+                studentId: alloc.studentId,
                 student: alloc.student,
                 seat: alloc.seat,
                 startDate: alloc.startDate,
@@ -181,14 +186,26 @@ export function AllocationsTable({ allocations, onEndAllocation, isEndedTab = fa
                                 {!isEndedTab && (
                                     <td className="px-6 py-4">
                                         {isActive && (
-                                            <Button
-                                                variant="danger"
-                                                onClick={() => handleEndClick(alloc.ids)}
-                                                isLoading={endingIds?.includes(alloc.id)}
-                                                className="text-xs px-2 py-1 h-auto"
-                                            >
-                                                End
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                {onUpdateAllocation && (
+                                                    <button
+                                                        onClick={() => onUpdateAllocation(alloc.ids, alloc.studentId, alloc.student.name, alloc.seat.id)}
+                                                        className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-all"
+                                                        title="Change seat / shift"
+                                                    >
+                                                        <Pencil size={11} />
+                                                        Change
+                                                    </button>
+                                                )}
+                                                <Button
+                                                    variant="danger"
+                                                    onClick={() => handleEndClick(alloc.ids)}
+                                                    isLoading={endingIds?.includes(alloc.id)}
+                                                    className="text-xs px-2 py-1 h-auto"
+                                                >
+                                                    End
+                                                </Button>
+                                            </div>
                                         )}
                                     </td>
                                 )}
