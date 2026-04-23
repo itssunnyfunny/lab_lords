@@ -69,10 +69,14 @@ interface SeatPickerProps {
     branchId: string;
     studentId?: string;
     selectedShiftIds: string[];
-    selectedMultiShiftId?: string | null; // set when a MULTISHIFT is selected
+    selectedMultiShiftId?: string | null;
     selectedSeatId: string | null;
     onToggleShift: (shift: ShiftCapacity) => void;
     onSelectSeat: (seatId: string | null) => void;
+    /** Allocation IDs to exclude from occupancy checks — used for update/change flows */
+    excludeAllocationIds?: string[];
+    /** Seat ID of the student's current allocation — shown with a special "Current" indicator */
+    currentSeatId?: string;
 }
 
 export function SeatPicker({
@@ -83,6 +87,8 @@ export function SeatPicker({
     selectedSeatId,
     onToggleShift,
     onSelectSeat,
+    excludeAllocationIds,
+    currentSeatId,
 }: SeatPickerProps) {
     const [shifts, setShifts] = useState<ShiftCapacity[]>([]);
     const [shiftsLoading, setShiftsLoading] = useState(false);
@@ -102,7 +108,11 @@ export function SeatPicker({
         setShiftsLoading(true);
         setShiftsError(null);
         let url = `/api/branches/${branchId}/shifts/capacity`;
-        if (studentId) url += `?studentId=${studentId}`;
+        const capacityParams = new URLSearchParams();
+        if (studentId) capacityParams.set("studentId", studentId);
+        if (excludeAllocationIds?.length) capacityParams.set("excludeAllocationIds", excludeAllocationIds.join(","));
+        const capacityQuery = capacityParams.toString();
+        if (capacityQuery) url += `?${capacityQuery}`;
 
         fetch(url)
             .then(r => {
@@ -112,7 +122,7 @@ export function SeatPicker({
             .then(setShifts)
             .catch(e => setShiftsError(e.message))
             .finally(() => setShiftsLoading(false));
-    }, [branchId, studentId]);
+    }, [branchId, studentId, excludeAllocationIds?.join(",")]);
 
     // 2. Fetch seat grid when shift selection changes.
     //
@@ -131,9 +141,11 @@ export function SeatPicker({
         setSeatMapLoading(true);
         setSeatMapError(null);
 
-        const seatMapUrl = selectedMultiShiftId
-            ? `/api/branches/${branchId}/shifts/${primaryShiftId}/seat-map?multiShiftId=${selectedMultiShiftId}`
-            : `/api/branches/${branchId}/shifts/${primaryShiftId}/seat-map`;
+        const seatMapParams = new URLSearchParams();
+        if (selectedMultiShiftId) seatMapParams.set("multiShiftId", selectedMultiShiftId);
+        if (excludeAllocationIds?.length) seatMapParams.set("excludeAllocationIds", excludeAllocationIds.join(","));
+        const seatMapQuery = seatMapParams.toString();
+        const seatMapUrl = `/api/branches/${branchId}/shifts/${primaryShiftId}/seat-map${seatMapQuery ? `?${seatMapQuery}` : ""}`;
 
         fetch(seatMapUrl)
             .then(r => {
@@ -143,7 +155,7 @@ export function SeatPicker({
             .then(setSeatMap)
             .catch(e => setSeatMapError(e.message))
             .finally(() => setSeatMapLoading(false));
-    }, [branchId, primaryShiftId, selectedMultiShiftId]);
+    }, [branchId, primaryShiftId, selectedMultiShiftId, excludeAllocationIds?.join(",")]);
 
     const selectedCount = selectedShiftIds.length;
 
@@ -273,6 +285,7 @@ export function SeatPicker({
                             {seatMap.seats.map(seat => {
                                 const isSelected = selectedSeatId === seat.seatId;
                                 const isHovered = hoveredSeat === seat.seatId;
+                                const isCurrent = currentSeatId === seat.seatId;
 
                                 return (
                                     <div key={seat.seatId} className="relative group">
@@ -283,24 +296,37 @@ export function SeatPicker({
                                             onMouseEnter={() => setHoveredSeat(seat.seatId)}
                                             onMouseLeave={() => setHoveredSeat(null)}
                                             className={cn(
-                                                "w-full aspect-square rounded-lg border text-xs font-medium transition-all flex items-center justify-center select-none",
+                                                "w-full aspect-square rounded-lg border text-xs font-medium transition-all flex flex-col items-center justify-center select-none gap-0.5",
                                                 seat.occupied
                                                     ? "bg-red-500/10 border-red-500/20 text-red-400/70 cursor-not-allowed"
                                                     : isSelected
                                                         ? "bg-indigo-500/30 border-indigo-400/60 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.25)]"
-                                                        : "bg-emerald-500/10 border-emerald-400/25 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400/50 cursor-pointer"
+                                                        : isCurrent
+                                                            ? "bg-amber-500/15 border-amber-400/50 text-amber-200 hover:bg-amber-500/25 hover:border-amber-400/70 cursor-pointer"
+                                                            : "bg-emerald-500/10 border-emerald-400/25 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400/50 cursor-pointer"
                                             )}
                                         >
                                             {isSelected
                                                 ? <CheckCircle2 size={14} />
-                                                : <span className="truncate px-1">{seat.label}</span>
+                                                : <span className="truncate px-1 leading-none">{seat.label}</span>
                                             }
+                                            {isCurrent && !isSelected && (
+                                                <span className="text-[8px] font-bold tracking-wide uppercase text-amber-400/80 leading-none">
+                                                    current
+                                                </span>
+                                            )}
                                         </button>
 
                                         {/* Tooltip */}
                                         {seat.occupied && isHovered && seat.occupiedBy && (
                                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 bg-zinc-900 border border-white/10 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap shadow-xl pointer-events-none">
                                                 {seat.occupiedBy}
+                                            </div>
+                                        )}
+                                        {/* Current seat tooltip */}
+                                        {isCurrent && !isSelected && isHovered && (
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 bg-amber-900/80 border border-amber-500/30 text-amber-200 text-[10px] px-2 py-1 rounded-md whitespace-nowrap shadow-xl pointer-events-none">
+                                                Currently assigned
                                             </div>
                                         )}
                                     </div>
