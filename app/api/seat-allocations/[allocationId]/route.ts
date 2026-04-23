@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
+import { getSessionUser } from "@/lib/auth";
 
 // PUT: Release a seat (Unassign)
 export async function PUT(
@@ -24,3 +25,48 @@ export async function PUT(
         );
     }
 }
+
+// PATCH: Change seat and/or shift for an active allocation
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: Promise<{ allocationId: string }> }
+) {
+    try {
+        const user = await getSessionUser();
+        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { allocationId } = await params;
+        const body = await req.json();
+        const { seatId, studentId, shiftIds, allocationIds, multiShiftId } = body;
+
+        if (!seatId || !studentId || !Array.isArray(shiftIds) || shiftIds.length === 0) {
+            return NextResponse.json(
+                { error: "Missing required fields: seatId, studentId, shiftIds" },
+                { status: 400 }
+            );
+        }
+
+        // allocationIds can include sibling records (multi-shift group);
+        // fallback to just the route param for single allocations.
+        const ids: string[] = Array.isArray(allocationIds) && allocationIds.length > 0
+            ? allocationIds
+            : [allocationId];
+
+        const result = await SeatAllocationService.updateAllocation(
+            user.id,
+            ids,
+            seatId,
+            studentId,
+            shiftIds,
+            typeof multiShiftId === "string" ? multiShiftId : undefined
+        );
+
+        return NextResponse.json(result);
+    } catch (error: any) {
+        return NextResponse.json(
+            { error: error.message || "Failed to update allocation" },
+            { status: 400 }
+        );
+    }
+}
+
