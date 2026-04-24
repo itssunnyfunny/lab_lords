@@ -9,7 +9,8 @@ import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronR
 import { useEffect, useState, use } from "react";
 import { payments } from "@/lib/api/payments";
 import { Payment } from "@prisma/client";
-import { format, addMonths, subMonths, startOfMonth, isBefore } from "date-fns";
+import { format, addMonths, subMonths } from "date-fns";
+import { isOverdue } from "@/lib/utils/paymentStatus";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -207,13 +208,13 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                         {
                             header: "Due Date",
                             accessor: (item) => {
-                                const isOverdue = item.status === "DUE" && isBefore(new Date(item.dueDate), startOfMonth(currentDate));
+                                const overdue = isOverdue(item.dueDate);
                                 return (
                                     <div className="flex items-center gap-2">
-                                        <span className={cn(isOverdue ? "text-red-400 font-medium" : "text-textSecondary")}>
+                                        <span className={cn(overdue ? "text-red-400 font-medium" : "text-textSecondary")}>
                                             {format(new Date(item.dueDate), "PP")}
                                         </span>
-                                        {isOverdue && (
+                                        {overdue && (
                                             <Badge variant="danger" className="text-[10px] px-1 py-0 h-5">OVERDUE</Badge>
                                         )}
                                     </div>

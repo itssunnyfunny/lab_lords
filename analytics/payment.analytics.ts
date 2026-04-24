@@ -1,6 +1,7 @@
 // analytics/payment.analytics.ts
 
 import { prisma } from "@/lib/prisma"
+import { overdueCutoff } from "@/lib/utils/paymentStatus"
 
 type AsOf = Date | undefined
 
@@ -54,8 +55,8 @@ export async function getPaymentStats(
       dueCount++
       dueAmount += p.amount
 
-      // Canonical Overdue Logic: DUE + MONTHLY + dueDate < asOf (strict)
-      if (p.type === "MONTHLY" && p.dueDate < date) {
+      // Canonical Overdue Rule: DUE + MONTHLY + dueDate > 7 days ago
+      if (p.type === "MONTHLY" && p.dueDate < overdueCutoff(date)) {
         overdueCount++
       }
     } else if (p.status === "PAID") {
@@ -130,11 +131,11 @@ export async function getOverduePayments(
   const payments = await prisma.payment.findMany({
     where: {
       branchId,
-      status: "DUE", // WAIVED excluded — not status "DUE" by definition
+      status: "DUE",
       dueDate: {
-        lt: date, // Strictly less than today (overdue)
+        lt: overdueCutoff(date), // 7-day grace: only flag after 7 days past dueDate
       },
-      type: "MONTHLY" // Canonical rule for "Overdue"
+      type: "MONTHLY"
     },
     select: {
       id: true,

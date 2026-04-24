@@ -7,13 +7,12 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { OverdueTable } from "@/components/dashboard/OverdueTable";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ShiftOccupancyCard } from "@/components/dashboard/ShiftOccupancyCard";
-import { RecentStudents } from "@/components/dashboard/RecentStudents";
+import { RecentActivity, ActivityItem } from "@/components/dashboard/RecentActivity";
 import {
     IndianRupee,
     AlertTriangle,
     Users,
     LayoutGrid,
-    Loader2,
     AlertCircle,
 } from "lucide-react";
 
@@ -40,6 +39,7 @@ interface DashboardData {
     snapshot: BranchSnapshot;
     overduePayments: OverduePayment[];
     recentStudents: Student[];
+    activityItems: ActivityItem[];
     branchName: string;
 }
 
@@ -124,14 +124,21 @@ export default function BranchDashboardPage({
             setLoading(true);
             setError(null);
             try {
-                const [snapshot, branchDetails, allStudents, overdueRes] = await Promise.all([
-                    analytics.getSnapshot(branchId),
-                    branches.getDetails(branchId),
-                    branches.getStudents(branchId),
-                    fetch(`/api/branches/${branchId}/payments/overdue`)
-                        .then((r) => (r.ok ? r.json() : { count: 0, payments: [] }))
-                        .catch(() => ({ count: 0, payments: [] })),
-                ]);
+                const [snapshot, branchDetails, allStudents, overdueRes, allocationsRes, paidPaymentsRes] =
+                    await Promise.all([
+                        analytics.getSnapshot(branchId),
+                        branches.getDetails(branchId),
+                        branches.getStudents(branchId),
+                        fetch(`/api/branches/${branchId}/payments/overdue`)
+                            .then((r) => (r.ok ? r.json() : { count: 0, payments: [] }))
+                            .catch(() => ({ count: 0, payments: [] })),
+                        fetch(`/api/branches/${branchId}/seat-allocations?activeOnly=true`)
+                            .then((r) => (r.ok ? r.json() : []))
+                            .catch(() => []),
+                        fetch(`/api/branches/${branchId}/payments?status=PAID`)
+                            .then((r) => (r.ok ? r.json() : []))
+                            .catch(() => []),
+                    ]);
 
                 // Sort students by joinedAt/createdAt desc, take first 5
                 const sorted = [...allStudents].sort((a: any, b: any) => {
@@ -140,16 +147,59 @@ export default function BranchDashboardPage({
                     return db - da;
                 });
 
+                // ── Build activity feed ──────────────────────────────────
+                const rawItems: ActivityItem[] = [
+                    // Recent seat allocations (up to 5)
+                    ...allocationsRes.slice(0, 5).map((a: any) => ({
+                        type: "allocation" as const,
+                        seat: a.seat?.label ?? "Seat",
+                        studentName: a.student?.name ?? "—",
+                        ts: a.startDate ?? new Date().toISOString(),
+                    })),
+                    // Recent paid payments — sort by paidAt desc so newest appear first
+                    ...[...paidPaymentsRes]
+                        .sort((a: any, b: any) =>
+                            new Date(b.paidAt ?? b.updatedAt ?? 0).getTime() -
+                            new Date(a.paidAt ?? a.updatedAt ?? 0).getTime()
+                        )
+                        .slice(0, 5)
+                        .map((p: any) => ({
+                        type: "payment" as const,
+                        amount: p.amount,
+                        studentName: p.student?.name ?? "—",
+                        ts: p.paidAt ?? p.updatedAt ?? new Date().toISOString(),
+                    })),
+                    // Single overdue aggregate event (if any)
+                    ...(overdueRes.payments?.length > 0
+                        ? [{
+                            type: "overdue" as const,
+                            count: overdueRes.payments.length,
+                            ts: new Date().toISOString(),
+                        }]
+                        : []),
+                    // New enrollments (up to 5)
+                    ...sorted.slice(0, 5).map((s: any) => ({
+                        type: "enrollment" as const,
+                        studentName: s.name,
+                        ts: s.joinedAt ?? s.createdAt ?? new Date().toISOString(),
+                    })),
+                ];
+
+                // Sort by most recent, keep top 10
+                const activityItems = rawItems
+                    .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+                    .slice(0, 10);
+
                 setData({
                     snapshot,
                     overduePayments: overdueRes.payments ?? [],
                     recentStudents: sorted.slice(0, 5),
+                    activityItems,
                     branchName: branchDetails.name,
                 });
             } catch (err) {
                 console.error("[Dashboard] load failed", err);
                 setError("Some dashboard data failed to load.");
-                // Still try to show partial data
             } finally {
                 setLoading(false);
             }
@@ -245,9 +295,9 @@ export default function BranchDashboardPage({
                 </div>
             </div>
 
-            {/* ── Recent Students (full width) ─────────────────────────── */}
-            <RecentStudents
-                students={data?.recentStudents ?? []}
+            {/* ── Recent Activity (full width) ─────────────────────────── */}
+            <RecentActivity
+                items={data?.activityItems ?? []}
                 branchId={branchId}
             />
         </div>
