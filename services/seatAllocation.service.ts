@@ -115,7 +115,8 @@ export class SeatAllocationService {
                 where: { studentId, endDate: null },
             });
 
-            const allocationsToCreate = [];
+            // ⚡ Bolt: Batch seat allocation creations to avoid N+1 inserts inside the conflict-checking loop.
+            const allocationsToCreateData: import("@prisma/client").Prisma.SeatAllocationCreateManyInput[] = [];
 
             for (const requestedShift of requestedShifts) {
                 const newStart = parseNullableTime(requestedShift.startTime);
@@ -151,14 +152,12 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift (with optional multiShiftId)
-                const allocation = await tx.seatAllocation.create({
-                    data: {
-                        seatId,
-                        studentId,
-                        shiftId: requestedShift.id,
-                        ...(multiShiftId ? { multiShiftId } : {}),
-                    },
+                // 8. Push allocation data for batch insert later
+                allocationsToCreateData.push({
+                    seatId,
+                    studentId,
+                    shiftId: requestedShift.id,
+                    ...(multiShiftId ? { multiShiftId } : {}),
                 });
 
                 // Push mock objects into live arrays so subsequent loop iterations
@@ -166,9 +165,25 @@ export class SeatAllocationService {
                 const mockAllocation = { shiftId: requestedShift.id } as import("@prisma/client").SeatAllocation;
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
-
-                allocationsToCreate.push(allocation);
             }
+
+            // Perform batch insert
+            if (allocationsToCreateData.length > 0) {
+                await tx.seatAllocation.createMany({
+                    data: allocationsToCreateData,
+                });
+            }
+
+            // Fetch the newly created allocations to return them
+            const shiftIdsToFetch = allocationsToCreateData.map(a => a.shiftId);
+            const allocationsToCreate = await tx.seatAllocation.findMany({
+                where: {
+                    seatId,
+                    studentId,
+                    shiftId: { in: shiftIdsToFetch },
+                    endDate: null,
+                },
+            });
 
             // 9. Update Branch lastDataChange
             await tx.branch.update({
@@ -285,19 +300,25 @@ export class SeatAllocationService {
                 if (s.branchId !== branchId) throw new Error(`Shift "${s.name}" does not belong to this branch.`);
             }
 
-            // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            // ⚡ Bolt: Batch create new allocations instead of Promise.all over individual creates
+            await tx.seatAllocation.createMany({
+                data: newShiftIds.map((shiftId) => ({
+                    seatId: newSeatId,
+                    studentId,
+                    shiftId,
+                    ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+                })),
+            });
+
+            // Fetch the created records to return them
+            const created = await tx.seatAllocation.findMany({
+                where: {
+                    seatId: newSeatId,
+                    studentId,
+                    shiftId: { in: newShiftIds },
+                    endDate: null,
+                },
+            });
 
             await tx.branch.update({
                 where: { id: branchId },
