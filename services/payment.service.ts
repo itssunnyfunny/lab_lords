@@ -261,6 +261,21 @@ export class PaymentService {
                 data: { lastDataChange: new Date() }
             });
 
+            // 4. Create Audit Log
+            await tx.auditLog.create({
+                data: {
+                    branchId: payment.branchId,
+                    userId,
+                    action: "PAYMENT_MARKED_PAID",
+                    paymentId: payment.id,
+                    details: {
+                        from: payment.status,
+                        to: "PAID",
+                        amount: payment.amount
+                    }
+                }
+            });
+
             return updatedPayment;
         });
     }
@@ -303,6 +318,21 @@ export class PaymentService {
             await tx.branch.update({
                 where: { id: payment.branchId },
                 data: { lastDataChange: new Date() }
+            });
+
+            // Create Audit Log
+            await tx.auditLog.create({
+                data: {
+                    branchId: payment.branchId,
+                    userId,
+                    action: "PAYMENT_WAIVED",
+                    paymentId: payment.id,
+                    details: {
+                        from: payment.status,
+                        to: "WAIVED",
+                        amount: payment.amount
+                    }
+                }
             });
 
             return updatedPayment;
