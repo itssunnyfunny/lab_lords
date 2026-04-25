@@ -115,7 +115,7 @@ export class SeatAllocationService {
                 where: { studentId, endDate: null },
             });
 
-            const allocationsToCreate = [];
+            const allocationsToCreate: import("@prisma/client").Prisma.SeatAllocationCreateManyInput[] = [];
 
             for (const requestedShift of requestedShifts) {
                 const newStart = parseNullableTime(requestedShift.startTime);
@@ -151,14 +151,12 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift (with optional multiShiftId)
-                const allocation = await tx.seatAllocation.create({
-                    data: {
-                        seatId,
-                        studentId,
-                        shiftId: requestedShift.id,
-                        ...(multiShiftId ? { multiShiftId } : {}),
-                    },
+                // 8. Prepare allocation data for bulk insert
+                allocationsToCreate.push({
+                    seatId,
+                    studentId,
+                    shiftId: requestedShift.id,
+                    ...(multiShiftId ? { multiShiftId } : {}),
                 });
 
                 // Push mock objects into live arrays so subsequent loop iterations
@@ -166,9 +164,24 @@ export class SeatAllocationService {
                 const mockAllocation = { shiftId: requestedShift.id } as import("@prisma/client").SeatAllocation;
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
-
-                allocationsToCreate.push(allocation);
             }
+
+            // 8b. Execute bulk insert
+            if (allocationsToCreate.length > 0) {
+                await tx.seatAllocation.createMany({
+                    data: allocationsToCreate,
+                });
+            }
+
+            // Fetch the newly created records to return them
+            const createdAllocations = await tx.seatAllocation.findMany({
+                where: {
+                    seatId,
+                    studentId,
+                    shiftId: { in: requestedShifts.map(s => s.id) },
+                    endDate: null,
+                },
+            });
 
             // 9. Update Branch lastDataChange
             await tx.branch.update({
@@ -176,7 +189,7 @@ export class SeatAllocationService {
                 data: { lastDataChange: new Date() },
             });
 
-            return allocationsToCreate;
+            return createdAllocations;
         });
     }
 
@@ -286,18 +299,26 @@ export class SeatAllocationService {
             }
 
             // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            // ⚡ Bolt: Bulk insert optimization. Replace Promise.all loop with single createMany
+            if (newShiftIds.length > 0) {
+                await tx.seatAllocation.createMany({
+                    data: newShiftIds.map((shiftId) => ({
+                        seatId: newSeatId,
+                        studentId,
+                        shiftId,
+                        ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+                    })),
+                });
+            }
+
+            const created = await tx.seatAllocation.findMany({
+                where: {
+                    seatId: newSeatId,
+                    studentId,
+                    shiftId: { in: newShiftIds },
+                    endDate: null,
+                },
+            });
 
             await tx.branch.update({
                 where: { id: branchId },
