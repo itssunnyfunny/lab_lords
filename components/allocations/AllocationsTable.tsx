@@ -11,8 +11,9 @@ import { Layers, Pencil } from "lucide-react";
 interface Allocation {
     id: string;
     studentId: string;
-    student: { name: string; status: string };
+    student: { name: string; status: string; monthlyFee?: number | null };
     seat: { id: string; label: string };
+    shiftId: string;
     shift: { name: string; isReserved: boolean };
     startDate: string;
     endDate: string | null;
@@ -23,7 +24,7 @@ interface Allocation {
 interface AllocationsTableProps {
     allocations: Allocation[];
     onEndAllocation: (allocationIds: string | string[]) => Promise<void>;
-    onUpdateAllocation?: (ids: string[], studentId: string, studentName: string, currentSeatId: string) => void;
+    onUpdateAllocation?: (ids: string[], studentId: string, studentName: string, currentSeatId: string, currentFee: number | null, currentShiftIds: string[], currentMultiShiftId: string | null) => void;
     isEndedTab?: boolean;
 }
 
@@ -32,11 +33,12 @@ interface GroupedAllocation {
     id: string; // main key
     ids: string[]; // all ids
     studentId: string;
-    student: { name: string; status: string };
+    student: { name: string; status: string; monthlyFee?: number | null };
     seat: { id: string; label: string };
     startDate: string;
     endDate: string | null;
     shiftName: string; // for primary
+    shiftIds: string[]; // for all shifts involved
     multiShiftId?: string | null;
     multiShiftName?: string; // for multi
     componentShiftNames?: string[]; // for multi
@@ -73,6 +75,7 @@ export function AllocationsTable({ allocations, onEndAllocation, onUpdateAllocat
             if (grouped.has(key)) {
                 const group = grouped.get(key)!;
                 group.ids.push(alloc.id);
+                group.shiftIds.push(alloc.shiftId);
                 group.componentShiftNames!.push(alloc.shift.name);
             } else {
                 const group: GroupedAllocation = {
@@ -85,7 +88,9 @@ export function AllocationsTable({ allocations, onEndAllocation, onUpdateAllocat
                     startDate: alloc.startDate,
                     endDate: alloc.endDate,
                     shiftName: alloc.shift.name,
+                    shiftIds: [alloc.shiftId],
                     multiShiftName: msName,
+                    multiShiftId: msId,
                     componentShiftNames: [alloc.shift.name],
                 };
                 grouped.set(key, group);
@@ -102,6 +107,7 @@ export function AllocationsTable({ allocations, onEndAllocation, onUpdateAllocat
                 startDate: alloc.startDate,
                 endDate: alloc.endDate,
                 shiftName: alloc.shift.name,
+                shiftIds: [alloc.shiftId],
             });
         }
     });
@@ -189,7 +195,7 @@ export function AllocationsTable({ allocations, onEndAllocation, onUpdateAllocat
                                             <div className="flex items-center gap-2">
                                                 {onUpdateAllocation && (
                                                     <button
-                                                        onClick={() => onUpdateAllocation(alloc.ids, alloc.studentId, alloc.student.name, alloc.seat.id)}
+                                                        onClick={() => onUpdateAllocation(alloc.ids, alloc.studentId, alloc.student.name, alloc.seat.id, alloc.student.monthlyFee ?? null, alloc.shiftIds, alloc.multiShiftId ?? null)}
                                                         className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-all"
                                                         title="Change seat / shift"
                                                     >

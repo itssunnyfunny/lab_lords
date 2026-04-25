@@ -13,6 +13,9 @@ interface UpdateAllocationDialogProps {
     studentId: string;
     studentName: string;
     currentSeatId: string;
+    currentFee: number | null;
+    currentShiftIds?: string[];
+    currentMultiShiftId?: string | null;
     onClose: () => void;
     onSuccess: () => void;
 }
@@ -25,14 +28,18 @@ export function UpdateAllocationDialog({
     studentId,
     studentName,
     currentSeatId,
+    currentFee,
+    currentShiftIds = [],
+    currentMultiShiftId = null,
     onClose,
     onSuccess,
 }: UpdateAllocationDialogProps) {
-    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
+    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>(currentShiftIds);
     const [selectedShiftNames, setSelectedShiftNames] = useState<string[]>([]);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
-    const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(null);
+    const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(currentMultiShiftId);
     const [selectedMultiShiftName, setSelectedMultiShiftName] = useState<string | null>(null);
+    const [newFee, setNewFee] = useState<string>("");
 
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -40,11 +47,12 @@ export function UpdateAllocationDialog({
     // Reset state whenever dialog opens
     useEffect(() => {
         if (!isOpen) return;
-        setSelectedShiftIds([]);
+        setSelectedShiftIds(currentShiftIds);
         setSelectedShiftNames([]);
         setSelectedSeatId(null);
-        setSelectedMultiShiftId(null);
+        setSelectedMultiShiftId(currentMultiShiftId);
         setSelectedMultiShiftName(null);
+        setNewFee("");
         setSubmitError(null);
     }, [isOpen]);
 
@@ -87,6 +95,7 @@ export function UpdateAllocationDialog({
         setSubmitError(null);
 
         try {
+            // 1. Update allocation (seat / shift)
             const res = await fetch(`/api/seat-allocations/${allocationId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -102,6 +111,22 @@ export function UpdateAllocationDialog({
             if (!res.ok) {
                 const data = await res.json();
                 throw new Error(data.error || "Failed to update allocation");
+            }
+
+            // 2. Optionally update monthly fee if user filled the field
+            if (newFee.trim() !== "") {
+                const feeRes = await fetch(`/api/branches/${branchId}/students`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        id: studentId,
+                        monthlyFee: Number(newFee),
+                    }),
+                });
+                if (!feeRes.ok) {
+                    const d = await feeRes.json().catch(() => ({}));
+                    throw new Error(d.error || "Allocation updated, but fee update failed.");
+                }
             }
 
             onSuccess();
@@ -148,7 +173,7 @@ export function UpdateAllocationDialog({
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-1">
+                <div className="p-6 overflow-y-auto flex-1 min-h-0">
                     <SeatPicker
                         branchId={branchId}
                         studentId={studentId}
@@ -160,26 +185,50 @@ export function UpdateAllocationDialog({
                         excludeAllocationIds={allocationIds}
                         currentSeatId={currentSeatId}
                     />
-
-                    {submitError && (
-                        <div className="mt-4 p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
-                            {submitError}
-                        </div>
-                    )}
                 </div>
 
-                {/* Footer */}
+                {/* Footer — fee override + action buttons */}
                 {canConfirm && (
-                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 bg-white/[0.01] flex-shrink-0">
-                        <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
-                            Cancel
-                        </Button>
-                        <Button onClick={handleConfirm} disabled={submitting} className="text-sm h-8 px-5">
-                            {submitting
-                                ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Updating...</>
-                                : confirmLabel
-                            }
-                        </Button>
+                    <div className="border-t border-white/5 bg-white/[0.01] flex-shrink-0 px-6 py-4 space-y-3">
+                        {/* Fee row */}
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-zinc-400 whitespace-nowrap">
+                                Monthly fee:{" "}
+                                <span className="text-white font-medium">
+                                    {currentFee != null ? `₹${currentFee}` : "—"}
+                                </span>
+                            </span>
+                            <div className="relative flex-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm select-none">₹</span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    value={newFee}
+                                    onChange={e => setNewFee(e.target.value)}
+                                    placeholder="Update fee (optional)"
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-7 pr-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center justify-end gap-3">
+                            <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
+                                Cancel
+                            </Button>
+                            <Button onClick={handleConfirm} disabled={submitting || !canConfirm} className="text-sm h-8 px-5">
+                                {submitting
+                                    ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Updating...</>
+                                    : confirmLabel
+                                }
+                            </Button>
+                        </div>
+
+                        {submitError && (
+                            <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
+                                {submitError}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

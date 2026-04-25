@@ -32,6 +32,9 @@ export default function AllocationsPage() {
         studentId: string;
         studentName: string;
         currentSeatId: string;
+        currentFee: number | null;
+        currentShiftIds: string[];
+        currentMultiShiftId: string | null;
     } | null>(null);
 
     // Auto-open dialog when navigated from students page with ?studentId=...
@@ -56,6 +59,9 @@ export default function AllocationsPage() {
             studentId: changeStudentId,
             studentName: changeStudentName || studentAllocs[0]?.student?.name || "",
             currentSeatId: studentAllocs[0]?.seat?.id || "",
+            currentFee: studentAllocs[0]?.student?.monthlyFee ?? null,
+            currentShiftIds: studentAllocs.map((a: any) => a.shiftId),
+            currentMultiShiftId: studentAllocs[0]?.multiShiftId ?? null,
         });
         // Clear query param
         router.replace(`/branch/${branchId}/allocations`);
@@ -153,8 +159,8 @@ export default function AllocationsPage() {
                 <AllocationsTable
                     allocations={filteredAllocations}
                     onEndAllocation={handleEndAllocation}
-                    onUpdateAllocation={(ids, studentId, studentName, currentSeatId) =>
-                        setUpdateTarget({ ids, studentId, studentName, currentSeatId })
+                    onUpdateAllocation={(ids, studentId, studentName, currentSeatId, currentFee, currentShiftIds, currentMultiShiftId) =>
+                        setUpdateTarget({ ids, studentId, studentName, currentSeatId, currentFee, currentShiftIds, currentMultiShiftId })
                     }
                     isEndedTab={activeTab === "ENDED"}
                 />
@@ -182,6 +188,9 @@ export default function AllocationsPage() {
                     studentId={updateTarget.studentId}
                     studentName={updateTarget.studentName}
                     currentSeatId={updateTarget.currentSeatId}
+                    currentFee={updateTarget.currentFee}
+                    currentShiftIds={updateTarget.currentShiftIds}
+                    currentMultiShiftId={updateTarget.currentMultiShiftId}
                     onClose={() => setUpdateTarget(null)}
                     onSuccess={() => {
                         fetchAllocations();
