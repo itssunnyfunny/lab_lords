@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
-import { X, Loader2, AlertCircle, User, Phone } from "lucide-react";
+import { X, Loader2, AlertCircle, User, Phone, IndianRupee } from "lucide-react";
 import { Student } from "@prisma/client";
 
 interface EditStudentDialogProps {
@@ -22,6 +22,7 @@ export function EditStudentDialog({
 }: EditStudentDialogProps) {
     const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
+    const [monthlyFee, setMonthlyFee] = useState<string>("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -30,15 +31,18 @@ export function EditStudentDialog({
         if (student) {
             setName(student.name ?? "");
             setPhone(student.phone ?? "");
+            setMonthlyFee(student.monthlyFee != null ? String(student.monthlyFee) : "");
             setError(null);
         }
     }, [student]);
 
     if (!isOpen || !student) return null;
 
+    const currentFeeStr = student.monthlyFee != null ? String(student.monthlyFee) : "";
     const hasChanges =
         name.trim() !== (student.name ?? "") ||
-        phone.trim() !== (student.phone ?? "");
+        phone.trim() !== (student.phone ?? "") ||
+        monthlyFee !== currentFeeStr;
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -55,6 +59,9 @@ export function EditStudentDialog({
                     id: student.id,
                     name: name.trim(),
                     phone: phone.trim(),
+                    ...(monthlyFee !== currentFeeStr && monthlyFee.trim() !== ""
+                        ? { monthlyFee: Number(monthlyFee) }
+                        : {}),
                 }),
             });
             if (!res.ok) {
@@ -121,6 +128,22 @@ export function EditStudentDialog({
                                 value={phone}
                                 onChange={e => setPhone(e.target.value)}
                                 placeholder="e.g. 9876543210"
+                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Monthly Fee */}
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Monthly Fee</label>
+                        <div className="relative">
+                            <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <input
+                                type="number"
+                                min={0}
+                                value={monthlyFee}
+                                onChange={e => setMonthlyFee(e.target.value)}
+                                placeholder="e.g. 1500"
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />
                         </div>
