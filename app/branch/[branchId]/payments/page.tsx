@@ -5,8 +5,9 @@ import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState, use } from "react";
+import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
+import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal } from "lucide-react";
+import { useEffect, useState, use, useRef } from "react";
 import { payments } from "@/lib/api/payments";
 import { Payment } from "@prisma/client";
 import { format, addMonths, subMonths } from "date-fns";
@@ -28,6 +29,11 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
 
     const [paymentToMark, setPaymentToMark] = useState<string | null>(null);
     const [marking, setMarking] = useState(false);
+
+    const [paymentToWaive, setPaymentToWaive] = useState<string | null>(null);
+    const [waiving, setWaiving] = useState(false);
+
+    const [auditLog, setAuditLog] = useState<{ paymentId: string; studentName: string } | null>(null);
 
     const loadPayments = async () => {
         try {
@@ -97,6 +103,20 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
             alert("Failed to mark as paid");
         } finally {
             setMarking(false);
+        }
+    };
+
+    const confirmWaive = async () => {
+        if (!paymentToWaive) return;
+        setWaiving(true);
+        try {
+            await payments.markAsWaived(paymentToWaive);
+            await loadPayments();
+            setPaymentToWaive(null);
+        } catch (err) {
+            alert("Failed to waive payment");
+        } finally {
+            setWaiving(false);
         }
     };
 
@@ -249,16 +269,37 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                         },
                     ]}
                     actions={(item) => (
-                        <div className="flex justify-end gap-2">
-                            {item.status === "DUE" && (
+                        <div className="flex justify-end gap-2 items-center">
+                            {item.status === "PAID" && (
                                 <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     size="sm"
-                                    className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
-                                    onClick={() => handleMarkPaid(item.id)}
+                                    className="gap-1.5 text-xs text-gray-500 hover:text-white"
+                                    onClick={() =>
+                                        setAuditLog({
+                                            paymentId: item.id,
+                                            studentName: (item as any).student?.name || "Unknown",
+                                        })
+                                    }
                                 >
-                                    <Check size={14} /> Mark Paid
+                                    <History size={13} />
+                                    History
                                 </Button>
+                            )}
+
+                            {item.status === "DUE" && (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
+                                        onClick={() => handleMarkPaid(item.id)}
+                                    >
+                                        <Check size={14} /> Mark Paid
+                                    </Button>
+
+                                    <RowDropdown onWaive={() => setPaymentToWaive(item.id)} />
+                                </>
                             )}
                         </div>
                     )}
@@ -280,6 +321,68 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                 confirmText="Yes, Mark Paid"
                 loading={marking}
             />
+
+            <ConfirmDialog
+                isOpen={!!paymentToWaive}
+                onClose={() => setPaymentToWaive(null)}
+                onConfirm={confirmWaive}
+                title="Waive Payment"
+                description="This will mark the payment as WAIVED. The debt will be written off and excluded from analytics. This cannot be undone."
+                confirmText="Yes, Waive"
+                loading={waiving}
+                variant="warning"
+            />
+
+            <PaymentAuditLog
+                isOpen={!!auditLog}
+                onClose={() => setAuditLog(null)}
+                paymentId={auditLog?.paymentId ?? ""}
+                studentName={auditLog?.studentName ?? ""}
+            />
+        </div>
+    );
+}
+
+function RowDropdown({ onWaive }: { onWaive: () => void }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative" ref={ref}>
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setOpen(!open)}
+                className={cn(
+                    "w-8 h-8 text-gray-500 hover:text-white hover:bg-white/5 transition-colors",
+                    open && "bg-white/5 text-white"
+                )}
+            >
+                <MoreHorizontal size={16} />
+            </Button>
+            {open && (
+                <div className="absolute right-0 mt-1 w-36 bg-[#1a1d27] border border-white/10 rounded-lg shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-100">
+                    <button
+                        onClick={() => {
+                            setOpen(false);
+                            onWaive();
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2 transition-colors"
+                    >
+                        <Ban size={13} /> Waive Payment
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
