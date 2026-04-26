@@ -134,6 +134,11 @@ export function PaymentAuditLog({
                                     <span className="text-xs text-gray-500">
                                         {formatCurrency(log.details.amount)}
                                     </span>
+                                    {log.details.method && (
+                                        <span className="text-xs font-medium text-gray-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
+                                            {log.details.method}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="mt-1.5 flex items-center gap-1 text-xs text-gray-500">
                                     <span className="text-gray-400 font-medium truncate">
@@ -144,8 +149,13 @@ export function PaymentAuditLog({
                                         {format(new Date(log.createdAt), "dd MMM yyyy, hh:mm a")}
                                     </span>
                                 </div>
-                                <div className="mt-1 text-[10px] text-gray-600">
-                                    {log.details.from} → {log.details.to}
+                                <div className="mt-1 text-[10px] text-gray-600 flex flex-col gap-0.5">
+                                    <span>{log.details.from} → {log.details.to}</span>
+                                    {log.details.referenceId && (
+                                        <span className="text-gray-500 font-mono">
+                                            Ref: {log.details.referenceId}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
