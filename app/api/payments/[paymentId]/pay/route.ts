@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PaymentService } from "@/services/payment.service";
 import { getSessionUser } from "@/lib/auth";
+import { PaymentMethod } from "@/types";
 
 export async function PATCH(
     req: NextRequest,
@@ -14,8 +15,13 @@ export async function PATCH(
 
         const { paymentId } = await params;
 
+        // Parse optional body — callers that send no body still work
+        const body = await req.json().catch(() => ({}));
+        const method = body.method as PaymentMethod | undefined;
+        const referenceId = body.referenceId as string | undefined;
+
         // markPaymentAsPaid handles: marking PAID, deleting message drafts, updating lastDataChange
-        const payment = await PaymentService.markPaymentAsPaid(user.id, paymentId);
+        const payment = await PaymentService.markPaymentAsPaid(user.id, paymentId, method, referenceId);
 
         return NextResponse.json(payment);
     } catch (error: any) {
@@ -28,3 +34,4 @@ export async function PATCH(
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+

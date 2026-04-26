@@ -141,19 +141,21 @@ model SeatAllocation {
 }
 
 model Payment {
-  id          String        @id @default(cuid())
-  branchId    String
-  studentId   String
-  periodStart DateTime
-  periodEnd   DateTime
-  dueDate     DateTime
-  amount      Int
-  status      PaymentStatus @default(DUE)
-  paidAt      DateTime?
-  type        PaymentType   @default(MONTHLY)
-  createdAt   DateTime      @default(now())
-  branch      Branch        @relation(fields: [branchId], references: [id])
-  student     Student       @relation(fields: [studentId], references: [id])
+  id            String          @id @default(cuid())
+  branchId      String
+  studentId     String
+  periodStart   DateTime
+  periodEnd     DateTime
+  dueDate       DateTime
+  amount        Int
+  status        PaymentStatus   @default(DUE)
+  paidAt        DateTime?
+  paymentMethod PaymentMethod?
+  referenceId   String?
+  type          PaymentType     @default(MONTHLY)
+  createdAt     DateTime        @default(now())
+  branch        Branch          @relation(fields: [branchId], references: [id])
+  student       Student         @relation(fields: [studentId], references: [id])
 
   @@unique([studentId, periodStart])
   @@index([branchId, dueDate])
@@ -241,6 +243,12 @@ model AuditLog {
 
   @@index([branchId])
   @@index([paymentId])
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
 }
 
 enum AuditAction {

@@ -5,7 +5,13 @@ export type AuditLogEntry = {
     id: string;
     action: "PAYMENT_MARKED_PAID" | "PAYMENT_WAIVED";
     paymentId: string;
-    details: { from: string; to: string; amount: number };
+    details: {
+        from: string;
+        to: string;
+        amount: number;
+        method: "CASH" | "UPI" | "BANK_TRANSFER" | null;
+        referenceId: string | null;
+    };
     createdAt: string;
     user: { id: string; name: string | null; email: string };
 };
@@ -23,9 +29,13 @@ export const payments = {
         return apiClient.post(`/branches/${branchId}/payments/generate`, {});
     },
 
-    // Mark payment as paid
-    markAsPaid: async (paymentId: string): Promise<Payment> => {
-        return apiClient.patch(`/payments/${paymentId}/pay`, {});
+    // Mark payment as paid — method and referenceId are optional but recommended
+    markAsPaid: async (
+        paymentId: string,
+        method?: "CASH" | "UPI" | "BANK_TRANSFER",
+        referenceId?: string,
+    ): Promise<Payment> => {
+        return apiClient.patch(`/payments/${paymentId}/pay`, { method, referenceId });
     },
 
     // Mark payment as waived
