@@ -32,11 +32,18 @@ export class SeatAllocationService {
         const uniqueShiftIds = [...new Set(shiftIds)];
 
         return prisma.$transaction(async (tx) => {
-            // 1. Fetch seat (with branch + org for ownership check)
-            const seat = await tx.seat.findUnique({
-                where: { id: seatId },
-                include: { branch: { include: { organization: true } } },
-            });
+            // 1. Fetch independent initial entities concurrently
+            const [seat, student, requestedShifts] = await Promise.all([
+                tx.seat.findUnique({
+                    where: { id: seatId },
+                    include: { branch: { include: { organization: true } } },
+                }),
+                tx.student.findUnique({ where: { id: studentId } }),
+                tx.shift.findMany({
+                    where: { id: { in: uniqueShiftIds } },
+                }),
+            ]);
+
             if (!seat) throw new Error("Seat not found");
 
             // 2. Ownership check
@@ -46,8 +53,7 @@ export class SeatAllocationService {
 
             const branchId = seat.branchId;
 
-            // 3. Fetch student
-            const student = await tx.student.findUnique({ where: { id: studentId } });
+            // 3. Validate student
             if (!student) throw new Error("Student not found");
             if (student.status !== StudentStatus.ACTIVE) {
                 throw new Error("Only ACTIVE students can be assigned a seat");
@@ -56,18 +62,7 @@ export class SeatAllocationService {
                 throw new Error("Student does not belong to this branch");
             }
 
-            // 3b. Validate multiShiftId if provided
-            if (multiShiftId) {
-                const ms = await tx.multiShift.findUnique({ where: { id: multiShiftId } });
-                if (!ms) throw new Error("Multi-shift not found");
-                if (ms.branchId !== branchId) throw new Error("Multi-shift does not belong to this branch");
-            }
-
-            // 4. Fetch and validate all requested shifts
-            const requestedShifts = await tx.shift.findMany({
-                where: { id: { in: uniqueShiftIds } },
-            });
-
+            // 4. Validate all requested shifts
             if (requestedShifts.length !== uniqueShiftIds.length) {
                 throw new Error("One or more shifts were not found.");
             }
@@ -100,20 +95,28 @@ export class SeatAllocationService {
                 }
             }
 
-            // 6. Load ALL active shifts in branch for conflict lookups
-            const allBranchShifts = await tx.shift.findMany({
-                where: { branchId, status: "ACTIVE" },
-                select: { id: true, name: true, startTime: true, endTime: true },
-            });
-            const shiftTimeMap = new Map(allBranchShifts.map(s => [s.id, s]));
+            // 6. Fetch multiShift (if applicable) and branch-scoped lookups concurrently
+            const [ms, allBranchShifts, activeSeatAllocations, activeStudentAllocations] = await Promise.all([
+                multiShiftId ? tx.multiShift.findUnique({ where: { id: multiShiftId } }) : Promise.resolve(null),
+                tx.shift.findMany({
+                    where: { branchId, status: "ACTIVE" },
+                    select: { id: true, name: true, startTime: true, endTime: true },
+                }),
+                tx.seatAllocation.findMany({
+                    where: { seatId, endDate: null },
+                }),
+                tx.seatAllocation.findMany({
+                    where: { studentId, endDate: null },
+                }),
+            ]);
 
-            // 7. Load existing active seat allocations (for seat + student conflict checks)
-            const activeSeatAllocations = await tx.seatAllocation.findMany({
-                where: { seatId, endDate: null },
-            });
-            const activeStudentAllocations = await tx.seatAllocation.findMany({
-                where: { studentId, endDate: null },
-            });
+            // Validate multiShiftId if provided
+            if (multiShiftId) {
+                if (!ms) throw new Error("Multi-shift not found");
+                if (ms.branchId !== branchId) throw new Error("Multi-shift does not belong to this branch");
+            }
+
+            const shiftTimeMap = new Map(allBranchShifts.map(s => [s.id, s]));
 
             const allocationsToCreate = [];
 
@@ -259,15 +262,21 @@ export class SeatAllocationService {
 
             // Re-use assignSeatToShifts — but it opens its own transaction,
             // so we call the inner logic directly here.
-            const newAllocations = await tx.seatAllocation.findMany({
-                where: { seatId: newSeatId, endDate: null },
-            });
+            // Execute independent sequential queries concurrently
+            const [newAllocations, seat, shifts] = await Promise.all([
+                tx.seatAllocation.findMany({
+                    where: { seatId: newSeatId, endDate: null },
+                }),
+                tx.seat.findUnique({
+                    where: { id: newSeatId },
+                    include: { branch: { include: { organization: true } } },
+                }),
+                tx.shift.findMany({
+                    where: { id: { in: newShiftIds } },
+                })
+            ]);
 
             // Get branch from seat
-            const seat = await tx.seat.findUnique({
-                where: { id: newSeatId },
-                include: { branch: { include: { organization: true } } },
-            });
             if (!seat) throw new Error("Seat not found.");
             if (seat.branch.organization.ownerId !== userId)
                 throw new Error("Unauthorized: You do not own this branch.");
@@ -275,9 +284,6 @@ export class SeatAllocationService {
             const branchId = seat.branchId;
 
             // Validate new shifts
-            const shifts = await tx.shift.findMany({
-                where: { id: { in: newShiftIds } },
-            });
             if (shifts.length !== newShiftIds.length)
                 throw new Error("One or more new shifts were not found.");
             for (const s of shifts) {
