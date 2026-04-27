@@ -13,6 +13,7 @@ model User {
   createdAt     DateTime       @default(now())
   organizations Organization[]
   staff         Staff[]
+  auditLogs     AuditLog[]
 }
 
 model Organization {
@@ -44,6 +45,7 @@ model Branch {
   shifts         Shift[]
   staff          Staff[]
   students       Student[]
+  auditLogs      AuditLog[]
 }
 
 model Student {
@@ -139,19 +141,21 @@ model SeatAllocation {
 }
 
 model Payment {
-  id          String        @id @default(cuid())
-  branchId    String
-  studentId   String
-  periodStart DateTime
-  periodEnd   DateTime
-  dueDate     DateTime
-  amount      Int
-  status      PaymentStatus @default(DUE)
-  paidAt      DateTime?
-  type        PaymentType   @default(MONTHLY)
-  createdAt   DateTime      @default(now())
-  branch      Branch        @relation(fields: [branchId], references: [id])
-  student     Student       @relation(fields: [studentId], references: [id])
+  id            String          @id @default(cuid())
+  branchId      String
+  studentId     String
+  periodStart   DateTime
+  periodEnd     DateTime
+  dueDate       DateTime
+  amount        Int
+  status        PaymentStatus   @default(DUE)
+  paidAt        DateTime?
+  paymentMethod PaymentMethod?
+  referenceId   String?
+  type          PaymentType     @default(MONTHLY)
+  createdAt     DateTime        @default(now())
+  branch        Branch          @relation(fields: [branchId], references: [id])
+  student       Student         @relation(fields: [studentId], references: [id])
 
   @@unique([studentId, periodStart])
   @@index([branchId, dueDate])
@@ -224,3 +228,31 @@ enum BranchAIStatus {
   IDLE
   RUNNING
 }
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  branchId  String
+  userId    String
+  action    AuditAction
+  paymentId String
+  details   Json
+  createdAt DateTime    @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([branchId])
+  @@index([paymentId])
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+}
+
+enum AuditAction {
+  PAYMENT_MARKED_PAID
+  PAYMENT_WAIVED
+}
+

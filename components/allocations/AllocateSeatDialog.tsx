@@ -178,7 +178,7 @@ export function AllocateSeatDialog({
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-1">
+                <div className="p-6 overflow-y-auto flex-1 min-h-0">
                     {/* Student picker (only when not preselected) */}
                     {!hasStudent && (
                         <div className="space-y-3 mb-6">

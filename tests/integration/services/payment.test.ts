@@ -211,7 +211,65 @@ describe("PaymentService Integration", () => {
       });
       expect(drafts).toHaveLength(0);
     });
+
+    it("records paymentMethod CASH with null referenceId", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { user, branch } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+      const payment = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: BASE,
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+      });
+
+      await PaymentService.markPaymentAsPaid(user.id, payment.id, "CASH");
+
+      const updated = await testPrisma.payment.findUnique({ where: { id: payment.id } });
+      expect(updated?.paymentMethod).toBe("CASH");
+      expect(updated?.referenceId).toBeNull();
+    });
+
+    it("records paymentMethod UPI with txn referenceId", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { user, branch } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+      const payment = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: BASE,
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+      });
+
+      await PaymentService.markPaymentAsPaid(user.id, payment.id, "UPI", "TXN123ABC");
+
+      const updated = await testPrisma.payment.findUnique({ where: { id: payment.id } });
+      expect(updated?.paymentMethod).toBe("UPI");
+      expect(updated?.referenceId).toBe("TXN123ABC");
+    });
+
+    it("backward-compat — omitting method leaves paymentMethod null", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { user, branch } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+      const payment = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: BASE,
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+      });
+
+      await PaymentService.markPaymentAsPaid(user.id, payment.id);
+
+      const updated = await testPrisma.payment.findUnique({ where: { id: payment.id } });
+      expect(updated?.paymentMethod).toBeNull();
+      expect(updated?.referenceId).toBeNull();
+    });
   });
+
 
   // ─── markPaymentAsWaived ──────────────────────────────────────────────────
 

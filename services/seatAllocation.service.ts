@@ -224,6 +224,91 @@ export class SeatAllocationService {
     }
 
     /**
+     * Update an active allocation — end old record(s) and create new one(s)
+     * atomically. Used for "Change Seat / Shift" from the UI.
+     *
+     * @param userId        - Owner performing the action
+     * @param allocationIds - IDs of the current active allocation(s) to end
+     * @param newSeatId     - Target seat
+     * @param newShiftIds   - Target shift(s) (component IDs for multi-shift)
+     * @param newMultiShiftId - Optional multi-shift bundle ID
+     */
+    static async updateAllocation(
+        userId: string,
+        allocationIds: string[],
+        newSeatId: string,
+        studentId: string,
+        newShiftIds: string[],
+        newMultiShiftId?: string
+    ) {
+        // Fetch one allocation to get the studentId (validation)
+        const existing = await prisma.seatAllocation.findUnique({
+            where: { id: allocationIds[0] },
+        });
+        if (!existing) throw new Error("Allocation not found.");
+        if (existing.endDate !== null) throw new Error("Allocation is already ended.");
+        if (existing.studentId !== studentId) throw new Error("Student mismatch.");
+
+        // End all old allocations + create new ones in one transaction
+        return prisma.$transaction(async (tx) => {
+            // End old records
+            await tx.seatAllocation.updateMany({
+                where: { id: { in: allocationIds }, endDate: null },
+                data: { endDate: new Date() },
+            });
+
+            // Re-use assignSeatToShifts — but it opens its own transaction,
+            // so we call the inner logic directly here.
+            const newAllocations = await tx.seatAllocation.findMany({
+                where: { seatId: newSeatId, endDate: null },
+            });
+
+            // Get branch from seat
+            const seat = await tx.seat.findUnique({
+                where: { id: newSeatId },
+                include: { branch: { include: { organization: true } } },
+            });
+            if (!seat) throw new Error("Seat not found.");
+            if (seat.branch.organization.ownerId !== userId)
+                throw new Error("Unauthorized: You do not own this branch.");
+
+            const branchId = seat.branchId;
+
+            // Validate new shifts
+            const shifts = await tx.shift.findMany({
+                where: { id: { in: newShiftIds } },
+            });
+            if (shifts.length !== newShiftIds.length)
+                throw new Error("One or more new shifts were not found.");
+            for (const s of shifts) {
+                if (s.status !== "ACTIVE") throw new Error(`Shift "${s.name}" is not active.`);
+                if (s.branchId !== branchId) throw new Error(`Shift "${s.name}" does not belong to this branch.`);
+            }
+
+            // Create new allocations
+            const created = await Promise.all(
+                newShiftIds.map((shiftId) =>
+                    tx.seatAllocation.create({
+                        data: {
+                            seatId: newSeatId,
+                            studentId,
+                            shiftId,
+                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+                        },
+                    })
+                )
+            );
+
+            await tx.branch.update({
+                where: { id: branchId },
+                data: { lastDataChange: new Date() },
+            });
+
+            return created;
+        });
+    }
+
+    /**
      * List allocations for a branch with optional filters.
      */
     static async listAllocations(

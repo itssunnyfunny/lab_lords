@@ -6,12 +6,14 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Layers } from "lucide-react";
+import { Layers, Pencil } from "lucide-react";
 
 interface Allocation {
     id: string;
-    student: { name: string; status: string };
-    seat: { label: string };
+    studentId: string;
+    student: { name: string; status: string; monthlyFee?: number | null };
+    seat: { id: string; label: string };
+    shiftId: string;
     shift: { name: string; isReserved: boolean };
     startDate: string;
     endDate: string | null;
@@ -22,6 +24,7 @@ interface Allocation {
 interface AllocationsTableProps {
     allocations: Allocation[];
     onEndAllocation: (allocationIds: string | string[]) => Promise<void>;
+    onUpdateAllocation?: (ids: string[], studentId: string, studentName: string, currentSeatId: string, currentFee: number | null, currentShiftIds: string[], currentMultiShiftId: string | null) => void;
     isEndedTab?: boolean;
 }
 
@@ -29,17 +32,19 @@ interface GroupedAllocation {
     isMulti: boolean;
     id: string; // main key
     ids: string[]; // all ids
-    student: { name: string; status: string };
-    seat: { label: string };
+    studentId: string;
+    student: { name: string; status: string; monthlyFee?: number | null };
+    seat: { id: string; label: string };
     startDate: string;
     endDate: string | null;
     shiftName: string; // for primary
+    shiftIds: string[]; // for all shifts involved
     multiShiftId?: string | null;
     multiShiftName?: string; // for multi
     componentShiftNames?: string[]; // for multi
 }
 
-export function AllocationsTable({ allocations, onEndAllocation, isEndedTab = false }: AllocationsTableProps) {
+export function AllocationsTable({ allocations, onEndAllocation, onUpdateAllocation, isEndedTab = false }: AllocationsTableProps) {
     const [endingIds, setEndingIds] = useState<string[] | null>(null);
     const [confirmIds, setConfirmIds] = useState<string[] | null>(null);
 
@@ -70,18 +75,22 @@ export function AllocationsTable({ allocations, onEndAllocation, isEndedTab = fa
             if (grouped.has(key)) {
                 const group = grouped.get(key)!;
                 group.ids.push(alloc.id);
+                group.shiftIds.push(alloc.shiftId);
                 group.componentShiftNames!.push(alloc.shift.name);
             } else {
                 const group: GroupedAllocation = {
                     isMulti: true,
                     id: alloc.id,
                     ids: [alloc.id],
+                    studentId: alloc.studentId,
                     student: alloc.student,
                     seat: alloc.seat,
                     startDate: alloc.startDate,
                     endDate: alloc.endDate,
                     shiftName: alloc.shift.name,
+                    shiftIds: [alloc.shiftId],
                     multiShiftName: msName,
+                    multiShiftId: msId,
                     componentShiftNames: [alloc.shift.name],
                 };
                 grouped.set(key, group);
@@ -92,11 +101,13 @@ export function AllocationsTable({ allocations, onEndAllocation, isEndedTab = fa
                 isMulti: false,
                 id: alloc.id,
                 ids: [alloc.id],
+                studentId: alloc.studentId,
                 student: alloc.student,
                 seat: alloc.seat,
                 startDate: alloc.startDate,
                 endDate: alloc.endDate,
                 shiftName: alloc.shift.name,
+                shiftIds: [alloc.shiftId],
             });
         }
     });
@@ -181,14 +192,26 @@ export function AllocationsTable({ allocations, onEndAllocation, isEndedTab = fa
                                 {!isEndedTab && (
                                     <td className="px-6 py-4">
                                         {isActive && (
-                                            <Button
-                                                variant="danger"
-                                                onClick={() => handleEndClick(alloc.ids)}
-                                                isLoading={endingIds?.includes(alloc.id)}
-                                                className="text-xs px-2 py-1 h-auto"
-                                            >
-                                                End
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                {onUpdateAllocation && (
+                                                    <button
+                                                        onClick={() => onUpdateAllocation(alloc.ids, alloc.studentId, alloc.student.name, alloc.seat.id, alloc.student.monthlyFee ?? null, alloc.shiftIds, alloc.multiShiftId ?? null)}
+                                                        className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-all"
+                                                        title="Change seat / shift"
+                                                    >
+                                                        <Pencil size={11} />
+                                                        Change
+                                                    </button>
+                                                )}
+                                                <Button
+                                                    variant="danger"
+                                                    onClick={() => handleEndClick(alloc.ids)}
+                                                    isLoading={endingIds?.includes(alloc.id)}
+                                                    className="text-xs px-2 py-1 h-auto"
+                                                >
+                                                    End
+                                                </Button>
+                                            </div>
                                         )}
                                     </td>
                                 )}

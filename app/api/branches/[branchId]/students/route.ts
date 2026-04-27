@@ -92,6 +92,7 @@ export async function PATCH(
                 data: {
                     ...(body.name !== undefined ? { name: body.name.trim() } : {}),
                     ...(body.phone !== undefined ? { phone: body.phone.trim() || null } : {}),
+                    ...(body.monthlyFee !== undefined && body.monthlyFee !== null ? { monthlyFee: Number(body.monthlyFee) } : {}),
                 },
             });
 

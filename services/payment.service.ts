@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PaymentStatus, StudentStatus, PaymentType } from "@/types";
+import { PaymentStatus, StudentStatus, PaymentType, PaymentMethod } from "@/types";
 import { addMonths, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
 
 export class PaymentService {
@@ -214,7 +214,12 @@ export class PaymentService {
     /**
      * Marks a payment as PAID.
      */
-    static async markPaymentAsPaid(userId: string, paymentId: string) {
+    static async markPaymentAsPaid(
+        userId: string,
+        paymentId: string,
+        method?: PaymentMethod,
+        referenceId?: string,
+    ) {
         const payment = await prisma.payment.findUnique({
             where: { id: paymentId },
             include: {
@@ -237,12 +242,14 @@ export class PaymentService {
         }
 
         return prisma.$transaction(async (tx) => {
-            // 1. Mark as PAID
+            // 1. Mark as PAID (write-once: method + referenceId set only here)
             const updatedPayment = await tx.payment.update({
                 where: { id: paymentId },
                 data: {
                     status: PaymentStatus.PAID,
                     paidAt: new Date(),
+                    ...(method      ? { paymentMethod: method } : {}),
+                    ...(referenceId ? { referenceId }           : {}),
                 },
             });
 
@@ -259,6 +266,23 @@ export class PaymentService {
             await tx.branch.update({
                 where: { id: payment.branchId },
                 data: { lastDataChange: new Date() }
+            });
+
+            // 4. Create Audit Log
+            await tx.auditLog.create({
+                data: {
+                    branchId: payment.branchId,
+                    userId,
+                    action: "PAYMENT_MARKED_PAID",
+                    paymentId: payment.id,
+                    details: {
+                        from: payment.status,
+                        to: "PAID",
+                        amount: payment.amount,
+                        method: method ?? null,
+                        referenceId: referenceId ?? null,
+                    }
+                }
             });
 
             return updatedPayment;
@@ -303,6 +327,21 @@ export class PaymentService {
             await tx.branch.update({
                 where: { id: payment.branchId },
                 data: { lastDataChange: new Date() }
+            });
+
+            // Create Audit Log
+            await tx.auditLog.create({
+                data: {
+                    branchId: payment.branchId,
+                    userId,
+                    action: "PAYMENT_WAIVED",
+                    paymentId: payment.id,
+                    details: {
+                        from: payment.status,
+                        to: "WAIVED",
+                        amount: payment.amount
+                    }
+                }
             });
 
             return updatedPayment;

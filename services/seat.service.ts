@@ -200,7 +200,8 @@ export class SeatService {
         userId: string,
         branchId: string,
         shiftId: string,
-        multiShiftId?: string
+        multiShiftId?: string,
+        excludeAllocationIds?: string[]
     ) {
         await this.assertBranchOwnership(userId, branchId);
 
@@ -228,7 +229,12 @@ export class SeatService {
                 where: { branchId },
                 include: {
                     seatAllocations: {
-                        where: { endDate: null },
+                        where: {
+                            endDate: null,
+                            ...(excludeAllocationIds?.length
+                                ? { id: { notIn: excludeAllocationIds } }
+                                : {}),
+                        },
                         include: { student: { select: { name: true } } },
                     },
                 },
@@ -284,7 +290,12 @@ export class SeatService {
                 where: { branchId },
                 include: {
                     seatAllocations: {
-                        where: { endDate: null },
+                        where: {
+                            endDate: null,
+                            ...(excludeAllocationIds?.length
+                                ? { id: { notIn: excludeAllocationIds } }
+                                : {}),
+                        },
                         include: { student: { select: { name: true } }, shift: { select: { startTime: true, endTime: true } } },
                     },
                 },
@@ -352,7 +363,7 @@ export class SeatService {
      * If studentId is provided, marks a shift as studentAlreadyAllocated when
      * the student has any active allocation that time-overlaps with that shift.
      */
-    static async getShiftsCapacity(userId: string, branchId: string, studentId?: string) {
+    static async getShiftsCapacity(userId: string, branchId: string, studentId?: string, excludeAllocationIds?: string[]) {
         await this.assertBranchOwnership(userId, branchId);
 
         // ⚡ Bolt: Fetch total seats, active shifts, and optionally student's allocations concurrently
@@ -366,7 +377,13 @@ export class SeatService {
                 orderBy: { name: "asc" },
             }),
             studentId ? prisma.seatAllocation.findMany({
-                where: { studentId, endDate: null },
+                where: {
+                    studentId,
+                    endDate: null,
+                    ...(excludeAllocationIds?.length
+                        ? { id: { notIn: excludeAllocationIds } }
+                        : {}),
+                },
                 include: { shift: { select: { id: true, startTime: true, endTime: true } } },
             }) : Promise.resolve([])
         ]);
@@ -431,8 +448,8 @@ export class SeatService {
      * Returns primary shifts + multi-shifts combined for the shift picker.
      * Multi-shift entries aggregate capacity from their component primary shifts.
      */
-    static async getShiftsCapacityWithMulti(userId: string, branchId: string, studentId?: string) {
-        const primaryItems = await this.getShiftsCapacity(userId, branchId, studentId);
+    static async getShiftsCapacityWithMulti(userId: string, branchId: string, studentId?: string, excludeAllocationIds?: string[]) {
+        const primaryItems = await this.getShiftsCapacity(userId, branchId, studentId, excludeAllocationIds);
         const primaryMap = new Map(primaryItems.map(p => [p.shiftId, p]));
 
         const multiShifts = await prisma.multiShift.findMany({

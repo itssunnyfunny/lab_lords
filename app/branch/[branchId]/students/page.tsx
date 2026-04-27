@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import {
     Loader2, AlertCircle, ArrowLeft, X,
     MoreVertical, Eye, Pencil, PowerOff, Power,
-    AlertTriangle, CheckCircle2, MinusCircle, Clock,
+    AlertTriangle, CheckCircle2, MinusCircle, Clock, ArrowRightLeft,
 } from "lucide-react";
 import { useEffect, useState, use, useMemo, useRef } from "react";
 import { students } from "@/lib/api/students";
@@ -484,6 +484,11 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                                     label: "Allocate Seat",
                                     icon: CheckCircle2,
                                     onClick: () => router.push(`/branch/${branchId}/allocations?studentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
+                                },
+                                {
+                                    label: "Change Seat",
+                                    icon: ArrowRightLeft,
+                                    onClick: () => router.push(`/branch/${branchId}/allocations?changeStudentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
                                 }]
                                 : []
                             ),
