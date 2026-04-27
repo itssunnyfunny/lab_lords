@@ -362,12 +362,38 @@ export class ShiftService {
                     }
                 }
 
-                // Execute assignments — fetch allocation first, then create
+                // ⚡ Bolt: Optimizing bulk shift manual reassignment.
+                // Impact: Changed O(n) individual DB operations to batch operations (findMany, createMany, updateMany).
+
+                // Fetch all source allocations at once
+                const oldAllocIds = assignments.map(a => a.allocationId);
+                const oldAllocs = await tx.seatAllocation.findMany({
+                    where: { id: { in: oldAllocIds } },
+                    include: { student: true },
+                });
+                const oldAllocMap = new Map(oldAllocs.map(a => [a.id, a]));
+
+                // Fetch all active student allocations at once
+                const studentIds = [...new Set(oldAllocs.map(a => a.studentId))];
+                const activeStudentAllocs = await tx.seatAllocation.findMany({
+                    where: { studentId: { in: studentIds }, endDate: null, shiftId: { not: shiftId } },
+                });
+
+                // Fetch all seats and all active allocations for the branch to manage seat capacity locally
+                const allSeats = await tx.seat.findMany({
+                    where: { branchId },
+                    orderBy: { label: "asc" },
+                });
+
+                // We'll track seat allocations locally to account for newly assigned seats within the loop
+                const branchActiveAllocs = await tx.seatAllocation.findMany({
+                    where: { seat: { branchId }, endDate: null, shiftId: { not: shiftId } },
+                });
+
+                const newAllocationsToCreate: import("@prisma/client").Prisma.SeatAllocationCreateManyInput[] = [];
+
                 for (const assignment of assignments) {
-                    const oldAlloc = await tx.seatAllocation.findUnique({
-                        where: { id: assignment.allocationId },
-                        include: { student: true },
-                    });
+                    const oldAlloc = oldAllocMap.get(assignment.allocationId);
                     if (!oldAlloc) throw new Error(`Allocation ${assignment.allocationId} not found.`);
 
                     const targetShiftData = shiftMap.get(assignment.targetShiftId);
@@ -375,10 +401,8 @@ export class ShiftService {
                     const targetEnd = parseNullableTime(targetShiftData?.endTime);
 
                     // Check student isn't already in target or overlapping shift
-                    const studentActiveAllocs = await tx.seatAllocation.findMany({
-                        where: { studentId: oldAlloc.studentId, endDate: null, shiftId: { not: shiftId } },
-                    });
-                    for (const sa of studentActiveAllocs) {
+                    const studentAllocs = activeStudentAllocs.filter(a => a.studentId === oldAlloc.studentId);
+                    for (const sa of studentAllocs) {
                         if (sa.shiftId === assignment.targetShiftId) {
                             throw new Error(
                                 `Student "${oldAlloc.student.name}" is already in the target shift.`
@@ -397,28 +421,56 @@ export class ShiftService {
                         .filter(s => s.id !== shiftId && timesOverlap(targetStart, targetEnd, parseNullableTime(s.startTime), parseNullableTime(s.endTime)))
                         .map(s => s.id);
 
-                    const occupiedSeatIds = (await tx.seatAllocation.findMany({
-                        where: { shiftId: { in: overlapShiftIds }, endDate: null },
-                        select: { seatId: true },
-                    })).map(a => a.seatId);
+                    const occupiedSeatIds = new Set(
+                        branchActiveAllocs
+                            .filter(a => overlapShiftIds.includes(a.shiftId))
+                            .map(a => a.seatId)
+                    );
 
-                    const availableSeat = await tx.seat.findFirst({
-                        where: { branchId, id: { notIn: occupiedSeatIds } },
-                        orderBy: { label: "asc" },
-                    });
+                    const availableSeat = allSeats.find(seat => !occupiedSeatIds.has(seat.id));
+
                     if (!availableSeat) throw new Error("No available seat found in target shift.");
 
-                    await tx.seatAllocation.update({
-                        where: { id: assignment.allocationId },
+                    newAllocationsToCreate.push({
+                        studentId: oldAlloc.studentId,
+                        shiftId: assignment.targetShiftId,
+                        seatId: availableSeat.id,
+                        startDate: now,
+                    });
+
+                    // Add to branchActiveAllocs so subsequent iterations see this seat as occupied
+                    branchActiveAllocs.push({
+                        id: crypto.randomUUID(),
+                        seatId: availableSeat.id,
+                        studentId: oldAlloc.studentId,
+                        shiftId: assignment.targetShiftId,
+                        multiShiftId: null,
+                        startDate: now,
+                        endDate: null
+                    });
+
+                    // Add to activeStudentAllocs so subsequent iterations see the student as allocated
+                    activeStudentAllocs.push({
+                        id: crypto.randomUUID(),
+                        seatId: availableSeat.id,
+                        studentId: oldAlloc.studentId,
+                        shiftId: assignment.targetShiftId,
+                        multiShiftId: null,
+                        startDate: now,
+                        endDate: null
+                    });
+                }
+
+                if (oldAllocIds.length > 0) {
+                    await tx.seatAllocation.updateMany({
+                        where: { id: { in: oldAllocIds } },
                         data: { endDate: now },
                     });
-                    await tx.seatAllocation.create({
-                        data: {
-                            studentId: oldAlloc.studentId,
-                            shiftId: assignment.targetShiftId,
-                            seatId: availableSeat.id,
-                            startDate: now,
-                        },
+                }
+
+                if (newAllocationsToCreate.length > 0) {
+                    await tx.seatAllocation.createMany({
+                        data: newAllocationsToCreate,
                     });
                 }
 
