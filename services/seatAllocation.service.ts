@@ -115,7 +115,7 @@ export class SeatAllocationService {
                 where: { studentId, endDate: null },
             });
 
-            const allocationsToCreate = [];
+            const allocationsToCreateData = [];
 
             for (const requestedShift of requestedShifts) {
                 const newStart = parseNullableTime(requestedShift.startTime);
@@ -151,15 +151,13 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift (with optional multiShiftId)
-                const allocation = await tx.seatAllocation.create({
-                    data: {
-                        seatId,
-                        studentId,
-                        shiftId: requestedShift.id,
-                        ...(multiShiftId ? { multiShiftId } : {}),
-                    },
-                });
+                // 8. Prepare allocation data for this shift
+                const allocationData = {
+                    seatId,
+                    studentId,
+                    shiftId: requestedShift.id,
+                    ...(multiShiftId ? { multiShiftId } : {}),
+                };
 
                 // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
@@ -167,7 +165,34 @@ export class SeatAllocationService {
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
 
-                allocationsToCreate.push(allocation);
+                allocationsToCreateData.push(allocationData);
+            }
+
+            // ⚡ Bolt: Replaced O(n) individual insert queries inside loop with single bulk insert
+            // Expected Impact: Eliminates N+1 query bottleneck when allocating a student to multiple shifts
+            if (allocationsToCreateData.length > 0) {
+                await tx.seatAllocation.createMany({
+                    data: allocationsToCreateData,
+                });
+            }
+
+            // Retrieve the newly created records as createMany only returns a count.
+            // Maintain order by sorting via map index.
+            let createdAllocations: import("@prisma/client").SeatAllocation[] = [];
+            if (allocationsToCreateData.length > 0) {
+                const unorderedAllocations = await tx.seatAllocation.findMany({
+                    where: {
+                        seatId,
+                        studentId,
+                        shiftId: { in: allocationsToCreateData.map(a => a.shiftId) },
+                        endDate: null
+                    }
+                });
+
+                const shiftOrderMap = new Map(allocationsToCreateData.map((data, index) => [data.shiftId, index]));
+                createdAllocations = unorderedAllocations.sort(
+                    (a, b) => (shiftOrderMap.get(a.shiftId) ?? 0) - (shiftOrderMap.get(b.shiftId) ?? 0)
+                );
             }
 
             // 9. Update Branch lastDataChange
@@ -176,7 +201,7 @@ export class SeatAllocationService {
                 data: { lastDataChange: new Date() },
             });
 
-            return allocationsToCreate;
+            return createdAllocations;
         });
     }
 
@@ -285,19 +310,35 @@ export class SeatAllocationService {
                 if (s.branchId !== branchId) throw new Error(`Shift "${s.name}" does not belong to this branch.`);
             }
 
-            // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            // ⚡ Bolt: Replaced O(n) individual concurrent inserts with single bulk insert
+            // Expected Impact: Eliminates N+1 query bottleneck during seat/shift reallocation
+            if (newShiftIds.length > 0) {
+                await tx.seatAllocation.createMany({
+                    data: newShiftIds.map((shiftId) => ({
+                        seatId: newSeatId,
+                        studentId,
+                        shiftId,
+                        ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+                    }))
+                });
+            }
+
+            let created: import("@prisma/client").SeatAllocation[] = [];
+            if (newShiftIds.length > 0) {
+                const unorderedCreated = await tx.seatAllocation.findMany({
+                    where: {
+                        seatId: newSeatId,
+                        studentId,
+                        shiftId: { in: newShiftIds },
+                        endDate: null
+                    }
+                });
+
+                const shiftOrderMap = new Map(newShiftIds.map((shiftId, index) => [shiftId, index]));
+                created = unorderedCreated.sort(
+                    (a, b) => (shiftOrderMap.get(a.shiftId) ?? 0) - (shiftOrderMap.get(b.shiftId) ?? 0)
+                );
+            }
 
             await tx.branch.update({
                 where: { id: branchId },
