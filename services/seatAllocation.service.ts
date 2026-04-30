@@ -115,7 +115,7 @@ export class SeatAllocationService {
                 where: { studentId, endDate: null },
             });
 
-            const allocationsToCreate = [];
+            const allocationsToCreate: import("@prisma/client").Prisma.SeatAllocationCreateManyInput[] = [];
 
             for (const requestedShift of requestedShifts) {
                 const newStart = parseNullableTime(requestedShift.startTime);
@@ -151,15 +151,13 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift (with optional multiShiftId)
-                const allocation = await tx.seatAllocation.create({
-                    data: {
-                        seatId,
-                        studentId,
-                        shiftId: requestedShift.id,
-                        ...(multiShiftId ? { multiShiftId } : {}),
-                    },
-                });
+                // 8. Create allocation payload for this shift (with optional multiShiftId)
+                const allocationData = {
+                    seatId,
+                    studentId,
+                    shiftId: requestedShift.id,
+                    ...(multiShiftId ? { multiShiftId } : {}),
+                };
 
                 // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
@@ -167,7 +165,29 @@ export class SeatAllocationService {
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
 
-                allocationsToCreate.push(allocation);
+                allocationsToCreate.push(allocationData);
+            }
+
+            let created: import("@prisma/client").SeatAllocation[] = [];
+            if (allocationsToCreate.length > 0) {
+                // ⚡ Bolt: Bulk insert to avoid N+1 queries during multiple allocation assignments
+                await tx.seatAllocation.createMany({
+                    data: allocationsToCreate,
+                });
+
+                // Fetch the newly created records to return them
+                const shiftIds = allocationsToCreate.map(a => a.shiftId);
+                created = await tx.seatAllocation.findMany({
+                    where: {
+                        seatId,
+                        studentId,
+                        shiftId: { in: shiftIds },
+                        endDate: null,
+                    },
+                });
+
+                // Reorder to match the original array behavior
+                created.sort((a, b) => shiftIds.indexOf(a.shiftId) - shiftIds.indexOf(b.shiftId));
             }
 
             // 9. Update Branch lastDataChange
@@ -176,7 +196,7 @@ export class SeatAllocationService {
                 data: { lastDataChange: new Date() },
             });
 
-            return allocationsToCreate;
+            return created;
         });
     }
 
@@ -286,18 +306,31 @@ export class SeatAllocationService {
             }
 
             // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            let created: import("@prisma/client").SeatAllocation[] = [];
+            if (newShiftIds.length > 0) {
+                // ⚡ Bolt: Use createMany for bulk insertion instead of multiple create operations
+                await tx.seatAllocation.createMany({
+                    data: newShiftIds.map((shiftId) => ({
+                        seatId: newSeatId,
+                        studentId,
+                        shiftId,
+                        ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+                    })),
+                });
+
+                // Fetch the newly created records to return them
+                created = await tx.seatAllocation.findMany({
+                    where: {
+                        seatId: newSeatId,
+                        studentId,
+                        shiftId: { in: newShiftIds },
+                        endDate: null,
+                    },
+                });
+
+                // Reorder to match the original array behavior
+                created.sort((a, b) => newShiftIds.indexOf(a.shiftId) - newShiftIds.indexOf(b.shiftId));
+            }
 
             await tx.branch.update({
                 where: { id: branchId },

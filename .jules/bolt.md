@@ -14,3 +14,11 @@
 ## 2025-04-23 - [Batch Insert Optimization for Manual Shift Deletion]
 **Learning:** Found an N+1 query problem in \`services/shift.service.ts\` within \`ShiftService.deleteShift\`'s \`REALLOCATE_MANUAL\` handler where it sequentially queries and updates the database multiple times inside a loop for each shifted student.
 **Action:** Replaced the loop body queries with bulk pre-fetches (fetching old allocations, relevant active student allocations, all seats, and active branch allocations). Converted the inner sequential \`create\` and \`update\` calls into array accumulation (pushed into \`newAllocationsToCreate\`) while managing state locally via mock array injections, followed by an \`updateMany\` and \`createMany\` after the loop.
+
+## 2025-05-01 - [Batch Insert Optimization in Seat Allocation Update]
+**Learning:** Found an N+1 query problem where `services/seatAllocation.service.ts`'s `updateAllocation` method loops through `newShiftIds` using `Promise.all` and `.map(...)` to execute `tx.seatAllocation.create(...)` concurrently.
+**Action:** Replaced the loop body with a single `tx.seatAllocation.createMany(...)` using `.map(...)` to map the array of payload objects. Then followed it with a `tx.seatAllocation.findMany(...)` to fetch and return the newly created records. This avoids N parallel database connections for inserts during updates and reduces DB query load.
+
+## 2025-05-01 - [Batch Insert Optimization in Seat Allocation Creation]
+**Learning:** Found an N+1 query problem where `services/seatAllocation.service.ts`'s `assignSeatToShifts` method loops through `requestedShifts` using a `for` loop to execute `tx.seatAllocation.create(...)` sequentially.
+**Action:** Replaced the loop body with array accumulation (`allocationsToCreate.push(allocationData)`) and pushed temporary typed mock objects into the state validation array to preserve validation. Then performed a bulk `createMany` + `findMany` combo. This eliminates N inserts while returning properly typed outputs.
