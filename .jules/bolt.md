@@ -14,3 +14,7 @@
 ## 2025-04-23 - [Batch Insert Optimization for Manual Shift Deletion]
 **Learning:** Found an N+1 query problem in \`services/shift.service.ts\` within \`ShiftService.deleteShift\`'s \`REALLOCATE_MANUAL\` handler where it sequentially queries and updates the database multiple times inside a loop for each shifted student.
 **Action:** Replaced the loop body queries with bulk pre-fetches (fetching old allocations, relevant active student allocations, all seats, and active branch allocations). Converted the inner sequential \`create\` and \`update\` calls into array accumulation (pushed into \`newAllocationsToCreate\`) while managing state locally via mock array injections, followed by an \`updateMany\` and \`createMany\` after the loop.
+
+## 2025-05-18 - [Batch Insert & Fetch Optimization in AI Message Drafter]
+**Learning:** Found N+1 query problems in `ai/messageDrafting/branchMessageDrafter.ts` where it sequentially queried existing `messageDraft` records (`findFirst`) inside a loop for each overdue payment, and later performed sequential `create` operations inside loops for both the AI-generated responses and fallback responses.
+**Action:** Replaced the loop body queries with a bulk pre-fetch using `findMany` with the `in` operator and mapped them for O(1) lookup. Converted the sequential `create` calls into array accumulations (`draftsToCreate` and `fallbackDraftsToCreate`) with explicit Prisma types, followed by `createMany` bulk inserts.
