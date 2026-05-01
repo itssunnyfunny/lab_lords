@@ -49,6 +49,18 @@ export async function draftOverdueMessages(
   const results: OverdueMessageDraft[] = []
   const needsGeneration: Array<{ studentId: string; studentName: string; dueDate: Date; amount: number }> = []
 
+  // Pre-fetch all existing drafts for these students to avoid N+1 queries
+  const existingDrafts = await prisma.messageDraft.findMany({
+    where: {
+      branchId,
+      action: ACTION,
+      language,
+      studentId: { in: overduePayments.map(p => p.studentId) }
+    },
+    include: { student: { select: { updatedAt: true } } }
+  })
+  const existingDraftsMap = new Map(existingDrafts.map(d => [d.studentId, d]))
+
   // 2️⃣ For each, check if draft already exists in DB
   for (const payment of overduePayments) {
     // De-duplicate: if same student has multiple overdue payments, only one draft per student per language
@@ -56,15 +68,12 @@ export async function draftOverdueMessages(
     const alreadyInResults = results.some(r => r.studentId === payment.studentId)
     if (alreadyQueued || alreadyInResults) continue
 
-    const existing = await prisma.messageDraft.findFirst({
-      where: { branchId, studentId: payment.studentId, action: ACTION, language },
-      include: { student: { select: { updatedAt: true } } }
-    })
+    const existing = existingDraftsMap.get(payment.studentId)
 
     if (existing) {
       // 3️⃣ Return cached
-      const isOutdated = (existing as any).student
-        ? (existing as any).student.updatedAt > existing.createdAt
+      const isOutdated = existing.student
+        ? existing.student.updatedAt > existing.createdAt
         : false
 
       results.push({
@@ -115,19 +124,19 @@ ${JSON.stringify(studentList)}
       const clean = aiResponse?.replace(/```json/g, "").replace(/```/g, "").trim() || "[]"
       const generated: Array<{ studentId: string; message: string }> = JSON.parse(clean)
 
+      const draftsToCreate: import('@prisma/client').Prisma.MessageDraftCreateManyInput[] = []
+
       for (const item of generated) {
         const meta = needsGeneration.find(n => n.studentId === item.studentId)
         if (!meta || !item.message) continue
 
-        // Persist to DB
-        await prisma.messageDraft.create({
-          data: {
-            branchId,
-            studentId: item.studentId,
-            action: ACTION,
-            language,
-            message: item.message
-          }
+        // Accumulate to persist to DB
+        draftsToCreate.push({
+          branchId,
+          studentId: item.studentId,
+          action: ACTION,
+          language,
+          message: item.message
         })
 
         results.push({
@@ -139,23 +148,27 @@ ${JSON.stringify(studentList)}
           isOutdated: false
         })
       }
+
+      if (draftsToCreate.length > 0) {
+        await prisma.messageDraft.createMany({ data: draftsToCreate })
+      }
     } catch (err) {
       console.error("[Messages] Gemini call failed, using fallback", err)
       // Fallback — static message with student name
+      const fallbackDraftsToCreate: import('@prisma/client').Prisma.MessageDraftCreateManyInput[] = []
+
       for (const meta of needsGeneration) {
         const fallback = language === "en"
           ? `Hi ${meta.studentName}, your payment of ₹${meta.amount} due on ${format(meta.dueDate, "dd MMM yyyy")} is pending. Please clear it at your earliest.`
           : `प्रिय ${meta.studentName}, ${format(meta.dueDate, "dd MMM yyyy")} का ₹${meta.amount} का भुगतान अभी बाकी है। कृपया जल्द से जल्द जमा करें।`
 
         // Persist fallback too so we don't call AI again
-        await prisma.messageDraft.create({
-          data: {
-            branchId,
-            studentId: meta.studentId,
-            action: ACTION,
-            language,
-            message: fallback
-          }
+        fallbackDraftsToCreate.push({
+          branchId,
+          studentId: meta.studentId,
+          action: ACTION,
+          language,
+          message: fallback
         })
 
         results.push({
@@ -166,6 +179,10 @@ ${JSON.stringify(studentList)}
           message: fallback,
           isOutdated: false
         })
+      }
+
+      if (fallbackDraftsToCreate.length > 0) {
+        await prisma.messageDraft.createMany({ data: fallbackDraftsToCreate })
       }
     }
   }
