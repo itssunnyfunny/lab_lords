@@ -94,8 +94,10 @@ export class PaymentService {
                         studentId: student.id,
                         amount: student.monthlyFee,
                         status: PaymentStatus.DUE,
-                        // periodStart = previous anchor, periodEnd = this anchor
-                        periodStart: addMonths(student.joinedAt, month - 1),
+                        type: PaymentType.MONTHLY,
+                        // periodStart = previous anchor (normalized to midnight to avoid
+                        // colliding with the ADMISSION payment's periodStart timestamp)
+                        periodStart: startOfDay(addMonths(student.joinedAt, month - 1)),
                         periodEnd: dueDate,
                         dueDate: dueDate,
                     });
