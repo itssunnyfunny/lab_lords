@@ -67,8 +67,10 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                     setNewlyGenerated(genData.generatedCount);
                 }
             }
-        } catch {
-            // Silent — generation failure shouldn't block viewing existing payments
+        } catch (genErr) {
+            // Log the error — generation failure shouldn't block viewing existing
+            // payments, but it must NOT be silently swallowed (Bug 2 fix)
+            console.error("[PAYMENT_GENERATION_FAILED]", genErr);
         } finally {
             // 2. Always fetch the current month's payments after generation
             await loadPayments();

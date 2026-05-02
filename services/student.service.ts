@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { StudentStatus, PaymentType, PaymentStatus } from "@/types";
 import { CreateStudentDto, DueResolution } from "@/types";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
+import { startOfDay } from "date-fns";
 
 export class StudentService {
     /**
@@ -87,9 +88,11 @@ export class StudentService {
                         amount: data.admissionFee,
                         status: PaymentStatus.DUE,
                         type: PaymentType.ADMISSION,
-                        dueDate: created.joinedAt,
-                        periodStart: created.joinedAt,
-                        periodEnd: created.joinedAt,
+                        // Normalize to midnight so it never collides with a MONTHLY
+                        // payment's periodStart (which is also normalized via startOfDay)
+                        dueDate:     startOfDay(created.joinedAt),
+                        periodStart: startOfDay(created.joinedAt),
+                        periodEnd:   startOfDay(created.joinedAt),
                     },
                 });
             }

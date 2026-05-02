@@ -3,6 +3,8 @@
 import { use, useEffect, useState } from "react";
 import { analytics, BranchSnapshot } from "@/lib/api/analytics";
 import { branches } from "@/lib/api/branches";
+import { format } from "date-fns";
+import { isOverdue } from "@/lib/utils/paymentStatus";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { OverdueTable } from "@/components/dashboard/OverdueTable";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -124,21 +126,33 @@ export default function BranchDashboardPage({
             setLoading(true);
             setError(null);
             try {
-                const [snapshot, branchDetails, allStudents, overdueRes, allocationsRes, paidPaymentsRes] =
+                const monthStr = format(new Date(), "yyyy-MM");
+                const [snapshot, branchDetails, allStudents, allocationsRes, monthPayments] =
                     await Promise.all([
                         analytics.getSnapshot(branchId),
                         branches.getDetails(branchId),
                         branches.getStudents(branchId),
-                        fetch(`/api/branches/${branchId}/payments/overdue`)
-                            .then((r) => (r.ok ? r.json() : { count: 0, payments: [] }))
-                            .catch(() => ({ count: 0, payments: [] })),
                         fetch(`/api/branches/${branchId}/seat-allocations?activeOnly=true`)
                             .then((r) => (r.ok ? r.json() : []))
                             .catch(() => []),
-                        fetch(`/api/branches/${branchId}/payments?status=PAID`)
+                        fetch(`/api/branches/${branchId}/payments?month=${monthStr}`)
                             .then((r) => (r.ok ? r.json() : []))
                             .catch(() => []),
                     ]);
+                
+                const paidPaymentsRes = monthPayments.filter((p: any) => p.status === "PAID");
+                const overdueRes = {
+                    payments: monthPayments
+                        .filter((p: any) => p.status === "DUE" && isOverdue(p.dueDate))
+                        .map((p: any) => ({
+                            paymentId: p.id,
+                            studentId: p.student?.id ?? "",
+                            studentName: p.student?.name ?? "—",
+                            phone: p.student?.phone ?? null,
+                            dueDate: p.dueDate,
+                            amount: p.amount
+                        }))
+                };
 
                 // Sort students by joinedAt/createdAt desc, take first 5
                 const sorted = [...allStudents].sort((a: any, b: any) => {
