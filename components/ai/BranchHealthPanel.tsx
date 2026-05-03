@@ -16,6 +16,27 @@ interface BranchHealthPanelProps {
 }
 
 export function BranchHealthPanel({ report, isLoading, hasPendingChanges, nextAllowedCallAt, onRefresh }: BranchHealthPanelProps) {
+    // NOTE: All hooks must be at the top before any early returns (rules of hooks)
+    const [timeLeft, setTimeLeft] = React.useState<string>("");
+
+    React.useEffect(() => {
+        if (!nextAllowedCallAt) return;
+        const target = new Date(nextAllowedCallAt).getTime();
+
+        const interval = setInterval(() => {
+            const now = new Date().getTime();
+            const diff = target - now;
+            if (diff <= 0) {
+                setTimeLeft("");
+            } else {
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [nextAllowedCallAt]);
+
     if (isLoading) {
         return (
             <Card className="w-full animate-pulse h-64">
@@ -60,26 +81,6 @@ export function BranchHealthPanel({ report, isLoading, hasPendingChanges, nextAl
             default: return 'text-muted-foreground';
         }
     }
-
-    const [timeLeft, setTimeLeft] = React.useState<string>("");
-
-    React.useEffect(() => {
-        if (!nextAllowedCallAt) return;
-        const target = new Date(nextAllowedCallAt).getTime();
-
-        const interval = setInterval(() => {
-            const now = new Date().getTime();
-            const diff = target - now;
-            if (diff <= 0) {
-                setTimeLeft("");
-            } else {
-                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-                setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-            }
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [nextAllowedCallAt]);
 
     return (
         <div className="space-y-4">
