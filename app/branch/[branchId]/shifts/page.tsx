@@ -93,6 +93,9 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
     const [isReserved, setIsReserved] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Only activate the overlap guard when the user has actually touched a time
+    // field in this session (or when adding a brand-new shift).
+    const [timesTouched, setTimesTouched] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -102,20 +105,26 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
             setPrice(String(initial?.price ?? 0));
             setIsReserved(initial?.isReserved ?? false);
             setError(null);
+            setTimesTouched(false); // reset every time the dialog opens
         }
     }, [isOpen, initial]);
 
-    // Check for overlap continuously
-    const overlapWith = existingShifts.find(s => {
-        if (s.id === initial?.id) return false;
-        if (!s.startTime || !s.endTime || !startTime || !endTime) return false;
-        if (s.name.toLowerCase() === "full time" || name.toLowerCase() === "full time") return false;
-        const start1 = parseNullableTime(startTime);
-        const end1 = parseNullableTime(endTime);
-        const start2 = parseNullableTime(s.startTime);
-        const end2 = parseNullableTime(s.endTime);
-        return timesOverlap(start1, end1, start2, end2);
-    });
+    // In "add" mode we always check (no saved times to defer from).
+    // In "edit" mode we only check after the user touches a time input.
+    const shouldCheckOverlap = mode === "add" || timesTouched;
+
+    const overlapWith = shouldCheckOverlap
+        ? existingShifts.find(s => {
+            if (s.id === initial?.id) return false;
+            if (!s.startTime || !s.endTime || !startTime || !endTime) return false;
+            if (s.name.toLowerCase() === "full time" || name.toLowerCase() === "full time") return false;
+            const start1 = parseNullableTime(startTime);
+            const end1 = parseNullableTime(endTime);
+            const start2 = parseNullableTime(s.startTime);
+            const end2 = parseNullableTime(s.endTime);
+            return timesOverlap(start1, end1, start2, end2);
+        })
+        : null;
 
     if (!isOpen) return null;
 
@@ -190,7 +199,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                             <input
                                 type="time"
                                 value={startTime}
-                                onChange={e => setStartTime(e.target.value)}
+                                onChange={e => { setStartTime(e.target.value); setTimesTouched(true); }}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />
                         </div>
@@ -199,7 +208,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                             <input
                                 type="time"
                                 value={endTime}
-                                onChange={e => setEndTime(e.target.value)}
+                                onChange={e => { setEndTime(e.target.value); setTimesTouched(true); }}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />
                         </div>
@@ -292,12 +301,13 @@ type ResolutionMode = "END_ALL" | "REALLOCATE_BULK" | "REALLOCATE_MANUAL" | "REN
 interface DeleteShiftDialogProps {
     shift: Shift;
     branchId: string;
+    existingShifts: Shift[];
     onClose: () => void;
     onDeleted: (shiftId: string) => void;
     onRenamed: (shift: Shift) => void;
 }
 
-function DeleteShiftDialog({ shift, branchId, onClose, onDeleted, onRenamed }: DeleteShiftDialogProps) {
+function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted, onRenamed }: DeleteShiftDialogProps) {
     const [step, setStep] = useState<"loading" | "blocked" | "confirm-empty" | "resolve">("loading");
     const [analysis, setAnalysis] = useState<ShiftImpactAnalysis | null>(null);
     const [analyzeError, setAnalyzeError] = useState<string | null>(null);
@@ -645,39 +655,60 @@ function DeleteShiftDialog({ shift, branchId, onClose, onDeleted, onRenamed }: D
                                 title="Rename / Retime Instead"
                                 description="Don't delete — just change the name or time window. Students stay allocated."
                             >
-                                {mode === "RENAME" && (
-                                    <div className="mt-3 space-y-3">
-                                        <div>
-                                            <label className="text-xs text-gray-500 mb-1 block">New name</label>
-                                            <input
-                                                type="text"
-                                                value={renameName}
-                                                onChange={e => { setRenameName(e.target.value); setSubmitError(null); }}
-                                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
+                                {mode === "RENAME" && (() => {
+                                    // Overlap check scoped to the rename panel
+                                    const renameOverlapWith = existingShifts.find(s => {
+                                        if (s.id === shift.id) return false;
+                                        if (!s.startTime || !s.endTime || !renameStart || !renameEnd) return false;
+                                        if (s.name.toLowerCase() === "full time" || renameName.trim().toLowerCase() === "full time") return false;
+                                        const start1 = parseNullableTime(renameStart);
+                                        const end1 = parseNullableTime(renameEnd);
+                                        const start2 = parseNullableTime(s.startTime);
+                                        const end2 = parseNullableTime(s.endTime);
+                                        return timesOverlap(start1, end1, start2, end2);
+                                    });
+                                    return (
+                                        <div className="mt-3 space-y-3">
                                             <div>
-                                                <label className="text-xs text-gray-500 mb-1 block">Start time</label>
+                                                <label className="text-xs text-gray-500 mb-1 block">New name</label>
                                                 <input
-                                                    type="time"
-                                                    value={renameStart}
-                                                    onChange={e => setRenameStart(e.target.value)}
+                                                    type="text"
+                                                    value={renameName}
+                                                    onChange={e => { setRenameName(e.target.value); setSubmitError(null); }}
                                                     className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
                                                 />
                                             </div>
-                                            <div>
-                                                <label className="text-xs text-gray-500 mb-1 block">End time</label>
-                                                <input
-                                                    type="time"
-                                                    value={renameEnd}
-                                                    onChange={e => setRenameEnd(e.target.value)}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
-                                                />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Start time</label>
+                                                    <input
+                                                        type="time"
+                                                        value={renameStart}
+                                                        onChange={e => setRenameStart(e.target.value)}
+                                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500 mb-1 block">End time</label>
+                                                    <input
+                                                        type="time"
+                                                        value={renameEnd}
+                                                        onChange={e => setRenameEnd(e.target.value)}
+                                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                    />
+                                                </div>
                                             </div>
+                                            {renameOverlapWith && (
+                                                <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                                                    <AlertTriangle size={13} />
+                                                    <span>Time overlaps with &ldquo;{renameOverlapWith.name}&rdquo; ({renameOverlapWith.startTime}&nbsp;–&nbsp;{renameOverlapWith.endTime}). Adjust the times before saving.</span>
+                                                </div>
+                                            )}
+                                            {/* Expose overlap state to the footer via a data attribute trick:
+                                                We rely on the parent computing this via a sibling IIFE — see footer button below. */}
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
                             </OptionCard>
                         </div>
 
@@ -696,7 +727,12 @@ function DeleteShiftDialog({ shift, branchId, onClose, onDeleted, onRenamed }: D
                             {mode === "RENAME" ? (
                                 <Button
                                     onClick={handleRename}
-                                    disabled={submitting || !renameName.trim()}
+                                    disabled={submitting || !renameName.trim() || !!existingShifts.find(s => {
+                                        if (s.id === shift.id) return false;
+                                        if (!s.startTime || !s.endTime || !renameStart || !renameEnd) return false;
+                                        if (s.name.toLowerCase() === "full time" || renameName.trim().toLowerCase() === "full time") return false;
+                                        return timesOverlap(parseNullableTime(renameStart), parseNullableTime(renameEnd), parseNullableTime(s.startTime), parseNullableTime(s.endTime));
+                                    })}
                                     className="text-sm h-8 px-4 min-w-[130px] justify-center"
                                 >
                                     {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" />Saving...</> : "Save Changes"}
@@ -1316,6 +1352,7 @@ export default function ShiftsPage() {
                 <DeleteShiftDialog
                     shift={deleteTarget}
                     branchId={branchId}
+                    existingShifts={shifts}
                     onClose={() => setDeleteTarget(null)}
                     onDeleted={handleDeleted}
                     onRenamed={handleRenamed}
