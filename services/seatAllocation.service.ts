@@ -32,11 +32,17 @@ export class SeatAllocationService {
         const uniqueShiftIds = [...new Set(shiftIds)];
 
         return prisma.$transaction(async (tx) => {
-            // 1. Fetch seat (with branch + org for ownership check)
-            const seat = await tx.seat.findUnique({
-                where: { id: seatId },
-                include: { branch: { include: { organization: true } } },
-            });
+            // 1-4. Fetch all required entities concurrently to avoid DB query waterfall
+            const [seat, student, requestedShifts, ms] = await Promise.all([
+                tx.seat.findUnique({
+                    where: { id: seatId },
+                    include: { branch: { include: { organization: true } } },
+                }),
+                tx.student.findUnique({ where: { id: studentId } }),
+                tx.shift.findMany({ where: { id: { in: uniqueShiftIds } } }),
+                multiShiftId ? tx.multiShift.findUnique({ where: { id: multiShiftId } }) : Promise.resolve(null)
+            ]);
+
             if (!seat) throw new Error("Seat not found");
 
             // 2. Ownership check
@@ -46,8 +52,7 @@ export class SeatAllocationService {
 
             const branchId = seat.branchId;
 
-            // 3. Fetch student
-            const student = await tx.student.findUnique({ where: { id: studentId } });
+            // 3. Validate student
             if (!student) throw new Error("Student not found");
             if (student.status !== StudentStatus.ACTIVE) {
                 throw new Error("Only ACTIVE students can be assigned a seat");
@@ -58,16 +63,11 @@ export class SeatAllocationService {
 
             // 3b. Validate multiShiftId if provided
             if (multiShiftId) {
-                const ms = await tx.multiShift.findUnique({ where: { id: multiShiftId } });
                 if (!ms) throw new Error("Multi-shift not found");
                 if (ms.branchId !== branchId) throw new Error("Multi-shift does not belong to this branch");
             }
 
-            // 4. Fetch and validate all requested shifts
-            const requestedShifts = await tx.shift.findMany({
-                where: { id: { in: uniqueShiftIds } },
-            });
-
+            // 4. Validate all requested shifts
             if (requestedShifts.length !== uniqueShiftIds.length) {
                 throw new Error("One or more shifts were not found.");
             }
@@ -100,22 +100,22 @@ export class SeatAllocationService {
                 }
             }
 
-            // 6. Load ALL active shifts in branch for conflict lookups
-            const allBranchShifts = await tx.shift.findMany({
-                where: { branchId, status: "ACTIVE" },
-                select: { id: true, name: true, startTime: true, endTime: true },
-            });
+            // 6-7. Load conflict resolution data concurrently
+            const [allBranchShifts, activeSeatAllocations, activeStudentAllocations] = await Promise.all([
+                tx.shift.findMany({
+                    where: { branchId, status: "ACTIVE" },
+                    select: { id: true, name: true, startTime: true, endTime: true },
+                }),
+                tx.seatAllocation.findMany({
+                    where: { seatId, endDate: null },
+                }),
+                tx.seatAllocation.findMany({
+                    where: { studentId, endDate: null },
+                })
+            ]);
             const shiftTimeMap = new Map(allBranchShifts.map(s => [s.id, s]));
 
-            // 7. Load existing active seat allocations (for seat + student conflict checks)
-            const activeSeatAllocations = await tx.seatAllocation.findMany({
-                where: { seatId, endDate: null },
-            });
-            const activeStudentAllocations = await tx.seatAllocation.findMany({
-                where: { studentId, endDate: null },
-            });
-
-            const allocationsToCreate = [];
+            const allocationsToCreate: import("@prisma/client").Prisma.SeatAllocationCreateManyInput[] = [];
 
             for (const requestedShift of requestedShifts) {
                 const newStart = parseNullableTime(requestedShift.startTime);
@@ -151,15 +151,13 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift (with optional multiShiftId)
-                const allocation = await tx.seatAllocation.create({
-                    data: {
-                        seatId,
-                        studentId,
-                        shiftId: requestedShift.id,
-                        ...(multiShiftId ? { multiShiftId } : {}),
-                    },
-                });
+                // 8. Prepare creation data payload
+                const allocationPayload = {
+                    seatId,
+                    studentId,
+                    shiftId: requestedShift.id,
+                    ...(multiShiftId ? { multiShiftId } : {}),
+                };
 
                 // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
@@ -167,8 +165,30 @@ export class SeatAllocationService {
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
 
-                allocationsToCreate.push(allocation);
+                allocationsToCreate.push(allocationPayload);
             }
+
+            // 8b. Execute batch insert to eliminate N+1 loop queries
+            await tx.seatAllocation.createMany({
+                data: allocationsToCreate,
+            });
+
+            // 8c. Fetch newly created allocations to maintain correct return type and object format
+            const newlyCreatedAllocations = await tx.seatAllocation.findMany({
+                where: {
+                    seatId,
+                    studentId,
+                    shiftId: { in: requestedShifts.map(s => s.id) },
+                    endDate: null,
+                }
+            });
+
+            // Map results to preserve original request order, as findMany doesn't guarantee it
+            const orderedCreatedAllocations = allocationsToCreate.map(payload => {
+                const found = newlyCreatedAllocations.find(a => a.shiftId === payload.shiftId);
+                return found!; // Valid as we just created it
+            });
+
 
             // 9. Update Branch lastDataChange
             await tx.branch.update({
@@ -176,7 +196,7 @@ export class SeatAllocationService {
                 data: { lastDataChange: new Date() },
             });
 
-            return allocationsToCreate;
+            return orderedCreatedAllocations;
         });
     }
 
@@ -285,26 +305,40 @@ export class SeatAllocationService {
                 if (s.branchId !== branchId) throw new Error(`Shift "${s.name}" does not belong to this branch.`);
             }
 
-            // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            // Create new allocations in bulk
+            const newAllocationsPayload: import("@prisma/client").Prisma.SeatAllocationCreateManyInput[] = newShiftIds.map(shiftId => ({
+                seatId: newSeatId,
+                studentId,
+                shiftId,
+                ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+            }));
+
+            await tx.seatAllocation.createMany({
+                data: newAllocationsPayload,
+            });
+
+            // Fetch newly created records to return them
+            const created = await tx.seatAllocation.findMany({
+                where: {
+                    seatId: newSeatId,
+                    studentId,
+                    shiftId: { in: newShiftIds },
+                    endDate: null,
+                }
+            });
+
+            // Re-order to match input request
+            const orderedCreatedAllocations = newAllocationsPayload.map(payload => {
+                const found = created.find(a => a.shiftId === payload.shiftId);
+                return found!; // Valid as we just created it
+            });
 
             await tx.branch.update({
                 where: { id: branchId },
                 data: { lastDataChange: new Date() },
             });
 
-            return created;
+            return orderedCreatedAllocations;
         });
     }
 
