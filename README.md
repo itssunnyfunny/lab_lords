@@ -1,36 +1,174 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lab Lords
 
-## Getting Started
+Lab Lords is a Next.js micro-ERP for offline education businesses such as study halls, coaching centers, and libraries. It manages organizations, branches, seats, shifts, students, staff, payments, analytics, and AI-assisted branch insights.
 
-First, run the development server:
+## Tech Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Next.js App Router
+- React
+- TypeScript
+- Tailwind CSS
+- Prisma
+- PostgreSQL
+- Vitest
+- Axios
+- Google Gemini via `@google/genai`
+
+## Project Structure
+
+```text
+app/          Next.js pages, layouts, loading/error UI, and API routes
+components/   Shared UI, layout, dashboard, analytics, AI, payment, and table components
+services/     Backend/business logic used by API routes
+lib/          Prisma client, auth helper, API clients, and shared utilities
+prisma/       Prisma schema, migrations, and seed data
+tests/        Vitest unit, integration, e2e-style tests, and setup helpers
+ai/           Gemini client, prompts, contracts, readers, orchestrator, and reports
+analytics/    Analytics calculations and trend helpers
+hooks/        Client-side React hooks
+types/        Shared TypeScript domain types
+utils/        Date, money, formatting, and shift-time helpers
+scripts/      Debugging, audit, and verification scripts
+styles/       Design tokens and shared styling assets
+public/       Static assets
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Requirements
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Node.js
+- pnpm
+- PostgreSQL
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables
 
-## Learn More
+Create a local `.env` file with:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+GEMINI_API_KEY="your-gemini-api-key"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`DATABASE_URL` is required for the app. `GEMINI_API_KEY` is required for AI features.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Tests use `.env.test`. The test `DATABASE_URL` must include the word `test`; the Vitest setup intentionally aborts otherwise.
 
-## Deploy on Vercel
+## Install
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm install
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Database Setup
+
+Generate the Prisma client:
+
+```bash
+pnpm prisma generate
+```
+
+Run migrations:
+
+```bash
+pnpm prisma migrate dev
+```
+
+Seed local demo data:
+
+```bash
+pnpm prisma db seed
+```
+
+The seed creates demo users, organizations, branches, seats, shifts, students, payments, staff, and AI sample data.
+
+## Run Locally
+
+```bash
+pnpm dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+The current development auth flow uses a temporary `x-user-id` value, with `user_alice` used as the main demo user in several flows.
+
+## Tests
+
+Run all tests:
+
+```bash
+pnpm test
+```
+
+Watch mode:
+
+```bash
+pnpm test:watch
+```
+
+Coverage:
+
+```bash
+pnpm test:coverage
+```
+
+Vitest is configured in `vitest.config.ts`. Tests run in a Node environment and use the global setup in `tests/setup/global.ts`.
+
+Before running integration tests, make sure the test database exists and has the Prisma schema applied.
+
+## Lint and Build
+
+Lint:
+
+```bash
+pnpm lint
+```
+
+Build:
+
+```bash
+pnpm build
+```
+
+Start a production build:
+
+```bash
+pnpm start
+```
+
+## Useful Scripts
+
+This repo includes diagnostic and verification scripts in `scripts/`, including checks for payments, shifts, allocation safety, analytics consistency, Gemini connectivity, and rate limiting.
+
+Inspect a script before running it because most scripts assume a valid `DATABASE_URL`, and some may read or modify local database data.
+
+## Development Notes
+
+- Keep API route handlers focused on request/response handling.
+- Keep domain behavior in `services/`.
+- Use the shared Prisma client from `lib/prisma.ts`.
+- Use existing helpers from `lib/`, `utils/`, `types/`, `analytics/`, and `ai/` before adding new abstractions.
+- Add or update tests when changing service behavior, analytics calculations, utilities, or API behavior.
+- Existing Prisma migrations should be treated as history; add new migrations instead of editing old ones.
+
+## Important Files
+
+- `package.json` - scripts, dependencies, lint-staged config, Prisma seed command
+- `prisma/schema.prisma` - database schema
+- `prisma/seed.ts` - local demo seed data
+- `lib/prisma.ts` - Prisma client setup
+- `lib/api/core.ts` - Axios API client and user header handling
+- `lib/auth.ts` - temporary auth helper
+- `services/` - business logic
+- `app/api/` - API route handlers
+- `vitest.config.ts` - test configuration
+- `tests/setup/` - test environment and database helpers
+
+## Known Setup Notes
+
+- The app requires PostgreSQL for normal local use.
+- Tests require a separate test database.
+- AI features warn or fail gracefully when `GEMINI_API_KEY` is missing, depending on the path being exercised.
+- This project uses `pnpm`; prefer it over `npm`, `yarn`, or `bun`.
