@@ -40,9 +40,10 @@ export async function POST(
         );
 
         return NextResponse.json(allocations, { status: 201 });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to assign seat";
         return NextResponse.json(
-            { error: error.message || "Failed to assign seat" },
+            { error: message },
             { status: 400 }
         );
     }
@@ -69,9 +70,10 @@ export async function GET(
         });
 
         return NextResponse.json(allocations);
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to list allocations";
         return NextResponse.json(
-            { error: error.message || "Failed to list allocations" },
+            { error: message },
             { status: 500 }
         );
     }

@@ -1,6 +1,5 @@
 "use client";
 
-import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +15,14 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 
+type PaymentRow = Payment & {
+    student?: {
+        name?: string | null;
+        phone?: string | null;
+    } | null;
+    paymentMethod?: "CASH" | "UPI" | "BANK_TRANSFER" | null;
+};
+
 export default function PaymentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
     const router = useRouter();
@@ -23,7 +30,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
     const [currentDate, setCurrentDate] = useState(new Date());
     const [activeTab, setActiveTab] = useState<"DUE" | "PAID">("DUE");
 
-    const [data, setData] = useState<Payment[]>([]);
+    const [data, setData] = useState<PaymentRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [newlyGenerated, setNewlyGenerated] = useState<number | null>(null);
@@ -43,10 +50,10 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
             const monthStr = format(currentDate, "yyyy-MM");
             const res = await fetch(`/api/branches/${branchId}/payments?month=${monthStr}`, { cache: "no-store" });
             if (!res.ok) throw new Error("Failed to fetch");
-            const list = await res.json();
+            const list: PaymentRow[] = await res.json();
             setData(list);
             setError(null);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Failed to load payments", error);
             setError("Failed to load payments.");
         }
@@ -231,8 +238,8 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                             header: "Student",
                             accessor: (item) => (
                                 <div>
-                                    <div className="text-white font-medium">{(item as any).student?.name || "Unknown"}</div>
-                                    <div className="text-xs text-textSecondary">{(item as any).student?.phone}</div>
+                                    <div className="text-white font-medium">{item.student?.name || "Unknown"}</div>
+                                    <div className="text-xs text-textSecondary">{item.student?.phone}</div>
                                 </div>
                             )
                         },
@@ -281,7 +288,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                         {
                             header: "Method",
                             accessor: (item) => {
-                                const m = (item as any).paymentMethod as "CASH" | "UPI" | "BANK_TRANSFER" | null;
+                                const m = item.paymentMethod ?? null;
                                 if (!m) return <span className="text-textSecondary text-xs">—</span>;
                                 const map = {
                                     CASH: { label: "Cash", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
@@ -307,7 +314,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                                     onClick={() =>
                                         setAuditLog({
                                             paymentId: item.id,
-                                            studentName: (item as any).student?.name || "Unknown",
+                                            studentName: item.student?.name || "Unknown",
                                         })
                                     }
                                 >
@@ -443,9 +450,7 @@ function MarkPaidDialog({
     method, onMethodChange,
     referenceId, onReferenceIdChange,
 }: MarkPaidDialogProps) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => { setMounted(true); }, []);
-    if (!isOpen || !mounted) return null;
+    if (!isOpen || typeof document === "undefined") return null;
 
     const needsRef = method === "UPI" || method === "BANK_TRANSFER";
 

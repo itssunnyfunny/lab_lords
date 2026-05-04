@@ -150,8 +150,8 @@ export function CreateBranchDialog({
             setFormData({ name: "", city: "", seatCount: "", defaultFee: "" });
             setShifts(DEFAULT_SHIFTS);
             onSuccess(branch);
-        } catch (err: any) {
-            setError(err.message || "Something went wrong.");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Something went wrong.");
         } finally {
             setLoading(false);
         }

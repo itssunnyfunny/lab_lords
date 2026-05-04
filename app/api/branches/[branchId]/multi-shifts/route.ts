@@ -6,6 +6,10 @@ interface Params {
     params: Promise<{ branchId: string }>;
 }
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Internal Server Error";
+}
+
 export async function GET(_req: Request, { params }: Params) {
     try {
         const { branchId } = await params;
@@ -14,11 +18,12 @@ export async function GET(_req: Request, { params }: Params) {
 
         const list = await MultiShiftService.listMultiShifts(user.id, branchId);
         return NextResponse.json(list);
-    } catch (error: any) {
-        if (error.message?.includes("Unauthorized") || error.message?.includes("does not own"))
-            return NextResponse.json({ error: error.message }, { status: 403 });
-        if (error.message?.includes("not found"))
-            return NextResponse.json({ error: error.message }, { status: 404 });
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message.includes("Unauthorized") || message.includes("does not own"))
+            return NextResponse.json({ error: message }, { status: 403 });
+        if (message.includes("not found"))
+            return NextResponse.json({ error: message }, { status: 404 });
         console.error("[multi-shifts GET]", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
@@ -44,12 +49,13 @@ export async function POST(req: Request, { params }: Params) {
             shiftIds,
         });
         return NextResponse.json(created, { status: 201 });
-    } catch (error: any) {
-        if (error.message?.includes("Unauthorized") || error.message?.includes("does not own"))
-            return NextResponse.json({ error: error.message }, { status: 403 });
-        if (error.message?.includes("already exists"))
-            return NextResponse.json({ error: error.message }, { status: 409 });
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message.includes("Unauthorized") || message.includes("does not own"))
+            return NextResponse.json({ error: message }, { status: 403 });
+        if (message.includes("already exists"))
+            return NextResponse.json({ error: message }, { status: 409 });
         console.error("[multi-shifts POST]", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

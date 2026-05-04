@@ -18,9 +18,10 @@ export async function PUT(
         const releasedAllocation = await SeatAllocationService.unassignSeat(allocationId);
 
         return NextResponse.json(releasedAllocation);
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to release seat";
         return NextResponse.json(
-            { error: error.message || "Failed to release seat" },
+            { error: message },
             { status: 400 }
         );
     }
@@ -62,9 +63,10 @@ export async function PATCH(
         );
 
         return NextResponse.json(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to update allocation";
         return NextResponse.json(
-            { error: error.message || "Failed to update allocation" },
+            { error: message },
             { status: 400 }
         );
     }

@@ -32,16 +32,18 @@ export async function callGemini(prompt: string): Promise<string | null> {
         const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
         console.log("✅ Gemini Response Logic:", text ? "Success" : "Empty");
         return text ?? null;
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const name = error instanceof Error ? error.name : "UnknownError";
+        const message = error instanceof Error ? error.message : String(error);
         console.error("❌ Gemini API Call Failed!");
-        console.error("Error Name:", error.name);
-        console.error("Error Message:", error.message);
+        console.error("Error Name:", name);
+        console.error("Error Message:", message);
 
-        if (error.message?.includes("429") || error.message?.includes("quota")) {
+        if (message.includes("429") || message.includes("quota")) {
             console.error("🚨 QUOTA EXCEEDED: You are sending too many requests to Gemini.");
         }
 
-        if (error.stack) console.error("Stack:", error.stack);
+        if (error instanceof Error && error.stack) console.error("Stack:", error.stack);
         return null;
     }
 }

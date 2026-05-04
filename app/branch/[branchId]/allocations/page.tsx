@@ -8,13 +8,26 @@ import { AllocateSeatDialog } from "@/components/allocations/AllocateSeatDialog"
 import { UpdateAllocationDialog } from "@/components/allocations/UpdateAllocationDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 
+interface AllocationRow {
+    id: string;
+    studentId: string;
+    student: { name: string; status: string; monthlyFee?: number | null };
+    seat: { id: string; label: string };
+    shiftId: string;
+    shift: { name: string; isReserved: boolean };
+    startDate: string;
+    endDate: string | null;
+    multiShiftId: string | null;
+    multiShift?: { id: string; name: string } | null;
+}
+
 export default function AllocationsPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const router = useRouter();
     const branchId = params?.branchId as string;
 
-    const [allocations, setAllocations] = useState<any[]>([]);
+    const [allocations, setAllocations] = useState<AllocationRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -49,18 +62,18 @@ export default function AllocationsPage() {
         if (!changeStudentId || allocations.length === 0) return;
         // Find the active allocation(s) for this student
         const studentAllocs = allocations.filter(
-            (a: any) => a.studentId === changeStudentId && !a.endDate
+            (a) => a.studentId === changeStudentId && !a.endDate
         );
         if (studentAllocs.length === 0) return;
         // Group by multiShiftId
-        const ids = studentAllocs.map((a: any) => a.id);
+        const ids = studentAllocs.map((a) => a.id);
         setUpdateTarget({
             ids,
             studentId: changeStudentId,
             studentName: changeStudentName || studentAllocs[0]?.student?.name || "",
             currentSeatId: studentAllocs[0]?.seat?.id || "",
             currentFee: studentAllocs[0]?.student?.monthlyFee ?? null,
-            currentShiftIds: studentAllocs.map((a: any) => a.shiftId),
+            currentShiftIds: studentAllocs.map((a) => a.shiftId),
             currentMultiShiftId: studentAllocs[0]?.multiShiftId ?? null,
         });
         // Clear query param
@@ -73,8 +86,8 @@ export default function AllocationsPage() {
             if (!res.ok) throw new Error("Failed to load allocations");
             const data = await res.json();
             setAllocations(data);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to load allocations");
         } finally {
             setLoading(false);
         }

@@ -37,6 +37,26 @@ interface Student {
     createdAt?: Date | string;
 }
 
+interface PaymentWithStudent {
+    id: string;
+    status: "DUE" | "PAID" | string;
+    dueDate: string | Date;
+    amount: number;
+    paidAt?: string | Date | null;
+    updatedAt?: string | Date | null;
+    student?: {
+        id?: string;
+        name?: string | null;
+        phone?: string | null;
+    } | null;
+}
+
+interface AllocationSummary {
+    seat?: { label?: string | null } | null;
+    student?: { name?: string | null } | null;
+    startDate?: string | Date | null;
+}
+
 interface DashboardData {
     snapshot: BranchSnapshot;
     overduePayments: OverduePayment[];
@@ -140,22 +160,24 @@ export default function BranchDashboardPage({
                             .catch(() => []),
                     ]);
                 
-                const paidPaymentsRes = monthPayments.filter((p: any) => p.status === "PAID");
+                const paymentsData = monthPayments as PaymentWithStudent[];
+                const allocationsData = allocationsRes as AllocationSummary[];
+                const paidPaymentsRes = paymentsData.filter((p) => p.status === "PAID");
                 const overdueRes = {
-                    payments: monthPayments
-                        .filter((p: any) => p.status === "DUE" && isOverdue(p.dueDate))
-                        .map((p: any) => ({
+                    payments: paymentsData
+                        .filter((p) => p.status === "DUE" && isOverdue(p.dueDate))
+                        .map((p) => ({
                             paymentId: p.id,
                             studentId: p.student?.id ?? "",
                             studentName: p.student?.name ?? "—",
                             phone: p.student?.phone ?? null,
-                            dueDate: p.dueDate,
+                            dueDate: new Date(p.dueDate).toISOString(),
                             amount: p.amount
                         }))
                 };
 
                 // Sort students by joinedAt/createdAt desc, take first 5
-                const sorted = [...allStudents].sort((a: any, b: any) => {
+                const sorted = [...allStudents].sort((a, b) => {
                     const da = new Date(a.joinedAt ?? a.createdAt ?? 0).getTime();
                     const db = new Date(b.joinedAt ?? b.createdAt ?? 0).getTime();
                     return db - da;
@@ -164,24 +186,24 @@ export default function BranchDashboardPage({
                 // ── Build activity feed ──────────────────────────────────
                 const rawItems: ActivityItem[] = [
                     // Recent seat allocations (up to 5)
-                    ...allocationsRes.slice(0, 5).map((a: any) => ({
+                    ...allocationsData.slice(0, 5).map((a) => ({
                         type: "allocation" as const,
                         seat: a.seat?.label ?? "Seat",
                         studentName: a.student?.name ?? "—",
-                        ts: a.startDate ?? new Date().toISOString(),
+                        ts: new Date(a.startDate ?? new Date()).toISOString(),
                     })),
                     // Recent paid payments — sort by paidAt desc so newest appear first
                     ...[...paidPaymentsRes]
-                        .sort((a: any, b: any) =>
+                        .sort((a, b) =>
                             new Date(b.paidAt ?? b.updatedAt ?? 0).getTime() -
                             new Date(a.paidAt ?? a.updatedAt ?? 0).getTime()
                         )
                         .slice(0, 5)
-                        .map((p: any) => ({
+                        .map((p) => ({
                         type: "payment" as const,
                         amount: p.amount,
                         studentName: p.student?.name ?? "—",
-                        ts: p.paidAt ?? p.updatedAt ?? new Date().toISOString(),
+                        ts: new Date(p.paidAt ?? p.updatedAt ?? new Date()).toISOString(),
                     })),
                     // Single overdue aggregate event (if any)
                     ...(overdueRes.payments?.length > 0
@@ -192,10 +214,10 @@ export default function BranchDashboardPage({
                         }]
                         : []),
                     // New enrollments (up to 5)
-                    ...sorted.slice(0, 5).map((s: any) => ({
+                    ...sorted.slice(0, 5).map((s) => ({
                         type: "enrollment" as const,
                         studentName: s.name,
-                        ts: s.joinedAt ?? s.createdAt ?? new Date().toISOString(),
+                        ts: new Date(s.joinedAt ?? s.createdAt ?? new Date()).toISOString(),
                     })),
                 ];
 

@@ -63,8 +63,8 @@ export async function draftOverdueMessages(
 
     if (existing) {
       // 3️⃣ Return cached
-      const isOutdated = (existing as any).student
-        ? (existing as any).student.updatedAt > existing.createdAt
+      const isOutdated = existing.student
+        ? existing.student.updatedAt > existing.createdAt
         : false
 
       results.push({

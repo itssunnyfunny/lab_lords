@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { BranchService } from "@/services/branch.service";
 import { getSessionUser } from "@/lib/auth";
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Internal Server Error";
+}
+
 /**
  * POST /api/branches
  * Creates a new branch under an existing organization.
@@ -35,10 +39,11 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json(branch, { status: 201 });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
         console.error("Error creating branch:", error);
         return NextResponse.json(
-            { error: error.message || "Internal Server Error" },
+            { error: message },
             { status: 500 }
         );
     }

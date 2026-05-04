@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
-    MoreVertical, Plus, Pencil, Trash2,
+    MoreVertical, Pencil, Trash2,
     Loader2, AlertCircle, Clock, IndianRupee,
-    CheckCircle2, X, Shield, AlertTriangle,
+    CheckCircle2, X, AlertTriangle,
     Users, ArrowRight, RefreshCw, Ban, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -74,6 +74,15 @@ interface ShiftImpactAnalysis {
 }
 
 // ─── Add/Edit Dialog ────────────────────────────────────────────────────────────
+
+type DeleteResolution =
+    | { type: "END_ALL" }
+    | { type: "REALLOCATE_BULK"; targetShiftId: string }
+    | { type: "REALLOCATE_MANUAL"; assignments: { allocationId: string; targetShiftId: string }[] };
+
+function getErrorMessage(err: unknown, fallback = "Something went wrong.") {
+    return err instanceof Error ? err.message : fallback;
+}
 
 interface ShiftDialogProps {
     isOpen: boolean;
@@ -157,8 +166,8 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
             const saved = await res.json();
             onSuccess(saved);
             onClose();
-        } catch (err: any) {
-            setError(err.message || "Something went wrong.");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -348,8 +357,8 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                 } else {
                     setMode("END_ALL");
                 }
-            } catch (e: any) {
-                setAnalyzeError(e.message || "Could not load shift analysis.");
+            } catch (e: unknown) {
+                setAnalyzeError(getErrorMessage(e, "Could not load shift analysis."));
                 setStep("resolve"); // fallback to END_ALL only
             }
         };
@@ -361,7 +370,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
         setSubmitting(true);
         setSubmitError(null);
         try {
-            let resolution: any;
+            let resolution: DeleteResolution | undefined;
             if (mode === "END_ALL") {
                 resolution = { type: "END_ALL" };
             } else if (mode === "REALLOCATE_BULK") {
@@ -387,8 +396,8 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
             }
             onDeleted(shift.id);
             onClose();
-        } catch (e: any) {
-            setSubmitError(e.message || "Something went wrong.");
+        } catch (e: unknown) {
+            setSubmitError(getErrorMessage(e));
         } finally {
             setSubmitting(false);
         }
@@ -415,8 +424,8 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
             const updated: Shift = await res.json();
             onRenamed(updated);
             onClose();
-        } catch (e: any) {
-            setSubmitError(e.message || "Something went wrong.");
+        } catch (e: unknown) {
+            setSubmitError(getErrorMessage(e));
         } finally {
             setSubmitting(false);
         }
@@ -981,8 +990,8 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
             }
             const saved = await res.json();
             onSuccess(saved);
-        } catch (err: any) {
-            setError(err.message || "Something went wrong.");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -1135,8 +1144,8 @@ export default function ShiftsPage() {
             setShifts(shiftsData);
             setMultiShifts(multiData);
             setError(null);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Failed to load shifts"));
         } finally {
             setLoading(false);
         }

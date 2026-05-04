@@ -8,6 +8,10 @@ interface Params {
     }>;
 }
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Internal Server Error";
+}
+
 export async function GET(req: Request, { params }: Params) {
     try {
         const { branchId } = await params;
@@ -25,13 +29,14 @@ export async function GET(req: Request, { params }: Params) {
 
         const seats = await SeatService.listSeats(user.id, branchId, shiftId);
         return NextResponse.json(seats);
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
         console.error("Error fetching seats:", error);
-        if (error.message.includes("Unauthorized") || error.message.includes("does not own")) {
-            return NextResponse.json({ error: error.message }, { status: 403 });
+        if (message.includes("Unauthorized") || message.includes("does not own")) {
+            return NextResponse.json({ error: message }, { status: 403 });
         }
-        if (error.message.includes("Branch not found")) {
-            return NextResponse.json({ error: error.message }, { status: 404 });
+        if (message.includes("Branch not found")) {
+            return NextResponse.json({ error: message }, { status: 404 });
         }
         return NextResponse.json(
             { error: "Internal Server Error" },
@@ -64,13 +69,14 @@ export async function POST(req: Request, { params }: Params) {
         const seat = await SeatService.createSeat(user.id, branchId, body.label);
 
         return NextResponse.json(seat, { status: 201 });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
         console.error("Error creating seat:", error);
-        if (error.message.includes("Unauthorized") || error.message.includes("does not own")) {
-            return NextResponse.json({ error: error.message }, { status: 403 });
+        if (message.includes("Unauthorized") || message.includes("does not own")) {
+            return NextResponse.json({ error: message }, { status: 403 });
         }
-        if (error.message.includes("already exists")) {
-            return NextResponse.json({ error: error.message }, { status: 409 });
+        if (message.includes("already exists")) {
+            return NextResponse.json({ error: message }, { status: 409 });
         }
         return NextResponse.json(
             { error: "Internal Server Error" },

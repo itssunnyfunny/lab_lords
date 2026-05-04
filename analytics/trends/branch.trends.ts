@@ -12,7 +12,7 @@ export async function getBranchHealthTrend(
     snapshot: Awaited<ReturnType<typeof getBranchHealthSnapshot>>
   }[] = []
 
-  let cursor = new Date(from)
+  const cursor = new Date(from)
 
   while (cursor <= to) {
     const snapshot = await getBranchHealthSnapshot(branchId, cursor)

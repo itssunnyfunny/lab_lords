@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import "dotenv/config";
 
@@ -8,6 +8,10 @@ const prisma = new PrismaClient({
     })
 });
 
+function errorMessage(error: unknown) {
+    return error instanceof Error ? error.message : String(error);
+}
+
 // Inline Logic from SeatAllocationService
 async function assignSeat(
     userId: string,
@@ -15,7 +19,7 @@ async function assignSeat(
     studentId: string,
     shiftId: string
 ) {
-    return prisma.$transaction(async (tx: any) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // 1. Fetch entities
         const seat = await tx.seat.findUnique({
             where: { id: seatId },
@@ -62,13 +66,13 @@ async function assignSeat(
             }
         } else {
             // Rule: If target shift is TIMED, seat must not be RESERVED
-            const hasReservedAllocation = seatAllocations.some((a: any) => a.shift.isReserved);
+            const hasReservedAllocation = seatAllocations.some((a) => a.shift.isReserved);
             if (hasReservedAllocation) {
                 throw new Error("Cannot allocate in this shift. Seat is explicitly RESERVED.");
             }
 
             // Rule: Seat cannot be allocated twice in the SAME shift
-            const sameShiftAllocation = seatAllocations.find((a: any) => a.shiftId === shiftId);
+            const sameShiftAllocation = seatAllocations.find((a) => a.shiftId === shiftId);
             if (sameShiftAllocation) {
                 throw new Error("Seat is already assigned in this shift");
             }
@@ -168,8 +172,9 @@ async function main() {
     try {
         await assignSeat(user.id, seatA1.id, student2.id, morning.id);
         throw new Error("❌ Failed: Should have thrown error");
-    } catch (e: any) {
-        if (e.message.includes("already assigned")) console.log("✅ Catching dupe: OK");
+    } catch (e: unknown) {
+        const message = errorMessage(e);
+        if (message.includes("already assigned")) console.log("✅ Catching dupe: OK");
         else throw e;
     }
 
@@ -178,8 +183,9 @@ async function main() {
     try {
         await assignSeat(user.id, seatA1.id, student2.id, reserved.id);
         throw new Error("❌ Failed: Should have thrown error");
-    } catch (e: any) {
-        if (e.message.includes("assigned in other shifts")) console.log("✅ Catching timed conflict: OK");
+    } catch (e: unknown) {
+        const message = errorMessage(e);
+        if (message.includes("assigned in other shifts")) console.log("✅ Catching timed conflict: OK");
         else throw e;
     }
 
@@ -193,8 +199,9 @@ async function main() {
     try {
         await assignSeat(user.id, seatB1.id, student1.id, evening.id);
         throw new Error("❌ Failed: Should have thrown error");
-    } catch (e: any) {
-        if (e.message.includes("explicitly RESERVED")) console.log("✅ Catching reserved conflict: OK");
+    } catch (e: unknown) {
+        const message = errorMessage(e);
+        if (message.includes("explicitly RESERVED")) console.log("✅ Catching reserved conflict: OK");
         else throw e;
     }
 

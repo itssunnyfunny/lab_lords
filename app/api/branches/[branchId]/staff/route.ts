@@ -16,9 +16,10 @@ export async function GET(
 
         const staffMembers = await StaffService.listStaff(user.id, branchId);
         return NextResponse.json(staffMembers);
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to list staff";
         return NextResponse.json(
-            { error: error.message || "Failed to list staff" },
+            { error: message },
             { status: 403 } // 403 because it's usually permission denied
         );
     }
@@ -48,9 +49,10 @@ export async function POST(
 
         const newStaff = await StaffService.addStaff(user.id, branchId, userId, role);
         return NextResponse.json(newStaff, { status: 201 });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to add staff";
         return NextResponse.json(
-            { error: error.message || "Failed to add staff" },
+            { error: message },
             { status: 400 }
         );
     }

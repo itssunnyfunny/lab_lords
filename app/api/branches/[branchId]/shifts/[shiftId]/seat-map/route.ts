@@ -22,12 +22,13 @@ export async function GET(req: Request, { params }: Params) {
 
         const seatMap = await SeatService.getSeatMap(user.id, branchId, shiftId, multiShiftId, excludeAllocationIds);
         return NextResponse.json(seatMap);
-    } catch (error: any) {
-        if (error.message?.includes("Unauthorized") || error.message?.includes("does not own")) {
-            return NextResponse.json({ error: error.message }, { status: 403 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+        if (message.includes("Unauthorized") || message.includes("does not own")) {
+            return NextResponse.json({ error: message }, { status: 403 });
         }
-        if (error.message?.includes("not found")) {
-            return NextResponse.json({ error: error.message }, { status: 404 });
+        if (message.includes("not found")) {
+            return NextResponse.json({ error: message }, { status: 404 });
         }
         console.error("[seat-map] Error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

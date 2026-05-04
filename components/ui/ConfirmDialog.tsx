@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
-import { ComponentProps, useEffect, useState } from "react";
+import { ComponentProps } from "react";
 import { createPortal } from "react-dom";
 
 interface ConfirmDialogProps {
@@ -28,13 +28,7 @@ export function ConfirmDialog({
     loading = false,
     variant = "default",
 }: ConfirmDialogProps) {
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    if (!isOpen || !mounted) return null;
+    if (!isOpen || typeof document === "undefined") return null;
 
     const getIcon = () => {
         switch (variant) {

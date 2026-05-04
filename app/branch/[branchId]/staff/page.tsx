@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use, useRef } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -21,6 +20,10 @@ import { format } from "date-fns";
 type StaffMember = StaffWithUser;
 
 // ─── Row dropdown ────────────────────────────────────────────────────────────
+
+function getErrorMessage(err: unknown, fallback = "Something went wrong.") {
+    return err instanceof Error ? err.message : fallback;
+}
 
 interface RowAction { label: string; icon: React.ElementType; onClick: () => void; variant?: "danger" }
 
@@ -99,8 +102,8 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
             const updated = await res.json();
             onSuccess({ ...member, role: updated.role });
             onClose();
-        } catch (err: any) {
-            setError(err.message || "Something went wrong.");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -208,8 +211,8 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
             const newMember = await res.json();
             onSuccess(newMember);
             onClose();
-        } catch (err: any) {
-            setError(err.message || "Something went wrong.");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -307,7 +310,7 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
             const list = await staff.list(branchId);
             setData(list);
             setError(null);
-        } catch (err: any) {
+        } catch {
             setError("Failed to load staff.");
         } finally {
             setLoading(false);
@@ -332,8 +335,8 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
             setData(prev => prev.filter(s => s.id !== removeTarget.id));
             setRemoveTarget(null);
             showToast(`${removeTarget.user?.name || "Member"} removed.`);
-        } catch (err: any) {
-            showToast(err.message || "Remove failed.", "error");
+        } catch (err: unknown) {
+            showToast(getErrorMessage(err, "Remove failed."), "error");
         } finally {
             setRemoveLoading(false);
         }

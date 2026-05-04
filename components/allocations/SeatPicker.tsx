@@ -106,8 +106,10 @@ export function SeatPicker({
 
     // 1. Fetch capacity cards (includes multi-shifts)
     useEffect(() => {
-        setShiftsLoading(true);
-        setShiftsError(null);
+        queueMicrotask(() => {
+            setShiftsLoading(true);
+            setShiftsError(null);
+        });
         let url = `/api/branches/${branchId}/shifts/capacity`;
         const capacityParams = new URLSearchParams();
         if (studentId) capacityParams.set("studentId", studentId);
@@ -136,11 +138,13 @@ export function SeatPicker({
     //      → Server checks single shift (+ time-overlap logic).
     useEffect(() => {
         if (!primaryShiftId) {
-            setSeatMap(null);
+            queueMicrotask(() => setSeatMap(null));
             return;
         }
-        setSeatMapLoading(true);
-        setSeatMapError(null);
+        queueMicrotask(() => {
+            setSeatMapLoading(true);
+            setSeatMapError(null);
+        });
 
         const seatMapParams = new URLSearchParams();
         if (selectedMultiShiftId) seatMapParams.set("multiShiftId", selectedMultiShiftId);

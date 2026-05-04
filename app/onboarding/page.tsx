@@ -9,6 +9,19 @@ import { Button } from "@/components/ui/Button";
 import { ArrowRight, Building2, MapPin, Loader2, X } from "lucide-react";
 import { apiClient } from "@/lib/api/core";
 
+interface OnboardingShiftDraft {
+    name: string;
+    startTime: string;
+    endTime: string;
+    price: number | string;
+}
+
+interface OnboardingResponse {
+    branch: {
+        id: string;
+    };
+}
+
 export default function OnboardingPage() {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2>(1);
@@ -25,7 +38,7 @@ export default function OnboardingPage() {
         shifts: [
             { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
             { name: "Evening", startTime: "16:00", endTime: "22:00", price: 0 }
-        ]
+        ] as OnboardingShiftDraft[]
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -33,7 +46,7 @@ export default function OnboardingPage() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleShiftChange = (index: number, field: string, value: any) => {
+    const handleShiftChange = (index: number, field: keyof OnboardingShiftDraft, value: string | number) => {
         const newShifts = [...formData.shifts];
         newShifts[index] = { ...newShifts[index], [field]: value };
         setFormData(prev => ({ ...prev, shifts: newShifts }));
@@ -86,15 +99,16 @@ export default function OnboardingPage() {
                     ...s,
                     price: Number(s.price) // ensure number
                 }))
-            });
+            }) as OnboardingResponse;
 
             // Success -> Redirect to the new branch dashboard
             // Response structure: { org: {...}, branch: {...} }
-            const branchId = (res as any).branch.id;
+            const branchId = res.branch.id;
             router.push(`/branch/${branchId}`);
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : "Failed to complete setup. Please try again.";
             console.error("Setup failed", err);
-            setError(err.message || "Failed to complete setup. Please try again.");
+            setError(message);
             setLoading(false);
         }
     };

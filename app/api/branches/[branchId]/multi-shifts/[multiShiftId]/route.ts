@@ -6,6 +6,10 @@ interface Params {
     params: Promise<{ branchId: string; multiShiftId: string }>;
 }
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Internal Server Error";
+}
+
 export async function PATCH(req: Request, { params }: Params) {
     try {
         const { multiShiftId } = await params;
@@ -15,15 +19,16 @@ export async function PATCH(req: Request, { params }: Params) {
         const body = await req.json();
         const updated = await MultiShiftService.updateMultiShift(user.id, multiShiftId, body);
         return NextResponse.json(updated);
-    } catch (error: any) {
-        if (error.message?.includes("Unauthorized") || error.message?.includes("does not own"))
-            return NextResponse.json({ error: error.message }, { status: 403 });
-        if (error.message?.includes("not found"))
-            return NextResponse.json({ error: error.message }, { status: 404 });
-        if (error.message?.includes("already exists"))
-            return NextResponse.json({ error: error.message }, { status: 409 });
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message.includes("Unauthorized") || message.includes("does not own"))
+            return NextResponse.json({ error: message }, { status: 403 });
+        if (message.includes("not found"))
+            return NextResponse.json({ error: message }, { status: 404 });
+        if (message.includes("already exists"))
+            return NextResponse.json({ error: message }, { status: 409 });
         console.error("[multi-shifts PATCH]", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 
@@ -35,12 +40,13 @@ export async function DELETE(_req: Request, { params }: Params) {
 
         const result = await MultiShiftService.deleteMultiShift(user.id, multiShiftId);
         return NextResponse.json(result);
-    } catch (error: any) {
-        if (error.message?.includes("Unauthorized") || error.message?.includes("does not own"))
-            return NextResponse.json({ error: error.message }, { status: 403 });
-        if (error.message?.includes("not found"))
-            return NextResponse.json({ error: error.message }, { status: 404 });
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message.includes("Unauthorized") || message.includes("does not own"))
+            return NextResponse.json({ error: message }, { status: 403 });
+        if (message.includes("not found"))
+            return NextResponse.json({ error: message }, { status: 404 });
         console.error("[multi-shifts DELETE]", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

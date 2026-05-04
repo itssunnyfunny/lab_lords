@@ -15,7 +15,7 @@ async function verifyClient() {
             console.error("❌ Client returned null or undefined.");
             process.exit(1);
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("❌ Client threw error:", error);
         process.exit(1);
     }

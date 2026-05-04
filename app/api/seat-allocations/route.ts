@@ -34,10 +34,11 @@ export async function POST(req: NextRequest) {
         // Let me check unassign logic.
 
         return NextResponse.json(allocation, { status: 201 });
-    } catch (error: any) {
-        const status = error.message.includes("Unauthorized") ? 403 : 400;
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to assign seat";
+        const status = message.includes("Unauthorized") ? 403 : 400;
         return NextResponse.json(
-            { error: error.message || "Failed to assign seat" },
+            { error: message },
             { status }
         );
     }

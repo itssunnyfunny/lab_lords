@@ -45,7 +45,7 @@ export function LandingFeatures() {
             Everything you need to run at scale
           </h3>
           <p className="text-lg text-gray-400">
-            We've built a specialized toolkit that replaces your registers and spreadsheets with an elegant, lightning-fast application.
+            We&apos;ve built a specialized toolkit that replaces your registers and spreadsheets with an elegant, lightning-fast application.
           </p>
         </div>
 

@@ -15,8 +15,9 @@ export async function DELETE(
 
         await StaffService.removeStaff(user.id, branchId, staffId);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message || "Failed to remove staff" }, { status: 400 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to remove staff";
+        return NextResponse.json({ error: message }, { status: 400 });
     }
 }
 
@@ -39,10 +40,11 @@ export async function PATCH(
 
         const updated = await StaffService.updateStaffRole(user.id, branchId, staffId, role as StaffRole);
         return NextResponse.json(updated);
-    } catch (error: any) {
-        const status = error.message.includes("not found") ? 404
-            : error.message.includes("Unauthorized") ? 403
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to update role";
+        const status = message.includes("not found") ? 404
+            : message.includes("Unauthorized") ? 403
                 : 400;
-        return NextResponse.json({ error: error.message || "Failed to update role" }, { status });
+        return NextResponse.json({ error: message }, { status });
     }
 }

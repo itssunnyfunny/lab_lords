@@ -9,6 +9,10 @@ async function getUserId() {
     return user.id;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback;
+}
+
 export async function GET(
     request: NextRequest,
     context: { params: Promise<{ branchId: string }> }
@@ -23,9 +27,9 @@ export async function GET(
     try {
         const shifts = await ShiftService.listShifts(userId, branchId);
         return NextResponse.json(shifts);
-    } catch (error: any) {
+    } catch (error: unknown) {
         return NextResponse.json(
-            { error: error.message || "Failed to fetch shifts" },
+            { error: getErrorMessage(error, "Failed to fetch shifts") },
             { status: 500 }
         );
     }
@@ -46,9 +50,9 @@ export async function POST(
         const body = await request.json();
         const shift = await ShiftService.createShift(userId, branchId, body);
         return NextResponse.json(shift);
-    } catch (error: any) {
+    } catch (error: unknown) {
         return NextResponse.json(
-            { error: error.message || "Failed to create shift" },
+            { error: getErrorMessage(error, "Failed to create shift") },
             { status: 400 }
         );
     }
