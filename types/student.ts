@@ -8,4 +8,14 @@ export type CreateStudentDto = {
     seatId?: string;
     monthlyFee?: number;
     admissionFee?: number;
+    feeLinkedShiftId?: string | null;
+    feeLinkedMultiShiftId?: string | null;
+};
+
+export type UpdateStudentProfileDto = {
+    name?: string;
+    phone?: string | null;
+    monthlyFee?: number;
+    feeLinkedShiftId?: string | null;
+    feeLinkedMultiShiftId?: string | null;
 };

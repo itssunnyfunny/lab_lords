@@ -56,6 +56,8 @@ model Student {
   status          StudentStatus    @default(ACTIVE)
   joinedAt        DateTime         @default(now())
   monthlyFee      Int              @default(0)
+  feeLinkedShiftId String?
+  feeLinkedMultiShiftId String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   messageDrafts   MessageDraft[]
@@ -64,6 +66,8 @@ model Student {
   branch          Branch           @relation(fields: [branchId], references: [id])
 
   @@index([branchId])
+  @@index([feeLinkedShiftId])
+  @@index([feeLinkedMultiShiftId])
 }
 
 model Seat {

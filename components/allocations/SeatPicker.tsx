@@ -13,6 +13,7 @@ export interface ShiftCapacity {
     name: string;
     startTime: string | null;
     endTime: string | null;
+    price: number;
     isReserved: boolean;
     totalSeats: number;
     used: number;

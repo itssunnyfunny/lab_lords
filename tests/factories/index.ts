@@ -100,6 +100,8 @@ export async function createStudent(overrides: {
   name?: string;
   phone?: string;
   monthlyFee?: number;
+  feeLinkedShiftId?: string | null;
+  feeLinkedMultiShiftId?: string | null;
   joinedAt?: Date;
   id?: string;
 }) {
@@ -110,6 +112,8 @@ export async function createStudent(overrides: {
       name: overrides.name ?? "Test Student",
       phone: overrides.phone ?? "9999999999",
       monthlyFee: overrides.monthlyFee ?? 1000,
+      feeLinkedShiftId: overrides.feeLinkedShiftId ?? null,
+      feeLinkedMultiShiftId: overrides.feeLinkedMultiShiftId ?? null,
       joinedAt: overrides.joinedAt ?? new Date("2026-01-01T00:00:00.000Z"),
       status: "ACTIVE",
     },

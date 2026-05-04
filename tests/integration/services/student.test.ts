@@ -60,6 +60,24 @@ describe("StudentService Integration", () => {
       expect(alloc).not.toBeNull();
       expect(alloc?.seatId).toBe(seat.id);
     });
+
+    it("uses the linked shift price as monthlyFee when requested", async () => {
+      const { user, branch, shift } = await createTestWorld();
+      await testPrisma.shift.update({
+        where: { id: shift.id },
+        data: { price: 1400 },
+      });
+
+      const student = await StudentService.createStudent(user.id, branch.id, {
+        name: "Linked Fee Student",
+        monthlyFee: 999,
+        feeLinkedShiftId: shift.id,
+      });
+
+      expect(student.monthlyFee).toBe(1400);
+      expect(student.feeLinkedShiftId).toBe(shift.id);
+      expect(student.feeLinkedMultiShiftId).toBeNull();
+    });
   });
 
   describe("updateStudentStatus → INACTIVE", () => {

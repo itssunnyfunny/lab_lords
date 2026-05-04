@@ -21,9 +21,8 @@ export function BranchSidebar({ className }: SidebarProps) {
     const branchId = segments[2];
     const basePath = `/branch/${branchId}`;
 
-    if (!branchId) return null;
-
     // Fetch branch details to get real name + orgId
+    // NOTE: useEffect must come before any conditional return (rules of hooks)
     useEffect(() => {
         if (!branchId) return;
         fetch(`/api/branches/${branchId}`)
@@ -35,6 +34,8 @@ export function BranchSidebar({ className }: SidebarProps) {
             })
             .catch(() => { });
     }, [branchId]);
+
+    if (!branchId) return null;
 
     return (
         <div className="w-72 bg-[#050508]/80 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">

@@ -1,7 +1,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { CreateShiftDto } from "@/types";
-import { parseNullableTime, parseTime, timesOverlap } from "@/utils/shiftTime";
+import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 
 export const DEFAULT_SHIFTS = [
     { name: "Morning", startTime: "06:00", endTime: "11:59", price: 0, isReserved: false },
@@ -115,15 +115,38 @@ export class ShiftService {
         // Always check overlap
         await this.checkTimeOverlap(shift.branchId, newStart ?? null, newEnd ?? null, shiftId);
 
-        return prisma.shift.update({
-            where: { id: shiftId },
-            data: {
-                ...(data.name !== undefined ? { name: data.name } : {}),
-                ...(data.startTime !== undefined ? { startTime: data.startTime } : {}),
-                ...(data.endTime !== undefined ? { endTime: data.endTime } : {}),
-                ...(data.price !== undefined ? { price: data.price } : {}),
-                ...(data.isReserved !== undefined ? { isReserved: data.isReserved } : {}),
-            },
+        const priceChanged = data.price !== undefined && data.price !== shift.price;
+
+        return prisma.$transaction(async (tx) => {
+            const updated = await tx.shift.update({
+                where: { id: shiftId },
+                data: {
+                    ...(data.name !== undefined ? { name: data.name } : {}),
+                    ...(data.startTime !== undefined ? { startTime: data.startTime } : {}),
+                    ...(data.endTime !== undefined ? { endTime: data.endTime } : {}),
+                    ...(data.price !== undefined ? { price: data.price } : {}),
+                    ...(data.isReserved !== undefined ? { isReserved: data.isReserved } : {}),
+                },
+            });
+
+            if (priceChanged) {
+                await tx.student.updateMany({
+                    where: {
+                        branchId: shift.branchId,
+                        feeLinkedShiftId: shiftId,
+                    },
+                    data: {
+                        monthlyFee: data.price,
+                    },
+                });
+            }
+
+            await tx.branch.update({
+                where: { id: shift.branchId },
+                data: { lastDataChange: new Date() },
+            });
+
+            return updated;
         });
     }
 
@@ -219,6 +242,10 @@ export class ShiftService {
                 await tx.seatAllocation.updateMany({
                     where: { shiftId, endDate: null },
                     data: { endDate: now },
+                });
+                await tx.student.updateMany({
+                    where: { branchId, feeLinkedShiftId: shiftId },
+                    data: { feeLinkedShiftId: null },
                 });
                 await tx.shift.update({
                     where: { id: shiftId },
@@ -323,6 +350,11 @@ export class ShiftService {
                         data: newAllocations,
                     });
                 }
+
+                await tx.student.updateMany({
+                    where: { branchId, feeLinkedShiftId: shiftId },
+                    data: { feeLinkedShiftId: null },
+                });
 
                 await tx.shift.update({
                     where: { id: shiftId },
@@ -473,6 +505,11 @@ export class ShiftService {
                         data: newAllocationsToCreate,
                     });
                 }
+
+                await tx.student.updateMany({
+                    where: { branchId, feeLinkedShiftId: shiftId },
+                    data: { feeLinkedShiftId: null },
+                });
 
                 await tx.shift.update({
                     where: { id: shiftId },

@@ -7,7 +7,6 @@ import {
   createShift,
   createSeat,
   createStudent,
-  createAllocation,
 } from "@/tests/factories";
 
 /**
@@ -148,6 +147,32 @@ describe("MultiShiftService Integration", () => {
       expect(updated.price).toBe(2000);
       // Components must be unchanged
       expect(updated.components).toHaveLength(2);
+    });
+
+    it("syncs linked student fees when bundle price changes", async () => {
+      const { user, branch, morning, evening } = await setupTwoShifts();
+      const ms = await MultiShiftService.createMultiShift(user.id, branch.id, {
+        name: "Full Day",
+        price: 1500,
+        shiftIds: [morning.id, evening.id],
+      });
+      const linkedStudent = await createStudent({
+        branchId: branch.id,
+        monthlyFee: 1500,
+        feeLinkedMultiShiftId: ms.id,
+      });
+      const manualStudent = await createStudent({
+        branchId: branch.id,
+        monthlyFee: 1500,
+      });
+
+      await MultiShiftService.updateMultiShift(user.id, ms.id, { price: 2200 });
+
+      const refreshedLinked = await testPrisma.student.findUnique({ where: { id: linkedStudent.id } });
+      const refreshedManual = await testPrisma.student.findUnique({ where: { id: manualStudent.id } });
+
+      expect(refreshedLinked?.monthlyFee).toBe(2200);
+      expect(refreshedManual?.monthlyFee).toBe(1500);
     });
 
     it("updates components — replaces old, creates new", async () => {

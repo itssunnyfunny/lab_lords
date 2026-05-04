@@ -41,6 +41,7 @@ export function AllocateSeatDialog({
     // Multi-shift tracking
     const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(null);
     const [selectedMultiShiftName, setSelectedMultiShiftName] = useState<string | null>(null);
+    const [linkFeeToSelection, setLinkFeeToSelection] = useState(false);
 
     // Submission
     const [submitting, setSubmitting] = useState(false);
@@ -53,11 +54,22 @@ export function AllocateSeatDialog({
         setSelectedSeatId(null);
         setSelectedMultiShiftId(null);
         setSelectedMultiShiftName(null);
+        setLinkFeeToSelection(false);
         setSubmitError(null);
         setStudentId(preselectedStudentId ?? "");
         setStudentName(preselectedStudentName ?? "");
         setStudentSearch("");
     }, [isOpen, preselectedStudentId, preselectedStudentName]);
+
+    const feeLinkLabel = selectedMultiShiftId
+        ? "selected multi-shift"
+        : selectedShiftIds.length === 1
+            ? "selected shift"
+            : null;
+
+    useEffect(() => {
+        if (!feeLinkLabel) setLinkFeeToSelection(false);
+    }, [feeLinkLabel]);
 
     useEffect(() => {
         if (!isOpen || preselectedStudentId) return;
@@ -127,10 +139,34 @@ export function AllocateSeatDialog({
                 throw new Error(data.error || "Failed to allocate seat");
             }
 
+            if (linkFeeToSelection) {
+                const feeRes = await fetch(`/api/branches/${branchId}/students`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        id: sid,
+                        ...(selectedMultiShiftId
+                            ? {
+                                feeLinkedShiftId: null,
+                                feeLinkedMultiShiftId: selectedMultiShiftId,
+                            }
+                            : {
+                                feeLinkedShiftId: selectedShiftIds[0],
+                                feeLinkedMultiShiftId: null,
+                            }),
+                    }),
+                });
+
+                if (!feeRes.ok) {
+                    const data = await feeRes.json().catch(() => ({}));
+                    throw new Error(data.error || "Seat allocated, but fee link failed.");
+                }
+            }
+
             onSuccess();
             onClose();
-        } catch (e: any) {
-            setSubmitError(e.message);
+        } catch (e: unknown) {
+            setSubmitError(e instanceof Error ? e.message : "Something went wrong.");
         } finally {
             setSubmitting(false);
         }
@@ -219,6 +255,20 @@ export function AllocateSeatDialog({
                                 onToggleShift={handleToggleShift}
                                 onSelectSeat={setSelectedSeatId}
                             />
+
+                            {feeLinkLabel && (
+                                <label className="flex items-center gap-3 cursor-pointer group w-max rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={linkFeeToSelection}
+                                        onChange={(e) => setLinkFeeToSelection(e.target.checked)}
+                                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
+                                    />
+                                    <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
+                                        Link monthly fee to {feeLinkLabel} price
+                                    </span>
+                                </label>
+                            )}
 
                             {submitError && (
                                 <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">

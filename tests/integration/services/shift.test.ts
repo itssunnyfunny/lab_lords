@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { ShiftService } from "@/services/shift.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
-import { createTestWorld, createStudent, createSeat, createShift, createAllocation } from "@/tests/factories";
+import { createTestWorld, createStudent, createSeat, createShift, createAllocation, createPayment } from "@/tests/factories";
 
 describe("ShiftService Integration", () => {
   afterAll(async () => { await disconnectDatabase(); });
@@ -52,7 +52,7 @@ describe("ShiftService Integration", () => {
     });
 
     it("sets isLastActiveShift=true if only 1 active shift", async () => {
-      const { user, branch, shift } = await createTestWorld();
+      const { user, shift } = await createTestWorld();
       const analysis = await ShiftService.analyzeShiftDeletion(user.id, shift.id);
       expect(analysis.isLastActiveShift).toBe(true);
     });
@@ -62,7 +62,7 @@ describe("ShiftService Integration", () => {
 
   describe("deleteShift", () => {
     it("REJECTS deleting the last active shift in a branch", async () => {
-      const { user, branch, shift } = await createTestWorld();
+      const { user, shift } = await createTestWorld();
       await expect(
         ShiftService.deleteShift(user.id, shift.id, { type: "END_ALL" })
       ).rejects.toThrow(/last active shift/i);
@@ -137,7 +137,7 @@ describe("ShiftService Integration", () => {
 
   describe("updateShift", () => {
     it("name change succeeds when no duplicate exists", async () => {
-      const { user, branch, shift } = await createTestWorld();
+      const { user, shift } = await createTestWorld();
       const updated = await ShiftService.updateShift(user.id, shift.id, { name: "Dawn" });
       expect(updated.name).toBe("Dawn");
     });
@@ -151,6 +151,39 @@ describe("ShiftService Integration", () => {
       await expect(
         ShiftService.updateShift(user.id, shift.id, { startTime: "09:00", endTime: "14:00" })
       ).rejects.toThrow(/overlap/i);
+    });
+
+    it("syncs linked student fees when price changes without rewriting existing payments", async () => {
+      const { user, branch, shift } = await createTestWorld();
+      const linkedStudent = await createStudent({
+        branchId: branch.id,
+        name: "Linked",
+        monthlyFee: 1000,
+        feeLinkedShiftId: shift.id,
+      });
+      const manualStudent = await createStudent({
+        branchId: branch.id,
+        name: "Manual",
+        monthlyFee: 1000,
+      });
+      const existingPayment = await createPayment({
+        branchId: branch.id,
+        studentId: linkedStudent.id,
+        amount: 1000,
+        dueDate: new Date("2026-02-01T00:00:00.000Z"),
+        periodStart: new Date("2026-01-01T00:00:00.000Z"),
+        periodEnd: new Date("2026-02-01T00:00:00.000Z"),
+      });
+
+      await ShiftService.updateShift(user.id, shift.id, { price: 1800 });
+
+      const refreshedLinked = await testPrisma.student.findUnique({ where: { id: linkedStudent.id } });
+      const refreshedManual = await testPrisma.student.findUnique({ where: { id: manualStudent.id } });
+      const refreshedPayment = await testPrisma.payment.findUnique({ where: { id: existingPayment.id } });
+
+      expect(refreshedLinked?.monthlyFee).toBe(1800);
+      expect(refreshedManual?.monthlyFee).toBe(1000);
+      expect(refreshedPayment?.amount).toBe(1000);
     });
   });
 

@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { StudentStatus, PaymentType, PaymentStatus } from "@/types";
-import { CreateStudentDto, DueResolution } from "@/types";
+import { CreateStudentDto, DueResolution, UpdateStudentProfileDto } from "@/types";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { startOfDay } from "date-fns";
+import { Prisma } from "@prisma/client";
 
 export class StudentService {
     /**
@@ -53,6 +54,62 @@ export class StudentService {
         return student;
     }
 
+    private static async resolveMonthlyFeeData(
+        tx: Prisma.TransactionClient,
+        branchId: string,
+        data: {
+            monthlyFee?: number;
+            feeLinkedShiftId?: string | null;
+            feeLinkedMultiShiftId?: string | null;
+        },
+        fallbackMonthlyFee: number
+    ) {
+        const feeLinkedShiftId = data.feeLinkedShiftId ?? null;
+        const feeLinkedMultiShiftId = data.feeLinkedMultiShiftId ?? null;
+
+        if (feeLinkedShiftId && feeLinkedMultiShiftId) {
+            throw new Error("Fee can be linked to either a shift or a multi-shift, not both.");
+        }
+
+        if (feeLinkedShiftId) {
+            const shift = await tx.shift.findUnique({
+                where: { id: feeLinkedShiftId },
+                select: { branchId: true, price: true, status: true },
+            });
+            if (!shift || shift.branchId !== branchId || shift.status !== "ACTIVE") {
+                throw new Error("Linked shift not found in this branch.");
+            }
+
+            return {
+                monthlyFee: shift.price,
+                feeLinkedShiftId,
+                feeLinkedMultiShiftId: null,
+            };
+        }
+
+        if (feeLinkedMultiShiftId) {
+            const multiShift = await tx.multiShift.findUnique({
+                where: { id: feeLinkedMultiShiftId },
+                select: { branchId: true, price: true },
+            });
+            if (!multiShift || multiShift.branchId !== branchId) {
+                throw new Error("Linked multi-shift not found in this branch.");
+            }
+
+            return {
+                monthlyFee: multiShift.price,
+                feeLinkedShiftId: null,
+                feeLinkedMultiShiftId,
+            };
+        }
+
+        return {
+            monthlyFee: data.monthlyFee ?? fallbackMonthlyFee,
+            feeLinkedShiftId: null,
+            feeLinkedMultiShiftId: null,
+        };
+    }
+
     static async createStudent(
         userId: string,
         branchId: string,
@@ -69,13 +126,22 @@ export class StudentService {
 
         // 1. Create student + admission payment in one transaction
         const student = await prisma.$transaction(async (tx) => {
+            const feeData = await this.resolveMonthlyFeeData(
+                tx,
+                branchId,
+                data,
+                data.monthlyFee ?? branch.defaultFee ?? 0
+            );
+
             const created = await tx.student.create({
                 data: {
                     branchId,
                     name: data.name,
                     phone: data.phone,
                     status: StudentStatus.ACTIVE,
-                    monthlyFee: data.monthlyFee ?? branch.defaultFee ?? 0,
+                    monthlyFee: feeData.monthlyFee,
+                    feeLinkedShiftId: feeData.feeLinkedShiftId,
+                    feeLinkedMultiShiftId: feeData.feeLinkedMultiShiftId,
                     joinedAt: new Date(),
                 },
             });
@@ -117,6 +183,62 @@ export class StudentService {
         }
 
         return student;
+    }
+
+    static async updateStudentProfile(
+        userId: string,
+        studentId: string,
+        data: UpdateStudentProfileDto
+    ) {
+        const verifiedStudent = await this.verifyStudentOwnership(userId, studentId);
+
+        return prisma.$transaction(async (tx) => {
+            const feeLinkTouched =
+                data.feeLinkedShiftId !== undefined ||
+                data.feeLinkedMultiShiftId !== undefined;
+            const feeManuallyTouched = data.monthlyFee !== undefined;
+
+            let feeData: Partial<{
+                monthlyFee: number;
+                feeLinkedShiftId: string | null;
+                feeLinkedMultiShiftId: string | null;
+            }> = {};
+
+            if (feeLinkTouched) {
+                feeData = await this.resolveMonthlyFeeData(
+                    tx,
+                    verifiedStudent.branchId,
+                    {
+                        monthlyFee: data.monthlyFee,
+                        feeLinkedShiftId: data.feeLinkedShiftId ?? null,
+                        feeLinkedMultiShiftId: data.feeLinkedMultiShiftId ?? null,
+                    },
+                    verifiedStudent.monthlyFee
+                );
+            } else if (feeManuallyTouched) {
+                feeData = {
+                    monthlyFee: data.monthlyFee ?? verifiedStudent.monthlyFee,
+                    feeLinkedShiftId: null,
+                    feeLinkedMultiShiftId: null,
+                };
+            }
+
+            const updated = await tx.student.update({
+                where: { id: studentId },
+                data: {
+                    ...(data.name !== undefined ? { name: data.name.trim() } : {}),
+                    ...(data.phone !== undefined ? { phone: data.phone?.trim() || null } : {}),
+                    ...feeData,
+                },
+            });
+
+            await tx.branch.update({
+                where: { id: verifiedStudent.branchId },
+                data: { lastDataChange: new Date() },
+            });
+
+            return updated;
+        });
     }
 
 
