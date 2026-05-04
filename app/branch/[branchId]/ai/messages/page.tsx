@@ -83,6 +83,24 @@ export default function AIMessagesPage() {
     const [language, setLanguage] = useState<"en" | "hi">("en");
 
     useEffect(() => {
+        async function loadDefaultLanguage() {
+            try {
+                const [branchRes, userRes] = await Promise.all([
+                    fetch(`/api/branches/${branchId}`),
+                    fetch("/api/users/me"),
+                ]);
+                const branch = branchRes.ok ? await branchRes.json() : null;
+                const user = userRes.ok ? await userRes.json() : null;
+                const preferred = branch?.defaultMessageLanguage || user?.defaultMessageLanguage;
+                if (preferred === "hi") setLanguage("hi");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        loadDefaultLanguage();
+    }, [branchId]);
+
+    useEffect(() => {
         async function fetchData() {
             setLoading(true);
             try {

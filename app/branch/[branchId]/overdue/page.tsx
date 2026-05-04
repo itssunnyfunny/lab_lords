@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
@@ -33,11 +33,7 @@ export default function OverduePage() {
     const [language, setLanguage] = useState<'EN' | 'HI'>('EN')
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
-    useEffect(() => {
-        fetchOverdue()
-    }, [branchId])
-
-    const fetchOverdue = async () => {
+    const fetchOverdue = useCallback(async () => {
         try {
             const res = await fetch(`/api/branches/${branchId}/payments/overdue`)
             const data = await res.json()
@@ -47,7 +43,29 @@ export default function OverduePage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [branchId])
+
+    useEffect(() => {
+        fetchOverdue()
+    }, [fetchOverdue])
+
+    useEffect(() => {
+        async function loadDefaultLanguage() {
+            try {
+                const [branchRes, userRes] = await Promise.all([
+                    fetch(`/api/branches/${branchId}`),
+                    fetch("/api/users/me"),
+                ])
+                const branch = branchRes.ok ? await branchRes.json() : null
+                const user = userRes.ok ? await userRes.json() : null
+                const preferred = branch?.defaultMessageLanguage || user?.defaultMessageLanguage
+                setLanguage(preferred === "hi" ? "HI" : "EN")
+            } catch (err) {
+                console.error(err)
+            }
+        }
+        loadDefaultLanguage()
+    }, [branchId])
 
     const generateDrafts = () => {
         const newDrafts = payments.map(p => {

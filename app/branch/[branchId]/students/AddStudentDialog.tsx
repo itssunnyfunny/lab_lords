@@ -45,6 +45,24 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
         }
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        async function loadBranchDefaults() {
+            try {
+                const res = await fetch(`/api/branches/${branchId}`);
+                if (!res.ok) return;
+                const branch = await res.json();
+                setFormData(prev => ({
+                    ...prev,
+                    admissionFee: prev.admissionFee ?? branch.defaultAdmissionFee ?? undefined,
+                }));
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        loadBranchDefaults();
+    }, [branchId, isOpen]);
+
     const feeLinkLabel = selectedMultiShiftId
         ? "selected multi-shift"
         : selectedShiftIds.length === 1
