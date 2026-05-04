@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { BranchService } from "@/services/branch.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
-import { createUser, createOrg } from "@/tests/factories";
+import { createUser, createOrg, createStaff } from "@/tests/factories";
 
 /**
  * INTEGRATION TESTS: BranchService
@@ -100,6 +100,98 @@ describe("BranchService Integration", () => {
       const found = await BranchService.getBranchById(branch.id);
       expect(found).not.toBeNull();
       expect(found!.id).toBe(branch.id);
+    });
+  });
+
+  describe("updateSettings", () => {
+    it("updates branch settings for the organization owner", async () => {
+      const user = await createUser();
+      const org = await createOrg({ ownerId: user.id });
+      const branch = await BranchService.createBranchForOrg({
+        organizationId: org.id,
+        userId: user.id,
+        name: "Settings Branch",
+      });
+
+      const updated = await BranchService.updateSettings(user.id, branch.id, {
+        name: "Downtown Branch",
+        city: "Delhi",
+        address: "Ring Road",
+        contactPhone: "+91 99999 99999",
+        openingTime: "06:00",
+        closingTime: "22:00",
+        defaultFee: 1500,
+        defaultAdmissionFee: 300,
+        defaultMessageLanguage: "hi",
+        reminderTone: "firm",
+        aiEnabled: false,
+      });
+
+      expect(updated.name).toBe("Downtown Branch");
+      expect(updated.defaultFee).toBe(1500);
+      expect(updated.defaultAdmissionFee).toBe(300);
+      expect(updated.defaultMessageLanguage).toBe("hi");
+      expect(updated.aiEnabled).toBe(false);
+    });
+
+    it("allows branch managers to update branch settings", async () => {
+      const owner = await createUser();
+      const manager = await createUser();
+      const org = await createOrg({ ownerId: owner.id });
+      const branch = await BranchService.createBranchForOrg({
+        organizationId: org.id,
+        userId: owner.id,
+        name: "Managed Branch",
+      });
+      await createStaff({ userId: manager.id, branchId: branch.id, role: "MANAGER" });
+
+      const updated = await BranchService.updateSettings(manager.id, branch.id, {
+        name: "Manager Updated",
+      });
+
+      expect(updated.name).toBe("Manager Updated");
+    });
+
+    it("rejects staff without manage_branch permission", async () => {
+      const owner = await createUser();
+      const staff = await createUser();
+      const org = await createOrg({ ownerId: owner.id });
+      const branch = await BranchService.createBranchForOrg({
+        organizationId: org.id,
+        userId: owner.id,
+        name: "Staff Branch",
+      });
+      await createStaff({ userId: staff.id, branchId: branch.id, role: "STAFF" });
+
+      await expect(
+        BranchService.updateSettings(staff.id, branch.id, {
+          name: "Not Allowed",
+        })
+      ).rejects.toThrow(/Unauthorized/i);
+    });
+
+    it("rejects invalid branch settings", async () => {
+      const user = await createUser();
+      const org = await createOrg({ ownerId: user.id });
+      const branch = await BranchService.createBranchForOrg({
+        organizationId: org.id,
+        userId: user.id,
+        name: "Invalid Branch",
+      });
+
+      await expect(
+        BranchService.updateSettings(user.id, branch.id, {
+          name: "Valid",
+          defaultFee: -1,
+        })
+      ).rejects.toThrow(/at least 0/i);
+
+      await expect(
+        BranchService.updateSettings(user.id, branch.id, {
+          name: "Valid",
+          openingTime: "25:00",
+        })
+      ).rejects.toThrow(/HH:mm/i);
     });
   });
 });

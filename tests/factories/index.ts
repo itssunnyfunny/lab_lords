@@ -36,25 +36,40 @@ export async function createUser(overrides: { id?: string; email?: string; name?
 
 // ─── Organization ─────────────────────────────────────────────────────────────
 
-export async function createOrg(overrides: { ownerId: string; name?: string; id?: string } & Record<string, unknown>) {
+export async function createOrg(overrides: {
+  ownerId: string;
+  name?: string;
+  id?: string;
+  businessType?: string | null;
+  paymentGraceDays?: number;
+} & Record<string, unknown>) {
   return testPrisma.organization.create({
     data: {
       id: overrides.id ?? uid(),
       name: overrides.name ?? "Test Org",
       ownerId: overrides.ownerId,
+      businessType: overrides.businessType,
+      paymentGraceDays: overrides.paymentGraceDays,
     },
   });
 }
 
 // ─── Branch ───────────────────────────────────────────────────────────────────
 
-export async function createBranch(overrides: { organizationId: string; name?: string; defaultFee?: number; id?: string }) {
+export async function createBranch(overrides: {
+  organizationId: string;
+  name?: string;
+  defaultFee?: number;
+  defaultAdmissionFee?: number;
+  id?: string;
+}) {
   return testPrisma.branch.create({
     data: {
       id: overrides.id ?? uid(),
       organizationId: overrides.organizationId,
       name: overrides.name ?? "Test Branch",
       defaultFee: overrides.defaultFee ?? 1000,
+      defaultAdmissionFee: overrides.defaultAdmissionFee ?? 0,
     },
   });
 }
@@ -199,10 +214,15 @@ export async function createTestWorld(overrides: {
   shiftStart?: string;
   shiftEnd?: string;
   defaultFee?: number;
+  defaultAdmissionFee?: number;
 } = {}) {
   const user = await createUser();
   const org = await createOrg({ ownerId: user.id });
-  const branch = await createBranch({ organizationId: org.id, defaultFee: overrides.defaultFee });
+  const branch = await createBranch({
+    organizationId: org.id,
+    defaultFee: overrides.defaultFee,
+    defaultAdmissionFee: overrides.defaultAdmissionFee,
+  });
   const shift = await createShift({
     branchId: branch.id,
     name: overrides.shiftName ?? "Morning",

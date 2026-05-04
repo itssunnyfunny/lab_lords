@@ -4,6 +4,7 @@ import { suggestActionsForBranch } from "../actionSuggestions/branchActionSugges
 import { generateBranchHealthReport } from "../branchHealthReport"
 import { AIStructuredBranchReport } from "../contracts/structuredReport.contract"
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 
 
 export interface BranchAIResponse {
@@ -23,12 +24,12 @@ export interface BranchAIResponse {
     // Legacy fields kept for compatibility if needed, but 'report' is now the main structured object
     risks: {
         total: number
-        items: any[]
+        items: unknown[]
     }
 
     actions: {
         total: number
-        items: any[]
+        items: unknown[]
     }
 
 }
@@ -44,10 +45,11 @@ export async function runBranchAI(
     // 0️⃣ Check Caching & Rate Limiting & Concurrency
     const branch = await prisma.branch.findUnique({
         where: { id: branchId },
-        select: { lastDataChange: true, name: true, aiLastCalledAt: true, aiStatus: true }
+        select: { lastDataChange: true, name: true, aiLastCalledAt: true, aiStatus: true, aiEnabled: true }
     });
 
     if (!branch) throw new Error("Branch not found");
+    if (!branch.aiEnabled) throw new Error("AI is disabled for this branch");
 
     const lastReport = await prisma.branchAIReport.findFirst({
         where: { branchId },
@@ -171,7 +173,7 @@ export async function runBranchAI(
         await prisma.branchAIReport.create({
             data: {
                 branchId,
-                data: result as any
+                data: result as unknown as Prisma.InputJsonValue
             }
         });
 

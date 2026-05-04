@@ -146,12 +146,13 @@ export class StudentService {
                 },
             });
 
-            if (data.admissionFee && data.admissionFee > 0) {
+            const admissionFee = data.admissionFee ?? branch.defaultAdmissionFee ?? 0;
+            if (admissionFee > 0) {
                 await tx.payment.create({
                     data: {
                         branchId,
                         studentId: created.id,
-                        amount: data.admissionFee,
+                        amount: admissionFee,
                         status: PaymentStatus.DUE,
                         type: PaymentType.ADMISSION,
                         // Normalize to midnight so it never collides with a MONTHLY

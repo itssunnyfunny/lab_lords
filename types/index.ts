@@ -6,3 +6,4 @@ export * from "./seatAllocation";
 export * from "./branch";
 export * from "./organization";
 export * from "./payment";
+export * from "./settings";

@@ -1,6 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { CreateBranchDto } from "@/types";
+import {
+    assertKnownFields,
+    assertPlainObject,
+    optionalBoolean,
+    optionalChoice,
+    optionalNumber,
+    optionalText,
+    optionalTime,
+} from "@/lib/settingsValidation";
+import { CreateBranchDto, MESSAGE_LANGUAGES, REMINDER_TONES, UpdateBranchSettingsDto } from "@/types";
 import { ShiftService } from "./shift.service";
+import { StaffService } from "./staff.service";
 
 interface CreateBranchForOrgParams {
     organizationId: string;
@@ -16,6 +26,20 @@ interface CreateBranchForOrgParams {
         price: number;
     }[];
 }
+
+const BRANCH_SETTINGS_FIELDS = [
+    "name",
+    "city",
+    "address",
+    "contactPhone",
+    "openingTime",
+    "closingTime",
+    "defaultFee",
+    "defaultAdmissionFee",
+    "defaultMessageLanguage",
+    "reminderTone",
+    "aiEnabled",
+] as const;
 
 export class BranchService {
     /**
@@ -116,6 +140,119 @@ export class BranchService {
     static async getBranchById(id: string) {
         return await prisma.branch.findUnique({
             where: { id },
+        });
+    }
+
+    static async getBranchDetails(userId: string, branchId: string) {
+        await StaffService.authorize(userId, branchId, "students");
+
+        return prisma.branch.findUnique({
+            where: { id: branchId },
+            include: {
+                organization: true,
+                _count: {
+                    select: {
+                        seats: true,
+                        students: { where: { status: "ACTIVE" } },
+                        shifts: { where: { status: "ACTIVE" } },
+                        payments: { where: { status: "DUE" } },
+                        staff: true,
+                    },
+                },
+                shifts: {
+                    where: { status: "ACTIVE" },
+                    select: {
+                        id: true,
+                        name: true,
+                        startTime: true,
+                        endTime: true,
+                        price: true,
+                        isReserved: true,
+                    },
+                    orderBy: { createdAt: "asc" },
+                },
+                staff: {
+                    include: {
+                        user: { select: { id: true, name: true, email: true } },
+                    },
+                    orderBy: { createdAt: "asc" },
+                },
+            },
+        });
+    }
+
+    static parseSettingsPayload(body: unknown): UpdateBranchSettingsDto {
+        assertPlainObject(body);
+        assertKnownFields(body, BRANCH_SETTINGS_FIELDS);
+
+        const settings: UpdateBranchSettingsDto = {};
+        const name = optionalText(body.name, "Branch name", { required: true, max: 120 });
+        const city = optionalText(body.city, "City", { max: 80 });
+        const address = optionalText(body.address, "Address", { max: 240 });
+        const contactPhone = optionalText(body.contactPhone, "Contact phone", { max: 40 });
+        const openingTime = optionalTime(body.openingTime, "Opening time");
+        const closingTime = optionalTime(body.closingTime, "Closing time");
+        const defaultFee = optionalNumber(body.defaultFee, "Default monthly fee", { min: 0, max: 1000000 });
+        const defaultAdmissionFee = optionalNumber(body.defaultAdmissionFee, "Default admission fee", { min: 0, max: 1000000 });
+        const defaultMessageLanguage = optionalChoice(body.defaultMessageLanguage, "Default message language", MESSAGE_LANGUAGES);
+        const reminderTone = optionalChoice(body.reminderTone, "Reminder tone", REMINDER_TONES);
+        const aiEnabled = optionalBoolean(body.aiEnabled, "AI enabled");
+
+        if (name != null) settings.name = name;
+        if (city !== undefined) settings.city = city;
+        if (address !== undefined) settings.address = address;
+        if (contactPhone !== undefined) settings.contactPhone = contactPhone;
+        if (openingTime !== undefined) settings.openingTime = openingTime;
+        if (closingTime !== undefined) settings.closingTime = closingTime;
+        if (defaultFee !== undefined) settings.defaultFee = defaultFee;
+        if (defaultAdmissionFee !== undefined) settings.defaultAdmissionFee = defaultAdmissionFee;
+        if (defaultMessageLanguage !== undefined) settings.defaultMessageLanguage = defaultMessageLanguage;
+        if (reminderTone !== undefined) settings.reminderTone = reminderTone;
+        if (aiEnabled !== undefined) settings.aiEnabled = aiEnabled;
+
+        return settings;
+    }
+
+    static async updateSettings(userId: string, branchId: string, body: unknown) {
+        await StaffService.authorize(userId, branchId, "manage_branch");
+        const data = this.parseSettingsPayload(body);
+
+        return prisma.branch.update({
+            where: { id: branchId },
+            data: {
+                ...data,
+                lastDataChange: new Date(),
+            },
+            include: {
+                organization: true,
+                _count: {
+                    select: {
+                        seats: true,
+                        students: { where: { status: "ACTIVE" } },
+                        shifts: { where: { status: "ACTIVE" } },
+                        payments: { where: { status: "DUE" } },
+                        staff: true,
+                    },
+                },
+                shifts: {
+                    where: { status: "ACTIVE" },
+                    select: {
+                        id: true,
+                        name: true,
+                        startTime: true,
+                        endTime: true,
+                        price: true,
+                        isReserved: true,
+                    },
+                    orderBy: { createdAt: "asc" },
+                },
+                staff: {
+                    include: {
+                        user: { select: { id: true, name: true, email: true } },
+                    },
+                    orderBy: { createdAt: "asc" },
+                },
+            },
         });
     }
 }

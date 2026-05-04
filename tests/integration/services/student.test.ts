@@ -46,6 +46,23 @@ describe("StudentService Integration", () => {
       expect(payment).toBeNull();
     });
 
+    it("uses branch defaults for monthly and admission fees", async () => {
+      const { user, branch } = await createTestWorld({
+        defaultFee: 1800,
+        defaultAdmissionFee: 700,
+      });
+
+      const student = await StudentService.createStudent(user.id, branch.id, {
+        name: "Default Fee Student",
+      });
+
+      expect(student.monthlyFee).toBe(1800);
+      const admission = await testPrisma.payment.findFirst({
+        where: { studentId: student.id, type: "ADMISSION" },
+      });
+      expect(admission?.amount).toBe(700);
+    });
+
     it("assigns seat+shift if seatId and shiftIds are provided", async () => {
       const { user, branch, seat, shift } = await createTestWorld();
       const student = await StudentService.createStudent(user.id, branch.id, {
