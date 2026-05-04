@@ -2,6 +2,12 @@
 import { prisma } from "@/lib/prisma";
 import { CreateShiftDto } from "@/types";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalTime,
+    validateRequiredText,
+} from "@/lib/formValidation";
 
 export const DEFAULT_SHIFTS = [
     { name: "Morning", startTime: "06:00", endTime: "11:59", price: 0, isReserved: false },
@@ -73,22 +79,36 @@ export class ShiftService {
 
     static async createShift(userId: string, branchId: string, data: CreateShiftDto) {
         await this.assertBranchOwnership(userId, branchId);
+        const nameResult = validateRequiredText(data.name, "Shift name", 50);
+        if (!nameResult.ok) throw new Error(nameResult.error);
+        const startResult = validateOptionalTime(data.startTime, "Start time");
+        if (!startResult.ok) throw new Error(startResult.error);
+        const endResult = validateOptionalTime(data.endTime, "End time");
+        if (!endResult.ok) throw new Error(endResult.error);
+        if ((startResult.value && !endResult.value) || (!startResult.value && endResult.value)) {
+            throw new Error("Shift must have both start and end time, or neither.");
+        }
+        const priceResult = parseIntegerField(data.price, "Monthly price", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!priceResult.ok) throw new Error(priceResult.error);
 
         const existingShift = await prisma.shift.findFirst({
-            where: { branchId, name: data.name, status: "ACTIVE" },
+            where: { branchId, name: nameResult.value, status: "ACTIVE" },
         });
-        if (existingShift) throw new Error(`Shift with name "${data.name}" already exists in this branch.`);
+        if (existingShift) throw new Error(`Shift with name "${nameResult.value}" already exists in this branch.`);
 
         // Always check overlap, even for null times (null = full day, overlaps everything)
-        await this.checkTimeOverlap(branchId, data.startTime ?? null, data.endTime ?? null);
+        await this.checkTimeOverlap(branchId, startResult.value, endResult.value);
 
         return prisma.shift.create({
             data: {
                 branchId,
-                name: data.name,
-                startTime: data.startTime,
-                endTime: data.endTime,
-                price: data.price ?? 0,
+                name: nameResult.value,
+                startTime: startResult.value,
+                endTime: endResult.value,
+                price: priceResult.value ?? 0,
                 isReserved: data.isReserved ?? false,
             },
         });
@@ -103,28 +123,45 @@ export class ShiftService {
         if (!shift) throw new Error("Shift not found");
         await this.assertBranchOwnership(userId, shift.branchId);
 
-        if (data.name && data.name !== shift.name) {
+        const nameResult = data.name !== undefined ? validateRequiredText(data.name, "Shift name", 50) : null;
+        if (nameResult && !nameResult.ok) throw new Error(nameResult.error);
+        const startResult = data.startTime !== undefined ? validateOptionalTime(data.startTime, "Start time") : null;
+        if (startResult && !startResult.ok) throw new Error(startResult.error);
+        const endResult = data.endTime !== undefined ? validateOptionalTime(data.endTime, "End time") : null;
+        if (endResult && !endResult.ok) throw new Error(endResult.error);
+        const priceResult = data.price !== undefined
+            ? parseIntegerField(data.price, "Monthly price", { min: 0, max: FORM_LIMITS.moneyMax })
+            : null;
+        if (priceResult && !priceResult.ok) throw new Error(priceResult.error);
+
+        const normalizedName = nameResult?.ok ? nameResult.value : undefined;
+        if (normalizedName && normalizedName !== shift.name) {
             const duplicate = await prisma.shift.findFirst({
-                where: { branchId: shift.branchId, name: data.name, status: "ACTIVE", id: { not: shiftId } },
+                where: { branchId: shift.branchId, name: normalizedName, status: "ACTIVE", id: { not: shiftId } },
             });
-            if (duplicate) throw new Error(`Shift with name "${data.name}" already exists in this branch.`);
+            if (duplicate) throw new Error(`Shift with name "${normalizedName}" already exists in this branch.`);
         }
 
-        const newStart = data.startTime !== undefined ? data.startTime : shift.startTime;
-        const newEnd = data.endTime !== undefined ? data.endTime : shift.endTime;
-        // Always check overlap
-        await this.checkTimeOverlap(shift.branchId, newStart ?? null, newEnd ?? null, shiftId);
+        const newStart = startResult?.ok ? startResult.value : shift.startTime;
+        const newEnd = endResult?.ok ? endResult.value : shift.endTime;
+        if ((newStart && !newEnd) || (!newStart && newEnd)) {
+            throw new Error("Shift must have both start and end time, or neither.");
+        }
+        if (data.startTime !== undefined || data.endTime !== undefined) {
+            await this.checkTimeOverlap(shift.branchId, newStart ?? null, newEnd ?? null, shiftId);
+        }
 
-        const priceChanged = data.price !== undefined && data.price !== shift.price;
+        const normalizedPrice = priceResult?.ok ? priceResult.value : undefined;
+        const priceChanged = normalizedPrice !== undefined && normalizedPrice !== shift.price;
 
         return prisma.$transaction(async (tx) => {
             const updated = await tx.shift.update({
                 where: { id: shiftId },
                 data: {
-                    ...(data.name !== undefined ? { name: data.name } : {}),
-                    ...(data.startTime !== undefined ? { startTime: data.startTime } : {}),
-                    ...(data.endTime !== undefined ? { endTime: data.endTime } : {}),
-                    ...(data.price !== undefined ? { price: data.price } : {}),
+                    ...(normalizedName !== undefined ? { name: normalizedName } : {}),
+                    ...(data.startTime !== undefined ? { startTime: newStart } : {}),
+                    ...(data.endTime !== undefined ? { endTime: newEnd } : {}),
+                    ...(normalizedPrice !== undefined ? { price: normalizedPrice } : {}),
                     ...(data.isReserved !== undefined ? { isReserved: data.isReserved } : {}),
                 },
             });
@@ -136,7 +173,7 @@ export class ShiftService {
                         feeLinkedShiftId: shiftId,
                     },
                     data: {
-                        monthlyFee: data.price,
+                        monthlyFee: normalizedPrice,
                     },
                 });
             }

@@ -95,6 +95,42 @@ describe("StudentService Integration", () => {
       expect(student.feeLinkedShiftId).toBe(shift.id);
       expect(student.feeLinkedMultiShiftId).toBeNull();
     });
+
+    it("rejects invalid profile, fee, and fee-link inputs", async () => {
+      const { user, branch, shift } = await createTestWorld();
+      const otherShift = await createShift({
+        branchId: branch.id,
+        name: "Evening",
+        startTime: "17:00",
+        endTime: "22:00",
+      });
+
+      await expect(
+        StudentService.createStudent(user.id, branch.id, { name: "   " })
+      ).rejects.toThrow(/required/i);
+
+      await expect(
+        StudentService.createStudent(user.id, branch.id, {
+          name: "Bad Phone",
+          phone: "phone!",
+        })
+      ).rejects.toThrow(/phone/i);
+
+      await expect(
+        StudentService.createStudent(user.id, branch.id, {
+          name: "Bad Fee",
+          monthlyFee: -1,
+        })
+      ).rejects.toThrow(/whole number|at least/i);
+
+      await expect(
+        StudentService.createStudent(user.id, branch.id, {
+          name: "Conflicting Links",
+          feeLinkedShiftId: shift.id,
+          feeLinkedMultiShiftId: otherShift.id,
+        })
+      ).rejects.toThrow(/either a shift or a multi-shift/i);
+    });
   });
 
   describe("updateStudentStatus → INACTIVE", () => {

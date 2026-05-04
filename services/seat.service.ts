@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
+import { validateSeatLabel } from "@/lib/formValidation";
 
 export type SeatOccupancySnapshot = {
     branchId: string
@@ -43,25 +44,27 @@ export class SeatService {
 
     static async createSeat(userId: string, branchId: string, label: string) {
         await this.assertBranchOwnership(userId, branchId);
+        const labelResult = validateSeatLabel(label);
+        if (!labelResult.ok) throw new Error(labelResult.error);
 
         // Check if seat label already exists for this branch to avoid unique constraint error
         const existingSeat = await prisma.seat.findUnique({
             where: {
                 branchId_label: {
                     branchId,
-                    label,
+                    label: labelResult.value,
                 },
             },
         });
 
         if (existingSeat) {
-            throw new Error(`Seat with label "${label}" already exists in this branch.`);
+            throw new Error(`Seat with label "${labelResult.value}" already exists in this branch.`);
         }
 
         return prisma.seat.create({
             data: {
                 branchId,
-                label,
+                label: labelResult.value,
             },
         });
     }
@@ -241,14 +244,11 @@ export class SeatService {
                 orderBy: { label: "asc" },
             });
 
-            // Extract the time boundaries for each component shift (using robust parser)
-            const componentTimes = ms.components.map(c => {
-                const s = shiftTimeMap.get(c.shiftId);
-                return {
-                    start: parseNullableTime(s?.startTime),
-                    end: parseNullableTime(s?.endTime),
-                };
-            });
+            for (const componentId of componentShiftIds) {
+                const s = shiftTimeMap.get(componentId);
+                parseNullableTime(s?.startTime);
+                parseNullableTime(s?.endTime);
+            }
 
             const totalSeats = seats.length;
             let occupiedCount = 0;

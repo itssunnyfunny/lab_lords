@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { X, Loader2, AlertCircle, User, Phone, IndianRupee } from "lucide-react";
 import { Student } from "@prisma/client";
+import { FORM_LIMITS, parseIntegerField, validatePhone, validateRequiredText } from "@/lib/formValidation";
 
 interface EditStudentDialogProps {
     isOpen: boolean;
@@ -50,8 +51,21 @@ export function EditStudentDialog({
         monthlyFee !== currentFeeStr;
 
     const handleSave = async () => {
-        if (!name.trim()) {
-            setError("Name cannot be empty.");
+        const nameResult = validateRequiredText(name, "Student name");
+        if (!nameResult.ok) {
+            setError(nameResult.error);
+            return;
+        }
+        const phoneResult = validatePhone(phone);
+        if (!phoneResult.ok) {
+            setError(phoneResult.error);
+            return;
+        }
+        const monthlyFeeResult = monthlyFee !== currentFeeStr && monthlyFee.trim() !== ""
+            ? parseIntegerField(monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })
+            : null;
+        if (monthlyFeeResult && !monthlyFeeResult.ok) {
+            setError(monthlyFeeResult.error);
             return;
         }
         setLoading(true);
@@ -62,11 +76,9 @@ export function EditStudentDialog({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     id: student.id,
-                    name: name.trim(),
-                    phone: phone.trim(),
-                    ...(monthlyFee !== currentFeeStr && monthlyFee.trim() !== ""
-                        ? { monthlyFee: Number(monthlyFee) }
-                        : {}),
+                    name: nameResult.value,
+                    phone: phoneResult.value ?? null,
+                    ...(monthlyFeeResult?.ok && monthlyFeeResult.value !== undefined ? { monthlyFee: monthlyFeeResult.value } : {}),
                 }),
             });
             if (!res.ok) {
@@ -118,6 +130,7 @@ export function EditStudentDialog({
                                 onChange={e => { setName(e.target.value); setError(null); }}
                                 placeholder="Student's full name"
                                 autoFocus
+                                maxLength={FORM_LIMITS.nameMax}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />
                         </div>
@@ -131,8 +144,10 @@ export function EditStudentDialog({
                             <input
                                 type="tel"
                                 value={phone}
-                                onChange={e => setPhone(e.target.value)}
+                                onChange={e => { setPhone(e.target.value); setError(null); }}
                                 placeholder="e.g. 9876543210"
+                                inputMode="tel"
+                                maxLength={24}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />
                         </div>
@@ -153,8 +168,11 @@ export function EditStudentDialog({
                             <input
                                 type="number"
                                 min={0}
+                                max={FORM_LIMITS.moneyMax}
+                                step={1}
+                                inputMode="numeric"
                                 value={monthlyFee}
-                                onChange={e => setMonthlyFee(e.target.value)}
+                                onChange={e => { setMonthlyFee(e.target.value); setError(null); }}
                                 placeholder="e.g. 1500"
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />

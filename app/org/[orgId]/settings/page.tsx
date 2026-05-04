@@ -30,6 +30,13 @@ import {
     SettingsTextArea,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
+import {
+    parseIntegerField,
+    validateOptionalEmail,
+    validateOptionalText,
+    validatePhone,
+    validateRequiredText,
+} from "@/lib/formValidation";
 
 interface BranchSummary {
     id: string;
@@ -148,6 +155,51 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
 
     const save = async () => {
         if (!form) return;
+        const nameResult = validateRequiredText(form.name, "Organization name", 120);
+        if (!nameResult.ok) {
+            setSaveError(nameResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const businessTypeResult = validateOptionalText(form.businessType, "Business type", 80);
+        if (!businessTypeResult.ok) {
+            setSaveError(businessTypeResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const legalNameResult = validateOptionalText(form.legalName, "Legal name", 160);
+        if (!legalNameResult.ok) {
+            setSaveError(legalNameResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const contactEmailResult = validateOptionalEmail(form.contactEmail, "Contact email");
+        if (!contactEmailResult.ok) {
+            setSaveError(contactEmailResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const contactPhoneResult = validatePhone(form.contactPhone);
+        if (!contactPhoneResult.ok) {
+            setSaveError(contactPhoneResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const addressResult = validateOptionalText(form.address, "Address", 240);
+        if (!addressResult.ok) {
+            setSaveError(addressResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const paymentGraceDaysResult = parseIntegerField(form.paymentGraceDays, "Payment grace days", {
+            min: 0,
+            max: 60,
+        });
+        if (!paymentGraceDaysResult.ok) {
+            setSaveError(paymentGraceDaysResult.error);
+            setSaveStatus("error");
+            return;
+        }
         setSaving(true);
         setSaveStatus("idle");
         setSaveError("");
@@ -155,7 +207,16 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
             const res = await fetch(`/api/organizations/${orgId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
+                body: JSON.stringify({
+                    ...form,
+                    name: nameResult.value,
+                    businessType: businessTypeResult.value ?? null,
+                    legalName: legalNameResult.value ?? null,
+                    contactEmail: contactEmailResult.value ?? null,
+                    contactPhone: contactPhoneResult.value ?? null,
+                    address: addressResult.value ?? null,
+                    paymentGraceDays: paymentGraceDaysResult.value ?? 0,
+                }),
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));

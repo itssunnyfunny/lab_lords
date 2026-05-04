@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { ShiftService } from "@/services/shift.service";
+import { FORM_LIMITS, parseIntegerField, validateOptionalTime, validateRequiredText } from "@/lib/formValidation";
 
 async function getUserId() {
     const user = await getSessionUser();
@@ -26,11 +27,22 @@ export async function PATCH(
 
     try {
         const body = await request.json();
+        const nameResult = body.name !== undefined ? validateRequiredText(body.name, "Shift name", 50) : null;
+        if (nameResult && !nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
+        const startResult = body.startTime !== undefined ? validateOptionalTime(body.startTime, "Start time") : null;
+        if (startResult && !startResult.ok) return NextResponse.json({ error: startResult.error }, { status: 400 });
+        const endResult = body.endTime !== undefined ? validateOptionalTime(body.endTime, "End time") : null;
+        if (endResult && !endResult.ok) return NextResponse.json({ error: endResult.error }, { status: 400 });
+        const priceResult = body.price !== undefined
+            ? parseIntegerField(body.price, "Monthly price", { min: 0, max: FORM_LIMITS.moneyMax })
+            : null;
+        if (priceResult && !priceResult.ok) return NextResponse.json({ error: priceResult.error }, { status: 400 });
+
         const updated = await ShiftService.updateShift(userId, shiftId, {
-            name: body.name,
-            startTime: body.startTime,
-            endTime: body.endTime,
-            price: body.price !== undefined ? Number(body.price) : undefined,
+            ...(nameResult?.ok ? { name: nameResult.value } : {}),
+            ...(startResult?.ok ? { startTime: startResult.value } : {}),
+            ...(endResult?.ok ? { endTime: endResult.value } : {}),
+            ...(priceResult?.ok ? { price: priceResult.value } : {}),
             isReserved: body.isReserved,
         });
         return NextResponse.json(updated);

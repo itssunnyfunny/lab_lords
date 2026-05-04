@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { students } from "@/lib/api/students";
 import { CreateStudentDto } from "@/types";
 import { SeatPicker } from "@/components/allocations/SeatPicker";
+import { FORM_LIMITS, parseIntegerField, validatePhone, validateRequiredText } from "@/lib/formValidation";
 
 interface AddStudentDialogProps {
     isOpen: boolean;
@@ -78,10 +79,42 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate
-        if (!createdStudentId && !formData.name.trim()) {
-            setError("Name is required");
-            return;
+        let payload: CreateStudentDto | null = null;
+
+        if (!createdStudentId) {
+            const nameResult = validateRequiredText(formData.name, "Student name");
+            if (!nameResult.ok) {
+                setError(nameResult.error);
+                return;
+            }
+            const phoneResult = validatePhone(formData.phone);
+            if (!phoneResult.ok) {
+                setError(phoneResult.error);
+                return;
+            }
+            const monthlyFeeResult = parseIntegerField(formData.monthlyFee, "Monthly fee", {
+                min: 0,
+                max: FORM_LIMITS.moneyMax,
+            });
+            if (!monthlyFeeResult.ok) {
+                setError(monthlyFeeResult.error);
+                return;
+            }
+            const admissionFeeResult = parseIntegerField(formData.admissionFee, "Admission fee", {
+                min: 0,
+                max: FORM_LIMITS.moneyMax,
+            });
+            if (!admissionFeeResult.ok) {
+                setError(admissionFeeResult.error);
+                return;
+            }
+
+            payload = {
+                name: nameResult.value,
+                ...(phoneResult.value ? { phone: phoneResult.value } : {}),
+                ...(monthlyFeeResult.value !== undefined ? { monthlyFee: monthlyFeeResult.value } : {}),
+                ...(admissionFeeResult.value !== undefined ? { admissionFee: admissionFeeResult.value } : {}),
+            };
         }
 
         if (wantsAllocation && (selectedShiftIds.length === 0 || !selectedSeatId)) {
@@ -98,8 +131,9 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             let finalStudentObj;
 
             if (!studentToAllocateTo) {
+                if (!payload) throw new Error("Student details are required.");
                 const studentPayload: CreateStudentDto = {
-                    ...formData,
+                    ...payload,
                     ...(linkFeeToSelection && selectedMultiShiftId
                         ? {
                             monthlyFee: undefined,
@@ -143,7 +177,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             }
 
             // Success completely
-            onSuccess(finalStudentObj || { id: studentToAllocateTo, name: formData.name });
+            onSuccess(finalStudentObj || { id: studentToAllocateTo, name: payload?.name ?? formData.name.trim() });
             onClose();
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Something went wrong.";
@@ -184,10 +218,11 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     type="text"
                                     disabled={!!createdStudentId || isLoading}
                                     value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setError(null); }}
                                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
                                     placeholder="e.g. John Doe"
                                     autoFocus
+                                    maxLength={FORM_LIMITS.nameMax}
                                 />
                             </div>
 
@@ -200,9 +235,11 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     type="tel"
                                     disabled={!!createdStudentId || isLoading}
                                     value={formData.phone || ""}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                    onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setError(null); }}
                                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
                                     placeholder="e.g. +91 98765 43210"
+                                    inputMode="tel"
+                                    maxLength={24}
                                 />
                             </div>
 
@@ -215,14 +252,19 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     type="number"
                                     disabled={!!createdStudentId || isLoading || linkFeeToSelection}
                                     value={formData.monthlyFee || ""}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                         setFormData({
                                             ...formData,
                                             monthlyFee: e.target.value ? Number(e.target.value) : undefined,
-                                        })
-                                    }
+                                        });
+                                        setError(null);
+                                    }}
                                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
                                     placeholder={linkFeeToSelection ? "Linked to shift price" : "Branch default"}
+                                    min={0}
+                                    max={FORM_LIMITS.moneyMax}
+                                    step={1}
+                                    inputMode="numeric"
                                 />
                             </div>
 
@@ -235,14 +277,19 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     type="number"
                                     disabled={!!createdStudentId || isLoading}
                                     value={formData.admissionFee || ""}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                         setFormData({
                                             ...formData,
                                             admissionFee: e.target.value ? Number(e.target.value) : undefined,
-                                        })
-                                    }
+                                        });
+                                        setError(null);
+                                    }}
                                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
                                     placeholder="One-time"
+                                    min={0}
+                                    max={FORM_LIMITS.moneyMax}
+                                    step={1}
+                                    inputMode="numeric"
                                 />
                             </div>
                         </div>
