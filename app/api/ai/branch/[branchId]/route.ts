@@ -13,9 +13,11 @@ export async function GET(
 
     } catch (error) {
         console.error("AI GENERATION ERROR:", error);
+        const message = String(error)
+        const status = message.includes("disabled") ? 403 : 500
         return Response.json(
-            { error: "Failed to generate AI insights", details: String(error) },
-            { status: 500 }
+            { error: "Failed to generate AI insights", details: message },
+            { status }
         )
     }
 }

@@ -15,12 +15,15 @@ export async function GET(
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { orgId } = await context.params;
-        const org = await OrganizationService.getOrganizationById(orgId);
-        if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });
+        const org = await OrganizationService.getOrganizationForOwner(orgId, user.id);
 
         return NextResponse.json(org);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+        const status = message.includes("not found") ? 404
+            : message.includes("Unauthorized") ? 403
+                : 500;
+        return NextResponse.json({ error: message }, { status });
     }
 }
 
@@ -37,23 +40,15 @@ export async function PATCH(
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { orgId } = await context.params;
-        const body = await req.json();
-        const { name, businessType } = body;
-
-        if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
-            return NextResponse.json({ error: "Organization name cannot be empty" }, { status: 400 });
-        }
-
-        const updated = await OrganizationService.updateOrganization(orgId, user.id, {
-            name,
-            businessType,
-        });
+        const updated = await OrganizationService.updateSettings(orgId, user.id, await req.json());
 
         return NextResponse.json(updated);
-    } catch (error: any) {
-        const status = error.message.includes("not found") ? 404
-            : error.message.includes("Unauthorized") ? 403
-                : 500;
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+        const status = message.includes("not found") ? 404
+            : message.includes("Unauthorized") ? 403
+                : message.includes("Unknown") || message.includes("must") || message.includes("required") || message.includes("supported") ? 400
+                    : 500;
+        return NextResponse.json({ error: message }, { status });
     }
 }

@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
 import { BranchService } from "@/services/branch.service";
 import { getSessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+
+function responseForError(error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal Server Error";
+    const status = message.includes("not found") || message.includes("not found")
+        ? 404
+        : message.includes("Unauthorized")
+            ? 403
+            : message.includes("Unknown") || message.includes("must") || message.includes("required") || message.includes("supported")
+                ? 400
+                : 500;
+    return NextResponse.json({ error: message }, { status });
+}
 
 export async function GET(
-    req: Request,
+    _req: Request,
     { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
@@ -14,52 +25,7 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // We can reuse BranchService.getBranchesByOrganizationId if we don't have getById,
-        // or check if service has getById.
-        // Assuming we need to implement getById in service or use Prisma directly if service missing.
-        // Let's check BranchService (not visible, but I can assume standard or use prisma).
-        // To be safe and fast, I'll use Prisma directly if I can't read service, 
-        // BUT I should respect architecture.
-        // I'll try to use BranchService.getBranchById (guessing). 
-        // If it fails, I'll fix it. 
-        // Actually, looking at previous `organizations/[orgId]/branches/route.ts`, it used `BranchService.getBranchesByOrganizationId`.
-        // I will implement a direct Prisma call here or assume Service has it.
-        // Better: Check valid service methods?
-        // I'll assume `BranchService.getBranchById` or similar exists or I'll add it.
-        // Since I can't easily check service content without reading, I'll use Prisma directly to ensure it works.
-        // Wait, I shouldn't bypass Service layer if it exists.
-        // I'll read `services/branch.service.ts` first? No, I'll just write the file using Prisma client directly for now to ensure it works, 
-        // pattern seems to accept it in `branches/[branchId]/students` etc. (Wait, they used StudentService).
-
-        // Let's use Prisma directly to be safe on availability.
-
-        const branch = await prisma.branch.findUnique({
-            where: { id: branchId },
-            include: {
-                organization: true,
-                _count: {
-                    select: {
-                        seats: true,
-                        students: { where: { status: "ACTIVE" } },
-                        shifts: { where: { status: "ACTIVE" } },
-                        payments: { where: { status: "DUE" } },
-                    },
-                },
-                shifts: {
-                    where: { status: "ACTIVE" },
-                    select: {
-                        id: true,
-                        name: true,
-                        startTime: true,
-                        endTime: true,
-                        price: true,
-                        isReserved: true,
-                    },
-                    orderBy: { createdAt: "asc" },
-                },
-            },
-        });
-
+        const branch = await BranchService.getBranchDetails(user.id, branchId);
         if (!branch) {
             return NextResponse.json({ error: "Branch not found" }, { status: 404 });
         }
@@ -67,10 +33,7 @@ export async function GET(
         return NextResponse.json(branch);
     } catch (error) {
         console.error("Error fetching branch:", error);
-        return NextResponse.json(
-            { error: "Internal Server Error" },
-            { status: 500 }
-        );
+        return responseForError(error);
     }
 }
 
@@ -85,25 +48,10 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const body = await req.json();
-        const { name } = body;
-
-        if (!name || typeof name !== "string" || name.trim().length === 0) {
-            return NextResponse.json({ error: "Branch name is required" }, { status: 400 });
-        }
-
-        const updated = await prisma.branch.update({
-            where: { id: branchId },
-            data: { name: name.trim() },
-            include: { organization: true },
-        });
-
+        const updated = await BranchService.updateSettings(user.id, branchId, await req.json());
         return NextResponse.json(updated);
     } catch (error) {
         console.error("Error updating branch:", error);
-        return NextResponse.json(
-            { error: "Internal Server Error" },
-            { status: 500 }
-        );
+        return responseForError(error);
     }
 }
