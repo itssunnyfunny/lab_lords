@@ -10,7 +10,7 @@ import { SeatPicker } from "@/components/allocations/SeatPicker";
 interface AddStudentDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess: (student: any) => void;
+    onSuccess: (student: unknown) => void;
     branchId: string;
 }
 
@@ -30,6 +30,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(null);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
     const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
+    const [linkFeeToSelection, setLinkFeeToSelection] = useState(false);
 
     useEffect(() => {
         if (!isOpen) {
@@ -40,8 +41,19 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             setSelectedMultiShiftId(null);
             setSelectedSeatId(null);
             setCreatedStudentId(null);
+            setLinkFeeToSelection(false);
         }
     }, [isOpen]);
+
+    const feeLinkLabel = selectedMultiShiftId
+        ? "selected multi-shift"
+        : selectedShiftIds.length === 1
+            ? "selected shift"
+            : null;
+
+    useEffect(() => {
+        if (!feeLinkLabel) setLinkFeeToSelection(false);
+    }, [feeLinkLabel]);
 
     if (!isOpen) return null;
 
@@ -68,7 +80,27 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             let finalStudentObj;
 
             if (!studentToAllocateTo) {
-                finalStudentObj = await students.create(branchId, formData);
+                const studentPayload: CreateStudentDto = {
+                    ...formData,
+                    ...(linkFeeToSelection && selectedMultiShiftId
+                        ? {
+                            monthlyFee: undefined,
+                            feeLinkedShiftId: null,
+                            feeLinkedMultiShiftId: selectedMultiShiftId,
+                        }
+                        : linkFeeToSelection && selectedShiftIds.length === 1
+                            ? {
+                                monthlyFee: undefined,
+                                feeLinkedShiftId: selectedShiftIds[0],
+                                feeLinkedMultiShiftId: null,
+                            }
+                            : {
+                                feeLinkedShiftId: null,
+                                feeLinkedMultiShiftId: null,
+                            }),
+                };
+
+                finalStudentObj = await students.create(branchId, studentPayload);
                 studentToAllocateTo = finalStudentObj.id;
                 setCreatedStudentId(studentToAllocateTo);
             }
@@ -95,8 +127,8 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             // Success completely
             onSuccess(finalStudentObj || { id: studentToAllocateTo, name: formData.name });
             onClose();
-        } catch (err: any) {
-            const message = err.response?.data?.error || err.response?.data?.message || err.message || "Something went wrong.";
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : "Something went wrong.";
             setError(message);
         } finally {
             setIsLoading(false);
@@ -163,7 +195,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                 <input
                                     id="monthlyFee"
                                     type="number"
-                                    disabled={!!createdStudentId || isLoading}
+                                    disabled={!!createdStudentId || isLoading || linkFeeToSelection}
                                     value={formData.monthlyFee || ""}
                                     onChange={(e) =>
                                         setFormData({
@@ -172,7 +204,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                         })
                                     }
                                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
-                                    placeholder="Branch default"
+                                    placeholder={linkFeeToSelection ? "Linked to shift price" : "Branch default"}
                                 />
                             </div>
 
@@ -247,6 +279,20 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                         }}
                                         onSelectSeat={setSelectedSeatId}
                                     />
+
+                                    {feeLinkLabel && (
+                                        <label className="mt-4 flex items-center gap-3 cursor-pointer group w-max">
+                                            <input
+                                                type="checkbox"
+                                                checked={linkFeeToSelection}
+                                                onChange={(e) => setLinkFeeToSelection(e.target.checked)}
+                                                className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
+                                            />
+                                            <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
+                                                Link monthly fee to {feeLinkLabel} price
+                                            </span>
+                                        </label>
+                                    )}
                                 </div>
                             )}
                         </div>

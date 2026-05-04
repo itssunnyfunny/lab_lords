@@ -40,11 +40,11 @@ export function UpdateAllocationDialog({
     const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(currentMultiShiftId);
     const [selectedMultiShiftName, setSelectedMultiShiftName] = useState<string | null>(null);
     const [newFee, setNewFee] = useState<string>("");
+    const [linkFeeToSelection, setLinkFeeToSelection] = useState(false);
 
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
 
-    // Reset state whenever dialog opens
     useEffect(() => {
         if (!isOpen) return;
         setSelectedShiftIds(currentShiftIds);
@@ -53,8 +53,19 @@ export function UpdateAllocationDialog({
         setSelectedMultiShiftId(currentMultiShiftId);
         setSelectedMultiShiftName(null);
         setNewFee("");
+        setLinkFeeToSelection(false);
         setSubmitError(null);
-    }, [isOpen]);
+    }, [isOpen, currentShiftIds, currentMultiShiftId]);
+
+    const feeLinkLabel = selectedMultiShiftId
+        ? "selected multi-shift"
+        : selectedShiftIds.length === 1
+            ? "selected shift"
+            : null;
+
+    useEffect(() => {
+        if (!feeLinkLabel) setLinkFeeToSelection(false);
+    }, [feeLinkLabel]);
 
     const handleToggleShift = (shift: ShiftCapacity) => {
         setSelectedSeatId(null);
@@ -80,10 +91,10 @@ export function UpdateAllocationDialog({
                 if (exists) {
                     setSelectedShiftNames(names => names.filter(n => n !== shift.name));
                     return prev.filter(id => id !== shift.shiftId);
-                } else {
-                    setSelectedShiftNames(names => [...names, shift.name]);
-                    return [...prev, shift.shiftId];
                 }
+
+                setSelectedShiftNames(names => [...names, shift.name]);
+                return [...prev, shift.shiftId];
             });
         }
     };
@@ -95,7 +106,6 @@ export function UpdateAllocationDialog({
         setSubmitError(null);
 
         try {
-            // 1. Update allocation (seat / shift)
             const res = await fetch(`/api/seat-allocations/${allocationId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -113,26 +123,40 @@ export function UpdateAllocationDialog({
                 throw new Error(data.error || "Failed to update allocation");
             }
 
-            // 2. Optionally update monthly fee if user filled the field
-            if (newFee.trim() !== "") {
+            if (linkFeeToSelection || newFee.trim() !== "") {
                 const feeRes = await fetch(`/api/branches/${branchId}/students`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         id: studentId,
-                        monthlyFee: Number(newFee),
+                        ...(linkFeeToSelection && selectedMultiShiftId
+                            ? {
+                                feeLinkedShiftId: null,
+                                feeLinkedMultiShiftId: selectedMultiShiftId,
+                            }
+                            : linkFeeToSelection && selectedShiftIds.length === 1
+                                ? {
+                                    feeLinkedShiftId: selectedShiftIds[0],
+                                    feeLinkedMultiShiftId: null,
+                                }
+                                : {
+                                    monthlyFee: Number(newFee),
+                                    feeLinkedShiftId: null,
+                                    feeLinkedMultiShiftId: null,
+                                }),
                     }),
                 });
+
                 if (!feeRes.ok) {
-                    const d = await feeRes.json().catch(() => ({}));
-                    throw new Error(d.error || "Allocation updated, but fee update failed.");
+                    const data = await feeRes.json().catch(() => ({}));
+                    throw new Error(data.error || "Allocation updated, but fee update failed.");
                 }
             }
 
             onSuccess();
             onClose();
-        } catch (e: any) {
-            setSubmitError(e.message);
+        } catch (e: unknown) {
+            setSubmitError(e instanceof Error ? e.message : "Something went wrong.");
         } finally {
             setSubmitting(false);
         }
@@ -154,7 +178,6 @@ export function UpdateAllocationDialog({
                 className="w-full max-w-2xl bg-[#0a0c14] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
                 onClick={e => e.stopPropagation()}
             >
-                {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02] flex-shrink-0">
                     <div>
                         <div className="flex items-center gap-2">
@@ -185,33 +208,47 @@ export function UpdateAllocationDialog({
                         excludeAllocationIds={allocationIds}
                         currentSeatId={currentSeatId}
                     />
+
+                    {feeLinkLabel && (
+                        <div className="mt-5 rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs text-zinc-400 whitespace-nowrap">
+                                    Monthly fee:{" "}
+                                    <span className="text-white font-medium">
+                                        {currentFee != null ? `Rs.${currentFee}` : "--"}
+                                    </span>
+                                </span>
+                                <div className="relative flex-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm select-none">Rs.</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={newFee}
+                                        disabled={linkFeeToSelection}
+                                        onChange={e => setNewFee(e.target.value)}
+                                        placeholder={linkFeeToSelection ? "Linked to shift price" : "Update fee (optional)"}
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 pr-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all disabled:opacity-50"
+                                    />
+                                </div>
+                            </div>
+
+                            <label className="flex items-center gap-3 cursor-pointer group w-max">
+                                <input
+                                    type="checkbox"
+                                    checked={linkFeeToSelection}
+                                    onChange={(e) => setLinkFeeToSelection(e.target.checked)}
+                                    className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
+                                />
+                                <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
+                                    Link monthly fee to {feeLinkLabel} price
+                                </span>
+                            </label>
+                        </div>
+                    )}
                 </div>
 
-                {/* Footer — fee override + action buttons */}
                 {canConfirm && (
                     <div className="border-t border-white/5 bg-white/[0.01] flex-shrink-0 px-6 py-4 space-y-3">
-                        {/* Fee row */}
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs text-zinc-400 whitespace-nowrap">
-                                Monthly fee:{" "}
-                                <span className="text-white font-medium">
-                                    {currentFee != null ? `₹${currentFee}` : "—"}
-                                </span>
-                            </span>
-                            <div className="relative flex-1">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm select-none">₹</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={newFee}
-                                    onChange={e => setNewFee(e.target.value)}
-                                    placeholder="Update fee (optional)"
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-7 pr-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Action buttons */}
                         <div className="flex items-center justify-end gap-3">
                             <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
                                 Cancel

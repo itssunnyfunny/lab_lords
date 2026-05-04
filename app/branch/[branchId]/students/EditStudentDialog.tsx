@@ -39,6 +39,11 @@ export function EditStudentDialog({
     if (!isOpen || !student) return null;
 
     const currentFeeStr = student.monthlyFee != null ? String(student.monthlyFee) : "";
+    const linkedFeeSource = student.feeLinkedMultiShiftId
+        ? "multi-shift price"
+        : student.feeLinkedShiftId
+            ? "shift price"
+            : null;
     const hasChanges =
         name.trim() !== (student.name ?? "") ||
         phone.trim() !== (student.phone ?? "") ||
@@ -71,8 +76,8 @@ export function EditStudentDialog({
             const updated = await res.json();
             onSuccess(updated);
             onClose();
-        } catch (err: any) {
-            setError(err.message || "Something went wrong.");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Something went wrong.");
         } finally {
             setLoading(false);
         }
@@ -135,7 +140,14 @@ export function EditStudentDialog({
 
                     {/* Monthly Fee */}
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Monthly Fee</label>
+                        <div className="flex items-center justify-between gap-3">
+                            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Monthly Fee</label>
+                            {linkedFeeSource && (
+                                <span className="text-[10px] font-medium uppercase tracking-wider text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-2 py-0.5">
+                                    Linked
+                                </span>
+                            )}
+                        </div>
                         <div className="relative">
                             <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                             <input
@@ -147,6 +159,11 @@ export function EditStudentDialog({
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />
                         </div>
+                        {linkedFeeSource && (
+                            <p className="text-[11px] text-zinc-500 leading-relaxed">
+                                Currently linked to {linkedFeeSource}. Editing this amount will switch the student to a manual fee.
+                            </p>
+                        )}
                     </div>
 
                     {error && (
