@@ -7,6 +7,10 @@ async function getUserId() {
     return user?.id ?? null;
 }
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Internal Server Error";
+}
+
 /**
  * PATCH /api/branches/[branchId]/shifts/[shiftId]
  * Update a shift's name, times, price, or reserved flag.
@@ -30,11 +34,12 @@ export async function PATCH(
             isReserved: body.isReserved,
         });
         return NextResponse.json(updated);
-    } catch (error: any) {
-        const status = error.message.includes("not found") ? 404
-            : error.message.includes("Unauthorized") ? 403
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        const status = message.includes("not found") ? 404
+            : message.includes("Unauthorized") ? 403
                 : 400;
-        return NextResponse.json({ error: error.message }, { status });
+        return NextResponse.json({ error: message }, { status });
     }
 }
 
@@ -69,11 +74,12 @@ export async function DELETE(
     try {
         await ShiftService.deleteShift(userId, shiftId, resolution);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        const status = error.message.includes("not found") ? 404
-            : error.message.includes("Unauthorized") ? 403
-                : error.message.includes("last active") ? 422
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        const status = message.includes("not found") ? 404
+            : message.includes("Unauthorized") ? 403
+                : message.includes("last active") ? 422
                     : 409;
-        return NextResponse.json({ error: error.message }, { status });
+        return NextResponse.json({ error: message }, { status });
     }
 }

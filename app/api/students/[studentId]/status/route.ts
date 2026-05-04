@@ -30,10 +30,11 @@ export async function PATCH(
         );
 
         return NextResponse.json(student);
-    } catch (error: any) {
-        if (error.message.includes("Unauthorized")) {
-            return NextResponse.json({ error: error.message }, { status: 403 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+        if (message.includes("Unauthorized")) {
+            return NextResponse.json({ error: message }, { status: 403 });
         }
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

@@ -35,9 +35,10 @@ export async function POST(
         const updated = await SeatAllocationService.unassignSeat(allocationId);
 
         return NextResponse.json(updated);
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to end allocation";
         return NextResponse.json(
-            { error: error.message || "Failed to end allocation" },
+            { error: message },
             { status: 400 }
         );
     }

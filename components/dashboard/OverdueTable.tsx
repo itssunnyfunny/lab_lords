@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { AlertCircle, CheckCircle2, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { formatDistanceToNow } from "date-fns";
 
 interface OverduePayment {
     paymentId: string;
@@ -36,6 +35,8 @@ const avatarColors = [
     "bg-cyan-500/20 text-cyan-300",
     "bg-emerald-500/20 text-emerald-300",
 ];
+
+const renderTime = Date.now();
 
 export function OverdueTable({ payments, branchId }: OverdueTableProps) {
     const router = useRouter();
@@ -75,7 +76,7 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
                 <div className="space-y-2">
                     {shown.map((p, i) => {
                         const daysOverdue = Math.floor(
-                            (Date.now() - new Date(p.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+                            (renderTime - new Date(p.dueDate).getTime()) / (1000 * 60 * 60 * 24)
                         );
                         return (
                             <div

@@ -12,6 +12,14 @@ interface AddSeatDialogProps {
     branchId: string;
 }
 
+function getErrorMessage(err: unknown) {
+    const response = (err as { response?: { data?: { error?: unknown; message?: unknown } } }).response;
+    if (typeof response?.data?.error === "string") return response.data.error;
+    if (typeof response?.data?.message === "string") return response.data.message;
+    if (err instanceof Error) return err.message;
+    return "Failed to create seat.";
+}
+
 export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatDialogProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -41,9 +49,8 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
             await branches.createSeat(branchId, label.trim());
             onSuccess();
             onClose();
-        } catch (err: any) {
-            const message = err.response?.data?.error || err.response?.data?.message || err.message || "Failed to create seat.";
-            setError(message);
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
         } finally {
             setIsLoading(false);
         }

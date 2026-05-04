@@ -3,6 +3,10 @@ import { prisma } from "../lib/prisma";
 import { SeatAllocationService } from "../services/seatAllocation.service";
 import { StudentStatus } from "@prisma/client";
 
+function errorMessage(error: unknown) {
+    return error instanceof Error ? error.message : String(error);
+}
+
 async function main() {
     console.log("🔍 STARTING ALLOCATION SAFETY AUDIT...");
 
@@ -38,11 +42,12 @@ async function main() {
     try {
         await SeatAllocationService.assignSeat(user.id, seat1.id, student2.id, shiftMorning.id);
         console.error("   ❌ FAILURE: Allowed conflict allocation!");
-    } catch (e: any) {
-        if (e.message.includes("Seat is already assigned")) {
+    } catch (e: unknown) {
+        const message = errorMessage(e);
+        if (message.includes("Seat is already assigned")) {
             console.log("   ✅ SUCCESS: Rejected conflict.");
         } else {
-            console.error(`   ❌ Unexpected error: ${e.message}`);
+            console.error(`   ❌ Unexpected error: ${message}`);
         }
     }
 
@@ -54,11 +59,12 @@ async function main() {
     try {
         await SeatAllocationService.assignSeat(user.id, seat1.id, student2.id, shiftReserved.id);
         console.error("   ❌ FAILURE: Allowed Reserved allocation on occupied seat!");
-    } catch (e: any) {
-        if (e.message.includes("Cannot allocate RESERVED shift")) {
+    } catch (e: unknown) {
+        const message = errorMessage(e);
+        if (message.includes("Cannot allocate RESERVED shift")) {
             console.log("   ✅ SUCCESS: Rejected Reserved allocation.");
         } else {
-            console.error(`   ❌ Unexpected error: ${e.message}`);
+            console.error(`   ❌ Unexpected error: ${message}`);
         }
     }
 

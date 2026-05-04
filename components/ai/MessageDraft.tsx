@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Copy, Check, MessageSquare } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import { AIMessageDraft } from '@/ai/contracts/messageDraft.contract';
 
 interface MessageDraftProps {
@@ -37,7 +37,7 @@ export function MessageDraft({ draft, actionType }: MessageDraftProps) {
                         </div>
                     )}
                     <p className="text-sm text-gray-300 italic min-h-[80px]">
-                        "{draft.message}"
+                        &quot;{draft.message}&quot;
                     </p>
                 </div>
             </div>

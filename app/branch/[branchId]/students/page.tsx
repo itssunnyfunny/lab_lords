@@ -266,7 +266,7 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
             setAllPayments(paymentsList);
             setShifts(shiftsList);
             setError(null);
-        } catch (err: any) {
+        } catch {
             setError("Failed to load students data.");
         } finally {
             setLoading(false);

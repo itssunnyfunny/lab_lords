@@ -89,7 +89,7 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
                                 <Tooltip
                                     cursor={{ fill: 'transparent' }}
                                     contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                                    formatter={(value: any, name: any) => [`₹${value}`, name]}
+                                    formatter={(value: number | string | undefined, name: string | number | undefined) => [`₹${value ?? 0}`, String(name ?? "")]}
                                 />
                                 <Bar name="Collected" dataKey="paid" fill="#10b981" radius={[4, 4, 0, 0]} stackId="b" />
                                 <Bar name="Pending" dataKey="due" fill="#ef4444" radius={[4, 4, 0, 0]} stackId="b" />

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { OnboardingService } from "@/services/onboarding.service";
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Failed to complete setup";
+}
+
 export async function POST(req: Request) {
     try {
         // TEMP AUTH: Get user from header
@@ -34,10 +38,10 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json(result, { status: 201 });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Onboarding Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to complete setup" },
+            { error: getErrorMessage(error) },
             { status: 500 }
         );
     }

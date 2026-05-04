@@ -79,8 +79,30 @@ const CONFIG = {
 function ActivityCard({ item }: { item: ActivityItem }) {
     const cfg = CONFIG[item.type];
     const { Icon, iconColor, bg, border, shadow } = cfg;
-    const title = cfg.title(item as any);
-    const desc = cfg.desc(item as any);
+    const title = (() => {
+        switch (item.type) {
+            case "allocation":
+                return CONFIG.allocation.title(item);
+            case "payment":
+                return CONFIG.payment.title();
+            case "overdue":
+                return CONFIG.overdue.title();
+            case "enrollment":
+                return CONFIG.enrollment.title();
+        }
+    })();
+    const desc = (() => {
+        switch (item.type) {
+            case "allocation":
+                return CONFIG.allocation.desc(item);
+            case "payment":
+                return CONFIG.payment.desc(item);
+            case "overdue":
+                return CONFIG.overdue.desc(item);
+            case "enrollment":
+                return CONFIG.enrollment.desc(item);
+        }
+    })();
     const timeAgo = formatDistanceToNow(new Date(item.ts), { addSuffix: true });
 
     return (

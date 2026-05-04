@@ -46,15 +46,17 @@ async function testGemini() {
         console.log("--------------------------------------------------");
         console.log("🎉 TEST PASSED! The API key and client are working.");
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const name = error instanceof Error ? error.name : "UnknownError";
+        const message = error instanceof Error ? error.message : String(error);
         console.error("--------------------------------------------------");
         console.error("❌ TEST FAILED!");
         console.error("--------------------------------------------------");
-        console.error("Error Name:", error.name);
-        console.error("Error Message:", error.message);
-        if (error.stack) console.error("Stack:", error.stack);
+        console.error("Error Name:", name);
+        console.error("Error Message:", message);
+        if (error instanceof Error && error.stack) console.error("Stack:", error.stack);
 
-        if (error.message?.includes("404")) {
+        if (message.includes("404")) {
             console.log("\n💡 TIP: 'gemini-2.0-flash' might not be available or the model name is wrong. Try 'gemini-1.5-flash'.");
         }
     }

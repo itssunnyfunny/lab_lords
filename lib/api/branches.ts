@@ -1,8 +1,8 @@
 import { apiClient } from "./core";
-import { Student, Seat, Payment, Staff, Shift } from "@prisma/client";
+import { Student, Seat, Payment, Staff, Shift, Branch } from "@prisma/client";
 
 export const branches = {
-    getDetails: async (branchId: string): Promise<any> => {
+    getDetails: async (branchId: string): Promise<Branch> => {
         return apiClient.get(`/branches/${branchId}`);
     },
 

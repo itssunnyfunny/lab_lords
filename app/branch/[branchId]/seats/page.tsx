@@ -2,7 +2,6 @@
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { User, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { useEffect, useState, use } from "react";
@@ -16,6 +15,14 @@ import { AddSeatDialog } from "./AddSeatDialog";
 interface SeatWithStatus extends Seat {
     status?: "Occupied" | "Available" | "Maintenance";
     studentName?: string;
+}
+
+type SeatApi = Seat & {
+    seatAllocations?: { student: { name: string } }[];
+};
+
+function getErrorMessage(err: unknown) {
+    return err instanceof Error ? err.message : "Failed to load seats.";
 }
 
 export default function SeatsPage({ params }: { params: Promise<{ branchId: string }> }) {
@@ -47,18 +54,22 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
             // Fetch seats with optional shift filter
             // If selectedShift is empty, it returns seats with ALL active allocations
             // If selectedShift is set, it returns seats with allocations ONLY for that shift
-            const data = await branches.getSeats(branchId, selectedShift || undefined);
+            const data = await branches.getSeats(branchId, selectedShift || undefined) as SeatApi[];
 
-            const mapped = data.map((s: any) => ({
-                ...s,
+            const mapped: SeatWithStatus[] = data.map((s) => ({
+                id: s.id,
+                branchId: s.branchId,
+                label: s.label,
+                createdAt: s.createdAt,
                 // If any allocation exists (after backend filtering), it is Occupied
-                status: s.seatAllocations && s.seatAllocations.length > 0 ? "Occupied" : "Available",
+                status: s.seatAllocations && s.seatAllocations.length > 0 ? "Occupied" as const : "Available" as const,
                 studentName: s.seatAllocations && s.seatAllocations.length > 0 ? s.seatAllocations[0].student.name : undefined
             }));
             setSeats(mapped);
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
             console.error("Failed to load seats", err);
-            if (err.message?.includes("Branch not found") || err.response?.status === 404) {
+            if (message.includes("Branch not found")) {
                 setError("Branch not found. Matches no existing records.");
             } else {
                 setError("Failed to load seats.");

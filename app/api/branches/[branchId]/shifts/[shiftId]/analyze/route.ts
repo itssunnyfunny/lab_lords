@@ -23,10 +23,11 @@ export async function GET(
     try {
         const analysis = await ShiftService.analyzeShiftDeletion(userId, shiftId);
         return NextResponse.json(analysis);
-    } catch (error: any) {
-        const status = error.message.includes("not found") ? 404
-            : error.message.includes("Unauthorized") ? 403
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+        const status = message.includes("not found") ? 404
+            : message.includes("Unauthorized") ? 403
                 : 500;
-        return NextResponse.json({ error: error.message }, { status });
+        return NextResponse.json({ error: message }, { status });
     }
 }

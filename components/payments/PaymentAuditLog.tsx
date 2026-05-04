@@ -33,17 +33,13 @@ export function PaymentAuditLog({
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
     useEffect(() => {
         if (!isOpen) return;
 
-        setLoading(true);
-        setError(null);
+        queueMicrotask(() => {
+            setLoading(true);
+            setError(null);
+        });
 
         payments
             .getAuditLog(paymentId)
@@ -52,7 +48,7 @@ export function PaymentAuditLog({
             .finally(() => setLoading(false));
     }, [isOpen, paymentId]);
 
-    if (!isOpen || !mounted) return null;
+    if (!isOpen || typeof document === "undefined") return null;
 
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat("en-IN", {

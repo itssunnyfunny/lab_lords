@@ -25,7 +25,7 @@ export const payments = {
     },
 
     // Generate payments (if logic exists in frontend to trigger this)
-    generate: async (branchId: string): Promise<any> => {
+    generate: async (branchId: string): Promise<{ generated: number }> => {
         return apiClient.post(`/branches/${branchId}/payments/generate`, {});
     },
 

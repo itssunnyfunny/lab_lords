@@ -127,7 +127,7 @@ export async function GET(_req: Request, { params }: Params) {
             availableCount: seats.length - occupiedCount,
             seats: seatList,
         });
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("[multi-shift seat-map]", err);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
