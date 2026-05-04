@@ -1,4 +1,5 @@
 import { getSessionUser } from "@/lib/auth"
+import { OrganizationService } from "@/services/organization.service"
 import { NextResponse } from "next/server"
 
 export async function GET(
@@ -8,6 +9,11 @@ export async function GET(
     const user = await getSessionUser()
     if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const { orgId } = await params
+    const isOwner = await OrganizationService.isOwner(orgId, user.id)
+    if (!isOwner) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     // "No need to overbuild yet"

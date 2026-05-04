@@ -2,11 +2,89 @@
 
 import { prisma } from "@/lib/prisma"
 import { overdueCutoff } from "@/lib/utils/paymentStatus"
+import { endOfMonth, startOfMonth } from "date-fns"
 
 type AsOf = Date | undefined
+export type AnalyticsPeriod = "month" | "all"
 
 function resolveAsOf(asOf?: Date): Date {
   return asOf ?? new Date()
+}
+
+function resolvePeriod(period?: AnalyticsPeriod): AnalyticsPeriod {
+  return period === "month" ? "month" : "all"
+}
+
+function dayEnd(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
+/**
+ * Period-aware finance metrics for analytics UI.
+ *
+ * Revenue/collected respect the selected period. Due is intentionally all
+ * unpaid due up to the as-of date so old dues stay visible in every view.
+ */
+export async function getPaymentPeriodStats(
+  branchId: string,
+  asOf?: AsOf,
+  period?: AnalyticsPeriod
+) {
+  const date = resolveAsOf(asOf)
+  const selectedPeriod = resolvePeriod(period)
+  const periodStart = selectedPeriod === "month" ? startOfMonth(date) : undefined
+  const periodEnd = selectedPeriod === "month" ? endOfMonth(date) : dayEnd(date)
+
+  const [revenueRows, collectedRows, dueRows] = await Promise.all([
+    prisma.payment.findMany({
+      where: {
+        branchId,
+        status: { not: "WAIVED" },
+        dueDate: selectedPeriod === "month"
+          ? { gte: periodStart, lte: periodEnd }
+          : { lte: periodEnd },
+      },
+      select: { amount: true },
+    }),
+    prisma.payment.findMany({
+      where: {
+        branchId,
+        status: "PAID",
+        OR: selectedPeriod === "month"
+          ? [
+              { paidAt: { gte: periodStart, lte: periodEnd } },
+              { paidAt: null, dueDate: { gte: periodStart, lte: periodEnd } },
+            ]
+          : [
+              { paidAt: { lte: periodEnd } },
+              { paidAt: null, dueDate: { lte: periodEnd } },
+            ],
+      },
+      select: { amount: true },
+    }),
+    prisma.payment.findMany({
+      where: {
+        branchId,
+        status: "DUE",
+        dueDate: { lte: dayEnd(date) },
+      },
+      select: { amount: true },
+    }),
+  ])
+
+  const revenueAmount = revenueRows.reduce((sum, p) => sum + p.amount, 0)
+  const paidAmount = collectedRows.reduce((sum, p) => sum + p.amount, 0)
+  const dueAmount = dueRows.reduce((sum, p) => sum + p.amount, 0)
+
+  return {
+    period: selectedPeriod,
+    revenueAmount,
+    paidAmount,
+    dueAmount,
+    collectionRate: revenueAmount > 0 ? (paidAmount / revenueAmount) * 100 : 0,
+  }
 }
 
 /**

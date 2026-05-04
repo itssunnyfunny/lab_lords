@@ -1,6 +1,6 @@
 // analytics/trends/payment.trends.ts
 
-import { getPaymentStats } from "../payment.analytics"
+import { AnalyticsPeriod, getPaymentPeriodStats } from "../payment.analytics"
 
 type TrendInterval = "DAY"
 
@@ -14,10 +14,14 @@ export async function getPaymentTrend(
   branchId: string,
   from: Date,
   to: Date,
-  interval: TrendInterval = "DAY"
+  interval: TrendInterval = "DAY",
+  period: AnalyticsPeriod = "all"
 ) {
+  void interval
+
   const points: {
     asOf: Date
+    revenueAmount: number
     dueAmount: number
     paidAmount: number
   }[] = []
@@ -25,10 +29,11 @@ export async function getPaymentTrend(
   let cursor = new Date(from)
 
   while (cursor <= to) {
-    const snapshot = await getPaymentStats(branchId, cursor)
+    const snapshot = await getPaymentPeriodStats(branchId, cursor, period)
 
     points.push({
       asOf: new Date(cursor),
+      revenueAmount: snapshot.revenueAmount,
       dueAmount: snapshot.dueAmount,
       paidAmount: snapshot.paidAmount,
     })

@@ -3,6 +3,8 @@ import { getSessionUser } from "@/lib/auth"
 import { getBranchHealthTrend } from "@/analytics/trends/branch.trends"
 import { getPaymentTrend } from "@/analytics/trends/payment.trends"
 import { getSeatUtilizationTrend } from "@/analytics/trends/seat.trends"
+import { AnalyticsPeriod } from "@/analytics/payment.analytics"
+import { StaffService } from "@/services/staff.service"
 
 export async function GET(
     request: NextRequest,
@@ -13,11 +15,20 @@ export async function GET(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const { branchId } = await params;
+    try {
+        await StaffService.authorize(user.id, branchId, "analytics")
+    } catch (error) {
+        if (error instanceof Error && error.message.includes("Branch not found")) {
+            return NextResponse.json({ error: error.message }, { status: 404 })
+        }
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
     const searchParams = request.nextUrl.searchParams
     const fromParam = searchParams.get("from")
     const toParam = searchParams.get("to")
     const type = searchParams.get("type") || "health"
+    const period: AnalyticsPeriod = searchParams.get("period") === "month" ? "month" : "all"
 
     if (!fromParam || !toParam) {
         return NextResponse.json(
@@ -61,8 +72,13 @@ export async function GET(
                 ])
                 break
             case "payment":
-                const paymentData = await getPaymentTrend(branchId, from, to)
+                const paymentData = await getPaymentTrend(branchId, from, to, "DAY", period)
                 result = paymentData.flatMap(item => [
+                    {
+                        date: item.asOf.toISOString(),
+                        value: item.revenueAmount,
+                        category: "Revenue"
+                    },
                     {
                         date: item.asOf.toISOString(),
                         value: item.paidAmount,
@@ -80,7 +96,7 @@ export async function GET(
                 const healthData = await getBranchHealthTrend(branchId, from, to)
                 result = healthData.map(item => ({
                     date: item.asOf.toISOString(),
-                    value: item.snapshot.seats.overall.utilizationRatio * 100,
+                    value: item.snapshot.seats.occupancySnapshot.totalOccupancyPercent,
                     category: "Health Score"
                 }))
                 break
