@@ -3,6 +3,13 @@ import { StudentService } from "@/services/student.service";
 import { getSessionUser } from "@/lib/auth";
 import { StudentStatus } from "@prisma/client";
 import { DueResolution } from "@/types";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalId,
+    validatePhone,
+    validateRequiredText,
+} from "@/lib/formValidation";
 
 function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : "Something went wrong";
@@ -19,9 +26,18 @@ export async function POST(
         const { branchId } = await params;
         const body = await req.json();
 
-        if (!body.name) {
-            return NextResponse.json({ error: "Name is required" }, { status: 400 });
-        }
+        const nameResult = validateRequiredText(body.name, "Student name");
+        if (!nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
+        const phoneResult = validatePhone(body.phone);
+        if (!phoneResult.ok) return NextResponse.json({ error: phoneResult.error }, { status: 400 });
+        const monthlyFeeResult = parseIntegerField(body.monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax });
+        if (!monthlyFeeResult.ok) return NextResponse.json({ error: monthlyFeeResult.error }, { status: 400 });
+        const admissionFeeResult = parseIntegerField(body.admissionFee, "Admission fee", { min: 0, max: FORM_LIMITS.moneyMax });
+        if (!admissionFeeResult.ok) return NextResponse.json({ error: admissionFeeResult.error }, { status: 400 });
+        const linkedShiftResult = validateOptionalId(body.feeLinkedShiftId, "Linked shift");
+        if (!linkedShiftResult.ok) return NextResponse.json({ error: linkedShiftResult.error }, { status: 400 });
+        const linkedMultiShiftResult = validateOptionalId(body.feeLinkedMultiShiftId, "Linked multi-shift");
+        if (!linkedMultiShiftResult.ok) return NextResponse.json({ error: linkedMultiShiftResult.error }, { status: 400 });
 
         // Normalise shiftIds: accept array or singular (backward compat)
         const shiftIds: string[] | undefined =
@@ -32,21 +48,22 @@ export async function POST(
                     : undefined;
 
         const student = await StudentService.createStudent(user.id, branchId, {
-            name: body.name,
-            phone: body.phone,
+            name: nameResult.value,
+            phone: phoneResult.value,
             shiftIds,
             seatId: body.seatId,
-            monthlyFee: body.monthlyFee !== undefined && body.monthlyFee !== null ? Number(body.monthlyFee) : undefined,
-            admissionFee: body.admissionFee !== undefined && body.admissionFee !== null ? Number(body.admissionFee) : undefined,
-            feeLinkedShiftId: typeof body.feeLinkedShiftId === "string" ? body.feeLinkedShiftId : null,
-            feeLinkedMultiShiftId: typeof body.feeLinkedMultiShiftId === "string" ? body.feeLinkedMultiShiftId : null,
+            monthlyFee: monthlyFeeResult.value,
+            admissionFee: admissionFeeResult.value,
+            feeLinkedShiftId: linkedShiftResult.value,
+            feeLinkedMultiShiftId: linkedMultiShiftResult.value,
         });
 
         return NextResponse.json(student, { status: 201 });
     } catch (error: unknown) {
         const message = getErrorMessage(error);
         if (message.includes("Unauthorized")) return NextResponse.json({ error: message }, { status: 403 });
-        return NextResponse.json({ error: message }, { status: 500 });
+        if (message.includes("not found")) return NextResponse.json({ error: message }, { status: 404 });
+        return NextResponse.json({ error: message }, { status: 400 });
     }
 }
 
@@ -94,19 +111,32 @@ export async function PATCH(
             body.feeLinkedShiftId !== undefined ||
             body.feeLinkedMultiShiftId !== undefined
         ) {
-            if (body.name !== undefined && typeof body.name === "string" && body.name.trim().length === 0) {
-                return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
-            }
+            const nameResult = body.name !== undefined ? validateRequiredText(body.name, "Student name") : null;
+            if (nameResult && !nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
+            const phoneResult = body.phone !== undefined ? validatePhone(body.phone) : null;
+            if (phoneResult && !phoneResult.ok) return NextResponse.json({ error: phoneResult.error }, { status: 400 });
+            const monthlyFeeResult = body.monthlyFee !== undefined
+                ? parseIntegerField(body.monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })
+                : null;
+            if (monthlyFeeResult && !monthlyFeeResult.ok) return NextResponse.json({ error: monthlyFeeResult.error }, { status: 400 });
+            const linkedShiftResult = body.feeLinkedShiftId !== undefined
+                ? validateOptionalId(body.feeLinkedShiftId, "Linked shift")
+                : null;
+            if (linkedShiftResult && !linkedShiftResult.ok) return NextResponse.json({ error: linkedShiftResult.error }, { status: 400 });
+            const linkedMultiShiftResult = body.feeLinkedMultiShiftId !== undefined
+                ? validateOptionalId(body.feeLinkedMultiShiftId, "Linked multi-shift")
+                : null;
+            if (linkedMultiShiftResult && !linkedMultiShiftResult.ok) return NextResponse.json({ error: linkedMultiShiftResult.error }, { status: 400 });
 
             const updated = await StudentService.updateStudentProfile(user.id, body.id, {
-                ...(body.name !== undefined ? { name: body.name } : {}),
-                ...(body.phone !== undefined ? { phone: body.phone } : {}),
-                ...(body.monthlyFee !== undefined && body.monthlyFee !== null ? { monthlyFee: Number(body.monthlyFee) } : {}),
+                ...(nameResult?.ok ? { name: nameResult.value } : {}),
+                ...(phoneResult?.ok ? { phone: phoneResult.value ?? null } : {}),
+                ...(monthlyFeeResult?.ok && monthlyFeeResult.value !== undefined ? { monthlyFee: monthlyFeeResult.value } : {}),
                 ...(body.feeLinkedShiftId !== undefined
-                    ? { feeLinkedShiftId: typeof body.feeLinkedShiftId === "string" ? body.feeLinkedShiftId : null }
+                    ? { feeLinkedShiftId: linkedShiftResult?.value ?? null }
                     : {}),
                 ...(body.feeLinkedMultiShiftId !== undefined
-                    ? { feeLinkedMultiShiftId: typeof body.feeLinkedMultiShiftId === "string" ? body.feeLinkedMultiShiftId : null }
+                    ? { feeLinkedMultiShiftId: linkedMultiShiftResult?.value ?? null }
                     : {}),
             });
 
@@ -136,6 +166,6 @@ export async function PATCH(
         const message = getErrorMessage(error);
         if (message.includes("Unauthorized")) return NextResponse.json({ error: message }, { status: 403 });
         if (message.includes("not found")) return NextResponse.json({ error: message }, { status: 404 });
-        return NextResponse.json({ error: message }, { status: 500 });
+        return NextResponse.json({ error: message }, { status: 400 });
     }
 }

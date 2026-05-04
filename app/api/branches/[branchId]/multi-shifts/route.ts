@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { MultiShiftService } from "@/services/multiShift.service";
 import { getSessionUser } from "@/lib/auth";
+import { FORM_LIMITS, parseIntegerField, validateRequiredText } from "@/lib/formValidation";
 
 interface Params {
     params: Promise<{ branchId: string }>;
@@ -38,14 +39,18 @@ export async function POST(req: Request, { params }: Params) {
         const body = await req.json();
         const { name, price, shiftIds } = body;
 
-        if (!name || typeof name !== "string")
-            return NextResponse.json({ error: "Name is required" }, { status: 400 });
+        const nameResult = validateRequiredText(name, "Multi-shift name", 50);
+        if (!nameResult.ok)
+            return NextResponse.json({ error: nameResult.error }, { status: 400 });
+        const priceResult = parseIntegerField(price, "Bundle monthly price", { min: 0, max: FORM_LIMITS.moneyMax });
+        if (!priceResult.ok)
+            return NextResponse.json({ error: priceResult.error }, { status: 400 });
         if (!Array.isArray(shiftIds) || shiftIds.length < 2)
             return NextResponse.json({ error: "At least 2 primary shifts are required" }, { status: 400 });
 
         const created = await MultiShiftService.createMultiShift(user.id, branchId, {
-            name,
-            price: typeof price === "number" ? price : 0,
+            name: nameResult.value,
+            price: priceResult.value ?? 0,
             shiftIds,
         });
         return NextResponse.json(created, { status: 201 });

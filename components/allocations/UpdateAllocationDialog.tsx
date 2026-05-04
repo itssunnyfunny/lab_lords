@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Loader2, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
+import { FORM_LIMITS, parseIntegerField } from "@/lib/formValidation";
 
 interface UpdateAllocationDialogProps {
     isOpen: boolean;
@@ -101,6 +102,13 @@ export function UpdateAllocationDialog({
 
     const handleConfirm = async () => {
         if (!selectedSeatId || selectedShiftIds.length === 0) return;
+        const newFeeResult = newFee.trim() !== ""
+            ? parseIntegerField(newFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })
+            : null;
+        if (newFeeResult && !newFeeResult.ok) {
+            setSubmitError(newFeeResult.error);
+            return;
+        }
 
         setSubmitting(true);
         setSubmitError(null);
@@ -140,7 +148,7 @@ export function UpdateAllocationDialog({
                                     feeLinkedMultiShiftId: null,
                                 }
                                 : {
-                                    monthlyFee: Number(newFee),
+                                    monthlyFee: newFeeResult?.ok ? newFeeResult.value : undefined,
                                     feeLinkedShiftId: null,
                                     feeLinkedMultiShiftId: null,
                                 }),
@@ -223,9 +231,12 @@ export function UpdateAllocationDialog({
                                     <input
                                         type="number"
                                         min={0}
+                                        max={FORM_LIMITS.moneyMax}
+                                        step={1}
+                                        inputMode="numeric"
                                         value={newFee}
                                         disabled={linkFeeToSelection}
-                                        onChange={e => setNewFee(e.target.value)}
+                                        onChange={e => { setNewFee(e.target.value); setSubmitError(null); }}
                                         placeholder={linkFeeToSelection ? "Linked to shift price" : "Update fee (optional)"}
                                         className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 pr-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all disabled:opacity-50"
                                     />

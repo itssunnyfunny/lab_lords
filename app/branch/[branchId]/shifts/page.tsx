@@ -14,6 +14,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalTime,
+    validateRequiredText,
+} from "@/lib/formValidation";
 
 function formatMins(mins: number) {
     let raw = mins;
@@ -138,7 +144,18 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
-        if (!name.trim()) { setError("Shift name is required."); return; }
+        const nameResult = validateRequiredText(name, "Shift name", 50);
+        if (!nameResult.ok) { setError(nameResult.error); return; }
+        const startResult = validateOptionalTime(startTime, "Start time");
+        if (!startResult.ok) { setError(startResult.error); return; }
+        const endResult = validateOptionalTime(endTime, "End time");
+        if (!endResult.ok) { setError(endResult.error); return; }
+        if ((startResult.value && !endResult.value) || (!startResult.value && endResult.value)) {
+            setError("Shift must have both start and end time, or neither.");
+            return;
+        }
+        const priceResult = parseIntegerField(price, "Monthly price", { min: 0, max: FORM_LIMITS.moneyMax });
+        if (!priceResult.ok) { setError(priceResult.error); return; }
         if (overlapWith) { setError("Please resolve the shift time overlap."); return; }
         setLoading(true);
         setError(null);
@@ -147,17 +164,27 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                 ? `/api/branches/${branchId}/shifts/${initial.id}`
                 : `/api/branches/${branchId}/shifts`;
             const method = mode === "edit" ? "PATCH" : "POST";
+            const payload: {
+                name: string;
+                price: number;
+                isReserved: boolean;
+                startTime?: string | null;
+                endTime?: string | null;
+            } = {
+                name: nameResult.value,
+                price: priceResult.value ?? 0,
+                isReserved,
+            };
+
+            if (mode === "add" || timesTouched) {
+                payload.startTime = startResult.value;
+                payload.endTime = endResult.value;
+            }
 
             const res = await fetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: name.trim(),
-                    startTime: startTime || null,
-                    endTime: endTime || null,
-                    price: Number(price) || 0,
-                    isReserved,
-                }),
+                body: JSON.stringify(payload),
             });
             if (!res.ok) {
                 const d = await res.json().catch(() => ({}));
@@ -230,8 +257,11 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                             <input
                                 type="number"
                                 value={price}
-                                onChange={e => setPrice(e.target.value)}
+                                onChange={e => { setPrice(e.target.value); setError(null); }}
                                 min="0"
+                                max={FORM_LIMITS.moneyMax}
+                                step="1"
+                                inputMode="numeric"
                                 placeholder="0"
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />
@@ -404,7 +434,16 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
     };
 
     const handleRename = async () => {
-        if (!renameName.trim()) { setSubmitError("Shift name is required."); return; }
+        const nameResult = validateRequiredText(renameName, "Shift name", 50);
+        if (!nameResult.ok) { setSubmitError(nameResult.error); return; }
+        const startResult = validateOptionalTime(renameStart, "Start time");
+        if (!startResult.ok) { setSubmitError(startResult.error); return; }
+        const endResult = validateOptionalTime(renameEnd, "End time");
+        if (!endResult.ok) { setSubmitError(endResult.error); return; }
+        if ((startResult.value && !endResult.value) || (!startResult.value && endResult.value)) {
+            setSubmitError("Shift must have both start and end time, or neither.");
+            return;
+        }
         setSubmitting(true);
         setSubmitError(null);
         try {
@@ -412,9 +451,9 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: renameName.trim(),
-                    startTime: renameStart || null,
-                    endTime: renameEnd || null,
+                    name: nameResult.value,
+                    startTime: startResult.value,
+                    endTime: endResult.value,
                 }),
             });
             if (!res.ok) {
@@ -962,10 +1001,13 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
-        if (!name.trim()) { setError("Name is required"); return; }
+        const nameResult = validateRequiredText(name, "Multi-shift name", 50);
+        if (!nameResult.ok) { setError(nameResult.error); return; }
+        const priceResult = parseIntegerField(price, "Bundle monthly price", { min: 0, max: FORM_LIMITS.moneyMax });
+        if (!priceResult.ok) { setError(priceResult.error); return; }
         if (selectedShiftIds.length < 2) { setError("Select at least 2 primary shifts"); return; }
         if (duplicateCombo) { setError(`A multi-shift with this exact combination already exists: "${duplicateCombo.name}"`); return; }
-        if (duplicateName) { setError(`A multi-shift named "${name.trim()}" already exists`); return; }
+        if (duplicateName) { setError(`A multi-shift named "${nameResult.value}" already exists`); return; }
 
         setLoading(true);
         setError(null);
@@ -979,8 +1021,8 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                 method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: name.trim(),
-                    price: Number(price) || 0,
+                    name: nameResult.value,
+                    price: priceResult.value ?? 0,
                     shiftIds: selectedShiftIds,
                 }),
             });
@@ -1037,8 +1079,11 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                             <input
                                 type="number"
                                 value={price}
-                                onChange={e => setPrice(e.target.value)}
+                                onChange={e => { setPrice(e.target.value); setError(null); }}
                                 min="0"
+                                max={FORM_LIMITS.moneyMax}
+                                step="1"
+                                inputMode="numeric"
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white focus:outline-none focus:border-orange-500/50 text-sm transition-all"
                             />
                         </div>
