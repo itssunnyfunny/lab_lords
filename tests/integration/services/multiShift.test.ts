@@ -125,6 +125,32 @@ describe("MultiShiftService Integration", () => {
         })
       ).rejects.toThrow(/already exists/i);
     });
+
+    it("REJECTS invalid name, price, and component IDs", async () => {
+      const { user, branch, morning, evening } = await setupTwoShifts();
+
+      await expect(
+        MultiShiftService.createMultiShift(user.id, branch.id, {
+          name: "",
+          shiftIds: [morning.id, evening.id],
+        })
+      ).rejects.toThrow(/required/i);
+
+      await expect(
+        MultiShiftService.createMultiShift(user.id, branch.id, {
+          name: "Bad Price",
+          price: -1,
+          shiftIds: [morning.id, evening.id],
+        })
+      ).rejects.toThrow(/whole number|at least/i);
+
+      await expect(
+        MultiShiftService.createMultiShift(user.id, branch.id, {
+          name: "Duplicate IDs",
+          shiftIds: [morning.id, morning.id],
+        })
+      ).rejects.toThrow(/valid shift IDs/i);
+    });
   });
 
   // ─── updateMultiShift ─────────────────────────────────────────────────────

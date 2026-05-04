@@ -28,6 +28,7 @@ import {
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
 import { Button } from "@/components/ui/Button";
+import { validatePhone, validateRequiredText } from "@/lib/formValidation";
 
 interface UserProfile {
     id: string;
@@ -137,6 +138,18 @@ export default function AccountPage() {
 
     const save = async () => {
         if (!form) return;
+        const nameResult = validateRequiredText(form.name, "Display name", 120);
+        if (!nameResult.ok) {
+            setSaveError(nameResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const phoneResult = validatePhone(form.phone);
+        if (!phoneResult.ok) {
+            setSaveError(phoneResult.error);
+            setSaveStatus("error");
+            return;
+        }
         setSaving(true);
         setSaveStatus("idle");
         setSaveError("");
@@ -144,7 +157,11 @@ export default function AccountPage() {
             const res = await fetch("/api/users/me", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
+                body: JSON.stringify({
+                    ...form,
+                    name: nameResult.value,
+                    phone: phoneResult.value ?? null,
+                }),
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));

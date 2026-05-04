@@ -34,6 +34,14 @@ import {
     SettingsToggle,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalText,
+    validateOptionalTime,
+    validatePhone,
+    validateRequiredText,
+} from "@/lib/formValidation";
 
 interface ActiveShift {
     id: string;
@@ -169,6 +177,65 @@ export default function BranchSettingsPage({ params }: { params: Promise<{ branc
 
     const save = async () => {
         if (!form) return;
+        const nameResult = validateRequiredText(form.name, "Branch name", 120);
+        if (!nameResult.ok) {
+            setSaveError(nameResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const cityResult = validateOptionalText(form.city, "City", FORM_LIMITS.cityMax);
+        if (!cityResult.ok) {
+            setSaveError(cityResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const addressResult = validateOptionalText(form.address, "Address", 240);
+        if (!addressResult.ok) {
+            setSaveError(addressResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const contactPhoneResult = validatePhone(form.contactPhone);
+        if (!contactPhoneResult.ok) {
+            setSaveError(contactPhoneResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const openingTimeResult = validateOptionalTime(form.openingTime, "Opening time");
+        if (!openingTimeResult.ok) {
+            setSaveError(openingTimeResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const closingTimeResult = validateOptionalTime(form.closingTime, "Closing time");
+        if (!closingTimeResult.ok) {
+            setSaveError(closingTimeResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        if ((openingTimeResult.value && !closingTimeResult.value) || (!openingTimeResult.value && closingTimeResult.value)) {
+            setSaveError("Operating hours must have both opening and closing time, or neither.");
+            setSaveStatus("error");
+            return;
+        }
+        const defaultFeeResult = parseIntegerField(form.defaultFee, "Default monthly fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!defaultFeeResult.ok) {
+            setSaveError(defaultFeeResult.error);
+            setSaveStatus("error");
+            return;
+        }
+        const defaultAdmissionFeeResult = parseIntegerField(form.defaultAdmissionFee, "Default admission fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!defaultAdmissionFeeResult.ok) {
+            setSaveError(defaultAdmissionFeeResult.error);
+            setSaveStatus("error");
+            return;
+        }
         setSaving(true);
         setSaveStatus("idle");
         setSaveError("");
@@ -176,7 +243,17 @@ export default function BranchSettingsPage({ params }: { params: Promise<{ branc
             const res = await fetch(`/api/branches/${branchId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
+                body: JSON.stringify({
+                    ...form,
+                    name: nameResult.value,
+                    city: cityResult.value ?? null,
+                    address: addressResult.value ?? null,
+                    contactPhone: contactPhoneResult.value ?? null,
+                    openingTime: openingTimeResult.value,
+                    closingTime: closingTimeResult.value,
+                    defaultFee: defaultFeeResult.value ?? 0,
+                    defaultAdmissionFee: defaultAdmissionFeeResult.value ?? 0,
+                }),
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));

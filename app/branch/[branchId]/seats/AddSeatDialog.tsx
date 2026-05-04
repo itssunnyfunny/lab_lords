@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { branches } from "@/lib/api/branches";
+import { FORM_LIMITS, validateSeatLabel } from "@/lib/formValidation";
 
 interface AddSeatDialogProps {
     isOpen: boolean;
@@ -37,8 +38,9 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!label.trim()) {
-            setError("Seat label is required");
+        const labelResult = validateSeatLabel(label);
+        if (!labelResult.ok) {
+            setError(labelResult.error);
             return;
         }
 
@@ -46,7 +48,7 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
         setError(null);
 
         try {
-            await branches.createSeat(branchId, label.trim());
+            await branches.createSeat(branchId, labelResult.value);
             onSuccess();
             onClose();
         } catch (err: unknown) {
@@ -86,10 +88,11 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                                 type="text"
                                 disabled={isLoading}
                                 value={label}
-                                onChange={(e) => setLabel(e.target.value)}
+                                onChange={(e) => { setLabel(e.target.value); setError(null); }}
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
                                 placeholder="e.g. S-01, Row A - 12"
                                 autoFocus
+                                maxLength={FORM_LIMITS.seatLabelMax}
                             />
                             <p className="text-xs text-zinc-500">
                                 Provide a unique identifier for this seat to distinguish it in the study hall.

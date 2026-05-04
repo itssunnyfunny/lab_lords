@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { FORM_LIMITS, parseIntegerField, validateRequiredText } from "@/lib/formValidation";
 
 export interface CreateMultiShiftDto {
     name: string;
@@ -69,7 +70,10 @@ export class MultiShiftService {
             throw new Error("A multi-shift must contain at least 2 primary shifts.");
         }
 
-        const uniqueIds = [...new Set(shiftIds)];
+        const uniqueIds = [...new Set(shiftIds.filter(id => typeof id === "string" && id.trim()).map(id => id.trim()))];
+        if (uniqueIds.length !== shiftIds.length) {
+            throw new Error("Component shifts must be valid shift IDs.");
+        }
 
         // Validate all shifts exist, are ACTIVE, and belong to this branch
         const shifts = await prisma.shift.findMany({
@@ -117,13 +121,20 @@ export class MultiShiftService {
         data: CreateMultiShiftDto
     ): Promise<MultiShiftItem> {
         await this.assertBranchOwnership(userId, branchId);
+        const nameResult = validateRequiredText(data.name, "Multi-shift name", 50);
+        if (!nameResult.ok) throw new Error(nameResult.error);
+        const priceResult = parseIntegerField(data.price, "Bundle monthly price", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!priceResult.ok) throw new Error(priceResult.error);
         const uniqueIds = await this.validateComponents(branchId, data.shiftIds);
 
         const ms = await prisma.multiShift.create({
             data: {
                 branchId,
-                name: data.name.trim(),
-                price: data.price ?? 0,
+                name: nameResult.value,
+                price: priceResult.value ?? 0,
                 components: {
                     create: uniqueIds.map((shiftId, i) => ({ shiftId, order: i })),
                 },
@@ -147,20 +158,29 @@ export class MultiShiftService {
         const ms = await prisma.multiShift.findUnique({ where: { id: multiShiftId } });
         if (!ms) throw new Error("Multi-shift not found");
         await this.assertBranchOwnership(userId, ms.branchId);
+        const nameResult = data.name !== undefined
+            ? validateRequiredText(data.name, "Multi-shift name", 50)
+            : null;
+        if (nameResult && !nameResult.ok) throw new Error(nameResult.error);
+        const priceResult = data.price !== undefined
+            ? parseIntegerField(data.price, "Bundle monthly price", { min: 0, max: FORM_LIMITS.moneyMax })
+            : null;
+        if (priceResult && !priceResult.ok) throw new Error(priceResult.error);
 
         let uniqueIds: string[] | undefined;
         if (data.shiftIds) {
             uniqueIds = await this.validateComponents(ms.branchId, data.shiftIds, multiShiftId);
         }
 
-        const priceChanged = data.price !== undefined && data.price !== ms.price;
+        const normalizedPrice = priceResult?.ok ? priceResult.value : undefined;
+        const priceChanged = normalizedPrice !== undefined && normalizedPrice !== ms.price;
 
         const updated = await prisma.$transaction(async (tx) => {
             const saved = await tx.multiShift.update({
                 where: { id: multiShiftId },
                 data: {
-                    ...(data.name !== undefined ? { name: data.name.trim() } : {}),
-                    ...(data.price !== undefined ? { price: data.price } : {}),
+                    ...(nameResult?.ok ? { name: nameResult.value } : {}),
+                    ...(normalizedPrice !== undefined ? { price: normalizedPrice } : {}),
                     ...(uniqueIds
                         ? {
                               components: {
@@ -185,7 +205,7 @@ export class MultiShiftService {
                         feeLinkedMultiShiftId: multiShiftId,
                     },
                     data: {
-                        monthlyFee: data.price,
+                        monthlyFee: normalizedPrice,
                     },
                 });
             }

@@ -8,6 +8,13 @@ import {
     optionalText,
     optionalTime,
 } from "@/lib/settingsValidation";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalText,
+    validateRequiredText,
+    validateShiftDrafts,
+} from "@/lib/formValidation";
 import { CreateBranchDto, MESSAGE_LANGUAGES, REMINDER_TONES, UpdateBranchSettingsDto } from "@/types";
 import { ShiftService } from "./shift.service";
 import { StaffService } from "./staff.service";
@@ -49,21 +56,37 @@ export class BranchService {
      */
     static async createBranchForOrg(params: CreateBranchForOrgParams) {
         const { organizationId, userId, name, city, defaultFee, seatCount, shifts } = params;
+        const nameResult = validateRequiredText(name, "Branch name", 120);
+        if (!nameResult.ok) throw new Error(nameResult.error);
+        const cityResult = validateOptionalText(city, "City", FORM_LIMITS.cityMax);
+        if (!cityResult.ok) throw new Error(cityResult.error);
+        const defaultFeeResult = parseIntegerField(defaultFee, "Default monthly fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!defaultFeeResult.ok) throw new Error(defaultFeeResult.error);
+        const seatCountResult = parseIntegerField(seatCount, "Total seats", {
+            min: 0,
+            max: FORM_LIMITS.seatsMax,
+        });
+        if (!seatCountResult.ok) throw new Error(seatCountResult.error);
+        const shiftsResult = shifts ? validateShiftDrafts(shifts, { allowEmpty: false }) : null;
+        if (shiftsResult && !shiftsResult.ok) throw new Error(shiftsResult.error);
 
         return await prisma.$transaction(async (tx) => {
             // 1. Create the branch
             const branch = await tx.branch.create({
                 data: {
-                    name,
-                    city,
-                    defaultFee: defaultFee ?? 0,
+                    name: nameResult.value,
+                    city: cityResult.value,
+                    defaultFee: defaultFeeResult.value ?? 0,
                     organizationId,
                 },
             });
 
             // 2. Create shifts (custom or defaults)
-            const shiftsToCreate = shifts && shifts.length > 0
-                ? shifts
+            const shiftsToCreate = shiftsResult?.ok && shiftsResult.value.length > 0
+                ? shiftsResult.value
                 : [
                     { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
                     { name: "Afternoon", startTime: "12:00", endTime: "17:00", price: 0 },
@@ -89,8 +112,8 @@ export class BranchService {
             // 3. Create seats
             // ⚡ Bolt: Replaced O(n) individual seat creations with single bulk insert
             // Expected Impact: Reduces DB roundtrips from N to 1 during branch creation
-            if (seatCount && seatCount > 0) {
-                const seatsData = Array.from({ length: seatCount }, (_, i) => ({
+            if (seatCountResult.value && seatCountResult.value > 0) {
+                const seatsData = Array.from({ length: seatCountResult.value }, (_, i) => ({
                     branchId: branch.id,
                     label: `${i + 1}`,
                 }));

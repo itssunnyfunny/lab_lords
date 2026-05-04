@@ -35,6 +35,22 @@ describe("ShiftService Integration", () => {
         ShiftService.createShift(user.id, branch.id, { name: "Morning", startTime: "18:00", endTime: "22:00" })
       ).rejects.toThrow(/already exists/i);
     });
+
+    it("REJECTS invalid required fields, time pairs, and price", async () => {
+      const { user, branch } = await createTestWorld();
+
+      await expect(
+        ShiftService.createShift(user.id, branch.id, { name: "", startTime: "18:00", endTime: "22:00" })
+      ).rejects.toThrow(/required/i);
+
+      await expect(
+        ShiftService.createShift(user.id, branch.id, { name: "Half Time", startTime: "18:00" })
+      ).rejects.toThrow(/both start and end/i);
+
+      await expect(
+        ShiftService.createShift(user.id, branch.id, { name: "Bad Price", startTime: "18:00", endTime: "22:00", price: -1 })
+      ).rejects.toThrow(/whole number|at least/i);
+    });
   });
 
   // ─── analyzeShiftDeletion ─────────────────────────────────────────────────
@@ -184,6 +200,14 @@ describe("ShiftService Integration", () => {
       expect(refreshedLinked?.monthlyFee).toBe(1800);
       expect(refreshedManual?.monthlyFee).toBe(1000);
       expect(refreshedPayment?.amount).toBe(1000);
+    });
+
+    it("allows price-only edits without rechecking untouched shift times", async () => {
+      const { user, shift } = await createTestWorld();
+
+      const updated = await ShiftService.updateShift(user.id, shift.id, { price: 900 });
+
+      expect(updated.price).toBe(900);
     });
   });
 

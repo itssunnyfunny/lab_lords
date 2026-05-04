@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { SeatService } from "@/services/seat.service";
 import { getSessionUser } from "@/lib/auth";
+import { validateSeatLabel } from "@/lib/formValidation";
 
 interface Params {
     params: Promise<{
@@ -59,14 +60,15 @@ export async function POST(req: Request, { params }: Params) {
 
         const body = await req.json();
 
-        if (!body.label) {
+        const labelResult = validateSeatLabel(body.label);
+        if (!labelResult.ok) {
             return NextResponse.json(
-                { error: "Label is required" },
+                { error: labelResult.error },
                 { status: 400 }
             );
         }
 
-        const seat = await SeatService.createSeat(user.id, branchId, body.label);
+        const seat = await SeatService.createSeat(user.id, branchId, labelResult.value);
 
         return NextResponse.json(seat, { status: 201 });
     } catch (error: unknown) {

@@ -4,6 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { X, MapPin, Loader2, Plus, AlertCircle, AlertTriangle } from "lucide-react";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalText,
+    validateRequiredText,
+    validateShiftDrafts,
+} from "@/lib/formValidation";
 
 function formatMins(mins: number) {
     let raw = mins;
@@ -18,7 +25,7 @@ interface ShiftDraft {
     name: string;
     startTime: string;
     endTime: string;
-    price: number;
+    price: number | string;
 }
 
 interface CreateBranchDialogProps {
@@ -105,12 +112,36 @@ export function CreateBranchDialog({
 
     const handleSubmit = async () => {
         setError(null);
-        if (!formData.name.trim()) {
-            setError("Branch name is required.");
+        const nameResult = validateRequiredText(formData.name, "Branch name", 120);
+        if (!nameResult.ok) {
+            setError(nameResult.error);
             return;
         }
-        if (!formData.seatCount || parseInt(formData.seatCount) <= 0) {
-            setError("Please enter a valid number of seats.");
+        const cityResult = validateOptionalText(formData.city, "City / area", FORM_LIMITS.cityMax);
+        if (!cityResult.ok) {
+            setError(cityResult.error);
+            return;
+        }
+        const seatCountResult = parseIntegerField(formData.seatCount, "Total seats", {
+            required: true,
+            min: 1,
+            max: FORM_LIMITS.seatsMax,
+        });
+        if (!seatCountResult.ok) {
+            setError(seatCountResult.error);
+            return;
+        }
+        const defaultFeeResult = parseIntegerField(formData.defaultFee, "Default monthly fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!defaultFeeResult.ok) {
+            setError(defaultFeeResult.error);
+            return;
+        }
+        const shiftsResult = validateShiftDrafts(shifts);
+        if (!shiftsResult.ok) {
+            setError(shiftsResult.error);
             return;
         }
         if (overlaps.size > 0) {
@@ -125,18 +156,11 @@ export function CreateBranchDialog({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     organizationId,
-                    name: formData.name.trim(),
-                    city: formData.city.trim() || undefined,
-                    seatCount: parseInt(formData.seatCount),
-                    defaultFee: formData.defaultFee ? parseInt(formData.defaultFee) : 0,
-                    shifts: shifts
-                        .filter(s => s.name.trim())
-                        .map(s => ({
-                            ...s,
-                            price: Number(s.price),
-                            startTime: s.startTime || null,
-                            endTime: s.endTime || null,
-                        })),
+                    name: nameResult.value,
+                    city: cityResult.value,
+                    seatCount: seatCountResult.value,
+                    defaultFee: defaultFeeResult.value ?? 0,
+                    shifts: shiftsResult.value,
                 }),
             });
 
@@ -206,6 +230,7 @@ export function CreateBranchDialog({
                                 onChange={handleChange}
                                 placeholder="e.g. Main Branch, Downtown"
                                 autoFocus
+                                maxLength={120}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm"
                             />
                         </div>
@@ -223,6 +248,7 @@ export function CreateBranchDialog({
                                 value={formData.city}
                                 onChange={handleChange}
                                 placeholder="e.g. Mumbai"
+                                maxLength={FORM_LIMITS.cityMax}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm"
                             />
                         </div>
@@ -237,6 +263,9 @@ export function CreateBranchDialog({
                                 onChange={handleChange}
                                 placeholder="e.g. 50"
                                 min="1"
+                                max={FORM_LIMITS.seatsMax}
+                                step="1"
+                                inputMode="numeric"
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm"
                             />
                         </div>
@@ -256,6 +285,9 @@ export function CreateBranchDialog({
                                 onChange={handleChange}
                                 placeholder="e.g. 1500"
                                 min="0"
+                                max={FORM_LIMITS.moneyMax}
+                                step="1"
+                                inputMode="numeric"
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-7 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm"
                             />
                         </div>
@@ -310,6 +342,10 @@ export function CreateBranchDialog({
                                                 placeholder="0"
                                                 value={shift.price}
                                                 onChange={(e) => handleShiftChange(idx, "price", e.target.value)}
+                                                min={0}
+                                                max={FORM_LIMITS.moneyMax}
+                                                step={1}
+                                                inputMode="numeric"
                                                 className="w-full bg-transparent border-b border-white/10 py-1 pl-3 text-xs text-white focus:outline-none focus:border-cyan-500"
                                             />
                                         </div>
