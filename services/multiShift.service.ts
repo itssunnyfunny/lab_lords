@@ -26,6 +26,22 @@ export interface MultiShiftItem {
     }[];
 }
 
+type MultiShiftWithComponents = {
+    id: string;
+    name: string;
+    price: number;
+    createdAt: Date;
+    components: {
+        shiftId: string;
+        order: number;
+        shift: {
+            name: string;
+            startTime: string | null;
+            endTime: string | null;
+        };
+    }[];
+};
+
 export class MultiShiftService {
     private static async assertBranchOwnership(userId: string, branchId: string) {
         const branch = await prisma.branch.findUnique({
@@ -137,26 +153,49 @@ export class MultiShiftService {
             uniqueIds = await this.validateComponents(ms.branchId, data.shiftIds, multiShiftId);
         }
 
-        const updated = await prisma.multiShift.update({
-            where: { id: multiShiftId },
-            data: {
-                ...(data.name !== undefined ? { name: data.name.trim() } : {}),
-                ...(data.price !== undefined ? { price: data.price } : {}),
-                ...(uniqueIds
-                    ? {
-                          components: {
-                              deleteMany: {},
-                              create: uniqueIds.map((shiftId, i) => ({ shiftId, order: i })),
-                          },
-                      }
-                    : {}),
-            },
-            include: {
-                components: {
-                    include: { shift: { select: { name: true, startTime: true, endTime: true } } },
-                    orderBy: { order: "asc" },
+        const priceChanged = data.price !== undefined && data.price !== ms.price;
+
+        const updated = await prisma.$transaction(async (tx) => {
+            const saved = await tx.multiShift.update({
+                where: { id: multiShiftId },
+                data: {
+                    ...(data.name !== undefined ? { name: data.name.trim() } : {}),
+                    ...(data.price !== undefined ? { price: data.price } : {}),
+                    ...(uniqueIds
+                        ? {
+                              components: {
+                                  deleteMany: {},
+                                  create: uniqueIds.map((shiftId, i) => ({ shiftId, order: i })),
+                              },
+                          }
+                        : {}),
                 },
-            },
+                include: {
+                    components: {
+                        include: { shift: { select: { name: true, startTime: true, endTime: true } } },
+                        orderBy: { order: "asc" },
+                    },
+                },
+            });
+
+            if (priceChanged) {
+                await tx.student.updateMany({
+                    where: {
+                        branchId: ms.branchId,
+                        feeLinkedMultiShiftId: multiShiftId,
+                    },
+                    data: {
+                        monthlyFee: data.price,
+                    },
+                });
+            }
+
+            await tx.branch.update({
+                where: { id: ms.branchId },
+                data: { lastDataChange: new Date() },
+            });
+
+            return saved;
         });
 
         return this.toDto(updated);
@@ -167,13 +206,19 @@ export class MultiShiftService {
         if (!ms) throw new Error("Multi-shift not found");
         await this.assertBranchOwnership(userId, ms.branchId);
 
-        // Null out the multiShiftId on existing allocations (keep history intact)
-        await prisma.seatAllocation.updateMany({
-            where: { multiShiftId },
-            data: { multiShiftId: null },
+        await prisma.$transaction(async (tx) => {
+            // Null out the multiShiftId on existing allocations (keep history intact)
+            await tx.seatAllocation.updateMany({
+                where: { multiShiftId },
+                data: { multiShiftId: null },
+            });
+            await tx.student.updateMany({
+                where: { branchId: ms.branchId, feeLinkedMultiShiftId: multiShiftId },
+                data: { feeLinkedMultiShiftId: null },
+            });
+            await tx.multiShift.delete({ where: { id: multiShiftId } });
         });
 
-        await prisma.multiShift.delete({ where: { id: multiShiftId } });
         return { success: true };
     }
 
@@ -194,13 +239,13 @@ export class MultiShiftService {
         return list.map(this.toDto);
     }
 
-    private static toDto(ms: any): MultiShiftItem {
+    private static toDto(ms: MultiShiftWithComponents): MultiShiftItem {
         return {
             id: ms.id,
             name: ms.name,
             price: ms.price,
             createdAt: ms.createdAt,
-            components: ms.components.map((c: any) => ({
+            components: ms.components.map((c) => ({
                 shiftId: c.shiftId,
                 shiftName: c.shift.name,
                 startTime: c.shift.startTime,

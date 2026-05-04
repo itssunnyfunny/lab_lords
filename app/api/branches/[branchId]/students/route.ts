@@ -3,7 +3,10 @@ import { StudentService } from "@/services/student.service";
 import { getSessionUser } from "@/lib/auth";
 import { StudentStatus } from "@prisma/client";
 import { DueResolution } from "@/types";
-import { prisma } from "@/lib/prisma";
+
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Something went wrong";
+}
 
 export async function POST(
     req: NextRequest,
@@ -33,14 +36,17 @@ export async function POST(
             phone: body.phone,
             shiftIds,
             seatId: body.seatId,
-            monthlyFee: body.monthlyFee ? Number(body.monthlyFee) : undefined,
-            admissionFee: body.admissionFee ? Number(body.admissionFee) : undefined,
+            monthlyFee: body.monthlyFee !== undefined && body.monthlyFee !== null ? Number(body.monthlyFee) : undefined,
+            admissionFee: body.admissionFee !== undefined && body.admissionFee !== null ? Number(body.admissionFee) : undefined,
+            feeLinkedShiftId: typeof body.feeLinkedShiftId === "string" ? body.feeLinkedShiftId : null,
+            feeLinkedMultiShiftId: typeof body.feeLinkedMultiShiftId === "string" ? body.feeLinkedMultiShiftId : null,
         });
 
         return NextResponse.json(student, { status: 201 });
-    } catch (error: any) {
-        if (error.message.includes("Unauthorized")) return NextResponse.json({ error: error.message }, { status: 403 });
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message.includes("Unauthorized")) return NextResponse.json({ error: message }, { status: 403 });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 
@@ -60,21 +66,20 @@ export async function GET(
 
         const students = await StudentService.getStudentsByBranch(user.id, branchId, { status, shiftId });
         return NextResponse.json(students);
-    } catch (error: any) {
-        if (error.message.includes("Unauthorized")) return NextResponse.json({ error: error.message }, { status: 403 });
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message.includes("Unauthorized")) return NextResponse.json({ error: message }, { status: 403 });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 
 export async function PATCH(
-    req: NextRequest,
-    { params }: { params: Promise<{ branchId: string }> }
+    req: NextRequest
 ) {
     try {
         const user = await getSessionUser();
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const { branchId } = await params;
         const body = await req.json();
 
         if (!body.id) {
@@ -82,18 +87,27 @@ export async function PATCH(
         }
 
         // ── Path A: edit profile (name / phone)
-        if (body.name !== undefined || body.phone !== undefined) {
+        if (
+            body.name !== undefined ||
+            body.phone !== undefined ||
+            body.monthlyFee !== undefined ||
+            body.feeLinkedShiftId !== undefined ||
+            body.feeLinkedMultiShiftId !== undefined
+        ) {
             if (body.name !== undefined && typeof body.name === "string" && body.name.trim().length === 0) {
                 return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
             }
 
-            const updated = await prisma.student.update({
-                where: { id: body.id },
-                data: {
-                    ...(body.name !== undefined ? { name: body.name.trim() } : {}),
-                    ...(body.phone !== undefined ? { phone: body.phone.trim() || null } : {}),
-                    ...(body.monthlyFee !== undefined && body.monthlyFee !== null ? { monthlyFee: Number(body.monthlyFee) } : {}),
-                },
+            const updated = await StudentService.updateStudentProfile(user.id, body.id, {
+                ...(body.name !== undefined ? { name: body.name } : {}),
+                ...(body.phone !== undefined ? { phone: body.phone } : {}),
+                ...(body.monthlyFee !== undefined && body.monthlyFee !== null ? { monthlyFee: Number(body.monthlyFee) } : {}),
+                ...(body.feeLinkedShiftId !== undefined
+                    ? { feeLinkedShiftId: typeof body.feeLinkedShiftId === "string" ? body.feeLinkedShiftId : null }
+                    : {}),
+                ...(body.feeLinkedMultiShiftId !== undefined
+                    ? { feeLinkedMultiShiftId: typeof body.feeLinkedMultiShiftId === "string" ? body.feeLinkedMultiShiftId : null }
+                    : {}),
             });
 
             return NextResponse.json(updated);
@@ -102,7 +116,7 @@ export async function PATCH(
         // ── Path B: change status
         if (!body.status) {
             return NextResponse.json(
-                { error: "Provide name/phone to edit, or status to change status" },
+                { error: "Provide profile/fee fields to edit, or status to change status" },
                 { status: 400 }
             );
         }
@@ -118,9 +132,10 @@ export async function PATCH(
             (body.dueResolution ?? "KEEP") as DueResolution
         );
         return NextResponse.json(student);
-    } catch (error: any) {
-        if (error.message.includes("Unauthorized")) return NextResponse.json({ error: error.message }, { status: 403 });
-        if (error.message.includes("not found")) return NextResponse.json({ error: error.message }, { status: 404 });
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message.includes("Unauthorized")) return NextResponse.json({ error: message }, { status: 403 });
+        if (message.includes("not found")) return NextResponse.json({ error: message }, { status: 404 });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
