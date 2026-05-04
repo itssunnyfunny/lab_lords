@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { OrganizationService } from "@/services/organization.service";
-import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
+import { resetDatabase, disconnectDatabase } from "@/tests/setup/db";
 import { createUser, createOrg, createBranch } from "@/tests/factories";
 
 /**
@@ -97,6 +97,48 @@ describe("OrganizationService Integration", () => {
       await expect(
         OrganizationService.updateOrganization(org.id, stranger.id, { name: "Hijacked" })
       ).rejects.toThrow(/Unauthorized/i);
+    });
+
+    it("updates persisted organization settings", async () => {
+      const user = await createUser();
+      const org = await createOrg({ ownerId: user.id });
+
+      const updated = await OrganizationService.updateSettings(org.id, user.id, {
+        name: "Settings Academy",
+        businessType: "Library",
+        legalName: "Settings Academy Pvt Ltd",
+        contactEmail: "owner@example.com",
+        contactPhone: "+91 99999 99999",
+        address: "MG Road, Delhi",
+        timezone: "Asia/Kolkata",
+        currency: "inr",
+        weekStartsOn: 1,
+        paymentGraceDays: 5,
+      });
+
+      expect(updated.name).toBe("Settings Academy");
+      expect(updated.legalName).toBe("Settings Academy Pvt Ltd");
+      expect(updated.contactEmail).toBe("owner@example.com");
+      expect(updated.currency).toBe("INR");
+      expect(updated.paymentGraceDays).toBe(5);
+    });
+
+    it("rejects invalid organization settings", async () => {
+      const user = await createUser();
+      const org = await createOrg({ ownerId: user.id });
+
+      await expect(
+        OrganizationService.updateSettings(org.id, user.id, {
+          name: "Valid",
+          unknownField: true,
+        })
+      ).rejects.toThrow(/Unknown settings field/i);
+
+      await expect(
+        OrganizationService.updateSettings(org.id, user.id, {
+          name: "",
+        })
+      ).rejects.toThrow(/required/i);
     });
   });
 
