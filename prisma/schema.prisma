@@ -7,45 +7,69 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  name          String?
-  createdAt     DateTime       @default(now())
-  organizations Organization[]
-  staff         Staff[]
-  auditLogs     AuditLog[]
+  id                     String         @id @default(cuid())
+  email                  String         @unique
+  name                   String?
+  phone                  String?
+  timezone               String         @default("Asia/Kolkata")
+  locale                 String         @default("en-IN")
+  dateFormat             String         @default("dd MMM yyyy")
+  themePreference        String         @default("dark")
+  densityPreference      String         @default("comfortable")
+  defaultMessageLanguage String         @default("en")
+  defaultLandingPage     String         @default("org")
+  createdAt              DateTime       @default(now())
+  organizations          Organization[]
+  staff                  Staff[]
+  auditLogs              AuditLog[]
 }
 
 model Organization {
-  id           String   @id @default(cuid())
-  name         String
-  ownerId      String
-  businessType String?
-  createdAt    DateTime @default(now())
-  branches     Branch[]
-  owner        User     @relation(fields: [ownerId], references: [id])
+  id               String   @id @default(cuid())
+  name             String
+  ownerId          String
+  businessType     String?
+  legalName        String?
+  contactEmail     String?
+  contactPhone     String?
+  address          String?
+  timezone         String   @default("Asia/Kolkata")
+  currency         String   @default("INR")
+  weekStartsOn     Int      @default(1)
+  paymentGraceDays Int      @default(0)
+  createdAt        DateTime @default(now())
+  branches         Branch[]
+  owner            User     @relation(fields: [ownerId], references: [id])
 }
 
 model Branch {
-  id             String           @id @default(cuid())
-  organizationId String
-  name           String
-  city           String?
-  defaultFee     Int?             @default(0)
-  createdAt      DateTime         @default(now())
-  lastDataChange DateTime         @default(now())
-  aiLastCalledAt DateTime?
-  aiStatus       BranchAIStatus   @default(IDLE)
-  organization   Organization     @relation(fields: [organizationId], references: [id])
-  aiReports      BranchAIReport[]
-  messageDrafts  MessageDraft[]
-  multiShifts    MultiShift[]
-  payments       Payment[]
-  seats          Seat[]
-  shifts         Shift[]
-  staff          Staff[]
-  students       Student[]
-  auditLogs      AuditLog[]
+  id                     String           @id @default(cuid())
+  organizationId         String
+  name                   String
+  city                   String?
+  address                String?
+  contactPhone           String?
+  openingTime            String?
+  closingTime            String?
+  defaultFee             Int?             @default(0)
+  defaultAdmissionFee    Int?             @default(0)
+  defaultMessageLanguage String           @default("en")
+  reminderTone           String           @default("polite")
+  aiEnabled              Boolean          @default(true)
+  createdAt              DateTime         @default(now())
+  lastDataChange         DateTime         @default(now())
+  aiLastCalledAt         DateTime?
+  aiStatus               BranchAIStatus   @default(IDLE)
+  organization           Organization     @relation(fields: [organizationId], references: [id])
+  aiReports              BranchAIReport[]
+  messageDrafts          MessageDraft[]
+  multiShifts            MultiShift[]
+  payments               Payment[]
+  seats                  Seat[]
+  shifts                 Shift[]
+  staff                  Staff[]
+  students               Student[]
+  auditLogs              AuditLog[]
 }
 
 model Student {
