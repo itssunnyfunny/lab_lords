@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { MultiShiftService } from "@/services/multiShift.service";
 import { getSessionUser } from "@/lib/auth";
+import { FORM_LIMITS, parseIntegerField, validateRequiredText } from "@/lib/formValidation";
 
 interface Params {
     params: Promise<{ branchId: string; multiShiftId: string }>;
@@ -17,7 +18,18 @@ export async function PATCH(req: Request, { params }: Params) {
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const body = await req.json();
-        const updated = await MultiShiftService.updateMultiShift(user.id, multiShiftId, body);
+        const nameResult = body.name !== undefined ? validateRequiredText(body.name, "Multi-shift name", 50) : null;
+        if (nameResult && !nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
+        const priceResult = body.price !== undefined
+            ? parseIntegerField(body.price, "Bundle monthly price", { min: 0, max: FORM_LIMITS.moneyMax })
+            : null;
+        if (priceResult && !priceResult.ok) return NextResponse.json({ error: priceResult.error }, { status: 400 });
+
+        const updated = await MultiShiftService.updateMultiShift(user.id, multiShiftId, {
+            ...(nameResult?.ok ? { name: nameResult.value } : {}),
+            ...(priceResult?.ok ? { price: priceResult.value } : {}),
+            ...(body.shiftIds !== undefined ? { shiftIds: body.shiftIds } : {}),
+        });
         return NextResponse.json(updated);
     } catch (error: unknown) {
         const message = getErrorMessage(error);

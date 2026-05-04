@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { SeatService } from "@/services/seat.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import {
@@ -51,6 +51,18 @@ describe("SeatService Integration", () => {
         SeatService.createSeat(wrongUser.id, branch.id, "X1")
       ).rejects.toThrow(/Unauthorized/i);
     });
+
+    it("REJECTS invalid seat labels", async () => {
+      const { user, branch } = await createTestWorld();
+
+      await expect(
+        SeatService.createSeat(user.id, branch.id, "")
+      ).rejects.toThrow(/required/i);
+
+      await expect(
+        SeatService.createSeat(user.id, branch.id, "#A1")
+      ).rejects.toThrow(/letters|numbers/i);
+    });
   });
 
   // ─── listSeats ─────────────────────────────────────────────────────────────
@@ -91,7 +103,7 @@ describe("SeatService Integration", () => {
 
   describe("generateOccupancySnapshot", () => {
     it("returns 0% when there are no allocations", async () => {
-      const { branch, shift } = await createTestWorld();
+      const { branch } = await createTestWorld();
       // createTestWorld creates 1 seat, 1 shift — no allocations
       const snap = await SeatService.generateOccupancySnapshot(branch.id);
       expect(snap.totalOccupancyPercent).toBe(0);
@@ -109,7 +121,7 @@ describe("SeatService Integration", () => {
       });
 
       // Create 4 more seats (createTestWorld already created 1)
-      const extraSeats = await Promise.all(
+      await Promise.all(
         ["S2", "S3", "S4", "S5"].map(label => createSeat({ branchId: branch.id, label }))
       );
 

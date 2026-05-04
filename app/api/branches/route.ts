@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { BranchService } from "@/services/branch.service";
 import { getSessionUser } from "@/lib/auth";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalText,
+    validateRequiredText,
+    validateShiftDrafts,
+} from "@/lib/formValidation";
 
 function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : "Internal Server Error";
@@ -24,18 +31,25 @@ export async function POST(req: Request) {
         if (!organizationId || typeof organizationId !== "string") {
             return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
         }
-        if (!name || typeof name !== "string" || name.trim().length === 0) {
-            return NextResponse.json({ error: "Branch name is required" }, { status: 400 });
-        }
+        const nameResult = validateRequiredText(name, "Branch name", 120);
+        if (!nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
+        const cityResult = validateOptionalText(city, "City", FORM_LIMITS.cityMax);
+        if (!cityResult.ok) return NextResponse.json({ error: cityResult.error }, { status: 400 });
+        const defaultFeeResult = parseIntegerField(defaultFee, "Default monthly fee", { min: 0, max: FORM_LIMITS.moneyMax });
+        if (!defaultFeeResult.ok) return NextResponse.json({ error: defaultFeeResult.error }, { status: 400 });
+        const seatCountResult = parseIntegerField(seatCount, "Total seats", { required: true, min: 1, max: FORM_LIMITS.seatsMax });
+        if (!seatCountResult.ok) return NextResponse.json({ error: seatCountResult.error }, { status: 400 });
+        const shiftsResult = Array.isArray(shifts) ? validateShiftDrafts(shifts) : { ok: true as const, value: undefined };
+        if (!shiftsResult.ok) return NextResponse.json({ error: shiftsResult.error }, { status: 400 });
 
         const branch = await BranchService.createBranchForOrg({
             organizationId,
             userId: user.id,
-            name: name.trim(),
-            city: city?.trim() || undefined,
-            defaultFee: defaultFee ? parseInt(defaultFee) : 0,
-            seatCount: seatCount ? parseInt(seatCount) : 0,
-            shifts: shifts && Array.isArray(shifts) ? shifts : undefined,
+            name: nameResult.value,
+            city: cityResult.value,
+            defaultFee: defaultFeeResult.value ?? 0,
+            seatCount: seatCountResult.value,
+            shifts: shiftsResult.value,
         });
 
         return NextResponse.json(branch, { status: 201 });
@@ -44,7 +58,7 @@ export async function POST(req: Request) {
         console.error("Error creating branch:", error);
         return NextResponse.json(
             { error: message },
-            { status: 500 }
+            { status: message.includes("not found") ? 404 : 400 }
         );
     }
 }

@@ -4,6 +4,13 @@ import { CreateStudentDto, DueResolution, UpdateStudentProfileDto } from "@/type
 import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { startOfDay } from "date-fns";
 import { Prisma } from "@prisma/client";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalId,
+    validatePhone,
+    validateRequiredText,
+} from "@/lib/formValidation";
 
 export class StudentService {
     /**
@@ -116,6 +123,24 @@ export class StudentService {
         data: CreateStudentDto
     ) {
         const branch = await this.verifyBranchOwnership(userId, branchId);
+        const nameResult = validateRequiredText(data.name, "Student name");
+        if (!nameResult.ok) throw new Error(nameResult.error);
+        const phoneResult = validatePhone(data.phone);
+        if (!phoneResult.ok) throw new Error(phoneResult.error);
+        const monthlyFeeResult = parseIntegerField(data.monthlyFee, "Monthly fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!monthlyFeeResult.ok) throw new Error(monthlyFeeResult.error);
+        const admissionFeeResult = parseIntegerField(data.admissionFee, "Admission fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!admissionFeeResult.ok) throw new Error(admissionFeeResult.error);
+        const linkedShiftResult = validateOptionalId(data.feeLinkedShiftId, "Linked shift");
+        if (!linkedShiftResult.ok) throw new Error(linkedShiftResult.error);
+        const linkedMultiShiftResult = validateOptionalId(data.feeLinkedMultiShiftId, "Linked multi-shift");
+        if (!linkedMultiShiftResult.ok) throw new Error(linkedMultiShiftResult.error);
 
         // Normalise shiftId (legacy singular) → shiftIds (new array)
         const shiftIds: string[] = data.shiftIds && data.shiftIds.length > 0
@@ -129,15 +154,19 @@ export class StudentService {
             const feeData = await this.resolveMonthlyFeeData(
                 tx,
                 branchId,
-                data,
-                data.monthlyFee ?? branch.defaultFee ?? 0
+                {
+                    monthlyFee: monthlyFeeResult.value,
+                    feeLinkedShiftId: linkedShiftResult.value,
+                    feeLinkedMultiShiftId: linkedMultiShiftResult.value,
+                },
+                monthlyFeeResult.value ?? branch.defaultFee ?? 0
             );
 
             const created = await tx.student.create({
                 data: {
                     branchId,
-                    name: data.name,
-                    phone: data.phone,
+                    name: nameResult.value,
+                    phone: phoneResult.value,
                     status: StudentStatus.ACTIVE,
                     monthlyFee: feeData.monthlyFee,
                     feeLinkedShiftId: feeData.feeLinkedShiftId,
@@ -146,7 +175,7 @@ export class StudentService {
                 },
             });
 
-            const admissionFee = data.admissionFee ?? branch.defaultAdmissionFee ?? 0;
+            const admissionFee = admissionFeeResult.value ?? branch.defaultAdmissionFee ?? 0;
             if (admissionFee > 0) {
                 await tx.payment.create({
                     data: {
@@ -192,6 +221,22 @@ export class StudentService {
         data: UpdateStudentProfileDto
     ) {
         const verifiedStudent = await this.verifyStudentOwnership(userId, studentId);
+        const nameResult = data.name !== undefined ? validateRequiredText(data.name, "Student name") : null;
+        if (nameResult && !nameResult.ok) throw new Error(nameResult.error);
+        const phoneResult = data.phone !== undefined ? validatePhone(data.phone) : null;
+        if (phoneResult && !phoneResult.ok) throw new Error(phoneResult.error);
+        const monthlyFeeResult = data.monthlyFee !== undefined
+            ? parseIntegerField(data.monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })
+            : null;
+        if (monthlyFeeResult && !monthlyFeeResult.ok) throw new Error(monthlyFeeResult.error);
+        const linkedShiftResult = data.feeLinkedShiftId !== undefined
+            ? validateOptionalId(data.feeLinkedShiftId, "Linked shift")
+            : null;
+        if (linkedShiftResult && !linkedShiftResult.ok) throw new Error(linkedShiftResult.error);
+        const linkedMultiShiftResult = data.feeLinkedMultiShiftId !== undefined
+            ? validateOptionalId(data.feeLinkedMultiShiftId, "Linked multi-shift")
+            : null;
+        if (linkedMultiShiftResult && !linkedMultiShiftResult.ok) throw new Error(linkedMultiShiftResult.error);
 
         return prisma.$transaction(async (tx) => {
             const feeLinkTouched =
@@ -210,15 +255,15 @@ export class StudentService {
                     tx,
                     verifiedStudent.branchId,
                     {
-                        monthlyFee: data.monthlyFee,
-                        feeLinkedShiftId: data.feeLinkedShiftId ?? null,
-                        feeLinkedMultiShiftId: data.feeLinkedMultiShiftId ?? null,
+                        monthlyFee: monthlyFeeResult?.value,
+                        feeLinkedShiftId: linkedShiftResult?.value ?? null,
+                        feeLinkedMultiShiftId: linkedMultiShiftResult?.value ?? null,
                     },
                     verifiedStudent.monthlyFee
                 );
             } else if (feeManuallyTouched) {
                 feeData = {
-                    monthlyFee: data.monthlyFee ?? verifiedStudent.monthlyFee,
+                    monthlyFee: monthlyFeeResult?.value ?? verifiedStudent.monthlyFee,
                     feeLinkedShiftId: null,
                     feeLinkedMultiShiftId: null,
                 };
@@ -227,8 +272,8 @@ export class StudentService {
             const updated = await tx.student.update({
                 where: { id: studentId },
                 data: {
-                    ...(data.name !== undefined ? { name: data.name.trim() } : {}),
-                    ...(data.phone !== undefined ? { phone: data.phone?.trim() || null } : {}),
+                    ...(nameResult?.ok ? { name: nameResult.value } : {}),
+                    ...(phoneResult?.ok ? { phone: phoneResult.value ?? null } : {}),
                     ...feeData,
                 },
             });

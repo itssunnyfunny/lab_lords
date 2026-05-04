@@ -78,6 +78,40 @@ describe("BranchService Integration", () => {
       expect(staffRecord).not.toBeNull();
       expect(staffRecord!.role).toBe("MANAGER");
     });
+
+    it("rejects invalid branch creation fields", async () => {
+      const user = await createUser();
+      const org = await createOrg({ ownerId: user.id });
+
+      await expect(
+        BranchService.createBranchForOrg({
+          organizationId: org.id,
+          userId: user.id,
+          name: "",
+        })
+      ).rejects.toThrow(/required/i);
+
+      await expect(
+        BranchService.createBranchForOrg({
+          organizationId: org.id,
+          userId: user.id,
+          name: "Invalid Seats",
+          seatCount: -1,
+        })
+      ).rejects.toThrow(/whole number|at least/i);
+
+      await expect(
+        BranchService.createBranchForOrg({
+          organizationId: org.id,
+          userId: user.id,
+          name: "Invalid Shifts",
+          shifts: [
+            { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
+            { name: "Morning", startTime: "13:00", endTime: "18:00", price: 0 },
+          ],
+        })
+      ).rejects.toThrow(/duplicate shift name/i);
+    });
   });
 
   // ─── getBranchById ────────────────────────────────────────────────────────

@@ -8,6 +8,13 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ArrowRight, Building2, MapPin, Loader2, X } from "lucide-react";
 import { apiClient } from "@/lib/api/core";
+import {
+    FORM_LIMITS,
+    parseIntegerField,
+    validateOptionalText,
+    validateRequiredText,
+    validateShiftDrafts,
+} from "@/lib/formValidation";
 
 interface OnboardingShiftDraft {
     name: string;
@@ -67,8 +74,14 @@ export default function OnboardingPage() {
     };
 
     const handleNext = () => {
-        if (!formData.orgName) {
-            setError("Organization name is required.");
+        const orgNameResult = validateRequiredText(formData.orgName, "Organization name", 120);
+        if (!orgNameResult.ok) {
+            setError(orgNameResult.error);
+            return;
+        }
+        const businessTypeResult = validateOptionalText(formData.businessType, "Business type", 80);
+        if (!businessTypeResult.ok) {
+            setError(businessTypeResult.error);
             return;
         }
         setError(null);
@@ -76,12 +89,38 @@ export default function OnboardingPage() {
     };
 
     const handleSubmit = async () => {
-        if (!formData.branchName) {
-            setError("Branch name is required.");
+        const orgNameResult = validateRequiredText(formData.orgName, "Organization name", 120);
+        if (!orgNameResult.ok) {
+            setError(orgNameResult.error);
             return;
         }
-        if (!formData.seatCount || parseInt(formData.seatCount) <= 0) {
-            setError("Please enter a valid number of seats.");
+        const businessTypeResult = validateOptionalText(formData.businessType, "Business type", 80);
+        if (!businessTypeResult.ok) {
+            setError(businessTypeResult.error);
+            return;
+        }
+        const branchNameResult = validateRequiredText(formData.branchName, "Branch name", 120);
+        if (!branchNameResult.ok) {
+            setError(branchNameResult.error);
+            return;
+        }
+        const cityResult = validateOptionalText(formData.city, "City / area", FORM_LIMITS.cityMax);
+        if (!cityResult.ok) {
+            setError(cityResult.error);
+            return;
+        }
+        const seatCountResult = parseIntegerField(formData.seatCount, "Total seats", {
+            required: true,
+            min: 1,
+            max: FORM_LIMITS.seatsMax,
+        });
+        if (!seatCountResult.ok) {
+            setError(seatCountResult.error);
+            return;
+        }
+        const shiftsResult = validateShiftDrafts(formData.shifts);
+        if (!shiftsResult.ok) {
+            setError(shiftsResult.error);
             return;
         }
 
@@ -90,15 +129,12 @@ export default function OnboardingPage() {
 
         try {
             const res = await apiClient.post("/onboarding", {
-                orgName: formData.orgName,
-                businessType: formData.businessType,
-                branchName: formData.branchName,
-                city: formData.city,
-                seatCount: parseInt(formData.seatCount),
-                shifts: formData.shifts.map(s => ({
-                    ...s,
-                    price: Number(s.price) // ensure number
-                }))
+                orgName: orgNameResult.value,
+                businessType: businessTypeResult.value,
+                branchName: branchNameResult.value,
+                city: cityResult.value,
+                seatCount: seatCountResult.value,
+                shifts: shiftsResult.value,
             }) as OnboardingResponse;
 
             // Success -> Redirect to the new branch dashboard
@@ -146,6 +182,7 @@ export default function OnboardingPage() {
                                         value={formData.orgName}
                                         onChange={handleInputChange}
                                         placeholder="e.g. Apex Study Halls"
+                                        maxLength={120}
                                         className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
                                         autoFocus
                                     />
@@ -195,6 +232,7 @@ export default function OnboardingPage() {
                                         value={formData.branchName}
                                         onChange={handleInputChange}
                                         placeholder="e.g. Main Branch, Downtown"
+                                        maxLength={120}
                                         className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
                                         autoFocus
                                     />
@@ -212,6 +250,7 @@ export default function OnboardingPage() {
                                         value={formData.city}
                                         onChange={handleInputChange}
                                         placeholder="e.g. New York"
+                                        maxLength={FORM_LIMITS.cityMax}
                                         className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
                                     />
                                 </div>
@@ -225,6 +264,10 @@ export default function OnboardingPage() {
                                         value={formData.seatCount}
                                         onChange={handleInputChange}
                                         placeholder="e.g. 50"
+                                        min="1"
+                                        max={FORM_LIMITS.seatsMax}
+                                        step="1"
+                                        inputMode="numeric"
                                         className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
                                     />
                                 </div>
@@ -279,6 +322,10 @@ export default function OnboardingPage() {
                                                         placeholder="Price"
                                                         value={shift.price}
                                                         onChange={(e) => handleShiftChange(idx, "price", e.target.value)}
+                                                        min={0}
+                                                        max={FORM_LIMITS.moneyMax}
+                                                        step={1}
+                                                        inputMode="numeric"
                                                         className="w-full bg-transparent border-b border-white/10 py-1 pl-3 text-sm text-white focus:outline-none focus:border-cyan-500"
                                                     />
                                                 </div>
