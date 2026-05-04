@@ -1,6 +1,6 @@
 // analytics/trends/seat.trends.ts
 
-import { getSeatUtilization } from "../seat.analytics"
+import { getSeatOccupancySnapshot } from "../seat.analytics"
 
 export async function getSeatUtilizationTrend(
   branchId: string,
@@ -12,14 +12,14 @@ export async function getSeatUtilizationTrend(
     utilizationRatio: number
   }[] = []
 
-  let cursor = new Date(from)
+  const cursor = new Date(from)
 
   while (cursor <= to) {
-    const snapshot = await getSeatUtilization(branchId, cursor)
+    const snapshot = await getSeatOccupancySnapshot(branchId, cursor)
 
     points.push({
       asOf: new Date(cursor),
-      utilizationRatio: snapshot.utilizationRatio,
+      utilizationRatio: snapshot.totalOccupancyPercent / 100,
     })
 
     cursor.setDate(cursor.getDate() + 1)

@@ -1,9 +1,11 @@
 import { getBranchHealthSnapshot } from "@/analytics/branch.analytics"
+import { AnalyticsPeriod, getPaymentPeriodStats } from "@/analytics/payment.analytics"
 import { getSessionUser } from "@/lib/auth"
+import { StaffService } from "@/services/staff.service"
 import { NextResponse } from "next/server"
 
 export async function GET(
-    _: Request,
+    request: Request,
     { params }: { params: Promise<{ branchId: string }> }
 ) {
     const user = await getSessionUser()
@@ -13,7 +15,16 @@ export async function GET(
 
     try {
         const { branchId } = await params;
-        const health = await getBranchHealthSnapshot(branchId)
+        await StaffService.authorize(user.id, branchId, "analytics")
+
+        const url = new URL(request.url);
+        const periodParam = url.searchParams.get("period");
+        const period: AnalyticsPeriod = periodParam === "month" ? "month" : "all";
+
+        const [health, finance] = await Promise.all([
+            getBranchHealthSnapshot(branchId),
+            getPaymentPeriodStats(branchId, undefined, period)
+        ])
 
         // Transform to match BranchSnapshot interface in lib/api/analytics.ts
         const totalSeats = health.seats.overall.totalSeats;
@@ -21,16 +32,13 @@ export async function GET(
         const totalStudents = health.students.status.active + health.students.status.inactive;
 
         // Calculate financial metrics
-        const paidAmount = health.payments.paidAmount;
-        const dueAmount = health.payments.dueAmount;
-        const monthlyRevenue = paidAmount + dueAmount; // Total Billable Revenue
-
-        // Avoid division by zero
-        const collectionRate = monthlyRevenue > 0
-            ? (paidAmount / monthlyRevenue) * 100
-            : 0;
+        const paidAmount = finance.paidAmount;
+        const dueAmount = finance.dueAmount;
+        const monthlyRevenue = finance.revenueAmount;
+        const collectionRate = finance.collectionRate;
 
         const snapshot = {
+            period,
             totalStudents,
             activeStudents: health.students.status.active,
             assignedSeats,
@@ -50,6 +58,12 @@ export async function GET(
 
         return NextResponse.json(snapshot)
     } catch (error) {
+        if (error instanceof Error && error.message.includes("Unauthorized")) {
+            return NextResponse.json({ error: error.message }, { status: 403 })
+        }
+        if (error instanceof Error && error.message.includes("Branch not found")) {
+            return NextResponse.json({ error: error.message }, { status: 404 })
+        }
         console.error("Error fetching branch snapshot:", error)
         return NextResponse.json(
             { error: "Internal Server Error" },
