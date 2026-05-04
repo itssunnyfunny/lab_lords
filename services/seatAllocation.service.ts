@@ -257,12 +257,6 @@ export class SeatAllocationService {
                 data: { endDate: new Date() },
             });
 
-            // Re-use assignSeatToShifts — but it opens its own transaction,
-            // so we call the inner logic directly here.
-            const newAllocations = await tx.seatAllocation.findMany({
-                where: { seatId: newSeatId, endDate: null },
-            });
-
             // Get branch from seat
             const seat = await tx.seat.findUnique({
                 where: { id: newSeatId },
@@ -286,18 +280,34 @@ export class SeatAllocationService {
             }
 
             // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            // ⚡ Bolt: Optimizing bulk allocation creation
+            // Impact: Changed O(n) individual DB creations via Promise.all to single batch operation (createMany).
+            const createData = newShiftIds.map((shiftId) => ({
+                seatId: newSeatId,
+                studentId,
+                shiftId,
+                ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+            }));
+
+            if (createData.length > 0) {
+                await tx.seatAllocation.createMany({
+                    data: createData,
+                });
+            }
+
+            // We must preserve the exact order of newShiftIds to match original Promise.all behavior
+            const createdRecords = await tx.seatAllocation.findMany({
+                where: {
+                    seatId: newSeatId,
+                    studentId,
+                    shiftId: { in: newShiftIds },
+                    endDate: null,
+                },
+            });
+
+            // Map records back to the requested order
+            const recordMap = new Map(createdRecords.map(r => [r.shiftId, r]));
+            const created = newShiftIds.map(id => recordMap.get(id)).filter((r): r is import("@prisma/client").SeatAllocation => r !== undefined);
 
             await tx.branch.update({
                 where: { id: branchId },
