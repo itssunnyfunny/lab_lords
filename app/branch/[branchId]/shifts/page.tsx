@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -1170,7 +1170,7 @@ export default function ShiftsPage() {
         setTimeout(() => setToast(null), 3500);
     };
 
-    const loadShifts = async () => {
+    const loadShifts = useCallback(async () => {
         if (!branchId) return;
         setLoading(true);
         try {
@@ -1194,9 +1194,9 @@ export default function ShiftsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [branchId]);
 
-    useEffect(() => { loadShifts(); }, [branchId]);
+    useEffect(() => { loadShifts(); }, [loadShifts]);
 
     const handleDialogSuccess = (saved: Shift) => {
         setShifts(prev => {

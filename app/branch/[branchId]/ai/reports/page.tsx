@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -34,7 +34,7 @@ export default function AIReportsPage() {
     const [data, setData] = useState<AIResponse | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/ai/branch/${branchId}`);
@@ -46,11 +46,11 @@ export default function AIReportsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [branchId]);
 
     useEffect(() => {
         fetchData();
-    }, [branchId]);
+    }, [fetchData]);
 
     if (loading) {
         return (

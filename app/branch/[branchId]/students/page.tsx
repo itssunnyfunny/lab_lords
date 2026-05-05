@@ -9,7 +9,7 @@ import {
     MoreVertical, Eye, Pencil, PowerOff, Power,
     AlertTriangle, CheckCircle2, MinusCircle, Clock, ArrowRightLeft,
 } from "lucide-react";
-import { useEffect, useState, use, useMemo, useRef } from "react";
+import { useCallback, useEffect, useState, use, useMemo, useRef } from "react";
 import { students } from "@/lib/api/students";
 import { payments } from "@/lib/api/payments";
 import { branches } from "@/lib/api/branches";
@@ -254,7 +254,7 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
     const [activateTarget, setActivateTarget] = useState<Student | null>(null);
     const [activateLoading, setActivateLoading] = useState(false);
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true);
         try {
             const [studentsList, paymentsList, shiftsList] = await Promise.all([
@@ -271,9 +271,9 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
         } finally {
             setLoading(false);
         }
-    };
+    }, [branchId, selectedShift]);
 
-    useEffect(() => { loadData(); }, [branchId, selectedShift]);
+    useEffect(() => { loadData(); }, [loadData]);
 
     // ── Financial map ─────────────────────────────────────────────────────────
     const studentFinancials = useMemo(() => {
@@ -417,6 +417,7 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                         accessor: (item) => (
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-surface border border-white/5 overflow-hidden flex-shrink-0">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=random`} alt={item.name} />
                                 </div>
                                 <div>

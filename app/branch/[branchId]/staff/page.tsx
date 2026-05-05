@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use, useRef } from "react";
+import { useCallback, useEffect, useState, use, useRef } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -305,7 +305,7 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
         setTimeout(() => setToast(null), 3500);
     };
 
-    const loadStaff = async () => {
+    const loadStaff = useCallback(async () => {
         try {
             const list = await staff.list(branchId);
             setData(list);
@@ -315,9 +315,9 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
         } finally {
             setLoading(false);
         }
-    };
+    }, [branchId]);
 
-    useEffect(() => { loadStaff(); }, [branchId]);
+    useEffect(() => { loadStaff(); }, [loadStaff]);
 
     const handleRemoveClick = (member: StaffMember) => {
         setRemoveTarget(member);

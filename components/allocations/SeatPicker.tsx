@@ -99,6 +99,7 @@ export function SeatPicker({
     // For multi-shifts, selectedShiftIds contains the expanded component IDs,
     // so primaryShiftId is the first component shift ID.
     const primaryShiftId = selectedShiftIds[0] ?? null;
+    const excludeAllocationIdsKey = excludeAllocationIds?.join(",") ?? "";
     const [seatMap, setSeatMap] = useState<SeatMapData | null>(null);
     const [seatMapLoading, setSeatMapLoading] = useState(false);
     const [seatMapError, setSeatMapError] = useState<string | null>(null);
@@ -113,7 +114,7 @@ export function SeatPicker({
         let url = `/api/branches/${branchId}/shifts/capacity`;
         const capacityParams = new URLSearchParams();
         if (studentId) capacityParams.set("studentId", studentId);
-        if (excludeAllocationIds?.length) capacityParams.set("excludeAllocationIds", excludeAllocationIds.join(","));
+        if (excludeAllocationIdsKey) capacityParams.set("excludeAllocationIds", excludeAllocationIdsKey);
         const capacityQuery = capacityParams.toString();
         if (capacityQuery) url += `?${capacityQuery}`;
 
@@ -125,7 +126,7 @@ export function SeatPicker({
             .then(setShifts)
             .catch(e => setShiftsError(e.message))
             .finally(() => setShiftsLoading(false));
-    }, [branchId, studentId, excludeAllocationIds?.join(",")]);
+    }, [branchId, studentId, excludeAllocationIdsKey]);
 
     // 2. Fetch seat grid when shift selection changes.
     //
@@ -148,7 +149,7 @@ export function SeatPicker({
 
         const seatMapParams = new URLSearchParams();
         if (selectedMultiShiftId) seatMapParams.set("multiShiftId", selectedMultiShiftId);
-        if (excludeAllocationIds?.length) seatMapParams.set("excludeAllocationIds", excludeAllocationIds.join(","));
+        if (excludeAllocationIdsKey) seatMapParams.set("excludeAllocationIds", excludeAllocationIdsKey);
         const seatMapQuery = seatMapParams.toString();
         const seatMapUrl = `/api/branches/${branchId}/shifts/${primaryShiftId}/seat-map${seatMapQuery ? `?${seatMapQuery}` : ""}`;
 
@@ -160,7 +161,7 @@ export function SeatPicker({
             .then(setSeatMap)
             .catch(e => setSeatMapError(e.message))
             .finally(() => setSeatMapLoading(false));
-    }, [branchId, primaryShiftId, selectedMultiShiftId, excludeAllocationIds?.join(",")]);
+    }, [branchId, primaryShiftId, selectedMultiShiftId, excludeAllocationIdsKey]);
 
     const selectedCount = selectedShiftIds.length;
 
