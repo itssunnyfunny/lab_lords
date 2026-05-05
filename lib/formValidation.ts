@@ -63,6 +63,9 @@ export function validateOptionalText(
 }
 
 export function validatePhone(value: unknown): ValidationResult<string | undefined> {
+    if (value !== undefined && value !== null && typeof value !== "string") {
+        return { ok: false, error: "Phone number must be text." };
+    }
     const phone = compactText(value);
     if (!phone) return { ok: true, value: undefined };
     if (!/^[+()\d\s-]+$/.test(phone)) {
@@ -92,6 +95,9 @@ export function parseIntegerField(
     options: { required?: boolean; min?: number; max?: number } = {}
 ): ValidationResult<number | undefined> {
     const { required = false, min = 0, max = FORM_LIMITS.moneyMax } = options;
+    if (value !== undefined && value !== null && typeof value !== "string" && typeof value !== "number") {
+        return { ok: false, error: `${label} must be a whole number.` };
+    }
     const raw = typeof value === "number" ? String(value) : compactText(value);
 
     if (!raw) {
@@ -129,6 +135,7 @@ export function validateSeatLabel(value: unknown): ValidationResult<string> {
 export function validateOptionalId(value: unknown, label: string): ValidationResult<string | null | undefined> {
     if (value === undefined) return { ok: true, value: undefined };
     if (value === null || value === "") return { ok: true, value: null };
+    if (typeof value !== "string") return { ok: false, error: `${label} is invalid.` };
     const id = compactText(value);
     if (!id) return { ok: true, value: null };
     if (!/^[A-Za-z0-9_-]+$/.test(id)) return { ok: false, error: `${label} is invalid.` };

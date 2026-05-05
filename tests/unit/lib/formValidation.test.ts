@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseIntegerField,
+  validateOptionalId,
   validatePhone,
   validateSeatLabel,
   validateShiftDrafts,
@@ -18,8 +19,17 @@ describe("formValidation", () => {
     if (result.ok) expect(result.value).toBeUndefined();
   });
 
+  it("rejects non-text optional IDs and non-numeric integer payloads", () => {
+    expect(validateOptionalId(123, "Linked shift").ok).toBe(false);
+    expect(validateOptionalId({ id: "shift_1" }, "Linked shift").ok).toBe(false);
+    expect(validateOptionalId("shift_1", "Linked shift").ok).toBe(true);
+    expect(parseIntegerField(false, "Monthly fee").ok).toBe(false);
+    expect(parseIntegerField({ amount: 1000 }, "Monthly fee").ok).toBe(false);
+  });
+
   it("validates phone shape and digit count", () => {
     expect(validatePhone("+91 98765 43210").ok).toBe(true);
+    expect(validatePhone(9876543210).ok).toBe(false);
     expect(validatePhone("abc1234567").ok).toBe(false);
     expect(validatePhone("123").ok).toBe(false);
   });
