@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { Building2, UserPlus, MonitorSmartphone, TrendingUp } from "lucide-react";
 
 export function LandingHowItWorks() {
