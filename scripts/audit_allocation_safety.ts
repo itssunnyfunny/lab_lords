@@ -24,7 +24,7 @@ async function main() {
     // Create Metadata
     const seat1 = await prisma.seat.create({ data: { branchId: branch.id, label: "S1" } });
     const shiftMorning = await prisma.shift.create({ data: { branchId: branch.id, name: "Morning", startTime: "08:00", endTime: "12:00" } });
-    const shiftEvening = await prisma.shift.create({ data: { branchId: branch.id, name: "Evening", startTime: "16:00", endTime: "20:00" } });
+    await prisma.shift.create({ data: { branchId: branch.id, name: "Evening", startTime: "16:00", endTime: "20:00" } });
     const shiftReserved = await prisma.shift.create({ data: { branchId: branch.id, name: "Full Day", isReserved: true } });
 
     const student1 = await prisma.student.create({ data: { branchId: branch.id, name: "Student 1", status: StudentStatus.ACTIVE } });

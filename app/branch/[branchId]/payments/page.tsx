@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
-import { useEffect, useState, use, useRef } from "react";
+import { useCallback, useEffect, useState, use, useRef } from "react";
 import { payments } from "@/lib/api/payments";
 import { Payment } from "@prisma/client";
 import { format, addMonths, subMonths } from "date-fns";
@@ -45,7 +45,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
 
     const [auditLog, setAuditLog] = useState<{ paymentId: string; studentName: string } | null>(null);
 
-    const loadPayments = async () => {
+    const loadPayments = useCallback(async () => {
         try {
             const monthStr = format(currentDate, "yyyy-MM");
             const res = await fetch(`/api/branches/${branchId}/payments?month=${monthStr}`, { cache: "no-store" });
@@ -57,9 +57,9 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
             console.error("Failed to load payments", error);
             setError("Failed to load payments.");
         }
-    };
+    }, [branchId, currentDate]);
 
-    const generateAndLoad = async () => {
+    const generateAndLoad = useCallback(async () => {
         setLoading(true);
         setNewlyGenerated(null);
         try {
@@ -83,10 +83,12 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
             await loadPayments();
             setLoading(false);
         }
-    };
+    }, [branchId, loadPayments]);
 
     useEffect(() => {
         generateAndLoad();
+        // Generation is intentionally tied to branch changes, not month navigation.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [branchId]);
 
     // Re-fetch (without re-generating) when month changes
@@ -94,6 +96,8 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
         if (!loading) {
             loadPayments();
         }
+        // The loading guard intentionally prevents the initial generation pass from double-fetching.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentDate]);
 
     const handleMonthChange = (direction: "prev" | "next") => {
@@ -117,7 +121,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
             );
             await loadPayments();
             setPaymentToMark(null);
-        } catch (err) {
+        } catch {
             alert("Failed to mark as paid");
         } finally {
             setMarking(false);
@@ -131,7 +135,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
             await payments.markAsWaived(paymentToWaive);
             await loadPayments();
             setPaymentToWaive(null);
-        } catch (err) {
+        } catch {
             alert("Failed to waive payment");
         } finally {
             setWaiving(false);

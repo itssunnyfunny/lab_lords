@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { AllocationsTable } from "@/components/allocations/AllocationsTable";
@@ -78,9 +78,9 @@ export default function AllocationsPage() {
         });
         // Clear query param
         router.replace(`/branch/${branchId}/allocations`);
-    }, [changeStudentId, allocations]);
+    }, [allocations, branchId, changeStudentId, changeStudentName, router]);
 
-    const fetchAllocations = async () => {
+    const fetchAllocations = useCallback(async () => {
         try {
             const res = await fetch(`/api/branches/${branchId}/seat-allocations`);
             if (!res.ok) throw new Error("Failed to load allocations");
@@ -91,12 +91,12 @@ export default function AllocationsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [branchId]);
 
     useEffect(() => {
         if (!branchId) return;
         fetchAllocations();
-    }, [branchId]);
+    }, [branchId, fetchAllocations]);
 
     const handleEndAllocation = async (ids: string | string[]) => {
         const idArray = Array.isArray(ids) ? ids : [ids];

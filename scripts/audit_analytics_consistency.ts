@@ -13,7 +13,7 @@ async function main() {
     // Create 3 active students
     const s1 = await prisma.student.create({ data: { branchId: branch.id, name: "S1", status: StudentStatus.ACTIVE, monthlyFee: 1000 } });
     const s2 = await prisma.student.create({ data: { branchId: branch.id, name: "S2", status: StudentStatus.ACTIVE, monthlyFee: 1000 } });
-    const s3 = await prisma.student.create({ data: { branchId: branch.id, name: "S3", status: StudentStatus.ACTIVE, monthlyFee: 1000 } });
+    await prisma.student.create({ data: { branchId: branch.id, name: "S3", status: StudentStatus.ACTIVE, monthlyFee: 1000 } });
 
     // Create overdue payments for 2 of them
     const pastOneMonth = new Date();

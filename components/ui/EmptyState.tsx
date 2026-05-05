@@ -2,8 +2,6 @@
 
 import { ReactNode } from "react";
 import Image from "next/image";
-import { Button } from "./Button";
-import { Card } from "./Card";
 
 interface EmptyStateProps {
     title: string;

@@ -5,11 +5,7 @@ import { SidebarItem } from "./SidebarItem";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-interface SidebarProps {
-    className?: string;
-}
-
-export function BranchSidebar({ className }: SidebarProps) {
+export function BranchSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const [branchName, setBranchName] = useState<string | null>(null);

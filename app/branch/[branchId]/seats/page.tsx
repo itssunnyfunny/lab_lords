@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 import { User, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
-import { useEffect, useState, use } from "react";
+import { useCallback, useEffect, useState, use } from "react";
 import { branches } from "@/lib/api/branches";
 import { Seat, Shift } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
@@ -48,7 +48,7 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
         loadShifts();
     }, [branchId]);
 
-    const loadSeats = async () => {
+    const loadSeats = useCallback(async () => {
         setLoading(true);
         try {
             // Fetch seats with optional shift filter
@@ -77,12 +77,12 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
         } finally {
             setLoading(false);
         }
-    };
+    }, [branchId, selectedShift]);
 
     // Load seats whenever branchId or selectedShift changes
     useEffect(() => {
         loadSeats();
-    }, [branchId, selectedShift]);
+    }, [loadSeats]);
 
     if (loading) {
         return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading seats...</div>;

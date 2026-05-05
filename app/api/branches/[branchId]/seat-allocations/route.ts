@@ -4,8 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 
 // POST: Assign a seat across one or more shifts
 export async function POST(
-    req: NextRequest,
-    { params }: { params: Promise<{ branchId: string }> }
+    req: NextRequest
 ) {
     try {
         const user = await getSessionUser();
