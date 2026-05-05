@@ -139,6 +139,13 @@ describe("OrganizationService Integration", () => {
           name: "",
         })
       ).rejects.toThrow(/required/i);
+
+      await expect(
+        OrganizationService.updateSettings(org.id, user.id, {
+          name: "Valid",
+          paymentGraceDays: false as unknown as number,
+        })
+      ).rejects.toThrow(/whole number/i);
     });
   });
 

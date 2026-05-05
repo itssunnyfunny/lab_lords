@@ -118,10 +118,31 @@ describe("StudentService Integration", () => {
 
       await expect(
         StudentService.createStudent(user.id, branch.id, {
+          name: "Bad Phone Type",
+          phone: 9876543210 as unknown as string,
+        })
+      ).rejects.toThrow(/phone/i);
+
+      await expect(
+        StudentService.createStudent(user.id, branch.id, {
           name: "Bad Fee",
           monthlyFee: -1,
         })
       ).rejects.toThrow(/whole number|at least/i);
+
+      await expect(
+        StudentService.createStudent(user.id, branch.id, {
+          name: "Bad Fee Type",
+          monthlyFee: false as unknown as number,
+        })
+      ).rejects.toThrow(/whole number/i);
+
+      await expect(
+        StudentService.createStudent(user.id, branch.id, {
+          name: "Bad Link Type",
+          feeLinkedShiftId: 123 as unknown as string,
+        })
+      ).rejects.toThrow(/linked shift/i);
 
       await expect(
         StudentService.createStudent(user.id, branch.id, {

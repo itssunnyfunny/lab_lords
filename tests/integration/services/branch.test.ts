@@ -223,6 +223,13 @@ describe("BranchService Integration", () => {
       await expect(
         BranchService.updateSettings(user.id, branch.id, {
           name: "Valid",
+          defaultFee: false as unknown as number,
+        })
+      ).rejects.toThrow(/whole number/i);
+
+      await expect(
+        BranchService.updateSettings(user.id, branch.id, {
+          name: "Valid",
           openingTime: "25:00",
         })
       ).rejects.toThrow(/HH:mm/i);

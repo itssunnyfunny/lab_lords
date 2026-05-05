@@ -201,7 +201,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                 </div>
 
                 <div className="p-6 overflow-y-auto custom-scrollbar">
-                    <form id="add-student-form" onSubmit={handleSubmit} className="space-y-6">
+                    <form id="add-student-form" onSubmit={handleSubmit} noValidate className="space-y-6">
                         {error && (
                             <div className="p-3 text-sm text-red-200 bg-red-900/30 border border-red-900/50 rounded-md">
                                 {error}
@@ -251,7 +251,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     id="monthlyFee"
                                     type="number"
                                     disabled={!!createdStudentId || isLoading || linkFeeToSelection}
-                                    value={formData.monthlyFee || ""}
+                                    value={formData.monthlyFee ?? ""}
                                     onChange={(e) => {
                                         setFormData({
                                             ...formData,
@@ -276,7 +276,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     id="admissionFee"
                                     type="number"
                                     disabled={!!createdStudentId || isLoading}
-                                    value={formData.admissionFee || ""}
+                                    value={formData.admissionFee ?? ""}
                                     onChange={(e) => {
                                         setFormData({
                                             ...formData,

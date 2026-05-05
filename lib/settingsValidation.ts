@@ -56,7 +56,16 @@ export function optionalNumber(
     options: { min?: number; max?: number } = {}
 ): number | undefined {
     if (value === undefined) return undefined;
-    const number = typeof value === "number" ? value : Number(value);
+    if (value === null) return undefined;
+    if (typeof value !== "number" && typeof value !== "string") {
+        throw new Error(`${label} must be a whole number`);
+    }
+
+    const raw = typeof value === "number" ? String(value) : value.trim();
+    if (!raw) return undefined;
+    if (!/^-?\d+$/.test(raw)) throw new Error(`${label} must be a whole number`);
+
+    const number = Number(raw);
     if (!Number.isInteger(number)) throw new Error(`${label} must be a whole number`);
     if (options.min !== undefined && number < options.min) throw new Error(`${label} must be at least ${options.min}`);
     if (options.max !== undefined && number > options.max) throw new Error(`${label} must be ${options.max} or less`);
