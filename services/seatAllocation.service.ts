@@ -259,7 +259,7 @@ export class SeatAllocationService {
 
             // Re-use assignSeatToShifts — but it opens its own transaction,
             // so we call the inner logic directly here.
-            const newAllocations = await tx.seatAllocation.findMany({
+            await tx.seatAllocation.findMany({
                 where: { seatId: newSeatId, endDate: null },
             });
 

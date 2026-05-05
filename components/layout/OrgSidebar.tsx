@@ -4,11 +4,7 @@ import { LayoutDashboard, BarChart3, Settings } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { useRouter, usePathname } from "next/navigation";
 
-interface SidebarProps {
-    className?: string;
-}
-
-export function OrgSidebar({ className }: SidebarProps) {
+export function OrgSidebar() {
     const pathname = usePathname();
     const router = useRouter();
 

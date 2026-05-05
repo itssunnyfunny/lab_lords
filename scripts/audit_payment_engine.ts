@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma";
 import { PaymentService } from "../services/payment.service";
 import { StudentService } from "../services/student.service";
 import { PaymentStatus, StudentStatus } from "@prisma/client";
-import { addMonths, format, startOfDay } from "date-fns";
+import { format } from "date-fns";
 
 async function main() {
     console.log("🔍 STARTING PAYMENT ENGINE AUDIT...");
@@ -118,7 +118,7 @@ async function main() {
 
     // Run gen for May 10 (Should NOT generate May payment)
     console.log("   Running Gen for May 10...");
-    const genResult = await PaymentService.generateDuePaymentsForBranch(user.id, branch.id, new Date("2024-05-10"));
+    await PaymentService.generateDuePaymentsForBranch(user.id, branch.id, new Date("2024-05-10"));
 
     const finalPayments = await prisma.payment.findMany({ where: { studentId: student.id }, orderBy: { dueDate: 'asc' } });
 
