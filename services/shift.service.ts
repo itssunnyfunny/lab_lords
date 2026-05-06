@@ -326,11 +326,16 @@ export class ShiftService {
                 const targetStart = parseNullableTime(targetShiftData?.startTime);
                 const targetEnd = parseNullableTime(targetShiftData?.endTime);
 
+                // ⚡ Bolt: Optimizing bulk shift reallocation N+1 query.
+                // Impact: Extracts `await tx.seatAllocation.findMany` from the loop, reducing O(n) DB queries to 1.
+                const studentIds = sourceAllocations.map(a => a.studentId);
+                const allActiveStudentAllocs = await tx.seatAllocation.findMany({
+                    where: { studentId: { in: studentIds }, endDate: null, shiftId: { not: shiftId } },
+                });
+
                 for (const oldAlloc of sourceAllocations) {
                     // Check: student not already in target or any time-overlapping shift
-                    const studentActiveAllocs = await tx.seatAllocation.findMany({
-                        where: { studentId: oldAlloc.studentId, endDate: null, shiftId: { not: shiftId } },
-                    });
+                    const studentActiveAllocs = allActiveStudentAllocs.filter(sa => sa.studentId === oldAlloc.studentId);
                     for (const sa of studentActiveAllocs) {
                         if (sa.shiftId === targetShiftId) {
                             throw new Error(
