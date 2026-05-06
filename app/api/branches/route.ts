@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { BranchService } from "@/services/branch.service";
+import { OrganizationService } from "@/services/organization.service";
 import { getSessionUser } from "@/lib/auth";
 import {
     FORM_LIMITS,
@@ -30,6 +31,10 @@ export async function POST(req: Request) {
 
         if (!organizationId || typeof organizationId !== "string") {
             return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
+        }
+        const isOwner = await OrganizationService.isOwner(organizationId, user.id);
+        if (!isOwner) {
+            return NextResponse.json({ error: "Forbidden: You do not own this organization" }, { status: 403 });
         }
         const nameResult = validateRequiredText(name, "Branch name", 120);
         if (!nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });

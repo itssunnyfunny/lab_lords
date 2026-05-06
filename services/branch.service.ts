@@ -73,6 +73,13 @@ export class BranchService {
         const shiftsResult = shifts ? validateShiftDrafts(shifts, { allowEmpty: false }) : null;
         if (shiftsResult && !shiftsResult.ok) throw new Error(shiftsResult.error);
 
+        const org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { ownerId: true },
+        });
+        if (!org) throw new Error("Organization not found");
+        if (org.ownerId !== userId) throw new Error("Unauthorized");
+
         return await prisma.$transaction(async (tx) => {
             // 1. Create the branch
             const branch = await tx.branch.create({

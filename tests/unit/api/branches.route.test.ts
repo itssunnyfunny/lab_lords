@@ -1,0 +1,93 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  getSessionUser: vi.fn(),
+  isOwner: vi.fn(),
+  createBranchForOrg: vi.fn(),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  getSessionUser: mocks.getSessionUser,
+}));
+
+vi.mock("@/services/organization.service", () => ({
+  OrganizationService: {
+    isOwner: mocks.isOwner,
+  },
+}));
+
+vi.mock("@/services/branch.service", () => ({
+  BranchService: {
+    createBranchForOrg: mocks.createBranchForOrg,
+  },
+}));
+
+describe("POST /api/branches", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function request(body: Record<string, unknown>) {
+    return new Request("http://test.local/api/branches", {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  it("returns 401 when no user is signed in", async () => {
+    mocks.getSessionUser.mockResolvedValue(null);
+    const { POST } = await import("@/app/api/branches/route");
+
+    const response = await POST(request({ organizationId: "org_1" }));
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: "Unauthorized" });
+    expect(mocks.isOwner).not.toHaveBeenCalled();
+    expect(mocks.createBranchForOrg).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the signed-in user does not own the organization", async () => {
+    mocks.getSessionUser.mockResolvedValue({ id: "user_1", email: "user@test.com" });
+    mocks.isOwner.mockResolvedValue(false);
+    const { POST } = await import("@/app/api/branches/route");
+
+    const response = await POST(request({
+      organizationId: "org_1",
+      name: "Second Branch",
+      seatCount: 10,
+    }));
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "Forbidden: You do not own this organization" });
+    expect(mocks.isOwner).toHaveBeenCalledWith("org_1", "user_1");
+    expect(mocks.createBranchForOrg).not.toHaveBeenCalled();
+  });
+
+  it("creates the branch when the signed-in user owns the organization", async () => {
+    mocks.getSessionUser.mockResolvedValue({ id: "owner_1", email: "owner@test.com" });
+    mocks.isOwner.mockResolvedValue(true);
+    mocks.createBranchForOrg.mockResolvedValue({ id: "branch_1", name: "Second Branch" });
+    const { POST } = await import("@/app/api/branches/route");
+
+    const response = await POST(request({
+      organizationId: "org_1",
+      name: "Second Branch",
+      city: "Delhi",
+      defaultFee: 1500,
+      seatCount: 10,
+    }));
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ id: "branch_1", name: "Second Branch" });
+    expect(mocks.createBranchForOrg).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      userId: "owner_1",
+      name: "Second Branch",
+      city: "Delhi",
+      defaultFee: 1500,
+      seatCount: 10,
+      shifts: undefined,
+    });
+  });
+});
