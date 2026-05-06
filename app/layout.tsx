@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { isAuthBypassEnabled } from "@/lib/authMode";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -25,12 +27,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const content = isAuthBypassEnabled()
+    ? children
+    : <ClerkProvider>{children}</ClerkProvider>;
+
   return (
     <html lang="en" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        {content}
       </body>
     </html>
   );
