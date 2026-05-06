@@ -4,10 +4,18 @@ import { Building2 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { GlowText } from "@/components/ui/GlowText";
+import { getSafeRedirectPath } from "@/lib/safeRedirect";
 
-export default function SignUpPage() {
+export default async function SignUpPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ redirect_url?: string }>;
+}) {
+  const params = await searchParams;
+  const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/onboarding");
+
   if (isAuthBypassEnabled()) {
-    redirect("/onboarding");
+    redirect(fallbackRedirectUrl);
   }
 
   return (
@@ -27,8 +35,8 @@ export default function SignUpPage() {
         </div>
 
         <SignUp
-          fallbackRedirectUrl="/onboarding"
-          signInUrl="/sign-in"
+          fallbackRedirectUrl={fallbackRedirectUrl}
+          signInUrl={`/sign-in?redirect_url=${encodeURIComponent(fallbackRedirectUrl)}`}
           appearance={{
             elements: {
               rootBox: "w-full",
