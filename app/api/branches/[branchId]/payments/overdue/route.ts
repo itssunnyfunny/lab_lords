@@ -15,7 +15,7 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        await PaymentService.assertBranchOwnership(user.id, branchId)
+        await PaymentService.assertBranchAccess(user.id, branchId, "view_payments")
         const result = await getOverduePayments(branchId)
 
         return NextResponse.json(result)

@@ -76,7 +76,7 @@ async function main() {
     const alloc = await prisma.seatAllocation.findFirst({ where: { seatId: seat1.id, studentId: student1.id, shiftId: shiftMorning.id } });
     if (!alloc) throw new Error("Alloc not found");
 
-    await SeatAllocationService.unassignSeat(alloc.id);
+    await SeatAllocationService.unassignSeat(user.id, alloc.id);
     console.log("   Unassigned S1.");
 
     // Check it still exists in DB

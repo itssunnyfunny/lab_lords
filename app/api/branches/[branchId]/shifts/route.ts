@@ -29,9 +29,13 @@ export async function GET(
         const shifts = await ShiftService.listShifts(userId, branchId);
         return NextResponse.json(shifts);
     } catch (error: unknown) {
+        const message = getErrorMessage(error, "Failed to fetch shifts");
+        const status = message.includes("Unauthorized") ? 403
+            : message.includes("not found") ? 404
+                : 500;
         return NextResponse.json(
-            { error: getErrorMessage(error, "Failed to fetch shifts") },
-            { status: 500 }
+            { error: message },
+            { status }
         );
     }
 }
@@ -70,9 +74,13 @@ export async function POST(
         });
         return NextResponse.json(shift);
     } catch (error: unknown) {
+        const message = getErrorMessage(error, "Failed to create shift");
+        const status = message.includes("Unauthorized") ? 403
+            : message.includes("not found") ? 404
+                : 400;
         return NextResponse.json(
-            { error: getErrorMessage(error, "Failed to create shift") },
-            { status: 400 }
+            { error: message },
+            { status }
         );
     }
 }

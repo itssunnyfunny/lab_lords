@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
-import { createTestWorld, createStudent, createShift, createSeat, createAllocation } from "@/tests/factories";
+import { createTestWorld, createStudent, createShift, createSeat, createAllocation, createStaff, createUser } from "@/tests/factories";
 
 /**
  * INTEGRATION TESTS: SeatAllocationService.assignSeatToShifts()
@@ -33,6 +33,20 @@ describe("SeatAllocationService Integration", () => {
       expect(result[0].studentId).toBe(student.id);
       expect(result[0].seatId).toBe(seat.id);
       expect(result[0].endDate).toBeNull();
+    });
+
+    it("allows STAFF role users to assign seats in their branch", async () => {
+      const { branch, seat, shift } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+      const student = await createStudent({ branchId: branch.id });
+
+      const result = await SeatAllocationService.assignSeatToShifts(
+        staffUser.id, seat.id, student.id, [shift.id]
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].studentId).toBe(student.id);
     });
 
     it("creates TWO allocations for morning + evening (non-overlapping)", async () => {
@@ -146,26 +160,37 @@ describe("SeatAllocationService Integration", () => {
 
   describe("unassignSeat", () => {
     it("happy path — sets endDate to a non-null Date value", async () => {
-      const { branch, seat, shift } = await createTestWorld();
+      const { user, branch, seat, shift } = await createTestWorld();
       const student = await createStudent({ branchId: branch.id });
       const alloc = await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: shift.id });
 
-      const updated = await SeatAllocationService.unassignSeat(alloc.id);
+      const updated = await SeatAllocationService.unassignSeat(user.id, alloc.id);
 
       expect(updated.endDate).not.toBeNull();
       expect(updated.endDate).toBeInstanceOf(Date);
     });
 
     it("double-release throws — second call rejects", async () => {
-      const { branch, seat, shift } = await createTestWorld();
+      const { user, branch, seat, shift } = await createTestWorld();
       const student = await createStudent({ branchId: branch.id });
       const alloc = await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: shift.id });
 
-      await SeatAllocationService.unassignSeat(alloc.id);
+      await SeatAllocationService.unassignSeat(user.id, alloc.id);
 
       await expect(
-        SeatAllocationService.unassignSeat(alloc.id)
+        SeatAllocationService.unassignSeat(user.id, alloc.id)
       ).rejects.toThrow(/already ended/i);
+    });
+
+    it("rejects users without branch access", async () => {
+      const { branch, seat, shift } = await createTestWorld();
+      const stranger = await createUser();
+      const student = await createStudent({ branchId: branch.id });
+      const alloc = await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: shift.id });
+
+      await expect(
+        SeatAllocationService.unassignSeat(stranger.id, alloc.id)
+      ).rejects.toThrow(/Unauthorized|Not a staff member/i);
     });
   });
 
@@ -173,7 +198,7 @@ describe("SeatAllocationService Integration", () => {
 
   describe("listAllocations", () => {
     it("{ activeOnly: true } returns only allocations with endDate === null", async () => {
-      const { branch, seat, shift } = await createTestWorld();
+      const { user, branch, seat, shift } = await createTestWorld();
       const student1 = await createStudent({ branchId: branch.id, name: "Active" });
       const student2 = await createStudent({ branchId: branch.id, name: "Ended" });
 
@@ -189,13 +214,13 @@ describe("SeatAllocationService Integration", () => {
         endDate: new Date("2026-01-01"),
       });
 
-      const results = await SeatAllocationService.listAllocations(branch.id, { activeOnly: true });
+      const results = await SeatAllocationService.listAllocations(user.id, branch.id, { activeOnly: true });
       expect(results).toHaveLength(1);
       expect(results[0].student.name).toBe("Active");
     });
 
     it("no filters returns all allocations — active and historical", async () => {
-      const { branch, seat, shift } = await createTestWorld();
+      const { user, branch, seat, shift } = await createTestWorld();
       const student1 = await createStudent({ branchId: branch.id, name: "Active" });
       const student2 = await createStudent({ branchId: branch.id, name: "Ended" });
 
@@ -209,7 +234,7 @@ describe("SeatAllocationService Integration", () => {
         endDate: new Date("2026-01-01"),
       });
 
-      const results = await SeatAllocationService.listAllocations(branch.id);
+      const results = await SeatAllocationService.listAllocations(user.id, branch.id);
       expect(results).toHaveLength(2);
     });
   });

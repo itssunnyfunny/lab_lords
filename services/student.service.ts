@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { StudentStatus, PaymentType, PaymentStatus } from "@/types";
 import { CreateStudentDto, DueResolution, UpdateStudentProfileDto } from "@/types";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
+import { StaffService } from "@/services/staff.service";
 import { startOfDay } from "date-fns";
 import { Prisma } from "@prisma/client";
 import {
@@ -14,49 +15,34 @@ import {
 
 export class StudentService {
     /**
-     * Helper to verify that the user owns the branch via its organization.
+     * Helper to verify that the user can work with students in the branch.
      */
-    private static async verifyBranchOwnership(userId: string, branchId: string) {
-        const branch = await prisma.branch.findUnique({
-            where: { id: branchId },
-            include: {
-                organization: true,
-            },
-        });
+    private static async verifyBranchAccess(userId: string, branchId: string) {
+        await StaffService.authorize(userId, branchId, "students");
+
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
 
         if (!branch) {
             throw new Error("Branch not found");
-        }
-
-        if (branch.organization.ownerId !== userId) {
-            throw new Error("Unauthorized: User does not own this branch");
         }
 
         return branch;
     }
 
     /**
-     * Helper to verify that the user owns the student via branch -> organization.
+     * Helper to verify that the user can work with a student in its branch.
      */
-    private static async verifyStudentOwnership(userId: string, studentId: string) {
+    private static async verifyStudentAccess(userId: string, studentId: string) {
         const student = await prisma.student.findUnique({
             where: { id: studentId },
-            include: {
-                branch: {
-                    include: {
-                        organization: true,
-                    },
-                },
-            },
+            include: { branch: true },
         });
 
         if (!student) {
             throw new Error("Student not found");
         }
 
-        if (student.branch.organization.ownerId !== userId) {
-            throw new Error("Unauthorized: User does not own this student");
-        }
+        await StaffService.authorize(userId, student.branchId, "students");
 
         return student;
     }
@@ -122,7 +108,7 @@ export class StudentService {
         branchId: string,
         data: CreateStudentDto
     ) {
-        const branch = await this.verifyBranchOwnership(userId, branchId);
+        const branch = await this.verifyBranchAccess(userId, branchId);
         const nameResult = validateRequiredText(data.name, "Student name");
         if (!nameResult.ok) throw new Error(nameResult.error);
         const phoneResult = validatePhone(data.phone);
@@ -220,7 +206,7 @@ export class StudentService {
         studentId: string,
         data: UpdateStudentProfileDto
     ) {
-        const verifiedStudent = await this.verifyStudentOwnership(userId, studentId);
+        const verifiedStudent = await this.verifyStudentAccess(userId, studentId);
         const nameResult = data.name !== undefined ? validateRequiredText(data.name, "Student name") : null;
         if (nameResult && !nameResult.ok) throw new Error(nameResult.error);
         const phoneResult = data.phone !== undefined ? validatePhone(data.phone) : null;
@@ -293,7 +279,7 @@ export class StudentService {
         branchId: string,
         filters?: { status?: StudentStatus; shiftId?: string }
     ) {
-        await this.verifyBranchOwnership(userId, branchId);
+        await this.verifyBranchAccess(userId, branchId);
 
         return prisma.student.findMany({
             where: {
@@ -334,7 +320,7 @@ export class StudentService {
         status: StudentStatus,
         dueResolution: DueResolution = "KEEP"
     ) {
-        const verifiedStudent = await this.verifyStudentOwnership(userId, studentId);
+        const verifiedStudent = await this.verifyStudentAccess(userId, studentId);
         const now = new Date();
 
         return prisma.$transaction(async (tx) => {

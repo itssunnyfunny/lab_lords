@@ -8,6 +8,7 @@ import {
   createSeat,
   createStudent,
   createAllocation,
+  createStaff,
 } from "@/tests/factories";
 
 /**
@@ -52,6 +53,16 @@ describe("SeatService Integration", () => {
       ).rejects.toThrow(/Unauthorized/i);
     });
 
+    it("REJECTS STAFF role users from creating physical seats", async () => {
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+
+      await expect(
+        SeatService.createSeat(staffUser.id, branch.id, "S9")
+      ).rejects.toThrow(/Unauthorized/i);
+    });
+
     it("REJECTS invalid seat labels", async () => {
       const { user, branch } = await createTestWorld();
 
@@ -78,6 +89,17 @@ describe("SeatService Integration", () => {
       const found = seats.find(s => s.id === seat.id);
       expect(found).toBeDefined();
       expect(found!.seatAllocations).toHaveLength(1);
+    });
+
+    it("allows STAFF role users to view seat maps", async () => {
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+      const seat = await createSeat({ branchId: branch.id, label: "S1" });
+
+      const seats = await SeatService.listSeats(staffUser.id, branch.id);
+
+      expect(seats.some(s => s.id === seat.id)).toBe(true);
     });
 
     it("excludes ended allocations (endDate ≠ null)", async () => {
