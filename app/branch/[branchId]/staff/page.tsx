@@ -8,9 +8,9 @@ import { Card } from "@/components/ui/Card";
 import {
     Loader2, AlertCircle, MoreVertical,
     Pencil, Trash2, X, CheckCircle2, Shield, UserCog,
-    UserPlus, Mail,
+    UserPlus, Mail, Link2, Copy,
 } from "lucide-react";
-import { staff, StaffWithUser } from "@/lib/api/staff";
+import { staff, StaffInviteResponse, StaffWithUser } from "@/lib/api/staff";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -338,6 +338,84 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+function InviteLinkPanel({
+    inviteRole,
+    invite,
+    loading,
+    error,
+    copied,
+    onRoleChange,
+    onCreateInvite,
+    onCopyInvite,
+}: {
+    inviteRole: StaffRoleOption;
+    invite: StaffInviteResponse | null;
+    loading: boolean;
+    error: string | null;
+    copied: boolean;
+    onRoleChange: (role: StaffRoleOption) => void;
+    onCreateInvite: () => void;
+    onCopyInvite: () => void;
+}) {
+    return (
+        <Card noHover className="p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <Link2 size={16} className="text-cyan-300" />
+                        Invite by link
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                        Create a one-use link for a new staff member. Links expire in 7 days.
+                    </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+                        {(["MANAGER", "STAFF"] as const).map(role => (
+                            <button
+                                key={role}
+                                type="button"
+                                onClick={() => onRoleChange(role)}
+                                className={cn(
+                                    "h-8 rounded-lg px-3 text-xs font-semibold transition-colors",
+                                    inviteRole === role
+                                        ? "bg-cyan-500/15 text-cyan-200"
+                                        : "text-gray-500 hover:text-white"
+                                )}
+                            >
+                                {ROLE_DETAILS[role].label}
+                            </button>
+                        ))}
+                    </div>
+                    <Button onClick={onCreateInvite} isLoading={loading} disabled={loading} className="h-10 whitespace-nowrap">
+                        Create invite
+                    </Button>
+                </div>
+            </div>
+
+            {invite && (
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <input
+                        readOnly
+                        value={invite.inviteUrl}
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 font-mono text-xs text-gray-300 outline-none"
+                    />
+                    <Button variant="outline" onClick={onCopyInvite} className="h-10 whitespace-nowrap">
+                        {copied ? <><CheckCircle2 size={14} /> Copied</> : <><Copy size={14} /> Copy link</>}
+                    </Button>
+                </div>
+            )}
+
+            {error && (
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                    <AlertCircle size={13} /> {error}
+                </div>
+            )}
+        </Card>
+    );
+}
+
 export default function StaffPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
 
@@ -348,6 +426,11 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
 
     const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
     const [addOpen, setAddOpen] = useState(false);
+    const [inviteRole, setInviteRole] = useState<StaffRoleOption>("STAFF");
+    const [invite, setInvite] = useState<StaffInviteResponse | null>(null);
+    const [inviteLoading, setInviteLoading] = useState(false);
+    const [inviteError, setInviteError] = useState<string | null>(null);
+    const [inviteCopied, setInviteCopied] = useState(false);
 
     const [removeTarget, setRemoveTarget] = useState<StaffMember | null>(null);
     const [removeLoading, setRemoveLoading] = useState(false);
@@ -370,6 +453,32 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
     }, [branchId]);
 
     useEffect(() => { loadStaff(); }, [loadStaff]);
+
+    const handleCreateInvite = async () => {
+        setInviteLoading(true);
+        setInviteError(null);
+        setInviteCopied(false);
+        try {
+            const created = await staff.createInvite(branchId, { role: inviteRole });
+            setInvite(created);
+            showToast("Invite link created.");
+        } catch (err: unknown) {
+            setInviteError(getErrorMessage(err, "Failed to create invite."));
+        } finally {
+            setInviteLoading(false);
+        }
+    };
+
+    const handleCopyInvite = async () => {
+        if (!invite) return;
+        try {
+            await navigator.clipboard.writeText(invite.inviteUrl);
+            setInviteCopied(true);
+            setTimeout(() => setInviteCopied(false), 2500);
+        } catch {
+            setInviteError("Could not copy the invite link. Select the link and copy it manually.");
+        }
+    };
 
     const handleRemoveClick = (member: StaffMember) => {
         setRemoveTarget(member);
@@ -423,6 +532,22 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                 subtitle="Manage team members and their access roles."
                 onAdd={() => setAddOpen(true)}
                 actionLabel="Add Staff"
+            />
+
+            <InviteLinkPanel
+                inviteRole={inviteRole}
+                invite={invite}
+                loading={inviteLoading}
+                error={inviteError}
+                copied={inviteCopied}
+                onRoleChange={(role) => {
+                    setInviteRole(role);
+                    setInvite(null);
+                    setInviteError(null);
+                    setInviteCopied(false);
+                }}
+                onCreateInvite={handleCreateInvite}
+                onCopyInvite={handleCopyInvite}
             />
 
             {data.length === 0 ? (
