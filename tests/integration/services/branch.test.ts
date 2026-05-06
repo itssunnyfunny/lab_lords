@@ -79,6 +79,24 @@ describe("BranchService Integration", () => {
       expect(staffRecord!.role).toBe("MANAGER");
     });
 
+    it("rejects branch creation for an organization the user does not own", async () => {
+      const owner = await createUser();
+      const otherUser = await createUser();
+      const org = await createOrg({ ownerId: owner.id });
+
+      await expect(
+        BranchService.createBranchForOrg({
+          organizationId: org.id,
+          userId: otherUser.id,
+          name: "Unauthorized Branch",
+        })
+      ).rejects.toThrow(/Unauthorized/i);
+
+      await expect(
+        testPrisma.branch.count({ where: { organizationId: org.id } })
+      ).resolves.toBe(0);
+    });
+
     it("rejects invalid branch creation fields", async () => {
       const user = await createUser();
       const org = await createOrg({ ownerId: user.id });
