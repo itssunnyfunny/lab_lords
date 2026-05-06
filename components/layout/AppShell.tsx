@@ -1,5 +1,7 @@
 "use client";
 
+import { UserButton, useUser } from "@clerk/nextjs";
+import { isAuthBypassEnabled } from "@/lib/authMode";
 import { ReactNode } from "react";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { Search, Bell } from "lucide-react";
@@ -17,14 +19,51 @@ interface AppShellProps {
     user?: User;
 }
 
-const DEFAULT_USER = {
-    name: "Admin User",
-    role: "Super Admin",
-    avatar: "AU"
-};
+function ClerkAccountSummary({ user }: { user?: User }) {
+    const { user: clerkUser } = useUser();
+    const displayName = user?.name ?? clerkUser?.fullName ?? clerkUser?.primaryEmailAddress?.emailAddress ?? "Account";
+    const displayRole = user?.role ?? "Workspace User";
 
-export function AppShell({ children, sidebar, user = DEFAULT_USER }: AppShellProps) {
+    return (
+        <div className="text-right hidden sm:block">
+            <p className="text-xs font-bold text-white tracking-wide">{displayName}</p>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">{displayRole}</p>
+        </div>
+    );
+}
+
+function DevAccountSummary() {
+    return (
+        <div className="text-right hidden sm:block">
+            <p className="text-xs font-bold text-white tracking-wide">Local Dev</p>
+            <p className="text-[10px] text-amber-300 uppercase tracking-wider">Auth Bypass</p>
+        </div>
+    );
+}
+
+function AccountSummary({ user }: { user?: User }) {
+    if (isAuthBypassEnabled()) {
+        return <DevAccountSummary />;
+    }
+
+    return <ClerkAccountSummary user={user} />;
+}
+
+function AccountControl() {
+    if (isAuthBypassEnabled()) {
+        return (
+            <div className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                Local
+            </div>
+        );
+    }
+
+    return <UserButton />;
+}
+
+export function AppShell({ children, sidebar, user }: AppShellProps) {
     const router = useRouter();
+
     return (
         <div className="flex h-screen text-white font-sans overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-50">
             <AmbientBackground />
@@ -59,16 +98,9 @@ export function AppShell({ children, sidebar, user = DEFAULT_USER }: AppShellPro
                             onClick={() => router.push('/account')}
                             className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer"
                         >
-                            <div className="text-right hidden sm:block">
-                                <p className="text-xs font-bold text-white tracking-wide">{user.name}</p>
-                                <p className="text-[10px] text-gray-400 uppercase tracking-wider">{user.role}</p>
-                            </div>
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-violet-600 p-[1px] shadow-[0_0_10px_rgba(139,92,246,0.3)]">
-                                <div className="w-full h-full rounded-full bg-[#0a0a0e] flex items-center justify-center text-xs font-bold text-white">
-                                    {user.avatar}
-                                </div>
-                            </div>
+                            <AccountSummary user={user} />
                         </button>
+                        <AccountControl />
                     </div>
                 </header>
 

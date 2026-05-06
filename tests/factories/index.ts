@@ -24,10 +24,11 @@ const uid = () => `test_${++counter}_${Date.now()}`;
 
 // ─── User ─────────────────────────────────────────────────────────────────────
 
-export async function createUser(overrides: { id?: string; email?: string; name?: string } = {}) {
+export async function createUser(overrides: { id?: string; clerkId?: string | null; email?: string; name?: string } = {}) {
   return testPrisma.user.create({
     data: {
       id: overrides.id ?? uid(),
+      clerkId: overrides.clerkId,
       email: overrides.email ?? `user_${uid()}@test.com`,
       name: overrides.name ?? "Test User",
     },

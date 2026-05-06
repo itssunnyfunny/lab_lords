@@ -20,6 +20,10 @@ export default function OrgSelectionPage() {
         const fetchOrgs = async () => {
             try {
                 const data = await organizations.getAll();
+                if (data.length === 0) {
+                    router.replace("/onboarding");
+                    return;
+                }
                 setOrgs(data);
             } catch (err) {
                 console.error("Failed to fetch organizations", err);
@@ -30,7 +34,7 @@ export default function OrgSelectionPage() {
         };
 
         fetchOrgs();
-    }, []);
+    }, [router]);
 
     const handleSelect = (orgId: string) => {
         router.push(`/org/${orgId}`);

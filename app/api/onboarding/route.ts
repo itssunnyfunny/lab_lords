@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
 import { OnboardingService } from "@/services/onboarding.service";
 import {
     FORM_LIMITS,
@@ -14,9 +15,8 @@ function getErrorMessage(error: unknown) {
 
 export async function POST(req: Request) {
     try {
-        // TEMP AUTH: Get user from header
-        const userId = req.headers.get("x-user-id");
-        if (!userId) {
+        const user = await getSessionUser();
+        if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
         if (!shiftsResult.ok) return NextResponse.json({ error: shiftsResult.error }, { status: 400 });
 
         const result = await OnboardingService.createNetwork({
-            userId,
+            userId: user.id,
             orgData: {
                 name: orgNameResult.value,
                 businessType: businessTypeResult.value,

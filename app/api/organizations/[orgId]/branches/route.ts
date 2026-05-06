@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
 import { BranchService } from "@/services/branch.service";
 import { OrganizationService } from "@/services/organization.service";
 
@@ -9,20 +10,19 @@ interface Params {
     }>;
 }
 
-export async function GET(req: Request, { params }: Params) {
+export async function GET(_req: Request, { params }: Params) {
     try {
         const { orgId } = await params;
-        const userId = req.headers.get("x-user-id");
+        const user = await getSessionUser();
 
-        if (!userId) {
+        if (!user) {
             return NextResponse.json(
-                { error: "Unauthorized: x-user-id header missing" },
+                { error: "Unauthorized" },
                 { status: 401 }
             );
         }
 
-        // specific Phase 0 rule: Check ownership
-        const isOwner = await OrganizationService.isOwner(orgId, userId);
+        const isOwner = await OrganizationService.isOwner(orgId, user.id);
         if (!isOwner) {
             return NextResponse.json(
                 { error: "Forbidden: You do not own this organization" },
@@ -44,16 +44,16 @@ export async function GET(req: Request, { params }: Params) {
 export async function POST(req: Request, { params }: Params) {
     try {
         const { orgId } = await params;
-        const userId = req.headers.get("x-user-id");
+        const user = await getSessionUser();
 
-        if (!userId) {
+        if (!user) {
             return NextResponse.json(
-                { error: "Unauthorized: x-user-id header missing" },
+                { error: "Unauthorized" },
                 { status: 401 }
             );
         }
 
-        const isOwner = await OrganizationService.isOwner(orgId, userId);
+        const isOwner = await OrganizationService.isOwner(orgId, user.id);
         if (!isOwner) {
             return NextResponse.json(
                 { error: "Forbidden: You do not own this organization" },

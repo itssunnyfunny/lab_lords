@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { addMonths } from "date-fns";
 import { getPaymentPeriodStats } from "@/analytics/payment.analytics";
 import { getSeatUtilizationTrend } from "@/analytics/trends/seat.trends";
@@ -16,6 +16,14 @@ import {
   createUser,
 } from "@/tests/factories";
 
+const authMock = vi.hoisted(() => ({
+  sessionUser: null as { id: string; email?: string } | null,
+}));
+
+vi.mock("@/lib/auth", () => ({
+  getSessionUser: vi.fn(() => Promise.resolve(authMock.sessionUser)),
+}));
+
 describe("Analytics corrections", () => {
   afterAll(async () => {
     await disconnectDatabase();
@@ -23,6 +31,7 @@ describe("Analytics corrections", () => {
 
   beforeEach(async () => {
     await resetDatabase();
+    authMock.sessionUser = null;
   });
 
   describe("getPaymentPeriodStats", () => {
@@ -143,6 +152,8 @@ describe("Analytics corrections", () => {
   describe("branch analytics route authorization", () => {
     it("rejects users without analytics access", async () => {
       const { branch } = await createTestWorld();
+      const stranger = await createUser();
+      authMock.sessionUser = { id: stranger.id, email: stranger.email };
 
       const response = await getBranchSnapshot(
         new Request(`http://localhost/api/analytics/branch/${branch.id}/snapshot?period=month`),
@@ -153,7 +164,8 @@ describe("Analytics corrections", () => {
     });
 
     it("accepts period=month for authorized owners", async () => {
-      const user = await createUser({ id: "user_alice" });
+      const user = await createUser();
+      authMock.sessionUser = { id: user.id, email: user.email };
       const org = await createOrg({ ownerId: user.id });
       const branch = await createBranch({ organizationId: org.id });
       await createShift({ branchId: branch.id });

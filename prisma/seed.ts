@@ -95,16 +95,16 @@ async function main() {
     log("👤 Creating users...");
 
     const alice = await prisma.user.create({
-        data: { id: "user_alice", email: "alice@lablord.com", name: "Alice Owner" },
+        data: { email: "alice@lablord.com", name: "Alice Owner" },
     });
     const bob = await prisma.user.create({
-        data: { id: "user_bob", email: "bob@lablord.com", name: "Bob Manager" },
+        data: { email: "bob@lablord.com", name: "Bob Manager" },
     });
     const carol = await prisma.user.create({
-        data: { id: "user_carol", email: "carol@lablord.com", name: "Carol Manager" },
+        data: { email: "carol@lablord.com", name: "Carol Manager" },
     });
     const dave = await prisma.user.create({
-        data: { id: "user_dave", email: "dave@lablord.com", name: "Dave Staff" },
+        data: { email: "dave@lablord.com", name: "Dave Staff" },
     });
 
     // ── ALICE'S ORG ────────────────────────────────────────────────────────────
