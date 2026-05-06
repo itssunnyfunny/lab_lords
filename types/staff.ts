@@ -5,8 +5,10 @@ export type StaffAction =
     | "manage_branch"
     | "students"
     | "seat_allocation"
+    | "view_payments"
     | "generate_payments"
     | "mark_payment_paid"
+    | "waive_payments"
     | "analytics"
     | "staff_management";
 
