@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { StaffService } from "@/services/staff.service";
 import { PaymentStatus, StudentStatus, PaymentType, PaymentMethod } from "@/types";
+import type { StaffAction } from "@/types";
 import { addMonths, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
 
 export class PaymentService {
@@ -25,6 +27,18 @@ export class PaymentService {
         return branch;
     }
 
+    static async assertBranchAccess(userId: string, branchId: string, action: StaffAction) {
+        await StaffService.authorize(userId, branchId, action);
+
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+
+        if (!branch) {
+            throw new Error("Branch not found");
+        }
+
+        return branch;
+    }
+
 
 
     /**
@@ -43,7 +57,7 @@ export class PaymentService {
         branchId: string,
         asOfDate: Date = new Date()
     ) {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "generate_payments");
 
         const today = startOfDay(asOfDate);
 
@@ -145,7 +159,7 @@ export class PaymentService {
         status?: PaymentStatus,
         month?: Date
     ) {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "view_payments");
 
         // Default: exclude WAIVED when no specific status requested
         let whereClause: import("@prisma/client").Prisma.PaymentWhereInput = {
@@ -224,20 +238,13 @@ export class PaymentService {
     ) {
         const payment = await prisma.payment.findUnique({
             where: { id: paymentId },
-            include: {
-                branch: {
-                    include: { organization: true }
-                }
-            }
         });
 
         if (!payment) {
             throw new Error("Payment not found");
         }
 
-        if (payment.branch.organization.ownerId !== userId) {
-            throw new Error("Unauthorized: User does not own this branch");
-        }
+        await StaffService.authorize(userId, payment.branchId, "mark_payment_paid");
 
         if (payment.status === PaymentStatus.PAID) {
             return payment; // Already paid, idempotent
@@ -299,20 +306,13 @@ export class PaymentService {
     static async markPaymentAsWaived(userId: string, paymentId: string) {
         const payment = await prisma.payment.findUnique({
             where: { id: paymentId },
-            include: {
-                branch: {
-                    include: { organization: true }
-                }
-            }
         });
 
         if (!payment) {
             throw new Error("Payment not found");
         }
 
-        if (payment.branch.organization.ownerId !== userId) {
-            throw new Error("Unauthorized: User does not own this branch");
-        }
+        await StaffService.authorize(userId, payment.branchId, "waive_payments");
 
         if (payment.status === PaymentStatus.WAIVED) {
             return payment; // Already waived, idempotent

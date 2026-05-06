@@ -168,6 +168,9 @@ export class BranchService {
 
     static async getBranchDetails(userId: string, branchId: string) {
         await StaffService.authorize(userId, branchId, "students");
+        const canViewStaff = await StaffService.authorize(userId, branchId, "manage_branch")
+            .then(() => true)
+            .catch(() => false);
 
         return prisma.branch.findUnique({
             where: { id: branchId },
@@ -194,12 +197,14 @@ export class BranchService {
                     },
                     orderBy: { createdAt: "asc" },
                 },
-                staff: {
-                    include: {
-                        user: { select: { id: true, name: true, email: true } },
-                    },
-                    orderBy: { createdAt: "asc" },
-                },
+                staff: canViewStaff
+                    ? {
+                        include: {
+                            user: { select: { id: true, name: true, email: true } },
+                        },
+                        orderBy: { createdAt: "asc" },
+                    }
+                    : false,
             },
         });
     }

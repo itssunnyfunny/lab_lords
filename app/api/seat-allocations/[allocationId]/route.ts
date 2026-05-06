@@ -8,6 +8,9 @@ export async function PUT(
     { params }: { params: Promise<{ allocationId: string }> }
 ) {
     try {
+        const user = await getSessionUser();
+        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
         const { allocationId } = await params;
 
         // We can accept a body if we want future extensibility, but for now just accessing the route is enough action.
@@ -15,14 +18,17 @@ export async function PUT(
         // The user requirement said: Body: { action: "RELEASE" } (or just simple PUT).
         // Let's support simple PUT for ease of use, but we can check the body if present.
 
-        const releasedAllocation = await SeatAllocationService.unassignSeat(allocationId);
+        const releasedAllocation = await SeatAllocationService.unassignSeat(user.id, allocationId);
 
         return NextResponse.json(releasedAllocation);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to release seat";
+        const status = message.includes("Unauthorized") ? 403
+            : message.includes("not found") ? 404
+                : 400;
         return NextResponse.json(
             { error: message },
-            { status: 400 }
+            { status }
         );
     }
 }
@@ -65,9 +71,12 @@ export async function PATCH(
         return NextResponse.json(result);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to update allocation";
+        const status = message.includes("Unauthorized") ? 403
+            : message.includes("not found") ? 404
+                : 400;
         return NextResponse.json(
             { error: message },
-            { status: 400 }
+            { status }
         );
     }
 }

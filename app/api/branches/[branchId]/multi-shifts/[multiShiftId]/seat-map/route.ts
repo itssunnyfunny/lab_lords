@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { StaffService } from "@/services/staff.service";
 
 interface Params {
     params: Promise<{ branchId: string; multiShiftId: string }>;
@@ -33,15 +34,7 @@ export async function GET(_req: Request, { params }: Params) {
         const user = await getSessionUser();
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        // Ownership check
-        const branch = await prisma.branch.findUnique({
-            where: { id: branchId },
-            include: { organization: true },
-        });
-        if (!branch) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
-        if (branch.organization.ownerId !== user.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-        }
+        await StaffService.authorize(user.id, branchId, "seat_allocation");
 
         // Load multi-shift with component shift times
         const ms = await prisma.multiShift.findUnique({
@@ -128,6 +121,13 @@ export async function GET(_req: Request, { params }: Params) {
             seats: seatList,
         });
     } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Internal Server Error";
+        if (message.includes("Unauthorized")) {
+            return NextResponse.json({ error: message }, { status: 403 });
+        }
+        if (message.includes("not found")) {
+            return NextResponse.json({ error: message }, { status: 404 });
+        }
         console.error("[multi-shift seat-map]", err);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }

@@ -1,6 +1,8 @@
 
 import { prisma } from "@/lib/prisma";
+import { StaffService } from "@/services/staff.service";
 import { CreateShiftDto } from "@/types";
+import type { StaffAction } from "@/types";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import {
     FORM_LIMITS,
@@ -33,13 +35,11 @@ export interface ShiftImpactAnalysis {
 }
 
 export class ShiftService {
-    private static async assertBranchOwnership(userId: string, branchId: string) {
-        const branch = await prisma.branch.findUnique({
-            where: { id: branchId },
-            include: { organization: true },
-        });
+    private static async assertBranchAccess(userId: string, branchId: string, action: StaffAction) {
+        await StaffService.authorize(userId, branchId, action);
+
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
         if (!branch) throw new Error("Branch not found");
-        if (branch.organization.ownerId !== userId) throw new Error("Unauthorized: User does not own this branch");
         return branch;
     }
 
@@ -78,7 +78,7 @@ export class ShiftService {
     }
 
     static async createShift(userId: string, branchId: string, data: CreateShiftDto) {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "manage_branch");
         const nameResult = validateRequiredText(data.name, "Shift name", 50);
         if (!nameResult.ok) throw new Error(nameResult.error);
         const startResult = validateOptionalTime(data.startTime, "Start time");
@@ -121,7 +121,7 @@ export class ShiftService {
     ) {
         const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
         if (!shift) throw new Error("Shift not found");
-        await this.assertBranchOwnership(userId, shift.branchId);
+        await this.assertBranchAccess(userId, shift.branchId, "manage_branch");
 
         const nameResult = data.name !== undefined ? validateRequiredText(data.name, "Shift name", 50) : null;
         if (nameResult && !nameResult.ok) throw new Error(nameResult.error);
@@ -192,7 +192,7 @@ export class ShiftService {
     static async analyzeShiftDeletion(userId: string, shiftId: string): Promise<ShiftImpactAnalysis> {
         const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
         if (!shift) throw new Error("Shift not found");
-        await this.assertBranchOwnership(userId, shift.branchId);
+        await this.assertBranchAccess(userId, shift.branchId, "manage_branch");
 
         const branchId = shift.branchId;
 
@@ -261,7 +261,7 @@ export class ShiftService {
     static async deleteShift(userId: string, shiftId: string, resolution: ResolutionPlan) {
         const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
         if (!shift) throw new Error("Shift not found");
-        await this.assertBranchOwnership(userId, shift.branchId);
+        await this.assertBranchAccess(userId, shift.branchId, "manage_branch");
 
         const branchId = shift.branchId;
 
@@ -589,7 +589,7 @@ export class ShiftService {
     }
 
     static async listShifts(userId: string, branchId: string) {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "seat_allocation");
         await this.ensureDefaultShifts(branchId);
         return prisma.shift.findMany({
             where: { branchId, status: "ACTIVE" },

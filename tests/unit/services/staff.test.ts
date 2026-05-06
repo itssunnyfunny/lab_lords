@@ -55,6 +55,20 @@ describe("PERMISSION_MATRIX", () => {
     expect(PERMISSION_MATRIX.students).toContain("STAFF");
   });
 
+  it("payment collection allows MANAGER and STAFF", () => {
+    expect(PERMISSION_MATRIX.view_payments).toContain("MANAGER");
+    expect(PERMISSION_MATRIX.view_payments).toContain("STAFF");
+    expect(PERMISSION_MATRIX.mark_payment_paid).toContain("MANAGER");
+    expect(PERMISSION_MATRIX.mark_payment_paid).toContain("STAFF");
+  });
+
+  it("payment generation and waivers allow MANAGER only", () => {
+    expect(PERMISSION_MATRIX.generate_payments).toContain("MANAGER");
+    expect(PERMISSION_MATRIX.generate_payments).not.toContain("STAFF");
+    expect(PERMISSION_MATRIX.waive_payments).toContain("MANAGER");
+    expect(PERMISSION_MATRIX.waive_payments).not.toContain("STAFF");
+  });
+
   it("staff_management allows no roles (owner only)", () => {
     expect(PERMISSION_MATRIX.staff_management).toEqual([]);
   });
@@ -84,6 +98,19 @@ describe("StaffService.authorize()", () => {
     mockBranch(OWNER_ID);
     mockStaff("MANAGER");
     await expect(StaffService.authorize(OTHER_ID, "branch_1", "generate_payments")).resolves.toBe(true);
+  });
+
+  it("allows STAFF to view payments and mark paid", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("STAFF");
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "view_payments")).resolves.toBe(true);
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "mark_payment_paid")).resolves.toBe(true);
+  });
+
+  it("REJECTS STAFF from waiving payments", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("STAFF");
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "waive_payments")).rejects.toThrow("Unauthorized");
   });
 
   it("allows STAFF to view students", async () => {

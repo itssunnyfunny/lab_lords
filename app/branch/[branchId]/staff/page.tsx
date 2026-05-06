@@ -18,6 +18,58 @@ import { format } from "date-fns";
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type StaffMember = StaffWithUser;
+type StaffRoleOption = "MANAGER" | "STAFF";
+
+const ROLE_DETAILS: Record<StaffRoleOption, { label: string; summary: string; can: string[]; cannot: string[] }> = {
+    MANAGER: {
+        label: "Manager",
+        summary: "Runs branch operations, payments, analytics, and setup.",
+        can: [
+            "Update branch settings, seats, shifts, and bundles",
+            "Manage students and seat allocations",
+            "View, collect, generate, and waive payments",
+            "View analytics, AI reports, and staff overview",
+        ],
+        cannot: ["Add, remove, or change staff roles"],
+    },
+    STAFF: {
+        label: "Staff",
+        summary: "Handles daily desk work without setup or reporting powers.",
+        can: [
+            "Manage students and seat allocations",
+            "View payments and mark them paid",
+        ],
+        cannot: [
+            "Change branch settings, seats, shifts, or bundles",
+            "Generate or waive payments",
+            "View analytics, AI reports, or manage staff",
+        ],
+    },
+};
+
+function RolePermissionSummary({ role }: { role: StaffRoleOption }) {
+    const details = ROLE_DETAILS[role];
+
+    return (
+        <div className="mt-2 space-y-2">
+            <p className="text-xs text-gray-500">{details.summary}</p>
+            <div className="grid gap-1.5">
+                {details.can.map(item => (
+                    <div key={item} className="flex items-start gap-2 text-xs text-emerald-300/90">
+                        <CheckCircle2 size={12} className="mt-0.5 flex-shrink-0" />
+                        <span>{item}</span>
+                    </div>
+                ))}
+                {details.cannot.map(item => (
+                    <div key={item} className="flex items-start gap-2 text-xs text-rose-300/90">
+                        <X size={12} className="mt-0.5 flex-shrink-0" />
+                        <span>{item}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 // ─── Row dropdown ────────────────────────────────────────────────────────────
 
@@ -76,7 +128,7 @@ interface EditRoleDialogProps {
 }
 
 function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRoleDialogProps) {
-    const [role, setRole] = useState<"MANAGER" | "STAFF">("STAFF");
+    const [role, setRole] = useState<StaffRoleOption>("STAFF");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -112,7 +164,7 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-sm bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+            <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                     <div>
@@ -143,12 +195,8 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
                                 {r === "MANAGER" ? <Shield size={15} className={role === r ? "text-cyan-400" : "text-gray-500"} /> : <UserCog size={15} className={role === r ? "text-cyan-400" : "text-gray-500"} />}
                             </div>
                             <div className="flex-1">
-                                <p className={cn("text-sm font-semibold", role === r ? "text-white" : "text-gray-400")}>{r}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                    {r === "MANAGER"
-                                        ? "Full access: students, payments, analytics, and staff overview."
-                                        : "Operational access: students and seat allocations only."}
-                                </p>
+                                <p className={cn("text-sm font-semibold", role === r ? "text-white" : "text-gray-400")}>{ROLE_DETAILS[r].label}</p>
+                                <RolePermissionSummary role={r} />
                             </div>
                             {role === r && <div className="w-4 h-4 rounded-full border-2 border-cyan-500 bg-cyan-500/30 flex-shrink-0 mt-1" />}
                         </button>
@@ -187,7 +235,7 @@ interface AddStaffDialogProps {
 
 function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialogProps) {
     const [email, setEmail] = useState("");
-    const [role, setRole] = useState<"MANAGER" | "STAFF">("STAFF");
+    const [role, setRole] = useState<StaffRoleOption>("STAFF");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -221,7 +269,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-sm bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+            <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                     <div>
                         <h2 className="text-base font-bold text-white">Add Staff Member</h2>
@@ -249,15 +297,19 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
 
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Role</label>
-                        <div className="flex gap-2">
+                        <div className="grid gap-2">
                             {(["MANAGER", "STAFF"] as const).map(r => (
                                 <button key={r} onClick={() => setRole(r)}
-                                    className={cn("flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
+                                    className={cn("rounded-lg border p-3 text-left transition-all",
                                         role === r
                                             ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400"
                                             : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/20"
                                     )}>
-                                    {r}
+                                    <div className="flex items-center gap-2 text-sm font-semibold">
+                                        {r === "MANAGER" ? <Shield size={14} /> : <UserCog size={14} />}
+                                        {ROLE_DETAILS[r].label}
+                                    </div>
+                                    {role === r && <RolePermissionSummary role={r} />}
                                 </button>
                             ))}
                         </div>

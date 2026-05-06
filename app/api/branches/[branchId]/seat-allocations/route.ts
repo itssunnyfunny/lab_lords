@@ -41,9 +41,12 @@ export async function POST(
         return NextResponse.json(allocations, { status: 201 });
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to assign seat";
+        const status = message.includes("Unauthorized") ? 403
+            : message.includes("not found") ? 404
+                : 400;
         return NextResponse.json(
             { error: message },
-            { status: 400 }
+            { status }
         );
     }
 }
@@ -57,12 +60,17 @@ export async function GET(
 ) {
     try {
         const { branchId } = await params;
+        const user = await getSessionUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const { searchParams } = new URL(req.url);
         const studentId = searchParams.get("studentId") || undefined;
         const shiftId = searchParams.get("shiftId") || undefined;
         const activeOnly = searchParams.get("activeOnly") === "true";
 
-        const allocations = await SeatAllocationService.listAllocations(branchId, {
+        const allocations = await SeatAllocationService.listAllocations(user.id, branchId, {
             studentId,
             shiftId,
             activeOnly,
@@ -71,9 +79,12 @@ export async function GET(
         return NextResponse.json(allocations);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to list allocations";
+        const status = message.includes("Unauthorized") ? 403
+            : message.includes("not found") ? 404
+                : 500;
         return NextResponse.json(
             { error: message },
-            { status: 500 }
+            { status }
         );
     }
 }

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { FORM_LIMITS, parseIntegerField, validateRequiredText } from "@/lib/formValidation";
+import { StaffService } from "@/services/staff.service";
+import type { StaffAction } from "@/types";
 
 export interface CreateMultiShiftDto {
     name: string;
@@ -44,14 +46,11 @@ type MultiShiftWithComponents = {
 };
 
 export class MultiShiftService {
-    private static async assertBranchOwnership(userId: string, branchId: string) {
-        const branch = await prisma.branch.findUnique({
-            where: { id: branchId },
-            include: { organization: true },
-        });
+    private static async assertBranchAccess(userId: string, branchId: string, action: StaffAction) {
+        await StaffService.authorize(userId, branchId, action);
+
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
         if (!branch) throw new Error("Branch not found");
-        if (branch.organization.ownerId !== userId)
-            throw new Error("Unauthorized: User does not own this branch");
         return branch;
     }
 
@@ -120,7 +119,7 @@ export class MultiShiftService {
         branchId: string,
         data: CreateMultiShiftDto
     ): Promise<MultiShiftItem> {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "manage_branch");
         const nameResult = validateRequiredText(data.name, "Multi-shift name", 50);
         if (!nameResult.ok) throw new Error(nameResult.error);
         const priceResult = parseIntegerField(data.price, "Bundle monthly price", {
@@ -157,7 +156,7 @@ export class MultiShiftService {
     ): Promise<MultiShiftItem> {
         const ms = await prisma.multiShift.findUnique({ where: { id: multiShiftId } });
         if (!ms) throw new Error("Multi-shift not found");
-        await this.assertBranchOwnership(userId, ms.branchId);
+        await this.assertBranchAccess(userId, ms.branchId, "manage_branch");
         const nameResult = data.name !== undefined
             ? validateRequiredText(data.name, "Multi-shift name", 50)
             : null;
@@ -224,7 +223,7 @@ export class MultiShiftService {
     static async deleteMultiShift(userId: string, multiShiftId: string) {
         const ms = await prisma.multiShift.findUnique({ where: { id: multiShiftId } });
         if (!ms) throw new Error("Multi-shift not found");
-        await this.assertBranchOwnership(userId, ms.branchId);
+        await this.assertBranchAccess(userId, ms.branchId, "manage_branch");
 
         await prisma.$transaction(async (tx) => {
             // Null out the multiShiftId on existing allocations (keep history intact)
@@ -243,7 +242,7 @@ export class MultiShiftService {
     }
 
     static async listMultiShifts(userId: string, branchId: string): Promise<MultiShiftItem[]> {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "seat_allocation");
 
         const list = await prisma.multiShift.findMany({
             where: { branchId },

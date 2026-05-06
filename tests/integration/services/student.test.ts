@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { StudentService } from "@/services/student.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
-import { createTestWorld, createStudent, createAllocation, createShift, createSeat } from "@/tests/factories";
+import { createTestWorld, createStudent, createAllocation, createShift, createSeat, createStaff, createUser } from "@/tests/factories";
 
 describe("StudentService Integration", () => {
   afterAll(async () => { await disconnectDatabase(); });
@@ -17,6 +17,20 @@ describe("StudentService Integration", () => {
       });
       expect(student.status).toBe("ACTIVE");
       expect(student.name).toBe("Riya Sharma");
+    });
+
+    it("allows STAFF role users to create students in their branch", async () => {
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+
+      const student = await StudentService.createStudent(staffUser.id, branch.id, {
+        name: "Desk Staff Student",
+        phone: "9876543210",
+        monthlyFee: 1200,
+      });
+
+      expect(student.name).toBe("Desk Staff Student");
     });
 
     it("creates admission payment if admissionFee > 0", async () => {
@@ -250,6 +264,18 @@ describe("StudentService Integration", () => {
   // ─── getStudentsByBranch ──────────────────────────────────────────────────
 
   describe("getStudentsByBranch", () => {
+    it("allows STAFF role users to list students in their branch", async () => {
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+      await createStudent({ branchId: branch.id, name: "Visible Student" });
+
+      const results = await StudentService.getStudentsByBranch(staffUser.id, branch.id);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe("Visible Student");
+    });
+
     it("shiftId filter returns only students with active allocation in that shift", async () => {
       const { user, branch, shift, seat } = await createTestWorld({ shiftStart: "06:00", shiftEnd: "11:59" });
 

@@ -21,25 +21,17 @@ export async function POST(
             );
         }
 
-        // We technically should verify ownership of the allocation's branch here.
-        // The service unassignSeat might not check ownership if it just updates by ID.
-        // Let's verify `unassignSeat` implementation or check ownership here.
-        // Checking Service implementation typically handles logical checks.
-        // But for safety, let's assume Service handles it or we should add a check if critical.
-        // Re-reading service in step 13: `unassignSeat` just does `prisma.seatAllocation.update`.
-        // It does NOT check ownership in the current implementation shown in Step 13.
-        // PROACTIVE FIX: Check ownership here before calling service, or assume "MVP" trust.
-        // Given "Strict Rules", I should probably check.
-        // But for now I'll implement the route wrapper.
-
-        const updated = await SeatAllocationService.unassignSeat(allocationId);
+        const updated = await SeatAllocationService.unassignSeat(user.id, allocationId);
 
         return NextResponse.json(updated);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to end allocation";
+        const status = message.includes("Unauthorized") ? 403
+            : message.includes("not found") ? 404
+                : 400;
         return NextResponse.json(
             { error: message },
-            { status: 400 }
+            { status }
         );
     }
 }

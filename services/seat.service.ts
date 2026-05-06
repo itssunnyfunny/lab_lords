@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { StaffService } from "@/services/staff.service";
+import type { StaffAction } from "@/types";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import { validateSeatLabel } from "@/lib/formValidation";
 
@@ -21,29 +23,22 @@ export type SeatOccupancySnapshot = {
 
 export class SeatService {
     /**
-     * Helper to verify that the user owns the branch via its organization.
+     * Helper to verify that the user can perform an action in the branch.
      */
-    private static async assertBranchOwnership(userId: string, branchId: string) {
-        const branch = await prisma.branch.findUnique({
-            where: { id: branchId },
-            include: {
-                organization: true,
-            },
-        });
+    private static async assertBranchAccess(userId: string, branchId: string, action: StaffAction) {
+        await StaffService.authorize(userId, branchId, action);
+
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
 
         if (!branch) {
             throw new Error("Branch not found");
-        }
-
-        if (branch.organization.ownerId !== userId) {
-            throw new Error("Unauthorized: User does not own this branch");
         }
 
         return branch;
     }
 
     static async createSeat(userId: string, branchId: string, label: string) {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "manage_branch");
         const labelResult = validateSeatLabel(label);
         if (!labelResult.ok) throw new Error(labelResult.error);
 
@@ -70,7 +65,7 @@ export class SeatService {
     }
 
     static async listSeats(userId: string, branchId: string, shiftId?: string) {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "seat_allocation");
 
         return prisma.seat.findMany({
             where: {
@@ -206,7 +201,7 @@ export class SeatService {
         multiShiftId?: string,
         excludeAllocationIds?: string[]
     ) {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "seat_allocation");
 
         // ── MULTI-SHIFT PATH ──────────────────────────────────────────────────
         if (multiShiftId) {
@@ -364,7 +359,7 @@ export class SeatService {
      * the student has any active allocation that time-overlaps with that shift.
      */
     static async getShiftsCapacity(userId: string, branchId: string, studentId?: string, excludeAllocationIds?: string[]) {
-        await this.assertBranchOwnership(userId, branchId);
+        await this.assertBranchAccess(userId, branchId, "seat_allocation");
 
         // ⚡ Bolt: Fetch total seats, active shifts, and optionally student's allocations concurrently
         const [totalSeats, shifts, rawAllocations] = await Promise.all([

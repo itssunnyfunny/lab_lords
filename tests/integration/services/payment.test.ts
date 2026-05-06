@@ -5,6 +5,8 @@ import {
   createTestWorld,
   createStudent,
   createPayment,
+  createStaff,
+  createUser,
 } from "@/tests/factories";
 import { freezeTime, advanceMonths, restoreTime } from "@/tests/setup/time";
 import { addMonths } from "date-fns";
@@ -96,6 +98,16 @@ describe("PaymentService Integration", () => {
         PaymentService.generateDuePaymentsForBranch("wrong_user", branch.id)
       ).rejects.toThrow("Unauthorized");
     });
+
+    it("rejects STAFF role users from generating payments", async () => {
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+
+      await expect(
+        PaymentService.generateDuePaymentsForBranch(staffUser.id, branch.id)
+      ).rejects.toThrow(/Unauthorized/i);
+    });
   });
 
   // ─── listPayments ─────────────────────────────────────────────────────────
@@ -141,6 +153,26 @@ describe("PaymentService Integration", () => {
       const february = addMonths(BASE, 1);
       const results = await PaymentService.listPayments(user.id, branch.id, "PAID", february);
       expect(results).toHaveLength(0);
+    });
+
+    it("allows STAFF role users to view branch payments", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+      await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: BASE,
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+        status: "DUE",
+      });
+
+      const results = await PaymentService.listPayments(staffUser.id, branch.id);
+
+      expect(results).toHaveLength(1);
     });
   });
 
@@ -268,6 +300,27 @@ describe("PaymentService Integration", () => {
       expect(updated?.paymentMethod).toBeNull();
       expect(updated?.referenceId).toBeNull();
     });
+
+    it("allows STAFF role users to mark payments paid", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+      const payment = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: BASE,
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+      });
+
+      await PaymentService.markPaymentAsPaid(staffUser.id, payment.id, "CASH");
+
+      const updated = await testPrisma.payment.findUnique({ where: { id: payment.id } });
+      expect(updated?.status).toBe("PAID");
+      expect(updated?.paymentMethod).toBe("CASH");
+    });
   });
 
 
@@ -308,6 +361,26 @@ describe("PaymentService Integration", () => {
 
       await PaymentService.markPaymentAsWaived(user.id, payment.id);
       await expect(PaymentService.markPaymentAsWaived(user.id, payment.id)).resolves.not.toThrow();
+    });
+
+    it("rejects STAFF role users from waiving payments", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+      const payment = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: BASE,
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+        status: "DUE",
+      });
+
+      await expect(
+        PaymentService.markPaymentAsWaived(staffUser.id, payment.id)
+      ).rejects.toThrow(/Unauthorized/i);
     });
   });
 

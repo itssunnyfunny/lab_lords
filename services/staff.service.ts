@@ -15,8 +15,10 @@ export const PERMISSION_MATRIX: EntityPermissionMatrix = {
     manage_branch: [StaffRole.MANAGER],
     students: [StaffRole.MANAGER, StaffRole.STAFF],
     seat_allocation: [StaffRole.MANAGER, StaffRole.STAFF],
+    view_payments: [StaffRole.MANAGER, StaffRole.STAFF],
     generate_payments: [StaffRole.MANAGER],
     mark_payment_paid: [StaffRole.MANAGER, StaffRole.STAFF],
+    waive_payments: [StaffRole.MANAGER],
     analytics: [StaffRole.MANAGER],
     staff_management: [], // OWNER only
 };
