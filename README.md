@@ -12,6 +12,7 @@ Lab Lords is a Next.js micro-ERP for offline education businesses such as study 
 - PostgreSQL
 - Vitest
 - Axios
+- Clerk via `@clerk/nextjs`
 - Google Gemini via `@google/genai`
 
 ## Project Structure
@@ -45,12 +46,30 @@ Create a local `.env` file with:
 
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
+CLERK_SECRET_KEY="sk_test_..."
+NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
+NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL="/org"
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL="/onboarding"
+# Optional local-only bypass for feature testing without Clerk:
+NEXT_PUBLIC_AUTH_BYPASS_ENABLED="false"
+AUTH_BYPASS_EMAIL="alice@lablord.com"
 GEMINI_API_KEY="your-gemini-api-key"
 ```
 
-`DATABASE_URL` is required for the app. `GEMINI_API_KEY` is required for AI features.
+`DATABASE_URL` and Clerk keys are required for the app. `GEMINI_API_KEY` is required for AI features.
 
 Tests use `.env.test`. The test `DATABASE_URL` must include the word `test`; the Vitest setup intentionally aborts otherwise.
+Clerk keys are not required for Vitest because Clerk is mocked in auth tests.
+
+Check the current auth environment:
+
+```bash
+pnpm auth:check
+```
+
+See [docs/auth-environments.md](docs/auth-environments.md) for local, test, and production separation.
 
 ## Install
 
@@ -92,7 +111,11 @@ Open:
 http://localhost:3000
 ```
 
-The current development auth flow uses a temporary `x-user-id` value, with `user_alice` used as the main demo user in several flows.
+Local development should use Clerk test keys when testing real auth. Clerk will show its development-mode banner with `pk_test` / `sk_test` keys; that is expected locally.
+
+For a smooth seeded demo account, create or sign up a Clerk development user with `alice@lablord.com` after seeding. The app will link that Clerk user to the seeded local Alice account on first authenticated request.
+
+For feature testing without Clerk, set `NEXT_PUBLIC_AUTH_BYPASS_ENABLED="true"` in local `.env`. This bypass is hard-disabled in `NODE_ENV=production`.
 
 ## Tests
 
@@ -159,8 +182,8 @@ Inspect a script before running it because most scripts assume a valid `DATABASE
 - `prisma/schema.prisma` - database schema
 - `prisma/seed.ts` - local demo seed data
 - `lib/prisma.ts` - Prisma client setup
-- `lib/api/core.ts` - Axios API client and user header handling
-- `lib/auth.ts` - temporary auth helper
+- `lib/api/core.ts` - Axios API client
+- `lib/auth.ts` - Clerk-backed local user provisioning helper
 - `services/` - business logic
 - `app/api/` - API route handlers
 - `vitest.config.ts` - test configuration
