@@ -46,6 +46,7 @@ export async function resetDatabase() {
       "AuditLog",
       "MessageDraft",
       "BranchAIReport",
+      "StaffInvite",
       "SeatAllocation",
       "Payment",
       "Staff",
