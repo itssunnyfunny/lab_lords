@@ -14,7 +14,7 @@ import {
  * Uses REAL test database.
  * Covers:
  * 1. authorize() — owner always passes, MANAGER/STAFF role matrix, no-record throws
- * 2. addStaff() — happy path, target user not found, duplicate guard
+ * 2. addStaffByEmail() — happy path, target user not found, duplicate guard
  * 3. removeStaff() — happy path, non-owner blocked
  * 4. updateStaffRole() — role change persists
  * 5. listStaff() — owner can list, MANAGER can list, STAFF cannot list
@@ -69,12 +69,12 @@ describe("StaffService Integration", () => {
 
   // ─── addStaff ─────────────────────────────────────────────────────────────
 
-  describe("addStaff", () => {
+  describe("addStaffByEmail", () => {
     it("happy path — creates staff record with correct role", async () => {
       const { user, branch } = await createTestWorld();
-      const targetUser = await createUser();
+      const targetUser = await createUser({ email: "staff.member@test.com" });
 
-      await StaffService.addStaff(user.id, branch.id, targetUser.id, StaffRole.MANAGER);
+      await StaffService.addStaffByEmail(user.id, branch.id, "STAFF.MEMBER@Test.com", StaffRole.MANAGER);
 
       const record = await testPrisma.staff.findUnique({
         where: { userId_branchId: { userId: targetUser.id, branchId: branch.id } },
@@ -87,28 +87,28 @@ describe("StaffService Integration", () => {
       const { user, branch } = await createTestWorld();
 
       await expect(
-        StaffService.addStaff(user.id, branch.id, "nonexistent_user_id", StaffRole.STAFF)
-      ).rejects.toThrow(/not found/i);
+        StaffService.addStaffByEmail(user.id, branch.id, "missing@test.com", StaffRole.STAFF)
+      ).rejects.toThrow(/sign in once/i);
     });
 
     it("REJECTS duplicate staff (same user added twice to same branch)", async () => {
       const { user, branch } = await createTestWorld();
-      const targetUser = await createUser();
+      const targetUser = await createUser({ email: "duplicate@test.com" });
 
-      await StaffService.addStaff(user.id, branch.id, targetUser.id, StaffRole.STAFF);
+      await StaffService.addStaffByEmail(user.id, branch.id, targetUser.email, StaffRole.STAFF);
 
       await expect(
-        StaffService.addStaff(user.id, branch.id, targetUser.id, StaffRole.MANAGER)
+        StaffService.addStaffByEmail(user.id, branch.id, targetUser.email, StaffRole.MANAGER)
       ).rejects.toThrow(/already a staff/i);
     });
 
     it("REJECTS if actor is not the owner (non-owner cannot manage staff)", async () => {
       const { branch } = await createTestWorld();
       const nonOwner = await createUser();
-      const targetUser = await createUser();
+      const targetUser = await createUser({ email: "blocked@test.com" });
 
       await expect(
-        StaffService.addStaff(nonOwner.id, branch.id, targetUser.id, StaffRole.STAFF)
+        StaffService.addStaffByEmail(nonOwner.id, branch.id, targetUser.email, StaffRole.STAFF)
       ).rejects.toThrow(/Unauthorized/i);
     });
   });

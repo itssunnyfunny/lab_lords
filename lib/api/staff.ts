@@ -10,7 +10,7 @@ export const staff = {
         return apiClient.get(`/branches/${branchId}/staff`);
     },
 
-    add: async (branchId: string, data: { userId: string; role: StaffRole }): Promise<StaffWithUser> => {
+    add: async (branchId: string, data: { email: string; role: StaffRole }): Promise<StaffWithUser> => {
         return apiClient.post(`/branches/${branchId}/staff`, data);
     }
 };
