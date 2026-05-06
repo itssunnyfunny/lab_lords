@@ -22,6 +22,10 @@ export const PERMISSION_MATRIX: EntityPermissionMatrix = {
 };
 
 export class StaffService {
+    private static normalizeEmail(email: string) {
+        return email.trim().toLowerCase();
+    }
+
     // ==========================================
     // 2. AUTHORIZATION CHECK (The Core Logic)
     // ==========================================
@@ -88,7 +92,35 @@ export class StaffService {
         role: StaffRole
     ) {
         await this.authorize(actorId, branchId, "staff_management");
+        return this.createStaffMembership(branchId, targetUserId, role);
+    }
 
+    static async addStaffByEmail(
+        actorId: string,
+        branchId: string,
+        targetEmail: string,
+        role: StaffRole
+    ) {
+        await this.authorize(actorId, branchId, "staff_management");
+
+        const email = this.normalizeEmail(targetEmail);
+        if (!email) {
+            throw new Error("Email is required");
+        }
+
+        const user = await db.user.findUnique({ where: { email } });
+        if (!user) {
+            throw new Error("User must sign in once before being added");
+        }
+
+        return this.createStaffMembership(branchId, user.id, role);
+    }
+
+    private static async createStaffMembership(
+        branchId: string,
+        targetUserId: string,
+        role: StaffRole
+    ) {
         // Check if target user exists
         const user = await db.user.findUnique({ where: { id: targetUserId } });
         if (!user) {
@@ -114,6 +146,15 @@ export class StaffService {
                 userId: targetUserId,
                 branchId,
                 role,
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        name: true,
+                    },
+                },
             },
         });
     }

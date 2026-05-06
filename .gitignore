@@ -43,3 +43,5 @@ next-env.d.ts
 /app/generated/prisma
 .agent
 /test_infrastructure_plan.md
+# clerk configuration (can include secrets)
+/.clerk/

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StaffService } from "@/services/staff.service";
 import { getSessionUser } from "@/lib/auth";
+import { StaffRole } from "@/types";
+
+function isStaffRole(role: unknown): role is StaffRole {
+    return role === StaffRole.MANAGER || role === StaffRole.STAFF;
+}
 
 // GET: List staff of a branch
 export async function GET(
@@ -38,16 +43,23 @@ export async function POST(
         }
 
         const body = await req.json();
-        const { userId, role } = body;
+        const { email, role } = body;
 
-        if (!userId || !role) {
+        if (!email || !role) {
             return NextResponse.json(
-                { error: "Missing required fields: userId, role" },
+                { error: "Missing required fields: email, role" },
                 { status: 400 }
             );
         }
 
-        const newStaff = await StaffService.addStaff(user.id, branchId, userId, role);
+        if (typeof email !== "string" || !isStaffRole(role)) {
+            return NextResponse.json(
+                { error: "Invalid email or role" },
+                { status: 400 }
+            );
+        }
+
+        const newStaff = await StaffService.addStaffByEmail(user.id, branchId, email, role);
         return NextResponse.json(newStaff, { status: 201 });
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to add staff";

@@ -34,7 +34,7 @@ export const branches = {
         return apiClient.get(`/branches/${branchId}/staff`);
     },
 
-    addStaff: async (branchId: string, data: { userId: string; role: string }): Promise<Staff> => {
+    addStaff: async (branchId: string, data: { email: string; role: string }): Promise<Staff> => {
         return apiClient.post(`/branches/${branchId}/staff`, data);
     },
 

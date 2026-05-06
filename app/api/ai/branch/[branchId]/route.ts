@@ -1,4 +1,6 @@
 import { runBranchAI } from "@/ai/orchestrator/branchAI.orchestrator"
+import { getSessionUser } from "@/lib/auth"
+import { StaffService } from "@/services/staff.service"
 
 export async function GET(
     request: Request,
@@ -6,6 +8,12 @@ export async function GET(
 ) {
     try {
         const params = await props.params;
+        const user = await getSessionUser()
+        if (!user) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 })
+        }
+
+        await StaffService.authorize(user.id, params.branchId, "analytics")
 
         const result = await runBranchAI(params.branchId)
 
@@ -14,7 +22,7 @@ export async function GET(
     } catch (error) {
         console.error("AI GENERATION ERROR:", error);
         const message = String(error)
-        const status = message.includes("disabled") ? 403 : 500
+        const status = message.includes("Unauthorized") || message.includes("disabled") ? 403 : 500
         return Response.json(
             { error: "Failed to generate AI insights", details: message },
             { status }

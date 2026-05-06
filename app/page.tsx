@@ -1,5 +1,7 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
+import { isAuthBypassEnabled } from "@/lib/authMode";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { organizations } from "@/lib/api/organizations";
@@ -12,18 +14,24 @@ import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
 import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 
-export default function RootPage() {
+type LandingContentProps = {
+  isLoaded: boolean;
+  isSignedIn: boolean;
+};
+
+function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const handleDashboardClick = async () => {
-    setIsRedirecting(true);
-    
-    // Ensure a default user ID exists for testing
-    const currentId = typeof window !== "undefined" ? localStorage.getItem("x-user-id") : null;
-    if (!currentId || currentId === "user-1") {
-      localStorage.setItem("x-user-id", "user_alice");
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      router.push("/sign-in");
+      return;
     }
+
+    setIsRedirecting(true);
 
     try {
       const data = await organizations.getAll();
@@ -62,4 +70,17 @@ export default function RootPage() {
       <LandingFooter />
     </main>
   );
+}
+
+function ClerkLandingPage() {
+  const { isLoaded, isSignedIn } = useUser();
+  return <LandingContent isLoaded={isLoaded} isSignedIn={isSignedIn ?? false} />;
+}
+
+export default function RootPage() {
+  if (isAuthBypassEnabled()) {
+    return <LandingContent isLoaded={true} isSignedIn={true} />;
+  }
+
+  return <ClerkLandingPage />;
 }

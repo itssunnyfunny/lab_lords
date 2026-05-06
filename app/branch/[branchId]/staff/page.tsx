@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/Card";
 import {
     Loader2, AlertCircle, MoreVertical,
     Pencil, Trash2, X, CheckCircle2, Shield, UserCog,
-    UserPlus, User, Mail,
+    UserPlus, Mail,
 } from "lucide-react";
 import { staff, StaffWithUser } from "@/lib/api/staff";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -186,23 +186,23 @@ interface AddStaffDialogProps {
 }
 
 function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialogProps) {
-    const [userId, setUserId] = useState("");
+    const [email, setEmail] = useState("");
     const [role, setRole] = useState<"MANAGER" | "STAFF">("STAFF");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => { if (isOpen) { setUserId(""); setRole("STAFF"); setError(null); } }, [isOpen]);
+    useEffect(() => { if (isOpen) { setEmail(""); setRole("STAFF"); setError(null); } }, [isOpen]);
 
     if (!isOpen) return null;
 
     const handleAdd = async () => {
-        if (!userId.trim()) { setError("User ID is required."); return; }
+        if (!email.trim()) { setError("Email is required."); return; }
         setLoading(true); setError(null);
         try {
             const res = await fetch(`/api/branches/${branchId}/staff`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId: userId.trim(), role }),
+                body: JSON.stringify({ email: email.trim(), role }),
             });
             if (!res.ok) {
                 const d = await res.json().catch(() => ({}));
@@ -225,26 +225,26 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                     <div>
                         <h2 className="text-base font-bold text-white">Add Staff Member</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">Enter the user ID and assign a role</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Enter their account email and assign a role</p>
                     </div>
                     <button onClick={onClose} disabled={loading} className="text-gray-500 hover:text-white transition-colors"><X size={18} /></button>
                 </div>
 
                 <div className="p-6 space-y-4">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">User ID *</label>
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Email *</label>
                         <div className="relative">
-                            <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                             <input
-                                type="text"
-                                value={userId}
-                                onChange={e => { setUserId(e.target.value); setError(null); }}
-                                placeholder="e.g. user_alice"
+                                type="email"
+                                value={email}
+                                onChange={e => { setEmail(e.target.value); setError(null); }}
+                                placeholder="teammate@example.com"
                                 autoFocus
                                 className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
                             />
                         </div>
-                        <p className="text-xs text-gray-600">Ask the user for their account ID from their profile page.</p>
+                        <p className="text-xs text-gray-600">The user must sign in once before they can be added.</p>
                     </div>
 
                     <div className="space-y-1.5">
@@ -272,7 +272,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
 
                 <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10">
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
-                    <Button onClick={handleAdd} disabled={loading || !userId.trim()} className="text-sm h-8 px-4 min-w-[100px] justify-center">
+                    <Button onClick={handleAdd} disabled={loading || !email.trim()} className="text-sm h-8 px-4 min-w-[100px] justify-center">
                         {loading
                             ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Adding...</>
                             : "Add Staff"
