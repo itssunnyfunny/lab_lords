@@ -1,7 +1,8 @@
 "use client";
 
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DataTable } from "@/components/tables/DataTable";
+import { DataTable, type DataViewMode } from "@/components/tables/DataTable";
+import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
@@ -260,6 +261,7 @@ function StudentsContent({
     const [activeTab, setActiveTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
     const [selectedShift, setSelectedShift] = useState<string>("");
     const [searchQuery, setSearchQuery] = useState("");
+    const [viewMode, setViewMode] = useState<DataViewMode>("table");
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -325,6 +327,68 @@ function StudentsContent({
         const q = searchQuery.toLowerCase();
         return matchesTab && (s.name.toLowerCase().includes(q) || (s.phone && s.phone.includes(q)));
     });
+
+    const renderFeeSummary = (item: Student) => {
+        if (!canViewPayments) {
+            return <span className="text-xs text-textMuted" title={paymentHelpText}>No payment access</span>;
+        }
+
+        const fin = studentFinancials.get(item.id) || { totalDue: 0, totalPaid: 0, totalWaived: 0 };
+
+        return (
+            <div className="text-xs space-y-0.5">
+                <div className={cn("font-medium", fin.totalDue > 0 ? "text-red-400" : "text-textMuted")}>
+                    Due: {formatCurrency(fin.totalDue)}
+                </div>
+                <div className="text-textSecondary">Paid: {formatCurrency(fin.totalPaid)}</div>
+                {fin.totalWaived > 0 && (
+                    <div className="text-amber-500/70">Waived: {formatCurrency(fin.totalWaived)}</div>
+                )}
+            </div>
+        );
+    };
+
+    const renderStudentActions = (item: Student) => (
+        <RowActions
+            actions={[
+                ...(canViewPayments ? [{
+                    label: "View Fees",
+                    icon: Eye,
+                    onClick: () => { setSelectedStudent(item); setIsDrawerOpen(true); },
+                }] : []),
+                {
+                    label: "Edit Details",
+                    icon: Pencil,
+                    onClick: () => setEditTarget(item),
+                },
+                item.status === "ACTIVE"
+                    ? {
+                        label: "Deactivate",
+                        icon: PowerOff,
+                        variant: "danger" as const,
+                        onClick: () => setInactivateTarget(item),
+                    }
+                    : {
+                        label: "Activate",
+                        icon: Power,
+                        onClick: () => handleActivateClick(item),
+                    },
+                ...(item.status === "ACTIVE" && canAllocateSeats
+                    ? [{
+                        label: "Allocate Seat",
+                        icon: CheckCircle2,
+                        onClick: () => router.push(`/branch/${branchId}/allocations?studentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
+                    },
+                    {
+                        label: "Change Seat",
+                        icon: ArrowRightLeft,
+                        onClick: () => router.push(`/branch/${branchId}/allocations?changeStudentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
+                    }]
+                    : []
+                ),
+            ]}
+        />
+    );
 
     // ── Inactivate Student ────────────────────────────────────────────────────
     const handleInactivateConfirm = async (resolution: DueResolution) => {
@@ -431,29 +495,77 @@ function StudentsContent({
                     </select>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {(["ACTIVE", "INACTIVE"] as const).map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={cn(
-                                "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                                activeTab === tab
-                                    ? "border-brand-500 text-brand-400"
-                                    : "border-transparent text-textSecondary hover:text-white"
-                            )}
-                        >
-                            {tab === "ACTIVE" ? "Active" : "Inactive"} Students
-                            <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
-                                {allStudents.filter(s => s.status === tab).length}
-                            </span>
-                        </button>
-                    ))}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                    <div className="flex items-center gap-2">
+                        {(["ACTIVE", "INACTIVE"] as const).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={cn(
+                                    "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                                    activeTab === tab
+                                        ? "border-brand-500 text-brand-400"
+                                        : "border-transparent text-textSecondary hover:text-white"
+                                )}
+                            >
+                                {tab === "ACTIVE" ? "Active" : "Inactive"} Students
+                                <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                                    {allStudents.filter(s => s.status === tab).length}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <ViewToggle value={viewMode} onChange={setViewMode} />
                 </div>
             </div>
 
             <DataTable
                 data={filteredStudents}
+                viewMode={viewMode}
+                emptyMessage="No students found for this view."
+                renderGridCard={(item, actions) => (
+                    <div className="relative flex min-h-[230px] flex-col rounded-lg border border-white/10 bg-card p-4 shadow-card transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <div className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg border border-white/10 bg-surface">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=random`}
+                                        alt={item.name}
+                                        className="h-full w-full object-cover"
+                                    />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="truncate font-medium text-white">{item.name}</p>
+                                    <p className="truncate text-xs text-textMuted">{item.phone || "No phone"}</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-shrink-0 items-start gap-2">
+                                <Badge variant={item.status === "ACTIVE" ? "success" : "default"}>{item.status}</Badge>
+                                {actions?.(item)}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                <div className="text-xs text-textMuted">Joined</div>
+                                <div className="mt-1 truncate text-textSecondary">{format(new Date(item.joinedAt), "PP")}</div>
+                            </div>
+                            <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                <div className="text-xs text-textMuted">Monthly Fee</div>
+                                <div className="mt-1 truncate font-semibold text-white">
+                                    {typeof item.monthlyFee === "number" ? formatCurrency(item.monthlyFee) : "Not set"}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-textMuted">Fee Summary</div>
+                            {renderFeeSummary(item)}
+                        </div>
+                    </div>
+                )}
                 columns={[
                     {
                         header: "Student",
@@ -478,70 +590,14 @@ function StudentsContent({
                     },
                     {
                         header: "Fee Summary",
-                        accessor: (item) => {
-                            if (!canViewPayments) {
-                                return <span className="text-xs text-textMuted" title={paymentHelpText}>No payment access</span>;
-                            }
-                            const fin = studentFinancials.get(item.id) || { totalDue: 0, totalPaid: 0, totalWaived: 0 };
-                            return (
-                                <div className="text-xs space-y-0.5">
-                                    <div className={cn("font-medium", fin.totalDue > 0 ? "text-red-400" : "text-textMuted")}>
-                                        Due: {formatCurrency(fin.totalDue)}
-                                    </div>
-                                    <div className="text-textSecondary">Paid: {formatCurrency(fin.totalPaid)}</div>
-                                    {fin.totalWaived > 0 && (
-                                        <div className="text-amber-500/70">Waived: {formatCurrency(fin.totalWaived)}</div>
-                                    )}
-                                </div>
-                            );
-                        }
+                        accessor: renderFeeSummary
                     },
                     {
                         header: "Joined",
                         accessor: (item) => <span className="text-sm text-textSecondary">{format(new Date(item.joinedAt), "PP")}</span>
                     },
                 ]}
-                actions={(item) => (
-                    <RowActions
-                        actions={[
-                            ...(canViewPayments ? [{
-                                label: "View Fees",
-                                icon: Eye,
-                                onClick: () => { setSelectedStudent(item); setIsDrawerOpen(true); },
-                            }] : []),
-                            {
-                                label: "Edit Details",
-                                icon: Pencil,
-                                onClick: () => setEditTarget(item),
-                            },
-                            item.status === "ACTIVE"
-                                ? {
-                                    label: "Deactivate",
-                                    icon: PowerOff,
-                                    variant: "danger",
-                                    onClick: () => setInactivateTarget(item),
-                                }
-                                : {
-                                    label: "Activate",
-                                    icon: Power,
-                                    onClick: () => handleActivateClick(item),
-                                },
-                            ...(item.status === "ACTIVE" && canAllocateSeats
-                                ? [{
-                                    label: "Allocate Seat",
-                                    icon: CheckCircle2,
-                                    onClick: () => router.push(`/branch/${branchId}/allocations?studentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
-                                },
-                                {
-                                    label: "Change Seat",
-                                    icon: ArrowRightLeft,
-                                    onClick: () => router.push(`/branch/${branchId}/allocations?changeStudentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
-                                }]
-                                : []
-                            ),
-                        ]}
-                    />
-                )}
+                actions={renderStudentActions}
             />
 
             {/* Add dialog */}
