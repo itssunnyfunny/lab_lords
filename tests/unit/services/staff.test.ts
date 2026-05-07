@@ -27,11 +27,12 @@ vi.mock("@/lib/prisma", () => ({
 
 import { StaffService, PERMISSION_MATRIX } from "@/services/staff.service";
 import { prisma } from "@/lib/prisma";
-import { StaffPermissionAction } from "@/types";
+import { STAFF_ACTIONS, StaffPermissionAction } from "@/types";
 
 const mockBranch = (ownerId: string) =>
   prisma.branch.findUnique = vi.fn().mockResolvedValue({
     id: "branch_1",
+    name: "Test Branch",
     organization: { ownerId },
   } as never);
 
@@ -156,5 +157,60 @@ describe("StaffService.authorize()", () => {
   it("throws Branch not found if branch doesn't exist", async () => {
     prisma.branch.findUnique = vi.fn().mockResolvedValue(null);
     await expect(StaffService.authorize(OWNER_ID, "nonexistent", "students")).rejects.toThrow("Branch not found");
+  });
+});
+
+describe("StaffService.getBranchAccess()", () => {
+  const OWNER_ID = "user_owner";
+  const OTHER_ID = "user_other";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns all permissions for the organization owner", async () => {
+    mockBranch(OWNER_ID);
+
+    const access = await StaffService.getBranchAccess(OWNER_ID, "branch_1");
+
+    expect(access).toMatchObject({
+      branchId: "branch_1",
+      branchName: "Test Branch",
+      isOwner: true,
+      role: "OWNER",
+    });
+    for (const action of STAFF_ACTIONS) {
+      expect(access.permissions[action]).toBe(true);
+    }
+    expect(prisma.staff.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns role defaults plus explicit permission overrides for staff", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("STAFF", [
+      { action: StaffPermissionAction.ANALYTICS, allowed: true },
+      { action: StaffPermissionAction.MARK_PAYMENT_PAID, allowed: false },
+    ]);
+
+    const access = await StaffService.getBranchAccess(OTHER_ID, "branch_1");
+
+    expect(access).toMatchObject({
+      branchId: "branch_1",
+      branchName: "Test Branch",
+      isOwner: false,
+      role: "STAFF",
+      staffId: "staff_1",
+    });
+    expect(access.permissions.students).toBe(true);
+    expect(access.permissions.analytics).toBe(true);
+    expect(access.permissions.mark_payment_paid).toBe(false);
+    expect(access.permissions.staff_management).toBe(false);
+  });
+
+  it("rejects users who are not staff on the branch", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff(null);
+
+    await expect(StaffService.getBranchAccess(OTHER_ID, "branch_1")).rejects.toThrow("Not a staff member");
   });
 });
