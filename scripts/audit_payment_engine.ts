@@ -2,7 +2,7 @@
 import { prisma } from "../lib/prisma";
 import { PaymentService } from "../services/payment.service";
 import { StudentService } from "../services/student.service";
-import { PaymentStatus, StudentStatus } from "@prisma/client";
+import { PaymentStatus, StudentStatus } from "../app/generated/prisma/enums";
 import { format } from "date-fns";
 
 async function main() {

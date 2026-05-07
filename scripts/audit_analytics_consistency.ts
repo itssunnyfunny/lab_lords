@@ -1,6 +1,6 @@
 
 import { prisma } from "../lib/prisma";
-import { PaymentStatus, StudentStatus } from "@prisma/client";
+import { PaymentStatus, StudentStatus } from "../app/generated/prisma/enums";
 
 async function main() {
     console.log("🔍 STARTING ANALYTICS CONSISTENCY AUDIT...");

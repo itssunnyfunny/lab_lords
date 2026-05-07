@@ -8,7 +8,7 @@ import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { organizations } from "@/lib/api/organizations";
-import { Organization } from "@prisma/client";
+import type { Organization } from "@/app/generated/prisma/browser";
 
 export default function OrgSelectionPage() {
     const router = useRouter();

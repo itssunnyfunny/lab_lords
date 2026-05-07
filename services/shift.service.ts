@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { StaffService } from "@/services/staff.service";
 import { CreateShiftDto } from "@/types";
 import type { StaffAction } from "@/types";
+import type { Prisma } from "@/app/generated/prisma/client";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import {
     FORM_LIMITS,
@@ -459,7 +460,7 @@ export class ShiftService {
                     where: { seat: { branchId }, endDate: null, shiftId: { not: shiftId } },
                 });
 
-                const newAllocationsToCreate: import("@prisma/client").Prisma.SeatAllocationCreateManyInput[] = [];
+                const newAllocationsToCreate: Prisma.SeatAllocationCreateManyInput[] = [];
 
                 for (const assignment of assignments) {
                     const oldAlloc = oldAllocMap.get(assignment.allocationId);

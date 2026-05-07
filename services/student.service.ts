@@ -4,7 +4,7 @@ import { CreateStudentDto, DueResolution, UpdateStudentProfileDto } from "@/type
 import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { StaffService } from "@/services/staff.service";
 import { startOfDay } from "date-fns";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@/app/generated/prisma/client";
 import {
     FORM_LIMITS,
     parseIntegerField,

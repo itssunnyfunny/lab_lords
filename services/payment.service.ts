@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { StaffService } from "@/services/staff.service";
 import { PaymentStatus, StudentStatus, PaymentType, PaymentMethod } from "@/types";
 import type { StaffAction } from "@/types";
+import type { Prisma } from "@/app/generated/prisma/client";
 import { addMonths, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
 
 export class PaymentService {
@@ -162,7 +163,7 @@ export class PaymentService {
         await this.assertBranchAccess(userId, branchId, "view_payments");
 
         // Default: exclude WAIVED when no specific status requested
-        let whereClause: import("@prisma/client").Prisma.PaymentWhereInput = {
+        let whereClause: Prisma.PaymentWhereInput = {
             branchId,
             ...(status ? { status } : { status: { not: "WAIVED" } }),
         };

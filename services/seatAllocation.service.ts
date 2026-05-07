@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { StaffService } from "@/services/staff.service";
 import { StudentStatus, SeatAllocationFilters } from "@/types";
+import type { SeatAllocation } from "@/app/generated/prisma/client";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 
 export class SeatAllocationService {
@@ -180,7 +181,7 @@ export class SeatAllocationService {
 
                 // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
-                const mockAllocation = { shiftId: requestedShift.id } as import("@prisma/client").SeatAllocation;
+                const mockAllocation = { shiftId: requestedShift.id } as SeatAllocation;
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
 

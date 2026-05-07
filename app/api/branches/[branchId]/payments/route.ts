@@ -1,6 +1,6 @@
 import { getSessionUser } from "@/lib/auth";
 import { PaymentService } from "@/services/payment.service";
-import { PaymentStatus } from "@prisma/client";
+import { PaymentStatus } from "@/app/generated/prisma/enums";
 import { NextResponse } from "next/server";
 
 export async function GET(

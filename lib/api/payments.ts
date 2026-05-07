@@ -1,5 +1,5 @@
 import { apiClient } from "./core";
-import { Payment } from "@prisma/client";
+import type { Payment } from "@/app/generated/prisma/browser";
 
 export type AuditLogEntry = {
     id: string;

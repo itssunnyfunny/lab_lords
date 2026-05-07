@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StudentService } from "@/services/student.service";
 import { getSessionUser } from "@/lib/auth";
-import { StudentStatus } from "@prisma/client";
+import { StudentStatus } from "@/app/generated/prisma/enums";
 
 export async function PATCH(
     req: NextRequest,

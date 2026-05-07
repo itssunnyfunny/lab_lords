@@ -1,5 +1,5 @@
 import { apiClient } from "./core";
-import { SeatAllocation } from "@prisma/client";
+import type { SeatAllocation } from "@/app/generated/prisma/browser";
 
 export const seats = {
     // Re-export branch-level seat calls via convenience methods if needed, 
