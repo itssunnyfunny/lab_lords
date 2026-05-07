@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StaffService } from "@/services/staff.service";
 import { getSessionUser } from "@/lib/auth";
-import { StaffRole } from "@/types";
+import { StaffPermissionUpdate, StaffRole } from "@/types";
 
 // DELETE: Remove staff from a branch
 export async function DELETE(
@@ -21,7 +21,7 @@ export async function DELETE(
     }
 }
 
-// PATCH: Update a staff member's role
+// PATCH: Update a staff member's role and permission overrides
 export async function PATCH(
     req: NextRequest,
     context: { params: Promise<{ branchId: string; staffId: string }> }
@@ -32,13 +32,22 @@ export async function PATCH(
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const body = await req.json();
-        const { role } = body;
+        const { role, permissions } = body;
 
-        if (!role || !Object.values(StaffRole).includes(role)) {
+        if (role !== undefined && !Object.values(StaffRole).includes(role)) {
             return NextResponse.json({ error: "Invalid role. Must be MANAGER or STAFF." }, { status: 400 });
         }
+        if (permissions !== undefined && (typeof permissions !== "object" || permissions === null || Array.isArray(permissions))) {
+            return NextResponse.json({ error: "permissions must be an object" }, { status: 400 });
+        }
+        if (role === undefined && permissions === undefined) {
+            return NextResponse.json({ error: "A role or permissions object is required." }, { status: 400 });
+        }
 
-        const updated = await StaffService.updateStaffRole(user.id, branchId, staffId, role as StaffRole);
+        const updated = await StaffService.updateStaffAccess(user.id, branchId, staffId, {
+            role: role as StaffRole | undefined,
+            permissions: permissions as StaffPermissionUpdate | undefined,
+        });
         return NextResponse.json(updated);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to update role";

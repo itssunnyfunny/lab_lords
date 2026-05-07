@@ -1,15 +1,32 @@
 import { StaffRole } from "./enums";
 
-export type StaffAction =
-    | "manage_org"
-    | "manage_branch"
-    | "students"
-    | "seat_allocation"
-    | "view_payments"
-    | "generate_payments"
-    | "mark_payment_paid"
-    | "waive_payments"
-    | "analytics"
-    | "staff_management";
+export const STAFF_ACTIONS = [
+    "manage_org",
+    "manage_branch",
+    "students",
+    "seat_allocation",
+    "view_payments",
+    "generate_payments",
+    "mark_payment_paid",
+    "waive_payments",
+    "analytics",
+    "staff_management",
+] as const;
+
+export type StaffAction = typeof STAFF_ACTIONS[number];
+
+export const OVERRIDABLE_STAFF_ACTIONS = [
+    "manage_branch",
+    "students",
+    "seat_allocation",
+    "view_payments",
+    "generate_payments",
+    "mark_payment_paid",
+    "waive_payments",
+    "analytics",
+] as const satisfies readonly StaffAction[];
+
+export type OverridableStaffAction = typeof OVERRIDABLE_STAFF_ACTIONS[number];
+export type StaffPermissionUpdate = Partial<Record<OverridableStaffAction, boolean | null>>;
 
 export type EntityPermissionMatrix = Record<StaffAction, StaffRole[]>;

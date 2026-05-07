@@ -47,6 +47,7 @@ export async function resetDatabase() {
       "MessageDraft",
       "BranchAIReport",
       "StaffInvite",
+      "StaffPermissionOverride",
       "SeatAllocation",
       "Payment",
       "Staff",
