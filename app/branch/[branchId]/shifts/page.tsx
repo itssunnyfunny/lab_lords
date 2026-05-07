@@ -22,6 +22,7 @@ import {
     validateRequiredText,
 } from "@/lib/formValidation";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { getPermissionHelpText } from "@/lib/permissionMessages";
 
 function formatMins(mins: number) {
     let raw = mins;
@@ -1167,6 +1168,7 @@ function ShiftsContent({
     branchId: string;
     canManageBranch: boolean;
 }) {
+    const shiftManageHelpText = getPermissionHelpText("manage_branch");
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [multiShifts, setMultiShifts] = useState<MultiShift[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1272,6 +1274,12 @@ function ShiftsContent({
                 actionLabel="Add Shift"
             />
 
+            {!canManageBranch && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                    Shift changes are disabled. {shiftManageHelpText}
+                </div>
+            )}
+
             {shifts.length === 0 && multiShifts.length === 0 ? (
                 <div className="text-center py-16 border border-dashed border-white/10 rounded-xl text-gray-500">
                     <Clock size={36} className="mx-auto mb-3 opacity-30" />
@@ -1334,7 +1342,9 @@ function ShiftsContent({
                                                 },
                                             ]} />
                                         ) : (
-                                            <span className="text-xs text-zinc-600">View only</span>
+                                            <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
+                                                View only
+                                            </span>
                                         )}
                                     </td>
                                 </tr>
@@ -1390,7 +1400,9 @@ function ShiftsContent({
                                                 },
                                             ]} />
                                         ) : (
-                                            <span className="text-xs text-zinc-600">View only</span>
+                                            <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
+                                                View only
+                                            </span>
                                         )}
                                     </td>
                                 </tr>

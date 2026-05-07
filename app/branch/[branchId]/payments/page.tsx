@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { getAnyPermissionHelpText, getPermissionHelpText } from "@/lib/permissionMessages";
 
 type PaymentRow = Payment & {
     student?: {
@@ -54,6 +55,8 @@ function PaymentsContent({
     canWaivePayments: boolean;
 }) {
     const router = useRouter();
+    const paymentActionHelpText = getAnyPermissionHelpText(["mark_payment_paid", "waive_payments"]);
+    const paymentGenerationHelpText = getPermissionHelpText("generate_payments");
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [activeTab, setActiveTab] = useState<"DUE" | "PAID">("DUE");
@@ -228,6 +231,12 @@ function PaymentsContent({
                 </div>
             )}
 
+            {!canGeneratePayments && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                    Automatic payment generation is disabled. {paymentGenerationHelpText}
+                </div>
+            )}
+
             {/* Tabs */}
             <div className="flex items-center gap-2 border-b border-white/10">
                 <button
@@ -377,7 +386,9 @@ function PaymentsContent({
                             )}
 
                             {item.status === "DUE" && !canMarkPaid && !canWaivePayments && (
-                                <span className="text-xs text-gray-500">View only</span>
+                                <span className="max-w-[180px] text-right text-xs leading-5 text-gray-500" title={paymentActionHelpText}>
+                                    {paymentActionHelpText}
+                                </span>
                             )}
                         </div>
                     )}

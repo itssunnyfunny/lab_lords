@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { OverridableStaffAction, StaffPermissionUpdate } from "@/types";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { getPermissionHelpText } from "@/lib/permissionMessages";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -703,6 +704,7 @@ function StaffContent({
     branchId: string;
     canManageStaff: boolean;
 }) {
+    const staffManagementHelpText = getPermissionHelpText("staff_management");
     const [data, setData] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -852,6 +854,12 @@ function StaffContent({
                 actionLabel="Add Staff"
             />
 
+            {!canManageStaff && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                    Staff changes and invite links are disabled. {staffManagementHelpText}
+                </div>
+            )}
+
             {canManageStaff && (
                 <InviteLinkPanel
                     inviteRole={inviteRole}
@@ -947,7 +955,9 @@ function StaffContent({
                                                 },
                                             ]} />
                                         ) : (
-                                            <span className="text-xs text-zinc-600">View only</span>
+                                            <span className="text-xs text-zinc-600" title={staffManagementHelpText}>
+                                                View only
+                                            </span>
                                         )}
                                     </td>
                                 </tr>

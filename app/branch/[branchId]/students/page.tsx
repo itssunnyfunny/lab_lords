@@ -22,6 +22,7 @@ import { EditStudentDialog } from "./EditStudentDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { getPermissionHelpText } from "@/lib/permissionMessages";
 
 type DueResolution = "PAID" | "WAIVED" | "KEEP";
 
@@ -249,6 +250,8 @@ function StudentsContent({
     canAllocateSeats: boolean;
 }) {
     const router = useRouter();
+    const paymentHelpText = getPermissionHelpText("view_payments");
+    const allocationHelpText = getPermissionHelpText("seat_allocation");
 
     const [allStudents, setAllStudents] = useState<Student[]>([]);
     const [allPayments, setAllPayments] = useState<Payment[]>([]);
@@ -398,6 +401,21 @@ function StudentsContent({
                 actionLabel="Add Student"
             />
 
+            {(!canViewPayments || !canAllocateSeats) && (
+                <div className="grid gap-2 md:grid-cols-2">
+                    {!canViewPayments && (
+                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                            Fee details are hidden. {paymentHelpText}
+                        </div>
+                    )}
+                    {!canAllocateSeats && (
+                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                            Seat assignment actions are disabled. {allocationHelpText}
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
                 <div className="flex items-center gap-3">
                     <span className="text-sm text-textMuted">Filter:</span>
@@ -462,7 +480,7 @@ function StudentsContent({
                         header: "Fee Summary",
                         accessor: (item) => {
                             if (!canViewPayments) {
-                                return <span className="text-xs text-textMuted">No payment access</span>;
+                                return <span className="text-xs text-textMuted" title={paymentHelpText}>No payment access</span>;
                             }
                             const fin = studentFinancials.get(item.id) || { totalDue: 0, totalPaid: 0, totalWaived: 0 };
                             return (

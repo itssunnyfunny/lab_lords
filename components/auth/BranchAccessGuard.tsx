@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
+import { getPermissionHelpText } from "@/lib/permissionMessages";
 import type { BranchAccess, StaffAction } from "@/types";
 
 type BranchAccessGuardProps = {
@@ -27,7 +28,7 @@ export function BranchAccessLoading({ label = "Checking access..." }: { label?: 
 export function BranchNoAccess({
     branchId,
     title = "No access",
-    description = "You do not have permission to open this branch page.",
+    description = "You do not have permission to open this branch page. Ask the branch owner to update your staff permissions.",
 }: {
     branchId?: string;
     title?: string;
@@ -44,7 +45,6 @@ export function BranchNoAccess({
                 <div className="space-y-2">
                     <h1 className="text-xl font-semibold text-white">{title}</h1>
                     <p className="text-sm leading-6 text-gray-400">{description}</p>
-                    <p className="text-xs text-gray-500">Ask the branch owner to adjust your staff permissions.</p>
                 </div>
                 <Button
                     variant="outline"
@@ -76,7 +76,13 @@ export function BranchAccessGuard({
     }
 
     if (error || !access || !can(permission)) {
-        return <BranchNoAccess branchId={branchId} title={title} description={description} />;
+        return (
+            <BranchNoAccess
+                branchId={branchId}
+                title={title}
+                description={description ?? getPermissionHelpText(permission)}
+            />
+        );
     }
 
     return <>{typeof children === "function" ? children(access) : children}</>;
