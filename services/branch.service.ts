@@ -174,10 +174,18 @@ export class BranchService {
     }
 
     static async getBranchDetails(userId: string, branchId: string) {
-        await StaffService.authorize(userId, branchId, "students");
-        const canViewStaff = await StaffService.authorize(userId, branchId, "manage_branch")
-            .then(() => true)
-            .catch(() => false);
+        const access = await StaffService.getBranchAccess(userId, branchId);
+        const canViewDetails =
+            access.permissions.students ||
+            access.permissions.manage_branch ||
+            access.permissions.analytics ||
+            access.permissions.view_payments;
+
+        if (!canViewDetails) {
+            throw new Error("Unauthorized: Branch details are not enabled for this staff member");
+        }
+
+        const canViewStaff = access.permissions.manage_branch;
 
         return prisma.branch.findUnique({
             where: { id: branchId },

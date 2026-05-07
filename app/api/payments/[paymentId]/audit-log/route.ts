@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { StaffService } from "@/services/staff.service";
 
 export async function GET(
     req: NextRequest,
@@ -14,19 +15,16 @@ export async function GET(
 
         const { paymentId } = await params;
 
-        // Verify the payment exists and belongs to a branch the user owns
+        // Verify the payment exists and belongs to a branch the user can view payments for.
         const payment = await prisma.payment.findUnique({
             where: { id: paymentId },
-            include: { branch: { include: { organization: true } } },
         });
 
         if (!payment) {
             return NextResponse.json({ error: "Payment not found" }, { status: 404 });
         }
 
-        if (payment.branch.organization.ownerId !== user.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-        }
+        await StaffService.authorize(user.id, payment.branchId, "view_payments");
 
         const logs = await prisma.auditLog.findMany({
             where: { paymentId },
@@ -42,6 +40,7 @@ export async function GET(
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Internal Server Error";
         console.error("[PAYMENT_AUDIT_LOG_GET]", error);
-        return NextResponse.json({ error: message }, { status: 500 });
+        const status = message.includes("Unauthorized") ? 403 : 500;
+        return NextResponse.json({ error: message }, { status });
     }
 }

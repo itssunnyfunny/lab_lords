@@ -155,6 +155,33 @@ describe("BranchService Integration", () => {
     });
   });
 
+  describe("getBranchDetails", () => {
+    it("allows staff with payment access to read branch metadata without staff records", async () => {
+      const owner = await createUser();
+      const staff = await createUser();
+      const org = await createOrg({ ownerId: owner.id });
+      const branch = await BranchService.createBranchForOrg({
+        organizationId: org.id,
+        userId: owner.id,
+        name: "Payment Branch",
+      });
+      const staffRecord = await createStaff({ userId: staff.id, branchId: branch.id, role: "STAFF" });
+      await testPrisma.staffPermissionOverride.create({
+        data: {
+          staffId: staffRecord.id,
+          action: "STUDENTS",
+          allowed: false,
+        },
+      });
+
+      const details = await BranchService.getBranchDetails(staff.id, branch.id);
+
+      expect(details?.id).toBe(branch.id);
+      expect(details?._count?.payments).toBe(0);
+      expect((details as { staff?: unknown }).staff).toBeUndefined();
+    });
+  });
+
   describe("updateSettings", () => {
     it("updates branch settings for the organization owner", async () => {
       const user = await createUser();
