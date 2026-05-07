@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { AlertTriangle, CheckCircle, Info, Loader2 } from "lucide-react";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 interface AIResponse {
     health: { summary: string };
@@ -16,6 +18,14 @@ export default function AIInsightsPage() {
     const params = useParams();
     const branchId = params.branchId as string;
 
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.aiInsights}>
+            <AIInsightsContent branchId={branchId} />
+        </BranchAccessGuard>
+    );
+}
+
+function AIInsightsContent({ branchId }: { branchId: string }) {
     const [data, setData] = useState<AIResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");

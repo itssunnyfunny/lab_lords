@@ -5,8 +5,10 @@ import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { Loader2, MessageSquare, Copy, CheckCheck, User, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 interface OverdueMessageDraft {
     studentId: string;
@@ -78,6 +80,14 @@ export default function AIMessagesPage() {
     const params = useParams();
     const branchId = params.branchId as string;
 
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.aiMessages}>
+            <AIMessagesContent branchId={branchId} />
+        </BranchAccessGuard>
+    );
+}
+
+function AIMessagesContent({ branchId }: { branchId: string }) {
     const [data, setData] = useState<MessagesResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [language, setLanguage] = useState<"en" | "hi">("en");

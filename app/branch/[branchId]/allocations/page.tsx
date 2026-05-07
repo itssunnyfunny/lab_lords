@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { AllocationsTable } from "@/components/allocations/AllocationsTable";
 import { AllocateSeatDialog } from "@/components/allocations/AllocateSeatDialog";
 import { UpdateAllocationDialog } from "@/components/allocations/UpdateAllocationDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 interface AllocationRow {
     id: string;
@@ -23,9 +25,18 @@ interface AllocationRow {
 
 export default function AllocationsPage() {
     const params = useParams();
+    const branchId = params?.branchId as string;
+
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.allocations}>
+            <AllocationsContent branchId={branchId} />
+        </BranchAccessGuard>
+    );
+}
+
+function AllocationsContent({ branchId }: { branchId: string }) {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const branchId = params?.branchId as string;
 
     const [allocations, setAllocations] = useState<AllocationRow[]>([]);
     const [loading, setLoading] = useState(true);

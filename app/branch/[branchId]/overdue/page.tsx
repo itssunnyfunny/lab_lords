@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard"
 import { ArrowLeft, Copy, Check, MessageSquare } from "lucide-react"
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess"
 
 interface OverduePayment {
     paymentId: string
@@ -24,8 +26,17 @@ interface DraftMessage {
 
 export default function OverduePage() {
     const params = useParams()
-    const router = useRouter()
     const branchId = params.branchId as string
+
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.overdue}>
+            <OverdueContent branchId={branchId} />
+        </BranchAccessGuard>
+    )
+}
+
+function OverdueContent({ branchId }: { branchId: string }) {
+    const router = useRouter()
 
     const [loading, setLoading] = useState(true)
     const [payments, setPayments] = useState<OverduePayment[]>([])

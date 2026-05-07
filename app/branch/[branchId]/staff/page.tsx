@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Loader2, AlertCircle, MoreVertical,
     Pencil, Trash2, X, CheckCircle2, Shield, UserCog,
@@ -15,7 +16,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { OverridableStaffAction, StaffPermissionUpdate } from "@/types";
-import { useBranchAccess } from "@/hooks/useBranchAccess";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -611,9 +612,26 @@ function InviteLinkPanel({
 
 export default function StaffPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
-    const { can } = useBranchAccess(branchId);
-    const canManageStaff = can("staff_management");
 
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.staff}>
+            {access => (
+                <StaffContent
+                    branchId={branchId}
+                    canManageStaff={access.permissions.staff_management}
+                />
+            )}
+        </BranchAccessGuard>
+    );
+}
+
+function StaffContent({
+    branchId,
+    canManageStaff,
+}: {
+    branchId: string;
+    canManageStaff: boolean;
+}) {
     const [data, setData] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
