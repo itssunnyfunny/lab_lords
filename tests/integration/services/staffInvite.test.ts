@@ -32,6 +32,47 @@ describe("StaffInviteService Integration", () => {
     });
   });
 
+  describe("listActiveInvites", () => {
+    it("lists only active pending invites for the owner", async () => {
+      const { user, branch } = await createTestWorld();
+      const active = await StaffInviteService.createInvite(user.id, branch.id, StaffRole.STAFF);
+      const accepted = await StaffInviteService.createInvite(user.id, branch.id, StaffRole.MANAGER);
+      const expired = await testPrisma.staffInvite.create({
+        data: {
+          branchId: branch.id,
+          role: "STAFF",
+          token: "expired-list-token",
+          expiresAt: new Date(Date.now() - 60_000),
+        },
+      });
+      await testPrisma.staffInvite.update({
+        where: { id: accepted.id },
+        data: { acceptedAt: new Date() },
+      });
+
+      const invites = await StaffInviteService.listActiveInvites(user.id, branch.id);
+
+      expect(invites.map(invite => invite.id)).toEqual([active.id]);
+      expect(invites.find(invite => invite.id === accepted.id)).toBeUndefined();
+      expect(invites.find(invite => invite.id === expired.id)).toBeUndefined();
+    });
+  });
+
+  describe("revokeInvite", () => {
+    it("expires a pending invite so it can no longer be accepted", async () => {
+      const { user, branch } = await createTestWorld();
+      const invitedUser = await createUser();
+      const invite = await StaffInviteService.createInvite(user.id, branch.id, StaffRole.STAFF);
+
+      const revoked = await StaffInviteService.revokeInvite(user.id, branch.id, invite.id);
+
+      expect(revoked.expiresAt.getTime()).toBeLessThanOrEqual(Date.now());
+      await expect(
+        StaffInviteService.acceptInvite(invitedUser.id, invite.token)
+      ).rejects.toThrow(/expired/i);
+    });
+  });
+
   describe("acceptInvite", () => {
     it("creates the staff membership and marks the invite accepted", async () => {
       const { user, branch } = await createTestWorld();
