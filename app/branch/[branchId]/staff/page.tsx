@@ -8,17 +8,19 @@ import { Card } from "@/components/ui/Card";
 import {
     Loader2, AlertCircle, MoreVertical,
     Pencil, Trash2, X, CheckCircle2, Shield, UserCog,
-    UserPlus, Mail, Link2, Copy,
+    UserPlus, Mail, Link2, Copy, SlidersHorizontal, RotateCcw,
 } from "lucide-react";
 import { staff, StaffInviteResponse, StaffWithUser } from "@/lib/api/staff";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import type { OverridableStaffAction, StaffPermissionUpdate } from "@/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type StaffMember = StaffWithUser;
 type StaffRoleOption = "MANAGER" | "STAFF";
+type PermissionActionCode = NonNullable<StaffMember["permissionOverrides"]>[number]["action"];
 
 const ROLE_DETAILS: Record<StaffRoleOption, { label: string; summary: string; can: string[]; cannot: string[] }> = {
     MANAGER: {
@@ -46,6 +48,91 @@ const ROLE_DETAILS: Record<StaffRoleOption, { label: string; summary: string; ca
         ],
     },
 };
+
+const PERMISSION_OPTIONS: {
+    action: OverridableStaffAction;
+    label: string;
+    summary: string;
+}[] = [
+    { action: "manage_branch", label: "Branch setup", summary: "Settings, seats, shifts, and bundles" },
+    { action: "students", label: "Students", summary: "Create and update student records" },
+    { action: "seat_allocation", label: "Seat allocation", summary: "Assign, move, and end seats" },
+    { action: "view_payments", label: "View payments", summary: "See dues, history, and payment lists" },
+    { action: "generate_payments", label: "Generate payments", summary: "Create monthly and admission dues" },
+    { action: "mark_payment_paid", label: "Collect payments", summary: "Mark dues as paid" },
+    { action: "waive_payments", label: "Waive payments", summary: "Write off dues" },
+    { action: "analytics", label: "Analytics and AI", summary: "Reports, insights, and branch analytics" },
+];
+
+const PERMISSION_ACTION_MAP: Record<OverridableStaffAction, PermissionActionCode> = {
+    manage_branch: "MANAGE_BRANCH",
+    students: "STUDENTS",
+    seat_allocation: "SEAT_ALLOCATION",
+    view_payments: "VIEW_PAYMENTS",
+    generate_payments: "GENERATE_PAYMENTS",
+    mark_payment_paid: "MARK_PAYMENT_PAID",
+    waive_payments: "WAIVE_PAYMENTS",
+    analytics: "ANALYTICS",
+};
+
+const ROLE_DEFAULT_PERMISSIONS: Record<StaffRoleOption, Record<OverridableStaffAction, boolean>> = {
+    MANAGER: {
+        manage_branch: true,
+        students: true,
+        seat_allocation: true,
+        view_payments: true,
+        generate_payments: true,
+        mark_payment_paid: true,
+        waive_payments: true,
+        analytics: true,
+    },
+    STAFF: {
+        manage_branch: false,
+        students: true,
+        seat_allocation: true,
+        view_payments: true,
+        generate_payments: false,
+        mark_payment_paid: true,
+        waive_payments: false,
+        analytics: false,
+    },
+};
+
+function getPermissionOverride(member: StaffMember, action: OverridableStaffAction) {
+    const code = PERMISSION_ACTION_MAP[action];
+    return member.permissionOverrides?.find(override => override.action === code)?.allowed ?? null;
+}
+
+function getPermissionDraft(member: StaffMember): StaffPermissionUpdate {
+    return PERMISSION_OPTIONS.reduce<StaffPermissionUpdate>((draft, option) => {
+        draft[option.action] = getPermissionOverride(member, option.action);
+        return draft;
+    }, {});
+}
+
+function hasPermissionOverrides(member: StaffMember) {
+    return (member.permissionOverrides?.length ?? 0) > 0;
+}
+
+function getEffectivePermission(role: StaffRoleOption, draft: StaffPermissionUpdate, action: OverridableStaffAction) {
+    return draft[action] ?? ROLE_DEFAULT_PERMISSIONS[role][action];
+}
+
+function AccessSummary({ member }: { member: StaffMember }) {
+    const allowed = member.permissionOverrides?.filter(override => override.allowed).length ?? 0;
+    const blocked = member.permissionOverrides?.filter(override => !override.allowed).length ?? 0;
+
+    if (!allowed && !blocked) {
+        return <Badge variant="default">Role defaults</Badge>;
+    }
+
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            {allowed > 0 && <Badge variant="success">{allowed} allowed</Badge>}
+            {blocked > 0 && <Badge variant="danger">{blocked} blocked</Badge>}
+        </div>
+    );
+}
 
 function RolePermissionSummary({ role }: { role: StaffRoleOption }) {
     const details = ROLE_DETAILS[role];
@@ -119,6 +206,95 @@ function RowActions({ actions }: { actions: RowAction[] }) {
 
 // ─── Edit Role Dialog ────────────────────────────────────────────────────────
 
+function PermissionModeButton({
+    active,
+    children,
+    onClick,
+}: {
+    active: boolean;
+    children: React.ReactNode;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={cn(
+                "inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-semibold transition-colors",
+                active
+                    ? "bg-cyan-500/15 text-cyan-200"
+                    : "text-gray-500 hover:bg-white/5 hover:text-white"
+            )}
+        >
+            {children}
+        </button>
+    );
+}
+
+function PermissionControls({
+    role,
+    draft,
+    onChange,
+}: {
+    role: StaffRoleOption;
+    draft: StaffPermissionUpdate;
+    onChange: (action: OverridableStaffAction, value: boolean | null) => void;
+}) {
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <SlidersHorizontal size={15} className="text-cyan-300" />
+                Access controls
+            </div>
+            <div className="grid gap-2">
+                {PERMISSION_OPTIONS.map(option => {
+                    const override = draft[option.action] ?? null;
+                    const effective = getEffectivePermission(role, draft, option.action);
+
+                    return (
+                        <div
+                            key={option.action}
+                            className="grid gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 md:grid-cols-[minmax(0,1fr)_260px]"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-semibold text-white">{option.label}</p>
+                                    <Badge variant={effective ? "success" : "danger"} className="shrink-0">
+                                        {effective ? "Allowed" : "Blocked"}
+                                    </Badge>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">{option.summary}</p>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-black/20 p-1">
+                                <PermissionModeButton
+                                    active={override === null}
+                                    onClick={() => onChange(option.action, null)}
+                                >
+                                    <RotateCcw size={12} />
+                                    Default
+                                </PermissionModeButton>
+                                <PermissionModeButton
+                                    active={override === true}
+                                    onClick={() => onChange(option.action, true)}
+                                >
+                                    Allow
+                                </PermissionModeButton>
+                                <PermissionModeButton
+                                    active={override === false}
+                                    onClick={() => onChange(option.action, false)}
+                                >
+                                    Block
+                                </PermissionModeButton>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 interface EditRoleDialogProps {
     isOpen: boolean;
     member: StaffMember | null;
@@ -129,30 +305,38 @@ interface EditRoleDialogProps {
 
 function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRoleDialogProps) {
     const [role, setRole] = useState<StaffRoleOption>("STAFF");
+    const [permissionDraft, setPermissionDraft] = useState<StaffPermissionUpdate>({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (member) { setRole(member.role); setError(null); }
+        if (member) {
+            setRole(member.role);
+            setPermissionDraft(getPermissionDraft(member));
+            setError(null);
+        }
     }, [member]);
 
     if (!isOpen || !member) return null;
 
+    const permissionsChanged = PERMISSION_OPTIONS.some(option => (
+        (permissionDraft[option.action] ?? null) !== getPermissionOverride(member, option.action)
+    ));
+    const hasChanges = role !== member.role || permissionsChanged;
+
+    const handlePermissionChange = (action: OverridableStaffAction, value: boolean | null) => {
+        setPermissionDraft(prev => ({ ...prev, [action]: value }));
+    };
+
     const handleSave = async () => {
-        if (role === member.role) { onClose(); return; }
+        if (!hasChanges) { onClose(); return; }
         setLoading(true); setError(null);
         try {
-            const res = await fetch(`/api/branches/${branchId}/staff/${member.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ role }),
+            const updated = await staff.update(branchId, member.id, {
+                role: role !== member.role ? role : undefined,
+                permissions: permissionsChanged ? permissionDraft : undefined,
             });
-            if (!res.ok) {
-                const d = await res.json().catch(() => ({}));
-                throw new Error(d.error || "Failed to update role");
-            }
-            const updated = await res.json();
-            onSuccess({ ...member, role: updated.role });
+            onSuccess(updated);
             onClose();
         } catch (err: unknown) {
             setError(getErrorMessage(err));
@@ -164,11 +348,11 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+            <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                     <div>
-                        <h2 className="text-base font-bold text-white">Change Role</h2>
+                        <h2 className="text-base font-bold text-white">Staff Access</h2>
                         <p className="text-xs text-gray-500 mt-0.5">{member.user?.name || member.user?.email}</p>
                     </div>
                     <button onClick={onClose} disabled={loading} className="text-gray-500 hover:text-white transition-colors">
@@ -177,30 +361,38 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-3">
-                    {(["MANAGER", "STAFF"] as const).map(r => (
-                        <button
-                            key={r}
-                            onClick={() => setRole(r)}
-                            className={cn(
-                                "w-full flex items-start gap-4 p-4 rounded-xl border transition-all text-left",
-                                role === r
-                                    ? "border-cyan-500/40 bg-cyan-500/5"
-                                    : "border-white/5 bg-white/[0.02] hover:border-white/10"
-                            )}
-                        >
-                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
-                                role === r ? "bg-cyan-500/20" : "bg-white/5"
-                            )}>
-                                {r === "MANAGER" ? <Shield size={15} className={role === r ? "text-cyan-400" : "text-gray-500"} /> : <UserCog size={15} className={role === r ? "text-cyan-400" : "text-gray-500"} />}
-                            </div>
-                            <div className="flex-1">
-                                <p className={cn("text-sm font-semibold", role === r ? "text-white" : "text-gray-400")}>{ROLE_DETAILS[r].label}</p>
-                                <RolePermissionSummary role={r} />
-                            </div>
-                            {role === r && <div className="w-4 h-4 rounded-full border-2 border-cyan-500 bg-cyan-500/30 flex-shrink-0 mt-1" />}
-                        </button>
-                    ))}
+                <div className="p-6 space-y-5">
+                    <div className="grid gap-3 md:grid-cols-2">
+                        {(["MANAGER", "STAFF"] as const).map(r => (
+                            <button
+                                key={r}
+                                onClick={() => setRole(r)}
+                                className={cn(
+                                    "w-full flex items-start gap-4 p-4 rounded-xl border transition-all text-left",
+                                    role === r
+                                        ? "border-cyan-500/40 bg-cyan-500/5"
+                                        : "border-white/5 bg-white/[0.02] hover:border-white/10"
+                                )}
+                            >
+                                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
+                                    role === r ? "bg-cyan-500/20" : "bg-white/5"
+                                )}>
+                                    {r === "MANAGER" ? <Shield size={15} className={role === r ? "text-cyan-400" : "text-gray-500"} /> : <UserCog size={15} className={role === r ? "text-cyan-400" : "text-gray-500"} />}
+                                </div>
+                                <div className="flex-1">
+                                    <p className={cn("text-sm font-semibold", role === r ? "text-white" : "text-gray-400")}>{ROLE_DETAILS[r].label}</p>
+                                    <RolePermissionSummary role={r} />
+                                </div>
+                                {role === r && <div className="w-4 h-4 rounded-full border-2 border-cyan-500 bg-cyan-500/30 flex-shrink-0 mt-1" />}
+                            </button>
+                        ))}
+                    </div>
+
+                    <PermissionControls
+                        role={role}
+                        draft={permissionDraft}
+                        onChange={handlePermissionChange}
+                    />
 
                     {error && (
                         <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
@@ -212,10 +404,10 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
                 {/* Footer */}
                 <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10">
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
-                    <Button onClick={handleSave} disabled={loading || role === member.role} className="text-sm h-8 px-4 min-w-[110px] justify-center">
+                    <Button onClick={handleSave} disabled={loading || !hasChanges} className="text-sm h-8 px-4 min-w-[120px] justify-center">
                         {loading
                             ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Saving...</>
-                            : "Save Role"
+                            : "Save Access"
                         }
                     </Button>
                 </div>
@@ -565,6 +757,7 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                             <tr className="border-b border-white/5 bg-white/[0.02] text-zinc-400">
                                 <th className="px-6 py-4 font-medium">Member</th>
                                 <th className="px-6 py-4 font-medium">Role</th>
+                                <th className="px-6 py-4 font-medium">Access</th>
                                 <th className="px-6 py-4 font-medium">Added</th>
                                 <th className="px-6 py-4 font-medium w-14" />
                             </tr>
@@ -595,6 +788,10 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                                             }
                                         </Badge>
                                     </td>
+                                    {/* Access */}
+                                    <td className="px-6 py-4">
+                                        <AccessSummary member={member} />
+                                    </td>
                                     {/* Date */}
                                     <td className="px-6 py-4 text-zinc-500 text-xs">
                                         {format(new Date(member.createdAt), "PP")}
@@ -603,7 +800,7 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                                     <td className="px-6 py-4">
                                         <RowActions actions={[
                                             {
-                                                label: "Change Role",
+                                                label: hasPermissionOverrides(member) ? "Edit Access" : "Set Access",
                                                 icon: Pencil,
                                                 onClick: () => setEditTarget(member),
                                             },
@@ -631,7 +828,7 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                 onSuccess={updated => {
                     setData(prev => prev.map(m => m.id === updated.id ? updated : m));
                     setEditTarget(null);
-                    showToast(`Role updated to ${updated.role}.`);
+                    showToast("Staff access updated.");
                 }}
             />
 
