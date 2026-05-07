@@ -22,6 +22,7 @@ import {
     Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     ReadOnlyRow,
     SegmentedControl,
@@ -34,6 +35,7 @@ import {
     SettingsToggle,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import {
     FORM_LIMITS,
     parseIntegerField,
@@ -127,6 +129,15 @@ function toForm(branch: BranchData): BranchForm {
 
 export default function BranchSettingsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.settings}>
+            <BranchSettingsContent branchId={branchId} />
+        </BranchAccessGuard>
+    );
+}
+
+function BranchSettingsContent({ branchId }: { branchId: string }) {
     const router = useRouter();
 
     const [branch, setBranch] = useState<BranchData | null>(null);

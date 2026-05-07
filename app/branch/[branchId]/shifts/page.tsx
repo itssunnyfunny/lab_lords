@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     MoreVertical, Pencil, Trash2,
     Loader2, AlertCircle, Clock, IndianRupee,
@@ -20,6 +21,7 @@ import {
     validateOptionalTime,
     validateRequiredText,
 } from "@/lib/formValidation";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 function formatMins(mins: number) {
     let raw = mins;
@@ -1146,6 +1148,25 @@ export default function ShiftsPage() {
     const params = useParams();
     const branchId = params?.branchId as string;
 
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.shifts}>
+            {access => (
+                <ShiftsContent
+                    branchId={branchId}
+                    canManageBranch={access.permissions.manage_branch}
+                />
+            )}
+        </BranchAccessGuard>
+    );
+}
+
+function ShiftsContent({
+    branchId,
+    canManageBranch,
+}: {
+    branchId: string;
+    canManageBranch: boolean;
+}) {
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [multiShifts, setMultiShifts] = useState<MultiShift[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1247,7 +1268,7 @@ export default function ShiftsPage() {
             <PageHeader
                 title="Shifts"
                 subtitle="Manage time windows for seat allocations."
-                onAdd={() => setDialog({ open: true, mode: "type-picker" })}
+                onAdd={canManageBranch ? () => setDialog({ open: true, mode: "type-picker" }) : undefined}
                 actionLabel="Add Shift"
             />
 
@@ -1255,12 +1276,14 @@ export default function ShiftsPage() {
                 <div className="text-center py-16 border border-dashed border-white/10 rounded-xl text-gray-500">
                     <Clock size={36} className="mx-auto mb-3 opacity-30" />
                     <p>No shifts found.</p>
-                    <button
-                        onClick={() => setDialog({ open: true, mode: "type-picker" })}
-                        className="mt-3 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
-                    >
-                        + Add your first shift
-                    </button>
+                    {canManageBranch && (
+                        <button
+                            onClick={() => setDialog({ open: true, mode: "type-picker" })}
+                            className="mt-3 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                        >
+                            + Add your first shift
+                        </button>
+                    )}
                 </div>
             ) : (
                 <Card className="overflow-visible p-0">
@@ -1296,19 +1319,23 @@ export default function ShiftsPage() {
                                     </td>
                                     <td className="px-6 py-4 text-white font-medium">₹{shift.price}</td>
                                     <td className="px-6 py-4 text-right">
-                                        <RowActions actions={[
-                                            {
-                                                label: "Edit",
-                                                icon: Pencil,
-                                                onClick: () => setDialog({ open: true, mode: "edit-primary", shift }),
-                                            },
-                                            {
-                                                label: "Delete",
-                                                icon: Trash2,
-                                                variant: "danger",
-                                                onClick: () => setDeleteTarget(shift),
-                                            },
-                                        ]} />
+                                        {canManageBranch ? (
+                                            <RowActions actions={[
+                                                {
+                                                    label: "Edit",
+                                                    icon: Pencil,
+                                                    onClick: () => setDialog({ open: true, mode: "edit-primary", shift }),
+                                                },
+                                                {
+                                                    label: "Delete",
+                                                    icon: Trash2,
+                                                    variant: "danger",
+                                                    onClick: () => setDeleteTarget(shift),
+                                                },
+                                            ]} />
+                                        ) : (
+                                            <span className="text-xs text-zinc-600">View only</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -1340,27 +1367,31 @@ export default function ShiftsPage() {
                                     </td>
                                     <td className="px-6 py-4 text-white font-medium">₹{ms.price}</td>
                                     <td className="px-6 py-4 text-right">
-                                        <RowActions actions={[
-                                            {
-                                                label: "Edit",
-                                                icon: Pencil,
-                                                onClick: () => setDialog({ open: true, mode: "edit-multi", multiShift: ms }),
-                                            },
-                                            {
-                                                label: "Delete",
-                                                icon: Trash2,
-                                                variant: "danger",
-                                                onClick: () => {
-                                                    if (confirm("Delete this multi-shift bundle? Student allocations will remain but grouping will be lost.")) {
-                                                        fetch(`/api/branches/${branchId}/multi-shifts/${ms.id}`, { method: "DELETE" })
-                                                            .then(() => {
-                                                                setMultiShifts(prev => prev.filter(x => x.id !== ms.id));
-                                                                showToast(`"${ms.name}" deleted.`);
-                                                            });
-                                                    }
+                                        {canManageBranch ? (
+                                            <RowActions actions={[
+                                                {
+                                                    label: "Edit",
+                                                    icon: Pencil,
+                                                    onClick: () => setDialog({ open: true, mode: "edit-multi", multiShift: ms }),
                                                 },
-                                            },
-                                        ]} />
+                                                {
+                                                    label: "Delete",
+                                                    icon: Trash2,
+                                                    variant: "danger",
+                                                    onClick: () => {
+                                                        if (confirm("Delete this multi-shift bundle? Student allocations will remain but grouping will be lost.")) {
+                                                            fetch(`/api/branches/${branchId}/multi-shifts/${ms.id}`, { method: "DELETE" })
+                                                                .then(() => {
+                                                                    setMultiShifts(prev => prev.filter(x => x.id !== ms.id));
+                                                                    showToast(`"${ms.name}" deleted.`);
+                                                                });
+                                                        }
+                                                    },
+                                                },
+                                            ]} />
+                                        ) : (
+                                            <span className="text-xs text-zinc-600">View only</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -1369,48 +1400,51 @@ export default function ShiftsPage() {
                 </Card>
             )}
 
-            {/* Dialogs */}
-            <TypePickerDialog 
-                isOpen={dialog.open && dialog.mode === "type-picker"}
-                onClose={() => setDialog({ ...dialog, open: false })}
-                onSelect={(type) => setDialog({ open: true, mode: type === "primary" ? "add-primary" : "add-multi" })}
-            />
+            {canManageBranch && (
+                <>
+                    <TypePickerDialog
+                        isOpen={dialog.open && dialog.mode === "type-picker"}
+                        onClose={() => setDialog({ ...dialog, open: false })}
+                        onSelect={(type) => setDialog({ open: true, mode: type === "primary" ? "add-primary" : "add-multi" })}
+                    />
 
-            <ShiftDialog
-                isOpen={dialog.open && (dialog.mode === "add-primary" || dialog.mode === "edit-primary")}
-                mode={dialog.mode === "add-primary" ? "add" : "edit"}
-                initial={dialog.shift}
-                branchId={branchId}
-                existingShifts={shifts}
-                onClose={() => setDialog({ ...dialog, open: false })}
-                onSuccess={handleDialogSuccess}
-            />
+                    <ShiftDialog
+                        isOpen={dialog.open && (dialog.mode === "add-primary" || dialog.mode === "edit-primary")}
+                        mode={dialog.mode === "add-primary" ? "add" : "edit"}
+                        initial={dialog.shift}
+                        branchId={branchId}
+                        existingShifts={shifts}
+                        onClose={() => setDialog({ ...dialog, open: false })}
+                        onSuccess={handleDialogSuccess}
+                    />
 
-            <MultiShiftDialog
-                isOpen={dialog.open && (dialog.mode === "add-multi" || dialog.mode === "edit-multi")}
-                mode={dialog.mode === "add-multi" ? "add" : "edit"}
-                initial={dialog.multiShift}
-                branchId={branchId}
-                primaryShifts={shifts}
-                existingMultiShifts={multiShifts}
-                onClose={() => setDialog({ ...dialog, open: false })}
-                onSuccess={(ms) => {
-                    if (dialog.mode === "add-multi") setMultiShifts([...multiShifts, ms]);
-                    else setMultiShifts(multiShifts.map(x => x.id === ms.id ? ms : x));
-                    showToast(dialog.mode === "add-multi" ? `"${ms.name}" added.` : `"${ms.name}" updated.`);
-                    setDialog({ ...dialog, open: false });
-                }}
-            />
+                    <MultiShiftDialog
+                        isOpen={dialog.open && (dialog.mode === "add-multi" || dialog.mode === "edit-multi")}
+                        mode={dialog.mode === "add-multi" ? "add" : "edit"}
+                        initial={dialog.multiShift}
+                        branchId={branchId}
+                        primaryShifts={shifts}
+                        existingMultiShifts={multiShifts}
+                        onClose={() => setDialog({ ...dialog, open: false })}
+                        onSuccess={(ms) => {
+                            if (dialog.mode === "add-multi") setMultiShifts([...multiShifts, ms]);
+                            else setMultiShifts(multiShifts.map(x => x.id === ms.id ? ms : x));
+                            showToast(dialog.mode === "add-multi" ? `"${ms.name}" added.` : `"${ms.name}" updated.`);
+                            setDialog({ ...dialog, open: false });
+                        }}
+                    />
 
-            {deleteTarget && (
-                <DeleteShiftDialog
-                    shift={deleteTarget}
-                    branchId={branchId}
-                    existingShifts={shifts}
-                    onClose={() => setDeleteTarget(null)}
-                    onDeleted={handleDeleted}
-                    onRenamed={handleRenamed}
-                />
+                    {deleteTarget && (
+                        <DeleteShiftDialog
+                            shift={deleteTarget}
+                            branchId={branchId}
+                            existingShifts={shifts}
+                            onClose={() => setDeleteTarget(null)}
+                            onDeleted={handleDeleted}
+                            onRenamed={handleRenamed}
+                        />
+                    )}
+                </>
             )}
         </div>
     );

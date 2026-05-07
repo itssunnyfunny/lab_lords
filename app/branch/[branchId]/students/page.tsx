@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Loader2, AlertCircle, ArrowLeft, X,
     MoreVertical, Eye, Pencil, PowerOff, Power,
@@ -20,6 +21,7 @@ import { AddStudentDialog } from "./AddStudentDialog";
 import { EditStudentDialog } from "./EditStudentDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 type DueResolution = "PAID" | "WAIVED" | "KEEP";
 
@@ -223,6 +225,29 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
 
 export default function StudentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.students}>
+            {access => (
+                <StudentsContent
+                    branchId={branchId}
+                    canViewPayments={access.permissions.view_payments}
+                    canAllocateSeats={access.permissions.seat_allocation}
+                />
+            )}
+        </BranchAccessGuard>
+    );
+}
+
+function StudentsContent({
+    branchId,
+    canViewPayments,
+    canAllocateSeats,
+}: {
+    branchId: string;
+    canViewPayments: boolean;
+    canAllocateSeats: boolean;
+}) {
     const router = useRouter();
 
     const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -259,8 +284,8 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
         try {
             const [studentsList, paymentsList, shiftsList] = await Promise.all([
                 students.list(branchId, selectedShift || undefined),
-                payments.list(branchId),
-                branches.getShifts(branchId),
+                canViewPayments ? payments.list(branchId) : Promise.resolve([]),
+                canAllocateSeats ? branches.getShifts(branchId) : Promise.resolve([]),
             ]);
             setAllStudents(studentsList);
             setAllPayments(paymentsList);
@@ -271,7 +296,7 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
         } finally {
             setLoading(false);
         }
-    }, [branchId, selectedShift]);
+    }, [branchId, canAllocateSeats, canViewPayments, selectedShift]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
@@ -436,6 +461,9 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                     {
                         header: "Fee Summary",
                         accessor: (item) => {
+                            if (!canViewPayments) {
+                                return <span className="text-xs text-textMuted">No payment access</span>;
+                            }
                             const fin = studentFinancials.get(item.id) || { totalDue: 0, totalPaid: 0, totalWaived: 0 };
                             return (
                                 <div className="text-xs space-y-0.5">
@@ -458,11 +486,11 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                 actions={(item) => (
                     <RowActions
                         actions={[
-                            {
+                            ...(canViewPayments ? [{
                                 label: "View Fees",
                                 icon: Eye,
                                 onClick: () => { setSelectedStudent(item); setIsDrawerOpen(true); },
-                            },
+                            }] : []),
                             {
                                 label: "Edit Details",
                                 icon: Pencil,
@@ -480,7 +508,7 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                                     icon: Power,
                                     onClick: () => handleActivateClick(item),
                                 },
-                            ...(item.status === "ACTIVE"
+                            ...(item.status === "ACTIVE" && canAllocateSeats
                                 ? [{
                                     label: "Allocate Seat",
                                     icon: CheckCircle2,

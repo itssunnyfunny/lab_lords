@@ -17,6 +17,7 @@ describe("branch page access mapping", () => {
         expect(BRANCH_PAGE_ACCESS.shifts).toBe("seat_allocation");
         expect(BRANCH_PAGE_ACCESS.seats).toBe("seat_allocation");
         expect(BRANCH_PAGE_ACCESS.payments).toBe("view_payments");
+        expect(BRANCH_PAGE_ACCESS.overdue).toBe("view_payments");
         expect(BRANCH_PAGE_ACCESS.students).toBe("students");
         expect(BRANCH_PAGE_ACCESS.allocations).toBe("seat_allocation");
     });

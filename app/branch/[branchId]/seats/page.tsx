@@ -2,6 +2,7 @@
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { cn } from "@/lib/utils";
 import { User, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState, use } from "react";
@@ -10,6 +11,7 @@ import { Seat, Shift } from "@prisma/client";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { AddSeatDialog } from "./AddSeatDialog";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 // Extended Seat type to include temporary allocation info if available
 interface SeatWithStatus extends Seat {
@@ -27,6 +29,26 @@ function getErrorMessage(err: unknown) {
 
 export default function SeatsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.seats}>
+            {access => (
+                <SeatsContent
+                    branchId={branchId}
+                    canManageBranch={access.permissions.manage_branch}
+                />
+            )}
+        </BranchAccessGuard>
+    );
+}
+
+function SeatsContent({
+    branchId,
+    canManageBranch,
+}: {
+    branchId: string;
+    canManageBranch: boolean;
+}) {
     const router = useRouter();
     const [seats, setSeats] = useState<SeatWithStatus[]>([]);
     const [shifts, setShifts] = useState<Shift[]>([]);
@@ -108,7 +130,7 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
                 title="Seat Management"
                 subtitle="Visual map of study hall occupancy."
                 onFilter={() => { }}
-                onAdd={() => setIsAddModalOpen(true)}
+                onAdd={canManageBranch ? () => setIsAddModalOpen(true) : undefined}
                 actionLabel="Add Seat"
             />
 
@@ -177,12 +199,14 @@ export default function SeatsPage({ params }: { params: Promise<{ branchId: stri
                     ))}
             </div>
 
-            <AddSeatDialog 
-                isOpen={isAddModalOpen} 
-                onClose={() => setIsAddModalOpen(false)} 
-                branchId={branchId} 
-                onSuccess={loadSeats} 
-            />
+            {canManageBranch && (
+                <AddSeatDialog
+                    isOpen={isAddModalOpen}
+                    onClose={() => setIsAddModalOpen(false)}
+                    branchId={branchId}
+                    onSuccess={loadSeats}
+                />
+            )}
         </div>
     );
 }

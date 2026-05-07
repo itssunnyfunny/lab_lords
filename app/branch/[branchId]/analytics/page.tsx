@@ -7,11 +7,13 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { use, useEffect, useMemo, useState } from "react";
 import { AnalyticsPeriod, analytics, BranchSnapshot, TrendData } from "@/lib/api/analytics";
 import { branches } from "@/lib/api/branches";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 type ChartKey = "revenue" | "collected" | "due" | "utilization" | "students";
 
@@ -58,6 +60,15 @@ function money(value: number) {
 
 export default function AnalyticsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.analytics}>
+            <AnalyticsContent branchId={branchId} />
+        </BranchAccessGuard>
+    );
+}
+
+function AnalyticsContent({ branchId }: { branchId: string }) {
     const [data, setData] = useState<BranchAnalyticsRow[]>([]);
     const [snapshot, setSnapshot] = useState<BranchSnapshot | null>(null);
     const [trends, setTrends] = useState<TrendData>([]);

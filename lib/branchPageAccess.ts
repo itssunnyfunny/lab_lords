@@ -7,6 +7,7 @@ export const BRANCH_PAGE_ACCESS = {
     shifts: "seat_allocation",
     seats: "seat_allocation",
     payments: "view_payments",
+    overdue: "view_payments",
     students: "students",
     allocations: "seat_allocation",
     aiReports: "analytics",

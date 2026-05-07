@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { BranchHealthPanel } from "@/components/ai/BranchHealthPanel";
 import { AIStructuredBranchReport } from "@/ai/contracts/structuredReport.contract";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 interface AIResponse {
     report: AIStructuredBranchReport;
@@ -31,6 +33,14 @@ export default function AIReportsPage() {
     const params = useParams();
     const branchId = params.branchId as string;
 
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.aiReports}>
+            <AIReportsContent branchId={branchId} />
+        </BranchAccessGuard>
+    );
+}
+
+function AIReportsContent({ branchId }: { branchId: string }) {
     const [data, setData] = useState<AIResponse | null>(null);
     const [loading, setLoading] = useState(true);
 

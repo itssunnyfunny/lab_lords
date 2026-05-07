@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
+import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
 import { useCallback, useEffect, useState, use, useRef } from "react";
 import { payments } from "@/lib/api/payments";
@@ -14,6 +15,7 @@ import { isOverdue } from "@/lib/utils/paymentStatus";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
+import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 
 type PaymentRow = Payment & {
     student?: {
@@ -25,6 +27,32 @@ type PaymentRow = Payment & {
 
 export default function PaymentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+
+    return (
+        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.payments}>
+            {access => (
+                <PaymentsContent
+                    branchId={branchId}
+                    canGeneratePayments={access.permissions.generate_payments}
+                    canMarkPaid={access.permissions.mark_payment_paid}
+                    canWaivePayments={access.permissions.waive_payments}
+                />
+            )}
+        </BranchAccessGuard>
+    );
+}
+
+function PaymentsContent({
+    branchId,
+    canGeneratePayments,
+    canMarkPaid,
+    canWaivePayments,
+}: {
+    branchId: string;
+    canGeneratePayments: boolean;
+    canMarkPaid: boolean;
+    canWaivePayments: boolean;
+}) {
     const router = useRouter();
 
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -63,15 +91,17 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
         setLoading(true);
         setNewlyGenerated(null);
         try {
-            // 1. Auto-generate all missed due payments (anchor-based, idempotent)
-            const genRes = await fetch(`/api/branches/${branchId}/payments/generate`, {
-                method: "POST",
-                cache: "no-store",
-            });
-            if (genRes.ok) {
-                const genData = await genRes.json();
-                if (genData.generatedCount > 0) {
-                    setNewlyGenerated(genData.generatedCount);
+            if (canGeneratePayments) {
+                // 1. Auto-generate all missed due payments (anchor-based, idempotent)
+                const genRes = await fetch(`/api/branches/${branchId}/payments/generate`, {
+                    method: "POST",
+                    cache: "no-store",
+                });
+                if (genRes.ok) {
+                    const genData = await genRes.json();
+                    if (genData.generatedCount > 0) {
+                        setNewlyGenerated(genData.generatedCount);
+                    }
                 }
             }
         } catch (genErr) {
@@ -83,7 +113,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
             await loadPayments();
             setLoading(false);
         }
-    }, [branchId, loadPayments]);
+    }, [branchId, canGeneratePayments, loadPayments]);
 
     useEffect(() => {
         generateAndLoad();
@@ -327,19 +357,27 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                                 </Button>
                             )}
 
-                            {item.status === "DUE" && (
+                            {item.status === "DUE" && (canMarkPaid || canWaivePayments) && (
                                 <>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
-                                        onClick={() => handleMarkPaid(item.id)}
-                                    >
-                                        <Check size={14} /> Mark Paid
-                                    </Button>
+                                    {canMarkPaid && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
+                                            onClick={() => handleMarkPaid(item.id)}
+                                        >
+                                            <Check size={14} /> Mark Paid
+                                        </Button>
+                                    )}
 
-                                    <RowDropdown onWaive={() => setPaymentToWaive(item.id)} />
+                                    {canWaivePayments && (
+                                        <RowDropdown onWaive={() => setPaymentToWaive(item.id)} />
+                                    )}
                                 </>
+                            )}
+
+                            {item.status === "DUE" && !canMarkPaid && !canWaivePayments && (
+                                <span className="text-xs text-gray-500">View only</span>
                             )}
                         </div>
                     )}
