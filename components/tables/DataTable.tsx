@@ -3,13 +3,44 @@
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 
+export type DataViewMode = "table" | "grid";
+
 interface DataTableProps<T> {
     columns: { header: string; accessor: keyof T | ((item: T) => ReactNode); className?: string }[];
     data: T[];
     actions?: (item: T) => ReactNode;
+    viewMode?: DataViewMode;
+    renderGridCard?: (item: T, actions?: (item: T) => ReactNode) => ReactNode;
+    gridClassName?: string;
+    emptyMessage?: string;
 }
 
-export function DataTable<T extends { id: string | number }>({ columns, data, actions }: DataTableProps<T>) {
+export function DataTable<T extends { id: string | number }>({
+    columns,
+    data,
+    actions,
+    viewMode = "table",
+    renderGridCard,
+    gridClassName,
+    emptyMessage = "No data available.",
+}: DataTableProps<T>) {
+    if (viewMode === "grid" && renderGridCard) {
+        return (
+            <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", gridClassName)}>
+                {data.map((item) => (
+                    <div key={item.id} className="min-w-0">
+                        {renderGridCard(item, actions)}
+                    </div>
+                ))}
+                {data.length === 0 && (
+                    <div className="col-span-full rounded-lg border border-dashed border-white/10 py-12 text-center text-textMuted">
+                        {emptyMessage}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className="w-full overflow-visible rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-card shadow-card">
             <table className="w-full text-left text-sm">
@@ -50,7 +81,7 @@ export function DataTable<T extends { id: string | number }>({ columns, data, ac
                     {data.length === 0 && (
                         <tr>
                             <td colSpan={columns.length + (actions ? 1 : 0)} className="py-12 text-center text-textMuted">
-                                No data available.
+                                {emptyMessage}
                             </td>
                         </tr>
                     )}
