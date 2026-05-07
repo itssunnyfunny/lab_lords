@@ -126,6 +126,29 @@ describe("StaffService Integration", () => {
         StaffService.updateStaffPermissions(managerUser.id, branch.id, staffRecord.id, { analytics: true })
       ).rejects.toThrow(/Unauthorized/i);
     });
+
+    it("returns effective branch access for owners and staff", async () => {
+      const { user, branch } = await createTestWorld();
+      const staffUser = await createUser();
+      const staffRecord = await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+      await StaffService.updateStaffPermissions(user.id, branch.id, staffRecord.id, {
+        analytics: true,
+        mark_payment_paid: false,
+      });
+
+      const ownerAccess = await StaffService.getBranchAccess(user.id, branch.id);
+      const staffAccess = await StaffService.getBranchAccess(staffUser.id, branch.id);
+
+      expect(ownerAccess.isOwner).toBe(true);
+      expect(ownerAccess.role).toBe("OWNER");
+      expect(ownerAccess.permissions.staff_management).toBe(true);
+      expect(staffAccess.isOwner).toBe(false);
+      expect(staffAccess.role).toBe("STAFF");
+      expect(staffAccess.permissions.students).toBe(true);
+      expect(staffAccess.permissions.analytics).toBe(true);
+      expect(staffAccess.permissions.mark_payment_paid).toBe(false);
+      expect(staffAccess.permissions.staff_management).toBe(false);
+    });
   });
 
   // ─── addStaff ─────────────────────────────────────────────────────────────

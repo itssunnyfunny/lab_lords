@@ -5,6 +5,8 @@ import { ChevronRight, UserPlus, CreditCard, Grid, CalendarCheck } from "lucide-
 import { useRouter } from "next/navigation";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBranchAccess } from "@/hooks/useBranchAccess";
+import type { StaffAction } from "@/types";
 
 interface Action {
     label: string;
@@ -12,6 +14,7 @@ interface Action {
     icon: LucideIcon;
     route: string;
     accent: string;
+    permission: StaffAction;
 }
 
 const actions: Action[] = [
@@ -21,6 +24,7 @@ const actions: Action[] = [
         icon: UserPlus,
         route: "/students",
         accent: "group-hover:text-indigo-400 group-hover:bg-indigo-500/10",
+        permission: "students",
     },
     {
         label: "Record Payment",
@@ -28,6 +32,7 @@ const actions: Action[] = [
         icon: CreditCard,
         route: "/payments",
         accent: "group-hover:text-emerald-400 group-hover:bg-emerald-500/10",
+        permission: "mark_payment_paid",
     },
     {
         label: "Assign a Seat",
@@ -35,6 +40,7 @@ const actions: Action[] = [
         icon: Grid,
         route: "/allocations",
         accent: "group-hover:text-violet-400 group-hover:bg-violet-500/10",
+        permission: "seat_allocation",
     },
     {
         label: "View Shifts",
@@ -42,16 +48,22 @@ const actions: Action[] = [
         icon: CalendarCheck,
         route: "/shifts",
         accent: "group-hover:text-cyan-400 group-hover:bg-cyan-500/10",
+        permission: "manage_branch",
     },
 ];
 
 export function QuickActions({ branchId }: { branchId: string }) {
     const router = useRouter();
+    const { access, loading } = useBranchAccess(branchId);
+    const visibleActions = actions.filter(action => access?.permissions[action.permission]);
 
     return (
         <Card title="Quick Actions" className="h-full">
             <div className="space-y-2">
-                {actions.map((action) => (
+                {!loading && visibleActions.length === 0 && (
+                    <p className="px-1 py-2 text-sm text-gray-500">No quick actions available for your access.</p>
+                )}
+                {visibleActions.map((action) => (
                     <button
                         key={action.label}
                         onClick={() => router.push(`/branch/${branchId}${action.route}`)}

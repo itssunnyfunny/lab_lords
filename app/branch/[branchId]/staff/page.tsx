@@ -15,6 +15,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { OverridableStaffAction, StaffPermissionUpdate } from "@/types";
+import { useBranchAccess } from "@/hooks/useBranchAccess";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -610,6 +611,8 @@ function InviteLinkPanel({
 
 export default function StaffPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+    const { can } = useBranchAccess(branchId);
+    const canManageStaff = can("staff_management");
 
     const [data, setData] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
@@ -722,33 +725,37 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
             <PageHeader
                 title="Staff"
                 subtitle="Manage team members and their access roles."
-                onAdd={() => setAddOpen(true)}
+                onAdd={canManageStaff ? () => setAddOpen(true) : undefined}
                 actionLabel="Add Staff"
             />
 
-            <InviteLinkPanel
-                inviteRole={inviteRole}
-                invite={invite}
-                loading={inviteLoading}
-                error={inviteError}
-                copied={inviteCopied}
-                onRoleChange={(role) => {
-                    setInviteRole(role);
-                    setInvite(null);
-                    setInviteError(null);
-                    setInviteCopied(false);
-                }}
-                onCreateInvite={handleCreateInvite}
-                onCopyInvite={handleCopyInvite}
-            />
+            {canManageStaff && (
+                <InviteLinkPanel
+                    inviteRole={inviteRole}
+                    invite={invite}
+                    loading={inviteLoading}
+                    error={inviteError}
+                    copied={inviteCopied}
+                    onRoleChange={(role) => {
+                        setInviteRole(role);
+                        setInvite(null);
+                        setInviteError(null);
+                        setInviteCopied(false);
+                    }}
+                    onCreateInvite={handleCreateInvite}
+                    onCopyInvite={handleCopyInvite}
+                />
+            )}
 
             {data.length === 0 ? (
                 <div className="text-center py-16 border border-dashed border-white/10 rounded-xl text-gray-500 space-y-3">
                     <UserPlus size={36} className="mx-auto opacity-30" />
                     <p>No staff members yet.</p>
-                    <button onClick={() => setAddOpen(true)} className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
-                        + Add your first staff member
-                    </button>
+                    {canManageStaff && (
+                        <button onClick={() => setAddOpen(true)} className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+                            + Add your first staff member
+                        </button>
+                    )}
                 </div>
             ) : (
                 <Card className="overflow-visible p-0">
@@ -798,19 +805,23 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
                                     </td>
                                     {/* Actions */}
                                     <td className="px-6 py-4">
-                                        <RowActions actions={[
-                                            {
-                                                label: hasPermissionOverrides(member) ? "Edit Access" : "Set Access",
-                                                icon: Pencil,
-                                                onClick: () => setEditTarget(member),
-                                            },
-                                            {
-                                                label: "Remove",
-                                                icon: Trash2,
-                                                variant: "danger",
-                                                onClick: () => handleRemoveClick(member),
-                                            },
-                                        ]} />
+                                        {canManageStaff ? (
+                                            <RowActions actions={[
+                                                {
+                                                    label: hasPermissionOverrides(member) ? "Edit Access" : "Set Access",
+                                                    icon: Pencil,
+                                                    onClick: () => setEditTarget(member),
+                                                },
+                                                {
+                                                    label: "Remove",
+                                                    icon: Trash2,
+                                                    variant: "danger",
+                                                    onClick: () => handleRemoveClick(member),
+                                                },
+                                            ]} />
+                                        ) : (
+                                            <span className="text-xs text-zinc-600">View only</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -820,40 +831,46 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
             )}
 
             {/* Edit role dialog */}
-            <EditRoleDialog
-                isOpen={!!editTarget}
-                member={editTarget}
-                branchId={branchId}
-                onClose={() => setEditTarget(null)}
-                onSuccess={updated => {
-                    setData(prev => prev.map(m => m.id === updated.id ? updated : m));
-                    setEditTarget(null);
-                    showToast("Staff access updated.");
-                }}
-            />
+            {canManageStaff && (
+                <EditRoleDialog
+                    isOpen={!!editTarget}
+                    member={editTarget}
+                    branchId={branchId}
+                    onClose={() => setEditTarget(null)}
+                    onSuccess={updated => {
+                        setData(prev => prev.map(m => m.id === updated.id ? updated : m));
+                        setEditTarget(null);
+                        showToast("Staff access updated.");
+                    }}
+                />
+            )}
 
             {/* Add staff dialog */}
-            <AddStaffDialog
-                isOpen={addOpen}
-                branchId={branchId}
-                onClose={() => setAddOpen(false)}
-                onSuccess={member => {
-                    setData(prev => [...prev, member]);
-                    showToast(`Staff member added.`);
-                }}
-            />
+            {canManageStaff && (
+                <AddStaffDialog
+                    isOpen={addOpen}
+                    branchId={branchId}
+                    onClose={() => setAddOpen(false)}
+                    onSuccess={member => {
+                        setData(prev => [...prev, member]);
+                        showToast(`Staff member added.`);
+                    }}
+                />
+            )}
 
             {/* Remove staff dialog */}
-            <ConfirmDialog
-                isOpen={!!removeTarget}
-                onClose={() => setRemoveTarget(null)}
-                onConfirm={confirmRemove}
-                title="Remove Staff"
-                description={`Are you sure you want to remove ${removeTarget?.user?.name || removeTarget?.user?.email} from this branch?`}
-                confirmText="Remove"
-                variant="danger"
-                loading={removeLoading}
-            />
+            {canManageStaff && (
+                <ConfirmDialog
+                    isOpen={!!removeTarget}
+                    onClose={() => setRemoveTarget(null)}
+                    onConfirm={confirmRemove}
+                    title="Remove Staff"
+                    description={`Are you sure you want to remove ${removeTarget?.user?.name || removeTarget?.user?.email} from this branch?`}
+                    confirmText="Remove"
+                    variant="danger"
+                    loading={removeLoading}
+                />
+            )}
         </div>
     );
 }

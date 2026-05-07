@@ -30,3 +30,14 @@ export type OverridableStaffAction = typeof OVERRIDABLE_STAFF_ACTIONS[number];
 export type StaffPermissionUpdate = Partial<Record<OverridableStaffAction, boolean | null>>;
 
 export type EntityPermissionMatrix = Record<StaffAction, StaffRole[]>;
+
+export type BranchAccessRole = "OWNER" | StaffRole;
+
+export type BranchAccess = {
+    branchId: string;
+    branchName: string;
+    isOwner: boolean;
+    role: BranchAccessRole;
+    staffId?: string;
+    permissions: Record<StaffAction, boolean>;
+};

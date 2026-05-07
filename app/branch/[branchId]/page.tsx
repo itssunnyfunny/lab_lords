@@ -10,6 +10,7 @@ import { OverdueTable } from "@/components/dashboard/OverdueTable";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ShiftOccupancyCard } from "@/components/dashboard/ShiftOccupancyCard";
 import { RecentActivity, ActivityItem } from "@/components/dashboard/RecentActivity";
+import { useBranchAccess } from "@/hooks/useBranchAccess";
 import {
     IndianRupee,
     AlertTriangle,
@@ -58,7 +59,7 @@ interface AllocationSummary {
 }
 
 interface DashboardData {
-    snapshot: BranchSnapshot;
+    snapshot: BranchSnapshot | null;
     overduePayments: OverduePayment[];
     recentStudents: Student[];
     activityItems: ActivityItem[];
@@ -140,24 +141,35 @@ export default function BranchDashboardPage({
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { access, loading: accessLoading } = useBranchAccess(branchId);
 
     useEffect(() => {
         const load = async () => {
+            if (accessLoading) return;
+            if (!access) {
+                setLoading(false);
+                setError("You do not have access to this branch.");
+                return;
+            }
+
             setLoading(true);
             setError(null);
             try {
                 const monthStr = format(new Date(), "yyyy-MM");
-                const [snapshot, branchDetails, allStudents, allocationsRes, monthPayments] =
+                const [snapshot, allStudents, allocationsRes, monthPayments] =
                     await Promise.all([
-                        analytics.getSnapshot(branchId),
-                        branches.getDetails(branchId),
-                        branches.getStudents(branchId),
-                        fetch(`/api/branches/${branchId}/seat-allocations?activeOnly=true`)
-                            .then((r) => (r.ok ? r.json() : []))
-                            .catch(() => []),
-                        fetch(`/api/branches/${branchId}/payments?month=${monthStr}`)
-                            .then((r) => (r.ok ? r.json() : []))
-                            .catch(() => []),
+                        access.permissions.analytics ? analytics.getSnapshot(branchId) : Promise.resolve(null),
+                        access.permissions.students ? branches.getStudents(branchId) : Promise.resolve([]),
+                        access.permissions.seat_allocation
+                            ? fetch(`/api/branches/${branchId}/seat-allocations?activeOnly=true`)
+                                .then((r) => (r.ok ? r.json() : []))
+                                .catch(() => [])
+                            : Promise.resolve([]),
+                        access.permissions.view_payments
+                            ? fetch(`/api/branches/${branchId}/payments?month=${monthStr}`)
+                                .then((r) => (r.ok ? r.json() : []))
+                                .catch(() => [])
+                            : Promise.resolve([]),
                     ]);
                 
                 const paymentsData = monthPayments as PaymentWithStudent[];
@@ -231,7 +243,7 @@ export default function BranchDashboardPage({
                     overduePayments: overdueRes.payments ?? [],
                     recentStudents: sorted.slice(0, 5),
                     activityItems,
-                    branchName: branchDetails.name,
+                    branchName: access.branchName,
                 });
             } catch (err) {
                 console.error("[Dashboard] load failed", err);
@@ -241,7 +253,7 @@ export default function BranchDashboardPage({
             }
         };
         load();
-    }, [branchId]);
+    }, [access, accessLoading, branchId]);
 
     if (loading) return <DashboardSkeleton />;
 

@@ -1,9 +1,14 @@
 import { apiClient } from "./core";
-import { Student, Seat, Payment, Staff, Shift, Branch } from "@prisma/client";
+import type { Student, Seat, Payment, Staff, Shift, Branch } from "@prisma/client";
+import type { BranchAccess } from "@/types";
 
 export const branches = {
     getDetails: async (branchId: string): Promise<Branch> => {
         return apiClient.get(`/branches/${branchId}`);
+    },
+
+    getAccess: async (branchId: string): Promise<BranchAccess> => {
+        return apiClient.get(`/branches/${branchId}/access`);
     },
 
     getStudents: async (branchId: string, shiftId?: string): Promise<Student[]> => {

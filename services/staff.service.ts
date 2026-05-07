@@ -1,8 +1,10 @@
 import { prisma as db } from "@/lib/prisma";
 import {
+    BranchAccess,
     EntityPermissionMatrix,
     OVERRIDABLE_STAFF_ACTIONS,
     OverridableStaffAction,
+    STAFF_ACTIONS,
     StaffAction,
     StaffPermissionAction,
     StaffPermissionUpdate,
@@ -65,6 +67,30 @@ function normalizePermissionUpdate(permissions: StaffPermissionUpdate | undefine
             allowed,
         };
     });
+}
+
+function buildOwnerPermissions() {
+    return STAFF_ACTIONS.reduce<Record<StaffAction, boolean>>((permissions, action) => {
+        permissions[action] = true;
+        return permissions;
+    }, {} as Record<StaffAction, boolean>);
+}
+
+function buildStaffPermissions(
+    role: StaffRole,
+    permissionOverrides: { action: StaffPermissionAction; allowed: boolean }[]
+) {
+    return STAFF_ACTIONS.reduce<Record<StaffAction, boolean>>((permissions, action) => {
+        const permissionAction = isOverridableStaffAction(action)
+            ? ACTION_TO_PERMISSION_ACTION[action]
+            : null;
+        const override = permissionAction
+            ? permissionOverrides.find(item => item.action === permissionAction)
+            : null;
+
+        permissions[action] = override?.allowed ?? PERMISSION_MATRIX[action].includes(role);
+        return permissions;
+    }, {} as Record<StaffAction, boolean>);
 }
 
 export class StaffService {
@@ -138,6 +164,57 @@ export class StaffService {
 
         // 4. Reject
         throw new Error(`Unauthorized: Role '${staffMember.role}' cannot perform '${action}'`);
+    }
+
+    static async getBranchAccess(userId: string, branchId: string): Promise<BranchAccess> {
+        const branch = await db.branch.findUnique({
+            where: { id: branchId },
+            include: { organization: true },
+        });
+
+        if (!branch) {
+            throw new Error("Branch not found");
+        }
+
+        if (branch.organization.ownerId === userId) {
+            return {
+                branchId,
+                branchName: branch.name,
+                isOwner: true,
+                role: "OWNER",
+                permissions: buildOwnerPermissions(),
+            };
+        }
+
+        const staffMember = await db.staff.findUnique({
+            where: {
+                userId_branchId: {
+                    userId,
+                    branchId,
+                },
+            },
+            include: {
+                permissionOverrides: {
+                    select: {
+                        action: true,
+                        allowed: true,
+                    },
+                },
+            },
+        });
+
+        if (!staffMember) {
+            throw new Error("Unauthorized: Not a staff member of this branch");
+        }
+
+        return {
+            branchId,
+            branchName: branch.name,
+            isOwner: false,
+            role: staffMember.role,
+            staffId: staffMember.id,
+            permissions: buildStaffPermissions(staffMember.role, staffMember.permissionOverrides),
+        };
     }
 
     // ==========================================
