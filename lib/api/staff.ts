@@ -1,8 +1,10 @@
 import { apiClient } from "./core";
-import { Staff, StaffRole } from "@prisma/client";
+import { Staff, StaffPermissionOverride, StaffRole } from "@prisma/client";
+import type { StaffPermissionUpdate } from "@/types";
 
 export type StaffWithUser = Staff & {
     user: { id: string; name: string | null; email: string };
+    permissionOverrides?: StaffPermissionOverride[];
 };
 
 export type StaffInviteResponse = {
@@ -20,6 +22,14 @@ export const staff = {
 
     add: async (branchId: string, data: { email: string; role: StaffRole }): Promise<StaffWithUser> => {
         return apiClient.post(`/branches/${branchId}/staff`, data);
+    },
+
+    update: async (
+        branchId: string,
+        staffId: string,
+        data: { role?: StaffRole; permissions?: StaffPermissionUpdate }
+    ): Promise<StaffWithUser> => {
+        return apiClient.patch(`/branches/${branchId}/staff/${staffId}`, data);
     },
 
     createInvite: async (branchId: string, data: { role: StaffRole; ttlDays?: number }): Promise<StaffInviteResponse> => {

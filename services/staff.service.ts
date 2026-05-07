@@ -1,5 +1,13 @@
 import { prisma as db } from "@/lib/prisma";
-import { StaffRole, StaffAction, EntityPermissionMatrix } from "@/types";
+import {
+    EntityPermissionMatrix,
+    OVERRIDABLE_STAFF_ACTIONS,
+    OverridableStaffAction,
+    StaffAction,
+    StaffPermissionAction,
+    StaffPermissionUpdate,
+    StaffRole,
+} from "@/types";
 
 // ==========================================
 // 1. TYPES & PERMISSION MATRIX
@@ -22,6 +30,42 @@ export const PERMISSION_MATRIX: EntityPermissionMatrix = {
     analytics: [StaffRole.MANAGER],
     staff_management: [], // OWNER only
 };
+
+const ACTION_TO_PERMISSION_ACTION: Record<OverridableStaffAction, StaffPermissionAction> = {
+    manage_branch: StaffPermissionAction.MANAGE_BRANCH,
+    students: StaffPermissionAction.STUDENTS,
+    seat_allocation: StaffPermissionAction.SEAT_ALLOCATION,
+    view_payments: StaffPermissionAction.VIEW_PAYMENTS,
+    generate_payments: StaffPermissionAction.GENERATE_PAYMENTS,
+    mark_payment_paid: StaffPermissionAction.MARK_PAYMENT_PAID,
+    waive_payments: StaffPermissionAction.WAIVE_PAYMENTS,
+    analytics: StaffPermissionAction.ANALYTICS,
+};
+
+const OVERRIDABLE_ACTION_SET = new Set<string>(OVERRIDABLE_STAFF_ACTIONS);
+
+function isOverridableStaffAction(action: StaffAction): action is OverridableStaffAction {
+    return OVERRIDABLE_ACTION_SET.has(action);
+}
+
+function normalizePermissionUpdate(permissions: StaffPermissionUpdate | undefined) {
+    if (!permissions) return [];
+
+    return Object.entries(permissions).map(([action, allowed]) => {
+        if (!OVERRIDABLE_ACTION_SET.has(action)) {
+            throw new Error(`Permission '${action}' cannot be overridden`);
+        }
+        if (allowed !== true && allowed !== false && allowed !== null) {
+            throw new Error(`Permission '${action}' must be true, false, or null`);
+        }
+
+        return {
+            action: action as OverridableStaffAction,
+            permissionAction: ACTION_TO_PERMISSION_ACTION[action as OverridableStaffAction],
+            allowed,
+        };
+    });
+}
 
 export class StaffService {
     private static normalizeEmail(email: string) {
@@ -63,10 +107,27 @@ export class StaffService {
                     branchId,
                 },
             },
+            include: {
+                permissionOverrides: {
+                    select: {
+                        action: true,
+                        allowed: true,
+                    },
+                },
+            },
         });
 
         if (!staffMember) {
             throw new Error("Unauthorized: Not a staff member of this branch");
+        }
+
+        if (isOverridableStaffAction(action)) {
+            const permissionAction = ACTION_TO_PERMISSION_ACTION[action];
+            const override = staffMember.permissionOverrides.find(item => item.action === permissionAction);
+            if (override) {
+                if (override.allowed) return true;
+                throw new Error(`Unauthorized: Permission '${action}' is disabled for this staff member`);
+            }
         }
 
         // 3. Match Role against Matrix
@@ -157,6 +218,7 @@ export class StaffService {
                         name: true,
                     },
                 },
+                permissionOverrides: true,
             },
         });
     }
@@ -183,11 +245,92 @@ export class StaffService {
         staffId: string,
         newRole: StaffRole
     ) {
+        return this.updateStaffAccess(actorId, branchId, staffId, { role: newRole });
+    }
+
+    static async updateStaffPermissions(
+        actorId: string,
+        branchId: string,
+        staffId: string,
+        permissions: StaffPermissionUpdate
+    ) {
+        return this.updateStaffAccess(actorId, branchId, staffId, { permissions });
+    }
+
+    static async updateStaffAccess(
+        actorId: string,
+        branchId: string,
+        staffId: string,
+        data: {
+            role?: StaffRole;
+            permissions?: StaffPermissionUpdate;
+        }
+    ) {
         await this.authorize(actorId, branchId, "staff_management");
 
-        return db.staff.update({
+        const permissionUpdates = normalizePermissionUpdate(data.permissions);
+        if (!data.role && permissionUpdates.length === 0) {
+            throw new Error("A role or at least one permission override is required");
+        }
+
+        const staffMember = await db.staff.findUnique({
             where: { id: staffId },
-            data: { role: newRole },
+            select: { branchId: true },
+        });
+        if (!staffMember || staffMember.branchId !== branchId) {
+            throw new Error("Staff member not found");
+        }
+
+        return db.$transaction(async (tx) => {
+            if (data.role) {
+                await tx.staff.update({
+                    where: { id: staffId },
+                    data: { role: data.role },
+                });
+            }
+
+            for (const update of permissionUpdates) {
+                if (update.allowed === null) {
+                    await tx.staffPermissionOverride.deleteMany({
+                        where: {
+                            staffId,
+                            action: update.permissionAction,
+                        },
+                    });
+                    continue;
+                }
+
+                await tx.staffPermissionOverride.upsert({
+                    where: {
+                        staffId_action: {
+                            staffId,
+                            action: update.permissionAction,
+                        },
+                    },
+                    create: {
+                        staffId,
+                        action: update.permissionAction,
+                        allowed: update.allowed,
+                    },
+                    update: {
+                        allowed: update.allowed,
+                    },
+                });
+            }
+
+            return tx.staff.findUniqueOrThrow({
+                where: { id: staffId },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            email: true,
+                            name: true,
+                        },
+                    },
+                    permissionOverrides: true,
+                },
+            });
         });
     }
 
@@ -209,6 +352,7 @@ export class StaffService {
                         name: true,
                     },
                 },
+                permissionOverrides: true,
             },
         });
     }

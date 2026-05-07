@@ -27,6 +27,7 @@ vi.mock("@/lib/prisma", () => ({
 
 import { StaffService, PERMISSION_MATRIX } from "@/services/staff.service";
 import { prisma } from "@/lib/prisma";
+import { StaffPermissionAction } from "@/types";
 
 const mockBranch = (ownerId: string) =>
   prisma.branch.findUnique = vi.fn().mockResolvedValue({
@@ -34,9 +35,12 @@ const mockBranch = (ownerId: string) =>
     organization: { ownerId },
   } as never);
 
-const mockStaff = (role: "MANAGER" | "STAFF" | null) => {
+const mockStaff = (
+  role: "MANAGER" | "STAFF" | null,
+  permissionOverrides: { action: StaffPermissionAction; allowed: boolean }[] = []
+) => {
   prisma.staff.findUnique = vi.fn().mockResolvedValue(
-    role ? { id: "staff_1", role } : null
+    role ? { id: "staff_1", role, permissionOverrides } : null
   );
 };
 
@@ -117,6 +121,18 @@ describe("StaffService.authorize()", () => {
     mockBranch(OWNER_ID);
     mockStaff("STAFF");
     await expect(StaffService.authorize(OTHER_ID, "branch_1", "students")).resolves.toBe(true);
+  });
+
+  it("allows an explicit permission override to grant access beyond role defaults", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("STAFF", [{ action: StaffPermissionAction.ANALYTICS, allowed: true }]);
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "analytics")).resolves.toBe(true);
+  });
+
+  it("rejects when an explicit permission override disables a role default", async () => {
+    mockBranch(OWNER_ID);
+    mockStaff("MANAGER", [{ action: StaffPermissionAction.MANAGE_BRANCH, allowed: false }]);
+    await expect(StaffService.authorize(OTHER_ID, "branch_1", "manage_branch")).rejects.toThrow("disabled");
   });
 
   it("REJECTS STAFF from manage_branch", async () => {

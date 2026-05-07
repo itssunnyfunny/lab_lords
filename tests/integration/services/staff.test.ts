@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { StaffService } from "@/services/staff.service";
-import { StaffRole } from "@/types";
+import { StaffPermissionAction, StaffRole } from "@/types";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import {
   createTestWorld,
@@ -64,6 +64,67 @@ describe("StaffService Integration", () => {
       await expect(
         StaffService.authorize(stranger.id, branch.id, "students")
       ).rejects.toThrow(/Not a staff member/i);
+    });
+
+    it("allows a permission override to grant STAFF access beyond role defaults", async () => {
+      const { user, branch } = await createTestWorld();
+      const staffUser = await createUser();
+      const staffRecord = await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+
+      await StaffService.updateStaffPermissions(user.id, branch.id, staffRecord.id, { analytics: true });
+
+      await expect(
+        StaffService.authorize(staffUser.id, branch.id, "analytics")
+      ).resolves.toBe(true);
+
+      await expect(
+        testPrisma.staffPermissionOverride.findUnique({
+          where: {
+            staffId_action: {
+              staffId: staffRecord.id,
+              action: StaffPermissionAction.ANALYTICS,
+            },
+          },
+        })
+      ).resolves.toMatchObject({ allowed: true });
+    });
+
+    it("allows a permission override to deny MANAGER access despite role defaults", async () => {
+      const { user, branch } = await createTestWorld();
+      const managerUser = await createUser();
+      const staffRecord = await createStaff({ userId: managerUser.id, branchId: branch.id, role: "MANAGER" });
+
+      await StaffService.updateStaffPermissions(user.id, branch.id, staffRecord.id, { manage_branch: false });
+
+      await expect(
+        StaffService.authorize(managerUser.id, branch.id, "manage_branch")
+      ).rejects.toThrow(/disabled/i);
+    });
+
+    it("removes a permission override when it is reset to null", async () => {
+      const { user, branch } = await createTestWorld();
+      const managerUser = await createUser();
+      const staffRecord = await createStaff({ userId: managerUser.id, branchId: branch.id, role: "MANAGER" });
+
+      await StaffService.updateStaffPermissions(user.id, branch.id, staffRecord.id, { manage_branch: false });
+      await StaffService.updateStaffPermissions(user.id, branch.id, staffRecord.id, { manage_branch: null });
+
+      await expect(
+        StaffService.authorize(managerUser.id, branch.id, "manage_branch")
+      ).resolves.toBe(true);
+      await expect(
+        testPrisma.staffPermissionOverride.count({ where: { staffId: staffRecord.id } })
+      ).resolves.toBe(0);
+    });
+
+    it("rejects permission updates from non-owners", async () => {
+      const { branch } = await createTestWorld();
+      const managerUser = await createUser();
+      const staffRecord = await createStaff({ userId: managerUser.id, branchId: branch.id, role: "MANAGER" });
+
+      await expect(
+        StaffService.updateStaffPermissions(managerUser.id, branch.id, staffRecord.id, { analytics: true })
+      ).rejects.toThrow(/Unauthorized/i);
     });
   });
 
