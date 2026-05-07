@@ -1,11 +1,12 @@
 "use client";
 
 import { Card } from "@/components/ui/Card";
-import { ChevronRight, UserPlus, CreditCard, Grid, CalendarCheck } from "lucide-react";
+import { ChevronRight, UserPlus, CreditCard, Grid, CalendarCheck, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
+import { getPermissionHelpText } from "@/lib/permissionMessages";
 import type { StaffAction } from "@/types";
 
 interface Action {
@@ -56,11 +57,12 @@ export function QuickActions({ branchId }: { branchId: string }) {
     const router = useRouter();
     const { access, loading } = useBranchAccess(branchId);
     const visibleActions = actions.filter(action => access?.permissions[action.permission]);
+    const unavailableActions = access ? actions.filter(action => !access.permissions[action.permission]) : [];
 
     return (
         <Card title="Quick Actions" className="h-full">
             <div className="space-y-2">
-                {!loading && visibleActions.length === 0 && (
+                {!loading && visibleActions.length === 0 && unavailableActions.length === 0 && (
                     <p className="px-1 py-2 text-sm text-gray-500">No quick actions available for your access.</p>
                 )}
                 {visibleActions.map((action) => (
@@ -82,6 +84,27 @@ export function QuickActions({ branchId }: { branchId: string }) {
                         <ChevronRight size={14} className="text-gray-600 group-hover:text-gray-400 flex-shrink-0 transition-colors" />
                     </button>
                 ))}
+                {unavailableActions.map((action) => {
+                    const helpText = getPermissionHelpText(action.permission);
+
+                    return (
+                        <div
+                            key={`${action.label}-disabled`}
+                            aria-disabled="true"
+                            title={helpText}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/[0.01] text-left opacity-70"
+                        >
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/[0.03] text-gray-600">
+                                <action.icon size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-500">{action.label}</p>
+                                <p className="text-xs leading-5 text-gray-600">{helpText}</p>
+                            </div>
+                            <LockKeyhole size={14} className="text-gray-700 flex-shrink-0" />
+                        </div>
+                    );
+                })}
             </div>
         </Card>
     );

@@ -12,6 +12,7 @@ export type StaffInviteResponse = {
     role: StaffRole;
     token: string;
     expiresAt: string;
+    createdAt: string;
     inviteUrl: string;
 };
 
@@ -34,5 +35,13 @@ export const staff = {
 
     createInvite: async (branchId: string, data: { role: StaffRole; ttlDays?: number }): Promise<StaffInviteResponse> => {
         return apiClient.post(`/branches/${branchId}/staff-invites`, data);
-    }
+    },
+
+    listInvites: async (branchId: string): Promise<StaffInviteResponse[]> => {
+        return apiClient.get(`/branches/${branchId}/staff-invites`);
+    },
+
+    revokeInvite: async (branchId: string, inviteId: string): Promise<{ success: boolean }> => {
+        return apiClient.delete(`/branches/${branchId}/staff-invites/${inviteId}`);
+    },
 };

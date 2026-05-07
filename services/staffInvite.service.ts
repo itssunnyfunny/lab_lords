@@ -20,6 +20,19 @@ function normalizeToken(token: string) {
 }
 
 export class StaffInviteService {
+    static async listActiveInvites(actorId: string, branchId: string) {
+        await StaffService.authorize(actorId, branchId, "staff_management");
+
+        return db.staffInvite.findMany({
+            where: {
+                branchId,
+                acceptedAt: null,
+                expiresAt: { gt: new Date() },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+    }
+
     static async createInvite(
         actorId: string,
         branchId: string,
@@ -39,6 +52,32 @@ export class StaffInviteService {
                 token: createInviteToken(),
                 expiresAt: addDays(new Date(), ttlDays),
             },
+        });
+    }
+
+    static async revokeInvite(actorId: string, branchId: string, inviteId: string) {
+        await StaffService.authorize(actorId, branchId, "staff_management");
+
+        const invite = await db.staffInvite.findUnique({
+            where: { id: inviteId },
+        });
+
+        if (!invite || invite.branchId !== branchId) {
+            throw new Error("Invite not found");
+        }
+
+        if (invite.acceptedAt) {
+            throw new Error("Accepted invites cannot be revoked");
+        }
+
+        const now = new Date();
+        if (invite.expiresAt.getTime() <= now.getTime()) {
+            return invite;
+        }
+
+        return db.staffInvite.update({
+            where: { id: invite.id },
+            data: { expiresAt: now },
         });
     }
 

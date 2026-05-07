@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { AddSeatDialog } from "./AddSeatDialog";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { getPermissionHelpText } from "@/lib/permissionMessages";
 
 // Extended Seat type to include temporary allocation info if available
 interface SeatWithStatus extends Seat {
@@ -133,6 +134,12 @@ function SeatsContent({
                 onAdd={canManageBranch ? () => setIsAddModalOpen(true) : undefined}
                 actionLabel="Add Seat"
             />
+
+            {!canManageBranch && (
+                <div className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                    Adding seats is disabled. {getPermissionHelpText("manage_branch")}
+                </div>
+            )}
 
             {/* Controls & Legend */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">

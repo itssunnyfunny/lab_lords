@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { OverridableStaffAction, StaffPermissionUpdate } from "@/types";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { getPermissionHelpText } from "@/lib/permissionMessages";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -535,22 +536,32 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
 function InviteLinkPanel({
     inviteRole,
     invite,
+    activeInvites,
     loading,
+    invitesLoading,
     error,
-    copied,
+    copiedInviteId,
+    revokingInviteId,
     onRoleChange,
     onCreateInvite,
     onCopyInvite,
+    onRevokeInvite,
 }: {
     inviteRole: StaffRoleOption;
     invite: StaffInviteResponse | null;
+    activeInvites: StaffInviteResponse[];
     loading: boolean;
+    invitesLoading: boolean;
     error: string | null;
-    copied: boolean;
+    copiedInviteId: string | null;
+    revokingInviteId: string | null;
     onRoleChange: (role: StaffRoleOption) => void;
     onCreateInvite: () => void;
-    onCopyInvite: () => void;
+    onCopyInvite: (invite: StaffInviteResponse) => void;
+    onRevokeInvite: (inviteId: string) => void;
 }) {
+    const olderInvites = activeInvites.filter(item => item.id !== invite?.id);
+
     return (
         <Card noHover className="p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -589,17 +600,78 @@ function InviteLinkPanel({
             </div>
 
             {invite && (
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                    <input
-                        readOnly
-                        value={invite.inviteUrl}
-                        className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 font-mono text-xs text-gray-300 outline-none"
-                    />
-                    <Button variant="outline" onClick={onCopyInvite} className="h-10 whitespace-nowrap">
-                        {copied ? <><CheckCircle2 size={14} /> Copied</> : <><Copy size={14} /> Copy link</>}
-                    </Button>
+                <div className="mt-4 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.04] p-3">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-cyan-200">Latest invite</span>
+                        <span className="text-xs text-gray-500">Expires {format(new Date(invite.expiresAt), "PPp")}</span>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        <input
+                            readOnly
+                            value={invite.inviteUrl}
+                            className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 font-mono text-xs text-gray-300 outline-none"
+                        />
+                        <Button variant="outline" onClick={() => onCopyInvite(invite)} className="h-10 whitespace-nowrap">
+                            {copiedInviteId === invite.id ? <><CheckCircle2 size={14} /> Copied</> : <><Copy size={14} /> Copy link</>}
+                        </Button>
+                        <Button
+                            variant="danger"
+                            isLoading={revokingInviteId === invite.id}
+                            onClick={() => onRevokeInvite(invite.id)}
+                            className="h-10 whitespace-nowrap"
+                        >
+                            <Trash2 size={14} /> Revoke
+                        </Button>
+                    </div>
                 </div>
             )}
+
+            <div className="mt-4 border-t border-white/5 pt-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                        <h3 className="text-sm font-semibold text-white">Active invite links</h3>
+                        <p className="text-xs text-gray-500">Copy an existing link or revoke it when it should no longer be used.</p>
+                    </div>
+                    {invitesLoading && <Loader2 size={14} className="animate-spin text-gray-500" />}
+                </div>
+
+                {!invitesLoading && activeInvites.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-white/10 px-4 py-3 text-sm text-gray-500">
+                        No active invite links.
+                    </div>
+                )}
+
+                {olderInvites.length > 0 && (
+                    <div className="space-y-2">
+                        {olderInvites.map(item => (
+                            <div key={item.id} className="flex flex-col gap-3 rounded-lg border border-white/8 bg-white/[0.03] p-3 md:flex-row md:items-center">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant={item.role === "MANAGER" ? "cyan" : "default"}>
+                                            {ROLE_DETAILS[item.role].label}
+                                        </Badge>
+                                        <span className="text-xs text-gray-500">Expires {format(new Date(item.expiresAt), "PPp")}</span>
+                                    </div>
+                                    <p className="mt-1 truncate font-mono text-xs text-gray-500">{item.inviteUrl}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => onCopyInvite(item)}>
+                                        {copiedInviteId === item.id ? <><CheckCircle2 size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
+                                    </Button>
+                                    <Button
+                                        variant="danger"
+                                        size="sm"
+                                        isLoading={revokingInviteId === item.id}
+                                        onClick={() => onRevokeInvite(item.id)}
+                                    >
+                                        <Trash2 size={13} /> Revoke
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {error && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
@@ -632,6 +704,7 @@ function StaffContent({
     branchId: string;
     canManageStaff: boolean;
 }) {
+    const staffManagementHelpText = getPermissionHelpText("staff_management");
     const [data, setData] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -641,9 +714,12 @@ function StaffContent({
     const [addOpen, setAddOpen] = useState(false);
     const [inviteRole, setInviteRole] = useState<StaffRoleOption>("STAFF");
     const [invite, setInvite] = useState<StaffInviteResponse | null>(null);
+    const [activeInvites, setActiveInvites] = useState<StaffInviteResponse[]>([]);
     const [inviteLoading, setInviteLoading] = useState(false);
+    const [invitesLoading, setInvitesLoading] = useState(false);
     const [inviteError, setInviteError] = useState<string | null>(null);
-    const [inviteCopied, setInviteCopied] = useState(false);
+    const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+    const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
 
     const [removeTarget, setRemoveTarget] = useState<StaffMember | null>(null);
     const [removeLoading, setRemoveLoading] = useState(false);
@@ -667,13 +743,30 @@ function StaffContent({
 
     useEffect(() => { loadStaff(); }, [loadStaff]);
 
+    const loadInvites = useCallback(async () => {
+        if (!canManageStaff) return;
+        setInvitesLoading(true);
+        try {
+            const list = await staff.listInvites(branchId);
+            setActiveInvites(list);
+            setInviteError(null);
+        } catch (err: unknown) {
+            setInviteError(getErrorMessage(err, "Failed to load active invites."));
+        } finally {
+            setInvitesLoading(false);
+        }
+    }, [branchId, canManageStaff]);
+
+    useEffect(() => { loadInvites(); }, [loadInvites]);
+
     const handleCreateInvite = async () => {
         setInviteLoading(true);
         setInviteError(null);
-        setInviteCopied(false);
+        setCopiedInviteId(null);
         try {
             const created = await staff.createInvite(branchId, { role: inviteRole });
             setInvite(created);
+            setActiveInvites(prev => [created, ...prev.filter(item => item.id !== created.id)]);
             showToast("Invite link created.");
         } catch (err: unknown) {
             setInviteError(getErrorMessage(err, "Failed to create invite."));
@@ -682,14 +775,28 @@ function StaffContent({
         }
     };
 
-    const handleCopyInvite = async () => {
-        if (!invite) return;
+    const handleCopyInvite = async (inviteToCopy: StaffInviteResponse) => {
         try {
-            await navigator.clipboard.writeText(invite.inviteUrl);
-            setInviteCopied(true);
-            setTimeout(() => setInviteCopied(false), 2500);
+            await navigator.clipboard.writeText(inviteToCopy.inviteUrl);
+            setCopiedInviteId(inviteToCopy.id);
+            setTimeout(() => setCopiedInviteId(null), 2500);
         } catch {
             setInviteError("Could not copy the invite link. Select the link and copy it manually.");
+        }
+    };
+
+    const handleRevokeInvite = async (inviteId: string) => {
+        setRevokingInviteId(inviteId);
+        setInviteError(null);
+        try {
+            await staff.revokeInvite(branchId, inviteId);
+            setActiveInvites(prev => prev.filter(item => item.id !== inviteId));
+            if (invite?.id === inviteId) setInvite(null);
+            showToast("Invite revoked.");
+        } catch (err: unknown) {
+            setInviteError(getErrorMessage(err, "Failed to revoke invite."));
+        } finally {
+            setRevokingInviteId(null);
         }
     };
 
@@ -747,21 +854,31 @@ function StaffContent({
                 actionLabel="Add Staff"
             />
 
+            {!canManageStaff && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                    Staff changes and invite links are disabled. {staffManagementHelpText}
+                </div>
+            )}
+
             {canManageStaff && (
                 <InviteLinkPanel
                     inviteRole={inviteRole}
                     invite={invite}
+                    activeInvites={activeInvites}
                     loading={inviteLoading}
+                    invitesLoading={invitesLoading}
                     error={inviteError}
-                    copied={inviteCopied}
+                    copiedInviteId={copiedInviteId}
+                    revokingInviteId={revokingInviteId}
                     onRoleChange={(role) => {
                         setInviteRole(role);
                         setInvite(null);
                         setInviteError(null);
-                        setInviteCopied(false);
+                        setCopiedInviteId(null);
                     }}
                     onCreateInvite={handleCreateInvite}
                     onCopyInvite={handleCopyInvite}
+                    onRevokeInvite={handleRevokeInvite}
                 />
             )}
 
@@ -838,7 +955,9 @@ function StaffContent({
                                                 },
                                             ]} />
                                         ) : (
-                                            <span className="text-xs text-zinc-600">View only</span>
+                                            <span className="text-xs text-zinc-600" title={staffManagementHelpText}>
+                                                View only
+                                            </span>
                                         )}
                                     </td>
                                 </tr>
