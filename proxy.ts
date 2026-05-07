@@ -16,7 +16,7 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, req) => {
   }
 });
 
-export default function middleware(req: NextRequest, event: NextFetchEvent) {
+export function proxy(req: NextRequest, event: NextFetchEvent) {
   if (isAuthBypassEnabled()) {
     return NextResponse.next();
   }
