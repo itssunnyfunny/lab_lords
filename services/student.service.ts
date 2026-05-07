@@ -323,6 +323,14 @@ export class StudentService {
         const verifiedStudent = await this.verifyStudentAccess(userId, studentId);
         const now = new Date();
 
+        if (status === StudentStatus.INACTIVE) {
+            if (dueResolution === "PAID") {
+                await StaffService.authorize(userId, verifiedStudent.branchId, "mark_payment_paid");
+            } else if (dueResolution === "WAIVED") {
+                await StaffService.authorize(userId, verifiedStudent.branchId, "waive_payments");
+            }
+        }
+
         return prisma.$transaction(async (tx) => {
             // 1. Update student status
             const student = await tx.student.update({

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { StudentService } from "@/services/student.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
-import { createTestWorld, createStudent, createAllocation, createShift, createSeat, createStaff, createUser } from "@/tests/factories";
+import { createTestWorld, createStudent, createAllocation, createShift, createSeat, createStaff, createUser, createPayment } from "@/tests/factories";
 
 describe("StudentService Integration", () => {
   afterAll(async () => { await disconnectDatabase(); });
@@ -262,6 +262,29 @@ describe("StudentService Integration", () => {
   });
 
   // ─── getStudentsByBranch ──────────────────────────────────────────────────
+
+    it("rejects STAFF users from waiving dues while deactivating a student", async () => {
+      const { branch } = await createTestWorld();
+      const staffUser = await createUser();
+      await createStaff({ userId: staffUser.id, branchId: branch.id, role: "STAFF" });
+      const student = await createStudent({ branchId: branch.id });
+      const payment = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: new Date(),
+        periodStart: new Date(),
+        periodEnd: new Date(),
+      });
+
+      await expect(
+        StudentService.updateStudentStatus(staffUser.id, student.id, "INACTIVE", "WAIVED")
+      ).rejects.toThrow("waive_payments");
+
+      const unchangedPayment = await testPrisma.payment.findUnique({ where: { id: payment.id } });
+      const unchangedStudent = await testPrisma.student.findUnique({ where: { id: student.id } });
+      expect(unchangedPayment?.status).toBe("DUE");
+      expect(unchangedStudent?.status).toBe("ACTIVE");
+    });
 
   describe("getStudentsByBranch", () => {
     it("allows STAFF role users to list students in their branch", async () => {
