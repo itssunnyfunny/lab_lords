@@ -4,7 +4,7 @@ import { suggestActionsForBranch } from "../actionSuggestions/branchActionSugges
 import { generateBranchHealthReport } from "../branchHealthReport"
 import { AIStructuredBranchReport } from "../contracts/structuredReport.contract"
 import { prisma } from "@/lib/prisma"
-import { Prisma } from "@prisma/client"
+import type { Prisma } from "@/app/generated/prisma/client"
 
 
 export interface BranchAIResponse {

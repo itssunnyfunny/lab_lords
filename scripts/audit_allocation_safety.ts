@@ -1,7 +1,7 @@
 
 import { prisma } from "../lib/prisma";
 import { SeatAllocationService } from "../services/seatAllocation.service";
-import { StudentStatus } from "@prisma/client";
+import { StudentStatus } from "../app/generated/prisma/enums";
 
 function errorMessage(error: unknown) {
     return error instanceof Error ? error.message : String(error);

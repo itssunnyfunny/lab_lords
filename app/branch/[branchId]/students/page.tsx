@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState, use, useMemo, useRef } from "react";
 import { students } from "@/lib/api/students";
 import { payments } from "@/lib/api/payments";
 import { branches } from "@/lib/api/branches";
-import { Student, Payment, StudentStatus, Shift } from "@prisma/client";
+import { StudentStatus, type Student, type Payment, type Shift } from "@/app/generated/prisma/browser";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AddStudentDialog } from "./AddStudentDialog";

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { User, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState, use } from "react";
 import { branches } from "@/lib/api/branches";
-import { Seat, Shift } from "@prisma/client";
+import type { Seat, Shift } from "@/app/generated/prisma/browser";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { AddSeatDialog } from "./AddSeatDialog";

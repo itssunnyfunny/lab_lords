@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { X, Loader2, AlertCircle, User, Phone, IndianRupee } from "lucide-react";
-import { Student } from "@prisma/client";
+import type { Student } from "@/app/generated/prisma/browser";
 import { FORM_LIMITS, parseIntegerField, validatePhone, validateRequiredText } from "@/lib/formValidation";
 
 interface EditStudentDialogProps {

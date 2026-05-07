@@ -9,7 +9,7 @@ import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
 import { useCallback, useEffect, useState, use, useRef } from "react";
 import { payments } from "@/lib/api/payments";
-import { Payment } from "@prisma/client";
+import type { Payment } from "@/app/generated/prisma/browser";
 import { format, addMonths, subMonths } from "date-fns";
 import { isOverdue } from "@/lib/utils/paymentStatus";
 import { useRouter } from "next/navigation";

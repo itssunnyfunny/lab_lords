@@ -1,5 +1,5 @@
 import { apiClient } from "./core";
-import type { Staff, StaffPermissionOverride, StaffRole } from "@prisma/client";
+import type { Staff, StaffPermissionOverride, StaffRole } from "@/app/generated/prisma/browser";
 import type { StaffPermissionUpdate } from "@/types";
 
 export type StaffWithUser = Staff & {

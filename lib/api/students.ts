@@ -1,5 +1,5 @@
 import { apiClient } from "./core";
-import { Student } from "@prisma/client";
+import type { Student } from "@/app/generated/prisma/browser";
 import { CreateStudentDto, StudentStatus } from "@/types";
 
 export const students = {

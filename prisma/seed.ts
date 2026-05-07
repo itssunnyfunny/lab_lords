@@ -4,7 +4,7 @@ import {
     PaymentType,
     StudentStatus,
     StaffRole,
-} from "@prisma/client";
+} from "../app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { addMonths, subMonths, startOfDay } from "date-fns";
 import * as fs from "fs";

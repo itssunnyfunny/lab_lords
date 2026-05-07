@@ -1,5 +1,5 @@
 import { apiClient } from "./core";
-import { Organization, Branch } from "@prisma/client";
+import type { Organization, Branch } from "@/app/generated/prisma/browser";
 import { CreateOrganizationDto, CreateBranchDto } from "@/types";
 
 // What the /organizations/:orgId/branches endpoint actually returns —

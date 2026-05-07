@@ -1,5 +1,5 @@
 import { apiClient } from "./core";
-import type { Student, Seat, Payment, Staff, Shift, Branch } from "@prisma/client";
+import type { Student, Seat, Payment, Staff, Shift, Branch } from "@/app/generated/prisma/browser";
 import type { BranchAccess } from "@/types";
 
 export const branches = {
