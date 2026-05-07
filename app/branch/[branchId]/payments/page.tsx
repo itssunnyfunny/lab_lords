@@ -1,6 +1,7 @@
 "use client";
 
-import { DataTable } from "@/components/tables/DataTable";
+import { DataTable, type DataViewMode } from "@/components/tables/DataTable";
+import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -60,6 +61,7 @@ function PaymentsContent({
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [activeTab, setActiveTab] = useState<"DUE" | "PAID">("DUE");
+    const [viewMode, setViewMode] = useState<DataViewMode>("table");
 
     const [data, setData] = useState<PaymentRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -184,6 +186,104 @@ function PaymentsContent({
 
     const isCurrentMonth = (date: Date) => format(date, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
+    const formatPaymentAmount = (amount: number) =>
+        new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            maximumFractionDigits: 0,
+        }).format(amount);
+
+    const renderDueDate = (item: PaymentRow) => {
+        const overdue = isOverdue(item.dueDate);
+
+        return (
+            <div className="flex flex-wrap items-center gap-2">
+                <span className={cn(overdue ? "text-red-400 font-medium" : "text-textSecondary")}>
+                    {format(new Date(item.dueDate), "PP")}
+                </span>
+                {overdue && (
+                    <Badge variant="danger" className="h-5 px-1 py-0 text-[10px]">OVERDUE</Badge>
+                )}
+            </div>
+        );
+    };
+
+    const renderPaymentStatus = (item: PaymentRow) => (
+        <Badge
+            variant={
+                item.status === "PAID" ? "success" :
+                    item.status === "DUE" ? "warning" :
+                        "danger"
+            }
+        >
+            {item.status}
+        </Badge>
+    );
+
+    const renderPaymentMethod = (item: PaymentRow) => {
+        const m = item.paymentMethod ?? null;
+        if (!m) return <span className="text-xs text-textSecondary">-</span>;
+
+        const map = {
+            CASH: { label: "Cash", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+            UPI: { label: "UPI", cls: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
+            BANK_TRANSFER: { label: "Bank", cls: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
+        };
+        const { label, cls } = map[m];
+
+        return (
+            <span className={cn("rounded border px-2 py-0.5 text-[11px] font-medium", cls)}>
+                {label}
+            </span>
+        );
+    };
+
+    const renderPaymentActions = (item: PaymentRow) => (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+            {item.status === "PAID" && (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-gray-500 hover:text-white"
+                    onClick={() =>
+                        setAuditLog({
+                            paymentId: item.id,
+                            studentName: item.student?.name || "Unknown",
+                        })
+                    }
+                >
+                    <History size={13} />
+                    History
+                </Button>
+            )}
+
+            {item.status === "DUE" && (canMarkPaid || canWaivePayments) && (
+                <>
+                    {canMarkPaid && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
+                            onClick={() => handleMarkPaid(item.id)}
+                        >
+                            <Check size={14} /> Mark Paid
+                        </Button>
+                    )}
+
+                    {canWaivePayments && (
+                        <RowDropdown onWaive={() => setPaymentToWaive(item.id)} />
+                    )}
+                </>
+            )}
+
+            {item.status === "DUE" && !canMarkPaid && !canWaivePayments && (
+                <span className="max-w-[180px] text-right text-xs leading-5 text-gray-500" title={paymentActionHelpText}>
+                    {paymentActionHelpText}
+                </span>
+            )}
+        </div>
+    );
+
     if (error) {
         return (
             <div className="p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
@@ -238,34 +338,38 @@ function PaymentsContent({
             )}
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10">
-                <button
-                    onClick={() => setActiveTab("DUE")}
-                    className={cn(
-                        "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                        activeTab === "DUE"
-                            ? "border-brand-500 text-brand-400"
-                            : "border-transparent text-textSecondary hover:text-white"
-                    )}
-                >
-                    Due Payments
-                    {data.filter(i => i.status === "DUE").length > 0 && (
-                        <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
-                            {data.filter(i => i.status === "DUE").length}
-                        </span>
-                    )}
-                </button>
-                <button
-                    onClick={() => setActiveTab("PAID")}
-                    className={cn(
-                        "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                        activeTab === "PAID"
-                            ? "border-green-500 text-green-400"
-                            : "border-transparent text-textSecondary hover:text-white"
-                    )}
-                >
-                    Paid History
-                </button>
+            <div className="flex flex-col gap-3 border-b border-white/10 pb-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setActiveTab("DUE")}
+                        className={cn(
+                            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                            activeTab === "DUE"
+                                ? "border-brand-500 text-brand-400"
+                                : "border-transparent text-textSecondary hover:text-white"
+                        )}
+                    >
+                        Due Payments
+                        {data.filter(i => i.status === "DUE").length > 0 && (
+                            <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                                {data.filter(i => i.status === "DUE").length}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("PAID")}
+                        className={cn(
+                            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                            activeTab === "PAID"
+                                ? "border-green-500 text-green-400"
+                                : "border-transparent text-textSecondary hover:text-white"
+                        )}
+                    >
+                        Paid History
+                    </button>
+                </div>
+
+                <ViewToggle value={viewMode} onChange={setViewMode} />
             </div>
 
             {loading ? (
@@ -275,6 +379,40 @@ function PaymentsContent({
             ) : (
                 <DataTable
                     data={filteredData}
+                    viewMode={viewMode}
+                    emptyMessage="No payments found for this view."
+                    renderGridCard={(item, actions) => (
+                        <div className="relative flex min-h-[245px] flex-col rounded-lg border border-white/10 bg-card p-4 shadow-card transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="font-mono text-xs text-textMuted">#{item.id.slice(-6)}</div>
+                                    <div className="mt-1 truncate font-medium text-white">{item.student?.name || "Unknown"}</div>
+                                    <div className="truncate text-xs text-textSecondary">{item.student?.phone || "No phone"}</div>
+                                </div>
+                                <div className="flex-shrink-0">{renderPaymentStatus(item)}</div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                    <div className="text-xs text-textMuted">Amount</div>
+                                    <div className="mt-1 truncate font-bold text-white">{formatPaymentAmount(item.amount)}</div>
+                                </div>
+                                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                    <div className="text-xs text-textMuted">Method</div>
+                                    <div className="mt-1">{renderPaymentMethod(item)}</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.03] p-3 text-sm">
+                                <div className="mb-1 text-xs text-textMuted">Due Date</div>
+                                {renderDueDate(item)}
+                            </div>
+
+                            <div className="mt-auto border-t border-white/5 pt-4">
+                                {actions?.(item)}
+                            </div>
+                        </div>
+                    )}
                     columns={[
                         { header: "Transaction ID", accessor: (item) => <span className="font-mono text-xs text-textSecondary">#{item.id.slice(-6)}</span> },
                         {
@@ -288,45 +426,19 @@ function PaymentsContent({
                         },
                         {
                             header: "Due Date",
-                            accessor: (item) => {
-                                const overdue = isOverdue(item.dueDate);
-                                return (
-                                    <div className="flex items-center gap-2">
-                                        <span className={cn(overdue ? "text-red-400 font-medium" : "text-textSecondary")}>
-                                            {format(new Date(item.dueDate), "PP")}
-                                        </span>
-                                        {overdue && (
-                                            <Badge variant="danger" className="text-[10px] px-1 py-0 h-5">OVERDUE</Badge>
-                                        )}
-                                    </div>
-                                );
-                            }
+                            accessor: renderDueDate
                         },
                         {
                             header: "Amount",
                             accessor: (item) => (
                                 <span className="font-bold text-white">
-                                    {new Intl.NumberFormat('en-IN', {
-                                        style: 'currency',
-                                        currency: 'INR',
-                                        maximumFractionDigits: 0
-                                    }).format(item.amount)}
+                                    {formatPaymentAmount(item.amount)}
                                 </span>
                             )
                         },
                         {
                             header: "Status",
-                            accessor: (item) => (
-                                <Badge
-                                    variant={
-                                        item.status === "PAID" ? "success" :
-                                            item.status === "DUE" ? "warning" :
-                                                "danger"
-                                    }
-                                >
-                                    {item.status}
-                                </Badge>
-                            )
+                            accessor: renderPaymentStatus
                         },
                         {
                             header: "Method",
@@ -347,58 +459,8 @@ function PaymentsContent({
                             }
                         },
                     ]}
-                    actions={(item) => (
-                        <div className="flex justify-end gap-2 items-center">
-                            {item.status === "PAID" && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="gap-1.5 text-xs text-gray-500 hover:text-white"
-                                    onClick={() =>
-                                        setAuditLog({
-                                            paymentId: item.id,
-                                            studentName: item.student?.name || "Unknown",
-                                        })
-                                    }
-                                >
-                                    <History size={13} />
-                                    History
-                                </Button>
-                            )}
-
-                            {item.status === "DUE" && (canMarkPaid || canWaivePayments) && (
-                                <>
-                                    {canMarkPaid && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
-                                            onClick={() => handleMarkPaid(item.id)}
-                                        >
-                                            <Check size={14} /> Mark Paid
-                                        </Button>
-                                    )}
-
-                                    {canWaivePayments && (
-                                        <RowDropdown onWaive={() => setPaymentToWaive(item.id)} />
-                                    )}
-                                </>
-                            )}
-
-                            {item.status === "DUE" && !canMarkPaid && !canWaivePayments && (
-                                <span className="max-w-[180px] text-right text-xs leading-5 text-gray-500" title={paymentActionHelpText}>
-                                    {paymentActionHelpText}
-                                </span>
-                            )}
-                        </div>
-                    )}
+                    actions={renderPaymentActions}
                 />
-            )}
-
-            {!loading && filteredData.length === 0 && (
-                <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
-                    <p className="text-textSecondary">No payments found for this view.</p>
-                </div>
             )}
 
             <MarkPaidDialog

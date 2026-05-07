@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Layers, Pencil } from "lucide-react";
+import type { DataViewMode } from "@/components/tables/DataTable";
 
 interface Allocation {
     id: string;
@@ -23,6 +24,7 @@ interface Allocation {
 
 interface AllocationsTableProps {
     allocations: Allocation[];
+    viewMode?: DataViewMode;
     onEndAllocation: (allocationIds: string | string[]) => Promise<void>;
     onUpdateAllocation?: (ids: string[], studentId: string, studentName: string, currentSeatId: string, currentFee: number | null, currentShiftIds: string[], currentMultiShiftId: string | null) => void;
     isEndedTab?: boolean;
@@ -44,7 +46,7 @@ interface GroupedAllocation {
     componentShiftNames?: string[]; // for multi
 }
 
-export function AllocationsTable({ allocations, onEndAllocation, onUpdateAllocation, isEndedTab = false }: AllocationsTableProps) {
+export function AllocationsTable({ allocations, viewMode = "table", onEndAllocation, onUpdateAllocation, isEndedTab = false }: AllocationsTableProps) {
     const [endingIds, setEndingIds] = useState<string[] | null>(null);
     const [confirmIds, setConfirmIds] = useState<string[] | null>(null);
 
@@ -120,6 +122,144 @@ export function AllocationsTable({ allocations, onEndAllocation, onUpdateAllocat
         if (!aActive && bActive) return 1;
         return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
     });
+
+    const renderShiftSummary = (alloc: GroupedAllocation) => {
+        if (alloc.isMulti) {
+            return (
+                <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/20 bg-orange-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-orange-300">
+                            <Layers size={9} /> MULTI-SHIFT
+                        </span>
+                        <span className="text-sm font-semibold text-zinc-100">{alloc.multiShiftName}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {alloc.componentShiftNames?.map((name, i) => (
+                            <span
+                                key={i}
+                                className="rounded-md border border-white/10 bg-zinc-800/80 px-2 py-0.5 text-[11px] font-medium text-zinc-300 shadow-sm"
+                            >
+                                {name}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/20 bg-yellow-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-yellow-300">
+                    PRIMARY
+                </span>
+                <span className="text-sm font-medium text-zinc-200">{alloc.shiftName}</span>
+            </div>
+        );
+    };
+
+    const renderAllocationStatus = (alloc: GroupedAllocation) => (
+        !alloc.endDate ? (
+            <Badge variant="success">Active</Badge>
+        ) : (
+            <div className="flex flex-col items-start gap-1">
+                <Badge variant="default">Ended</Badge>
+                <span className="text-[10px] text-zinc-500">{format(new Date(alloc.endDate), "PP")}</span>
+            </div>
+        )
+    );
+
+    const renderAllocationActions = (alloc: GroupedAllocation) => {
+        if (isEndedTab || alloc.endDate) return null;
+
+        return (
+            <div className="flex flex-wrap items-center gap-2">
+                {onUpdateAllocation && (
+                    <button
+                        onClick={() => onUpdateAllocation(alloc.ids, alloc.studentId, alloc.student.name, alloc.seat.id, alloc.student.monthlyFee ?? null, alloc.shiftIds, alloc.multiShiftId ?? null)}
+                        className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-zinc-300 transition-all hover:bg-white/10 hover:text-white"
+                        title="Change seat / shift"
+                    >
+                        <Pencil size={11} />
+                        Change
+                    </button>
+                )}
+                <Button
+                    variant="danger"
+                    onClick={() => handleEndClick(alloc.ids)}
+                    isLoading={endingIds?.some(id => alloc.ids.includes(id))}
+                    className="h-auto px-2 py-1 text-xs"
+                >
+                    End
+                </Button>
+            </div>
+        );
+    };
+
+    if (viewMode === "grid") {
+        return (
+            <>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {sorted.map((alloc) => {
+                        const actions = renderAllocationActions(alloc);
+
+                        return (
+                            <div
+                                key={alloc.id}
+                                className="relative flex min-h-[250px] flex-col rounded-lg border border-white/10 bg-card p-4 shadow-card transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="truncate font-medium text-zinc-100">{alloc.student.name}</p>
+                                        <p className="mt-1 text-xs text-zinc-500">Student assignment</p>
+                                    </div>
+                                    <div className="flex-shrink-0">{renderAllocationStatus(alloc)}</div>
+                                </div>
+
+                                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                    <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                        <div className="text-xs text-zinc-500">Seat</div>
+                                        <div className="mt-1 truncate font-semibold text-zinc-100">{alloc.seat.label}</div>
+                                    </div>
+                                    <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                        <div className="text-xs text-zinc-500">Start Date</div>
+                                        <div className="mt-1 truncate text-zinc-300">{format(new Date(alloc.startDate), "PP")}</div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                    <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Shift</div>
+                                    {renderShiftSummary(alloc)}
+                                </div>
+
+                                {actions && (
+                                    <div className="mt-auto border-t border-white/5 pt-4">
+                                        {actions}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    {sorted.length === 0 && (
+                        <div className="col-span-full rounded-lg border border-dashed border-white/10 py-12 text-center text-zinc-500">
+                            No allocations found.
+                        </div>
+                    )}
+                </div>
+
+                <ConfirmDialog
+                    isOpen={!!confirmIds}
+                    onClose={() => setConfirmIds(null)}
+                    onConfirm={confirmEnd}
+                    title="End Seat Allocation"
+                    description={confirmIds && confirmIds.length > 1 ? "Are you sure you want to end this multi-shift allocation? All attached shifts will be freed." : "Are you sure you want to end this seat allocation? This will free the seat for future use."}
+                    confirmText="End Allocation"
+                    variant="danger"
+                    loading={!!endingIds}
+                />
+            </>
+        );
+    }
 
     return (
         <Card className="overflow-hidden">

@@ -9,6 +9,8 @@ import { AllocateSeatDialog } from "@/components/allocations/AllocateSeatDialog"
 import { UpdateAllocationDialog } from "@/components/allocations/UpdateAllocationDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { ViewToggle } from "@/components/tables/ViewToggle";
+import type { DataViewMode } from "@/components/tables/DataTable";
 
 interface AllocationRow {
     id: string;
@@ -43,6 +45,7 @@ function AllocationsContent({ branchId }: { branchId: string }) {
     const [error, setError] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<"ACTIVE" | "ENDED">("ACTIVE");
+    const [viewMode, setViewMode] = useState<DataViewMode>("table");
 
     // Optional: pre-selected student passed via query param from students page
     const preselectedStudentId = searchParams.get("studentId") ?? undefined;
@@ -148,24 +151,28 @@ function AllocationsContent({ branchId }: { branchId: string }) {
                 <Button onClick={() => setIsDialogOpen(true)}>+ Allocate Seat</Button>
             </div>
 
-            <div className="flex flex-col md:flex-row md:items-center justify-end gap-4 border-b border-white/10 pb-4">
-                <div className="flex items-center gap-2">
-                    {(["ACTIVE", "ENDED"] as const).map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === tab
-                                    ? "border-indigo-500 text-indigo-400"
-                                    : "border-transparent text-zinc-400 hover:text-zinc-200"
-                            }`}
-                        >
-                            {tab === "ACTIVE" ? "Active" : "Ended"} Allocations
-                            <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
-                                {allocations.filter(a => tab === "ACTIVE" ? !a.endDate : !!a.endDate).length}
-                            </span>
-                        </button>
-                    ))}
+            <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-center md:justify-end">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                    <div className="flex items-center gap-2">
+                        {(["ACTIVE", "ENDED"] as const).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                    activeTab === tab
+                                        ? "border-indigo-500 text-indigo-400"
+                                        : "border-transparent text-zinc-400 hover:text-zinc-200"
+                                }`}
+                            >
+                                {tab === "ACTIVE" ? "Active" : "Ended"} Allocations
+                                <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                                    {allocations.filter(a => tab === "ACTIVE" ? !a.endDate : !!a.endDate).length}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <ViewToggle value={viewMode} onChange={setViewMode} />
                 </div>
             </div>
 
@@ -182,6 +189,7 @@ function AllocationsContent({ branchId }: { branchId: string }) {
             ) : (
                 <AllocationsTable
                     allocations={filteredAllocations}
+                    viewMode={viewMode}
                     onEndAllocation={handleEndAllocation}
                     onUpdateAllocation={(ids, studentId, studentName, currentSeatId, currentFee, currentShiftIds, currentMultiShiftId) =>
                         setUpdateTarget({ ids, studentId, studentName, currentSeatId, currentFee, currentShiftIds, currentMultiShiftId })
