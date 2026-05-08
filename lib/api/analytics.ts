@@ -33,6 +33,61 @@ export type TrendData = {
     category?: string;
 }[];
 
+export interface OrganizationAnalyticsSnapshot {
+    asOf: string;
+    organization: {
+        totalBranches: number;
+    };
+    seats: {
+        totalSeats: number;
+        occupiedSeats: number;
+        utilizationRatio: number;
+    };
+    students: {
+        active: number;
+        inactive: number;
+        total: number;
+    };
+    payments: {
+        dueCount: number;
+        paidCount: number;
+        dueAmount: number;
+        paidAmount: number;
+    };
+    branches: {
+        branchId: string;
+        branchName: string;
+        snapshot: {
+            seats: {
+                overall: {
+                    totalSeats: number;
+                    occupiedSeats: number;
+                    utilizationRatio: number;
+                };
+            };
+            students: {
+                status: {
+                    active: number;
+                    inactive: number;
+                    total: number;
+                };
+                seating: {
+                    seated: number;
+                    notSeated: number;
+                    activeStudents: number;
+                };
+            };
+            payments: {
+                dueCount: number;
+                paidCount: number;
+                overdueCount: number;
+                dueAmount: number;
+                paidAmount: number;
+            };
+        };
+    }[];
+}
+
 export const analytics = {
     getSnapshot: async (branchId: string, params?: { period?: AnalyticsPeriod }): Promise<BranchSnapshot> => {
         const query = params?.period ? `?${new URLSearchParams({ period: params.period }).toString()}` : "";
@@ -49,5 +104,9 @@ export const analytics = {
             query.set("period", params.period);
         }
         return apiClient.get(`/analytics/branch/${branchId}/trends?${query.toString()}`);
-    }
+    },
+
+    getOrganizationSnapshot: async (orgId: string): Promise<OrganizationAnalyticsSnapshot> => {
+        return apiClient.get(`/analytics/org/${orgId}/snapshot`);
+    },
 };
