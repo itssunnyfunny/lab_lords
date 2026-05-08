@@ -16,7 +16,7 @@ export function Card({ children, className = "", title, action, noHover = false 
             "bg-[#0f111a]/40 backdrop-blur-2xl",
             "border border-white/5",
             "shadow-[0_8px_32px_0_rgba(0,0,0,0.36)]",
-            "rounded-2xl p-6",
+            "rounded-2xl p-4 md:p-6",
             !noHover && "hover:bg-[#161822]/50 hover:border-white/10 hover:shadow-[0_8px_32px_0_rgba(99,102,241,0.1)] transition-all duration-300",
             className
         )}>
@@ -24,9 +24,9 @@ export function Card({ children, className = "", title, action, noHover = false 
             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-50" />
 
             {(title || action) && (
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                     {title && <h3 className="font-bold text-white tracking-tight">{title}</h3>}
-                    {action && <div>{action}</div>}
+                    {action && <div className="shrink-0">{action}</div>}
                 </div>
             )}
 

@@ -134,16 +134,16 @@ function AllocationsContent({ branchId }: { branchId: string }) {
         }
     };
 
-    if (loading) return <div className="p-8 text-zinc-400">Loading allocations...</div>;
-    if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
+    if (loading) return <div className="p-4 md:p-8 text-zinc-400">Loading allocations...</div>;
+    if (error) return <div className="p-4 md:p-8 text-red-500">Error: {error}</div>;
 
     const filteredAllocations = allocations.filter(alloc => 
         activeTab === "ACTIVE" ? !alloc.endDate : !!alloc.endDate
     );
 
     return (
-        <div className="p-8 space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="p-4 md:p-8 space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 className="text-2xl font-semibold text-white">Seat Allocations</h1>
                     <p className="text-zinc-400 mt-1">Manage student seat assignments</p>
@@ -184,7 +184,7 @@ function AllocationsContent({ branchId }: { branchId: string }) {
                         })}
                     </div>
 
-                    <ViewToggle value={viewMode} onChange={setViewMode} />
+                    <ViewToggle value={viewMode} onChange={setViewMode} className="hidden md:inline-flex" />
                 </div>
             </div>
 

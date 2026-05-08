@@ -50,7 +50,7 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
 
   if (isRedirecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050508] text-white">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[#050508] text-white">
         <Loader2 className="animate-spin mr-3 text-cyan-500" size={24} />
         <span className="text-gray-400">Loading workspace...</span>
       </div>
@@ -58,7 +58,7 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[#050508] selection:bg-cyan-500/30 text-white font-sans relative">
+    <main className="min-h-[100dvh] overflow-x-hidden bg-[#050508] selection:bg-cyan-500/30 text-white font-sans relative">
       <LandingNavbar onDashboardClick={handleDashboardClick} />
       <div className="overflow-hidden">
         <LandingHero onDashboardClick={handleDashboardClick} />

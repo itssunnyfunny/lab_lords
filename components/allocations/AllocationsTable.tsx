@@ -195,75 +195,85 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
         );
     };
 
+    const allocationCards = (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {sorted.map((alloc) => {
+                const actions = renderAllocationActions(alloc);
+
+                return (
+                    <div
+                        key={alloc.id}
+                        className="relative flex min-h-[250px] flex-col rounded-lg border border-white/10 bg-card p-4 shadow-card transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="truncate font-medium text-zinc-100">{alloc.student.name}</p>
+                                <p className="mt-1 text-xs text-zinc-500">Student assignment</p>
+                            </div>
+                            <div className="flex-shrink-0">{renderAllocationStatus(alloc)}</div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                <div className="text-xs text-zinc-500">Seat</div>
+                                <div className="mt-1 truncate font-semibold text-zinc-100">{alloc.seat.label}</div>
+                            </div>
+                            <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                <div className="text-xs text-zinc-500">Start Date</div>
+                                <div className="mt-1 truncate text-zinc-300">{format(new Date(alloc.startDate), "PP")}</div>
+                            </div>
+                        </div>
+
+                        <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Shift</div>
+                            {renderShiftSummary(alloc)}
+                        </div>
+
+                        {actions && (
+                            <div className="mt-auto border-t border-white/5 pt-4">
+                                {actions}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+
+            {sorted.length === 0 && (
+                <div className="col-span-full rounded-lg border border-dashed border-white/10 py-12 text-center text-zinc-500">
+                    No allocations found.
+                </div>
+            )}
+        </div>
+    );
+
+    const confirmDialog = (
+        <ConfirmDialog
+            isOpen={!!confirmIds}
+            onClose={() => setConfirmIds(null)}
+            onConfirm={confirmEnd}
+            title="End Seat Allocation"
+            description={confirmIds && confirmIds.length > 1 ? "Are you sure you want to end this multi-shift allocation? All attached shifts will be freed." : "Are you sure you want to end this seat allocation? This will free the seat for future use."}
+            confirmText="End Allocation"
+            variant="danger"
+            loading={!!endingIds}
+        />
+    );
+
     if (viewMode === "grid") {
         return (
             <>
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {sorted.map((alloc) => {
-                        const actions = renderAllocationActions(alloc);
-
-                        return (
-                            <div
-                                key={alloc.id}
-                                className="relative flex min-h-[250px] flex-col rounded-lg border border-white/10 bg-card p-4 shadow-card transition-colors hover:border-white/20 hover:bg-white/[0.04]"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="truncate font-medium text-zinc-100">{alloc.student.name}</p>
-                                        <p className="mt-1 text-xs text-zinc-500">Student assignment</p>
-                                    </div>
-                                    <div className="flex-shrink-0">{renderAllocationStatus(alloc)}</div>
-                                </div>
-
-                                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                    <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                                        <div className="text-xs text-zinc-500">Seat</div>
-                                        <div className="mt-1 truncate font-semibold text-zinc-100">{alloc.seat.label}</div>
-                                    </div>
-                                    <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                                        <div className="text-xs text-zinc-500">Start Date</div>
-                                        <div className="mt-1 truncate text-zinc-300">{format(new Date(alloc.startDate), "PP")}</div>
-                                    </div>
-                                </div>
-
-                                <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                                    <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Shift</div>
-                                    {renderShiftSummary(alloc)}
-                                </div>
-
-                                {actions && (
-                                    <div className="mt-auto border-t border-white/5 pt-4">
-                                        {actions}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-
-                    {sorted.length === 0 && (
-                        <div className="col-span-full rounded-lg border border-dashed border-white/10 py-12 text-center text-zinc-500">
-                            No allocations found.
-                        </div>
-                    )}
-                </div>
-
-                <ConfirmDialog
-                    isOpen={!!confirmIds}
-                    onClose={() => setConfirmIds(null)}
-                    onConfirm={confirmEnd}
-                    title="End Seat Allocation"
-                    description={confirmIds && confirmIds.length > 1 ? "Are you sure you want to end this multi-shift allocation? All attached shifts will be freed." : "Are you sure you want to end this seat allocation? This will free the seat for future use."}
-                    confirmText="End Allocation"
-                    variant="danger"
-                    loading={!!endingIds}
-                />
+                {allocationCards}
+                {confirmDialog}
             </>
         );
     }
 
     return (
-        <Card className="overflow-hidden">
-            <table className="w-full text-left text-sm">
+        <>
+            <div className="md:hidden">{allocationCards}</div>
+            <Card className="hidden overflow-hidden md:block">
+            <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <table className="w-full min-w-[58rem] text-left text-sm">
                 <thead>
                     <tr className="border-b border-white/5 bg-white/5 text-zinc-400">
                         <th className="px-6 py-4 font-medium">Student</th>
@@ -367,17 +377,9 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                     )}
                 </tbody>
             </table>
-
-            <ConfirmDialog
-                isOpen={!!confirmIds}
-                onClose={() => setConfirmIds(null)}
-                onConfirm={confirmEnd}
-                title="End Seat Allocation"
-                description={confirmIds && confirmIds.length > 1 ? "Are you sure you want to end this multi-shift allocation? All attached shifts will be freed." : "Are you sure you want to end this seat allocation? This will free the seat for future use."}
-                confirmText="End Allocation"
-                variant="danger"
-                loading={!!endingIds}
-            />
-        </Card>
+            </div>
+            </Card>
+            {confirmDialog}
+        </>
     );
 }

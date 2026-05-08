@@ -62,7 +62,7 @@ function AIInsightsContent({ branchId }: { branchId: string }) {
 
     if (error) {
         return (
-            <div className="p-8 text-center text-red-400">
+            <div className="p-4 md:p-8 text-center text-red-400">
                 <AlertTriangle className="mx-auto mb-2" size={32} />
                 {error}
             </div>
@@ -71,14 +71,14 @@ function AIInsightsContent({ branchId }: { branchId: string }) {
 
     if (!data) {
         return (
-            <div className="p-8 text-center text-textMuted">
+            <div className="p-4 md:p-8 text-center text-textMuted">
                 No data received from API.
             </div>
         );
     }
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-4 md:p-8 space-y-8">
             <PageHeader
                 title="Smart Insights"
                 subtitle="AI-driven analysis of your branch health."

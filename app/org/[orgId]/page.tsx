@@ -57,7 +57,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
     }
 
     return (
-        <div className="p-8 space-y-8 fade-in text-white">
+        <div className="p-4 md:p-8 space-y-8 fade-in text-white">
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div>

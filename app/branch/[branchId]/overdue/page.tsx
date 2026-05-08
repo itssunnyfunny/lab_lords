@@ -105,13 +105,13 @@ function OverdueContent({ branchId }: { branchId: string }) {
     }
 
     return (
-        <div className="space-y-6 container mx-auto p-6">
-            <div className="flex items-center gap-4">
+        <div className="container mx-auto space-y-6 p-4 md:p-6">
+            <div className="flex items-center gap-3 md:gap-4">
                 <Button variant="ghost" size="icon" onClick={() => router.back()}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Overdue Payments</h1>
+                <div className="min-w-0">
+                    <h1 className="text-xl md:text-2xl font-bold tracking-tight">Overdue Payments</h1>
                     <p className="text-muted-foreground">Follow up with students who have missed their due date.</p>
                 </div>
             </div>
@@ -149,8 +149,25 @@ function OverdueContent({ branchId }: { branchId: string }) {
                                     No overdue payments found.
                                 </div>
                             ) : (
-                                <div className="relative w-full overflow-auto">
-                                    <table className="w-full caption-bottom text-sm text-left">
+                                <>
+                                <div className="grid gap-3 md:hidden">
+                                    {payments.map((p) => (
+                                        <div key={p.paymentId} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium text-white">{p.studentName}</p>
+                                                    <p className="mt-1 text-xs text-gray-400">{p.phone || "-"}</p>
+                                                </div>
+                                                <div className="font-semibold text-white">₹{p.amount}</div>
+                                            </div>
+                                            <div className="mt-3 text-xs text-gray-400">
+                                                Due {new Date(p.dueDate).toLocaleDateString()}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="relative hidden w-full overflow-auto md:block">
+                                    <table className="w-full min-w-[44rem] caption-bottom text-sm text-left">
                                         <thead className="[&_tr]:border-b border-white/10">
                                             <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
                                                 <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Student</th>
@@ -171,6 +188,7 @@ function OverdueContent({ branchId }: { branchId: string }) {
                                         </tbody>
                                     </table>
                                 </div>
+                                </>
                             )}
                         </div>
                     </Card>

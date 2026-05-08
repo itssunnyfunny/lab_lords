@@ -190,7 +190,7 @@ export function CreateBranchDialog({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -198,9 +198,9 @@ export function CreateBranchDialog({
             />
 
             {/* Dialog */}
-            <div className="relative w-full max-w-lg bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <div className="flex flex-shrink-0 items-center justify-between p-4 border-b border-white/10 sm:p-6">
                     <div>
                         <h2 className="text-lg font-bold text-white">Create New Branch</h2>
                         <p className="text-sm text-gray-400 mt-0.5">Set up a new location under this organization.</p>
@@ -215,7 +215,7 @@ export function CreateBranchDialog({
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-5">
+                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
                     {/* Branch Name */}
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-gray-300">
@@ -237,7 +237,7 @@ export function CreateBranchDialog({
                     </div>
 
                     {/* City + Seats */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium text-gray-300">
                                 City / Area <span className="text-gray-500">(Optional)</span>
@@ -308,9 +308,9 @@ export function CreateBranchDialog({
                         <div className="space-y-3">
                             {shifts.map((shift, idx) => (
                                 <div key={idx} className="flex flex-col gap-1">
-                                <div className="flex gap-2 items-center p-3 bg-white/5 rounded-lg border border-white/5">
-                                    <div className="flex-1 grid grid-cols-12 gap-2 items-center">
-                                        <div className="col-span-4">
+                                <div className="flex flex-col gap-2 p-3 bg-white/5 rounded-lg border border-white/5 sm:flex-row sm:items-center">
+                                    <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-12 sm:items-center">
+                                        <div className="col-span-2 sm:col-span-4">
                                             <input
                                                 type="text"
                                                 placeholder="Name"
@@ -319,7 +319,7 @@ export function CreateBranchDialog({
                                                 className="w-full bg-transparent border-b border-white/10 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
                                             />
                                         </div>
-                                        <div className="col-span-3">
+                                        <div className="col-span-1 sm:col-span-3">
                                             <input
                                                 type="time"
                                                 value={shift.startTime}
@@ -327,7 +327,7 @@ export function CreateBranchDialog({
                                                 className="w-full bg-transparent border-b border-white/10 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
                                             />
                                         </div>
-                                        <div className="col-span-3">
+                                        <div className="col-span-1 sm:col-span-3">
                                             <input
                                                 type="time"
                                                 value={shift.endTime}
@@ -335,7 +335,7 @@ export function CreateBranchDialog({
                                                 className="w-full bg-transparent border-b border-white/10 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
                                             />
                                         </div>
-                                        <div className="col-span-2 relative">
+                                        <div className="col-span-2 relative sm:col-span-2">
                                             <span className="absolute left-0 top-1 text-gray-500 text-xs">₹</span>
                                             <input
                                                 type="number"
@@ -353,7 +353,7 @@ export function CreateBranchDialog({
                                     {shifts.length > 1 && (
                                         <button
                                             onClick={() => removeShift(idx)}
-                                            className="text-gray-500 hover:text-red-400 transition-colors ml-1 flex-shrink-0"
+                                            className="self-end text-gray-500 hover:text-red-400 transition-colors sm:ml-1 sm:self-auto flex-shrink-0"
                                         >
                                             <X size={14} />
                                         </button>
@@ -365,7 +365,7 @@ export function CreateBranchDialog({
                                             <AlertTriangle size={12} />
                                             <span>{overlaps.get(idx)!.text}</span>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-col gap-2 sm:flex-row">
                                             <button onClick={() => handleShiftChange(overlaps.get(idx)!.fix1.idx, overlaps.get(idx)!.fix1.field, overlaps.get(idx)!.fix1.val)} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1 rounded transition-colors border border-amber-500/20">
                                                 {overlaps.get(idx)!.fix1.label}
                                             </button>
@@ -390,7 +390,7 @@ export function CreateBranchDialog({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 p-6 border-t border-white/10">
+                <div className="flex flex-shrink-0 flex-col-reverse gap-3 p-4 border-t border-white/10 sm:flex-row sm:justify-end sm:p-6">
                     <Button variant="ghost" onClick={handleClose} disabled={loading}>
                         Cancel
                     </Button>

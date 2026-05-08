@@ -41,12 +41,12 @@ export default function OrgSelectionPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans text-white">
+        <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-x-hidden overflow-y-auto p-4 font-sans text-white sm:p-6">
             <AmbientBackground />
 
             <div className="relative z-10 max-w-4xl w-full">
-                <div className="text-center mb-12">
-                    <h2 className="text-4xl font-bold text-white mb-2"><GlowText>Select Workspace</GlowText></h2>
+                <div className="mb-8 text-center sm:mb-12">
+                    <h2 className="mb-2 text-3xl font-bold text-white sm:text-4xl"><GlowText>Select Workspace</GlowText></h2>
                     <p className="text-gray-400">Choose your organization to proceed</p>
                 </div>
 
@@ -59,24 +59,24 @@ export default function OrgSelectionPage() {
                         {error}
                     </div>
                 ) : orgs.length === 0 ? (
-                    <div className="text-center text-gray-400 p-8 border border-white/10 bg-white/5 rounded-xl">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-5 text-center text-gray-400 sm:p-8">
                         No organizations found. Please check your data.
                     </div>
                 ) : (
-                    <div className="grid md:grid-cols-2 gap-8">
+                    <div className="grid gap-4 sm:gap-6 md:grid-cols-2 md:gap-8">
                         {orgs.map(org => (
                             <button key={org.id} onClick={() => handleSelect(org.id)} className="group text-left h-full w-full">
                                 <Card className="h-full hover:scale-[1.02] transition-all duration-500 hover:shadow-[0_0_40px_rgba(6,182,212,0.15)] hover:border-cyan-500/30 bg-[#0f111a]/40">
                                     <div className="flex items-start justify-between mb-6">
-                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-800/50 to-black/50 border border-white/5 flex items-center justify-center text-gray-400 group-hover:text-cyan-300 group-hover:border-cyan-500/30 transition-all shadow-lg">
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/5 bg-gradient-to-br from-gray-800/50 to-black/50 text-gray-400 shadow-lg transition-all group-hover:border-cyan-500/30 group-hover:text-cyan-300 sm:h-16 sm:w-16">
                                             <Building2 size={32} />
                                         </div>
                                         <Badge variant="cyan">Active</Badge>
                                     </div>
-                                    <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-cyan-100 transition-colors">{org.name}</h3>
-                                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                                        <span>ID:</span>
-                                        <span className="text-white font-medium bg-white/5 px-2 py-0.5 rounded">{org.id}</span>
+                                    <h3 className="mb-2 text-xl font-bold text-white transition-colors group-hover:text-cyan-100 sm:text-2xl">{org.name}</h3>
+                                    <div className="flex min-w-0 items-center gap-2 text-sm text-gray-500">
+                                        <span className="shrink-0">ID:</span>
+                                        <span className="truncate rounded bg-white/5 px-2 py-0.5 font-medium text-white">{org.id}</span>
                                     </div>
                                 </Card>
                             </button>
