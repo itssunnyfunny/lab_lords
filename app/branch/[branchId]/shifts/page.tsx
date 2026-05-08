@@ -204,11 +204,11 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-sm bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
                     <div>
                         <h2 className="text-base font-bold text-white">{mode === "add" ? "Add Shift" : "Edit Shift"}</h2>
                         <p className="text-xs text-gray-500 mt-0.5">{mode === "add" ? "Create a new time window" : "Update shift details"}</p>
@@ -219,7 +219,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-4">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Shift Name *</label>
                         <input
@@ -232,7 +232,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Start Time</label>
                             <input
@@ -316,7 +316,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10">
+                <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">
                         Cancel
                     </Button>
@@ -491,12 +491,12 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
         : false;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={submitting ? undefined : onClose} />
-            <div className="relative w-full max-w-lg bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 sticky top-0 bg-[#0f111a] z-10">
+                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-4 border-b border-white/10 bg-[#0f111a] sm:px-6">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
                             <Trash2 size={15} className="text-red-400" />
@@ -523,7 +523,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
                 {/* ── Blocked: last active shift */}
                 {step === "blocked" && (
-                    <div className="p-6 space-y-4">
+                    <div className="p-4 space-y-4 sm:p-6">
                         <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
                             <Ban size={18} className="text-amber-400 mt-0.5 shrink-0" />
                             <div>
@@ -542,7 +542,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
                 {/* ── Confirm empty shift delete */}
                 {step === "confirm-empty" && (
-                    <div className="p-6 space-y-4">
+                    <div className="p-4 space-y-4 sm:p-6">
                         <p className="text-sm text-gray-300">
                             This shift has <span className="text-white font-semibold">no active students</span>. It will be removed permanently.
                         </p>
@@ -566,7 +566,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
                 {/* ── Resolution dialog */}
                 {step === "resolve" && analysis && (
-                    <div className="p-6 space-y-5">
+                    <div className="p-4 space-y-5 sm:p-6">
 
                         {/* Impact summary */}
                         <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-2">
@@ -662,7 +662,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                 ? (manualTargetCounts[chosenId] ?? 0) > chosenShift.emptySeats
                                                 : false;
                                             return (
-                                                <div key={alloc.allocationId} className="flex items-center gap-2">
+                                                <div key={alloc.allocationId} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-xs text-white font-medium truncate">{alloc.studentName}</p>
                                                         <p className="text-[10px] text-gray-600">Seat {alloc.seatLabel}</p>
@@ -675,7 +675,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                         }))}
                                                         style={{ colorScheme: 'dark', backgroundColor: '#0f111a' }}
                                                         className={cn(
-                                                            "border rounded-lg py-1.5 px-2 text-white text-xs focus:outline-none focus:border-cyan-500/50 min-w-[160px]",
+                                                            "border rounded-lg py-1.5 px-2 text-white text-xs focus:outline-none focus:border-cyan-500/50 sm:min-w-[160px]",
                                                             wouldOverflow ? "border-red-500/50" : "border-white/10"
                                                         )}
                                                     >
@@ -729,7 +729,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                     className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
                                                 />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                                 <div>
                                                     <label className="text-xs text-gray-500 mb-1 block">Start time</label>
                                                     <input
@@ -771,7 +771,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                         )}
 
                         {/* Footer actions */}
-                        <div className="flex justify-end gap-3 pt-2">
+                        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
                             <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-3">
                                 Cancel
                             </Button>
@@ -915,10 +915,10 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
             <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+                <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between sm:px-6">
                     <div>
                         <h2 className="text-base font-bold text-white">What type of shift?</h2>
                         <p className="text-xs text-gray-500 mt-0.5">Select the type of window to create</p>
@@ -928,7 +928,7 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
                     </button>
                 </div>
 
-                <div className="p-6 grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-6">
                     <button
                         onClick={() => onSelect("primary")}
                         className="flex flex-col items-center gap-3 p-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 hover:border-yellow-500/40 transition-all group"
@@ -1050,10 +1050,10 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
-                <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+                <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
                     <div>
                         <h2 className="text-base font-bold text-white">{mode === "add" ? "Add Multi-Shift" : "Edit Multi-Shift"}</h2>
                         <p className="text-xs text-gray-500 mt-0.5">Bundle of primary shifts</p>
@@ -1063,7 +1063,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                     </button>
                 </div>
 
-                <div className="p-6 space-y-5">
+                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Bundle Name *</label>
                         <input
@@ -1128,7 +1128,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                     )}
                 </div>
 
-                <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+                <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
                     <Button
                         onClick={handleSubmit}
@@ -1242,22 +1242,144 @@ function ShiftsContent({
     };
 
     // ── Loading
-    if (loading) return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading shifts...</div>;
+    if (loading) return <div className="p-4 md:p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading shifts...</div>;
 
     // ── Error
     if (error) return (
-        <div className="p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
+        <div className="p-4 md:p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
             <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
             <p className="text-gray-400">{error}</p>
         </div>
     );
 
+    const handleDeleteMultiShift = (ms: MultiShift) => {
+        if (confirm("Delete this multi-shift bundle? Student allocations will remain but grouping will be lost.")) {
+            fetch(`/api/branches/${branchId}/multi-shifts/${ms.id}`, { method: "DELETE" })
+                .then(() => {
+                    setMultiShifts(prev => prev.filter(x => x.id !== ms.id));
+                    showToast(`"${ms.name}" deleted.`);
+                });
+        }
+    };
+
+    const primaryShiftActions = (shift: Shift): RowAction[] => [
+        {
+            label: "Edit",
+            icon: Pencil,
+            onClick: () => setDialog({ open: true, mode: "edit-primary", shift }),
+        },
+        {
+            label: "Delete",
+            icon: Trash2,
+            variant: "danger",
+            onClick: () => setDeleteTarget(shift),
+        },
+    ];
+
+    const multiShiftActions = (ms: MultiShift): RowAction[] => [
+        {
+            label: "Edit",
+            icon: Pencil,
+            onClick: () => setDialog({ open: true, mode: "edit-multi", multiShift: ms }),
+        },
+        {
+            label: "Delete",
+            icon: Trash2,
+            variant: "danger",
+            onClick: () => handleDeleteMultiShift(ms),
+        },
+    ];
+
+    const shiftCards = (
+        <div className="grid gap-4">
+            {shifts.map(shift => (
+                <div key={shift.id} className="rounded-xl border border-white/10 bg-card p-4 shadow-card">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="truncate font-medium text-white">{shift.name}</p>
+                            <div className="mt-2">
+                                <Badge variant="warning" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/20 font-bold tracking-wider text-[10px]">
+                                    PRIMARY
+                                </Badge>
+                            </div>
+                        </div>
+                        {canManageBranch ? (
+                            <RowActions actions={primaryShiftActions(shift)} />
+                        ) : (
+                            <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
+                                View only
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className="text-xs text-zinc-500">Time Window</div>
+                            <div className="mt-1 text-zinc-300">
+                                {shift.startTime && shift.endTime ? (
+                                    <span className="font-mono text-xs">{shift.startTime} - {shift.endTime}</span>
+                                ) : (
+                                    <span className="text-xs italic text-zinc-500">No time limit</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className="text-xs text-zinc-500">Price</div>
+                            <div className="mt-1 font-semibold text-white">₹{shift.price}</div>
+                        </div>
+                    </div>
+                </div>
+            ))}
+
+            {multiShifts.map(ms => (
+                <div key={ms.id} className="rounded-xl border border-white/10 bg-card p-4 shadow-card">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="truncate font-medium text-white">{ms.name}</p>
+                            <div className="mt-2">
+                                <Badge variant="warning" className="bg-orange-500/10 text-orange-300 border-orange-500/20 font-bold tracking-wider text-[10px]">
+                                    MULTI-SHIFT
+                                </Badge>
+                            </div>
+                        </div>
+                        {canManageBranch ? (
+                            <RowActions actions={multiShiftActions(ms)} />
+                        ) : (
+                            <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
+                                View only
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className="text-xs text-zinc-500">Slots</div>
+                            <div className="mt-1 text-xs text-zinc-300">{ms.components.length} combined</div>
+                        </div>
+                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className="text-xs text-zinc-500">Price</div>
+                            <div className="mt-1 font-semibold text-white">₹{ms.price}</div>
+                        </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                        {ms.components.map(c => (
+                            <span key={c.shiftId} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5">
+                                {c.shiftName}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+
     return (
-        <div className="p-8 space-y-6 relative">
+        <div className="p-4 md:p-8 space-y-6 relative">
             {/* Toast */}
             {toast && (
                 <div className={cn(
-                    "fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl border text-sm shadow-2xl animate-in fade-in slide-in-from-bottom-2",
+                    "fixed bottom-4 left-4 right-4 z-50 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm shadow-2xl animate-in fade-in slide-in-from-bottom-2 sm:bottom-6 sm:left-auto sm:right-6 sm:w-auto",
                     toast.type === "success"
                         ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                         : "bg-red-500/10 border-red-500/20 text-red-400"
@@ -1294,8 +1416,11 @@ function ShiftsContent({
                     )}
                 </div>
             ) : (
-                <Card className="overflow-visible p-0">
-                    <table className="w-full text-left text-sm">
+                <>
+                <div className="md:hidden">{shiftCards}</div>
+                <Card className="hidden overflow-visible p-0 md:block">
+                    <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <table className="w-full min-w-[54rem] text-left text-sm">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02] text-zinc-400">
                                 <th className="px-6 py-4 font-semibold text-gray-400">Shift Name</th>
@@ -1328,19 +1453,7 @@ function ShiftsContent({
                                     <td className="px-6 py-4 text-white font-medium">₹{shift.price}</td>
                                     <td className="px-6 py-4 text-right">
                                         {canManageBranch ? (
-                                            <RowActions actions={[
-                                                {
-                                                    label: "Edit",
-                                                    icon: Pencil,
-                                                    onClick: () => setDialog({ open: true, mode: "edit-primary", shift }),
-                                                },
-                                                {
-                                                    label: "Delete",
-                                                    icon: Trash2,
-                                                    variant: "danger",
-                                                    onClick: () => setDeleteTarget(shift),
-                                                },
-                                            ]} />
+                                            <RowActions actions={primaryShiftActions(shift)} />
                                         ) : (
                                             <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
                                                 View only
@@ -1378,27 +1491,7 @@ function ShiftsContent({
                                     <td className="px-6 py-4 text-white font-medium">₹{ms.price}</td>
                                     <td className="px-6 py-4 text-right">
                                         {canManageBranch ? (
-                                            <RowActions actions={[
-                                                {
-                                                    label: "Edit",
-                                                    icon: Pencil,
-                                                    onClick: () => setDialog({ open: true, mode: "edit-multi", multiShift: ms }),
-                                                },
-                                                {
-                                                    label: "Delete",
-                                                    icon: Trash2,
-                                                    variant: "danger",
-                                                    onClick: () => {
-                                                        if (confirm("Delete this multi-shift bundle? Student allocations will remain but grouping will be lost.")) {
-                                                            fetch(`/api/branches/${branchId}/multi-shifts/${ms.id}`, { method: "DELETE" })
-                                                                .then(() => {
-                                                                    setMultiShifts(prev => prev.filter(x => x.id !== ms.id));
-                                                                    showToast(`"${ms.name}" deleted.`);
-                                                                });
-                                                        }
-                                                    },
-                                                },
-                                            ]} />
+                                            <RowActions actions={multiShiftActions(ms)} />
                                         ) : (
                                             <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
                                                 View only
@@ -1409,7 +1502,9 @@ function ShiftsContent({
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </Card>
+                </>
             )}
 
             {canManageBranch && (

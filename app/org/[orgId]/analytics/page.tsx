@@ -87,7 +87,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
 
     if (loading && !snapshot) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center p-8 text-white">
+            <div className="flex min-h-[60vh] items-center justify-center p-4 md:p-8 text-white">
                 <Loader2 className="mr-3 animate-spin text-cyan-400" size={28} />
                 <span className="text-gray-400">Loading organization analytics...</span>
             </div>
@@ -98,7 +98,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     const collectionRate = collectionBase > 0 ? (snapshot?.payments.paidAmount ?? 0) / collectionBase : 0;
 
     return (
-        <div className="space-y-8 p-8 text-white fade-in">
+        <div className="space-y-8 p-4 md:p-8 text-white fade-in">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white">Organization Analytics</h1>

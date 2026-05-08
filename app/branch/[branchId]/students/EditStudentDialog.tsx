@@ -102,12 +102,12 @@ export function EditStudentDialog({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
 
-            <div className="relative w-full max-w-sm bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <div className="flex items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
                     <div>
                         <h2 className="text-base font-bold text-white">Edit Student</h2>
                         <p className="text-xs text-gray-500 mt-0.5">Update profile details</p>
@@ -118,7 +118,7 @@ export function EditStudentDialog({
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-4">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
                     {/* Name */}
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Full Name *</label>
@@ -192,7 +192,7 @@ export function EditStudentDialog({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10">
+                <div className="flex flex-col-reverse gap-3 border-t border-white/10 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
                     <Button variant="ghost" onClick={handleClose} disabled={loading} className="text-sm h-8 px-3">
                         Cancel
                     </Button>

@@ -128,7 +128,7 @@ function AIMessagesContent({ branchId }: { branchId: string }) {
     }, [branchId, language]);
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-4 md:p-8 space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <PageHeader
                     title="Message Drafts"

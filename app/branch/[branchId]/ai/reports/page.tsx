@@ -81,7 +81,7 @@ function AIReportsContent({ branchId }: { branchId: string }) {
         : [];
 
     return (
-        <div className="p-8 h-full flex flex-col space-y-10">
+        <div className="p-4 md:p-8 h-full flex flex-col space-y-10">
             <PageHeader
                 title="AI Branch Health"
                 subtitle="Automated operational analysis and risk detection."

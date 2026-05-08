@@ -74,7 +74,7 @@ function Skeleton({ className }: { className?: string }) {
 
 function DashboardSkeleton() {
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-4 md:p-8 space-y-8">
             {/* Header */}
             <div className="space-y-2">
                 <Skeleton className="h-5 w-48" />
@@ -260,7 +260,7 @@ export default function BranchDashboardPage({
     const snap = data?.snapshot;
 
     return (
-        <div className="p-8 space-y-8 text-white">
+        <div className="p-4 md:p-8 space-y-8 text-white">
 
             {/* ── Soft error banner ─────────────────────────────────────── */}
             {error && (

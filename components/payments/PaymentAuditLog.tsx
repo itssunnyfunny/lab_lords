@@ -58,7 +58,7 @@ export function PaymentAuditLog({
         }).format(amount);
 
     const content = (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center p-3 sm:items-center sm:p-4">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -66,9 +66,9 @@ export function PaymentAuditLog({
             />
 
             {/* Panel */}
-            <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="flex items-start justify-between p-5 border-b border-white/10">
+                <div className="flex flex-shrink-0 items-start justify-between p-4 border-b border-white/10 sm:p-5">
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-full bg-violet-500/10">
                             <History className="w-4 h-4 text-violet-400" />
@@ -87,7 +87,7 @@ export function PaymentAuditLog({
                 </div>
 
                 {/* Body */}
-                <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
                     {loading && (
                         <div className="flex items-center justify-center py-10 gap-2 text-gray-400 text-sm">
                             <Loader2 className="w-4 h-4 animate-spin" />

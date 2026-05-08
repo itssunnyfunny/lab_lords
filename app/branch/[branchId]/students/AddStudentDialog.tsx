@@ -188,19 +188,19 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
             <div
-                className="w-full max-w-2xl bg-[#0a0c14] border border-white/10 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+                className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col rounded-2xl border border-white/10 bg-[#0a0c14] shadow-2xl animate-in zoom-in-95 duration-200 sm:max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02] flex-shrink-0">
+                <div className="flex flex-shrink-0 items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-4 sm:px-6">
                     <h2 className="text-lg font-semibold text-white">Add New Student</h2>
                     <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
                         <X size={20} />
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto custom-scrollbar">
+                <div className="min-h-0 flex-1 overflow-y-auto p-4 custom-scrollbar sm:p-6">
                     <form id="add-student-form" onSubmit={handleSubmit} noValidate className="space-y-6">
                         {error && (
                             <div className="p-3 text-sm text-red-200 bg-red-900/30 border border-red-900/50 rounded-md">
@@ -316,7 +316,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                             </label>
 
                             {wantsAllocation && (
-                                <div className="mt-4 p-5 rounded-xl border border-white/5 bg-white/[0.01]">
+                                    <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.01] p-3 sm:p-5">
                                     <SeatPicker
                                         branchId={branchId}
                                         selectedShiftIds={selectedShiftIds}
@@ -364,7 +364,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                     </form>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 bg-white/[0.01] flex-shrink-0">
+                <div className="flex flex-shrink-0 flex-col-reverse gap-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                         Cancel
                     </Button>

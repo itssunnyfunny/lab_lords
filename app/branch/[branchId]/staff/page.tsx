@@ -349,11 +349,11 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
                     <div>
                         <h2 className="text-base font-bold text-white">Staff Access</h2>
                         <p className="text-xs text-gray-500 mt-0.5">{member.user?.name || member.user?.email}</p>
@@ -364,7 +364,7 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-5">
+                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
                     <div className="grid gap-3 md:grid-cols-2">
                         {(["MANAGER", "STAFF"] as const).map(r => (
                             <button
@@ -405,7 +405,7 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10">
+                <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
                     <Button onClick={handleSave} disabled={loading || !hasChanges} className="text-sm h-8 px-4 min-w-[120px] justify-center">
                         {loading
@@ -462,10 +462,10 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
+                <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
                     <div>
                         <h2 className="text-base font-bold text-white">Add Staff Member</h2>
                         <p className="text-xs text-gray-500 mt-0.5">Enter their account email and assign a role</p>
@@ -473,7 +473,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
                     <button onClick={onClose} disabled={loading} className="text-gray-500 hover:text-white transition-colors"><X size={18} /></button>
                 </div>
 
-                <div className="p-6 space-y-4">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Email *</label>
                         <div className="relative">
@@ -517,7 +517,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
                     )}
                 </div>
 
-                <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10">
+                <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
                     <Button onClick={handleAdd} disabled={loading || !email.trim()} className="text-sm h-8 px-4 min-w-[100px] justify-center">
                         {loading
@@ -823,21 +823,90 @@ function StaffContent({
         }
     };
 
-    if (loading) return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading staff...</div>;
+    if (loading) return <div className="p-4 md:p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading staff...</div>;
 
     if (error) return (
-        <div className="p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
+        <div className="p-4 md:p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
             <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
             <p className="text-gray-400">{error}</p>
         </div>
     );
 
+    const staffMemberActions = (member: StaffMember): RowAction[] => [
+        {
+            label: hasPermissionOverrides(member) ? "Edit Access" : "Set Access",
+            icon: Pencil,
+            onClick: () => setEditTarget(member),
+        },
+        {
+            label: "Remove",
+            icon: Trash2,
+            variant: "danger",
+            onClick: () => handleRemoveClick(member),
+        },
+    ];
+
+    const staffCards = (
+        <div className="grid gap-4">
+            {data.map(member => (
+                <div
+                    key={member.id}
+                    className="rounded-xl border border-white/10 bg-card p-4 shadow-card"
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border border-white/5 flex items-center justify-center text-sm font-bold text-cyan-300 flex-shrink-0">
+                                {(member.user?.name || member.user?.email || "?")[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="truncate font-medium text-zinc-200">{member.user?.name || <span className="text-gray-500 italic text-xs">No name</span>}</p>
+                                <p className="mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-zinc-500">
+                                    <Mail size={10} className="flex-shrink-0" />{member.user?.email}
+                                </p>
+                            </div>
+                        </div>
+                        {canManageStaff ? (
+                            <RowActions actions={staffMemberActions(member)} />
+                        ) : (
+                            <span className="text-xs text-zinc-600" title={staffManagementHelpText}>
+                                View only
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className="text-xs text-zinc-500">Role</div>
+                            <div className="mt-2">
+                                <Badge variant={member.role === "MANAGER" ? "cyan" : "default"}>
+                                    {member.role === "MANAGER"
+                                        ? <><Shield size={10} className="mr-1" />Manager</>
+                                        : <><UserCog size={10} className="mr-1" />Staff</>
+                                    }
+                                </Badge>
+                            </div>
+                        </div>
+                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className="text-xs text-zinc-500">Added</div>
+                            <div className="mt-2 text-xs text-zinc-300">{format(new Date(member.createdAt), "PP")}</div>
+                        </div>
+                    </div>
+
+                    <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                        <div className="mb-2 text-xs text-zinc-500">Access</div>
+                        <AccessSummary member={member} />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+
     return (
-        <div className="p-8 space-y-6 relative">
+        <div className="p-4 md:p-8 space-y-6 relative">
             {/* Toast */}
             {toast && (
                 <div className={cn(
-                    "fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl border text-sm shadow-2xl animate-in fade-in slide-in-from-bottom-2",
+                    "fixed bottom-4 left-4 right-4 z-50 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm shadow-2xl animate-in fade-in slide-in-from-bottom-2 sm:bottom-6 sm:left-auto sm:right-6 sm:w-auto",
                     toast.type === "success"
                         ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                         : "bg-red-500/10 border-red-500/20 text-red-400"
@@ -893,8 +962,11 @@ function StaffContent({
                     )}
                 </div>
             ) : (
-                <Card className="overflow-visible p-0">
-                    <table className="w-full text-left text-sm">
+                <>
+                <div className="md:hidden">{staffCards}</div>
+                <Card className="hidden overflow-visible p-0 md:block">
+                    <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <table className="w-full min-w-[54rem] text-left text-sm">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02] text-zinc-400">
                                 <th className="px-6 py-4 font-medium">Member</th>
@@ -941,19 +1013,7 @@ function StaffContent({
                                     {/* Actions */}
                                     <td className="px-6 py-4">
                                         {canManageStaff ? (
-                                            <RowActions actions={[
-                                                {
-                                                    label: hasPermissionOverrides(member) ? "Edit Access" : "Set Access",
-                                                    icon: Pencil,
-                                                    onClick: () => setEditTarget(member),
-                                                },
-                                                {
-                                                    label: "Remove",
-                                                    icon: Trash2,
-                                                    variant: "danger",
-                                                    onClick: () => handleRemoveClick(member),
-                                                },
-                                            ]} />
+                                            <RowActions actions={staffMemberActions(member)} />
                                         ) : (
                                             <span className="text-xs text-zinc-600" title={staffManagementHelpText}>
                                                 View only
@@ -964,7 +1024,9 @@ function StaffContent({
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </Card>
+                </>
             )}
 
             {/* Edit role dialog */}

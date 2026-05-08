@@ -181,12 +181,12 @@ export function UpdateAllocationDialog({
             : "Update";
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
             <div
-                className="w-full max-w-2xl bg-[#0a0c14] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+                className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0c14] shadow-2xl animate-in zoom-in-95 duration-200 sm:max-h-[90vh]"
                 onClick={e => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02] flex-shrink-0">
+                <div className="flex flex-shrink-0 items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-4 sm:px-6">
                     <div>
                         <div className="flex items-center gap-2">
                             <ArrowRightLeft size={15} className="text-indigo-400" />
@@ -204,7 +204,7 @@ export function UpdateAllocationDialog({
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-1 min-h-0">
+                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
                     <SeatPicker
                         branchId={branchId}
                         studentId={studentId}
@@ -259,7 +259,7 @@ export function UpdateAllocationDialog({
                 </div>
 
                 {canConfirm && (
-                    <div className="border-t border-white/5 bg-white/[0.01] flex-shrink-0 px-6 py-4 space-y-3">
+                    <div className="flex-shrink-0 space-y-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:px-6">
                         <div className="flex items-center justify-end gap-3">
                             <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
                                 Cancel

@@ -146,14 +146,14 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
 
     if (loading && !snapshot) {
         return (
-            <div className="p-8 flex items-center justify-center text-white">
+            <div className="p-4 md:p-8 flex items-center justify-center text-white">
                 <Loader2 className="animate-spin mr-2" /> Loading analytics...
             </div>
         );
     }
 
     return (
-        <div className="p-8 space-y-8 text-white">
+        <div className="p-4 md:p-8 space-y-8 text-white">
             <PageHeader
                 title="Analytics & Trends"
                 subtitle="Branch performance with corrected revenue, collections, dues, and utilization."

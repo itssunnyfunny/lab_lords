@@ -287,7 +287,7 @@ function PaymentsContent({
 
     if (error) {
         return (
-            <div className="p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
+            <div className="p-4 md:p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
                 <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
                 <h2 className="text-xl font-semibold">Something went wrong</h2>
                 <p className="text-gray-400">{error}</p>
@@ -300,7 +300,7 @@ function PaymentsContent({
     }
 
     return (
-        <div className="p-8 space-y-6">
+        <div className="p-4 md:p-8 space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Payment History</h1>
@@ -308,7 +308,7 @@ function PaymentsContent({
                 </div>
 
                 {/* Month Selector */}
-                <div className="flex items-center gap-4 bg-surfaceHighlight/50 p-2 rounded-lg border border-white/5">
+                <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/5 bg-surfaceHighlight/50 p-2 sm:w-auto sm:gap-4">
                     <Button variant="ghost" size="icon" onClick={() => handleMonthChange("prev")}>
                         <ChevronLeft className="w-4 h-4" />
                     </Button>
@@ -374,7 +374,7 @@ function PaymentsContent({
                     </button>
                 </div>
 
-                <ViewToggle value={viewMode} onChange={setViewMode} />
+                <ViewToggle value={viewMode} onChange={setViewMode} className="hidden md:inline-flex" />
             </div>
 
             {loading ? (
@@ -575,7 +575,7 @@ function MarkPaidDialog({
     const needsRef = method === "UPI" || method === "BANK_TRANSFER";
 
     const dialog = (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center p-3 sm:items-center sm:p-4">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -583,7 +583,7 @@ function MarkPaidDialog({
             />
 
             {/* Panel */}
-            <div className="relative w-full max-w-sm bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200 space-y-5">
+            <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200 space-y-5">
                 {/* Header */}
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -649,7 +649,7 @@ function MarkPaidDialog({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 pt-1">
+                <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
                     <Button variant="ghost" onClick={onClose} disabled={loading}>
                         Cancel
                     </Button>

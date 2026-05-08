@@ -486,11 +486,11 @@ function StudentsContent({
         }
     };
 
-    if (loading) return <div className="p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading data...</div>;
+    if (loading) return <div className="p-4 md:p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading data...</div>;
 
     if (error) {
         return (
-            <div className="p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
+            <div className="p-4 md:p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
                 <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
                 <h2 className="text-xl font-semibold">Something went wrong</h2>
                 <p className="text-gray-400">{error}</p>
@@ -502,7 +502,7 @@ function StudentsContent({
     }
 
     return (
-        <div className="p-8 space-y-6">
+        <div className="p-4 md:p-8 space-y-6">
             <PageHeader
                 title="Students"
                 subtitle="Manage detailed student profiles and fee history."
@@ -573,7 +573,7 @@ function StudentsContent({
                         })}
                     </div>
 
-                    <ViewToggle value={viewMode} onChange={setViewMode} />
+                    <ViewToggle value={viewMode} onChange={setViewMode} className="hidden md:inline-flex" />
                 </div>
             </div>
 
