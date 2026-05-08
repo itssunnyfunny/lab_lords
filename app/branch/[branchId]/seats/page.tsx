@@ -130,7 +130,6 @@ function SeatsContent({
             <PageHeader
                 title="Seat Management"
                 subtitle="Visual map of study hall occupancy."
-                onFilter={() => { }}
                 onAdd={canManageBranch ? () => setIsAddModalOpen(true) : undefined}
                 actionLabel="Add Seat"
             />

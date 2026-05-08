@@ -31,6 +31,25 @@ type DueResolution = "PAID" | "WAIVED" | "KEEP";
 const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
 
+function escapeCsvValue(value: string | number | null | undefined) {
+    const text = value == null ? "" : String(value);
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]) {
+    const csv = rows.map(row => row.map(escapeCsvValue).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
 // ─── Row action dropdown ──────────────────────────────────────────────────────
 
 interface ActionItem {
@@ -329,6 +348,34 @@ function StudentsContent({
         return matchesTab && (s.name.toLowerCase().includes(q) || (s.phone && s.phone.includes(q)));
     });
 
+    const handleExportStudents = () => {
+        const paymentHeaders = canViewPayments ? ["Total Due", "Total Paid", "Total Waived"] : [];
+        const rows = [
+            ["Name", "Phone", "Status", "Monthly Fee", "Joined", ...paymentHeaders],
+            ...filteredStudents.map(student => {
+                const financials = studentFinancials.get(student.id);
+                const baseRow = [
+                    student.name,
+                    student.phone ?? "",
+                    student.status,
+                    student.monthlyFee ?? "",
+                    format(new Date(student.joinedAt), "yyyy-MM-dd"),
+                ];
+
+                if (!canViewPayments) return baseRow;
+
+                return [
+                    ...baseRow,
+                    financials?.totalDue ?? 0,
+                    financials?.totalPaid ?? 0,
+                    financials?.totalWaived ?? 0,
+                ];
+            }),
+        ];
+
+        downloadCsv(`students-${branchId}-${activeTab.toLowerCase()}.csv`, rows);
+    };
+
     const renderFeeSummary = (item: Student) => {
         if (!canViewPayments) {
             return <span className="text-xs text-textMuted" title={paymentHelpText}>No payment access</span>;
@@ -460,8 +507,7 @@ function StudentsContent({
                 title="Students"
                 subtitle="Manage detailed student profiles and fee history."
                 onSearch={q => setSearchQuery(q)}
-                onFilter={() => { }}
-                onExport={() => { }}
+                onExport={handleExportStudents}
                 onAdd={() => setIsAddModalOpen(true)}
                 actionLabel="Add Student"
             />
