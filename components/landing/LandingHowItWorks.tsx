@@ -30,28 +30,28 @@ export function LandingHowItWorks() {
   ];
 
   return (
-    <section id="how-it-works" className="py-24 relative z-10 bg-[#050508]">
+    <section id="how-it-works" className="relative z-10 bg-[#050508] py-16 sm:py-20 md:py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row gap-16 items-center">
+        <div className="flex flex-col items-center gap-10 lg:flex-row lg:gap-16">
           <div className="lg:w-1/2">
             <h2 className="text-sm font-semibold tracking-wide text-cyan-500 uppercase mb-3">
               How it Works
             </h2>
-            <h3 className="text-3xl md:text-5xl font-extrabold text-white mb-6 leading-tight">
+            <h3 className="mb-5 text-3xl font-extrabold leading-tight text-white sm:text-4xl md:mb-6 md:text-5xl">
               From chaos to <br className="hidden md:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
                 complete control.
               </span>
             </h3>
-            <p className="text-lg text-gray-400 mb-8 max-w-lg">
-              Our refined workflow is designed to map exactly to the real-world operations of your study hall or offine education business.
+            <p className="mb-8 max-w-lg text-base leading-relaxed text-gray-400 sm:text-lg">
+              Our refined workflow is designed to map exactly to the real-world operations of your study hall or offline education business.
             </p>
             
             <div className="flex items-center gap-4">
               <div className="flex -space-x-4">
-                <img className="w-12 h-12 rounded-full border-2 border-[#050508]" src="https://i.pravatar.cc/100?img=1" alt="User" />
-                <img className="w-12 h-12 rounded-full border-2 border-[#050508]" src="https://i.pravatar.cc/100?img=2" alt="User" />
-                <img className="w-12 h-12 rounded-full border-2 border-[#050508]" src="https://i.pravatar.cc/100?img=3" alt="User" />
+                <img className="h-10 w-10 rounded-full border-2 border-[#050508] sm:h-12 sm:w-12" src="https://i.pravatar.cc/100?img=1" alt="User" />
+                <img className="h-10 w-10 rounded-full border-2 border-[#050508] sm:h-12 sm:w-12" src="https://i.pravatar.cc/100?img=2" alt="User" />
+                <img className="h-10 w-10 rounded-full border-2 border-[#050508] sm:h-12 sm:w-12" src="https://i.pravatar.cc/100?img=3" alt="User" />
               </div>
               <div className="text-sm text-gray-400">
                 <strong className="text-white">Join 500+</strong> owners managing<br/>their businesses today.
@@ -59,9 +59,9 @@ export function LandingHowItWorks() {
             </div>
           </div>
 
-          <div className="lg:w-1/2 space-y-8">
+          <div className="space-y-8 lg:w-1/2">
             {steps.map((item, index) => (
-              <div key={index} className="flex gap-6 relative">
+              <div key={index} className="relative flex gap-4 sm:gap-6">
                 {index !== steps.length - 1 && (
                   <div className="absolute left-6 top-14 bottom-[-32px] w-px bg-gradient-to-b from-white/10 to-transparent" />
                 )}
@@ -71,7 +71,7 @@ export function LandingHowItWorks() {
                 <div className="pt-2">
                   <div className="flex items-center gap-3 mb-2">
                     {item.icon}
-                    <h4 className="text-xl font-semibold text-white">{item.title}</h4>
+                  <h4 className="text-lg font-semibold text-white sm:text-xl">{item.title}</h4>
                   </div>
                   <p className="text-gray-400 leading-relaxed max-w-md">
                     {item.description}

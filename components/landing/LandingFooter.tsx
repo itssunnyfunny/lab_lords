@@ -1,8 +1,8 @@
 export function LandingFooter() {
   return (
-    <footer className="bg-[#050508] border-t border-white/10 pt-16 pb-8 relative z-10">
+    <footer className="relative z-10 border-t border-white/10 bg-[#050508] pb-8 pt-12 sm:pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-12 mb-12">
+        <div className="mb-10 grid grid-cols-1 gap-8 md:mb-12 md:grid-cols-[minmax(0,1fr)_auto] md:gap-12">
           {/* Brand */}
           <div className="max-w-md">
             <div className="flex items-center gap-2 mb-4">
@@ -27,7 +27,7 @@ export function LandingFooter() {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-center md:flex-row md:text-left">
           <p className="text-sm text-gray-500">
             &copy; {new Date().getFullYear()} Lab Lords. All rights reserved.
           </p>

@@ -150,12 +150,12 @@ export default function OnboardingPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans text-white bg-[#050508]">
+        <div className="relative flex min-h-[100dvh] flex-col items-center justify-start overflow-x-hidden overflow-y-auto bg-[#050508] p-4 py-8 font-sans text-white sm:justify-center sm:p-6">
             <AmbientBackground />
 
             <div className="relative z-10 max-w-2xl w-full">
-                <div className="text-center mb-10">
-                    <h2 className="text-3xl font-bold text-white mb-2">
+                <div className="mb-6 text-center sm:mb-10">
+                    <h2 className="mb-2 text-2xl font-bold text-white sm:text-3xl">
                         <GlowText>
                             {step === 1 ? "Create your organization" : "Setup your first branch"}
                         </GlowText>
@@ -167,7 +167,7 @@ export default function OnboardingPage() {
                     </p>
                 </div>
 
-                <Card className="p-8 bg-[#0f111a]/60 backdrop-blur-xl border-white/10 max-h-[80vh] overflow-y-auto">
+                <Card className="max-h-none overflow-visible border-white/10 bg-[#0f111a]/60 p-5 backdrop-blur-xl sm:max-h-[80vh] sm:overflow-y-auto sm:p-8">
                     {step === 1 && (
                         <div className="space-y-6">
                             <div>
@@ -239,7 +239,7 @@ export default function OnboardingPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         City / Area <span className="text-gray-500">(Opt)</span>
@@ -288,9 +288,9 @@ export default function OnboardingPage() {
 
                                 <div className="space-y-3">
                                     {formData.shifts.map((shift, idx) => (
-                                        <div key={idx} className="flex gap-2 items-start p-3 bg-white/5 rounded-lg border border-white/5">
-                                            <div className="flex-1 grid grid-cols-12 gap-2">
-                                                <div className="col-span-4">
+                                        <div key={idx} className="flex flex-col gap-3 rounded-lg border border-white/5 bg-white/5 p-3 sm:flex-row sm:items-start sm:gap-2">
+                                            <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-12 sm:gap-2">
+                                                <div className="sm:col-span-4">
                                                     <input
                                                         type="text"
                                                         placeholder="Name"
@@ -299,7 +299,7 @@ export default function OnboardingPage() {
                                                         className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
                                                     />
                                                 </div>
-                                                <div className="col-span-3">
+                                                <div className="sm:col-span-3">
                                                     <input
                                                         type="time"
                                                         value={shift.startTime || ""}
@@ -307,7 +307,7 @@ export default function OnboardingPage() {
                                                         className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
                                                     />
                                                 </div>
-                                                <div className="col-span-3">
+                                                <div className="sm:col-span-3">
                                                     <input
                                                         type="time"
                                                         value={shift.endTime || ""}
@@ -315,8 +315,8 @@ export default function OnboardingPage() {
                                                         className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
                                                     />
                                                 </div>
-                                                <div className="col-span-2 relative">
-                                                    <span className="absolute left-0 top-1 text-gray-500 text-xs">₹</span>
+                                                <div className="relative sm:col-span-2">
+                                                    <span className="absolute left-0 top-1 text-xs text-gray-500">Rs.</span>
                                                     <input
                                                         type="number"
                                                         placeholder="Price"
@@ -326,14 +326,15 @@ export default function OnboardingPage() {
                                                         max={FORM_LIMITS.moneyMax}
                                                         step={1}
                                                         inputMode="numeric"
-                                                        className="w-full bg-transparent border-b border-white/10 py-1 pl-3 text-sm text-white focus:outline-none focus:border-cyan-500"
+                                                        className="w-full border-b border-white/10 bg-transparent py-1 pl-6 text-sm text-white focus:border-cyan-500 focus:outline-none"
                                                     />
                                                 </div>
                                             </div>
                                             {formData.shifts.length > 1 && (
                                                 <button
                                                     onClick={() => removeShift(idx)}
-                                                    className="text-gray-500 hover:text-red-400 mt-1"
+                                                    className="self-end text-gray-500 hover:text-red-400 sm:mt-1"
+                                                    aria-label="Remove shift"
                                                 >
                                                     <X size={14} />
                                                 </button>
@@ -368,7 +369,7 @@ export default function OnboardingPage() {
                         className="w-full text-center mt-4 text-sm text-gray-500 hover:text-gray-300 transition-colors"
                         disabled={loading}
                     >
-                        ← Back to Organization details
+                        Back to Organization details
                     </button>
                 )}
             </div>
