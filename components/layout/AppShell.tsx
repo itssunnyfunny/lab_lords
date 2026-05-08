@@ -4,9 +4,9 @@ import { UserButton, useUser } from "@clerk/nextjs";
 import { isAuthBypassEnabled } from "@/lib/authMode";
 import { ReactNode } from "react";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
-import { Bell } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BranchTopSearch } from "@/components/layout/BranchTopSearch";
+import { BranchNotifications } from "@/components/layout/BranchNotifications";
 
 interface User {
     name: string;
@@ -64,6 +64,8 @@ function AccountControl() {
 
 export function AppShell({ children, sidebar, user }: AppShellProps) {
     const router = useRouter();
+    const pathname = usePathname();
+    const showBranchChrome = /^\/branch\/[^/]+/.test(pathname ?? "");
 
     return (
         <div className="flex h-screen text-white font-sans overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-50">
@@ -79,15 +81,16 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                 {/* Top Header */}
                 <header className="h-16 border-b border-white/5 bg-[#0a0a0e]/60 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-40">
                     <div className="flex items-center gap-4 w-1/3">
-                        <BranchTopSearch />
+                        {showBranchChrome && <BranchTopSearch />}
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <button className="relative p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5">
-                            <Bell size={20} />
-                            <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse" />
-                        </button>
-                        <div className="h-6 w-[1px] bg-white/10 mx-2" />
+                        {showBranchChrome && (
+                            <>
+                                <BranchNotifications />
+                                <div className="h-6 w-[1px] bg-white/10 mx-2" />
+                            </>
+                        )}
                         <button
                             onClick={() => router.push('/account')}
                             className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer"
