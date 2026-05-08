@@ -14,3 +14,7 @@
 ## 2025-04-23 - [Batch Insert Optimization for Manual Shift Deletion]
 **Learning:** Found an N+1 query problem in \`services/shift.service.ts\` within \`ShiftService.deleteShift\`'s \`REALLOCATE_MANUAL\` handler where it sequentially queries and updates the database multiple times inside a loop for each shifted student.
 **Action:** Replaced the loop body queries with bulk pre-fetches (fetching old allocations, relevant active student allocations, all seats, and active branch allocations). Converted the inner sequential \`create\` and \`update\` calls into array accumulation (pushed into \`newAllocationsToCreate\`) while managing state locally via mock array injections, followed by an \`updateMany\` and \`createMany\` after the loop.
+
+## 2024-05-01 - Bulk Allocation FindMany Optimization
+**Learning:** Resolving N+1 database queries inside mapping and validation loops for allocations can be safely and easily done by pre-fetching the relevant data using `.findMany`.
+**Action:** When working on batch operations like REALLOCATE_BULK, pre-fetch needed related records using `.findMany({ where: { id: { in: ids } } })` outside of looping constructs, so the loop can filter in-memory instead.
