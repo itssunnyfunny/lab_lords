@@ -141,7 +141,7 @@ export function LandingMockup() {
                     </div>
                   </div>
                   <div className="text-gray-400 text-sm font-medium mb-1">Monthly Revenue</div>
-                  <div className="text-4xl font-extrabold text-white tracking-tighter">₹1.42L</div>
+                  <div className="text-4xl font-extrabold text-white tracking-tighter">Rs.1.42L</div>
                 </div>
 
               </div>
@@ -150,13 +150,13 @@ export function LandingMockup() {
               <div className="w-full h-64 border border-white/5 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent overflow-hidden shadow-2xl relative z-10 flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-black/20 backdrop-blur-sm">
                   <h4 className="text-sm font-semibold text-white">Recent Activity</h4>
-                  <button className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors">View All</button>
+                  <span className="text-xs font-medium text-cyan-400">View All</span>
                 </div>
                 
                 <div className="flex-1 p-2 flex flex-col gap-1 overflow-hidden">
                   {[
                     { title: "Seat A12 Allocated", desc: "Aarav Sharma newly enrolled.", time: "2m ago", color: "text-cyan-400", bg: "bg-cyan-500/10" },
-                    { title: "Payment Received", desc: "₹2,500 from Priya Patel.", time: "1hr ago", color: "text-emerald-400", bg: "bg-emerald-500/10" },
+                    { title: "Payment Received", desc: "Rs.2,500 from Priya Patel.", time: "1hr ago", color: "text-emerald-400", bg: "bg-emerald-500/10" },
                     { title: "Overdue Alert", desc: "5 students exceeded 7 days limit.", time: "3hr ago", color: "text-rose-400", bg: "bg-rose-500/10" },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-white-[0.02] transition-colors group">

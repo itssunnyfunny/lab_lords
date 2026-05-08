@@ -324,6 +324,7 @@ export function BranchTopSearch() {
                                             <button
                                                 key={result.id}
                                                 type="button"
+                                                onClick={() => executeResult(result)}
                                                 onMouseEnter={() => setSelectedIndex(index)}
                                                 onMouseDown={(event) => {
                                                     event.preventDefault();

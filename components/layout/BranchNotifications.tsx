@@ -126,15 +126,13 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 function DisabledBell() {
     return (
-        <button
-            type="button"
-            disabled
+        <span
             title="Open a branch to view notifications"
             className="relative rounded-full p-2 text-gray-600"
             aria-label="Notifications unavailable outside a branch"
         >
             <Bell size={20} />
-        </button>
+        </span>
     );
 }
 

@@ -61,14 +61,14 @@ export function LandingPricing({
             <h4 className="text-xl font-semibold text-white mb-2">Professional</h4>
             <p className="text-cyan-100/60 text-sm mb-6">For growing multi-branch businesses.</p>
             <div className="mb-6">
-              <span className="text-4xl font-extrabold text-white">₹999</span>
+              <span className="text-4xl font-extrabold text-white">Rs.999</span>
               <span className="text-gray-500 font-medium"> / month</span>
             </div>
             <button
               onClick={onDashboardClick}
               className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-cyan-500/20 mb-8"
             >
-              Start 14-Day Free Trial
+              Get Started
             </button>
             <div className="space-y-4 flex-1">
               {[
@@ -100,14 +100,14 @@ export function LandingPricing({
               onClick={onDashboardClick}
               className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 px-4 rounded-xl transition-all border border-white/10 mb-8"
             >
-              Contact Sales
+              Get Started
             </button>
             <div className="space-y-4 flex-1">
               {[
                 "Unlimited Branch Locations",
                 "Custom Roles & Permissions",
                 "AI-Powered Insights Module",
-                "API Access (Coming Soon)",
+                "Detailed audit history",
                 "Dedicated Success Manager",
                 "24/7 Phone Support"
               ].map((feature, i) => (
