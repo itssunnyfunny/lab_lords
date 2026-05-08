@@ -3,6 +3,7 @@
 import {
     BarChart2,
     CalendarCheck,
+    CalendarClock,
     ChevronRight,
     CreditCard,
     FileText,
@@ -11,6 +12,7 @@ import {
     LucideIcon,
     MessageSquare,
     Settings,
+    TriangleAlert,
     UserCircle,
     Users,
 } from "lucide-react";
@@ -51,8 +53,10 @@ export function BranchSidebar() {
     const operationItems: BranchNavItem[] = [
         { icon: Users, label: "Students", href: `${basePath}/students`, permission: "students", active: current => current === `${basePath}/students` },
         { icon: Grid, label: "Seats & Maps", href: `${basePath}/seats`, permission: "seat_allocation", active: current => current === `${basePath}/seats` },
+        { icon: CalendarClock, label: "Shifts", href: `${basePath}/shifts`, permission: "seat_allocation", active: current => current === `${basePath}/shifts` },
         { icon: CalendarCheck, label: "Allocations", href: `${basePath}/allocations`, permission: "seat_allocation", active: current => current?.startsWith(`${basePath}/allocations`) ?? false },
         { icon: CreditCard, label: "Payments", href: `${basePath}/payments`, permission: "view_payments", active: current => current === `${basePath}/payments` },
+        { icon: TriangleAlert, label: "Overdue", href: `${basePath}/overdue`, permission: "view_payments", active: current => current === `${basePath}/overdue` },
         { icon: UserCircle, label: "Staff", href: `${basePath}/staff`, permission: "manage_branch", active: current => current === `${basePath}/staff` },
     ];
 
@@ -61,58 +65,64 @@ export function BranchSidebar() {
         { icon: MessageSquare, label: "AI Messages", href: `${basePath}/ai/messages`, permission: "analytics", active: current => current === `${basePath}/ai/messages` },
     ];
 
-    const renderItems = (items: BranchNavItem[]) => items
-        .filter(item => canSee(item.permission))
-        .map(item => (
-            <SidebarItem
-                key={item.href}
-                icon={item.icon}
-                label={item.label}
-                isActive={item.active(pathname)}
-                onClick={() => router.push(item.href)}
-            />
-        ));
+    const renderItems = (items: BranchNavItem[]) => items.map(item => (
+        <SidebarItem
+            key={item.href}
+            icon={item.icon}
+            label={item.label}
+            isActive={item.active(pathname)}
+            onClick={() => router.push(item.href)}
+            density="compact"
+        />
+    ));
+
+    const renderSection = (label: string, items: BranchNavItem[]) => {
+        const visibleItems = items.filter(item => canSee(item.permission));
+        if (visibleItems.length === 0) return null;
+
+        return (
+            <div className="space-y-2">
+                <div className="px-2 text-[10px] font-bold uppercase tracking-widest text-gray-600">{label}</div>
+                {renderItems(visibleItems)}
+            </div>
+        );
+    };
 
     return (
-        <div className="w-72 bg-[#050508]/80 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">
-            <div className="h-20 flex items-center px-6 border-b border-white/5 bg-[#0a0a0e]/50">
-                <div onClick={() => router.push("/")} className="cursor-pointer hover:bg-white/10 -ml-2 p-2 rounded-xl transition-all duration-300 mr-3 border border-transparent hover:border-white/5 group">
-                    <ChevronRight size={20} className="text-gray-500 group-hover:text-white rotate-180 transition-transform" />
-                </div>
-                <div className="flex flex-col overflow-hidden">
-                    <span className="font-bold text-sm text-white truncate">{access?.branchName ?? "Loading..."}</span>
-                    <span className="text-[10px] text-cyan-400 uppercase tracking-wider font-bold glow-text">
+        <div className="w-64 bg-[#050508]/90 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">
+            <div className="h-14 flex items-center gap-2 px-4 border-b border-white/5 bg-[#0a0a0e]/50">
+                <button
+                    type="button"
+                    onClick={() => router.push("/")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/5 hover:text-white"
+                    aria-label="Back to home"
+                >
+                    <ChevronRight size={17} className="rotate-180 transition-transform" />
+                </button>
+                <div className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold leading-tight text-white">{access?.branchName ?? "Loading..."}</span>
+                    <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80">
                         {access?.role ?? (loading ? "Checking access" : "Branch Connected")}
                     </span>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-6 space-y-8 scrollbar-none px-6">
-                <div className="space-y-2">
-                    <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 px-2">Overview</div>
-                    {renderItems(overviewItems)}
+            <div className="flex-1 overflow-y-auto px-3 py-3 scrollbar-none">
+                <div className="space-y-4">
+                    {renderSection("Overview", overviewItems)}
+                    {renderSection("Operations", operationItems)}
+                    {renderSection("Intelligence", intelligenceItems)}
                 </div>
-
-                <div className="space-y-2">
-                    <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 px-2">Operations</div>
-                    {renderItems(operationItems)}
-                </div>
-
-                {intelligenceItems.some(item => canSee(item.permission)) && (
-                    <div className="space-y-2">
-                        <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3 px-2">Intelligence</div>
-                        {renderItems(intelligenceItems)}
-                    </div>
-                )}
             </div>
 
             {canSee("manage_branch") && (
-                <div className="px-6 pb-6 border-t border-white/5 pt-4">
+                <div className="px-3 py-3 border-t border-white/5 bg-[#0a0a0e]/35">
                     <SidebarItem
                         icon={Settings}
                         label="Branch Settings"
                         isActive={pathname === `${basePath}/settings`}
                         onClick={() => router.push(`${basePath}/settings`)}
+                        density="compact"
                     />
                 </div>
             )}
