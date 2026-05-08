@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DataTable, type DataViewMode } from "@/components/tables/DataTable";
+import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -24,6 +24,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
+import { useDataViewMode } from "@/hooks/useDataViewMode";
 
 type DueResolution = "PAID" | "WAIVED" | "KEEP";
 
@@ -261,7 +262,7 @@ function StudentsContent({
     const [activeTab, setActiveTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
     const [selectedShift, setSelectedShift] = useState<string>("");
     const [searchQuery, setSearchQuery] = useState("");
-    const [viewMode, setViewMode] = useState<DataViewMode>("table");
+    const [viewMode, setViewMode] = useDataViewMode();
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -497,23 +498,33 @@ function StudentsContent({
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                     <div className="flex items-center gap-2">
-                        {(["ACTIVE", "INACTIVE"] as const).map(tab => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={cn(
-                                    "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                                    activeTab === tab
-                                        ? "border-brand-500 text-brand-400"
-                                        : "border-transparent text-textSecondary hover:text-white"
-                                )}
-                            >
-                                {tab === "ACTIVE" ? "Active" : "Inactive"} Students
-                                <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
-                                    {allStudents.filter(s => s.status === tab).length}
-                                </span>
-                            </button>
-                        ))}
+                        {(["ACTIVE", "INACTIVE"] as const).map(tab => {
+                            const active = activeTab === tab;
+                            const selectedClassName = tab === "ACTIVE"
+                                ? "border-emerald-500 bg-emerald-500/5 text-emerald-400"
+                                : "border-zinc-500 bg-zinc-500/5 text-zinc-300";
+                            const dotClassName = tab === "ACTIVE"
+                                ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.65)]"
+                                : "bg-zinc-300 shadow-[0_0_8px_rgba(212,212,216,0.35)]";
+
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    aria-current={active ? "page" : undefined}
+                                    className={cn(
+                                        "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                                        active ? selectedClassName : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
+                                    )}
+                                >
+                                    {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
+                                    {tab === "ACTIVE" ? "Active" : "Inactive"} Students
+                                    <span className="bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                                        {allStudents.filter(s => s.status === tab).length}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
 
                     <ViewToggle value={viewMode} onChange={setViewMode} />

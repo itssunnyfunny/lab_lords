@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable, type DataViewMode } from "@/components/tables/DataTable";
+import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getAnyPermissionHelpText, getPermissionHelpText } from "@/lib/permissionMessages";
+import { useDataViewMode } from "@/hooks/useDataViewMode";
 
 type PaymentRow = Payment & {
     student?: {
@@ -61,7 +62,7 @@ function PaymentsContent({
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [activeTab, setActiveTab] = useState<"DUE" | "PAID">("DUE");
-    const [viewMode, setViewMode] = useState<DataViewMode>("table");
+    const [viewMode, setViewMode] = useDataViewMode();
 
     const [data, setData] = useState<PaymentRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -342,29 +343,33 @@ function PaymentsContent({
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setActiveTab("DUE")}
+                        aria-current={activeTab === "DUE" ? "page" : undefined}
                         className={cn(
-                            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors",
                             activeTab === "DUE"
-                                ? "border-brand-500 text-brand-400"
-                                : "border-transparent text-textSecondary hover:text-white"
+                                ? "border-amber-500 bg-amber-500/5 text-amber-400"
+                                : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
                         )}
                     >
+                        {activeTab === "DUE" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.65)]" />}
                         Due Payments
                         {data.filter(i => i.status === "DUE").length > 0 && (
-                            <span className="ml-2 bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                            <span className="bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
                                 {data.filter(i => i.status === "DUE").length}
                             </span>
                         )}
                     </button>
                     <button
                         onClick={() => setActiveTab("PAID")}
+                        aria-current={activeTab === "PAID" ? "page" : undefined}
                         className={cn(
-                            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors",
                             activeTab === "PAID"
-                                ? "border-green-500 text-green-400"
-                                : "border-transparent text-textSecondary hover:text-white"
+                                ? "border-green-500 bg-green-500/5 text-green-400"
+                                : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
                         )}
                     >
+                        {activeTab === "PAID" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.65)]" />}
                         Paid History
                     </button>
                 </div>
