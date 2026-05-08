@@ -15,15 +15,15 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, onSearch, onFilter, onAdd, onExport, actionLabel = "Add New" }: PageHeaderProps) {
     return (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 fade-in">
-            <div>
-                <h1 className="text-2xl font-bold text-white tracking-tight">{title}</h1>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 md:mb-8 fade-in">
+            <div className="min-w-0">
+                <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">{title}</h1>
                 {subtitle && <p className="text-textSecondary text-sm mt-1">{subtitle}</p>}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex w-full flex-wrap items-center gap-3 md:w-auto md:justify-end">
                 {onSearch && (
-                    <div className="relative group">
+                    <div className="relative group w-full md:w-auto">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted w-4 h-4 group-focus-within:text-primary transition-colors" />
                         <input
                             type="text"

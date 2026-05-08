@@ -18,7 +18,7 @@ export function OrgSidebar() {
     const basePath = `/org/${orgId}`;
 
     return (
-        <div className="w-72 bg-[#050508]/80 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">
+        <div className="w-full md:w-72 bg-[#050508]/80 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">
             <div className="h-20 flex items-center px-8 border-b border-white/5">
                 <div className="w-10 h-10 bg-gradient-to-tr from-violet-600 to-indigo-600 rounded-xl mr-3 flex items-center justify-center font-bold text-white shadow-[0_0_15px_rgba(124,58,237,0.5)] border border-white/10">N</div>
                 <div>

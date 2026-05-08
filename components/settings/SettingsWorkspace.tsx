@@ -68,7 +68,7 @@ export function SettingsWorkspace({
     };
 
     return (
-        <div className="mx-auto max-w-6xl p-6 md:p-8 text-white">
+        <div className="mx-auto max-w-6xl p-4 md:p-8 text-white">
             <div className="mb-6">
                 <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
                 <p className="mt-1 text-sm text-gray-500">{subtitle}</p>

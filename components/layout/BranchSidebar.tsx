@@ -89,7 +89,7 @@ export function BranchSidebar() {
     };
 
     return (
-        <div className="w-64 bg-[#050508]/90 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">
+        <div className="w-full md:w-64 bg-[#050508]/90 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">
             <div className="h-14 flex items-center gap-2 px-4 border-b border-white/5 bg-[#0a0a0e]/50">
                 <button
                     type="button"

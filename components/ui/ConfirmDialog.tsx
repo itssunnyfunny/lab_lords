@@ -68,7 +68,7 @@ export function ConfirmDialog({
     };
 
     const dialogContent = (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center p-3 sm:items-center sm:p-4">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -76,7 +76,7 @@ export function ConfirmDialog({
             />
 
             {/* Dialog */}
-            <div className="relative w-full max-w-sm bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex gap-4 items-start">
                     <div className={`p-2 rounded-full shrink-0 ${getIconBg()}`}>
@@ -89,7 +89,7 @@ export function ConfirmDialog({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 mt-8">
+                <div className="flex flex-col-reverse gap-3 mt-8 sm:flex-row sm:justify-end">
                     <Button variant="ghost" onClick={onClose} disabled={loading}>
                         {cancelText}
                     </Button>

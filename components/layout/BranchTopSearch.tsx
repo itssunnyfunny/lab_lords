@@ -64,7 +64,7 @@ function getBranchId(pathname: string | null) {
 
 function DisabledSearch() {
     return (
-        <div className="relative w-full max-w-sm opacity-70">
+        <div className="relative w-full min-w-0 max-w-sm opacity-70">
             <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600"
                 size={16}
@@ -264,7 +264,7 @@ export function BranchTopSearch() {
     const showNoActions = query.trim().length === 0 && !loading && !hasResults;
 
     return (
-        <div ref={rootRef} className="relative w-full max-w-sm">
+        <div ref={rootRef} className="relative w-full min-w-0 max-w-sm">
             <div className="relative group">
                 <Search
                     className={cn(
@@ -294,8 +294,8 @@ export function BranchTopSearch() {
             </div>
 
             {open && !disabled && (
-                <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-xl border border-white/10 bg-[#0f111a]/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
-                    <div className="max-h-[28rem] overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                <div className="fixed left-3 right-3 top-[4.25rem] z-50 overflow-hidden rounded-xl border border-white/10 bg-[#0f111a]/95 shadow-2xl shadow-black/40 backdrop-blur-xl sm:absolute sm:left-0 sm:right-0 sm:top-12">
+                    <div className="max-h-[min(28rem,calc(100dvh-6rem))] overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                         {loading && (
                             <div className="flex items-center gap-2 px-4 py-3 text-sm text-gray-400">
                                 <Loader2 size={15} className="animate-spin text-cyan-300" />

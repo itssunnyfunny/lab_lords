@@ -24,26 +24,25 @@ export function DataTable<T extends { id: string | number }>({
     gridClassName,
     emptyMessage = "No data available.",
 }: DataTableProps<T>) {
-    if (viewMode === "grid" && renderGridCard) {
-        return (
-            <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", gridClassName)}>
-                {data.map((item) => (
-                    <div key={item.id} className="min-w-0">
-                        {renderGridCard(item, actions)}
-                    </div>
-                ))}
-                {data.length === 0 && (
-                    <div className="col-span-full rounded-lg border border-dashed border-white/10 py-12 text-center text-textMuted">
-                        {emptyMessage}
-                    </div>
-                )}
-            </div>
-        );
-    }
+    const cardGrid = renderGridCard ? (
+        <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", gridClassName)}>
+            {data.map((item) => (
+                <div key={item.id} className="min-w-0">
+                    {renderGridCard(item, actions)}
+                </div>
+            ))}
+            {data.length === 0 && (
+                <div className="col-span-full rounded-lg border border-dashed border-white/10 py-12 text-center text-textMuted">
+                    {emptyMessage}
+                </div>
+            )}
+        </div>
+    ) : null;
 
-    return (
-        <div className="w-full overflow-visible rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-card shadow-card">
-            <table className="w-full text-left text-sm">
+    const tableMinWidth = `${Math.max(44, columns.length * 10 + (actions ? 8 : 0))}rem`;
+    const tableView = (
+        <div className="w-full overflow-x-auto overflow-y-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-card shadow-card scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <table className="w-full text-left text-sm" style={{ minWidth: tableMinWidth }}>
                 <thead className="bg-white/[0.02]">
                     <tr>
                         {columns.map((col, idx) => (
@@ -89,4 +88,19 @@ export function DataTable<T extends { id: string | number }>({
             </table>
         </div>
     );
+
+    if (viewMode === "grid" && cardGrid) {
+        return cardGrid;
+    }
+
+    if (cardGrid) {
+        return (
+            <>
+                <div className="md:hidden">{cardGrid}</div>
+                <div className="hidden md:block">{tableView}</div>
+            </>
+        );
+    }
+
+    return tableView;
 }

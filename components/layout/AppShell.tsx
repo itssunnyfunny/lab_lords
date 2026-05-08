@@ -2,11 +2,12 @@
 
 import { UserButton, useUser } from "@clerk/nextjs";
 import { isAuthBypassEnabled } from "@/lib/authMode";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { usePathname, useRouter } from "next/navigation";
 import { BranchTopSearch } from "@/components/layout/BranchTopSearch";
 import { BranchNotifications } from "@/components/layout/BranchNotifications";
+import { Menu, X } from "lucide-react";
 
 interface User {
     name: string;
@@ -65,10 +66,33 @@ function AccountControl() {
 export function AppShell({ children, sidebar, user }: AppShellProps) {
     const router = useRouter();
     const pathname = usePathname();
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const previousPathname = useRef(pathname);
     const showBranchChrome = /^\/branch\/[^/]+/.test(pathname ?? "");
 
+    useEffect(() => {
+        if (previousPathname.current === pathname) return;
+        previousPathname.current = pathname;
+
+        const closeTimer = window.setTimeout(() => setMobileNavOpen(false), 0);
+        return () => window.clearTimeout(closeTimer);
+    }, [pathname]);
+
+    useEffect(() => {
+        if (!mobileNavOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setMobileNavOpen(false);
+            }
+        };
+
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [mobileNavOpen]);
+
     return (
-        <div className="flex h-screen text-white font-sans overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-50">
+        <div className="flex h-[100dvh] max-w-full overflow-hidden text-white font-sans selection:bg-cyan-500/30 selection:text-cyan-50">
             <AmbientBackground />
 
             {/* Sidebar Area - Glassmorphic */}
@@ -76,24 +100,60 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                 {sidebar}
             </div>
 
+            {mobileNavOpen && (
+                <div className="fixed inset-0 z-[80] md:hidden">
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        aria-label="Close navigation"
+                        onClick={() => setMobileNavOpen(false)}
+                    />
+                    <aside
+                        className="relative h-full w-[min(18rem,calc(100vw-2rem))] overflow-hidden border-r border-white/10 bg-[#050508] shadow-2xl"
+                        aria-label="Mobile navigation"
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setMobileNavOpen(false)}
+                            className="absolute right-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                            aria-label="Close navigation"
+                        >
+                            <X size={17} />
+                        </button>
+                        <div className="h-full overflow-hidden">
+                            {sidebar}
+                        </div>
+                    </aside>
+                </div>
+            )}
+
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 relative z-10">
+            <div className="flex-1 flex flex-col min-w-0 max-w-full relative z-10">
                 {/* Top Header */}
-                <header className="h-16 border-b border-white/5 bg-[#0a0a0e]/60 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-40">
-                    <div className="flex items-center gap-4 w-1/3">
+                <header className="h-16 border-b border-white/5 bg-[#0a0a0e]/60 backdrop-blur-md flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6 sticky top-0 z-40">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4 md:max-w-md">
+                        <button
+                            type="button"
+                            onClick={() => setMobileNavOpen(true)}
+                            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition-colors hover:bg-white/10 hover:text-white md:hidden"
+                            aria-label="Open navigation"
+                            aria-expanded={mobileNavOpen}
+                        >
+                            <Menu size={18} />
+                        </button>
                         {showBranchChrome && <BranchTopSearch />}
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3 md:gap-4">
                         {showBranchChrome && (
                             <>
                                 <BranchNotifications />
-                                <div className="h-6 w-[1px] bg-white/10 mx-2" />
+                                <div className="hidden h-6 w-[1px] bg-white/10 sm:block md:mx-2" />
                             </>
                         )}
                         <button
                             onClick={() => router.push('/account')}
-                            className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer"
+                            className="hidden items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer sm:flex"
                         >
                             <AccountSummary user={user} />
                         </button>
@@ -102,7 +162,7 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                     {children}
                 </main>
             </div>

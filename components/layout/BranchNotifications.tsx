@@ -317,7 +317,7 @@ export function BranchNotifications() {
             </button>
 
             {open && !disabled && (
-                <div className="absolute right-0 top-12 z-50 w-[22rem] overflow-hidden rounded-xl border border-white/10 bg-[#0f111a]/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
+                <div className="fixed left-3 right-3 top-[4.25rem] z-50 overflow-hidden rounded-xl border border-white/10 bg-[#0f111a]/95 shadow-2xl shadow-black/40 backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[22rem]">
                     <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
                         <div>
                             <h2 className="text-sm font-bold text-white">Notifications</h2>
@@ -334,7 +334,7 @@ export function BranchNotifications() {
                         </button>
                     </div>
 
-                    <div className="max-h-[28rem] overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <div className="max-h-[min(28rem,calc(100dvh-6rem))] overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                         {loadErrors.length > 0 && (
                             <div className="mx-3 mb-2 flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-100/80">
                                 <AlertCircle size={14} className="mt-0.5 flex-shrink-0 text-amber-300" />
