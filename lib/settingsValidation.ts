@@ -1,3 +1,5 @@
+import { validatePhone, validateRequiredPhone } from "@/lib/formValidation";
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -42,6 +44,23 @@ export function optionalEmail(value: unknown, label: string): string | null | un
     const text = optionalText(value, label, { max: 160 });
     if (text && !EMAIL_PATTERN.test(text)) throw new Error(`${label} must be a valid email`);
     return text;
+}
+
+export function optionalPhone(value: unknown, label: string): string | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+
+    const result = validatePhone(value);
+    if (!result.ok) throw new Error(result.error.replace(/^Phone number/, label));
+    return result.value ?? null;
+}
+
+export function requiredPhone(value: unknown, label: string): string | undefined {
+    if (value === undefined) return undefined;
+
+    const result = validateRequiredPhone(value, label);
+    if (!result.ok) throw new Error(result.error.replace(/^Phone number/, label));
+    return result.value;
 }
 
 export function optionalTime(value: unknown, label: string): string | null | undefined {

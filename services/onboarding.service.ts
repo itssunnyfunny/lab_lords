@@ -3,12 +3,14 @@ import {
     FORM_LIMITS,
     parseIntegerField,
     validateOptionalText,
+    validateRequiredPhone,
     validateRequiredText,
     validateShiftDrafts,
 } from "@/lib/formValidation";
 
 interface CreateNetworkParams {
     userId: string;
+    ownerPhone: string;
     orgData: {
         name: string;
         businessType?: string;
@@ -30,6 +32,8 @@ interface CreateNetworkParams {
 export class OnboardingService {
     static async createNetwork(params: CreateNetworkParams) {
         const { userId, orgData, branchData } = params;
+        const ownerPhoneResult = validateRequiredPhone(params.ownerPhone, "Owner phone");
+        if (!ownerPhoneResult.ok) throw new Error(ownerPhoneResult.error);
         const orgNameResult = validateRequiredText(orgData.name, "Organization name", 120);
         if (!orgNameResult.ok) throw new Error(orgNameResult.error);
         const businessTypeResult = validateOptionalText(orgData.businessType, "Business type", 80);
@@ -53,11 +57,17 @@ export class OnboardingService {
 
         // Use interactive transaction for atomicity
         return await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+                where: { id: userId },
+                data: { phone: ownerPhoneResult.value },
+            });
+
             // 1. Create Organization
             const org = await tx.organization.create({
                 data: {
                     name: orgNameResult.value,
                     businessType: businessTypeResult.value,
+                    contactPhone: ownerPhoneResult.value,
                     ownerId: userId,
                 },
             });
@@ -67,6 +77,7 @@ export class OnboardingService {
                 data: {
                     name: branchNameResult.value,
                     city: cityResult.value,
+                    contactPhone: ownerPhoneResult.value,
                     defaultFee: defaultFeeResult.value,
                     organizationId: org.id,
                 },

@@ -21,6 +21,7 @@ describe("OnboardingService Integration", () => {
 
   const baseParams = (userId: string) => ({
     userId,
+    ownerPhone: "9876543210",
     orgData: { name: "Bright Academy" },
     branchData: { name: "Main Hall", city: "Delhi", defaultFee: 1200 },
   });
@@ -36,6 +37,21 @@ describe("OnboardingService Integration", () => {
       expect(branch.organizationId).toBe(org.id);
       expect(org.name).toBe("Bright Academy");
       expect(branch.name).toBe("Main Hall");
+      expect(org.contactPhone).toBe("+91 98765 43210");
+      expect(branch.contactPhone).toBe("+91 98765 43210");
+      await expect(testPrisma.user.findUnique({ where: { id: user.id }, select: { phone: true } })).resolves.toEqual({
+        phone: "+91 98765 43210",
+      });
+    });
+
+    it("requires an owner phone", async () => {
+      const user = await createUser();
+      await expect(
+        OnboardingService.createNetwork({
+          ...baseParams(user.id),
+          ownerPhone: "",
+        })
+      ).rejects.toThrow(/owner phone is required/i);
     });
 
     it("creates default shifts on the new branch", async () => {

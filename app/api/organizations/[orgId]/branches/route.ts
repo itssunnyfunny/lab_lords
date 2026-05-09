@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { BranchService } from "@/services/branch.service";
 import { OrganizationService } from "@/services/organization.service";
+import { validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
 
 // Correctly type the params as a Promise for Next.js 15+
 interface Params {
@@ -63,16 +64,15 @@ export async function POST(req: Request, { params }: Params) {
 
         const body = await req.json();
 
-        if (!body.name) {
-            return NextResponse.json(
-                { error: "Name is required" },
-                { status: 400 }
-            );
-        }
+        const nameResult = validateRequiredText(body.name, "Branch name", 120);
+        if (!nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
+        const contactPhoneResult = validateRequiredPhone(body.contactPhone, "Contact phone");
+        if (!contactPhoneResult.ok) return NextResponse.json({ error: contactPhoneResult.error }, { status: 400 });
 
         const branch = await BranchService.createBranch({
-            name: body.name,
+            name: nameResult.value,
             organizationId: orgId,
+            contactPhone: contactPhoneResult.value,
         });
 
         return NextResponse.json(branch, { status: 201 });

@@ -5,6 +5,7 @@ import {
     FORM_LIMITS,
     parseIntegerField,
     validateOptionalText,
+    validateRequiredPhone,
     validateRequiredText,
     validateShiftDrafts,
 } from "@/lib/formValidation";
@@ -21,10 +22,12 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { orgName, businessType, branchName, city, defaultFee, seatCount, shifts } = body;
+        const { orgName, ownerPhone, businessType, branchName, city, defaultFee, seatCount, shifts } = body;
 
         const orgNameResult = validateRequiredText(orgName, "Organization name", 120);
         if (!orgNameResult.ok) return NextResponse.json({ error: orgNameResult.error }, { status: 400 });
+        const ownerPhoneResult = validateRequiredPhone(ownerPhone, "Owner phone");
+        if (!ownerPhoneResult.ok) return NextResponse.json({ error: ownerPhoneResult.error }, { status: 400 });
         const businessTypeResult = validateOptionalText(businessType, "Business type", 80);
         if (!businessTypeResult.ok) return NextResponse.json({ error: businessTypeResult.error }, { status: 400 });
         const branchNameResult = validateRequiredText(branchName, "Branch name", 120);
@@ -40,6 +43,7 @@ export async function POST(req: Request) {
 
         const result = await OnboardingService.createNetwork({
             userId: user.id,
+            ownerPhone: ownerPhoneResult.value,
             orgData: {
                 name: orgNameResult.value,
                 businessType: businessTypeResult.value,

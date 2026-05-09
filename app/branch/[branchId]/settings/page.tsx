@@ -35,13 +35,14 @@ import {
     SettingsToggle,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
+import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import {
     FORM_LIMITS,
     parseIntegerField,
     validateOptionalText,
     validateOptionalTime,
-    validatePhone,
+    validateRequiredPhone,
     validateRequiredText,
 } from "@/lib/formValidation";
 
@@ -148,6 +149,9 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
     const [saveError, setSaveError] = useState("");
+    const { markTouched, markSubmitted, resetFieldErrors, visibleError } = useInlineFieldErrors<
+        "name" | "city" | "address" | "contactPhone" | "openingTime" | "closingTime" | "operatingHours" | "defaultFee" | "defaultAdmissionFee"
+    >();
 
     useEffect(() => {
         async function load() {
@@ -160,6 +164,7 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
                 const data = await res.json();
                 setBranch(data);
                 setForm(toForm(data));
+                resetFieldErrors();
             } catch (err) {
                 setFetchError(err instanceof Error ? err.message : "Something went wrong.");
             } finally {
@@ -167,7 +172,7 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
             }
         }
         load();
-    }, [branchId]);
+    }, [branchId, resetFieldErrors]);
 
     const hasChanges = useMemo(() => {
         if (!branch || !form) return false;
@@ -184,69 +189,95 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
         setForm(toForm(branch));
         setSaveStatus("idle");
         setSaveError("");
+        resetFieldErrors();
     };
 
-    const save = async () => {
-        if (!form) return;
+    const validateForm = () => {
+        const errors: Partial<Record<"name" | "city" | "address" | "contactPhone" | "openingTime" | "closingTime" | "operatingHours" | "defaultFee" | "defaultAdmissionFee", string>> = {};
+        if (!form) return { errors, values: null };
         const nameResult = validateRequiredText(form.name, "Branch name", 120);
-        if (!nameResult.ok) {
-            setSaveError(nameResult.error);
-            setSaveStatus("error");
-            return;
-        }
         const cityResult = validateOptionalText(form.city, "City", FORM_LIMITS.cityMax);
-        if (!cityResult.ok) {
-            setSaveError(cityResult.error);
-            setSaveStatus("error");
-            return;
-        }
         const addressResult = validateOptionalText(form.address, "Address", 240);
-        if (!addressResult.ok) {
-            setSaveError(addressResult.error);
-            setSaveStatus("error");
-            return;
-        }
-        const contactPhoneResult = validatePhone(form.contactPhone);
-        if (!contactPhoneResult.ok) {
-            setSaveError(contactPhoneResult.error);
-            setSaveStatus("error");
-            return;
-        }
+        const contactPhoneResult = validateRequiredPhone(form.contactPhone, "Contact phone");
         const openingTimeResult = validateOptionalTime(form.openingTime, "Opening time");
-        if (!openingTimeResult.ok) {
-            setSaveError(openingTimeResult.error);
-            setSaveStatus("error");
-            return;
-        }
         const closingTimeResult = validateOptionalTime(form.closingTime, "Closing time");
-        if (!closingTimeResult.ok) {
-            setSaveError(closingTimeResult.error);
-            setSaveStatus("error");
-            return;
-        }
-        if ((openingTimeResult.value && !closingTimeResult.value) || (!openingTimeResult.value && closingTimeResult.value)) {
-            setSaveError("Operating hours must have both opening and closing time, or neither.");
-            setSaveStatus("error");
-            return;
+        if (!nameResult.ok) errors.name = nameResult.error;
+        if (!cityResult.ok) errors.city = cityResult.error;
+        if (!addressResult.ok) errors.address = addressResult.error;
+        if (!contactPhoneResult.ok) errors.contactPhone = contactPhoneResult.error;
+        if (!openingTimeResult.ok) errors.openingTime = openingTimeResult.error;
+        if (!closingTimeResult.ok) errors.closingTime = closingTimeResult.error;
+        const openingTimeValue = openingTimeResult.ok ? openingTimeResult.value : null;
+        const closingTimeValue = closingTimeResult.ok ? closingTimeResult.value : null;
+        if ((openingTimeValue && !closingTimeValue) || (!openingTimeValue && closingTimeValue)) {
+            errors.operatingHours = "Operating hours must have both opening and closing time, or neither.";
         }
         const defaultFeeResult = parseIntegerField(form.defaultFee, "Default monthly fee", {
             min: 0,
             max: FORM_LIMITS.moneyMax,
         });
-        if (!defaultFeeResult.ok) {
-            setSaveError(defaultFeeResult.error);
-            setSaveStatus("error");
-            return;
-        }
         const defaultAdmissionFeeResult = parseIntegerField(form.defaultAdmissionFee, "Default admission fee", {
             min: 0,
             max: FORM_LIMITS.moneyMax,
         });
-        if (!defaultAdmissionFeeResult.ok) {
-            setSaveError(defaultAdmissionFeeResult.error);
-            setSaveStatus("error");
+        if (!defaultFeeResult.ok) errors.defaultFee = defaultFeeResult.error;
+        if (!defaultAdmissionFeeResult.ok) errors.defaultAdmissionFee = defaultAdmissionFeeResult.error;
+        if (
+            !nameResult.ok ||
+            !cityResult.ok ||
+            !addressResult.ok ||
+            !contactPhoneResult.ok ||
+            !openingTimeResult.ok ||
+            !closingTimeResult.ok ||
+            !!errors.operatingHours ||
+            !defaultFeeResult.ok ||
+            !defaultAdmissionFeeResult.ok
+        ) return { errors, values: null };
+        return {
+            errors,
+            values: {
+                nameResult,
+                cityResult,
+                addressResult,
+                contactPhoneResult,
+                openingTimeResult,
+                closingTimeResult,
+                defaultFeeResult,
+                defaultAdmissionFeeResult,
+            },
+        };
+    };
+
+    const validation = validateForm();
+    const nameError = visibleError("name", validation.errors);
+    const cityError = visibleError("city", validation.errors);
+    const addressError = visibleError("address", validation.errors);
+    const contactPhoneError = visibleError("contactPhone", validation.errors);
+    const openingTimeError = visibleError("openingTime", validation.errors);
+    const closingTimeError = visibleError("closingTime", validation.errors);
+    const operatingHoursError = visibleError("operatingHours", validation.errors);
+    const defaultFeeError = visibleError("defaultFee", validation.errors);
+    const defaultAdmissionFeeError = visibleError("defaultAdmissionFee", validation.errors);
+
+    const save = async () => {
+        if (!form) return;
+        markSubmitted();
+        setSaveError("");
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) {
+            if (saveStatus === "error") setSaveStatus("idle");
             return;
         }
+        const {
+            nameResult,
+            cityResult,
+            addressResult,
+            contactPhoneResult,
+            openingTimeResult,
+            closingTimeResult,
+            defaultFeeResult,
+            defaultAdmissionFeeResult,
+        } = result.values;
         setSaving(true);
         setSaveStatus("idle");
         setSaveError("");
@@ -259,7 +290,7 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
                     name: nameResult.value,
                     city: cityResult.value ?? null,
                     address: addressResult.value ?? null,
-                    contactPhone: contactPhoneResult.value ?? null,
+                    contactPhone: contactPhoneResult.value,
                     openingTime: openingTimeResult.value,
                     closingTime: closingTimeResult.value,
                     defaultFee: defaultFeeResult.value ?? 0,
@@ -273,6 +304,7 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
             const updated = await res.json();
             setBranch(updated);
             setForm(toForm(updated));
+            resetFieldErrors();
             setSaveStatus("success");
             setTimeout(() => setSaveStatus("idle"), 3000);
         } catch (err) {
@@ -318,32 +350,32 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
                 onSectionChange={setActiveSection}
             >
                 <SettingsPanel id="profile" title="Profile" description="Operational identity and public branch contact details." icon={Building2}>
-                    <SettingsField label="Branch name">
-                        <SettingsInput value={form.name} onChange={e => updateForm("name", e.target.value)} placeholder="Main Branch" />
+                    <SettingsField label="Branch name" error={nameError} errorId="branch-name-error">
+                        <SettingsInput value={form.name} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder="Main Branch" error={nameError} errorId="branch-name-error" />
                     </SettingsField>
-                    <SettingsField label="City">
-                        <SettingsInput value={form.city ?? ""} onChange={e => updateForm("city", e.target.value)} placeholder="Delhi" />
+                    <SettingsField label="City" error={cityError} errorId="branch-city-error">
+                        <SettingsInput value={form.city ?? ""} onChange={e => updateForm("city", e.target.value)} onBlur={() => markTouched("city")} placeholder="Delhi" error={cityError} errorId="branch-city-error" />
                     </SettingsField>
-                    <SettingsField label="Address">
-                        <SettingsTextArea value={form.address ?? ""} onChange={e => updateForm("address", e.target.value)} placeholder="Branch address" />
+                    <SettingsField label="Address" error={addressError} errorId="branch-address-error">
+                        <SettingsTextArea value={form.address ?? ""} onChange={e => updateForm("address", e.target.value)} onBlur={() => markTouched("address")} placeholder="Branch address" error={addressError} errorId="branch-address-error" />
                     </SettingsField>
-                    <SettingsField label="Contact phone">
-                        <SettingsInput value={form.contactPhone ?? ""} onChange={e => updateForm("contactPhone", e.target.value)} placeholder="+91 98765 43210" />
+                    <SettingsField label="Contact phone" description="Required phone number for branch operations." error={contactPhoneError} errorId="branch-contact-phone-error">
+                        <SettingsInput value={form.contactPhone ?? ""} onChange={e => updateForm("contactPhone", e.target.value)} onBlur={() => markTouched("contactPhone")} placeholder="+91 98765 43210" error={contactPhoneError} errorId="branch-contact-phone-error" />
                     </SettingsField>
-                    <SettingsField label="Operating hours" description="Stored as the branch default opening and closing window.">
+                    <SettingsField label="Operating hours" description="Stored as the branch default opening and closing window." error={openingTimeError || closingTimeError || operatingHoursError} errorId="branch-operating-hours-error">
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <SettingsInput type="time" value={form.openingTime ?? ""} onChange={e => updateForm("openingTime", e.target.value)} />
-                            <SettingsInput type="time" value={form.closingTime ?? ""} onChange={e => updateForm("closingTime", e.target.value)} />
+                            <SettingsInput type="time" value={form.openingTime ?? ""} onChange={e => updateForm("openingTime", e.target.value)} onBlur={() => { markTouched("openingTime"); markTouched("operatingHours"); }} error={openingTimeError || operatingHoursError} errorId="branch-operating-hours-error" />
+                            <SettingsInput type="time" value={form.closingTime ?? ""} onChange={e => updateForm("closingTime", e.target.value)} onBlur={() => { markTouched("closingTime"); markTouched("operatingHours"); }} error={closingTimeError || operatingHoursError} errorId="branch-operating-hours-error" />
                         </div>
                     </SettingsField>
                 </SettingsPanel>
 
                 <SettingsPanel id="defaults" title="Student Defaults" description="Defaults applied when creating new students in this branch." icon={IndianRupee}>
-                    <SettingsField label="Default monthly fee" description="Used when a new student has no manual fee or shift-linked fee.">
-                        <SettingsInput type="number" min={0} value={form.defaultFee ?? 0} onChange={e => updateForm("defaultFee", Number(e.target.value))} />
+                    <SettingsField label="Default monthly fee" description="Used when a new student has no manual fee or shift-linked fee." error={defaultFeeError} errorId="branch-default-fee-error">
+                        <SettingsInput type="number" min={0} value={form.defaultFee ?? 0} onChange={e => updateForm("defaultFee", Number(e.target.value))} onBlur={() => markTouched("defaultFee")} error={defaultFeeError} errorId="branch-default-fee-error" />
                     </SettingsField>
-                    <SettingsField label="Default admission fee" description="Pre-fills new student admission fee and is used if no admission fee is supplied.">
-                        <SettingsInput type="number" min={0} value={form.defaultAdmissionFee ?? 0} onChange={e => updateForm("defaultAdmissionFee", Number(e.target.value))} />
+                    <SettingsField label="Default admission fee" description="Pre-fills new student admission fee and is used if no admission fee is supplied." error={defaultAdmissionFeeError} errorId="branch-default-admission-fee-error">
+                        <SettingsInput type="number" min={0} value={form.defaultAdmissionFee ?? 0} onChange={e => updateForm("defaultAdmissionFee", Number(e.target.value))} onBlur={() => markTouched("defaultAdmissionFee")} error={defaultAdmissionFeeError} errorId="branch-default-admission-fee-error" />
                     </SettingsField>
                     <ReadOnlyRow label="Active students" value={<span className="inline-flex items-center gap-2"><Users size={14} />{counts.students}</span>} />
                     <ReadOnlyRow label="Seat capacity" value={<span className="inline-flex items-center gap-2"><Armchair size={14} />{counts.seats} seats</span>} />

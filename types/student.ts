@@ -1,6 +1,6 @@
 export type CreateStudentDto = {
     name: string;
-    phone?: string;
+    phone: string;
     /** Array of shift IDs to assign at enrollment time. Requires seatId. */
     shiftIds?: string[];
     /** @deprecated use shiftIds instead. Kept for backward-compat; converted to shiftIds=[shiftId] internally. */
@@ -14,7 +14,7 @@ export type CreateStudentDto = {
 
 export type UpdateStudentProfileDto = {
     name?: string;
-    phone?: string | null;
+    phone?: string;
     monthlyFee?: number;
     feeLinkedShiftId?: string | null;
     feeLinkedMultiShiftId?: string | null;

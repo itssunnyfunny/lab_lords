@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { X, Loader2, AlertCircle, User, Phone, IndianRupee } from "lucide-react";
 import type { Student } from "@/app/generated/prisma/browser";
-import { FORM_LIMITS, parseIntegerField, validatePhone, validateRequiredText } from "@/lib/formValidation";
+import { FORM_LIMITS, parseIntegerField, validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
+import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
+import { cn } from "@/lib/utils";
 
 interface EditStudentDialogProps {
     isOpen: boolean;
@@ -26,6 +28,12 @@ export function EditStudentDialog({
     const [monthlyFee, setMonthlyFee] = useState<string>("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"name" | "phone" | "monthlyFee">();
 
     // Sync form when student changes
     useEffect(() => {
@@ -34,8 +42,9 @@ export function EditStudentDialog({
             setPhone(student.phone ?? "");
             setMonthlyFee(student.monthlyFee != null ? String(student.monthlyFee) : "");
             setError(null);
+            resetFieldErrors();
         }
-    }, [student]);
+    }, [resetFieldErrors, student]);
 
     if (!isOpen || !student) return null;
 
@@ -50,26 +59,39 @@ export function EditStudentDialog({
         phone.trim() !== (student.phone ?? "") ||
         monthlyFee !== currentFeeStr;
 
-    const handleSave = async () => {
+    const validateForm = () => {
+        const errors: Partial<Record<"name" | "phone" | "monthlyFee", string>> = {};
         const nameResult = validateRequiredText(name, "Student name");
-        if (!nameResult.ok) {
-            setError(nameResult.error);
-            return;
-        }
-        const phoneResult = validatePhone(phone);
-        if (!phoneResult.ok) {
-            setError(phoneResult.error);
-            return;
-        }
+        const phoneResult = validateRequiredPhone(phone);
         const monthlyFeeResult = monthlyFee !== currentFeeStr && monthlyFee.trim() !== ""
             ? parseIntegerField(monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })
             : null;
-        if (monthlyFeeResult && !monthlyFeeResult.ok) {
-            setError(monthlyFeeResult.error);
+
+        if (!nameResult.ok) errors.name = nameResult.error;
+        if (!phoneResult.ok) errors.phone = phoneResult.error;
+        if (monthlyFeeResult && !monthlyFeeResult.ok) errors.monthlyFee = monthlyFeeResult.error;
+
+        if (!nameResult.ok || !phoneResult.ok || (monthlyFeeResult && !monthlyFeeResult.ok)) {
+            return { errors, values: null };
+        }
+
+        return { errors, values: { nameResult, phoneResult, monthlyFeeResult } };
+    };
+
+    const validation = validateForm();
+    const nameError = visibleError("name", validation.errors);
+    const phoneError = visibleError("phone", validation.errors);
+    const monthlyFeeError = visibleError("monthlyFee", validation.errors);
+
+    const handleSave = async () => {
+        markSubmitted();
+        setError(null);
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) {
             return;
         }
+        const { nameResult, phoneResult, monthlyFeeResult } = result.values;
         setLoading(true);
-        setError(null);
         try {
             const res = await fetch(`/api/branches/${branchId}/students`, {
                 method: "PATCH",
@@ -77,7 +99,7 @@ export function EditStudentDialog({
                 body: JSON.stringify({
                     id: student.id,
                     name: nameResult.value,
-                    phone: phoneResult.value ?? null,
+                    phone: phoneResult.value,
                     ...(monthlyFeeResult?.ok && monthlyFeeResult.value !== undefined ? { monthlyFee: monthlyFeeResult.value } : {}),
                 }),
             });
@@ -98,6 +120,7 @@ export function EditStudentDialog({
     const handleClose = () => {
         if (loading) return;
         setError(null);
+        resetFieldErrors();
         onClose();
     };
 
@@ -128,29 +151,35 @@ export function EditStudentDialog({
                                 type="text"
                                 value={name}
                                 onChange={e => { setName(e.target.value); setError(null); }}
+                                onBlur={() => markTouched("name")}
                                 placeholder="Student's full name"
                                 autoFocus
                                 maxLength={FORM_LIMITS.nameMax}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(nameError))}
+                                {...fieldErrorProps("edit-student-name-error", nameError)}
                             />
                         </div>
+                        <FieldError id="edit-student-name-error" error={nameError} />
                     </div>
 
                     {/* Phone */}
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Phone Number</label>
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Phone Number *</label>
                         <div className="relative">
                             <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                             <input
                                 type="tel"
                                 value={phone}
                                 onChange={e => { setPhone(e.target.value); setError(null); }}
+                                onBlur={() => markTouched("phone")}
                                 placeholder="e.g. 9876543210"
                                 inputMode="tel"
                                 maxLength={24}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(phoneError))}
+                                {...fieldErrorProps("edit-student-phone-error", phoneError)}
                             />
                         </div>
+                        <FieldError id="edit-student-phone-error" error={phoneError} />
                     </div>
 
                     {/* Monthly Fee */}
@@ -173,10 +202,13 @@ export function EditStudentDialog({
                                 inputMode="numeric"
                                 value={monthlyFee}
                                 onChange={e => { setMonthlyFee(e.target.value); setError(null); }}
+                                onBlur={() => markTouched("monthlyFee")}
                                 placeholder="e.g. 1500"
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(monthlyFeeError))}
+                                {...fieldErrorProps("edit-student-monthly-fee-error", monthlyFeeError)}
                             />
                         </div>
+                        <FieldError id="edit-student-monthly-fee-error" error={monthlyFeeError} />
                         {linkedFeeSource && (
                             <p className="text-[11px] text-zinc-500 leading-relaxed">
                                 Currently linked to {linkedFeeSource}. Editing this amount will switch the student to a manual fee.
@@ -198,7 +230,7 @@ export function EditStudentDialog({
                     </Button>
                     <Button
                         onClick={handleSave}
-                        disabled={loading || !hasChanges || !name.trim()}
+                        disabled={loading || !hasChanges}
                         className="text-sm h-8 px-4 min-w-[90px] justify-center"
                     >
                         {loading

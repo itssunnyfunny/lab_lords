@@ -30,11 +30,12 @@ import {
     SettingsTextArea,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
+import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import {
     parseIntegerField,
     validateOptionalEmail,
     validateOptionalText,
-    validatePhone,
+    validateRequiredPhone,
     validateRequiredText,
 } from "@/lib/formValidation";
 
@@ -115,6 +116,9 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
     const [saveError, setSaveError] = useState("");
+    const { markTouched, markSubmitted, resetFieldErrors, visibleError } = useInlineFieldErrors<
+        "name" | "businessType" | "legalName" | "contactEmail" | "contactPhone" | "address" | "paymentGraceDays"
+    >();
 
     useEffect(() => {
         async function load() {
@@ -127,6 +131,7 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
                 const data = await res.json();
                 setOrg(data);
                 setForm(toForm(data));
+                resetFieldErrors();
             } catch (err) {
                 setFetchError(err instanceof Error ? err.message : "Something went wrong.");
             } finally {
@@ -134,7 +139,7 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
             }
         }
         load();
-    }, [orgId]);
+    }, [orgId, resetFieldErrors]);
 
     const hasChanges = useMemo(() => {
         if (!org || !form) return false;
@@ -151,55 +156,81 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
         setForm(toForm(org));
         setSaveStatus("idle");
         setSaveError("");
+        resetFieldErrors();
     };
 
-    const save = async () => {
-        if (!form) return;
+    const validateForm = () => {
+        const errors: Partial<Record<"name" | "businessType" | "legalName" | "contactEmail" | "contactPhone" | "address" | "paymentGraceDays", string>> = {};
+        if (!form) return { errors, values: null };
         const nameResult = validateRequiredText(form.name, "Organization name", 120);
-        if (!nameResult.ok) {
-            setSaveError(nameResult.error);
-            setSaveStatus("error");
-            return;
-        }
         const businessTypeResult = validateOptionalText(form.businessType, "Business type", 80);
-        if (!businessTypeResult.ok) {
-            setSaveError(businessTypeResult.error);
-            setSaveStatus("error");
-            return;
-        }
         const legalNameResult = validateOptionalText(form.legalName, "Legal name", 160);
-        if (!legalNameResult.ok) {
-            setSaveError(legalNameResult.error);
-            setSaveStatus("error");
-            return;
-        }
         const contactEmailResult = validateOptionalEmail(form.contactEmail, "Contact email");
-        if (!contactEmailResult.ok) {
-            setSaveError(contactEmailResult.error);
-            setSaveStatus("error");
-            return;
-        }
-        const contactPhoneResult = validatePhone(form.contactPhone);
-        if (!contactPhoneResult.ok) {
-            setSaveError(contactPhoneResult.error);
-            setSaveStatus("error");
-            return;
-        }
+        const contactPhoneResult = validateRequiredPhone(form.contactPhone, "Contact phone");
         const addressResult = validateOptionalText(form.address, "Address", 240);
-        if (!addressResult.ok) {
-            setSaveError(addressResult.error);
-            setSaveStatus("error");
-            return;
-        }
         const paymentGraceDaysResult = parseIntegerField(form.paymentGraceDays, "Payment grace days", {
             min: 0,
             max: 60,
         });
-        if (!paymentGraceDaysResult.ok) {
-            setSaveError(paymentGraceDaysResult.error);
-            setSaveStatus("error");
+
+        if (!nameResult.ok) errors.name = nameResult.error;
+        if (!businessTypeResult.ok) errors.businessType = businessTypeResult.error;
+        if (!legalNameResult.ok) errors.legalName = legalNameResult.error;
+        if (!contactEmailResult.ok) errors.contactEmail = contactEmailResult.error;
+        if (!contactPhoneResult.ok) errors.contactPhone = contactPhoneResult.error;
+        if (!addressResult.ok) errors.address = addressResult.error;
+        if (!paymentGraceDaysResult.ok) errors.paymentGraceDays = paymentGraceDaysResult.error;
+
+        if (
+            !nameResult.ok ||
+            !businessTypeResult.ok ||
+            !legalNameResult.ok ||
+            !contactEmailResult.ok ||
+            !contactPhoneResult.ok ||
+            !addressResult.ok ||
+            !paymentGraceDaysResult.ok
+        ) return { errors, values: null };
+        return {
+            errors,
+            values: {
+                nameResult,
+                businessTypeResult,
+                legalNameResult,
+                contactEmailResult,
+                contactPhoneResult,
+                addressResult,
+                paymentGraceDaysResult,
+            },
+        };
+    };
+
+    const validation = validateForm();
+    const nameError = visibleError("name", validation.errors);
+    const businessTypeError = visibleError("businessType", validation.errors);
+    const legalNameError = visibleError("legalName", validation.errors);
+    const contactEmailError = visibleError("contactEmail", validation.errors);
+    const contactPhoneError = visibleError("contactPhone", validation.errors);
+    const addressError = visibleError("address", validation.errors);
+    const paymentGraceDaysError = visibleError("paymentGraceDays", validation.errors);
+
+    const save = async () => {
+        if (!form) return;
+        markSubmitted();
+        setSaveError("");
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) {
+            if (saveStatus === "error") setSaveStatus("idle");
             return;
         }
+        const {
+            nameResult,
+            businessTypeResult,
+            legalNameResult,
+            contactEmailResult,
+            contactPhoneResult,
+            addressResult,
+            paymentGraceDaysResult,
+        } = result.values;
         setSaving(true);
         setSaveStatus("idle");
         setSaveError("");
@@ -213,7 +244,7 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
                     businessType: businessTypeResult.value ?? null,
                     legalName: legalNameResult.value ?? null,
                     contactEmail: contactEmailResult.value ?? null,
-                    contactPhone: contactPhoneResult.value ?? null,
+                    contactPhone: contactPhoneResult.value,
                     address: addressResult.value ?? null,
                     paymentGraceDays: paymentGraceDaysResult.value ?? 0,
                 }),
@@ -226,6 +257,7 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
             const nextOrg = { ...(org as OrgDetails), ...updated };
             setOrg(nextOrg);
             setForm(toForm(nextOrg));
+            resetFieldErrors();
             setSaveStatus("success");
             setTimeout(() => setSaveStatus("idle"), 3000);
         } catch (err) {
@@ -267,14 +299,14 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
                 onSectionChange={setActiveSection}
             >
                 <SettingsPanel id="profile" title="Business Profile" description="Core business information used across this organization." icon={Building2}>
-                    <SettingsField label="Organization name" description="The public workspace name.">
-                        <SettingsInput value={form.name} onChange={e => updateForm("name", e.target.value)} placeholder="Organization name" />
+                    <SettingsField label="Organization name" description="The public workspace name." error={nameError} errorId="org-name-error">
+                        <SettingsInput value={form.name} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder="Organization name" error={nameError} errorId="org-name-error" />
                     </SettingsField>
-                    <SettingsField label="Legal name" description="Optional legal or billing name.">
-                        <SettingsInput value={form.legalName ?? ""} onChange={e => updateForm("legalName", e.target.value)} placeholder="Registered business name" />
+                    <SettingsField label="Legal name" description="Optional legal or billing name." error={legalNameError} errorId="org-legal-name-error">
+                        <SettingsInput value={form.legalName ?? ""} onChange={e => updateForm("legalName", e.target.value)} onBlur={() => markTouched("legalName")} placeholder="Registered business name" error={legalNameError} errorId="org-legal-name-error" />
                     </SettingsField>
-                    <SettingsField label="Business type">
-                        <SettingsSelect value={form.businessType ?? ""} onChange={e => updateForm("businessType", e.target.value)}>
+                    <SettingsField label="Business type" error={businessTypeError} errorId="org-business-type-error">
+                        <SettingsSelect value={form.businessType ?? ""} onChange={e => updateForm("businessType", e.target.value)} onBlur={() => markTouched("businessType")} error={businessTypeError} errorId="org-business-type-error">
                             <option value="">Not set</option>
                             {BUSINESS_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
                         </SettingsSelect>
@@ -282,14 +314,14 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
                 </SettingsPanel>
 
                 <SettingsPanel id="contact" title="Contact" description="Contact details for operations and billing conversations." icon={MapPin}>
-                    <SettingsField label="Contact email">
-                        <SettingsInput value={form.contactEmail ?? ""} onChange={e => updateForm("contactEmail", e.target.value)} placeholder="owner@example.com" />
+                    <SettingsField label="Contact email" error={contactEmailError} errorId="org-contact-email-error">
+                        <SettingsInput value={form.contactEmail ?? ""} onChange={e => updateForm("contactEmail", e.target.value)} onBlur={() => markTouched("contactEmail")} placeholder="owner@example.com" error={contactEmailError} errorId="org-contact-email-error" />
                     </SettingsField>
-                    <SettingsField label="Contact phone">
-                        <SettingsInput value={form.contactPhone ?? ""} onChange={e => updateForm("contactPhone", e.target.value)} placeholder="+91 98765 43210" />
+                    <SettingsField label="Contact phone" description="Required phone number for owner and operations contact." error={contactPhoneError} errorId="org-contact-phone-error">
+                        <SettingsInput value={form.contactPhone ?? ""} onChange={e => updateForm("contactPhone", e.target.value)} onBlur={() => markTouched("contactPhone")} placeholder="+91 98765 43210" error={contactPhoneError} errorId="org-contact-phone-error" />
                     </SettingsField>
-                    <SettingsField label="Address">
-                        <SettingsTextArea value={form.address ?? ""} onChange={e => updateForm("address", e.target.value)} placeholder="Organization address" />
+                    <SettingsField label="Address" error={addressError} errorId="org-address-error">
+                        <SettingsTextArea value={form.address ?? ""} onChange={e => updateForm("address", e.target.value)} onBlur={() => markTouched("address")} placeholder="Organization address" error={addressError} errorId="org-address-error" />
                     </SettingsField>
                 </SettingsPanel>
 
@@ -316,8 +348,8 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
                             ]}
                         />
                     </SettingsField>
-                    <SettingsField label="Payment grace days" description="Stored organization policy for payment follow-up windows.">
-                        <SettingsInput type="number" min={0} max={60} value={form.paymentGraceDays} onChange={e => updateForm("paymentGraceDays", Number(e.target.value))} />
+                    <SettingsField label="Payment grace days" description="Stored organization policy for payment follow-up windows." error={paymentGraceDaysError} errorId="org-payment-grace-days-error">
+                        <SettingsInput type="number" min={0} max={60} value={form.paymentGraceDays} onChange={e => updateForm("paymentGraceDays", Number(e.target.value))} onBlur={() => markTouched("paymentGraceDays")} error={paymentGraceDaysError} errorId="org-payment-grace-days-error" />
                     </SettingsField>
                 </SettingsPanel>
 

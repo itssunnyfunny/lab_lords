@@ -6,15 +6,18 @@ import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { GlowText } from "@/components/ui/GlowText";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ArrowRight, Building2, MapPin, Loader2, X } from "lucide-react";
+import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
+import { ArrowRight, Building2, MapPin, Loader2, Phone, X } from "lucide-react";
 import { apiClient } from "@/lib/api/core";
 import {
     FORM_LIMITS,
     parseIntegerField,
     validateOptionalText,
+    validateRequiredPhone,
     validateRequiredText,
     validateShiftDrafts,
 } from "@/lib/formValidation";
+import { cn } from "@/lib/utils";
 
 interface OnboardingShiftDraft {
     name: string;
@@ -34,10 +37,17 @@ export default function OnboardingPage() {
     const [step, setStep] = useState<1 | 2>(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"orgName" | "ownerPhone" | "businessType" | "branchName" | "city" | "seatCount" | "shifts">();
 
     // Form State
     const [formData, setFormData] = useState({
         orgName: "",
+        ownerPhone: "",
         businessType: "",
         branchName: "",
         city: "",
@@ -51,15 +61,18 @@ export default function OnboardingPage() {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        setError(null);
     };
 
     const handleShiftChange = (index: number, field: keyof OnboardingShiftDraft, value: string | number) => {
+        markTouched("shifts");
         const newShifts = [...formData.shifts];
         newShifts[index] = { ...newShifts[index], [field]: value };
         setFormData(prev => ({ ...prev, shifts: newShifts }));
     };
 
     const addShift = () => {
+        markTouched("shifts");
         setFormData(prev => ({
             ...prev,
             shifts: [...prev.shifts, { name: "", startTime: "", endTime: "", price: 0 }]
@@ -67,69 +80,80 @@ export default function OnboardingPage() {
     };
 
     const removeShift = (index: number) => {
+        markTouched("shifts");
         setFormData(prev => ({
             ...prev,
             shifts: prev.shifts.filter((_, i) => i !== index)
         }));
     };
 
-    const handleNext = () => {
+    const validateForm = () => {
+        const errors: Partial<Record<"orgName" | "ownerPhone" | "businessType" | "branchName" | "city" | "seatCount" | "shifts", string>> = {};
         const orgNameResult = validateRequiredText(formData.orgName, "Organization name", 120);
-        if (!orgNameResult.ok) {
-            setError(orgNameResult.error);
-            return;
-        }
+        const ownerPhoneResult = validateRequiredPhone(formData.ownerPhone, "Owner phone");
         const businessTypeResult = validateOptionalText(formData.businessType, "Business type", 80);
-        if (!businessTypeResult.ok) {
-            setError(businessTypeResult.error);
-            return;
-        }
-        setError(null);
-        setStep(2);
-    };
-
-    const handleSubmit = async () => {
-        const orgNameResult = validateRequiredText(formData.orgName, "Organization name", 120);
-        if (!orgNameResult.ok) {
-            setError(orgNameResult.error);
-            return;
-        }
-        const businessTypeResult = validateOptionalText(formData.businessType, "Business type", 80);
-        if (!businessTypeResult.ok) {
-            setError(businessTypeResult.error);
-            return;
-        }
         const branchNameResult = validateRequiredText(formData.branchName, "Branch name", 120);
-        if (!branchNameResult.ok) {
-            setError(branchNameResult.error);
-            return;
-        }
         const cityResult = validateOptionalText(formData.city, "City / area", FORM_LIMITS.cityMax);
-        if (!cityResult.ok) {
-            setError(cityResult.error);
-            return;
-        }
         const seatCountResult = parseIntegerField(formData.seatCount, "Total seats", {
             required: true,
             min: 1,
             max: FORM_LIMITS.seatsMax,
         });
-        if (!seatCountResult.ok) {
-            setError(seatCountResult.error);
-            return;
-        }
         const shiftsResult = validateShiftDrafts(formData.shifts);
-        if (!shiftsResult.ok) {
-            setError(shiftsResult.error);
+
+        if (!orgNameResult.ok) errors.orgName = orgNameResult.error;
+        if (!ownerPhoneResult.ok) errors.ownerPhone = ownerPhoneResult.error;
+        if (!businessTypeResult.ok) errors.businessType = businessTypeResult.error;
+        if (!branchNameResult.ok) errors.branchName = branchNameResult.error;
+        if (!cityResult.ok) errors.city = cityResult.error;
+        if (!seatCountResult.ok) errors.seatCount = seatCountResult.error;
+        if (!shiftsResult.ok) errors.shifts = shiftsResult.error;
+
+        if (
+            !orgNameResult.ok ||
+            !ownerPhoneResult.ok ||
+            !businessTypeResult.ok ||
+            !branchNameResult.ok ||
+            !cityResult.ok ||
+            !seatCountResult.ok ||
+            !shiftsResult.ok
+        ) return { errors, values: null };
+        return { errors, values: { orgNameResult, ownerPhoneResult, businessTypeResult, branchNameResult, cityResult, seatCountResult, shiftsResult } };
+    };
+
+    const validation = validateForm();
+    const orgNameError = visibleError("orgName", validation.errors);
+    const ownerPhoneError = visibleError("ownerPhone", validation.errors);
+    const businessTypeError = visibleError("businessType", validation.errors);
+    const branchNameError = visibleError("branchName", validation.errors);
+    const cityError = visibleError("city", validation.errors);
+    const seatCountError = visibleError("seatCount", validation.errors);
+    const shiftsError = visibleError("shifts", validation.errors);
+
+    const handleNext = () => {
+        markSubmitted();
+        setError(null);
+        const result = validateForm();
+        if (result.errors.orgName || result.errors.ownerPhone || result.errors.businessType) return;
+        resetFieldErrors();
+        setStep(2);
+    };
+
+    const handleSubmit = async () => {
+        markSubmitted();
+        setError(null);
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) {
             return;
         }
+        const { orgNameResult, ownerPhoneResult, businessTypeResult, branchNameResult, cityResult, seatCountResult, shiftsResult } = result.values;
 
         setLoading(true);
-        setError(null);
 
         try {
             const res = await apiClient.post("/onboarding", {
                 orgName: orgNameResult.value,
+                ownerPhone: ownerPhoneResult.value,
                 businessType: businessTypeResult.value,
                 branchName: branchNameResult.value,
                 city: cityResult.value,
@@ -181,12 +205,35 @@ export default function OnboardingPage() {
                                         name="orgName"
                                         value={formData.orgName}
                                         onChange={handleInputChange}
+                                        onBlur={() => markTouched("orgName")}
                                         placeholder="e.g. Apex Study Halls"
                                         maxLength={120}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(orgNameError))}
                                         autoFocus
+                                        {...fieldErrorProps("onboarding-org-name-error", orgNameError)}
                                     />
                                 </div>
+                                <FieldError id="onboarding-org-name-error" error={orgNameError} />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Owner Phone <span className="text-red-400">*</span>
+                                </label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                                    <input
+                                        type="tel"
+                                        name="ownerPhone"
+                                        value={formData.ownerPhone}
+                                        onChange={handleInputChange}
+                                        onBlur={() => markTouched("ownerPhone")}
+                                        placeholder="+91 98765 43210"
+                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(ownerPhoneError))}
+                                        {...fieldErrorProps("onboarding-owner-phone-error", ownerPhoneError)}
+                                    />
+                                </div>
+                                <FieldError id="onboarding-owner-phone-error" error={ownerPhoneError} />
                             </div>
 
                             <div>
@@ -197,7 +244,9 @@ export default function OnboardingPage() {
                                     name="businessType"
                                     value={formData.businessType}
                                     onChange={handleInputChange}
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all appearance-none"
+                                    onBlur={() => markTouched("businessType")}
+                                    className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all appearance-none", fieldErrorClass(businessTypeError))}
+                                    {...fieldErrorProps("onboarding-business-type-error", businessTypeError)}
                                 >
                                     <option value="" className="bg-[#0f111a] text-gray-500">Select type...</option>
                                     <option value="Study Hall" className="bg-[#0f111a]">Study Hall</option>
@@ -206,12 +255,12 @@ export default function OnboardingPage() {
                                     <option value="Tuition" className="bg-[#0f111a]">Tuition</option>
                                     <option value="Other" className="bg-[#0f111a]">Other</option>
                                 </select>
+                                <FieldError id="onboarding-business-type-error" error={businessTypeError} />
                             </div>
 
                             <Button
                                 onClick={handleNext}
                                 className="w-full justify-center mt-4"
-                                disabled={!formData.orgName}
                             >
                                 Continue <ArrowRight size={16} className="ml-2" />
                             </Button>
@@ -231,12 +280,15 @@ export default function OnboardingPage() {
                                         name="branchName"
                                         value={formData.branchName}
                                         onChange={handleInputChange}
+                                        onBlur={() => markTouched("branchName")}
                                         placeholder="e.g. Main Branch, Downtown"
                                         maxLength={120}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(branchNameError))}
                                         autoFocus
+                                        {...fieldErrorProps("onboarding-branch-name-error", branchNameError)}
                                     />
                                 </div>
+                                <FieldError id="onboarding-branch-name-error" error={branchNameError} />
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -249,10 +301,13 @@ export default function OnboardingPage() {
                                         name="city"
                                         value={formData.city}
                                         onChange={handleInputChange}
+                                        onBlur={() => markTouched("city")}
                                         placeholder="e.g. New York"
                                         maxLength={FORM_LIMITS.cityMax}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(cityError))}
+                                        {...fieldErrorProps("onboarding-city-error", cityError)}
                                     />
+                                    <FieldError id="onboarding-city-error" error={cityError} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -263,13 +318,16 @@ export default function OnboardingPage() {
                                         name="seatCount"
                                         value={formData.seatCount}
                                         onChange={handleInputChange}
+                                        onBlur={() => markTouched("seatCount")}
                                         placeholder="e.g. 50"
                                         min="1"
                                         max={FORM_LIMITS.seatsMax}
                                         step="1"
                                         inputMode="numeric"
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(seatCountError))}
+                                        {...fieldErrorProps("onboarding-seat-count-error", seatCountError)}
                                     />
+                                    <FieldError id="onboarding-seat-count-error" error={seatCountError} />
                                 </div>
                             </div>
 
@@ -342,12 +400,13 @@ export default function OnboardingPage() {
                                         </div>
                                     ))}
                                 </div>
+                                <FieldError id="onboarding-shifts-error" error={shiftsError} />
                             </div>
 
                             <Button
                                 onClick={handleSubmit}
                                 className="w-full justify-center mt-4"
-                                disabled={loading || !formData.branchName || !formData.seatCount}
+                                disabled={loading}
                                 variant="cyan"
                             >
                                 {loading ? <Loader2 className="animate-spin mr-2" /> : null}

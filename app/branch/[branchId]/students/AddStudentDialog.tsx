@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { students } from "@/lib/api/students";
 import { CreateStudentDto } from "@/types";
 import { SeatPicker } from "@/components/allocations/SeatPicker";
-import { FORM_LIMITS, parseIntegerField, validatePhone, validateRequiredText } from "@/lib/formValidation";
+import { FORM_LIMITS, parseIntegerField, validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
+import { cn } from "@/lib/utils";
 
 interface AddStudentDialogProps {
     isOpen: boolean;
@@ -32,10 +34,17 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
     const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
     const [linkFeeToSelection, setLinkFeeToSelection] = useState(false);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"name" | "phone" | "monthlyFee" | "admissionFee" | "allocation">();
 
     useEffect(() => {
         if (!isOpen) {
             setError(null);
+            resetFieldErrors();
             setFormData({ name: "", phone: "", monthlyFee: undefined, admissionFee: undefined });
             setWantsAllocation(false);
             setSelectedShiftIds([]);
@@ -44,7 +53,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             setCreatedStudentId(null);
             setLinkFeeToSelection(false);
         }
-    }, [isOpen]);
+    }, [isOpen, resetFieldErrors]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -76,54 +85,63 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
 
     if (!isOpen) return null;
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
+    const validateForm = () => {
+        const errors: Partial<Record<"name" | "phone" | "monthlyFee" | "admissionFee" | "allocation", string>> = {};
         let payload: CreateStudentDto | null = null;
 
         if (!createdStudentId) {
             const nameResult = validateRequiredText(formData.name, "Student name");
-            if (!nameResult.ok) {
-                setError(nameResult.error);
-                return;
-            }
-            const phoneResult = validatePhone(formData.phone);
-            if (!phoneResult.ok) {
-                setError(phoneResult.error);
-                return;
-            }
+            const phoneResult = validateRequiredPhone(formData.phone);
             const monthlyFeeResult = parseIntegerField(formData.monthlyFee, "Monthly fee", {
                 min: 0,
                 max: FORM_LIMITS.moneyMax,
             });
-            if (!monthlyFeeResult.ok) {
-                setError(monthlyFeeResult.error);
-                return;
-            }
             const admissionFeeResult = parseIntegerField(formData.admissionFee, "Admission fee", {
                 min: 0,
                 max: FORM_LIMITS.moneyMax,
             });
-            if (!admissionFeeResult.ok) {
-                setError(admissionFeeResult.error);
-                return;
-            }
 
-            payload = {
-                name: nameResult.value,
-                ...(phoneResult.value ? { phone: phoneResult.value } : {}),
-                ...(monthlyFeeResult.value !== undefined ? { monthlyFee: monthlyFeeResult.value } : {}),
-                ...(admissionFeeResult.value !== undefined ? { admissionFee: admissionFeeResult.value } : {}),
-            };
+            if (!nameResult.ok) errors.name = nameResult.error;
+            if (!phoneResult.ok) errors.phone = phoneResult.error;
+            if (!monthlyFeeResult.ok) errors.monthlyFee = monthlyFeeResult.error;
+            if (!admissionFeeResult.ok) errors.admissionFee = admissionFeeResult.error;
+
+            if (nameResult.ok && phoneResult.ok && monthlyFeeResult.ok && admissionFeeResult.ok) {
+                payload = {
+                    name: nameResult.value,
+                    phone: phoneResult.value,
+                    ...(monthlyFeeResult.value !== undefined ? { monthlyFee: monthlyFeeResult.value } : {}),
+                    ...(admissionFeeResult.value !== undefined ? { admissionFee: admissionFeeResult.value } : {}),
+                };
+            }
         }
 
         if (wantsAllocation && (selectedShiftIds.length === 0 || !selectedSeatId)) {
-            setError("Please select at least one shift and a seat, or uncheck allocation.");
-            return;
+            errors.allocation = "Select at least one shift and a seat, or uncheck allocation.";
         }
 
-        setIsLoading(true);
+        return { errors, payload };
+    };
+
+    const validation = validateForm();
+    const nameError = visibleError("name", validation.errors);
+    const phoneError = visibleError("phone", validation.errors);
+    const monthlyFeeError = visibleError("monthlyFee", validation.errors);
+    const admissionFeeError = visibleError("admissionFee", validation.errors);
+    const allocationError = visibleError("allocation", validation.errors);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        markSubmitted();
         setError(null);
+
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean)) {
+            return;
+        }
+        const payload = result.payload;
+
+        setIsLoading(true);
 
         try {
             // 1. Create student if not already created (handles race-condition retries cleanly)
@@ -219,16 +237,19 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     disabled={!!createdStudentId || isLoading}
                                     value={formData.name}
                                     onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setError(null); }}
-                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                    onBlur={() => markTouched("name")}
+                                    className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(nameError))}
                                     placeholder="e.g. John Doe"
                                     autoFocus
                                     maxLength={FORM_LIMITS.nameMax}
+                                    {...fieldErrorProps("add-student-name-error", nameError)}
                                 />
+                                <FieldError id="add-student-name-error" error={nameError} />
                             </div>
 
                             <div className="space-y-2">
                                 <label htmlFor="phone" className="text-sm font-medium text-zinc-400">
-                                    Phone Number
+                                    Phone Number <span className="text-red-400">*</span>
                                 </label>
                                 <input
                                     id="phone"
@@ -236,11 +257,14 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     disabled={!!createdStudentId || isLoading}
                                     value={formData.phone || ""}
                                     onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setError(null); }}
-                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                    onBlur={() => markTouched("phone")}
+                                    className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(phoneError))}
                                     placeholder="e.g. +91 98765 43210"
                                     inputMode="tel"
                                     maxLength={24}
+                                    {...fieldErrorProps("add-student-phone-error", phoneError)}
                                 />
+                                <FieldError id="add-student-phone-error" error={phoneError} />
                             </div>
 
                             <div className="space-y-2">
@@ -259,13 +283,16 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                         });
                                         setError(null);
                                     }}
-                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                    onBlur={() => markTouched("monthlyFee")}
+                                    className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(monthlyFeeError))}
                                     placeholder={linkFeeToSelection ? "Linked to shift price" : "Branch default"}
                                     min={0}
                                     max={FORM_LIMITS.moneyMax}
                                     step={1}
                                     inputMode="numeric"
+                                    {...fieldErrorProps("add-student-monthly-fee-error", monthlyFeeError)}
                                 />
+                                <FieldError id="add-student-monthly-fee-error" error={monthlyFeeError} />
                             </div>
 
                             <div className="space-y-2">
@@ -284,13 +311,16 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                         });
                                         setError(null);
                                     }}
-                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                    onBlur={() => markTouched("admissionFee")}
+                                    className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(admissionFeeError))}
                                     placeholder="One-time"
                                     min={0}
                                     max={FORM_LIMITS.moneyMax}
                                     step={1}
                                     inputMode="numeric"
+                                    {...fieldErrorProps("add-student-admission-fee-error", admissionFeeError)}
                                 />
+                                <FieldError id="add-student-admission-fee-error" error={admissionFeeError} />
                             </div>
                         </div>
 
@@ -307,7 +337,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                 <input
                                     type="checkbox"
                                     checked={wantsAllocation}
-                                    onChange={(e) => setWantsAllocation(e.target.checked)}
+                                    onChange={(e) => { setWantsAllocation(e.target.checked); markTouched("allocation"); }}
                                     className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
                                 />
                                 <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
@@ -322,6 +352,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                         selectedShiftIds={selectedShiftIds}
                                         selectedSeatId={selectedSeatId}
                                         onToggleShift={(s) => {
+                                            markTouched("allocation");
                                             setSelectedSeatId(null);
                                             if (s.type === "MULTISHIFT") {
                                                 // Toggle multi-shift: expand to component primary shift IDs
@@ -342,8 +373,9 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                                 );
                                             }
                                         }}
-                                        onSelectSeat={setSelectedSeatId}
+                                        onSelectSeat={(seatId) => { markTouched("allocation"); setSelectedSeatId(seatId); }}
                                     />
+                                    <FieldError id="add-student-allocation-error" error={allocationError} />
 
                                     {feeLinkLabel && (
                                         <label className="mt-4 flex items-center gap-3 cursor-pointer group w-max">
@@ -368,7 +400,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                         Cancel
                     </Button>
-                    <Button type="submit" form="add-student-form" disabled={isLoading || (wantsAllocation && (selectedShiftIds.length === 0 || !selectedSeatId))} className="min-w-[140px]">
+                    <Button type="submit" form="add-student-form" disabled={isLoading} className="min-w-[140px]">
                         {isLoading ? (
                             <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
                         ) : wantsAllocation ? (

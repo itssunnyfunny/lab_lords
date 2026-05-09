@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { branches } from "@/lib/api/branches";
 import { FORM_LIMITS, validateSeatLabel } from "@/lib/formValidation";
+import { cn } from "@/lib/utils";
 
 interface AddSeatDialogProps {
     isOpen: boolean;
@@ -25,22 +27,34 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [label, setLabel] = useState("");
+    const { markTouched, markSubmitted, resetFieldErrors, visibleError } = useInlineFieldErrors<"label">();
 
     useEffect(() => {
         if (!isOpen) {
             setError(null);
             setLabel("");
+            resetFieldErrors();
         }
-    }, [isOpen]);
+    }, [isOpen, resetFieldErrors]);
 
     if (!isOpen) return null;
 
+    const validateForm = () => {
+        const errors: Partial<Record<"label", string>> = {};
+        const labelResult = validateSeatLabel(label);
+        if (!labelResult.ok) errors.label = labelResult.error;
+        return { errors, labelResult };
+    };
+    const validation = validateForm();
+    const labelError = visibleError("label", validation.errors);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        markSubmitted();
+        setError(null);
 
-        const labelResult = validateSeatLabel(label);
-        if (!labelResult.ok) {
-            setError(labelResult.error);
+        const { errors, labelResult } = validateForm();
+        if (Object.values(errors).some(Boolean) || !labelResult.ok) {
             return;
         }
 
@@ -89,11 +103,14 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                                 disabled={isLoading}
                                 value={label}
                                 onChange={(e) => { setLabel(e.target.value); setError(null); }}
-                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50"
+                                onBlur={() => markTouched("label")}
+                                className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(labelError))}
                                 placeholder="e.g. S-01, Row A - 12"
                                 autoFocus
                                 maxLength={FORM_LIMITS.seatLabelMax}
+                                {...fieldErrorProps("add-seat-label-error", labelError)}
                             />
+                            <FieldError id="add-seat-label-error" error={labelError} />
                             <p className="text-xs text-zinc-500">
                                 Provide a unique identifier for this seat to distinguish it in the study hall.
                             </p>
@@ -105,7 +122,7 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                         Cancel
                     </Button>
-                    <Button type="submit" form="add-seat-form" disabled={isLoading || !label.trim()} className="min-w-[120px]">
+                    <Button type="submit" form="add-seat-form" disabled={isLoading} className="min-w-[120px]">
                         {isLoading ? (
                             <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
                         ) : (

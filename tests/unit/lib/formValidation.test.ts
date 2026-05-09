@@ -3,6 +3,7 @@ import {
   parseIntegerField,
   validateOptionalId,
   validatePhone,
+  validateRequiredPhone,
   validateSeatLabel,
   validateShiftDrafts,
 } from "@/lib/formValidation";
@@ -27,11 +28,33 @@ describe("formValidation", () => {
     expect(parseIntegerField({ amount: 1000 }, "Monthly fee").ok).toBe(false);
   });
 
-  it("validates phone shape and digit count", () => {
-    expect(validatePhone("+91 98765 43210").ok).toBe(true);
+  it("normalizes supported Indian mobile phone formats", () => {
+    const values = ["9876543210", "09876543210", "919876543210", "+91 98765 43210"];
+
+    for (const value of values) {
+      const result = validatePhone(value);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBe("+91 98765 43210");
+    }
+  });
+
+  it("rejects invalid Indian mobile phone formats", () => {
     expect(validatePhone(9876543210).ok).toBe(false);
     expect(validatePhone("abc1234567").ok).toBe(false);
     expect(validatePhone("123").ok).toBe(false);
+    expect(validatePhone("+1 98765 43210").ok).toBe(false);
+    expect(validatePhone("+91 58765 43210").ok).toBe(false);
+    expect(validatePhone("98765+43210").ok).toBe(false);
+    expect(validatePhone("98765-43210").ok).toBe(false);
+    expect(validatePhone("+91 (98765) 43210").ok).toBe(false);
+  });
+
+  it("requires phone when requested", () => {
+    expect(validatePhone("").ok).toBe(true);
+    expect(validateRequiredPhone("").ok).toBe(false);
+    const result = validateRequiredPhone("9876543210");
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toBe("+91 98765 43210");
   });
 
   it("rejects unsafe seat labels", () => {

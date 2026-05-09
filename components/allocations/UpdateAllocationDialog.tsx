@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { X, Loader2, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
 import { FORM_LIMITS, parseIntegerField } from "@/lib/formValidation";
+import { cn } from "@/lib/utils";
 
 interface UpdateAllocationDialogProps {
     isOpen: boolean;
@@ -45,6 +47,12 @@ export function UpdateAllocationDialog({
 
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"selection" | "fee">();
 
     useEffect(() => {
         if (!isOpen) return;
@@ -56,7 +64,8 @@ export function UpdateAllocationDialog({
         setNewFee("");
         setLinkFeeToSelection(false);
         setSubmitError(null);
-    }, [isOpen, currentShiftIds, currentMultiShiftId]);
+        resetFieldErrors();
+    }, [isOpen, currentShiftIds, currentMultiShiftId, resetFieldErrors]);
 
     const feeLinkLabel = selectedMultiShiftId
         ? "selected multi-shift"
@@ -69,6 +78,7 @@ export function UpdateAllocationDialog({
     }, [feeLinkLabel]);
 
     const handleToggleShift = (shift: ShiftCapacity) => {
+        markTouched("selection");
         setSelectedSeatId(null);
         setSubmitError(null);
 
@@ -100,18 +110,33 @@ export function UpdateAllocationDialog({
         }
     };
 
-    const handleConfirm = async () => {
-        if (!selectedSeatId || selectedShiftIds.length === 0) return;
+    const validateForm = () => {
+        const errors: Partial<Record<"selection" | "fee", string>> = {};
+        if (!selectedSeatId || selectedShiftIds.length === 0) {
+            errors.selection = "Select at least one shift and a seat.";
+        }
         const newFeeResult = newFee.trim() !== ""
             ? parseIntegerField(newFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })
             : null;
-        if (newFeeResult && !newFeeResult.ok) {
-            setSubmitError(newFeeResult.error);
+        if (newFeeResult && !newFeeResult.ok) errors.fee = newFeeResult.error;
+        if (Object.values(errors).some(Boolean)) return { errors, newFeeResult: null };
+        return { errors, newFeeResult };
+    };
+
+    const validation = validateForm();
+    const selectionError = visibleError("selection", validation.errors);
+    const feeError = visibleError("fee", validation.errors);
+
+    const handleConfirm = async () => {
+        markSubmitted();
+        setSubmitError(null);
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean)) {
             return;
         }
+        const newFeeResult = result.newFeeResult;
 
         setSubmitting(true);
-        setSubmitError(null);
 
         try {
             const res = await fetch(`/api/seat-allocations/${allocationId}`, {
@@ -162,6 +187,7 @@ export function UpdateAllocationDialog({
             }
 
             onSuccess();
+            resetFieldErrors();
             onClose();
         } catch (e: unknown) {
             setSubmitError(e instanceof Error ? e.message : "Something went wrong.");
@@ -171,8 +197,6 @@ export function UpdateAllocationDialog({
     };
 
     if (!isOpen) return null;
-
-    const canConfirm = !!selectedSeatId && selectedShiftIds.length > 0;
 
     const confirmLabel = selectedMultiShiftName
         ? `Update (${selectedMultiShiftName})`
@@ -212,10 +236,11 @@ export function UpdateAllocationDialog({
                         selectedMultiShiftId={selectedMultiShiftId}
                         selectedSeatId={selectedSeatId}
                         onToggleShift={handleToggleShift}
-                        onSelectSeat={setSelectedSeatId}
+                        onSelectSeat={(seatId) => { markTouched("selection"); setSelectedSeatId(seatId); }}
                         excludeAllocationIds={allocationIds}
                         currentSeatId={currentSeatId}
                     />
+                    <FieldError id="update-allocation-selection-error" error={selectionError} />
 
                     {feeLinkLabel && (
                         <div className="mt-5 rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
@@ -237,11 +262,14 @@ export function UpdateAllocationDialog({
                                         value={newFee}
                                         disabled={linkFeeToSelection}
                                         onChange={e => { setNewFee(e.target.value); setSubmitError(null); }}
+                                        onBlur={() => markTouched("fee")}
                                         placeholder={linkFeeToSelection ? "Linked to shift price" : "Update fee (optional)"}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 pr-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all disabled:opacity-50"
+                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 pr-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all disabled:opacity-50", fieldErrorClass(feeError))}
+                                        {...fieldErrorProps("update-allocation-fee-error", feeError)}
                                     />
                                 </div>
                             </div>
+                            <FieldError id="update-allocation-fee-error" error={feeError} />
 
                             <label className="flex items-center gap-3 cursor-pointer group w-max">
                                 <input
@@ -258,27 +286,25 @@ export function UpdateAllocationDialog({
                     )}
                 </div>
 
-                {canConfirm && (
-                    <div className="flex-shrink-0 space-y-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:px-6">
-                        <div className="flex items-center justify-end gap-3">
-                            <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
-                                Cancel
-                            </Button>
-                            <Button onClick={handleConfirm} disabled={submitting || !canConfirm} className="text-sm h-8 px-5">
-                                {submitting
-                                    ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Updating...</>
-                                    : confirmLabel
-                                }
-                            </Button>
-                        </div>
-
-                        {submitError && (
-                            <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
-                                {submitError}
-                            </div>
-                        )}
+                <div className="flex-shrink-0 space-y-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:px-6">
+                    <div className="flex items-center justify-end gap-3">
+                        <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
+                            Cancel
+                        </Button>
+                        <Button onClick={handleConfirm} disabled={submitting} className="text-sm h-8 px-5">
+                            {submitting
+                                ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Updating...</>
+                                : confirmLabel
+                            }
+                        </Button>
                     </div>
-                )}
+
+                    {submitError && (
+                        <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
+                            {submitError}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

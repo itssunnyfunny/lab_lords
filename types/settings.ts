@@ -13,7 +13,7 @@ export type DefaultLandingPage = typeof DEFAULT_LANDING_PAGES[number];
 
 export interface UpdateUserSettingsDto {
     name?: string;
-    phone?: string | null;
+    phone?: string;
     timezone?: string;
     locale?: string;
     dateFormat?: string;
@@ -28,7 +28,7 @@ export interface UpdateOrganizationSettingsDto {
     businessType?: string | null;
     legalName?: string | null;
     contactEmail?: string | null;
-    contactPhone?: string | null;
+    contactPhone?: string;
     address?: string | null;
     timezone?: string;
     currency?: string;
@@ -40,7 +40,7 @@ export interface UpdateBranchSettingsDto {
     name?: string;
     city?: string | null;
     address?: string | null;
-    contactPhone?: string | null;
+    contactPhone?: string;
     openingTime?: string | null;
     closingTime?: string | null;
     defaultFee?: number;

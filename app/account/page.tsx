@@ -28,7 +28,8 @@ import {
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
 import { Button } from "@/components/ui/Button";
-import { validatePhone, validateRequiredText } from "@/lib/formValidation";
+import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
+import { validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
 
 interface UserProfile {
     id: string;
@@ -101,6 +102,7 @@ export default function AccountPage() {
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
     const [saveError, setSaveError] = useState("");
+    const { markTouched, markSubmitted, resetFieldErrors, visibleError } = useInlineFieldErrors<"name" | "phone">();
 
     useEffect(() => {
         async function load() {
@@ -110,6 +112,7 @@ export default function AccountPage() {
                 const data = await res.json();
                 setProfile(data);
                 setForm(toForm(data));
+                resetFieldErrors();
             } catch (err) {
                 setFetchError(err instanceof Error ? err.message : "Something went wrong.");
             } finally {
@@ -117,7 +120,7 @@ export default function AccountPage() {
             }
         }
         load();
-    }, []);
+    }, [resetFieldErrors]);
 
     const hasChanges = useMemo(() => {
         if (!profile || !form) return false;
@@ -134,22 +137,36 @@ export default function AccountPage() {
         setForm(toForm(profile));
         setSaveStatus("idle");
         setSaveError("");
+        resetFieldErrors();
     };
+
+    const validateForm = () => {
+        const errors: Partial<Record<"name" | "phone", string>> = {};
+        if (!form) return { errors, values: null };
+        const nameResult = validateRequiredText(form.name, "Display name", 120);
+        const phoneResult = validateRequiredPhone(form.phone);
+        if (!nameResult.ok) errors.name = nameResult.error;
+        if (!phoneResult.ok) errors.phone = phoneResult.error;
+        if (!nameResult.ok || !phoneResult.ok) return { errors, values: null };
+        return { errors, values: { nameResult, phoneResult } };
+    };
+
+    const validation = validateForm();
+    const nameError = visibleError("name", validation.errors);
+    const phoneError = visibleError("phone", validation.errors);
 
     const save = async () => {
         if (!form) return;
-        const nameResult = validateRequiredText(form.name, "Display name", 120);
-        if (!nameResult.ok) {
-            setSaveError(nameResult.error);
-            setSaveStatus("error");
+        markSubmitted();
+        setSaveError("");
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) {
+            if (saveStatus === "error") {
+                setSaveStatus("idle");
+            }
             return;
         }
-        const phoneResult = validatePhone(form.phone);
-        if (!phoneResult.ok) {
-            setSaveError(phoneResult.error);
-            setSaveStatus("error");
-            return;
-        }
+        const { nameResult, phoneResult } = result.values;
         setSaving(true);
         setSaveStatus("idle");
         setSaveError("");
@@ -160,7 +177,7 @@ export default function AccountPage() {
                 body: JSON.stringify({
                     ...form,
                     name: nameResult.value,
-                    phone: phoneResult.value ?? null,
+                    phone: phoneResult.value,
                 }),
             });
             if (!res.ok) {
@@ -174,6 +191,7 @@ export default function AccountPage() {
             };
             setProfile(nextProfile);
             setForm(toForm(nextProfile));
+            resetFieldErrors();
             setSaveStatus("success");
             setTimeout(() => setSaveStatus("idle"), 3000);
         } catch (err) {
@@ -217,11 +235,25 @@ export default function AccountPage() {
                 onSectionChange={setActiveSection}
             >
                 <SettingsPanel id="profile" title="Profile" description="These details identify you across the workspace." icon={User}>
-                    <SettingsField label="Display name" description="Shown in account menus and staff lists.">
-                        <SettingsInput value={form.name ?? ""} onChange={e => updateForm("name", e.target.value)} placeholder="Your name" />
+                    <SettingsField label="Display name" description="Shown in account menus and staff lists." error={nameError} errorId="account-name-error">
+                        <SettingsInput
+                            value={form.name ?? ""}
+                            onChange={e => updateForm("name", e.target.value)}
+                            onBlur={() => markTouched("name")}
+                            placeholder="Your name"
+                            error={nameError}
+                            errorId="account-name-error"
+                        />
                     </SettingsField>
-                    <SettingsField label="Phone" description="Optional contact number for internal use.">
-                        <SettingsInput value={form.phone ?? ""} onChange={e => updateForm("phone", e.target.value)} placeholder="+91 98765 43210" />
+                    <SettingsField label="Phone" description="Required contact number for account operations." error={phoneError} errorId="account-phone-error">
+                        <SettingsInput
+                            value={form.phone ?? ""}
+                            onChange={e => updateForm("phone", e.target.value)}
+                            onBlur={() => markTouched("phone")}
+                            placeholder="+91 98765 43210"
+                            error={phoneError}
+                            errorId="account-phone-error"
+                        />
                     </SettingsField>
                     <ReadOnlyRow label="Email" value={<span className="inline-flex items-center gap-2"><Mail size={14} />{profile.email}</span>} />
                 </SettingsPanel>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
 import {
     assertKnownFields,
     assertPlainObject,
@@ -6,6 +7,7 @@ import {
     optionalEmail,
     optionalNumber,
     optionalText,
+    requiredPhone,
 } from "@/lib/settingsValidation";
 import { CreateOrganizationDto, UpdateOrganizationSettingsDto, WEEK_STARTS_ON } from "@/types";
 
@@ -24,8 +26,17 @@ const ORG_SETTINGS_FIELDS = [
 
 export class OrganizationService {
     static async createOrganization(data: CreateOrganizationDto) {
+        const nameResult = validateRequiredText(data.name, "Organization name", 120);
+        if (!nameResult.ok) throw new Error(nameResult.error);
+        const contactPhoneResult = validateRequiredPhone(data.contactPhone, "Contact phone");
+        if (!contactPhoneResult.ok) throw new Error(contactPhoneResult.error);
+
         return await prisma.organization.create({
-            data: { name: data.name, ownerId: data.ownerId },
+            data: {
+                name: nameResult.value,
+                ownerId: data.ownerId,
+                contactPhone: contactPhoneResult.value,
+            },
         });
     }
 
@@ -69,7 +80,7 @@ export class OrganizationService {
         const businessType = optionalText(body.businessType, "Business type", { max: 80 });
         const legalName = optionalText(body.legalName, "Legal name", { max: 160 });
         const contactEmail = optionalEmail(body.contactEmail, "Contact email");
-        const contactPhone = optionalText(body.contactPhone, "Contact phone", { max: 40 });
+        const contactPhone = requiredPhone(body.contactPhone, "Contact phone");
         const address = optionalText(body.address, "Address", { max: 240 });
         const timezone = optionalText(body.timezone, "Timezone", { required: true, max: 80 });
         const currency = optionalText(body.currency, "Currency", { required: true, max: 3 });

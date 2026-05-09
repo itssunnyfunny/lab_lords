@@ -6,6 +6,7 @@ import {
     FORM_LIMITS,
     parseIntegerField,
     validateOptionalText,
+    validateRequiredPhone,
     validateRequiredText,
     validateShiftDrafts,
 } from "@/lib/formValidation";
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { organizationId, name, city, defaultFee, seatCount, shifts } = body;
+        const { organizationId, name, contactPhone, city, defaultFee, seatCount, shifts } = body;
 
         if (!organizationId || typeof organizationId !== "string") {
             return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
@@ -38,6 +39,8 @@ export async function POST(req: Request) {
         }
         const nameResult = validateRequiredText(name, "Branch name", 120);
         if (!nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
+        const contactPhoneResult = validateRequiredPhone(contactPhone, "Contact phone");
+        if (!contactPhoneResult.ok) return NextResponse.json({ error: contactPhoneResult.error }, { status: 400 });
         const cityResult = validateOptionalText(city, "City", FORM_LIMITS.cityMax);
         if (!cityResult.ok) return NextResponse.json({ error: cityResult.error }, { status: 400 });
         const defaultFeeResult = parseIntegerField(defaultFee, "Default monthly fee", { min: 0, max: FORM_LIMITS.moneyMax });
@@ -51,6 +54,7 @@ export async function POST(req: Request) {
             organizationId,
             userId: user.id,
             name: nameResult.value,
+            contactPhone: contactPhoneResult.value,
             city: cityResult.value,
             defaultFee: defaultFeeResult.value ?? 0,
             seatCount: seatCountResult.value,

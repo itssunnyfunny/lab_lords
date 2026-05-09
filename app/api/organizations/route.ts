@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { OrganizationService } from "@/services/organization.service";
+import { validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
 
 export async function GET() {
     try {
@@ -22,11 +23,15 @@ export async function POST(req: Request) {
         const user = await getSessionUser();
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const body = await req.json();
-        if (!body.name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+        const nameResult = validateRequiredText(body.name, "Organization name", 120);
+        if (!nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
+        const contactPhoneResult = validateRequiredPhone(body.contactPhone, "Contact phone");
+        if (!contactPhoneResult.ok) return NextResponse.json({ error: contactPhoneResult.error }, { status: 400 });
 
         const organization = await OrganizationService.createOrganization({
-            name: body.name,
+            name: nameResult.value,
             ownerId: user.id,
+            contactPhone: contactPhoneResult.value,
         });
 
         return NextResponse.json(organization, { status: 201 });

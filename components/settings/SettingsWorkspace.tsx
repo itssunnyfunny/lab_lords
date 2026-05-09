@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useRef } from "react";
 import { CheckCircle2, AlertCircle, Loader2, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { FieldError, fieldErrorClass, fieldErrorProps } from "@/components/ui/InlineFieldError";
 import { cn } from "@/lib/utils";
 
 export interface SettingsSection {
@@ -134,10 +135,14 @@ export function SettingsPanel({
 export function SettingsField({
     label,
     description,
+    error,
+    errorId,
     children,
 }: {
     label: string;
     description?: string;
+    error?: string | null;
+    errorId?: string;
     children: ReactNode;
 }) {
     return (
@@ -146,42 +151,66 @@ export function SettingsField({
                 <label className="text-sm font-medium text-gray-200">{label}</label>
                 {description && <p className="mt-1 text-xs leading-relaxed text-gray-500">{description}</p>}
             </div>
-            <div className="min-w-0">{children}</div>
+            <div className="min-w-0">
+                {children}
+                <FieldError id={errorId} error={error} />
+            </div>
         </div>
     );
 }
 
-export function SettingsInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+export function SettingsInput({
+    error,
+    errorId,
+    className,
+    ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { error?: string | null; errorId?: string }) {
     return (
         <input
             {...props}
+            {...(errorId ? fieldErrorProps(errorId, error) : {})}
             className={cn(
                 "w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-50",
-                props.className
+                fieldErrorClass(error),
+                className
             )}
         />
     );
 }
 
-export function SettingsTextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function SettingsTextArea({
+    error,
+    errorId,
+    className,
+    ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { error?: string | null; errorId?: string }) {
     return (
         <textarea
             {...props}
+            {...(errorId ? fieldErrorProps(errorId, error) : {})}
             className={cn(
                 "min-h-24 w-full resize-y rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-cyan-500/50",
-                props.className
+                fieldErrorClass(error),
+                className
             )}
         />
     );
 }
 
-export function SettingsSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+export function SettingsSelect({
+    error,
+    errorId,
+    className,
+    ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { error?: string | null; errorId?: string }) {
     return (
         <select
             {...props}
+            {...(errorId ? fieldErrorProps(errorId, error) : {})}
             className={cn(
                 "w-full rounded-lg border border-white/10 bg-[#0f111a] px-3 py-2 text-sm text-white outline-none transition-colors focus:border-cyan-500/50",
-                props.className
+                fieldErrorClass(error),
+                className
             )}
         />
     );

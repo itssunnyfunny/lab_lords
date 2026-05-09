@@ -27,6 +27,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: user.id,
         name: "Main Branch",
+        contactPhone: "9876543210",
       });
 
       expect(branch.organizationId).toBe(org.id);
@@ -41,6 +42,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: user.id,
         name: "Shift Branch",
+        contactPhone: "9876543210",
       });
 
       const shifts = await testPrisma.shift.findMany({ where: { branchId: branch.id } });
@@ -55,6 +57,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: user.id,
         name: "Seat Branch",
+        contactPhone: "9876543210",
         seatCount: 5,
       });
 
@@ -70,6 +73,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: user.id,
         name: "Staff Branch",
+        contactPhone: "9876543210",
       });
 
       const staffRecord = await testPrisma.staff.findFirst({
@@ -89,6 +93,7 @@ describe("BranchService Integration", () => {
           organizationId: org.id,
           userId: otherUser.id,
           name: "Unauthorized Branch",
+          contactPhone: "9876543210",
         })
       ).rejects.toThrow(/Unauthorized/i);
 
@@ -106,6 +111,7 @@ describe("BranchService Integration", () => {
           organizationId: org.id,
           userId: user.id,
           name: "",
+          contactPhone: "9876543210",
         })
       ).rejects.toThrow(/required/i);
 
@@ -113,7 +119,17 @@ describe("BranchService Integration", () => {
         BranchService.createBranchForOrg({
           organizationId: org.id,
           userId: user.id,
+          name: "Missing Phone",
+          contactPhone: "",
+        })
+      ).rejects.toThrow(/contact phone is required/i);
+
+      await expect(
+        BranchService.createBranchForOrg({
+          organizationId: org.id,
+          userId: user.id,
           name: "Invalid Seats",
+          contactPhone: "9876543210",
           seatCount: -1,
         })
       ).rejects.toThrow(/whole number|at least/i);
@@ -123,6 +139,7 @@ describe("BranchService Integration", () => {
           organizationId: org.id,
           userId: user.id,
           name: "Invalid Shifts",
+          contactPhone: "9876543210",
           shifts: [
             { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
             { name: "Morning", startTime: "13:00", endTime: "18:00", price: 0 },
@@ -147,6 +164,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: user.id,
         name: "Lookup Branch",
+        contactPhone: "9876543210",
       });
 
       const found = await BranchService.getBranchById(branch.id);
@@ -164,6 +182,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: owner.id,
         name: "Payment Branch",
+        contactPhone: "9876543210",
       });
       const staffRecord = await createStaff({ userId: staff.id, branchId: branch.id, role: "STAFF" });
       await testPrisma.staffPermissionOverride.create({
@@ -190,13 +209,14 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: user.id,
         name: "Settings Branch",
+        contactPhone: "9876543210",
       });
 
       const updated = await BranchService.updateSettings(user.id, branch.id, {
         name: "Downtown Branch",
         city: "Delhi",
         address: "Ring Road",
-        contactPhone: "+91 99999 99999",
+        contactPhone: "919999999999",
         openingTime: "06:00",
         closingTime: "22:00",
         defaultFee: 1500,
@@ -208,6 +228,7 @@ describe("BranchService Integration", () => {
 
       expect(updated.name).toBe("Downtown Branch");
       expect(updated.defaultFee).toBe(1500);
+      expect(updated.contactPhone).toBe("+91 99999 99999");
       expect(updated.defaultAdmissionFee).toBe(300);
       expect(updated.defaultMessageLanguage).toBe("hi");
       expect(updated.aiEnabled).toBe(false);
@@ -221,6 +242,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: owner.id,
         name: "Managed Branch",
+        contactPhone: "9876543210",
       });
       await createStaff({ userId: manager.id, branchId: branch.id, role: "MANAGER" });
 
@@ -239,6 +261,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: owner.id,
         name: "Staff Branch",
+        contactPhone: "9876543210",
       });
       await createStaff({ userId: staff.id, branchId: branch.id, role: "STAFF" });
 
@@ -256,6 +279,7 @@ describe("BranchService Integration", () => {
         organizationId: org.id,
         userId: user.id,
         name: "Invalid Branch",
+        contactPhone: "9876543210",
       });
 
       await expect(
@@ -278,6 +302,20 @@ describe("BranchService Integration", () => {
           openingTime: "25:00",
         })
       ).rejects.toThrow(/HH:mm/i);
+
+      await expect(
+        BranchService.updateSettings(user.id, branch.id, {
+          name: "Valid",
+          contactPhone: "",
+        })
+      ).rejects.toThrow(/contact phone is required/i);
+
+      await expect(
+        BranchService.updateSettings(user.id, branch.id, {
+          name: "Valid",
+          contactPhone: "+44 7700 900123",
+        })
+      ).rejects.toThrow(/valid Indian mobile/i);
     });
   });
 });
