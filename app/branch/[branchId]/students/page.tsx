@@ -307,9 +307,16 @@ function StudentsContent({
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
+            const paymentListPromise = canViewPayments
+                ? Promise.all([
+                    payments.list(branchId),
+                    payments.list(branchId, "WAIVED"),
+                ]).then(([activePayments, waivedPayments]) => [...activePayments, ...waivedPayments])
+                : Promise.resolve([]);
+
             const [studentsList, paymentsList, shiftsList] = await Promise.all([
                 students.list(branchId, selectedShift || undefined),
-                canViewPayments ? payments.list(branchId) : Promise.resolve([]),
+                paymentListPromise,
                 canAllocateSeats ? branches.getShifts(branchId) : Promise.resolve([]),
             ]);
             setAllStudents(studentsList);

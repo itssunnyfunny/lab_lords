@@ -9,8 +9,8 @@ export type AuditLogEntry = {
         from: string;
         to: string;
         amount: number;
-        method: "CASH" | "UPI" | "BANK_TRANSFER" | null;
-        referenceId: string | null;
+        method?: "CASH" | "UPI" | "BANK_TRANSFER" | null;
+        referenceId?: string | null;
     };
     createdAt: string;
     user: { id: string; name: string | null; email: string };
@@ -18,7 +18,7 @@ export type AuditLogEntry = {
 
 export const payments = {
     // List payments for a branch
-    list: async (branchId: string, status?: "DUE" | "PAID"): Promise<Payment[]> => {
+    list: async (branchId: string, status?: "DUE" | "PAID" | "WAIVED"): Promise<Payment[]> => {
         const params = new URLSearchParams();
         if (status) params.append("status", status);
         return apiClient.get(`/branches/${branchId}/payments?${params.toString()}`);
