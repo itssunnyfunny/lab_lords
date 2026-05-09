@@ -6,10 +6,12 @@ import { StaffService } from "@/services/staff.service";
 import { startOfDay } from "date-fns";
 import type { Prisma } from "@/app/generated/prisma/client";
 import {
+    compactText,
     FORM_LIMITS,
     parseIntegerField,
     validateOptionalId,
     validatePhone,
+    validateRequiredPhone,
     validateRequiredText,
 } from "@/lib/formValidation";
 
@@ -103,6 +105,46 @@ export class StudentService {
         };
     }
 
+    private static studentNameKey(name: string) {
+        return compactText(name).toLocaleLowerCase("en-IN");
+    }
+
+    private static studentPhoneKey(phone: string | null) {
+        const result = validatePhone(phone);
+        if (result.ok) return result.value ?? "";
+        return compactText(phone);
+    }
+
+    private static async assertUniqueBranchIdentity(
+        tx: Prisma.TransactionClient,
+        branchId: string,
+        name: string,
+        phone: string,
+        excludeStudentId?: string
+    ) {
+        const nameKey = this.studentNameKey(name);
+        const phoneKey = this.studentPhoneKey(phone);
+        const existingStudents = await tx.student.findMany({
+            where: {
+                branchId,
+                ...(excludeStudentId ? { id: { not: excludeStudentId } } : {}),
+            },
+            select: {
+                name: true,
+                phone: true,
+            },
+        });
+
+        const duplicate = existingStudents.some(student =>
+            this.studentNameKey(student.name) === nameKey &&
+            this.studentPhoneKey(student.phone) === phoneKey
+        );
+
+        if (duplicate) {
+            throw new Error("A student with this name and phone number already exists in this branch.");
+        }
+    }
+
     static async createStudent(
         userId: string,
         branchId: string,
@@ -111,7 +153,7 @@ export class StudentService {
         const branch = await this.verifyBranchAccess(userId, branchId);
         const nameResult = validateRequiredText(data.name, "Student name");
         if (!nameResult.ok) throw new Error(nameResult.error);
-        const phoneResult = validatePhone(data.phone);
+        const phoneResult = validateRequiredPhone(data.phone);
         if (!phoneResult.ok) throw new Error(phoneResult.error);
         const monthlyFeeResult = parseIntegerField(data.monthlyFee, "Monthly fee", {
             min: 0,
@@ -137,6 +179,8 @@ export class StudentService {
 
         // 1. Create student + admission payment in one transaction
         const student = await prisma.$transaction(async (tx) => {
+            await this.assertUniqueBranchIdentity(tx, branchId, nameResult.value, phoneResult.value);
+
             const feeData = await this.resolveMonthlyFeeData(
                 tx,
                 branchId,
@@ -209,7 +253,7 @@ export class StudentService {
         const verifiedStudent = await this.verifyStudentAccess(userId, studentId);
         const nameResult = data.name !== undefined ? validateRequiredText(data.name, "Student name") : null;
         if (nameResult && !nameResult.ok) throw new Error(nameResult.error);
-        const phoneResult = data.phone !== undefined ? validatePhone(data.phone) : null;
+        const phoneResult = data.phone !== undefined ? validateRequiredPhone(data.phone) : null;
         if (phoneResult && !phoneResult.ok) throw new Error(phoneResult.error);
         const monthlyFeeResult = data.monthlyFee !== undefined
             ? parseIntegerField(data.monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })
@@ -225,6 +269,18 @@ export class StudentService {
         if (linkedMultiShiftResult && !linkedMultiShiftResult.ok) throw new Error(linkedMultiShiftResult.error);
 
         return prisma.$transaction(async (tx) => {
+            const finalName = nameResult?.ok ? nameResult.value : verifiedStudent.name;
+            const finalPhone = phoneResult?.ok ? phoneResult.value : verifiedStudent.phone;
+            if ((nameResult || phoneResult) && finalPhone) {
+                await this.assertUniqueBranchIdentity(
+                    tx,
+                    verifiedStudent.branchId,
+                    finalName,
+                    finalPhone,
+                    studentId
+                );
+            }
+
             const feeLinkTouched =
                 data.feeLinkedShiftId !== undefined ||
                 data.feeLinkedMultiShiftId !== undefined;

@@ -33,10 +33,68 @@ describe("StudentService Integration", () => {
       expect(student.name).toBe("Desk Staff Student");
     });
 
+    it("rejects duplicate student name and phone inside the same branch", async () => {
+      const { user, branch } = await createTestWorld();
+
+      await StudentService.createStudent(user.id, branch.id, {
+        name: "Riya Sharma",
+        phone: "9876543210",
+      });
+
+      await expect(
+        StudentService.createStudent(user.id, branch.id, {
+          name: "  riya   sharma  ",
+          phone: "09876543210",
+        })
+      ).rejects.toThrow(/name and phone number already exists/i);
+    });
+
+    it("allows matching only one student identity field inside the same branch", async () => {
+      const { user, branch } = await createTestWorld();
+
+      await StudentService.createStudent(user.id, branch.id, {
+        name: "Riya Sharma",
+        phone: "9876543210",
+      });
+      const sameName = await StudentService.createStudent(user.id, branch.id, {
+        name: "Riya Sharma",
+        phone: "9876543211",
+      });
+      const samePhone = await StudentService.createStudent(user.id, branch.id, {
+        name: "Priya Sharma",
+        phone: "9876543210",
+      });
+
+      expect(sameName.id).not.toBe(samePhone.id);
+    });
+
+    it("allows the same student name and phone in a different branch", async () => {
+      const { user, branch } = await createTestWorld();
+      const otherBranch = await testPrisma.branch.create({
+        data: {
+          organizationId: branch.organizationId,
+          name: "Second Branch",
+        },
+      });
+
+      const first = await StudentService.createStudent(user.id, branch.id, {
+        name: "Riya Sharma",
+        phone: "9876543210",
+      });
+      const second = await StudentService.createStudent(user.id, otherBranch.id, {
+        name: "Riya Sharma",
+        phone: "9876543210",
+      });
+
+      expect(first.branchId).toBe(branch.id);
+      expect(second.branchId).toBe(otherBranch.id);
+    });
+
     it("creates admission payment if admissionFee > 0", async () => {
       const { user, branch } = await createTestWorld();
       const student = await StudentService.createStudent(user.id, branch.id, {
         name: "Paid Student",
+        phone: "9876543210",
         admissionFee: 500,
         monthlyFee: 1000,
       });
@@ -51,6 +109,7 @@ describe("StudentService Integration", () => {
       const { user, branch } = await createTestWorld();
       const student = await StudentService.createStudent(user.id, branch.id, {
         name: "Free Student",
+        phone: "9876543210",
         admissionFee: 0,
         monthlyFee: 1000,
       });
@@ -68,6 +127,7 @@ describe("StudentService Integration", () => {
 
       const student = await StudentService.createStudent(user.id, branch.id, {
         name: "Default Fee Student",
+        phone: "9876543210",
       });
 
       expect(student.monthlyFee).toBe(1800);
@@ -81,6 +141,7 @@ describe("StudentService Integration", () => {
       const { user, branch, seat, shift } = await createTestWorld();
       const student = await StudentService.createStudent(user.id, branch.id, {
         name: "Seated Student",
+        phone: "9876543210",
         monthlyFee: 1000,
         seatId: seat.id,
         shiftIds: [shift.id],
@@ -101,6 +162,7 @@ describe("StudentService Integration", () => {
 
       const student = await StudentService.createStudent(user.id, branch.id, {
         name: "Linked Fee Student",
+        phone: "9876543210",
         monthlyFee: 999,
         feeLinkedShiftId: shift.id,
       });
@@ -124,6 +186,10 @@ describe("StudentService Integration", () => {
       ).rejects.toThrow(/required/i);
 
       await expect(
+        StudentService.createStudent(user.id, branch.id, { name: "Missing Phone" })
+      ).rejects.toThrow(/phone number is required/i);
+
+      await expect(
         StudentService.createStudent(user.id, branch.id, {
           name: "Bad Phone",
           phone: "phone!",
@@ -140,6 +206,7 @@ describe("StudentService Integration", () => {
       await expect(
         StudentService.createStudent(user.id, branch.id, {
           name: "Bad Fee",
+          phone: "9876543210",
           monthlyFee: -1,
         })
       ).rejects.toThrow(/whole number|at least/i);
@@ -147,6 +214,7 @@ describe("StudentService Integration", () => {
       await expect(
         StudentService.createStudent(user.id, branch.id, {
           name: "Bad Fee Type",
+          phone: "9876543210",
           monthlyFee: false as unknown as number,
         })
       ).rejects.toThrow(/whole number/i);
@@ -154,6 +222,7 @@ describe("StudentService Integration", () => {
       await expect(
         StudentService.createStudent(user.id, branch.id, {
           name: "Bad Link Type",
+          phone: "9876543210",
           feeLinkedShiftId: 123 as unknown as string,
         })
       ).rejects.toThrow(/linked shift/i);
@@ -161,10 +230,37 @@ describe("StudentService Integration", () => {
       await expect(
         StudentService.createStudent(user.id, branch.id, {
           name: "Conflicting Links",
+          phone: "9876543210",
           feeLinkedShiftId: shift.id,
           feeLinkedMultiShiftId: otherShift.id,
         })
       ).rejects.toThrow(/either a shift or a multi-shift/i);
+    });
+  });
+
+  describe("updateStudentProfile", () => {
+    it("rejects updates that duplicate another student name and phone in the same branch", async () => {
+      const { user, branch } = await createTestWorld();
+      const first = await StudentService.createStudent(user.id, branch.id, {
+        name: "Aarav Rao",
+        phone: "9876543210",
+      });
+      const second = await StudentService.createStudent(user.id, branch.id, {
+        name: "Bharat Rao",
+        phone: "9876543211",
+      });
+
+      await expect(
+        StudentService.updateStudentProfile(user.id, second.id, {
+          name: "  aarav   rao  ",
+          phone: "09876543210",
+        })
+      ).rejects.toThrow(/name and phone number already exists/i);
+
+      const unchanged = await testPrisma.student.findUnique({ where: { id: second.id } });
+      expect(first.id).not.toBe(second.id);
+      expect(unchanged?.name).toBe("Bharat Rao");
+      expect(unchanged?.phone).toBe("+91 98765 43211");
     });
   });
 
