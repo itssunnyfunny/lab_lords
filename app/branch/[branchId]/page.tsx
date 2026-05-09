@@ -308,7 +308,7 @@ export default function BranchDashboardPage({
                 <StatCard
                     title="Seat Utilization"
                     value={snap ? `${snap.occupancyRate.toFixed(0)}%` : "—"}
-                    sub={snap ? `${snap.assignedSeats} of ${snap.totalSeats} seats filled` : "Loading…"}
+                    sub={snap ? `${snap.assignedSeats} of ${snap.totalSeats} slots used` : "Loading…"}
                     icon={LayoutGrid}
                     accent={snap ? utilAccent(snap.occupancyRate) : "amber"}
                 />

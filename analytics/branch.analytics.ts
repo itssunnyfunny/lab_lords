@@ -2,11 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { getPaymentStats, getOverduePayments } from "./payment.analytics"
-import {
-  getSeatUtilization,
-  getSeatUtilizationByShift,
-  getSeatOccupancySnapshot,
-} from "./seat.analytics"
+import { getSeatOccupancySnapshot } from "./seat.analytics"
 import {
   getStudentStatusSnapshot,
   getStudentSeatingSnapshot,
@@ -30,19 +26,31 @@ export async function getBranchHealthSnapshot(
 
   const [
     payment,
-    seatOverall,
-    seatByShift,
     studentStatus,
     studentSeating,
     occupancySnapshot,
   ] = await Promise.all([
     getPaymentStats(branchId, date),
-    getSeatUtilization(branchId, date),
-    getSeatUtilizationByShift(branchId, date),
     getStudentStatusSnapshot(branchId, date),
     getStudentSeatingSnapshot(branchId, date),
     getSeatOccupancySnapshot(branchId, date),
   ])
+
+  const seatOverall = {
+    totalSeats: occupancySnapshot.totalShiftCapacity,
+    occupiedSeats: occupancySnapshot.totalUsedSlots,
+    utilizationRatio: occupancySnapshot.totalOccupancyPercent / 100,
+  }
+  const seatByShift = Object.fromEntries(
+    occupancySnapshot.shifts.map(shift => [
+      shift.shiftId,
+      {
+        totalSeats: shift.capacity,
+        occupiedSeats: shift.used,
+        utilizationRatio: shift.occupancyPercent / 100,
+      },
+    ])
+  )
 
   return {
     asOf: date,
@@ -86,7 +94,7 @@ export async function getBranchSnapshot(
     branchName: branch?.name ?? "Unknown",
 
     seats: {
-      // Shift-slot based occupancy (new logic: 30 slots × N shifts = totalShiftCapacity)
+      // Shift-slot based occupancy (seat count x active shifts = totalShiftCapacity)
       total: health.seats.occupancySnapshot.totalShiftCapacity,
       occupied: health.seats.occupancySnapshot.totalUsedSlots,
       available: health.seats.occupancySnapshot.totalShiftCapacity - health.seats.occupancySnapshot.totalUsedSlots,

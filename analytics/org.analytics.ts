@@ -38,8 +38,9 @@ export async function getOrganizationHealthSnapshot(
   )
 
   // Step 3: rollups (pure math)
-  let totalSeats = 0
-  let occupiedSeats = 0
+  let physicalSeats = 0
+  let totalSlots = 0
+  let usedSlots = 0
 
   let activeStudents = 0
   let inactiveStudents = 0
@@ -51,8 +52,9 @@ export async function getOrganizationHealthSnapshot(
   let paidAmount = 0
 
   for (const b of branchSnapshots) {
-    totalSeats += b.snapshot.seats.overall.totalSeats
-    occupiedSeats += b.snapshot.seats.overall.occupiedSeats
+    physicalSeats += b.snapshot.seats.occupancySnapshot.seatCount
+    totalSlots += b.snapshot.seats.occupancySnapshot.totalShiftCapacity
+    usedSlots += b.snapshot.seats.occupancySnapshot.totalUsedSlots
 
     activeStudents += b.snapshot.students.status.active
     inactiveStudents += b.snapshot.students.status.inactive
@@ -72,10 +74,14 @@ export async function getOrganizationHealthSnapshot(
     },
 
     seats: {
-      totalSeats,
-      occupiedSeats,
+      // Legacy field names retained for API compatibility; values are slots.
+      totalSeats: totalSlots,
+      occupiedSeats: usedSlots,
       utilizationRatio:
-        totalSeats === 0 ? 0 : occupiedSeats / totalSeats,
+        totalSlots === 0 ? 0 : usedSlots / totalSlots,
+      physicalSeats,
+      totalSlots,
+      usedSlots,
     },
 
     students: {
@@ -128,7 +134,7 @@ export async function getOrgSnapshot(
     totals: {
       totalBranches: health.organization.totalBranches,
       totalStudents: health.students.total,
-      totalSeats: health.seats.totalSeats,
+      totalSeats: health.seats.physicalSeats,
       totalOverduePayments: health.payments.overdueCount,
     },
 
