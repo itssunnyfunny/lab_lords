@@ -9,10 +9,10 @@ import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Loader2, AlertCircle, ArrowLeft, X,
     MoreVertical, Eye, Pencil, PowerOff, Power,
-    AlertTriangle, CheckCircle2, MinusCircle, Clock, ArrowRightLeft,
+    AlertTriangle, CheckCircle2, MinusCircle, Clock, ArrowRightLeft, Armchair,
 } from "lucide-react";
 import { useCallback, useEffect, useState, use, useMemo, useRef } from "react";
-import { students } from "@/lib/api/students";
+import { students, type StudentListItem } from "@/lib/api/students";
 import { payments } from "@/lib/api/payments";
 import { branches } from "@/lib/api/branches";
 import { StudentStatus, type Student, type Payment, type Shift } from "@/app/generated/prisma/browser";
@@ -48,6 +48,64 @@ function downloadCsv(filename: string, rows: (string | number | null | undefined
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+}
+
+function getSeatShiftLabels(student: StudentListItem) {
+    const activeAllocations = student.seatAllocations ?? [];
+    const seatText = Array.from(new Set(activeAllocations.map(alloc => alloc.seat.label))).join(", ");
+    const shiftGroups = new Map<string, { label: string; components: Set<string> }>();
+
+    activeAllocations.forEach(alloc => {
+        const key = alloc.multiShiftId ?? alloc.shiftId;
+        const label = alloc.multiShift?.name ?? alloc.shift.name;
+        const existing = shiftGroups.get(key);
+
+        if (existing) {
+            existing.components.add(alloc.shift.name);
+            return;
+        }
+
+        shiftGroups.set(key, {
+            label,
+            components: new Set([alloc.shift.name]),
+        });
+    });
+
+    const shiftText = Array.from(shiftGroups.values())
+        .map(group => group.components.size > 1 ? `${group.label} (${group.components.size} shifts)` : group.label)
+        .join(", ");
+
+    return {
+        seatText: seatText || "No seat",
+        shiftText: shiftText || "No shift",
+        hasAllocation: activeAllocations.length > 0,
+    };
+}
+
+function StudentSeatShiftSummary({ student }: { student: StudentListItem }) {
+    const { seatText, shiftText, hasAllocation } = getSeatShiftLabels(student);
+
+    if (!hasAllocation) {
+        return (
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-xs text-textMuted">
+                <Armchair size={13} />
+                No seat assigned
+            </span>
+        );
+    }
+
+    return (
+        <div className="min-w-0 space-y-1 text-xs" title={`${seatText} - ${shiftText}`}>
+            <div className="flex min-w-0 items-center gap-1.5 text-white">
+                <Armchair size={13} className="flex-shrink-0 text-cyan-300" />
+                <span className="truncate font-medium">{seatText}</span>
+            </div>
+            <div className="flex min-w-0 items-center gap-1.5 text-textSecondary">
+                <Clock size={13} className="flex-shrink-0 text-amber-300" />
+                <span className="truncate">{shiftText}</span>
+            </div>
+        </div>
+    );
 }
 
 // ─── Row action dropdown ──────────────────────────────────────────────────────
@@ -274,7 +332,7 @@ function StudentsContent({
     const paymentHelpText = getPermissionHelpText("view_payments");
     const allocationHelpText = getPermissionHelpText("seat_allocation");
 
-    const [allStudents, setAllStudents] = useState<Student[]>([]);
+    const [allStudents, setAllStudents] = useState<StudentListItem[]>([]);
     const [allPayments, setAllPayments] = useState<Payment[]>([]);
     const [shifts, setShifts] = useState<Shift[]>([]);
 
@@ -358,15 +416,18 @@ function StudentsContent({
     const handleExportStudents = () => {
         const paymentHeaders = canViewPayments ? ["Total Due", "Total Paid", "Total Waived"] : [];
         const rows = [
-            ["Name", "Phone", "Status", "Monthly Fee", "Joined", ...paymentHeaders],
+            ["Name", "Phone", "Status", "Monthly Fee", "Joined", "Seat", "Shift", ...paymentHeaders],
             ...filteredStudents.map(student => {
                 const financials = studentFinancials.get(student.id);
+                const seatShift = getSeatShiftLabels(student);
                 const baseRow = [
                     student.name,
                     student.phone ?? "",
                     student.status,
                     student.monthlyFee ?? "",
                     format(new Date(student.joinedAt), "yyyy-MM-dd"),
+                    seatShift.hasAllocation ? seatShift.seatText : "",
+                    seatShift.hasAllocation ? seatShift.shiftText : "",
                 ];
 
                 if (!canViewPayments) return baseRow;
@@ -624,9 +685,15 @@ function StudentsContent({
                             </div>
                         </div>
 
-                        <div className="mt-4 rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-textMuted">Fee Summary</div>
-                            {renderFeeSummary(item)}
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div className="min-w-0 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-textMuted">Seat & Shift</div>
+                                <StudentSeatShiftSummary student={item} />
+                            </div>
+                            <div className="min-w-0 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-textMuted">Fee Summary</div>
+                                {renderFeeSummary(item)}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -651,6 +718,10 @@ function StudentsContent({
                         accessor: (item) => (
                             <Badge variant={item.status === "ACTIVE" ? "success" : "default"}>{item.status}</Badge>
                         )
+                    },
+                    {
+                        header: "Seat & Shift",
+                        accessor: (item) => <StudentSeatShiftSummary student={item} />
                     },
                     {
                         header: "Fee Summary",
