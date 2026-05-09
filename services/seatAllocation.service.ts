@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { StaffService } from "@/services/staff.service";
 import { StudentStatus, SeatAllocationFilters } from "@/types";
 import type { SeatAllocation } from "@/app/generated/prisma/client";
+import type { Prisma } from "@/app/generated/prisma/client";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 
 export class SeatAllocationService {
@@ -133,7 +134,7 @@ export class SeatAllocationService {
                 where: { studentId, endDate: null },
             });
 
-            const allocationsToCreate = [];
+            const allocationsToCreateData: Prisma.SeatAllocationCreateManyInput[] = [];
 
             for (const requestedShift of requestedShifts) {
                 const newStart = parseNullableTime(requestedShift.startTime);
@@ -169,24 +170,25 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift (with optional multiShiftId)
-                const allocation = await tx.seatAllocation.create({
-                    data: {
-                        seatId,
-                        studentId,
-                        shiftId: requestedShift.id,
-                        ...(multiShiftId ? { multiShiftId } : {}),
-                    },
-                });
-
                 // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
                 const mockAllocation = { shiftId: requestedShift.id } as SeatAllocation;
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
 
-                allocationsToCreate.push(allocation);
+                allocationsToCreateData.push({
+                    seatId,
+                    studentId,
+                    shiftId: requestedShift.id,
+                    ...(multiShiftId ? { multiShiftId } : {}),
+                });
             }
+
+            // ⚡ Bolt: Optimizing seat allocation creation.
+            // Impact: Prevents N+1 query problem by batching all seat allocations into a single INSERT using createManyAndReturn.
+            const allocationsToCreate = await tx.seatAllocation.createManyAndReturn({
+                data: allocationsToCreateData,
+            });
 
             // 9. Update Branch lastDataChange
             await tx.branch.update({
@@ -343,19 +345,16 @@ export class SeatAllocationService {
                 if (s.branchId !== branchId) throw new Error(`Shift "${s.name}" does not belong to this branch.`);
             }
 
-            // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            // ⚡ Bolt: Optimizing seat reallocation creation.
+            // Impact: Replaces multiple parallel INSERT queries with a single batch INSERT via createManyAndReturn.
+            const created = await tx.seatAllocation.createManyAndReturn({
+                data: newShiftIds.map((shiftId) => ({
+                    seatId: newSeatId,
+                    studentId,
+                    shiftId,
+                    ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+                })),
+            });
 
             await tx.branch.update({
                 where: { id: branchId },
