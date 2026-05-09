@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Loader2, AlertCircle, ArrowLeft, X,
-    MoreVertical, Eye, Pencil, PowerOff, Power,
+    Eye, Pencil, PowerOff, Power,
     AlertTriangle, CheckCircle2, MinusCircle, Clock, ArrowRightLeft, Armchair,
 } from "lucide-react";
-import { useCallback, useEffect, useState, use, useMemo, useRef } from "react";
+import { useCallback, useEffect, useState, use, useMemo } from "react";
 import { students, type StudentListItem } from "@/lib/api/students";
 import { payments } from "@/lib/api/payments";
 import { branches } from "@/lib/api/branches";
@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
 import { useDataViewMode } from "@/hooks/useDataViewMode";
+import { RowActionsMenu, type RowActionsMenuItem } from "@/components/ui/RowActionsMenu";
 
 type DueResolution = "PAID" | "WAIVED" | "KEEP";
 
@@ -110,60 +111,10 @@ function StudentSeatShiftSummary({ student }: { student: StudentListItem }) {
 
 // ─── Row action dropdown ──────────────────────────────────────────────────────
 
-interface ActionItem {
-    label: string;
-    icon: React.ElementType;
-    onClick: () => void;
-    variant?: "danger" | "default";
-}
+type ActionItem = RowActionsMenuItem;
 
 function RowActions({ actions }: { actions: ActionItem[] }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!open) return;
-        const handler = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, [open]);
-
-    return (
-        <div ref={ref} className="relative flex justify-end">
-            <button
-                onClick={() => setOpen(v => !v)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-all"
-                title="Actions"
-            >
-                <MoreVertical size={16} />
-            </button>
-
-            {open && (
-                <div className="absolute right-0 top-9 z-50 w-44 bg-[#0f111a] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                    {actions.map((action, idx) => {
-                        const Icon = action.icon;
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => { action.onClick(); setOpen(false); }}
-                                className={cn(
-                                    "w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors",
-                                    action.variant === "danger"
-                                        ? "text-red-400 hover:bg-red-500/10"
-                                        : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                )}
-                            >
-                                <Icon size={14} className="flex-shrink-0" />
-                                {action.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-    );
+    return <RowActionsMenu actions={actions} />;
 }
 
 // ─── Inactivate Dialog ────────────────────────────────────────────────────────

@@ -1,15 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { RowActionsMenu, type RowActionsMenuItem } from "@/components/ui/RowActionsMenu";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
-    MoreVertical, Pencil, Trash2,
+    Pencil, Trash2,
     Loader2, AlertCircle, Clock, IndianRupee,
     CheckCircle2, X, AlertTriangle,
     Users, ArrowRight, RefreshCw, Ban, Layers,
@@ -944,41 +945,10 @@ function OptionCard({ selected, onClick, icon, title, description, variant, chil
 
 // ─── Row dropdown ──────────────────────────────────────────────────────────────
 
-interface RowAction { label: string; icon: React.ElementType; onClick: () => void; variant?: "danger" }
+type RowAction = RowActionsMenuItem;
 
 function RowActions({ actions }: { actions: RowAction[] }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!open) return;
-        const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-        document.addEventListener("mousedown", h);
-        return () => document.removeEventListener("mousedown", h);
-    }, [open]);
-
-    return (
-        <div ref={ref} className="relative flex justify-end">
-            <button onClick={() => setOpen(v => !v)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-all">
-                <MoreVertical size={16} />
-            </button>
-            {open && (
-                <div className="absolute right-0 top-9 z-50 w-40 bg-[#0f111a] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                    {actions.map((a, i) => {
-                        const Icon = a.icon;
-                        return (
-                            <button key={i} onClick={() => { a.onClick(); setOpen(false); }}
-                                className={cn("w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors",
-                                    a.variant === "danger" ? "text-red-400 hover:bg-red-500/10" : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                )}>
-                                <Icon size={14} /> {a.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-    );
+    return <RowActionsMenu actions={actions} menuWidthClassName="w-40" />;
 }
 
 // ─── Type Picker Dialog ────────────────────────────────────────────────────────
