@@ -152,7 +152,7 @@ export class PaymentService {
      * Supports strict monthly view logic:
      * - If month provided:
      *   - DUE: All due payments <= end of that month (includes overdue).
-     *   - PAID: Only payments paid/due IN that month (strict filter).
+     *   - PAID/WAIVED: Only payments due IN that month (strict filter).
      */
     static async listPayments(
         userId: string,
@@ -162,7 +162,7 @@ export class PaymentService {
     ) {
         await this.assertBranchAccess(userId, branchId, "view_payments");
 
-        // Default: exclude WAIVED when no specific status requested
+        // Default all-time view excludes WAIVED unless a status or monthly history view asks for it.
         let whereClause: Prisma.PaymentWhereInput = {
             branchId,
             ...(status ? { status } : { status: { not: "WAIVED" } }),
@@ -179,17 +179,17 @@ export class PaymentService {
                     status: PaymentStatus.DUE,
                     dueDate: { lte: end }
                 };
-            } else if (status === PaymentStatus.PAID) {
-                // If asking strictly for PAID, show only this month
+            } else if (status === PaymentStatus.PAID || status === PaymentStatus.WAIVED) {
+                // If asking strictly for resolved payments, show only this month
                 whereClause = {
                     ...whereClause,
-                    status: PaymentStatus.PAID,
+                    status,
                     dueDate: { gte: start, lte: end }
                 };
             } else {
                 // Mixed view (default):
                 // Show DUE if (dueDate <= end)    <-- Includes past due
-                // Show PAID if (start <= dueDate <= end) <-- Strict window for paid
+                // Show PAID/WAIVED if (start <= dueDate <= end) <-- Strict window for resolved payments
                 whereClause = {
                     branchId,
                     AND: [
@@ -201,6 +201,10 @@ export class PaymentService {
                                 },
                                 {
                                     status: PaymentStatus.PAID,
+                                    dueDate: { gte: start, lte: end }
+                                },
+                                {
+                                    status: PaymentStatus.WAIVED,
                                     dueDate: { gte: start, lte: end }
                                 }
                             ]

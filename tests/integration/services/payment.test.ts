@@ -155,6 +155,52 @@ describe("PaymentService Integration", () => {
       expect(results).toHaveLength(0);
     });
 
+    it("WAIVED filter is strict like paid payments", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { user, branch } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+      const januaryWaiver = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: BASE,
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+        status: "WAIVED",
+      });
+      const februaryWaiver = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: addMonths(BASE, 1),
+        periodStart: addMonths(BASE, 1),
+        periodEnd: addMonths(BASE, 2),
+        status: "WAIVED",
+      });
+
+      const results = await PaymentService.listPayments(user.id, branch.id, "WAIVED", addMonths(BASE, 1));
+
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe(februaryWaiver.id);
+      expect(results[0].id).not.toBe(januaryWaiver.id);
+    });
+
+    it("monthly mixed view includes waived history records", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { user, branch } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+      const waiver = await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: BASE,
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+        status: "WAIVED",
+      });
+
+      const results = await PaymentService.listPayments(user.id, branch.id, undefined, BASE);
+
+      expect(results.some(payment => payment.id === waiver.id)).toBe(true);
+    });
+
     it("allows STAFF role users to view branch payments", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       const { branch } = await createTestWorld();
@@ -343,7 +389,14 @@ describe("PaymentService Integration", () => {
       await PaymentService.markPaymentAsWaived(user.id, payment.id);
 
       const updated = await testPrisma.payment.findUnique({ where: { id: payment.id } });
+      const auditLog = await testPrisma.auditLog.findFirst({ where: { paymentId: payment.id } });
       expect(updated?.status).toBe("WAIVED");
+      expect(auditLog?.action).toBe("PAYMENT_WAIVED");
+      expect(auditLog?.details).toMatchObject({
+        from: "DUE",
+        to: "WAIVED",
+        amount: 1000,
+      });
     });
 
     it("is idempotent — marking WAIVED twice does not throw", async () => {

@@ -183,7 +183,7 @@ describe("StudentService Integration", () => {
     it("dueResolution=PAID marks DUE payments as PAID", async () => {
       const { user, branch } = await createTestWorld();
       const student = await createStudent({ branchId: branch.id });
-      await testPrisma.payment.create({
+      const createdPayment = await testPrisma.payment.create({
         data: {
           branchId: branch.id,
           studentId: student.id,
@@ -199,7 +199,16 @@ describe("StudentService Integration", () => {
       await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID");
 
       const payment = await testPrisma.payment.findFirst({ where: { studentId: student.id } });
+      const auditLog = await testPrisma.auditLog.findFirst({ where: { paymentId: createdPayment.id } });
       expect(payment?.status).toBe("PAID");
+      expect(auditLog?.action).toBe("PAYMENT_MARKED_PAID");
+      expect(auditLog?.details).toMatchObject({
+        from: "DUE",
+        to: "PAID",
+        amount: 1000,
+        method: null,
+        referenceId: null,
+      });
     });
 
     it("dueResolution=KEEP leaves DUE payments untouched", async () => {
@@ -227,7 +236,7 @@ describe("StudentService Integration", () => {
     it("dueResolution=WAIVED marks DUE payments as WAIVED", async () => {
       const { user, branch } = await createTestWorld();
       const student = await createStudent({ branchId: branch.id });
-      await testPrisma.payment.create({
+      const createdPayment = await testPrisma.payment.create({
         data: {
           branchId: branch.id,
           studentId: student.id,
@@ -243,7 +252,14 @@ describe("StudentService Integration", () => {
       await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED");
 
       const payment = await testPrisma.payment.findFirst({ where: { studentId: student.id } });
+      const auditLog = await testPrisma.auditLog.findFirst({ where: { paymentId: createdPayment.id } });
       expect(payment?.status).toBe("WAIVED");
+      expect(auditLog?.action).toBe("PAYMENT_WAIVED");
+      expect(auditLog?.details).toMatchObject({
+        from: "DUE",
+        to: "WAIVED",
+        amount: 1000,
+      });
     });
 
     it("re-activation: INACTIVE → ACTIVE flips status back to ACTIVE", async () => {

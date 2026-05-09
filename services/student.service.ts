@@ -350,6 +350,26 @@ export class StudentService {
                     },
                 });
 
+                const paymentsToResolve: {
+                    id: string;
+                    branchId: string;
+                    amount: number;
+                    status: PaymentStatus;
+                }[] = dueResolution === "KEEP"
+                    ? []
+                    : await tx.payment.findMany({
+                        where: {
+                            studentId,
+                            status: PaymentStatus.DUE,
+                        },
+                        select: {
+                            id: true,
+                            branchId: true,
+                            amount: true,
+                            status: true,
+                        },
+                    });
+
                 // 3. Resolve DUE payments based on owner's choice
                 if (dueResolution === "PAID") {
                     await tx.payment.updateMany({
@@ -374,6 +394,32 @@ export class StudentService {
                     });
                 }
                 // KEEP: do nothing, DUE payments stay as-is
+
+                if (paymentsToResolve.length > 0 && dueResolution !== "KEEP") {
+                    const resolvedStatus = dueResolution === "PAID"
+                        ? PaymentStatus.PAID
+                        : PaymentStatus.WAIVED;
+                    const action = dueResolution === "PAID"
+                        ? "PAYMENT_MARKED_PAID"
+                        : "PAYMENT_WAIVED";
+
+                    await tx.auditLog.createMany({
+                        data: paymentsToResolve.map(payment => ({
+                            branchId: payment.branchId,
+                            userId,
+                            action,
+                            paymentId: payment.id,
+                            details: {
+                                from: payment.status,
+                                to: resolvedStatus,
+                                amount: payment.amount,
+                                ...(dueResolution === "PAID"
+                                    ? { method: null, referenceId: null }
+                                    : {}),
+                            },
+                        })),
+                    });
+                }
             }
 
             // 4. Update Branch lastDataChange
