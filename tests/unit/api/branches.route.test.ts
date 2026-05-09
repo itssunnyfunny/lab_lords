@@ -73,6 +73,7 @@ describe("POST /api/branches", () => {
     const response = await POST(request({
       organizationId: "org_1",
       name: "Second Branch",
+      contactPhone: "9876543210",
       city: "Delhi",
       defaultFee: 1500,
       seatCount: 10,
@@ -84,6 +85,7 @@ describe("POST /api/branches", () => {
       organizationId: "org_1",
       userId: "owner_1",
       name: "Second Branch",
+      contactPhone: "+91 98765 43210",
       city: "Delhi",
       defaultFee: 1500,
       seatCount: 10,

@@ -13,11 +13,13 @@ import {
 } from "lucide-react";
 import { staff, StaffInviteResponse, StaffWithUser } from "@/lib/api/staff";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { OverridableStaffAction, StaffPermissionUpdate } from "@/types";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
+import { validateOptionalEmail, validateRequiredText } from "@/lib/formValidation";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -433,19 +435,34 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
     const [role, setRole] = useState<StaffRoleOption>("STAFF");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { markTouched, markSubmitted, resetFieldErrors, visibleError } = useInlineFieldErrors<"email">();
 
-    useEffect(() => { if (isOpen) { setEmail(""); setRole("STAFF"); setError(null); } }, [isOpen]);
+    useEffect(() => { if (isOpen) { setEmail(""); setRole("STAFF"); setError(null); resetFieldErrors(); } }, [isOpen, resetFieldErrors]);
 
     if (!isOpen) return null;
 
+    const validateForm = () => {
+        const errors: Partial<Record<"email", string>> = {};
+        const requiredResult = validateRequiredText(email, "Email", 160);
+        const emailResult = validateOptionalEmail(email, "Email");
+        if (!requiredResult.ok) errors.email = requiredResult.error;
+        else if (!emailResult.ok) errors.email = emailResult.error;
+        return { errors, emailValue: emailResult.ok ? emailResult.value : undefined };
+    };
+    const validation = validateForm();
+    const emailError = visibleError("email", validation.errors);
+
     const handleAdd = async () => {
-        if (!email.trim()) { setError("Email is required."); return; }
+        markSubmitted();
+        setError(null);
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.emailValue) return;
         setLoading(true); setError(null);
         try {
             const res = await fetch(`/api/branches/${branchId}/staff`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email.trim(), role }),
+                body: JSON.stringify({ email: result.emailValue, role }),
             });
             if (!res.ok) {
                 const d = await res.json().catch(() => ({}));
@@ -482,11 +499,14 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
                                 type="email"
                                 value={email}
                                 onChange={e => { setEmail(e.target.value); setError(null); }}
+                                onBlur={() => markTouched("email")}
                                 placeholder="teammate@example.com"
                                 autoFocus
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(emailError))}
+                                {...fieldErrorProps("add-staff-email-error", emailError)}
                             />
                         </div>
+                        <FieldError id="add-staff-email-error" error={emailError} />
                         <p className="text-xs text-gray-600">The user must sign in once before they can be added.</p>
                     </div>
 
@@ -519,7 +539,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
 
                 <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
-                    <Button onClick={handleAdd} disabled={loading || !email.trim()} className="text-sm h-8 px-4 min-w-[100px] justify-center">
+                    <Button onClick={handleAdd} disabled={loading} className="text-sm h-8 px-4 min-w-[100px] justify-center">
                         {loading
                             ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Adding...</>
                             : "Add Staff"

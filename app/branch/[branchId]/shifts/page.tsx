@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
@@ -114,6 +115,12 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
     // Only activate the overlap guard when the user has actually touched a time
     // field in this session (or when adding a brand-new shift).
     const [timesTouched, setTimesTouched] = useState(false);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"name" | "startTime" | "endTime" | "timePair" | "price" | "overlap">();
 
     useEffect(() => {
         if (isOpen) {
@@ -124,8 +131,9 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
             setIsReserved(initial?.isReserved ?? false);
             setError(null);
             setTimesTouched(false); // reset every time the dialog opens
+            resetFieldErrors();
         }
-    }, [isOpen, initial]);
+    }, [isOpen, initial, resetFieldErrors]);
 
     // In "add" mode we always check (no saved times to defer from).
     // In "edit" mode we only check after the user touches a time input.
@@ -146,22 +154,44 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
 
     if (!isOpen) return null;
 
-    const handleSubmit = async () => {
+    const validateForm = () => {
+        const errors: Partial<Record<"name" | "startTime" | "endTime" | "timePair" | "price" | "overlap", string>> = {};
         const nameResult = validateRequiredText(name, "Shift name", 50);
-        if (!nameResult.ok) { setError(nameResult.error); return; }
         const startResult = validateOptionalTime(startTime, "Start time");
-        if (!startResult.ok) { setError(startResult.error); return; }
         const endResult = validateOptionalTime(endTime, "End time");
-        if (!endResult.ok) { setError(endResult.error); return; }
-        if ((startResult.value && !endResult.value) || (!startResult.value && endResult.value)) {
-            setError("Shift must have both start and end time, or neither.");
-            return;
-        }
         const priceResult = parseIntegerField(price, "Monthly price", { min: 0, max: FORM_LIMITS.moneyMax });
-        if (!priceResult.ok) { setError(priceResult.error); return; }
-        if (overlapWith) { setError("Please resolve the shift time overlap."); return; }
-        setLoading(true);
+        if (!nameResult.ok) errors.name = nameResult.error;
+        if (!startResult.ok) errors.startTime = startResult.error;
+        if (!endResult.ok) errors.endTime = endResult.error;
+        const startValue = startResult.ok ? startResult.value : null;
+        const endValue = endResult.ok ? endResult.value : null;
+        if ((startValue && !endValue) || (!startValue && endValue)) {
+            errors.timePair = "Shift must have both start and end time, or neither.";
+        }
+        if (!priceResult.ok) errors.price = priceResult.error;
+        if (overlapWith) errors.overlap = "Resolve the shift time overlap.";
+        if (!nameResult.ok || !startResult.ok || !endResult.ok || !!errors.timePair || !priceResult.ok || !!overlapWith) {
+            return { errors, values: null };
+        }
+        return { errors, values: { nameResult, startResult, endResult, priceResult } };
+    };
+
+    const validation = validateForm();
+    const nameError = visibleError("name", validation.errors);
+    const startTimeError = visibleError("startTime", validation.errors);
+    const endTimeError = visibleError("endTime", validation.errors);
+    const timePairError = visibleError("timePair", validation.errors);
+    const priceError = visibleError("price", validation.errors);
+    const overlapError = visibleError("overlap", validation.errors);
+    const timeGroupError = startTimeError || endTimeError || timePairError || overlapError;
+
+    const handleSubmit = async () => {
+        markSubmitted();
         setError(null);
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) return;
+        const { nameResult, startResult, endResult, priceResult } = result.values;
+        setLoading(true);
         try {
             const url = mode === "edit" && initial
                 ? `/api/branches/${branchId}/shifts/${initial.id}`
@@ -223,13 +253,16 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Shift Name *</label>
                         <input
-                            type="text"
-                            value={name}
-                            onChange={e => { setName(e.target.value); setError(null); }}
-                            placeholder="e.g. Morning, Full Time"
-                            autoFocus
-                            className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                                type="text"
+                                value={name}
+                                onChange={e => { setName(e.target.value); setError(null); }}
+                                onBlur={() => markTouched("name")}
+                                placeholder="e.g. Morning, Full Time"
+                                autoFocus
+                            className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(nameError))}
+                                {...fieldErrorProps("shift-name-error", nameError)}
                         />
+                        <FieldError id="shift-name-error" error={nameError} />
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -238,8 +271,10 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                             <input
                                 type="time"
                                 value={startTime}
-                                onChange={e => { setStartTime(e.target.value); setTimesTouched(true); }}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                                onChange={e => { setStartTime(e.target.value); setTimesTouched(true); setError(null); markTouched("timePair"); markTouched("overlap"); }}
+                                onBlur={() => markTouched("startTime")}
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(startTimeError || timePairError || overlapError))}
+                                {...fieldErrorProps("shift-time-error", timeGroupError)}
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -247,11 +282,14 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                             <input
                                 type="time"
                                 value={endTime}
-                                onChange={e => { setEndTime(e.target.value); setTimesTouched(true); }}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                                onChange={e => { setEndTime(e.target.value); setTimesTouched(true); setError(null); markTouched("timePair"); markTouched("overlap"); }}
+                                onBlur={() => markTouched("endTime")}
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(endTimeError || timePairError || overlapError))}
+                                {...fieldErrorProps("shift-time-error", timeGroupError)}
                             />
                         </div>
                     </div>
+                    <FieldError id="shift-time-error" error={timeGroupError} />
 
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Monthly Price (₹)</label>
@@ -261,14 +299,17 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                                 type="number"
                                 value={price}
                                 onChange={e => { setPrice(e.target.value); setError(null); }}
+                                onBlur={() => markTouched("price")}
                                 min="0"
                                 max={FORM_LIMITS.moneyMax}
                                 step="1"
                                 inputMode="numeric"
                                 placeholder="0"
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(priceError))}
+                                {...fieldErrorProps("shift-price-error", priceError)}
                             />
                         </div>
+                        <FieldError id="shift-price-error" error={priceError} />
                     </div>
 
                     {/* Reserved toggle */}
@@ -322,7 +363,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={loading || !name.trim() || !!overlapWith}
+                        disabled={loading}
                         className="text-sm h-8 px-4 min-w-[100px] justify-center"
                     >
                         {loading
@@ -366,9 +407,16 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"renameName" | "renameStart" | "renameEnd" | "renameTimePair" | "renameOverlap">();
 
     // Load analysis on mount
     useEffect(() => {
+        resetFieldErrors();
         const run = async () => {
             try {
                 const res = await fetch(`/api/branches/${branchId}/shifts/${shift.id}/analyze`);
@@ -436,19 +484,56 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
         }
     };
 
-    const handleRename = async () => {
+    const getRenameOverlap = () => existingShifts.find(s => {
+        if (s.id === shift.id) return false;
+        if (!s.startTime || !s.endTime || !renameStart || !renameEnd) return false;
+        if (s.name.toLowerCase() === "full time" || renameName.trim().toLowerCase() === "full time") return false;
+        return timesOverlap(
+            parseNullableTime(renameStart),
+            parseNullableTime(renameEnd),
+            parseNullableTime(s.startTime),
+            parseNullableTime(s.endTime)
+        );
+    });
+
+    const validateRenameForm = () => {
+        const errors: Partial<Record<"renameName" | "renameStart" | "renameEnd" | "renameTimePair" | "renameOverlap", string>> = {};
         const nameResult = validateRequiredText(renameName, "Shift name", 50);
-        if (!nameResult.ok) { setSubmitError(nameResult.error); return; }
         const startResult = validateOptionalTime(renameStart, "Start time");
-        if (!startResult.ok) { setSubmitError(startResult.error); return; }
         const endResult = validateOptionalTime(renameEnd, "End time");
-        if (!endResult.ok) { setSubmitError(endResult.error); return; }
-        if ((startResult.value && !endResult.value) || (!startResult.value && endResult.value)) {
-            setSubmitError("Shift must have both start and end time, or neither.");
-            return;
+        const startValue = startResult.ok ? startResult.value : null;
+        const endValue = endResult.ok ? endResult.value : null;
+        const renameOverlapWith = getRenameOverlap();
+
+        if (!nameResult.ok) errors.renameName = nameResult.error;
+        if (!startResult.ok) errors.renameStart = startResult.error;
+        if (!endResult.ok) errors.renameEnd = endResult.error;
+        if ((startValue && !endValue) || (!startValue && endValue)) {
+            errors.renameTimePair = "Shift must have both start and end time, or neither.";
         }
-        setSubmitting(true);
+        if (renameOverlapWith) errors.renameOverlap = `Time overlaps with "${renameOverlapWith.name}".`;
+
+        if (!nameResult.ok || !startResult.ok || !endResult.ok || !!errors.renameTimePair || !!renameOverlapWith) {
+            return { errors, values: null };
+        }
+        return { errors, values: { nameResult, startResult, endResult } };
+    };
+
+    const renameValidation = validateRenameForm();
+    const renameNameError = visibleError("renameName", renameValidation.errors);
+    const renameStartError = visibleError("renameStart", renameValidation.errors);
+    const renameEndError = visibleError("renameEnd", renameValidation.errors);
+    const renameTimePairError = visibleError("renameTimePair", renameValidation.errors);
+    const renameOverlapError = visibleError("renameOverlap", renameValidation.errors);
+    const renameTimeGroupError = renameStartError || renameEndError || renameTimePairError || renameOverlapError;
+
+    const handleRename = async () => {
+        markSubmitted();
         setSubmitError(null);
+        const result = validateRenameForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) return;
+        const { nameResult, startResult, endResult } = result.values;
+        setSubmitting(true);
         try {
             const res = await fetch(`/api/branches/${branchId}/shifts/${shift.id}`, {
                 method: "PATCH",
@@ -707,17 +792,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                 description="Don't delete — just change the name or time window. Students stay allocated."
                             >
                                 {mode === "RENAME" && (() => {
-                                    // Overlap check scoped to the rename panel
-                                    const renameOverlapWith = existingShifts.find(s => {
-                                        if (s.id === shift.id) return false;
-                                        if (!s.startTime || !s.endTime || !renameStart || !renameEnd) return false;
-                                        if (s.name.toLowerCase() === "full time" || renameName.trim().toLowerCase() === "full time") return false;
-                                        const start1 = parseNullableTime(renameStart);
-                                        const end1 = parseNullableTime(renameEnd);
-                                        const start2 = parseNullableTime(s.startTime);
-                                        const end2 = parseNullableTime(s.endTime);
-                                        return timesOverlap(start1, end1, start2, end2);
-                                    });
+                                    const renameOverlapWith = getRenameOverlap();
                                     return (
                                         <div className="mt-3 space-y-3">
                                             <div>
@@ -726,8 +801,11 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                     type="text"
                                                     value={renameName}
                                                     onChange={e => { setRenameName(e.target.value); setSubmitError(null); }}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                    onBlur={() => markTouched("renameName")}
+                                                    className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50", fieldErrorClass(renameNameError))}
+                                                    {...fieldErrorProps("rename-shift-name-error", renameNameError)}
                                                 />
+                                                <FieldError id="rename-shift-name-error" error={renameNameError} />
                                             </div>
                                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                                 <div>
@@ -735,8 +813,10 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                     <input
                                                         type="time"
                                                         value={renameStart}
-                                                        onChange={e => setRenameStart(e.target.value)}
-                                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                        onChange={e => { setRenameStart(e.target.value); markTouched("renameTimePair"); markTouched("renameOverlap"); }}
+                                                        onBlur={() => markTouched("renameStart")}
+                                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50", fieldErrorClass(renameStartError || renameTimePairError || renameOverlapError))}
+                                                        {...fieldErrorProps("rename-shift-time-error", renameTimeGroupError)}
                                                     />
                                                 </div>
                                                 <div>
@@ -744,11 +824,14 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                     <input
                                                         type="time"
                                                         value={renameEnd}
-                                                        onChange={e => setRenameEnd(e.target.value)}
-                                                        className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                        onChange={e => { setRenameEnd(e.target.value); markTouched("renameTimePair"); markTouched("renameOverlap"); }}
+                                                        onBlur={() => markTouched("renameEnd")}
+                                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50", fieldErrorClass(renameEndError || renameTimePairError || renameOverlapError))}
+                                                        {...fieldErrorProps("rename-shift-time-error", renameTimeGroupError)}
                                                     />
                                                 </div>
                                             </div>
+                                            <FieldError id="rename-shift-time-error" error={renameTimeGroupError} />
                                             {renameOverlapWith && (
                                                 <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
                                                     <AlertTriangle size={13} />
@@ -778,12 +861,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                             {mode === "RENAME" ? (
                                 <Button
                                     onClick={handleRename}
-                                    disabled={submitting || !renameName.trim() || !!existingShifts.find(s => {
-                                        if (s.id === shift.id) return false;
-                                        if (!s.startTime || !s.endTime || !renameStart || !renameEnd) return false;
-                                        if (s.name.toLowerCase() === "full time" || renameName.trim().toLowerCase() === "full time") return false;
-                                        return timesOverlap(parseNullableTime(renameStart), parseNullableTime(renameEnd), parseNullableTime(s.startTime), parseNullableTime(s.endTime));
-                                    })}
+                                    disabled={submitting}
                                     className="text-sm h-8 px-4 min-w-[130px] justify-center"
                                 >
                                     {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" />Saving...</> : "Save Changes"}
@@ -979,6 +1057,12 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
     const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"name" | "price" | "components">();
 
     useEffect(() => {
         if (isOpen) {
@@ -986,8 +1070,9 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
             setPrice(String(initial?.price ?? 0));
             setSelectedShiftIds(initial?.components.map(c => c.shiftId) ?? []);
             setError(null);
+            resetFieldErrors();
         }
-    }, [isOpen, initial]);
+    }, [isOpen, initial, resetFieldErrors]);
 
     // Validation
     const selectedSorted = [...selectedShiftIds].sort().join(",");
@@ -1003,17 +1088,34 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
 
     if (!isOpen) return null;
 
-    const handleSubmit = async () => {
+    const validateForm = () => {
+        const errors: Partial<Record<"name" | "price" | "components", string>> = {};
         const nameResult = validateRequiredText(name, "Multi-shift name", 50);
-        if (!nameResult.ok) { setError(nameResult.error); return; }
         const priceResult = parseIntegerField(price, "Bundle monthly price", { min: 0, max: FORM_LIMITS.moneyMax });
-        if (!priceResult.ok) { setError(priceResult.error); return; }
-        if (selectedShiftIds.length < 2) { setError("Select at least 2 primary shifts"); return; }
-        if (duplicateCombo) { setError(`A multi-shift with this exact combination already exists: "${duplicateCombo.name}"`); return; }
-        if (duplicateName) { setError(`A multi-shift named "${nameResult.value}" already exists`); return; }
+        if (!nameResult.ok) errors.name = nameResult.error;
+        if (!priceResult.ok) errors.price = priceResult.error;
+        if (selectedShiftIds.length < 2) errors.components = "Select at least 2 primary shifts.";
+        if (duplicateCombo) errors.components = `A multi-shift with this exact combination already exists: "${duplicateCombo.name}".`;
+        if (duplicateName) errors.name = `A multi-shift named "${name.trim()}" already exists.`;
+        if (!nameResult.ok || !priceResult.ok || selectedShiftIds.length < 2 || !!duplicateCombo || !!duplicateName) {
+            return { errors, values: null };
+        }
+        return { errors, values: { nameResult, priceResult } };
+    };
+
+    const validation = validateForm();
+    const nameError = visibleError("name", validation.errors);
+    const priceError = visibleError("price", validation.errors);
+    const componentsError = visibleError("components", validation.errors);
+
+    const handleSubmit = async () => {
+        markSubmitted();
+        setError(null);
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) return;
+        const { nameResult, priceResult } = result.values;
 
         setLoading(true);
-        setError(null);
         try {
             const url = mode === "edit" && initial
                 ? `/api/branches/${branchId}/multi-shifts/${initial.id}`
@@ -1043,6 +1145,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
     };
 
     const toggleShift = (id: string) => {
+        markTouched("components");
         setSelectedShiftIds(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
         );
@@ -1069,10 +1172,13 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                         <input
                             type="text"
                             value={name}
-                            onChange={e => setName(e.target.value)}
+                            onChange={e => { setName(e.target.value); setError(null); }}
+                            onBlur={() => markTouched("name")}
                             placeholder="e.g. Full Time"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/50 text-sm transition-all"
+                            className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/50 text-sm transition-all", fieldErrorClass(nameError))}
+                            {...fieldErrorProps("multi-shift-name-error", nameError)}
                         />
+                        <FieldError id="multi-shift-name-error" error={nameError} />
                     </div>
 
                     <div className="space-y-1.5">
@@ -1083,13 +1189,16 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                                 type="number"
                                 value={price}
                                 onChange={e => { setPrice(e.target.value); setError(null); }}
+                                onBlur={() => markTouched("price")}
                                 min="0"
                                 max={FORM_LIMITS.moneyMax}
                                 step="1"
                                 inputMode="numeric"
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white focus:outline-none focus:border-orange-500/50 text-sm transition-all"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white focus:outline-none focus:border-orange-500/50 text-sm transition-all", fieldErrorClass(priceError))}
+                                {...fieldErrorProps("multi-shift-price-error", priceError)}
                             />
                         </div>
+                        <FieldError id="multi-shift-price-error" error={priceError} />
                     </div>
 
                     <div className="space-y-2.5">
@@ -1119,6 +1228,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                                 </button>
                             ))}
                         </div>
+                        <FieldError id="multi-shift-components-error" error={componentsError} />
                     </div>
 
                     {error && (
@@ -1132,7 +1242,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={loading || !name.trim() || selectedShiftIds.length < 2 || !!duplicateCombo || !!duplicateName}
+                        disabled={loading}
                         className="text-sm h-8 px-4 bg-orange-500/20 border border-orange-500/30 text-orange-300 hover:bg-orange-500/30 min-w-[100px] justify-center"
                     >
                         {loading ? <Loader2 size={14} className="animate-spin" /> : mode === "add" ? "Create Bundle" : "Save Changes"}

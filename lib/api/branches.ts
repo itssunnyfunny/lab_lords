@@ -16,7 +16,7 @@ export const branches = {
         return apiClient.get(`/branches/${branchId}/students${query}`);
     },
 
-    createStudent: async (branchId: string, data: { name: string; phone?: string }): Promise<Student> => {
+    createStudent: async (branchId: string, data: { name: string; phone: string }): Promise<Student> => {
         return apiClient.post(`/branches/${branchId}/students`, data);
     },
 

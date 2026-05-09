@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { FieldError, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
 
 interface StudentOption {
@@ -46,6 +47,12 @@ export function AllocateSeatDialog({
     // Submission
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"student" | "selection">();
 
     useEffect(() => {
         if (!isOpen) return;
@@ -59,7 +66,8 @@ export function AllocateSeatDialog({
         setStudentId(preselectedStudentId ?? "");
         setStudentName(preselectedStudentName ?? "");
         setStudentSearch("");
-    }, [isOpen, preselectedStudentId, preselectedStudentName]);
+        resetFieldErrors();
+    }, [isOpen, preselectedStudentId, preselectedStudentName, resetFieldErrors]);
 
     const feeLinkLabel = selectedMultiShiftId
         ? "selected multi-shift"
@@ -80,6 +88,7 @@ export function AllocateSeatDialog({
     }, [isOpen, branchId, preselectedStudentId]);
 
     const handleToggleShift = (shift: ShiftCapacity) => {
+        markTouched("selection");
         setSelectedSeatId(null);
         setSubmitError(null);
 
@@ -114,13 +123,24 @@ export function AllocateSeatDialog({
         }
     };
 
-    const handleConfirm = async () => {
-        if (!selectedSeatId || selectedShiftIds.length === 0) return;
+    const validateForm = () => {
+        const errors: Partial<Record<"student" | "selection", string>> = {};
         const sid = preselectedStudentId ?? studentId;
-        if (!sid) return;
+        if (!sid) errors.student = "Select an active student.";
+        if (!selectedSeatId || selectedShiftIds.length === 0) {
+            errors.selection = "Select at least one shift and a seat.";
+        }
+        return { errors, sid };
+    };
+
+    const handleConfirm = async () => {
+        markSubmitted();
+        setSubmitError(null);
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.sid) return;
+        const sid = result.sid;
 
         setSubmitting(true);
-        setSubmitError(null);
 
         try {
             const res = await fetch(`/api/branches/${branchId}/seat-allocations`, {
@@ -164,6 +184,7 @@ export function AllocateSeatDialog({
             }
 
             onSuccess();
+            resetFieldErrors();
             onClose();
         } catch (e: unknown) {
             setSubmitError(e instanceof Error ? e.message : "Something went wrong.");
@@ -177,7 +198,9 @@ export function AllocateSeatDialog({
     const effectiveStudentId = preselectedStudentId ?? studentId;
     const effectiveStudentName = preselectedStudentName ?? studentName;
     const hasStudent = !!effectiveStudentId;
-    const canConfirm = hasStudent && selectedSeatId && selectedShiftIds.length > 0;
+    const validation = validateForm();
+    const studentError = visibleError("student", validation.errors);
+    const selectionError = visibleError("selection", validation.errors);
 
     const filteredStudents = students.filter(s =>
         s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
@@ -230,7 +253,7 @@ export function AllocateSeatDialog({
                                 {filteredStudents.map(s => (
                                     <button
                                         key={s.id}
-                                        onClick={() => { setStudentId(s.id); setStudentName(s.name); }}
+                                        onClick={() => { markTouched("student"); setStudentId(s.id); setStudentName(s.name); }}
                                         className="w-full text-left px-3 py-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 hover:border-white/10 transition-all"
                                     >
                                         <p className="text-sm text-white font-medium">{s.name}</p>
@@ -241,6 +264,7 @@ export function AllocateSeatDialog({
                                     <p className="text-sm text-zinc-500 text-center py-4">No active students found.</p>
                                 )}
                             </div>
+                            <FieldError id="allocate-seat-student-error" error={studentError} />
                         </div>
                     )}
 
@@ -253,8 +277,9 @@ export function AllocateSeatDialog({
                                 selectedMultiShiftId={selectedMultiShiftId}
                                 selectedSeatId={selectedSeatId}
                                 onToggleShift={handleToggleShift}
-                                onSelectSeat={setSelectedSeatId}
+                                onSelectSeat={(seatId) => { markTouched("selection"); setSelectedSeatId(seatId); }}
                             />
+                            <FieldError id="allocate-seat-selection-error" error={selectionError} />
 
                             {feeLinkLabel && (
                                 <label className="flex items-center gap-3 cursor-pointer group w-max rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
@@ -280,19 +305,17 @@ export function AllocateSeatDialog({
                 </div>
 
                 {/* Footer */}
-                {canConfirm && (
-                    <div className="flex flex-shrink-0 flex-col-reverse gap-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
-                        <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
-                            Cancel
-                        </Button>
-                        <Button onClick={handleConfirm} disabled={submitting} className="text-sm h-8 px-5">
-                            {submitting
-                                ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Allocating...</>
-                                : confirmLabel
-                            }
-                        </Button>
-                    </div>
-                )}
+                <div className="flex flex-shrink-0 flex-col-reverse gap-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+                    <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleConfirm} disabled={submitting} className="text-sm h-8 px-5">
+                        {submitting
+                            ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Allocating...</>
+                            : confirmLabel
+                        }
+                    </Button>
+                </div>
             </div>
         </div>
     );

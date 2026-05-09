@@ -27,10 +27,23 @@ describe("OrganizationService Integration", () => {
       const org = await OrganizationService.createOrganization({
         name: "Test Academy",
         ownerId: user.id,
+        contactPhone: "9876543210",
       });
 
       expect(org.ownerId).toBe(user.id);
       expect(org.name).toBe("Test Academy");
+      expect(org.contactPhone).toBe("+91 98765 43210");
+    });
+
+    it("requires owner contact phone on create", async () => {
+      const user = await createUser();
+      await expect(
+        OrganizationService.createOrganization({
+          name: "Missing Phone Academy",
+          ownerId: user.id,
+          contactPhone: "",
+        })
+      ).rejects.toThrow(/contact phone is required/i);
     });
   });
 
@@ -108,7 +121,7 @@ describe("OrganizationService Integration", () => {
         businessType: "Library",
         legalName: "Settings Academy Pvt Ltd",
         contactEmail: "owner@example.com",
-        contactPhone: "+91 99999 99999",
+        contactPhone: "9999999999",
         address: "MG Road, Delhi",
         timezone: "Asia/Kolkata",
         currency: "inr",
@@ -119,6 +132,7 @@ describe("OrganizationService Integration", () => {
       expect(updated.name).toBe("Settings Academy");
       expect(updated.legalName).toBe("Settings Academy Pvt Ltd");
       expect(updated.contactEmail).toBe("owner@example.com");
+      expect(updated.contactPhone).toBe("+91 99999 99999");
       expect(updated.currency).toBe("INR");
       expect(updated.paymentGraceDays).toBe(5);
     });
@@ -146,6 +160,20 @@ describe("OrganizationService Integration", () => {
           paymentGraceDays: false as unknown as number,
         })
       ).rejects.toThrow(/whole number/i);
+
+      await expect(
+        OrganizationService.updateSettings(org.id, user.id, {
+          name: "Valid",
+          contactPhone: "",
+        })
+      ).rejects.toThrow(/contact phone is required/i);
+
+      await expect(
+        OrganizationService.updateSettings(org.id, user.id, {
+          name: "Valid",
+          contactPhone: "12345",
+        })
+      ).rejects.toThrow(/valid Indian mobile/i);
     });
   });
 

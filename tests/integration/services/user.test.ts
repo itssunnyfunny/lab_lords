@@ -12,7 +12,7 @@ describe("UserService settings", () => {
 
     const updated = await UserService.updateSettings(user.id, {
       name: "Asha Owner",
-      phone: "+91 99999 99999",
+      phone: "9999999999",
       timezone: "Asia/Kolkata",
       locale: "en-IN",
       dateFormat: "yyyy-MM-dd",
@@ -46,5 +46,19 @@ describe("UserService settings", () => {
         defaultMessageLanguage: "fr",
       })
     ).rejects.toThrow(/supported/i);
+
+    await expect(
+      UserService.updateSettings(user.id, {
+        name: "Asha",
+        phone: "",
+      })
+    ).rejects.toThrow(/phone is required/i);
+
+    await expect(
+      UserService.updateSettings(user.id, {
+        name: "Asha",
+        phone: "+1 99999 99999",
+      })
+    ).rejects.toThrow(/valid Indian mobile/i);
   });
 });

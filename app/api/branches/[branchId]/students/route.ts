@@ -7,7 +7,7 @@ import {
     FORM_LIMITS,
     parseIntegerField,
     validateOptionalId,
-    validatePhone,
+    validateRequiredPhone,
     validateRequiredText,
 } from "@/lib/formValidation";
 
@@ -28,7 +28,7 @@ export async function POST(
 
         const nameResult = validateRequiredText(body.name, "Student name");
         if (!nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
-        const phoneResult = validatePhone(body.phone);
+        const phoneResult = validateRequiredPhone(body.phone);
         if (!phoneResult.ok) return NextResponse.json({ error: phoneResult.error }, { status: 400 });
         const monthlyFeeResult = parseIntegerField(body.monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax });
         if (!monthlyFeeResult.ok) return NextResponse.json({ error: monthlyFeeResult.error }, { status: 400 });
@@ -113,7 +113,7 @@ export async function PATCH(
         ) {
             const nameResult = body.name !== undefined ? validateRequiredText(body.name, "Student name") : null;
             if (nameResult && !nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
-            const phoneResult = body.phone !== undefined ? validatePhone(body.phone) : null;
+            const phoneResult = body.phone !== undefined ? validateRequiredPhone(body.phone) : null;
             if (phoneResult && !phoneResult.ok) return NextResponse.json({ error: phoneResult.error }, { status: 400 });
             const monthlyFeeResult = body.monthlyFee !== undefined
                 ? parseIntegerField(body.monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })

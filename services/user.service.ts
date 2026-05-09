@@ -4,6 +4,7 @@ import {
     assertPlainObject,
     optionalChoice,
     optionalText,
+    requiredPhone,
 } from "@/lib/settingsValidation";
 import {
     DEFAULT_LANDING_PAGES,
@@ -50,7 +51,7 @@ export class UserService {
 
         const settings: UpdateUserSettingsDto = {};
         const name = optionalText(body.name, "Name", { required: true, max: 120 });
-        const phone = optionalText(body.phone, "Phone", { max: 40 });
+        const phone = requiredPhone(body.phone, "Phone");
         const timezone = optionalText(body.timezone, "Timezone", { required: true, max: 80 });
         const locale = optionalText(body.locale, "Locale", { required: true, max: 24 });
         const dateFormat = optionalText(body.dateFormat, "Date format", { required: true, max: 40 });

@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { X, MapPin, Loader2, Plus, AlertCircle, AlertTriangle } from "lucide-react";
+import { X, MapPin, Loader2, Phone, Plus, AlertCircle, AlertTriangle } from "lucide-react";
+import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import {
     FORM_LIMITS,
     parseIntegerField,
     validateOptionalText,
+    validateRequiredPhone,
     validateRequiredText,
     validateShiftDrafts,
 } from "@/lib/formValidation";
+import { cn } from "@/lib/utils";
 
 function formatMins(mins: number) {
     let raw = mins;
@@ -53,6 +56,7 @@ export function CreateBranchDialog({
 }: CreateBranchDialogProps) {
     const [formData, setFormData] = useState({
         name: "",
+        contactPhone: "",
         city: "",
         seatCount: "",
         defaultFee: "",
@@ -60,6 +64,12 @@ export function CreateBranchDialog({
     const [shifts, setShifts] = useState<ShiftDraft[]>(DEFAULT_SHIFTS);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const {
+        markTouched,
+        markSubmitted,
+        resetFieldErrors,
+        visibleError,
+    } = useInlineFieldErrors<"name" | "contactPhone" | "city" | "seatCount" | "defaultFee" | "shifts">();
 
     // Compute overlaps continuously
     const overlaps = (() => {
@@ -91,12 +101,57 @@ export function CreateBranchDialog({
 
     if (!isOpen) return null;
 
+    const validateForm = () => {
+        const errors: Partial<Record<"name" | "contactPhone" | "city" | "seatCount" | "defaultFee" | "shifts", string>> = {};
+        const nameResult = validateRequiredText(formData.name, "Branch name", 120);
+        const contactPhoneResult = validateRequiredPhone(formData.contactPhone, "Contact phone");
+        const cityResult = validateOptionalText(formData.city, "City / area", FORM_LIMITS.cityMax);
+        const seatCountResult = parseIntegerField(formData.seatCount, "Total seats", {
+            required: true,
+            min: 1,
+            max: FORM_LIMITS.seatsMax,
+        });
+        const defaultFeeResult = parseIntegerField(formData.defaultFee, "Default monthly fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        const shiftsResult = validateShiftDrafts(shifts);
+
+        if (!nameResult.ok) errors.name = nameResult.error;
+        if (!contactPhoneResult.ok) errors.contactPhone = contactPhoneResult.error;
+        if (!cityResult.ok) errors.city = cityResult.error;
+        if (!seatCountResult.ok) errors.seatCount = seatCountResult.error;
+        if (!defaultFeeResult.ok) errors.defaultFee = defaultFeeResult.error;
+        if (!shiftsResult.ok) errors.shifts = shiftsResult.error;
+        if (overlaps.size > 0) errors.shifts = "Resolve all shift time overlaps before continuing.";
+
+        if (
+            !nameResult.ok ||
+            !contactPhoneResult.ok ||
+            !cityResult.ok ||
+            !seatCountResult.ok ||
+            !defaultFeeResult.ok ||
+            !shiftsResult.ok ||
+            overlaps.size > 0
+        ) return { errors, values: null };
+        return { errors, values: { nameResult, contactPhoneResult, cityResult, seatCountResult, defaultFeeResult, shiftsResult } };
+    };
+
+    const validation = validateForm();
+    const nameError = visibleError("name", validation.errors);
+    const contactPhoneError = visibleError("contactPhone", validation.errors);
+    const cityError = visibleError("city", validation.errors);
+    const seatCountError = visibleError("seatCount", validation.errors);
+    const defaultFeeError = visibleError("defaultFee", validation.errors);
+    const shiftsError = visibleError("shifts", validation.errors);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleShiftChange = (idx: number, field: keyof ShiftDraft, value: string | number) => {
+        markTouched("shifts");
         setShifts(prev => {
             const next = [...prev];
             next[idx] = { ...next[idx], [field]: value };
@@ -104,50 +159,24 @@ export function CreateBranchDialog({
         });
     };
 
-    const addShift = () =>
+    const addShift = () => {
+        markTouched("shifts");
         setShifts(prev => [...prev, { name: "", startTime: "", endTime: "", price: 0 }]);
+    };
 
-    const removeShift = (idx: number) =>
+    const removeShift = (idx: number) => {
+        markTouched("shifts");
         setShifts(prev => prev.filter((_, i) => i !== idx));
+    };
 
     const handleSubmit = async () => {
+        markSubmitted();
         setError(null);
-        const nameResult = validateRequiredText(formData.name, "Branch name", 120);
-        if (!nameResult.ok) {
-            setError(nameResult.error);
+        const result = validateForm();
+        if (Object.values(result.errors).some(Boolean) || !result.values) {
             return;
         }
-        const cityResult = validateOptionalText(formData.city, "City / area", FORM_LIMITS.cityMax);
-        if (!cityResult.ok) {
-            setError(cityResult.error);
-            return;
-        }
-        const seatCountResult = parseIntegerField(formData.seatCount, "Total seats", {
-            required: true,
-            min: 1,
-            max: FORM_LIMITS.seatsMax,
-        });
-        if (!seatCountResult.ok) {
-            setError(seatCountResult.error);
-            return;
-        }
-        const defaultFeeResult = parseIntegerField(formData.defaultFee, "Default monthly fee", {
-            min: 0,
-            max: FORM_LIMITS.moneyMax,
-        });
-        if (!defaultFeeResult.ok) {
-            setError(defaultFeeResult.error);
-            return;
-        }
-        const shiftsResult = validateShiftDrafts(shifts);
-        if (!shiftsResult.ok) {
-            setError(shiftsResult.error);
-            return;
-        }
-        if (overlaps.size > 0) {
-            setError("Please resolve all shift time overlaps before continuing.");
-            return;
-        }
+        const { nameResult, contactPhoneResult, cityResult, seatCountResult, defaultFeeResult, shiftsResult } = result.values;
 
         setLoading(true);
         try {
@@ -157,6 +186,7 @@ export function CreateBranchDialog({
                 body: JSON.stringify({
                     organizationId,
                     name: nameResult.value,
+                    contactPhone: contactPhoneResult.value,
                     city: cityResult.value,
                     seatCount: seatCountResult.value,
                     defaultFee: defaultFeeResult.value ?? 0,
@@ -171,8 +201,9 @@ export function CreateBranchDialog({
 
             const branch = await res.json();
             // Reset form
-            setFormData({ name: "", city: "", seatCount: "", defaultFee: "" });
+            setFormData({ name: "", contactPhone: "", city: "", seatCount: "", defaultFee: "" });
             setShifts(DEFAULT_SHIFTS);
+            resetFieldErrors();
             onSuccess(branch);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -183,9 +214,10 @@ export function CreateBranchDialog({
 
     const handleClose = () => {
         if (loading) return;
-        setFormData({ name: "", city: "", seatCount: "", defaultFee: "" });
+        setFormData({ name: "", contactPhone: "", city: "", seatCount: "", defaultFee: "" });
         setShifts(DEFAULT_SHIFTS);
         setError(null);
+        resetFieldErrors();
         onClose();
     };
 
@@ -228,12 +260,35 @@ export function CreateBranchDialog({
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
+                                onBlur={() => markTouched("name")}
                                 placeholder="e.g. Main Branch, Downtown"
                                 autoFocus
                                 maxLength={120}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(nameError))}
+                                {...fieldErrorProps("create-branch-name-error", nameError)}
                             />
                         </div>
+                        <FieldError id="create-branch-name-error" error={nameError} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-gray-300">
+                            Contact Phone <span className="text-red-400">*</span>
+                        </label>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                            <input
+                                type="tel"
+                                name="contactPhone"
+                                value={formData.contactPhone}
+                                onChange={handleChange}
+                                onBlur={() => markTouched("contactPhone")}
+                                placeholder="+91 98765 43210"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(contactPhoneError))}
+                                {...fieldErrorProps("create-branch-contact-phone-error", contactPhoneError)}
+                            />
+                        </div>
+                        <FieldError id="create-branch-contact-phone-error" error={contactPhoneError} />
                     </div>
 
                     {/* City + Seats */}
@@ -247,10 +302,13 @@ export function CreateBranchDialog({
                                 name="city"
                                 value={formData.city}
                                 onChange={handleChange}
+                                onBlur={() => markTouched("city")}
                                 placeholder="e.g. Mumbai"
                                 maxLength={FORM_LIMITS.cityMax}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(cityError))}
+                                {...fieldErrorProps("create-branch-city-error", cityError)}
                             />
+                            <FieldError id="create-branch-city-error" error={cityError} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium text-gray-300">
@@ -261,13 +319,16 @@ export function CreateBranchDialog({
                                 name="seatCount"
                                 value={formData.seatCount}
                                 onChange={handleChange}
+                                onBlur={() => markTouched("seatCount")}
                                 placeholder="e.g. 50"
                                 min="1"
                                 max={FORM_LIMITS.seatsMax}
                                 step="1"
                                 inputMode="numeric"
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(seatCountError))}
+                                {...fieldErrorProps("create-branch-seat-count-error", seatCountError)}
                             />
+                            <FieldError id="create-branch-seat-count-error" error={seatCountError} />
                         </div>
                     </div>
 
@@ -283,14 +344,17 @@ export function CreateBranchDialog({
                                 name="defaultFee"
                                 value={formData.defaultFee}
                                 onChange={handleChange}
+                                onBlur={() => markTouched("defaultFee")}
                                 placeholder="e.g. 1500"
                                 min="0"
                                 max={FORM_LIMITS.moneyMax}
                                 step="1"
                                 inputMode="numeric"
-                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-7 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm"
+                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-7 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(defaultFeeError))}
+                                {...fieldErrorProps("create-branch-default-fee-error", defaultFeeError)}
                             />
                         </div>
+                        <FieldError id="create-branch-default-fee-error" error={defaultFeeError} />
                     </div>
 
                     {/* Shifts */}
@@ -378,6 +442,7 @@ export function CreateBranchDialog({
                                 </div>
                             ))}
                         </div>
+                        <FieldError id="create-branch-shifts-error" error={shiftsError} />
                     </div>
 
                     {/* Error */}
@@ -396,7 +461,7 @@ export function CreateBranchDialog({
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={loading || !formData.name.trim() || !formData.seatCount || overlaps.size > 0}
+                        disabled={loading}
                         className="min-w-[130px] justify-center"
                     >
                         {loading ? (

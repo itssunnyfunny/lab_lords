@@ -7,10 +7,12 @@ import {
     optionalNumber,
     optionalText,
     optionalTime,
+    requiredPhone,
 } from "@/lib/settingsValidation";
 import {
     FORM_LIMITS,
     parseIntegerField,
+    validateRequiredPhone,
     validateOptionalText,
     validateRequiredText,
     validateShiftDrafts,
@@ -23,6 +25,7 @@ interface CreateBranchForOrgParams {
     organizationId: string;
     userId: string;
     name: string;
+    contactPhone: string;
     city?: string;
     defaultFee?: number;
     seatCount?: number;
@@ -55,9 +58,11 @@ export class BranchService {
      * in a single atomic transaction.
      */
     static async createBranchForOrg(params: CreateBranchForOrgParams) {
-        const { organizationId, userId, name, city, defaultFee, seatCount, shifts } = params;
+        const { organizationId, userId, name, contactPhone, city, defaultFee, seatCount, shifts } = params;
         const nameResult = validateRequiredText(name, "Branch name", 120);
         if (!nameResult.ok) throw new Error(nameResult.error);
+        const contactPhoneResult = validateRequiredPhone(contactPhone, "Contact phone");
+        if (!contactPhoneResult.ok) throw new Error(contactPhoneResult.error);
         const cityResult = validateOptionalText(city, "City", FORM_LIMITS.cityMax);
         if (!cityResult.ok) throw new Error(cityResult.error);
         const defaultFeeResult = parseIntegerField(defaultFee, "Default monthly fee", {
@@ -86,6 +91,7 @@ export class BranchService {
                 data: {
                     name: nameResult.value,
                     city: cityResult.value,
+                    contactPhone: contactPhoneResult.value,
                     defaultFee: defaultFeeResult.value ?? 0,
                     organizationId,
                 },
@@ -139,10 +145,16 @@ export class BranchService {
     }
 
     static async createBranch(data: CreateBranchDto) {
+        const nameResult = validateRequiredText(data.name, "Branch name", 120);
+        if (!nameResult.ok) throw new Error(nameResult.error);
+        const contactPhoneResult = validateRequiredPhone(data.contactPhone, "Contact phone");
+        if (!contactPhoneResult.ok) throw new Error(contactPhoneResult.error);
+
         const branch = await prisma.branch.create({
             data: {
-                name: data.name,
+                name: nameResult.value,
                 organizationId: data.organizationId,
+                contactPhone: contactPhoneResult.value,
             },
         });
 
@@ -232,7 +244,7 @@ export class BranchService {
         const name = optionalText(body.name, "Branch name", { required: true, max: 120 });
         const city = optionalText(body.city, "City", { max: 80 });
         const address = optionalText(body.address, "Address", { max: 240 });
-        const contactPhone = optionalText(body.contactPhone, "Contact phone", { max: 40 });
+        const contactPhone = requiredPhone(body.contactPhone, "Contact phone");
         const openingTime = optionalTime(body.openingTime, "Opening time");
         const closingTime = optionalTime(body.closingTime, "Closing time");
         const defaultFee = optionalNumber(body.defaultFee, "Default monthly fee", { min: 0, max: 1000000 });

@@ -68,17 +68,37 @@ export function validatePhone(value: unknown): ValidationResult<string | undefin
     }
     const phone = compactText(value);
     if (!phone) return { ok: true, value: undefined };
-    if (!/^[+()\d\s-]+$/.test(phone)) {
-        return { ok: false, error: "Phone number can only contain digits, spaces, +, -, and parentheses." };
+    if (!/^\+?[\d\s]+$/.test(phone) || (phone.match(/\+/g)?.length ?? 0) > 1) {
+        return { ok: false, error: "Phone number must be a valid Indian mobile number." };
     }
     const digits = phone.replace(/\D/g, "");
-    if (digits.length < FORM_LIMITS.phoneDigitsMin || digits.length > FORM_LIMITS.phoneDigitsMax) {
-        return {
-            ok: false,
-            error: `Phone number must contain ${FORM_LIMITS.phoneDigitsMin}-${FORM_LIMITS.phoneDigitsMax} digits.`,
-        };
+    const nationalNumber =
+        digits.length === 10
+            ? digits
+            : digits.length === 11 && digits.startsWith("0")
+                ? digits.slice(1)
+                : digits.length === 12 && digits.startsWith("91")
+                    ? digits.slice(2)
+                    : "";
+
+    if (!/^[6-9]\d{9}$/.test(nationalNumber)) {
+        return { ok: false, error: "Phone number must be a valid Indian mobile number." };
     }
-    return { ok: true, value: phone };
+
+    return { ok: true, value: `+91 ${nationalNumber.slice(0, 5)} ${nationalNumber.slice(5)}` };
+}
+
+export function validateRequiredPhone(value: unknown, label = "Phone number"): ValidationResult<string> {
+    if (value !== undefined && value !== null && typeof value !== "string") {
+        const result = validatePhone(value);
+        if (!result.ok) return result;
+    }
+    const phone = compactText(value);
+    if (!phone) return { ok: false, error: `${label} is required.` };
+
+    const result = validatePhone(value);
+    if (!result.ok) return result;
+    return { ok: true, value: result.value ?? phone };
 }
 
 export function validateOptionalEmail(value: unknown, label: string): ValidationResult<string | undefined> {
