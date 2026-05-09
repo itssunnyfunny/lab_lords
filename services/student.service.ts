@@ -296,6 +296,36 @@ export class StudentService {
                     }
                     : {}),
             },
+            include: {
+                seatAllocations: {
+                    where: { endDate: null },
+                    include: {
+                        seat: {
+                            select: {
+                                id: true,
+                                label: true,
+                            },
+                        },
+                        shift: {
+                            select: {
+                                id: true,
+                                name: true,
+                                startTime: true,
+                                endTime: true,
+                            },
+                        },
+                        multiShift: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        startDate: "desc",
+                    },
+                },
+            },
             orderBy: {
                 name: "asc",
             },

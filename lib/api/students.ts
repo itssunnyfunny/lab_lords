@@ -2,9 +2,24 @@ import { apiClient } from "./core";
 import type { Student } from "@/app/generated/prisma/browser";
 import { CreateStudentDto, StudentStatus } from "@/types";
 
+export type StudentSeatAllocation = {
+    id: string;
+    seatId: string;
+    shiftId: string;
+    multiShiftId: string | null;
+    endDate: string | null;
+    seat: { id: string; label: string };
+    shift: { id: string; name: string; startTime: string | null; endTime: string | null };
+    multiShift: { id: string; name: string } | null;
+};
+
+export type StudentListItem = Student & {
+    seatAllocations?: StudentSeatAllocation[];
+};
+
 export const students = {
     // List students for a branch
-    list: async (branchId: string, shiftId?: string): Promise<Student[]> => {
+    list: async (branchId: string, shiftId?: string): Promise<StudentListItem[]> => {
         return apiClient.get(`/branches/${branchId}/students`, {
             params: {
                 shiftId,

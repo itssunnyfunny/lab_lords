@@ -315,6 +315,19 @@ describe("StudentService Integration", () => {
       expect(results[0].name).toBe("Visible Student");
     });
 
+    it("includes active seat and shift details for student rows", async () => {
+      const { user, branch, seat, shift } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, name: "Allocated Student" });
+      await createAllocation({ seatId: seat.id, studentId: student.id, shiftId: shift.id });
+
+      const results = await StudentService.getStudentsByBranch(user.id, branch.id);
+      const row = results.find(result => result.id === student.id);
+
+      expect(row?.seatAllocations).toHaveLength(1);
+      expect(row?.seatAllocations[0].seat.label).toBe(seat.label);
+      expect(row?.seatAllocations[0].shift.name).toBe(shift.name);
+    });
+
     it("shiftId filter returns only students with active allocation in that shift", async () => {
       const { user, branch, shift, seat } = await createTestWorld({ shiftStart: "06:00", shiftEnd: "11:59" });
 
