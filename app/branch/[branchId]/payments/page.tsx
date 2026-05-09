@@ -5,10 +5,11 @@ import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
-import { useCallback, useEffect, useState, use, useRef } from "react";
+import { useCallback, useEffect, useState, use } from "react";
 import { payments } from "@/lib/api/payments";
 import type { Payment } from "@/app/generated/prisma/browser";
 import { format, addMonths, subMonths } from "date-fns";
@@ -517,46 +518,20 @@ function PaymentsContent({
 }
 
 function RowDropdown({ onWaive }: { onWaive: () => void }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) {
-                setOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
     return (
-        <div className="relative" ref={ref}>
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setOpen(!open)}
-                className={cn(
-                    "w-8 h-8 text-gray-500 hover:text-white hover:bg-white/5 transition-colors",
-                    open && "bg-white/5 text-white"
-                )}
-            >
-                <MoreHorizontal size={16} />
-            </Button>
-            {open && (
-                <div className="absolute right-0 mt-1 w-36 bg-[#1a1d27] border border-white/10 rounded-lg shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-100">
-                    <button
-                        onClick={() => {
-                            setOpen(false);
-                            onWaive();
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-white/5 flex items-center gap-2 transition-colors"
-                    >
-                        <Ban size={13} /> Waive Payment
-                    </button>
-                </div>
-            )}
-        </div>
+        <RowActionsMenu
+            buttonIcon={MoreHorizontal}
+            buttonClassName="hover:bg-white/5"
+            menuWidthClassName="w-40"
+            actions={[
+                {
+                    label: "Waive Payment",
+                    icon: Ban,
+                    variant: "warning",
+                    onClick: onWaive,
+                },
+            ]}
+        />
     );
 }
 
