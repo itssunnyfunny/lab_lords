@@ -28,6 +28,8 @@ type PaymentRow = Payment & {
     paymentMethod?: "CASH" | "UPI" | "BANK_TRANSFER" | null;
 };
 
+type PaymentTab = "DUE" | "PAID" | "WAIVED";
+
 export default function PaymentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
 
@@ -61,7 +63,7 @@ function PaymentsContent({
     const paymentGenerationHelpText = getPermissionHelpText("generate_payments");
 
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [activeTab, setActiveTab] = useState<"DUE" | "PAID">("DUE");
+    const [activeTab, setActiveTab] = useState<PaymentTab>("DUE");
     const [viewMode, setViewMode] = useDataViewMode();
 
     const [data, setData] = useState<PaymentRow[]>([]);
@@ -182,6 +184,7 @@ function PaymentsContent({
     const filteredData = data.filter(item => {
         if (activeTab === "DUE") return item.status === "DUE";
         if (activeTab === "PAID") return item.status === "PAID";
+        if (activeTab === "WAIVED") return item.status === "WAIVED";
         return true;
     });
 
@@ -214,7 +217,7 @@ function PaymentsContent({
             variant={
                 item.status === "PAID" ? "success" :
                     item.status === "DUE" ? "warning" :
-                        "danger"
+                        "purple"
             }
         >
             {item.status}
@@ -241,7 +244,7 @@ function PaymentsContent({
 
     const renderPaymentActions = (item: PaymentRow) => (
         <div className="flex flex-wrap items-center justify-end gap-2">
-            {item.status === "PAID" && (
+            {(item.status === "PAID" || item.status === "WAIVED") && (
                 <Button
                     variant="ghost"
                     size="sm"
@@ -340,12 +343,12 @@ function PaymentsContent({
 
             {/* Tabs */}
             <div className="flex flex-col gap-3 border-b border-white/10 pb-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex max-w-full items-center gap-2 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab("DUE")}
                         aria-current={activeTab === "DUE" ? "page" : undefined}
                         className={cn(
-                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                             activeTab === "DUE"
                                 ? "border-amber-500 bg-amber-500/5 text-amber-400"
                                 : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
@@ -363,7 +366,7 @@ function PaymentsContent({
                         onClick={() => setActiveTab("PAID")}
                         aria-current={activeTab === "PAID" ? "page" : undefined}
                         className={cn(
-                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                             activeTab === "PAID"
                                 ? "border-green-500 bg-green-500/5 text-green-400"
                                 : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
@@ -371,6 +374,19 @@ function PaymentsContent({
                     >
                         {activeTab === "PAID" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.65)]" />}
                         Paid History
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("WAIVED")}
+                        aria-current={activeTab === "WAIVED" ? "page" : undefined}
+                        className={cn(
+                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                            activeTab === "WAIVED"
+                                ? "border-violet-500 bg-violet-500/5 text-violet-300"
+                                : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
+                        )}
+                    >
+                        {activeTab === "WAIVED" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_8px_rgba(196,181,253,0.5)]" />}
+                        Waived History
                     </button>
                 </div>
 
