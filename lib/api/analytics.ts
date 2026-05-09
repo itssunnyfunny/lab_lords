@@ -51,6 +51,7 @@ export interface OrganizationAnalyticsSnapshot {
     payments: {
         dueCount: number;
         paidCount: number;
+        overdueCount: number;
         dueAmount: number;
         paidAmount: number;
     };

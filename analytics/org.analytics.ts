@@ -46,6 +46,7 @@ export async function getOrganizationHealthSnapshot(
 
   let dueCount = 0
   let paidCount = 0
+  let overdueCount = 0
   let dueAmount = 0
   let paidAmount = 0
 
@@ -58,6 +59,7 @@ export async function getOrganizationHealthSnapshot(
 
     dueCount += b.snapshot.payments.dueCount
     paidCount += b.snapshot.payments.paidCount
+    overdueCount += b.snapshot.payments.overdueCount
     dueAmount += b.snapshot.payments.dueAmount
     paidAmount += b.snapshot.payments.paidAmount
   }
@@ -85,6 +87,7 @@ export async function getOrganizationHealthSnapshot(
     payments: {
       dueCount,
       paidCount,
+      overdueCount,
       dueAmount,
       paidAmount,
     },
@@ -119,14 +122,14 @@ export async function getOrgSnapshot(
       branchId: b.branchId,
       branchName: b.branchName,
       seatUtilizationPercent: b.snapshot.seats.overall.utilizationRatio * 100,
-      overduePayments: b.snapshot.payments.dueCount,
+      overduePayments: b.snapshot.payments.overdueCount,
     })),
 
     totals: {
       totalBranches: health.organization.totalBranches,
       totalStudents: health.students.total,
       totalSeats: health.seats.totalSeats,
-      totalOverduePayments: health.payments.dueCount,
+      totalOverduePayments: health.payments.overdueCount,
     },
 
     asOf: date,

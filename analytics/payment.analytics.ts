@@ -1,7 +1,11 @@
 // analytics/payment.analytics.ts
 
 import { prisma } from "@/lib/prisma"
-import { overdueCutoff } from "@/lib/utils/paymentStatus"
+import {
+  daysPastDue,
+  dueAsOfCutoff,
+  isOverdue,
+} from "@/lib/utils/paymentStatus"
 import { endOfMonth, startOfMonth } from "date-fns"
 
 type AsOf = Date | undefined
@@ -16,16 +20,76 @@ function resolvePeriod(period?: AnalyticsPeriod): AnalyticsPeriod {
 }
 
 function dayEnd(date: Date): Date {
-  const d = new Date(date)
-  d.setHours(23, 59, 59, 999)
-  return d
+  return dueAsOfCutoff(date)
+}
+
+export async function getOpenPaymentLedger(
+  branchId: string,
+  asOf?: AsOf
+) {
+  const date = resolveAsOf(asOf)
+  const dueDateEnd = dueAsOfCutoff(date)
+
+  const rows = await prisma.payment.findMany({
+    where: {
+      branchId,
+      status: "DUE",
+      dueDate: { lte: dueDateEnd },
+    },
+    select: {
+      id: true,
+      studentId: true,
+      amount: true,
+      dueDate: true,
+      type: true,
+      student: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+        },
+      },
+    },
+    orderBy: {
+      dueDate: "asc",
+    },
+  })
+
+  const duePayments = rows.map((payment) => {
+    const paymentDaysPastDue = daysPastDue(payment.dueDate, date)
+    const paymentIsOverdue = isOverdue(payment.dueDate, date)
+
+    return {
+      paymentId: payment.id,
+      studentId: payment.studentId,
+      studentName: payment.student.name,
+      phone: payment.student.phone,
+      dueDate: payment.dueDate,
+      amount: payment.amount,
+      type: payment.type,
+      daysPastDue: paymentDaysPastDue,
+      daysOverdue: paymentDaysPastDue,
+      isOverdue: paymentIsOverdue,
+    }
+  })
+  const overduePayments = duePayments.filter((payment) => payment.isOverdue)
+
+  return {
+    asOf: date,
+    dueCount: duePayments.length,
+    dueAmount: duePayments.reduce((sum, payment) => sum + payment.amount, 0),
+    overdueCount: overduePayments.length,
+    overdueAmount: overduePayments.reduce((sum, payment) => sum + payment.amount, 0),
+    duePayments,
+    overduePayments,
+  }
 }
 
 /**
  * Period-aware finance metrics for analytics UI.
  *
  * Revenue/collected respect the selected period. Due is intentionally all
- * unpaid due up to the as-of date so old dues stay visible in every view.
+ * unpaid due up to the as-of day so old dues stay visible in every view.
  */
 export async function getPaymentPeriodStats(
   branchId: string,
@@ -37,7 +101,7 @@ export async function getPaymentPeriodStats(
   const periodStart = selectedPeriod === "month" ? startOfMonth(date) : undefined
   const periodEnd = selectedPeriod === "month" ? endOfMonth(date) : dayEnd(date)
 
-  const [revenueRows, collectedRows, dueRows] = await Promise.all([
+  const [revenueRows, collectedRows, openLedger] = await Promise.all([
     prisma.payment.findMany({
       where: {
         branchId,
@@ -64,19 +128,12 @@ export async function getPaymentPeriodStats(
       },
       select: { amount: true },
     }),
-    prisma.payment.findMany({
-      where: {
-        branchId,
-        status: "DUE",
-        dueDate: { lte: dayEnd(date) },
-      },
-      select: { amount: true },
-    }),
+    getOpenPaymentLedger(branchId, date),
   ])
 
   const revenueAmount = revenueRows.reduce((sum, p) => sum + p.amount, 0)
   const paidAmount = collectedRows.reduce((sum, p) => sum + p.amount, 0)
-  const dueAmount = dueRows.reduce((sum, p) => sum + p.amount, 0)
+  const dueAmount = openLedger.dueAmount
 
   return {
     period: selectedPeriod,
@@ -88,181 +145,102 @@ export async function getPaymentPeriodStats(
 }
 
 /**
- * Snapshot of payment state for a branch
+ * Snapshot of payment state for a branch.
  */
 export async function getPaymentStats(
   branchId: string,
   asOf?: AsOf
 ) {
   const date = resolveAsOf(asOf)
+  const dateEnd = dueAsOfCutoff(date)
 
-  const payments = await prisma.payment.findMany({
-    where: {
-      branchId,
-      status: { not: "WAIVED" }, // WAIVED = resolved debt, exclude from analytics
-      OR: [
-        {
-          dueDate: {
-            lte: date,
-          },
-        },
-        {
-          status: "PAID",
-          paidAt: {
-            lte: date
-          }
-        }
-      ]
-    },
-    select: {
-      status: true,
-      amount: true,
-      dueDate: true,
-      type: true,
-    },
-  })
+  const [openLedger, paidRows] = await Promise.all([
+    getOpenPaymentLedger(branchId, date),
+    prisma.payment.findMany({
+      where: {
+        branchId,
+        status: "PAID",
+        OR: [
+          { paidAt: { lte: dateEnd } },
+          { paidAt: null, dueDate: { lte: dateEnd } },
+        ],
+      },
+      select: {
+        amount: true,
+      },
+    }),
+  ])
 
-  let dueCount = 0
-  let paidCount = 0
-  let overdueCount = 0
-  let dueAmount = 0
-  let paidAmount = 0
-
-  for (const p of payments) {
-    if (p.status === "DUE") {
-      dueCount++
-      dueAmount += p.amount
-
-      // Canonical Overdue Rule: DUE + MONTHLY + dueDate > 7 days ago
-      if (p.type === "MONTHLY" && p.dueDate < overdueCutoff(date)) {
-        overdueCount++
-      }
-    } else if (p.status === "PAID") {
-      paidCount++
-      paidAmount += p.amount
-    }
-  }
+  const paidAmount = paidRows.reduce((sum, p) => sum + p.amount, 0)
 
   return {
-    dueCount,
-    paidCount,
-    overdueCount,
-    dueAmount,
+    dueCount: openLedger.dueCount,
+    paidCount: paidRows.length,
+    overdueCount: openLedger.overdueCount,
+    dueAmount: openLedger.dueAmount,
     paidAmount,
+    overdueAmount: openLedger.overdueAmount,
   }
 }
 
-
 /**
- * List of students who are due as of a date
- * Structured for AI + UI
+ * List of students who are due as of a date.
+ * Structured for AI and UI.
  */
 export async function getDueStudents(
   branchId: string,
   asOf?: AsOf
 ) {
-  const date = resolveAsOf(asOf)
+  const ledger = await getOpenPaymentLedger(branchId, asOf)
 
-  const payments = await prisma.payment.findMany({
-    where: {
-      branchId,
-      status: "DUE", // WAIVED excluded — not status "DUE" by definition
-      dueDate: {
-        lte: date,
-      },
-    },
-    select: {
-      studentId: true,
-      dueDate: true,
-      amount: true,
-    },
-  })
-
-  return payments.map((p) => {
-    const daysOverdue = Math.max(
-      0,
-      Math.floor(
-        (date.getTime() - p.dueDate.getTime()) / (1000 * 60 * 60 * 24)
-      )
-    )
-
-    return {
-      studentId: p.studentId,
-      dueDate: p.dueDate,
-      amount: p.amount,
-      daysOverdue,
-    }
-  })
+  return ledger.duePayments.map((payment) => ({
+    studentId: payment.studentId,
+    dueDate: payment.dueDate,
+    amount: payment.amount,
+    daysOverdue: payment.daysPastDue,
+    isOverdue: payment.isOverdue,
+  }))
 }
 
 /**
- * Detailed list of overdue payments for manual follow-up
- * Canonical Rule: status = DUE AND dueDate < today AND type = MONTHLY
+ * Detailed list of overdue payments for manual follow-up.
  */
 export async function getOverduePayments(
   branchId: string,
   asOf?: AsOf
 ) {
-  const date = resolveAsOf(asOf)
+  const ledger = await getOpenPaymentLedger(branchId, asOf)
 
-  // 1. Get raw payments
-  const payments = await prisma.payment.findMany({
-    where: {
-      branchId,
-      status: "DUE",
-      dueDate: {
-        lt: overdueCutoff(date), // 7-day grace: only flag after 7 days past dueDate
-      },
-      type: "MONTHLY"
-    },
-    select: {
-      id: true,
-      amount: true,
-      dueDate: true,
-      student: {
-        select: {
-          id: true,
-          name: true,
-          phone: true
-        }
-      }
-    },
-    orderBy: {
-      dueDate: 'asc' // Oldest due date first
-    }
-  })
-
-  // 2. Format for UI
   return {
-    count: payments.length,
-    payments: payments.map(p => ({
-      paymentId: p.id,
-      studentId: p.student.id,
-      studentName: p.student.name,
-      phone: p.student.phone,
+    count: ledger.overduePayments.length,
+    payments: ledger.overduePayments.map(p => ({
+      paymentId: p.paymentId,
+      studentId: p.studentId,
+      studentName: p.studentName,
+      phone: p.phone,
       dueDate: p.dueDate,
-      amount: p.amount
+      amount: p.amount,
+      daysOverdue: p.daysOverdue,
     }))
   }
 }
 
 /**
- * AI-ready snapshot including summary and buckets
+ * AI-ready snapshot including summary and buckets.
  */
 export async function getPaymentSnapshot(
   branchId: string,
   asOf?: AsOf
 ) {
   const date = resolveAsOf(asOf)
-  const [stats, dueStudents] = await Promise.all([
+  const [stats, ledger] = await Promise.all([
     getPaymentStats(branchId, date),
-    getDueStudents(branchId, date)
+    getOpenPaymentLedger(branchId, date)
   ])
 
-  // Calculate overdue buckets
   const buckets = new Map<number, number>()
-  for (const student of dueStudents) {
-    const days = student.daysOverdue
+  for (const payment of ledger.overduePayments) {
+    const days = payment.daysOverdue
     buckets.set(days, (buckets.get(days) || 0) + 1)
   }
 
