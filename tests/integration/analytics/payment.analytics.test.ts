@@ -1,6 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { addMonths } from "date-fns";
-import { getPaymentPeriodStats } from "@/analytics/payment.analytics";
+import {
+  getOverduePayments,
+  getPaymentPeriodStats,
+  getPaymentSnapshot,
+  getPaymentStats,
+} from "@/analytics/payment.analytics";
+import { getOrgSnapshot } from "@/analytics/org.analytics";
 import { getSeatUtilizationTrend } from "@/analytics/trends/seat.trends";
 import { GET as getBranchSnapshot } from "@/app/api/analytics/branch/[branchId]/snapshot/route";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
@@ -121,6 +127,144 @@ describe("Analytics corrections", () => {
       expect(allTime.revenueAmount).toBe(1200);
       expect(allTime.paidAmount).toBe(900);
       expect(allTime.dueAmount).toBe(monthly.dueAmount);
+    });
+  });
+
+  describe("canonical due and overdue payment counts", () => {
+    it("keeps analytics, overdue list, and AI payment snapshot on the same ledger", async () => {
+      const asOf = new Date(2026, 4, 9, 12, 0);
+      const { branch } = await createTestWorld();
+      const students = await Promise.all([
+        createStudent({ branchId: branch.id, name: "Overdue monthly" }),
+        createStudent({ branchId: branch.id, name: "Grace monthly" }),
+        createStudent({ branchId: branch.id, name: "Admission due" }),
+        createStudent({ branchId: branch.id, name: "Future monthly" }),
+        createStudent({ branchId: branch.id, name: "Paid monthly" }),
+        createStudent({ branchId: branch.id, name: "Waived monthly" }),
+      ]);
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: students[0].id,
+        dueDate: new Date(2026, 4, 1, 23, 59),
+        periodStart: new Date(2026, 3, 1),
+        periodEnd: new Date(2026, 4, 1),
+        amount: 100,
+        status: "DUE",
+        type: "MONTHLY",
+      });
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: students[1].id,
+        dueDate: new Date(2026, 4, 2),
+        periodStart: new Date(2026, 3, 2),
+        periodEnd: new Date(2026, 4, 2),
+        amount: 200,
+        status: "DUE",
+        type: "MONTHLY",
+      });
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: students[2].id,
+        dueDate: new Date(2026, 3, 1),
+        periodStart: new Date(2026, 3, 1),
+        periodEnd: new Date(2026, 3, 1),
+        amount: 300,
+        status: "DUE",
+        type: "ADMISSION",
+      });
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: students[3].id,
+        dueDate: new Date(2026, 4, 10),
+        periodStart: new Date(2026, 4, 10),
+        periodEnd: new Date(2026, 5, 10),
+        amount: 400,
+        status: "DUE",
+        type: "MONTHLY",
+      });
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: students[4].id,
+        dueDate: new Date(2026, 4, 1),
+        periodStart: new Date(2026, 3, 1),
+        periodEnd: new Date(2026, 4, 1),
+        amount: 500,
+        status: "PAID",
+        type: "MONTHLY",
+      });
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: students[5].id,
+        dueDate: new Date(2026, 3, 1),
+        periodStart: new Date(2026, 2, 1),
+        periodEnd: new Date(2026, 3, 1),
+        amount: 600,
+        status: "WAIVED",
+        type: "MONTHLY",
+      });
+
+      const [stats, overdue, snapshot, periodStats] = await Promise.all([
+        getPaymentStats(branch.id, asOf),
+        getOverduePayments(branch.id, asOf),
+        getPaymentSnapshot(branch.id, asOf),
+        getPaymentPeriodStats(branch.id, asOf, "month"),
+      ]);
+
+      expect(stats.dueCount).toBe(3);
+      expect(stats.dueAmount).toBe(600);
+      expect(stats.overdueCount).toBe(2);
+      expect(stats.overdueAmount).toBe(400);
+      expect(periodStats.dueAmount).toBe(stats.dueAmount);
+
+      expect(overdue.count).toBe(stats.overdueCount);
+      expect(overdue.payments).toHaveLength(stats.overdueCount);
+      expect(overdue.payments.map(payment => payment.studentId)).toEqual([students[2].id, students[0].id]);
+
+      expect(snapshot.summary.totalDue).toBe(stats.dueAmount);
+      expect(snapshot.summary.totalOverdue).toBe(stats.overdueCount);
+      expect(snapshot.overdueBuckets).toEqual([{ days: 38, count: 1 }, { days: 8, count: 1 }]);
+    });
+
+    it("uses overdue counts, not due counts, in organization AI snapshots", async () => {
+      const asOf = new Date(2026, 4, 9, 12, 0);
+      const { org, branch } = await createTestWorld();
+      const students = await Promise.all([
+        createStudent({ branchId: branch.id, name: "Overdue" }),
+        createStudent({ branchId: branch.id, name: "Due in grace" }),
+      ]);
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: students[0].id,
+        dueDate: new Date(2026, 4, 1),
+        periodStart: new Date(2026, 3, 1),
+        periodEnd: new Date(2026, 4, 1),
+        amount: 100,
+        status: "DUE",
+        type: "MONTHLY",
+      });
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: students[1].id,
+        dueDate: new Date(2026, 4, 2),
+        periodStart: new Date(2026, 3, 2),
+        periodEnd: new Date(2026, 4, 2),
+        amount: 100,
+        status: "DUE",
+        type: "MONTHLY",
+      });
+
+      const snapshot = await getOrgSnapshot(org.id, asOf);
+
+      expect(snapshot.branches[0].overduePayments).toBe(1);
+      expect(snapshot.totals.totalOverduePayments).toBe(1);
     });
   });
 

@@ -5,6 +5,7 @@ import { generateBranchHealthReport } from "../branchHealthReport"
 import { AIStructuredBranchReport } from "../contracts/structuredReport.contract"
 import { prisma } from "@/lib/prisma"
 import type { Prisma } from "@/app/generated/prisma/client"
+import { startOfDay } from "date-fns"
 
 
 export interface BranchAIResponse {
@@ -14,6 +15,7 @@ export interface BranchAIResponse {
         branchId: string
         branchName: string
         generatedAt: string
+        paymentOverdueRuleVersion: string
     }
 
     hasPendingChanges?: boolean
@@ -36,6 +38,7 @@ export interface BranchAIResponse {
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const STUCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - force reset if stuck running
+const PAYMENT_OVERDUE_RULE_VERSION = "due-after-7-days-any-due-v2";
 
 export async function runBranchAI(
     branchId: string
@@ -55,6 +58,9 @@ export async function runBranchAI(
         where: { branchId },
         orderBy: { createdAt: 'desc' }
     });
+    const lastReportData = lastReport?.data as { meta?: { paymentOverdueRuleVersion?: string } } | undefined;
+    const lastReportUsesCurrentPaymentRule =
+        lastReportData?.meta?.paymentOverdueRuleVersion === PAYMENT_OVERDUE_RULE_VERSION;
 
     const lastCalledAt = branch.aiLastCalledAt ? branch.aiLastCalledAt.getTime() : 0;
     const timeSinceLastCall = now.getTime() - lastCalledAt;
@@ -62,6 +68,9 @@ export async function runBranchAI(
     // Status Calculations
     const isRateLimited = timeSinceLastCall < CACHE_TTL_MS;
     const hasDataChanged = branch.lastDataChange.getTime() > lastCalledAt;
+    const lastReportIsFromToday = lastReport
+        ? startOfDay(lastReport.createdAt).getTime() === startOfDay(now).getTime()
+        : false;
 
     // Check if currently running (and not stuck)
     const isRunning = branch.aiStatus === "RUNNING";
@@ -89,11 +98,11 @@ export async function runBranchAI(
         throw new Error("AI is currently generating. Please wait.");
     }
 
-    if (isRateLimited && !runsForTooLong) {
+    if (isRateLimited && lastReportIsFromToday && lastReportUsesCurrentPaymentRule && !runsForTooLong) {
         // Normal rate limit block
         console.log(`[AI RATE LIMIT] Blocked for ${branchId} (Wait ${((CACHE_TTL_MS - timeSinceLastCall) / 1000).toFixed(0)}s)`);
         shouldRun = false;
-    } else if (!hasDataChanged && lastReport && !runsForTooLong) {
+    } else if (!hasDataChanged && lastReport && lastReportIsFromToday && lastReportUsesCurrentPaymentRule && !runsForTooLong) {
         console.log(`[AI STALENESS] Blocked for ${branchId} (No data change since last AI call)`);
         shouldRun = false;
     }
@@ -150,6 +159,7 @@ export async function runBranchAI(
                 branchId,
                 branchName: snapshot.branchName,
                 generatedAt: new Date().toISOString(),
+                paymentOverdueRuleVersion: PAYMENT_OVERDUE_RULE_VERSION,
             },
 
             ...responseExtras,

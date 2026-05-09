@@ -4,7 +4,6 @@ import { use, useEffect, useState } from "react";
 import { analytics, BranchSnapshot } from "@/lib/api/analytics";
 import { branches } from "@/lib/api/branches";
 import { format } from "date-fns";
-import { isOverdue } from "@/lib/utils/paymentStatus";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { OverdueTable } from "@/components/dashboard/OverdueTable";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -156,7 +155,7 @@ export default function BranchDashboardPage({
             setError(null);
             try {
                 const monthStr = format(new Date(), "yyyy-MM");
-                const [snapshot, allStudents, allocationsRes, monthPayments] =
+                const [snapshot, allStudents, allocationsRes, monthPayments, overduePaymentsRes] =
                     await Promise.all([
                         access.permissions.analytics ? analytics.getSnapshot(branchId) : Promise.resolve(null),
                         access.permissions.students ? branches.getStudents(branchId) : Promise.resolve([]),
@@ -170,24 +169,18 @@ export default function BranchDashboardPage({
                                 .then((r) => (r.ok ? r.json() : []))
                                 .catch(() => [])
                             : Promise.resolve([]),
+                        access.permissions.view_payments
+                            ? fetch(`/api/branches/${branchId}/payments/overdue`)
+                                .then((r) => (r.ok ? r.json() : { payments: [] }))
+                                .catch(() => ({ payments: [] }))
+                            : Promise.resolve({ payments: [] }),
                     ]);
                 
                 const paymentsData = monthPayments as PaymentWithStudent[];
                 const allocationsData = allocationsRes as AllocationSummary[];
                 const paidPaymentsRes = paymentsData.filter((p) => p.status === "PAID");
-                const overdueRes = {
-                    payments: paymentsData
-                        .filter((p) => p.status === "DUE" && isOverdue(p.dueDate))
-                        .map((p) => ({
-                            paymentId: p.id,
-                            studentId: p.student?.id ?? "",
-                            studentName: p.student?.name ?? "—",
-                            phone: p.student?.phone ?? null,
-                            dueDate: new Date(p.dueDate).toISOString(),
-                            amount: p.amount
-                        }))
-                };
-
+                const overdueRes = overduePaymentsRes as { payments?: OverduePayment[] };
+                const overduePayments = overdueRes.payments ?? [];
                 // Sort students by joinedAt/createdAt desc, take first 5
                 const sorted = [...allStudents].sort((a, b) => {
                     const da = new Date(a.joinedAt ?? a.createdAt ?? 0).getTime();
@@ -218,10 +211,10 @@ export default function BranchDashboardPage({
                         ts: new Date(p.paidAt ?? p.updatedAt ?? new Date()).toISOString(),
                     })),
                     // Single overdue aggregate event (if any)
-                    ...(overdueRes.payments?.length > 0
+                    ...(overduePayments.length > 0
                         ? [{
                             type: "overdue" as const,
-                            count: overdueRes.payments.length,
+                            count: overduePayments.length,
                             ts: new Date().toISOString(),
                         }]
                         : []),
@@ -240,7 +233,7 @@ export default function BranchDashboardPage({
 
                 setData({
                     snapshot,
-                    overduePayments: overdueRes.payments ?? [],
+                    overduePayments,
                     recentStudents: sorted.slice(0, 5),
                     activityItems,
                     branchName: access.branchName,
