@@ -6,7 +6,7 @@ import {
   getPaymentSnapshot,
   getPaymentStats,
 } from "@/analytics/payment.analytics";
-import { getOrgSnapshot } from "@/analytics/org.analytics";
+import { getOrganizationHealthSnapshot, getOrgSnapshot } from "@/analytics/org.analytics";
 import { getSeatUtilizationTrend } from "@/analytics/trends/seat.trends";
 import { GET as getBranchSnapshot } from "@/app/api/analytics/branch/[branchId]/snapshot/route";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
@@ -293,6 +293,41 @@ describe("Analytics corrections", () => {
     });
   });
 
+  describe("getOrganizationHealthSnapshot", () => {
+    it("rolls up seat utilization from slots instead of distinct physical seats", async () => {
+      const asOf = new Date("2026-06-01T00:00:00.000Z");
+      const { org, branch, shift, seat } = await createTestWorld();
+      const secondShift = await createShift({
+        branchId: branch.id,
+        name: "Evening",
+        startTime: "17:00",
+        endTime: "22:00",
+      });
+      const secondSeat = await createSeat({ branchId: branch.id, label: "S2" });
+
+      const students = await Promise.all([
+        createStudent({ branchId: branch.id, name: "A", joinedAt: addMonths(asOf, -1) }),
+        createStudent({ branchId: branch.id, name: "B", joinedAt: addMonths(asOf, -1) }),
+        createStudent({ branchId: branch.id, name: "C", joinedAt: addMonths(asOf, -1) }),
+      ]);
+
+      await createAllocation({ seatId: seat.id, studentId: students[0].id, shiftId: shift.id });
+      await createAllocation({ seatId: seat.id, studentId: students[1].id, shiftId: secondShift.id });
+      await createAllocation({ seatId: secondSeat.id, studentId: students[2].id, shiftId: shift.id });
+
+      const snapshot = await getOrganizationHealthSnapshot(org.id, asOf);
+
+      expect(snapshot.seats.totalSeats).toBe(4);
+      expect(snapshot.seats.occupiedSeats).toBe(3);
+      expect(snapshot.seats.utilizationRatio).toBe(0.75);
+      expect(snapshot.branches[0].snapshot.seats.overall.utilizationRatio).toBe(0.75);
+
+      const aiSnapshot = await getOrgSnapshot(org.id, asOf);
+      expect(aiSnapshot.branches[0].seatUtilizationPercent).toBe(75);
+      expect(aiSnapshot.totals.totalSeats).toBe(2);
+    });
+  });
+
   describe("branch analytics route authorization", () => {
     it("rejects users without analytics access", async () => {
       const { branch } = await createTestWorld();
@@ -305,6 +340,42 @@ describe("Analytics corrections", () => {
       );
 
       expect(response.status).toBe(403);
+    });
+
+    it("returns slot-based utilization counts for branch cards", async () => {
+      const asOf = new Date("2026-06-01T00:00:00.000Z");
+      const { user, branch, shift, seat } = await createTestWorld();
+      authMock.sessionUser = { id: user.id, email: user.email };
+      const secondShift = await createShift({
+        branchId: branch.id,
+        name: "Evening",
+        startTime: "17:00",
+        endTime: "22:00",
+      });
+      const secondSeat = await createSeat({ branchId: branch.id, label: "S2" });
+
+      const students = await Promise.all([
+        createStudent({ branchId: branch.id, name: "A", joinedAt: addMonths(asOf, -1) }),
+        createStudent({ branchId: branch.id, name: "B", joinedAt: addMonths(asOf, -1) }),
+        createStudent({ branchId: branch.id, name: "C", joinedAt: addMonths(asOf, -1) }),
+      ]);
+
+      await createAllocation({ seatId: seat.id, studentId: students[0].id, shiftId: shift.id });
+      await createAllocation({ seatId: seat.id, studentId: students[1].id, shiftId: secondShift.id });
+      await createAllocation({ seatId: secondSeat.id, studentId: students[2].id, shiftId: shift.id });
+
+      const response = await getBranchSnapshot(
+        new Request(`http://localhost/api/analytics/branch/${branch.id}/snapshot?period=month`),
+        { params: Promise.resolve({ branchId: branch.id }) }
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.assignedSeats).toBe(3);
+      expect(body.totalSeats).toBe(4);
+      expect(body.occupancyRate).toBe(75);
+      expect(body.seatDetails.totalUsedSlots).toBe(3);
+      expect(body.seatDetails.totalShiftCapacity).toBe(4);
     });
 
     it("accepts period=month for authorized owners", async () => {

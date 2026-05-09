@@ -27,8 +27,8 @@ export async function GET(
         ])
 
         // Transform to match BranchSnapshot interface in lib/api/analytics.ts
-        const totalSeats = health.seats.overall.totalSeats;
-        const assignedSeats = health.seats.overall.occupiedSeats;
+        const totalSeats = health.seats.occupancySnapshot.totalShiftCapacity;
+        const assignedSeats = health.seats.occupancySnapshot.totalUsedSlots;
         const totalStudents = health.students.status.active + health.students.status.inactive;
 
         // Calculate financial metrics

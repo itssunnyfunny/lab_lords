@@ -96,6 +96,8 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
 
     const collectionBase = (snapshot?.payments.paidAmount ?? 0) + (snapshot?.payments.dueAmount ?? 0);
     const collectionRate = collectionBase > 0 ? (snapshot?.payments.paidAmount ?? 0) / collectionBase : 0;
+    const usedSeatSlots = snapshot?.seats.usedSlots ?? snapshot?.seats.occupiedSeats ?? 0;
+    const totalSeatSlots = snapshot?.seats.totalSlots ?? snapshot?.seats.totalSeats ?? 0;
 
     return (
         <div className="space-y-8 p-4 md:p-8 text-white fade-in">
@@ -137,7 +139,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                     icon={LayoutGrid}
                     label="Seat Utilization"
                     value={percent(snapshot?.seats.utilizationRatio ?? 0)}
-                    detail={`${snapshot?.seats.occupiedSeats ?? 0} of ${snapshot?.seats.totalSeats ?? 0} seats occupied`}
+                    detail={`${usedSeatSlots} of ${totalSeatSlots} slots used`}
                 />
                 <MetricCard
                     icon={CreditCard}
@@ -155,7 +157,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                                 <p className="text-3xl font-bold text-white">{percent(snapshot?.seats.utilizationRatio ?? 0)}</p>
                                 <p className="mt-1 text-sm text-gray-500">Overall utilization</p>
                             </div>
-                            <Badge variant="cyan">{snapshot?.seats.occupiedSeats ?? 0} occupied</Badge>
+                            <Badge variant="cyan">{usedSeatSlots} slots used</Badge>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-white/5">
                             <div

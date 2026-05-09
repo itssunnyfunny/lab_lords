@@ -4,6 +4,7 @@ export interface BranchSnapshot {
     period?: AnalyticsPeriod;
     totalStudents: number;
     activeStudents: number;
+    // Slot-based values: used shift slots out of total shift capacity.
     assignedSeats: number;
     totalSeats: number;
     occupancyRate: number;
@@ -39,9 +40,13 @@ export interface OrganizationAnalyticsSnapshot {
         totalBranches: number;
     };
     seats: {
+        // Slot-based values: used shift slots out of total shift capacity.
         totalSeats: number;
         occupiedSeats: number;
         utilizationRatio: number;
+        physicalSeats?: number;
+        totalSlots?: number;
+        usedSlots?: number;
     };
     students: {
         active: number;
