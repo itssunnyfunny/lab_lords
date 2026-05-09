@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { callGemini } from "../llm/gemini.client"
 import { format } from "date-fns"
+import { getOverduePayments } from "@/analytics/payment.analytics"
 
 export interface OverdueMessageDraft {
   studentId: string
@@ -17,7 +18,7 @@ const ACTION = "FOLLOW_UP_OVERDUE_PAYMENTS"
  * Standalone function — independent from the AI reports pipeline.
  *
  * Logic:
- * 1. Fetch all DUE payments for the branch where dueDate < today (actual overdue).
+ * 1. Fetch all DUE payments that match the shared 7-day overdue rule.
  * 2. For each overdue payment, check if a MessageDraft already exists in DB.
  * 3. Return cached drafts immediately (skip Gemini).
  * 4. Batch the remaining students → call Gemini once with name + dueDate.
@@ -27,21 +28,10 @@ export async function draftOverdueMessages(
   branchId: string,
   language: "en" | "hi" = "en"
 ): Promise<OverdueMessageDraft[]> {
-  const today = new Date()
+  const overdueResult = await getOverduePayments(branchId)
+  const overduePayments = overdueResult.payments
 
-  // 1️⃣ Fetch all DUE payments that are actually overdue (dueDate < today)
-  const overduePayments = await prisma.payment.findMany({
-    where: {
-      branchId,
-      status: "DUE",
-      dueDate: { lt: today }
-    },
-    include: {
-      student: { select: { id: true, name: true } }
-    },
-    orderBy: { dueDate: "asc" }
-  })
-
+  // Use the same overdue ledger as payments, analytics, and reports.
   if (overduePayments.length === 0) {
     return []
   }
@@ -69,7 +59,7 @@ export async function draftOverdueMessages(
 
       results.push({
         studentId: payment.studentId,
-        studentName: payment.student.name,
+        studentName: payment.studentName,
         dueDate: payment.dueDate.toISOString(),
         language: existing.language as "en" | "hi",
         message: existing.message,
@@ -79,7 +69,7 @@ export async function draftOverdueMessages(
       // 4️⃣ Queue for generation
       needsGeneration.push({
         studentId: payment.studentId,
-        studentName: payment.student.name,
+        studentName: payment.studentName,
         dueDate: payment.dueDate,
         amount: payment.amount
       })
