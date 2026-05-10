@@ -79,7 +79,28 @@ export class SeatService {
                     },
                     include: {
                         student: {
-                            select: { name: true },
+                            select: {
+                                id: true,
+                                name: true,
+                                phone: true,
+                                status: true,
+                                monthlyFee: true,
+                            },
+                        },
+                        shift: {
+                            select: {
+                                id: true,
+                                name: true,
+                                startTime: true,
+                                endTime: true,
+                                isReserved: true,
+                            },
+                        },
+                        multiShift: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
                         },
                     },
                 },
