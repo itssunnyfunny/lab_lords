@@ -1,7 +1,6 @@
 "use client";
 
-import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
-import { DashboardButton } from "@/components/dashboard/DashboardButton";
+import { AppButton, AppPanel } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { ArrowRight, CalendarCheck, CheckCircle2, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -53,18 +52,18 @@ export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps
     const router = useRouter();
 
     return (
-        <DashboardPanel
+        <AppPanel
             title="Shift occupancy"
             description="Slot usage across configured shift capacity."
             action={
-                <DashboardButton
+                <AppButton
                     onClick={() => router.push(`/branch/${branchId}/shifts`)}
                     variant="quiet"
                     size="sm"
                     rightIcon={ArrowRight}
                 >
                     Manage
-                </DashboardButton>
+                </AppButton>
             }
             contentClassName="p-0"
             className="h-full"
@@ -125,6 +124,6 @@ export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps
                     })}
                 </div>
             )}
-        </DashboardPanel>
+        </AppPanel>
     );
 }

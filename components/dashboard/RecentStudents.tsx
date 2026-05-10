@@ -1,7 +1,6 @@
 "use client";
 
-import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
-import { DashboardButton } from "@/components/dashboard/DashboardButton";
+import { AppButton, AppPanel } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowRight, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -34,18 +33,18 @@ export function RecentStudents({ students, branchId }: RecentStudentsProps) {
     const visibleStudents = students.slice(0, 6);
 
     return (
-        <DashboardPanel
+        <AppPanel
             title="New enrollments"
             description="Recently added student profiles."
             action={
-                <DashboardButton
+                <AppButton
                     onClick={() => router.push(`/branch/${branchId}/students`)}
                     variant="quiet"
                     size="sm"
                     rightIcon={ArrowRight}
                 >
                     Students
-                </DashboardButton>
+                </AppButton>
             }
             contentClassName="p-0"
             className="h-full"
@@ -92,6 +91,6 @@ export function RecentStudents({ students, branchId }: RecentStudentsProps) {
                     })}
                 </div>
             )}
-        </DashboardPanel>
+        </AppPanel>
     );
 }

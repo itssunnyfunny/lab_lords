@@ -1,9 +1,8 @@
 "use client";
 
 import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
-import { DashboardButton } from "@/components/dashboard/DashboardButton";
-import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { AppButton, AppPanel, PageShell } from "@/components/ui";
 import { analytics, OrganizationAnalyticsSnapshot } from "@/lib/api/analytics";
 import { BranchWithCounts, organizations } from "@/lib/api/organizations";
 import {
@@ -27,7 +26,7 @@ function Skeleton({ className }: { className?: string }) {
 
 function DashboardSkeleton() {
     return (
-        <div className="mx-auto w-full max-w-[1600px] space-y-5">
+        <PageShell>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="space-y-2">
                     <Skeleton className="h-4 w-48" />
@@ -42,7 +41,7 @@ function DashboardSkeleton() {
                 <Skeleton className="h-32" />
                 <Skeleton className="h-96" />
             </div>
-        </div>
+        </PageShell>
     );
 }
 
@@ -165,7 +164,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
     if (loading) return <DashboardSkeleton />;
 
     return (
-        <div className="mx-auto w-full max-w-[1600px] space-y-5 text-white">
+        <PageShell>
             {error && (
                 <div className="flex items-center gap-3 rounded-[8px] border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
                     <AlertCircle size={16} className="shrink-0" />
@@ -188,17 +187,17 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                     </p>
                 </div>
 
-                <DashboardButton
+                <AppButton
                     onClick={() => setCreateDialogOpen(true)}
                     variant="primary"
                     icon={Plus}
                     className="w-fit"
                 >
                     Create branch
-                </DashboardButton>
+                </AppButton>
             </header>
 
-            <DashboardPanel
+            <AppPanel
                 title="Choose branch"
                 description="Select a branch to continue to students, payments, seats, shifts, and follow-ups."
                 action={
@@ -221,14 +220,14 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                 Create your first branch to start using the operational dashboard.
                             </p>
                         </div>
-                        <DashboardButton
+                        <AppButton
                             onClick={() => setCreateDialogOpen(true)}
                             variant="primary"
                             size="sm"
                             icon={Plus}
                         >
                             Create branch
-                        </DashboardButton>
+                        </AppButton>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -303,7 +302,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                         })}
                     </div>
                 )}
-            </DashboardPanel>
+            </AppPanel>
 
             <section className="space-y-3">
                 <div>
@@ -349,7 +348,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
             </section>
 
             <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-                <DashboardPanel
+                <AppPanel
                     title="Revenue coverage"
                     description="Default branch fees and actual payment collection signal."
                 >
@@ -369,9 +368,9 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             </div>
                         </div>
                     </div>
-                </DashboardPanel>
+                </AppPanel>
 
-                <DashboardPanel
+                <AppPanel
                     title="Attention queue"
                     description="Branches with overdue payment pressure."
                     contentClassName="p-0"
@@ -405,9 +404,9 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             ))}
                         </div>
                     )}
-                </DashboardPanel>
+                </AppPanel>
 
-                <DashboardPanel title="Setup footprint" contentClassName="p-0">
+                <AppPanel title="Setup footprint" contentClassName="p-0">
                     <div className="divide-y divide-white/10">
                         <div className="flex items-center justify-between px-4 py-3">
                             <span className="flex items-center gap-2 text-sm text-gray-400">
@@ -433,7 +432,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             </span>
                         </div>
                     </div>
-                </DashboardPanel>
+                </AppPanel>
             </section>
 
             <CreateBranchDialog
@@ -442,6 +441,6 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 organizationId={orgId}
                 onSuccess={handleBranchCreated}
             />
-        </div>
+        </PageShell>
     );
 }

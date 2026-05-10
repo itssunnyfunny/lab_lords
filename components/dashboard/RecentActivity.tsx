@@ -1,7 +1,6 @@
 "use client";
 
-import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
-import { DashboardButton } from "@/components/dashboard/DashboardButton";
+import { AppButton, AppPanel } from "@/components/ui";
 import { formatDistanceToNow } from "date-fns";
 import { Activity, ArrowRight, IndianRupee, LayoutGrid, TriangleAlert, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -73,18 +72,18 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
     const visibleItems = items.slice(0, 7);
 
     return (
-        <DashboardPanel
+        <AppPanel
             title="Activity stream"
             description="Latest movement across branch operations."
             action={
-                <DashboardButton
+                <AppButton
                     onClick={() => router.push(`/branch/${branchId}/payments`)}
                     variant="quiet"
                     size="sm"
                     rightIcon={ArrowRight}
                 >
                     Audit
-                </DashboardButton>
+                </AppButton>
             }
             contentClassName="p-0"
             className="h-full"
@@ -115,6 +114,6 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
                     })}
                 </div>
             )}
-        </DashboardPanel>
+        </AppPanel>
     );
 }
