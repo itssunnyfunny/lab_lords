@@ -5,15 +5,65 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --font-ops: "Aptos", "Inter", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-ops-display: "Aptos Display", "Inter Tight", "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 html,
 body {
   background: var(--bg-app);
   color: var(--text-primary);
+  font-family: var(--font-ops);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.font-sans {
+  font-family: var(--font-ops);
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-ops-display);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 * {
   border-color: var(--border-subtle);
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+summary,
+select,
+label[for],
+input[type="button"],
+input[type="checkbox"],
+input[type="color"],
+input[type="file"],
+input[type="image"],
+input[type="radio"],
+input[type="range"],
+input[type="reset"],
+input[type="submit"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"],
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
 }
 
 .card {
