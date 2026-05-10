@@ -17,6 +17,9 @@ interface AllocateSeatDialogProps {
     branchId: string;
     preselectedStudentId?: string;
     preselectedStudentName?: string;
+    preselectedSeatId?: string;
+    preselectedShiftIds?: string[];
+    preselectedShiftNames?: string[];
     onClose: () => void;
     onSuccess: () => void;
 }
@@ -26,6 +29,9 @@ export function AllocateSeatDialog({
     branchId,
     preselectedStudentId,
     preselectedStudentName,
+    preselectedSeatId,
+    preselectedShiftIds,
+    preselectedShiftNames,
     onClose,
     onSuccess,
 }: AllocateSeatDialogProps) {
@@ -36,9 +42,9 @@ export function AllocateSeatDialog({
     const [studentSearch, setStudentSearch] = useState("");
 
     // Shift selection state
-    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
-    const [selectedShiftNames, setSelectedShiftNames] = useState<string[]>([]);
-    const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
+    const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>(preselectedShiftIds ?? []);
+    const [selectedShiftNames, setSelectedShiftNames] = useState<string[]>(preselectedShiftNames ?? []);
+    const [selectedSeatId, setSelectedSeatId] = useState<string | null>(preselectedSeatId ?? null);
     // Multi-shift tracking
     const [selectedMultiShiftId, setSelectedMultiShiftId] = useState<string | null>(null);
     const [selectedMultiShiftName, setSelectedMultiShiftName] = useState<string | null>(null);
@@ -56,9 +62,9 @@ export function AllocateSeatDialog({
 
     useEffect(() => {
         if (!isOpen) return;
-        setSelectedShiftIds([]);
-        setSelectedShiftNames([]);
-        setSelectedSeatId(null);
+        setSelectedShiftIds(preselectedShiftIds ?? []);
+        setSelectedShiftNames(preselectedShiftNames ?? []);
+        setSelectedSeatId(preselectedSeatId ?? null);
         setSelectedMultiShiftId(null);
         setSelectedMultiShiftName(null);
         setLinkFeeToSelection(false);
@@ -67,7 +73,15 @@ export function AllocateSeatDialog({
         setStudentName(preselectedStudentName ?? "");
         setStudentSearch("");
         resetFieldErrors();
-    }, [isOpen, preselectedStudentId, preselectedStudentName, resetFieldErrors]);
+    }, [
+        isOpen,
+        preselectedSeatId,
+        preselectedShiftIds,
+        preselectedShiftNames,
+        preselectedStudentId,
+        preselectedStudentName,
+        resetFieldErrors,
+    ]);
 
     const feeLinkLabel = selectedMultiShiftId
         ? "selected multi-shift"
@@ -89,7 +103,7 @@ export function AllocateSeatDialog({
 
     const handleToggleShift = (shift: ShiftCapacity) => {
         markTouched("selection");
-        setSelectedSeatId(null);
+        setSelectedSeatId(prev => preselectedSeatId && prev === preselectedSeatId ? preselectedSeatId : null);
         setSubmitError(null);
 
         if (shift.type === "MULTISHIFT") {

@@ -163,6 +163,14 @@ export function SeatPicker({
             .finally(() => setSeatMapLoading(false));
     }, [branchId, primaryShiftId, selectedMultiShiftId, excludeAllocationIdsKey]);
 
+    useEffect(() => {
+        if (!seatMap || !selectedSeatId) return;
+        const selectedSeat = seatMap.seats.find(seat => seat.seatId === selectedSeatId);
+        if (!selectedSeat || selectedSeat.occupied) {
+            onSelectSeat(null);
+        }
+    }, [onSelectSeat, seatMap, selectedSeatId]);
+
     const selectedCount = selectedShiftIds.length;
 
     // Separate primary and multi-shift items
