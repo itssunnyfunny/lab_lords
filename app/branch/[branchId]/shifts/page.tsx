@@ -236,7 +236,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onClose} />
             <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
                 {/* Header */}
                 <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
@@ -578,7 +578,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={submitting ? undefined : onClose} />
+            <div className={submitting ? "absolute inset-0 cursor-not-allowed bg-black/70 backdrop-blur-sm" : "absolute inset-0 cursor-pointer bg-black/70 backdrop-blur-sm"} onClick={submitting ? undefined : onClose} />
             <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
 
                 {/* Header */}
@@ -964,7 +964,7 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onClose} />
             <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between sm:px-6">
                     <div>
@@ -1124,7 +1124,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onClose} />
             <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
                 <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
                     <div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
+import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
+import { DashboardButton } from "@/components/dashboard/DashboardButton";
 import { Badge } from "@/components/ui/Badge";
-import { ChevronRight, Users } from "lucide-react";
+import { ArrowRight, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 
@@ -23,69 +24,67 @@ function getInitials(name: string) {
     return name
         .split(" ")
         .slice(0, 2)
-        .map((n) => n[0])
+        .map((part) => part[0])
         .join("")
         .toUpperCase();
 }
 
-const avatarColors = [
-    "bg-indigo-500/20 text-indigo-300",
-    "bg-violet-500/20 text-violet-300",
-    "bg-cyan-500/20 text-cyan-300",
-    "bg-emerald-500/20 text-emerald-300",
-    "bg-amber-500/20 text-amber-300",
-];
-
 export function RecentStudents({ students, branchId }: RecentStudentsProps) {
     const router = useRouter();
+    const visibleStudents = students.slice(0, 6);
 
     return (
-        <Card
-            title="Recently Enrolled"
+        <DashboardPanel
+            title="New enrollments"
+            description="Recently added student profiles."
             action={
-                <button
+                <DashboardButton
                     onClick={() => router.push(`/branch/${branchId}/students`)}
-                    className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 transition-colors"
+                    variant="quiet"
+                    size="sm"
+                    rightIcon={ArrowRight}
                 >
-                    View all <ChevronRight size={12} />
-                </button>
+                    Students
+                </DashboardButton>
             }
+            contentClassName="p-0"
+            className="h-full"
         >
-            {students.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center">
-                        <Users size={20} className="text-gray-500" />
+            {visibleStudents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.03]">
+                        <Users size={18} className="text-gray-500" />
                     </div>
-                    <p className="text-sm font-semibold text-white">No students yet</p>
-                    <p className="text-xs text-gray-500">Enroll your first student to get started.</p>
+                    <div>
+                        <p className="text-sm font-medium text-white">No students yet</p>
+                        <p className="mt-1 text-xs text-gray-500">Enroll students to start tracking occupancy and payments.</p>
+                    </div>
                     <button
+                        type="button"
                         onClick={() => router.push(`/branch/${branchId}/students`)}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                        className="text-xs font-medium text-cyan-300 transition-colors hover:text-cyan-200"
                     >
-                        Add a student →
+                        Add first student
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                    {students.map((student, i) => {
-                        const dateStr = student.joinedAt ?? student.createdAt;
-                        const joined = dateStr
-                            ? formatDistanceToNow(new Date(dateStr), { addSuffix: true })
-                            : "—";
+                <div className="divide-y divide-white/10">
+                    {visibleStudents.map((student) => {
+                        const dateValue = student.joinedAt ?? student.createdAt;
+                        const joined = dateValue
+                            ? formatDistanceToNow(new Date(dateValue), { addSuffix: true })
+                            : "Date unavailable";
 
                         return (
-                            <div
-                                key={student.id}
-                                className="flex flex-col items-center text-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all duration-200"
-                            >
-                                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-bold ${avatarColors[i % avatarColors.length]}`}>
+                            <div key={student.id} className="flex items-center gap-3 px-4 py-3">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-white/[0.05] text-xs font-semibold text-gray-300">
                                     {getInitials(student.name)}
                                 </div>
-                                <div className="min-w-0 w-full">
-                                    <p className="text-sm font-semibold text-white truncate">{student.name}</p>
-                                    <p className="text-[10px] text-gray-500 mt-0.5">{joined}</p>
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium text-white">{student.name}</p>
+                                    <p className="mt-1 text-xs text-gray-500">{joined}</p>
                                 </div>
-                                <Badge variant={student.status === "ACTIVE" ? "purple" : "default"} className="text-[9px]">
+                                <Badge variant={student.status === "ACTIVE" ? "success" : "default"} className="shrink-0 text-[9px]">
                                     {student.status}
                                 </Badge>
                             </div>
@@ -93,6 +92,6 @@ export function RecentStudents({ students, branchId }: RecentStudentsProps) {
                     })}
                 </div>
             )}
-        </Card>
+        </DashboardPanel>
     );
 }

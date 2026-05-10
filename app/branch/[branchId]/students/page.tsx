@@ -161,7 +161,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onCancel} />
             <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-start gap-3 mb-5">
@@ -765,7 +765,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={onClose} />
+            <div className="absolute inset-0 cursor-pointer bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={onClose} />
             <div className="relative w-full max-w-md bg-surface border-l border-white/10 h-full p-6 shadow-2xl animate-in slide-in-from-right duration-300">
                 <button onClick={onClose} className="absolute top-4 right-4 text-textMuted hover:text-white">
                     <X size={20} />

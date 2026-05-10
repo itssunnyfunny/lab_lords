@@ -126,7 +126,7 @@ export function EditStudentDialog({
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
+            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={handleClose} />
 
             <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
                 {/* Header */}

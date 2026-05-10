@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -9,57 +8,81 @@ interface StatCardProps {
     value: string;
     sub: string;
     icon: LucideIcon;
-    accent: "emerald" | "rose" | "indigo" | "amber";
-    alert?: boolean; // shows a glowing dot if true
+    tone?: "neutral" | "success" | "warning" | "danger" | "info";
+    alert?: boolean;
+    progress?: number;
+    footer?: string;
 }
 
-const accentMap = {
-    emerald: {
-        icon: "bg-emerald-500/10 text-emerald-400",
-        border: "hover:border-emerald-500/20",
-        glow: "hover:shadow-[0_8px_32px_0_rgba(16,185,129,0.12)]",
-        value: "text-emerald-300",
+const toneMap = {
+    neutral: {
+        icon: "bg-white/5 text-gray-300",
+        value: "text-white",
+        progress: "bg-gray-300",
     },
-    rose: {
-        icon: "bg-rose-500/10 text-rose-400",
-        border: "hover:border-rose-500/20",
-        glow: "hover:shadow-[0_8px_32px_0_rgba(244,63,94,0.12)]",
-        value: "text-rose-300",
+    success: {
+        icon: "bg-emerald-500/10 text-emerald-300",
+        value: "text-white",
+        progress: "bg-emerald-400",
     },
-    indigo: {
-        icon: "bg-indigo-500/10 text-indigo-400",
-        border: "hover:border-indigo-500/20",
-        glow: "hover:shadow-[0_8px_32px_0_rgba(99,102,241,0.12)]",
-        value: "text-indigo-300",
+    warning: {
+        icon: "bg-amber-500/10 text-amber-300",
+        value: "text-white",
+        progress: "bg-amber-400",
     },
-    amber: {
-        icon: "bg-amber-500/10 text-amber-400",
-        border: "hover:border-amber-500/20",
-        glow: "hover:shadow-[0_8px_32px_0_rgba(245,158,11,0.12)]",
-        value: "text-amber-300",
+    danger: {
+        icon: "bg-rose-500/10 text-rose-300",
+        value: "text-white",
+        progress: "bg-rose-400",
+    },
+    info: {
+        icon: "bg-cyan-500/10 text-cyan-300",
+        value: "text-white",
+        progress: "bg-cyan-400",
     },
 };
 
-export function StatCard({ title, value, sub, icon: Icon, accent, alert }: StatCardProps) {
-    const a = accentMap[accent];
+export function StatCard({
+    title,
+    value,
+    sub,
+    icon: Icon,
+    tone = "neutral",
+    alert,
+    progress,
+    footer,
+}: StatCardProps) {
+    const accent = toneMap[tone];
+    const progressValue = typeof progress === "number" ? Math.max(0, Math.min(progress, 100)) : null;
 
     return (
-        <Card className={cn("relative group cursor-default transition-all duration-300", a.border, a.glow)}>
-            {/* Alert dot */}
-            {alert && (
-                <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.8)] animate-pulse" />
-            )}
-
-            <div className="flex items-start gap-4">
-                <div className={cn("p-2.5 rounded-xl flex-shrink-0 transition-all duration-300 group-hover:scale-110", a.icon)}>
-                    <Icon size={20} />
-                </div>
+        <div className="rounded-[8px] border border-white/10 bg-[#0b0f14]/80 p-4 shadow-sm shadow-black/20">
+            <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-300 uppercase tracking-widest mb-1">{title}</p>
-                    <p className={cn("text-2xl font-bold tracking-tight", a.value)}>{value}</p>
-                    <p className="text-xs text-gray-400 mt-1 truncate">{sub}</p>
+                    <p className="text-xs font-medium text-gray-400">{title}</p>
+                    <p className={cn("mt-2 text-2xl font-semibold tracking-tight", accent.value)}>{value}</p>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">{sub}</p>
+                </div>
+                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px]", accent.icon)}>
+                    <Icon size={17} />
                 </div>
             </div>
-        </Card>
+
+            {progressValue !== null && (
+                <div className="mt-4">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                        <div className={cn("h-full rounded-full", accent.progress)} style={{ width: `${progressValue}%` }} />
+                    </div>
+                    {footer && <p className="mt-2 text-[11px] text-gray-500">{footer}</p>}
+                </div>
+            )}
+
+            {alert && progressValue === null && (
+                <div className="mt-4 flex items-center gap-2 text-[11px] font-medium text-rose-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+                    Needs attention
+                </div>
+            )}
+        </div>
     );
 }
