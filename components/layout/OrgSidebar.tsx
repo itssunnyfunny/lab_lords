@@ -20,10 +20,10 @@ export function OrgSidebar() {
     return (
         <div className="w-full md:w-72 bg-[#050508]/80 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">
             <div className="h-20 flex items-center px-8 border-b border-white/5">
-                <div className="w-10 h-10 bg-gradient-to-tr from-violet-600 to-indigo-600 rounded-xl mr-3 flex items-center justify-center font-bold text-white shadow-[0_0_15px_rgba(124,58,237,0.5)] border border-white/10">N</div>
+                <div className="w-10 h-10 bg-white text-gray-950 rounded-[8px] mr-3 flex items-center justify-center font-bold border border-white/10">L</div>
                 <div>
-                    <span className="font-bold text-lg tracking-tight text-white block">Nebula OS</span>
-                    <span className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">v2.4.0 BETA</span>
+                    <span className="font-bold text-lg tracking-tight text-white block">Lab Lords</span>
+                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest">Operations</span>
                 </div>
             </div>
 
