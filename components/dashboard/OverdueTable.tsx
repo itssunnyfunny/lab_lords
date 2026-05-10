@@ -1,7 +1,6 @@
 "use client";
 
-import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
-import { DashboardButton } from "@/components/dashboard/DashboardButton";
+import { AppButton, AppPanel } from "@/components/ui";
 import { daysPastDue } from "@/lib/utils/paymentStatus";
 import { ArrowRight, CheckCircle2, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -45,18 +44,18 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
     const shown = payments.slice(0, 6);
 
     return (
-        <DashboardPanel
+        <AppPanel
             title="Payment follow-ups"
             description="Students with overdue dues, ordered for collection work."
             action={
-                <DashboardButton
+                <AppButton
                     onClick={() => router.push(`/branch/${branchId}/payments`)}
                     variant="quiet"
                     size="sm"
                     rightIcon={ArrowRight}
                 >
                     Payments
-                </DashboardButton>
+                </AppButton>
             }
             contentClassName="p-0"
             className="h-full"
@@ -154,6 +153,6 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
                     )}
                 </>
             )}
-        </DashboardPanel>
+        </AppPanel>
     );
 }

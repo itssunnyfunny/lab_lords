@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 
-interface DashboardPanelProps {
+interface AppPanelProps {
     title?: string;
     description?: string;
     action?: ReactNode;
@@ -10,14 +10,14 @@ interface DashboardPanelProps {
     contentClassName?: string;
 }
 
-export function DashboardPanel({
+export function AppPanel({
     title,
     description,
     action,
     children,
     className,
     contentClassName,
-}: DashboardPanelProps) {
+}: AppPanelProps) {
     const hasHeader = title || description || action;
 
     return (

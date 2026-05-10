@@ -1,6 +1,6 @@
 "use client";
 
-import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
+import { AppPanel } from "@/components/ui";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
 import { cn } from "@/lib/utils";
@@ -59,7 +59,7 @@ export function QuickActions({ branchId }: { branchId: string }) {
     const unavailableActions = access ? actions.filter((action) => !access.permissions[action.permission]) : [];
 
     return (
-        <DashboardPanel
+        <AppPanel
             title="Next actions"
             description="Shortcuts for common branch operations."
             contentClassName="p-2"
@@ -120,6 +120,6 @@ export function QuickActions({ branchId }: { branchId: string }) {
                     })}
                 </div>
             )}
-        </DashboardPanel>
+        </AppPanel>
     );
 }

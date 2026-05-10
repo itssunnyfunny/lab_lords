@@ -1,7 +1,6 @@
 "use client";
 
-import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
-import { DashboardButton } from "@/components/dashboard/DashboardButton";
+import { AppButton, AppPanel, PageShell } from "@/components/ui";
 import { OverdueTable } from "@/components/dashboard/OverdueTable";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentActivity, ActivityItem } from "@/components/dashboard/RecentActivity";
@@ -75,7 +74,7 @@ function Skeleton({ className }: { className?: string }) {
 
 function DashboardSkeleton() {
     return (
-        <div className="mx-auto w-full max-w-[1600px] space-y-5">
+        <PageShell>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="space-y-2">
                     <Skeleton className="h-4 w-56" />
@@ -96,7 +95,7 @@ function DashboardSkeleton() {
                 <Skeleton className="h-80" />
                 <Skeleton className="h-80" />
             </div>
-        </div>
+        </PageShell>
     );
 }
 
@@ -292,7 +291,7 @@ export default function BranchDashboardPage({
     if (loading) return <DashboardSkeleton />;
 
     return (
-        <div className="mx-auto w-full max-w-[1600px] space-y-5 text-white">
+        <PageShell>
             {error && (
                 <div className="flex items-center gap-3 rounded-[8px] border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
                     <AlertCircle size={16} className="shrink-0" />
@@ -321,21 +320,21 @@ export default function BranchDashboardPage({
 
                 <div className="flex flex-wrap items-center gap-2">
                     {canViewPayments && (
-                        <DashboardButton
+                        <AppButton
                             onClick={() => router.push(`/branch/${branchId}/payments`)}
                             variant="secondary"
                             rightIcon={ArrowRight}
                         >
                             Review payments
-                        </DashboardButton>
+                        </AppButton>
                     )}
                     {canAddStudents && (
-                        <DashboardButton
+                        <AppButton
                             onClick={() => router.push(`/branch/${branchId}/students`)}
                             variant="primary"
                         >
                             Add student
-                        </DashboardButton>
+                        </AppButton>
                     )}
                 </div>
             </header>
@@ -382,7 +381,7 @@ export default function BranchDashboardPage({
             </section>
 
             <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.75fr)]">
-                <DashboardPanel
+                <AppPanel
                     title="Monthly collections"
                     description="Billed, collected, and pending revenue for the active billing month."
                     className="h-full"
@@ -432,7 +431,7 @@ export default function BranchDashboardPage({
                             </div>
                         </div>
                     </div>
-                </DashboardPanel>
+                </AppPanel>
 
                 <QuickActions branchId={branchId} />
             </section>
@@ -446,6 +445,6 @@ export default function BranchDashboardPage({
                 <RecentActivity items={data?.activityItems ?? []} branchId={branchId} />
                 <RecentStudents students={data?.recentStudents ?? []} branchId={branchId} />
             </section>
-        </div>
+        </PageShell>
     );
 }
