@@ -14,3 +14,6 @@
 ## 2025-04-23 - [Batch Insert Optimization for Manual Shift Deletion]
 **Learning:** Found an N+1 query problem in \`services/shift.service.ts\` within \`ShiftService.deleteShift\`'s \`REALLOCATE_MANUAL\` handler where it sequentially queries and updates the database multiple times inside a loop for each shifted student.
 **Action:** Replaced the loop body queries with bulk pre-fetches (fetching old allocations, relevant active student allocations, all seats, and active branch allocations). Converted the inner sequential \`create\` and \`update\` calls into array accumulation (pushed into \`newAllocationsToCreate\`) while managing state locally via mock array injections, followed by an \`updateMany\` and \`createMany\` after the loop.
+## 2025-03-01 - Optimize Seat Allocation Creation
+**Learning:** The previous implementation assigned multiple shifts to a single seat using a loop of `tx.seatAllocation.create` wrapped in a `Promise.all`. While `Promise.all` executes concurrently in Node, each `create` translates into a separate roundtrip to the database inside the Prisma transaction, making it slower and increasing network latency for multiple records.
+**Action:** Use `tx.seatAllocation.createManyAndReturn` to insert all shift allocations in a single database roundtrip, which replaces O(n) roundtrips with an O(1) query inside the transaction.

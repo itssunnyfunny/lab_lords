@@ -344,18 +344,16 @@ export class SeatAllocationService {
             }
 
             // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            // ⚡ Bolt: Replaced Promise.all(create) loop with a single bulk insert
+            // Expected Impact: Reduces database roundtrips from N (one per shift) to 1
+            const created = await tx.seatAllocation.createManyAndReturn({
+                data: newShiftIds.map((shiftId) => ({
+                    seatId: newSeatId,
+                    studentId,
+                    shiftId,
+                    ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+                }))
+            });
 
             await tx.branch.update({
                 where: { id: branchId },
