@@ -1,54 +1,53 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
-import { ChevronRight, UserPlus, CreditCard, Grid, CalendarCheck, LockKeyhole } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
+import { cn } from "@/lib/utils";
 import type { StaffAction } from "@/types";
+import { ArrowRight, CalendarCheck, CreditCard, Grid, LockKeyhole, LucideIcon, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface Action {
     label: string;
     description: string;
     icon: LucideIcon;
     route: string;
-    accent: string;
+    tone: string;
     permission: StaffAction;
 }
 
 const actions: Action[] = [
     {
-        label: "Add New Student",
-        description: "Enroll a student",
+        label: "Add student",
+        description: "Create a student profile",
         icon: UserPlus,
         route: "/students",
-        accent: "group-hover:text-indigo-400 group-hover:bg-indigo-500/10",
+        tone: "text-cyan-300 bg-cyan-400/10",
         permission: "students",
     },
     {
-        label: "Record Payment",
-        description: "Mark fee as paid",
+        label: "Record payment",
+        description: "Mark a due as paid",
         icon: CreditCard,
         route: "/payments",
-        accent: "group-hover:text-emerald-400 group-hover:bg-emerald-500/10",
+        tone: "text-emerald-300 bg-emerald-400/10",
         permission: "mark_payment_paid",
     },
     {
-        label: "Assign a Seat",
-        description: "Link student to seat",
+        label: "Assign seat",
+        description: "Allocate a student to a slot",
         icon: Grid,
         route: "/allocations",
-        accent: "group-hover:text-violet-400 group-hover:bg-violet-500/10",
+        tone: "text-violet-300 bg-violet-400/10",
         permission: "seat_allocation",
     },
     {
-        label: "View Shifts",
-        description: "Manage time slots",
+        label: "Manage shifts",
+        description: "Review capacity and schedules",
         icon: CalendarCheck,
         route: "/shifts",
-        accent: "group-hover:text-cyan-400 group-hover:bg-cyan-500/10",
+        tone: "text-amber-300 bg-amber-400/10",
         permission: "manage_branch",
     },
 ];
@@ -56,56 +55,71 @@ const actions: Action[] = [
 export function QuickActions({ branchId }: { branchId: string }) {
     const router = useRouter();
     const { access, loading } = useBranchAccess(branchId);
-    const visibleActions = actions.filter(action => access?.permissions[action.permission]);
-    const unavailableActions = access ? actions.filter(action => !access.permissions[action.permission]) : [];
+    const visibleActions = actions.filter((action) => access?.permissions[action.permission]);
+    const unavailableActions = access ? actions.filter((action) => !access.permissions[action.permission]) : [];
 
     return (
-        <Card title="Quick Actions" className="h-full">
-            <div className="space-y-2">
-                {!loading && visibleActions.length === 0 && unavailableActions.length === 0 && (
-                    <p className="px-1 py-2 text-sm text-gray-500">No quick actions available for your access.</p>
-                )}
-                {visibleActions.map((action) => (
-                    <button
-                        key={action.label}
-                        onClick={() => router.push(`/branch/${branchId}${action.route}`)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all duration-200 text-left group"
-                    >
-                        <div className={cn(
-                            "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/5 text-gray-400 transition-all duration-200",
-                            action.accent
-                        )}>
-                            <action.icon size={16} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-white group-hover:text-white transition-colors">{action.label}</p>
-                            <p className="text-xs text-gray-500">{action.description}</p>
-                        </div>
-                        <ChevronRight size={14} className="text-gray-600 group-hover:text-gray-400 flex-shrink-0 transition-colors" />
-                    </button>
-                ))}
-                {unavailableActions.map((action) => {
-                    const helpText = getPermissionHelpText(action.permission);
+        <DashboardPanel
+            title="Next actions"
+            description="Shortcuts for common branch operations."
+            contentClassName="p-2"
+            className="h-full"
+        >
+            {loading && (
+                <div className="space-y-2 p-2">
+                    {[0, 1, 2].map((item) => (
+                        <div key={item} className="h-14 animate-pulse rounded-[8px] bg-white/[0.04]" />
+                    ))}
+                </div>
+            )}
 
-                    return (
-                        <div
-                            key={`${action.label}-disabled`}
-                            aria-disabled="true"
-                            title={helpText}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/[0.01] text-left opacity-70"
+            {!loading && visibleActions.length === 0 && unavailableActions.length === 0 && (
+                <p className="px-3 py-4 text-sm text-gray-500">No quick actions available for your access.</p>
+            )}
+
+            {!loading && (
+                <div className="space-y-1">
+                    {visibleActions.map((action) => (
+                        <button
+                            key={action.label}
+                            type="button"
+                            onClick={() => router.push(`/branch/${branchId}${action.route}`)}
+                            className="group flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
                         >
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/[0.03] text-gray-600">
+                            <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px]", action.tone)}>
                                 <action.icon size={16} />
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-500">{action.label}</p>
-                                <p className="text-xs leading-5 text-gray-600">{helpText}</p>
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-white">{action.label}</p>
+                                <p className="truncate text-xs text-gray-500">{action.description}</p>
                             </div>
-                            <LockKeyhole size={14} className="text-gray-700 flex-shrink-0" />
-                        </div>
-                    );
-                })}
-            </div>
-        </Card>
+                            <ArrowRight size={14} className="shrink-0 text-gray-600 transition-colors group-hover:text-gray-300" />
+                        </button>
+                    ))}
+
+                    {unavailableActions.map((action) => {
+                        const helpText = getPermissionHelpText(action.permission);
+
+                        return (
+                            <div
+                                key={`${action.label}-disabled`}
+                                aria-disabled="true"
+                                title={helpText}
+                                className="flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-left opacity-70"
+                            >
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-white/[0.03] text-gray-600">
+                                    <action.icon size={16} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium text-gray-500">{action.label}</p>
+                                    <p className="truncate text-xs text-gray-600">{helpText}</p>
+                                </div>
+                                <LockKeyhole size={14} className="shrink-0 text-gray-700" />
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </DashboardPanel>
     );
 }

@@ -1,17 +1,10 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
-import { useRouter } from "next/navigation";
+import { DashboardPanel } from "@/components/dashboard/DashboardPanel";
+import { DashboardButton } from "@/components/dashboard/DashboardButton";
 import { formatDistanceToNow } from "date-fns";
-import {
-    LayoutGrid,
-    IndianRupee,
-    AlertTriangle,
-    UserPlus,
-    Activity,
-} from "lucide-react";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
+import { Activity, ArrowRight, IndianRupee, LayoutGrid, TriangleAlert, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export type ActivityItem =
     | { type: "allocation"; seat: string; studentName: string; ts: string }
@@ -24,158 +17,104 @@ interface RecentActivityProps {
     branchId: string;
 }
 
-// ─── Config per type ─────────────────────────────────────────────────────────
-
-const CONFIG = {
-    allocation: {
-        Icon: LayoutGrid,
-        iconColor: "text-sky-300",
-        bg: "bg-sky-500/20",
-        border: "border-sky-400/40",
-        shadow: "shadow-[0_0_16px_rgba(56,189,248,0.35)]",
-        title: (i: ActivityItem) =>
-            i.type === "allocation" ? `Seat ${i.seat} Allocated` : "",
-        desc: (i: ActivityItem) =>
-            i.type === "allocation" ? `${i.studentName} newly enrolled` : "",
-    },
-    payment: {
-        Icon: IndianRupee,
-        iconColor: "text-green-300",
-        bg: "bg-green-500/20",
-        border: "border-green-400/40",
-        shadow: "shadow-[0_0_16px_rgba(74,222,128,0.35)]",
-        title: () => "Payment Received",
-        desc: (i: ActivityItem) =>
-            i.type === "payment"
-                ? `₹${i.amount.toLocaleString("en-IN")} from ${i.studentName}`
-                : "",
-    },
-    overdue: {
-        Icon: AlertTriangle,
-        iconColor: "text-orange-300",
-        bg: "bg-orange-500/20",
-        border: "border-orange-400/40",
-        shadow: "shadow-[0_0_16px_rgba(251,146,60,0.35)]",
-        title: () => "Overdue Alert",
-        desc: (i: ActivityItem) =>
-            i.type === "overdue"
-                ? `${i.count} student${i.count !== 1 ? "s" : ""} are overdue`
-                : "",
-    },
-    enrollment: {
-        Icon: UserPlus,
-        iconColor: "text-purple-300",
-        bg: "bg-purple-500/20",
-        border: "border-purple-400/40",
-        shadow: "shadow-[0_0_16px_rgba(192,132,252,0.35)]",
-        title: () => "New Student",
-        desc: (i: ActivityItem) =>
-            i.type === "enrollment" ? `${i.studentName} joined the branch` : "",
-    },
-} as const;
-
-// ─── Card ────────────────────────────────────────────────────────────────────
-
-function ActivityCard({ item }: { item: ActivityItem }) {
-    const cfg = CONFIG[item.type];
-    const { Icon, iconColor, bg, border, shadow } = cfg;
-    const title = (() => {
-        switch (item.type) {
-            case "allocation":
-                return CONFIG.allocation.title(item);
-            case "payment":
-                return CONFIG.payment.title();
-            case "overdue":
-                return CONFIG.overdue.title();
-            case "enrollment":
-                return CONFIG.enrollment.title();
-        }
-    })();
-    const desc = (() => {
-        switch (item.type) {
-            case "allocation":
-                return CONFIG.allocation.desc(item);
-            case "payment":
-                return CONFIG.payment.desc(item);
-            case "overdue":
-                return CONFIG.overdue.desc(item);
-            case "enrollment":
-                return CONFIG.enrollment.desc(item);
-        }
-    })();
-    const timeAgo = formatDistanceToNow(new Date(item.ts), { addSuffix: true });
-
-    return (
-        <div className="flex-shrink-0 w-44 flex flex-col items-center text-center gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all duration-200">
-            {/* Icon circle */}
-            <div
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center border ${bg} ${border} ${shadow}`}
-            >
-                <Icon size={18} className={iconColor} />
-            </div>
-
-            {/* Title */}
-            <p className="text-sm font-semibold text-white leading-tight line-clamp-2">
-                {title}
-            </p>
-
-            {/* Subtitle — dimmed */}
-            <p className="text-xs text-gray-400 leading-tight line-clamp-2 w-full">
-                {desc}
-            </p>
-
-            {/* Time badge */}
-            <span className="text-[11px] font-medium text-gray-500 mt-auto">
-                {timeAgo}
-            </span>
-        </div>
-    );
+function formatMoney(amount: number) {
+    return `Rs ${amount.toLocaleString("en-IN")}`;
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
+function getActivityContent(item: ActivityItem) {
+    switch (item.type) {
+        case "allocation":
+            return {
+                icon: LayoutGrid,
+                iconClass: "bg-cyan-400/10 text-cyan-300",
+                title: `Seat ${item.seat} allocated`,
+                description: `${item.studentName} was assigned to a seat.`,
+            };
+        case "payment":
+            return {
+                icon: IndianRupee,
+                iconClass: "bg-emerald-400/10 text-emerald-300",
+                title: "Payment received",
+                description: `${formatMoney(item.amount)} collected from ${item.studentName}.`,
+            };
+        case "overdue":
+            return {
+                icon: TriangleAlert,
+                iconClass: "bg-rose-400/10 text-rose-300",
+                title: "Overdue payments detected",
+                description: `${item.count} student${item.count === 1 ? "" : "s"} need follow-up.`,
+            };
+        case "enrollment":
+            return {
+                icon: UserPlus,
+                iconClass: "bg-violet-400/10 text-violet-300",
+                title: "New student enrolled",
+                description: `${item.studentName} joined the branch.`,
+            };
+    }
+}
 
 function EmptyActivity() {
     return (
-        <div className="flex flex-col items-center justify-center py-10 gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center">
-                <Activity size={20} className="text-gray-500" />
+        <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.03]">
+                <Activity size={18} className="text-gray-500" />
             </div>
-            <p className="text-sm font-semibold text-white">No recent activity</p>
-            <p className="text-xs text-gray-500">
-                Activity will appear here once students, seats, and payments are added.
-            </p>
+            <div>
+                <p className="text-sm font-medium text-white">No recent activity</p>
+                <p className="mt-1 text-xs text-gray-500">Student, seat, and payment changes will appear here.</p>
+            </div>
         </div>
     );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function RecentActivity({ items, branchId }: RecentActivityProps) {
     const router = useRouter();
+    const visibleItems = items.slice(0, 7);
 
     return (
-        <Card
-            title="Recent Activity"
+        <DashboardPanel
+            title="Activity stream"
+            description="Latest movement across branch operations."
             action={
-                <button
+                <DashboardButton
                     onClick={() => router.push(`/branch/${branchId}/payments`)}
-                    className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 transition-colors"
+                    variant="quiet"
+                    size="sm"
+                    rightIcon={ArrowRight}
                 >
-                    View all →
-                </button>
+                    Audit
+                </DashboardButton>
             }
+            contentClassName="p-0"
+            className="h-full"
         >
-            {items.length === 0 ? (
+            {visibleItems.length === 0 ? (
                 <EmptyActivity />
             ) : (
-                <div className="overflow-x-auto pb-1 -mx-1 px-1">
-                    <div className="flex gap-3 w-max">
-                        {items.map((item, i) => (
-                            <ActivityCard key={i} item={item} />
-                        ))}
-                    </div>
+                <div className="divide-y divide-white/10">
+                    {visibleItems.map((item, index) => {
+                        const content = getActivityContent(item);
+                        const Icon = content.icon;
+                        const timeAgo = formatDistanceToNow(new Date(item.ts), { addSuffix: true });
+
+                        return (
+                            <div key={`${item.type}-${item.ts}-${index}`} className="flex gap-3 px-4 py-3">
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] ${content.iconClass}`}>
+                                    <Icon size={15} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                                        <p className="text-sm font-medium text-white">{content.title}</p>
+                                        <span className="shrink-0 text-xs text-gray-500">{timeAgo}</span>
+                                    </div>
+                                    <p className="mt-1 text-xs leading-5 text-gray-500">{content.description}</p>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
-        </Card>
+        </DashboardPanel>
     );
 }
