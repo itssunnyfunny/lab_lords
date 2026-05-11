@@ -11,8 +11,8 @@ export function PageShell({ children, className, maxWidth = "wide" }: PageShellP
     return (
         <div
             className={cn(
-                "mx-auto w-full space-y-5 text-white",
-                maxWidth === "wide" ? "max-w-[1600px]" : "max-w-7xl",
+                "mx-auto w-full space-y-[var(--ui-page-gap)] text-[color:var(--text-primary)]",
+                maxWidth === "wide" ? "max-w-[var(--ui-page-wide)]" : "max-w-[var(--ui-page-content)]",
                 className
             )}
         >

@@ -23,15 +23,19 @@ export function AppPanel({
     return (
         <section
             className={cn(
-                "overflow-hidden rounded-[8px] border border-white/10 bg-[#0b0f14]/80 shadow-sm shadow-black/20",
+                "overflow-hidden rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] shadow-[var(--ui-panel-shadow)]",
                 className
             )}
         >
             {hasHeader && (
-                <div className="flex flex-col gap-3 border-b border-white/10 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-3 border-b border-[color:var(--ui-panel-header-border)] px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                        {title && <h2 className="text-sm font-semibold text-white">{title}</h2>}
-                        {description && <p className="mt-1 text-xs leading-5 text-gray-400">{description}</p>}
+                        {title && <h2 className="text-sm font-semibold text-[color:var(--ui-panel-title)]">{title}</h2>}
+                        {description && (
+                            <p className="mt-1 text-xs leading-5 text-[color:var(--ui-panel-description)]">
+                                {description}
+                            </p>
+                        )}
                     </div>
                     {action && <div className="shrink-0">{action}</div>}
                 </div>
