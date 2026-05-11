@@ -8,4 +8,10 @@ This folder is the central home for shared product UI primitives.
 - Use `AppPanel` for framed operational surfaces.
 - Use `PageShell` for app pages that need the standard max width, spacing, and text color.
 
+## Design source
+
+- Change app-level colors, fonts, radii, shadows, panel treatment, and button variants in `styles/tokens.css` first.
+- Change these React primitives only when the component behavior or structure needs to evolve.
+- Page code should prefer composing these primitives over repeating one-off Tailwind color and surface recipes.
+
 Existing `Button`, `Card`, and page-specific components remain in place while pages are migrated gradually.

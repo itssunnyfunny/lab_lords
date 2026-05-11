@@ -12,13 +12,13 @@ interface AppButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses = {
     primary:
-        "border-cyan-200/60 bg-cyan-300 text-[#061014] shadow-[inset_0_-2px_0_rgba(0,0,0,0.18),0_10px_26px_rgba(34,211,238,0.14)] hover:border-cyan-100 hover:bg-cyan-200",
+        "border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] hover:border-[color:var(--ui-button-primary-hover-border)] hover:bg-[color:var(--ui-button-primary-hover-bg)]",
     secondary:
-        "border-white/12 bg-[#121a24] text-gray-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-white/20 hover:bg-[#182332]",
+        "border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] text-[color:var(--ui-button-secondary-text)] shadow-[var(--ui-button-secondary-shadow)] hover:border-[color:var(--ui-button-secondary-hover-border)] hover:bg-[color:var(--ui-button-secondary-hover-bg)]",
     quiet:
-        "border-white/10 bg-transparent text-gray-300 hover:border-white/20 hover:bg-white/[0.04] hover:text-white",
+        "border-[color:var(--ui-button-quiet-border)] bg-[color:var(--ui-button-quiet-bg)] text-[color:var(--ui-button-quiet-text)] hover:border-[color:var(--ui-button-quiet-hover-border)] hover:bg-[color:var(--ui-button-quiet-hover-bg)] hover:text-[color:var(--ui-button-quiet-hover-text)]",
     danger:
-        "border-rose-400/25 bg-rose-400/10 text-rose-100 hover:border-rose-300/35 hover:bg-rose-400/15",
+        "border-[color:var(--ui-button-danger-border)] bg-[color:var(--ui-button-danger-bg)] text-[color:var(--ui-button-danger-text)] hover:border-[color:var(--ui-button-danger-hover-border)] hover:bg-[color:var(--ui-button-danger-hover-bg)]",
 };
 
 const sizeClasses = {
@@ -51,7 +51,7 @@ export const AppButton = forwardRef<HTMLButtonElement, AppButtonProps>(
                 type={type}
                 disabled={disabled || isLoading}
                 className={cn(
-                    "group inline-flex items-center justify-center gap-2 rounded-[8px] border font-semibold tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50 disabled:cursor-not-allowed disabled:opacity-50",
+                    "group inline-flex items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border font-semibold tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
                     variantClasses[variant],
                     sizeClasses[size],
                     className
