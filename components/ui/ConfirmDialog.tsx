@@ -1,7 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { AlertCircle, AlertTriangle, Info, type LucideIcon } from "lucide-react";
 import { ComponentProps } from "react";
 import { createPortal } from "react-dom";
 
@@ -17,6 +18,40 @@ interface ConfirmDialogProps {
     variant?: "danger" | "warning" | "info" | "default";
 }
 
+type ConfirmVariant = NonNullable<ConfirmDialogProps["variant"]>;
+
+const dialogVariants: Record<ConfirmVariant, {
+    icon: LucideIcon;
+    iconClassName: string;
+    iconBgClassName: string;
+    buttonVariant: ComponentProps<typeof Button>["variant"];
+}> = {
+    danger: {
+        icon: AlertCircle,
+        iconClassName: "text-[color:var(--ui-dialog-icon-danger-text)]",
+        iconBgClassName: "bg-[color:var(--ui-dialog-icon-danger-bg)]",
+        buttonVariant: "danger",
+    },
+    warning: {
+        icon: AlertTriangle,
+        iconClassName: "text-[color:var(--ui-dialog-icon-warning-text)]",
+        iconBgClassName: "bg-[color:var(--ui-dialog-icon-warning-bg)]",
+        buttonVariant: "cyan",
+    },
+    info: {
+        icon: Info,
+        iconClassName: "text-[color:var(--ui-dialog-icon-info-text)]",
+        iconBgClassName: "bg-[color:var(--ui-dialog-icon-info-bg)]",
+        buttonVariant: "cyan",
+    },
+    default: {
+        icon: Info,
+        iconClassName: "text-[color:var(--ui-dialog-icon-default-text)]",
+        iconBgClassName: "bg-[color:var(--ui-dialog-icon-default-bg)]",
+        buttonVariant: "cyan",
+    },
+};
+
 export function ConfirmDialog({
     isOpen,
     onClose,
@@ -30,61 +65,27 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
     if (!isOpen || typeof document === "undefined") return null;
 
-    const getIcon = () => {
-        switch (variant) {
-            case "danger":
-                return <AlertCircle className="w-6 h-6 text-rose-400" />;
-            case "warning":
-                return <AlertTriangle className="w-6 h-6 text-amber-400" />;
-            case "info":
-                return <Info className="w-6 h-6 text-blue-400" />;
-            default:
-                return <Info className="w-6 h-6 text-cyan-400" />;
-        }
-    };
-
-    const getIconBg = () => {
-        switch (variant) {
-            case "danger":
-                return "bg-rose-500/10";
-            case "warning":
-                return "bg-amber-500/10";
-            case "info":
-                return "bg-blue-500/10";
-            default:
-                return "bg-cyan-500/10";
-        }
-    };
-
-    const getButtonVariant = (): ComponentProps<typeof Button>["variant"] => {
-        switch (variant) {
-            case "danger":
-                return "danger";
-            case "warning":
-            case "info":
-            case "default":
-                return "cyan";
-        }
-    };
+    const tone = dialogVariants[variant];
+    const DialogIcon = tone.icon;
 
     const dialogContent = (
         <div className="fixed inset-0 z-[100] flex items-end justify-center p-3 sm:items-center sm:p-4">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-[color:var(--ui-backdrop-bg)] backdrop-blur-sm"
                 onClick={!loading ? onClose : undefined}
             />
 
             {/* Dialog */}
-            <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-[var(--ui-dialog-radius)] border border-[color:var(--ui-dialog-border)] bg-[color:var(--ui-dialog-bg)] p-4 shadow-[var(--ui-dialog-shadow)] animate-in fade-in zoom-in-95 duration-200 sm:p-6">
                 {/* Header */}
                 <div className="flex gap-4 items-start">
-                    <div className={`p-2 rounded-full shrink-0 ${getIconBg()}`}>
-                        {getIcon()}
+                    <div className={cn("shrink-0 rounded-full p-2", tone.iconBgClassName)}>
+                        <DialogIcon className={cn("h-6 w-6", tone.iconClassName)} />
                     </div>
                     <div className="space-y-1.5 mt-0.5">
-                        <h2 className="text-lg font-bold text-white leading-tight">{title}</h2>
-                        <div className="text-sm text-gray-400">{description}</div>
+                        <h2 className="text-lg font-bold leading-tight text-[color:var(--ui-dialog-title)]">{title}</h2>
+                        <div className="text-sm text-[color:var(--ui-dialog-description)]">{description}</div>
                     </div>
                 </div>
 
@@ -94,7 +95,7 @@ export function ConfirmDialog({
                         {cancelText}
                     </Button>
                     <Button
-                        variant={getButtonVariant()}
+                        variant={tone.buttonVariant}
                         onClick={onConfirm}
                         isLoading={loading}
                     >

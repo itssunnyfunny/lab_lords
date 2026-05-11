@@ -14,4 +14,4 @@ This folder is the central home for shared product UI primitives.
 - Change these React primitives only when the component behavior or structure needs to evolve.
 - Page code should prefer composing these primitives over repeating one-off Tailwind color and surface recipes.
 
-Existing `Button`, `Card`, and page-specific components remain in place while pages are migrated gradually.
+Existing `Button`, `Card`, `Badge`, dialog, and menu primitives are token-backed compatibility components while pages are migrated gradually.

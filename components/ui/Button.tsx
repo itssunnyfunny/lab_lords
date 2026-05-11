@@ -9,6 +9,30 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     icon?: LucideIcon;
 }
 
+const variantClasses = {
+    primary:
+        "border border-[color:var(--ui-button-legacy-primary-border)] bg-[image:var(--ui-button-legacy-primary-bg)] text-[color:var(--ui-button-legacy-primary-text)] shadow-[var(--ui-button-legacy-primary-shadow)] hover:border-[color:var(--ui-button-legacy-primary-hover-border)] hover:shadow-[var(--ui-button-legacy-primary-hover-shadow)]",
+    secondary:
+        "border border-[color:var(--ui-button-legacy-secondary-border)] bg-[color:var(--ui-button-legacy-secondary-bg)] text-[color:var(--ui-button-legacy-secondary-text)] backdrop-blur-sm hover:border-[color:var(--ui-button-legacy-secondary-hover-border)] hover:bg-[color:var(--ui-button-legacy-secondary-hover-bg)]",
+    outline:
+        "border border-[color:var(--ui-button-legacy-outline-border)] bg-[color:var(--ui-button-legacy-outline-bg)] text-[color:var(--ui-button-legacy-outline-text)] hover:border-[color:var(--ui-button-legacy-outline-hover-border)] hover:text-[color:var(--ui-button-legacy-outline-hover-text)]",
+    ghost:
+        "bg-[color:var(--ui-button-legacy-ghost-bg)] text-[color:var(--ui-button-legacy-ghost-text)] hover:bg-[color:var(--ui-button-legacy-ghost-hover-bg)] hover:text-[color:var(--ui-button-legacy-ghost-hover-text)]",
+    danger:
+        "border border-[color:var(--ui-button-legacy-danger-border)] bg-[color:var(--ui-button-legacy-danger-bg)] text-[color:var(--ui-button-legacy-danger-text)] hover:bg-[color:var(--ui-button-legacy-danger-hover-bg)]",
+    glow:
+        "border border-[color:var(--ui-button-legacy-glow-border)] bg-[color:var(--ui-button-legacy-glow-bg)] text-[color:var(--ui-button-legacy-glow-text)] shadow-[var(--ui-button-legacy-glow-shadow)] hover:bg-[color:var(--ui-button-legacy-glow-hover-bg)] hover:shadow-[var(--ui-button-legacy-glow-hover-shadow)]",
+    cyan:
+        "border border-[color:var(--ui-button-legacy-cyan-border)] bg-[color:var(--ui-button-legacy-cyan-bg)] text-[color:var(--ui-button-legacy-cyan-text)] shadow-[var(--ui-button-legacy-cyan-shadow)] hover:bg-[color:var(--ui-button-legacy-cyan-hover-bg)] hover:shadow-[var(--ui-button-legacy-cyan-hover-shadow)]",
+};
+
+const sizeClasses = {
+    sm: "h-8 px-3 text-xs",
+    md: "px-5 py-2.5 text-sm",
+    lg: "px-6 py-3.5 text-base",
+    icon: "h-10 w-10 p-0",
+};
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = "primary", size = "md", isLoading, icon: Icon, children, ...props }, ref) => {
 
@@ -17,33 +41,19 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 ref={ref}
                 disabled={isLoading || props.disabled}
                 className={cn(
-                    "relative inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-all duration-300 active:scale-95 overflow-hidden group outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed",
-
-                    // Variants
-                    variant === "primary" && "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-[0_0_20px_rgba(124,58,237,0.3)] border border-white/10 hover:shadow-[0_0_30px_rgba(124,58,237,0.5)] hover:border-white/20",
-                    variant === "secondary" && "bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5 hover:border-white/20 backdrop-blur-sm",
-                    variant === "outline" && "bg-transparent border border-white/10 text-gray-400 hover:text-white hover:border-white/30",
-                    variant === "ghost" && "bg-transparent hover:bg-white/5 text-gray-400 hover:text-white",
-                    variant === "danger" && "bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border border-rose-500/20",
-                    variant === "glow" && "bg-cyan-900/20 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:bg-cyan-900/30 hover:shadow-[0_0_25px_rgba(6,182,212,0.4)]",
-                    variant === "cyan" && "bg-cyan-600 text-white border border-cyan-400/20 hover:bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)]",
-
-                    // Sizes
-                    size === "sm" && "h-8 px-3 text-xs",
-                    size === "md" && "px-5 py-2.5 text-sm",
-                    size === "lg" && "px-6 py-3.5 text-base",
-                    size === "icon" && "h-10 w-10 p-0",
-
+                    "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-[var(--ui-button-legacy-radius)] text-sm font-medium outline-none transition-all duration-300 active:scale-95 focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-app)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                    variantClasses[variant],
+                    sizeClasses[size],
                     className
                 )}
                 {...props}
             >
                 {/* Shine effect on hover */}
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer pointer-events-none" />
+                <div className="pointer-events-none absolute inset-0 h-full w-full -translate-x-full bg-[image:linear-gradient(to_right,transparent,var(--ui-button-shine),transparent)] group-hover:animate-shimmer" />
 
-                {isLoading && <Loader2 className="h-4 w-4 animate-spin relative z-10" />}
+                {isLoading && <Loader2 className="relative z-10 h-4 w-4 animate-spin" />}
                 {!isLoading && Icon && <Icon size={16} className="relative z-10" />}
-                <span className="relative z-10 inline-flex items-center gap-2">{children}</span>
+                {children && <span className="relative z-10 inline-flex items-center gap-2">{children}</span>}
             </button>
         );
     }
