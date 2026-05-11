@@ -1,5 +1,5 @@
-import React, { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { ReactNode } from "react";
 
 interface BadgeProps {
     children: ReactNode;
@@ -9,17 +9,17 @@ interface BadgeProps {
 
 export const Badge = ({ children, variant = "default", className }: BadgeProps) => {
     const variants = {
-        default: "bg-white/5 text-gray-300 border-white/10",
-        success: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]",
-        warning: "bg-amber-500/10 text-amber-300 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]",
-        purple: "bg-violet-500/10 text-violet-300 border-violet-500/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]",
-        cyan: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20 shadow-[0_0_10px_rgba(6,182,212,0.1)]",
-        danger: "bg-rose-500/10 text-rose-300 border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.1)]",
+        default: "border-[color:var(--ui-badge-default-border)] bg-[color:var(--ui-badge-default-bg)] text-[color:var(--ui-badge-default-text)] shadow-[var(--ui-badge-default-shadow)]",
+        success: "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)] shadow-[var(--ui-badge-success-shadow)]",
+        warning: "border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] text-[color:var(--ui-badge-warning-text)] shadow-[var(--ui-badge-warning-shadow)]",
+        purple: "border-[color:var(--ui-badge-purple-border)] bg-[color:var(--ui-badge-purple-bg)] text-[color:var(--ui-badge-purple-text)] shadow-[var(--ui-badge-purple-shadow)]",
+        cyan: "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)] shadow-[var(--ui-badge-cyan-shadow)]",
+        danger: "border-[color:var(--ui-badge-danger-border)] bg-[color:var(--ui-badge-danger-bg)] text-[color:var(--ui-badge-danger-text)] shadow-[var(--ui-badge-danger-shadow)]",
     };
 
     return (
         <span className={cn(
-            "inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border",
+            "inline-flex items-center rounded-[var(--ui-badge-radius)] border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
             variants[variant] || variants.default,
             className
         )}>

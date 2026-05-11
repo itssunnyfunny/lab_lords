@@ -122,7 +122,7 @@ export function RowActionsMenu({
                 ref={menuRef}
                 style={menuStyle}
                 className={cn(
-                    "z-[120] max-h-[min(20rem,calc(100dvh-1rem))] overflow-y-auto rounded-xl border border-white/10 bg-[#0f111a] py-1 shadow-2xl shadow-black/40 animate-in fade-in zoom-in-95 duration-100",
+                    "z-[120] max-h-[min(20rem,calc(100dvh-1rem))] overflow-y-auto rounded-[var(--ui-menu-radius)] border border-[color:var(--ui-menu-border)] bg-[color:var(--ui-menu-bg)] py-1 shadow-[var(--ui-menu-shadow)] animate-in fade-in zoom-in-95 duration-100",
                     menuWidthClassName,
                     menuClassName
                 )}
@@ -146,10 +146,10 @@ export function RowActionsMenu({
                             className={cn(
                                 "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                                 action.variant === "danger"
-                                    ? "text-red-400 hover:bg-red-500/10"
+                                    ? "text-[color:var(--ui-menu-item-danger-text)] hover:bg-[color:var(--ui-menu-item-danger-hover-bg)]"
                                     : action.variant === "warning"
-                                        ? "text-amber-400 hover:bg-amber-500/10"
-                                        : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                        ? "text-[color:var(--ui-menu-item-warning-text)] hover:bg-[color:var(--ui-menu-item-warning-hover-bg)]"
+                                        : "text-[color:var(--ui-menu-item-text)] hover:bg-[color:var(--ui-menu-item-hover-bg)] hover:text-[color:var(--ui-menu-item-hover-text)]"
                             )}
                         >
                             <Icon size={14} className="shrink-0" />
@@ -168,8 +168,8 @@ export function RowActionsMenu({
                 type="button"
                 onClick={() => setOpen(value => !value)}
                 className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-all hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50",
-                    open && "bg-white/10 text-white",
+                    "flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-control)] text-[color:var(--ui-menu-trigger-text)] transition-all hover:bg-[color:var(--ui-menu-trigger-hover-bg)] hover:text-[color:var(--ui-menu-trigger-hover-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
+                    open && "bg-[color:var(--ui-menu-trigger-active-bg)] text-[color:var(--ui-menu-trigger-active-text)]",
                     buttonClassName
                 )}
                 title={buttonLabel}
