@@ -14,3 +14,9 @@
 ## 2025-04-23 - [Batch Insert Optimization for Manual Shift Deletion]
 **Learning:** Found an N+1 query problem in \`services/shift.service.ts\` within \`ShiftService.deleteShift\`'s \`REALLOCATE_MANUAL\` handler where it sequentially queries and updates the database multiple times inside a loop for each shifted student.
 **Action:** Replaced the loop body queries with bulk pre-fetches (fetching old allocations, relevant active student allocations, all seats, and active branch allocations). Converted the inner sequential \`create\` and \`update\` calls into array accumulation (pushed into \`newAllocationsToCreate\`) while managing state locally via mock array injections, followed by an \`updateMany\` and \`createMany\` after the loop.
+## 2026-05-11 - Fixed N+1 Query in Shift Bulk Reallocation
+**Learning:** The bulk shift reallocation process iterates over active allocations but triggered a database query () inside the loop, creating an O(N) database bottleneck.
+**Action:** Pre-fetch all overlapping student allocations in a single database call and then resolve them locally via filtering .
+## 2026-05-11 - Fixed N+1 Query in Shift Bulk Reallocation
+**Learning:** The bulk shift reallocation process iterates over active allocations but triggered a database query (findMany) inside the loop, creating an N+1 database bottleneck.
+**Action:** Pre-fetch all overlapping student allocations in a single database call using the IN operator and then resolve them locally via filtering.
