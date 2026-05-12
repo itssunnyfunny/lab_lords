@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { AppButton, PageShell } from "@/components/ui";
 import { Button } from "@/components/ui/Button";
 import { RowActionsMenu, type RowActionsMenuItem } from "@/components/ui/RowActionsMenu";
 import {
@@ -16,24 +16,33 @@ import {
     formErrorBannerClass,
     formHelpTextClass,
     formIconClass,
+    formSuccessBannerClass,
     formSurfaceClass,
     formWarningActionClass,
     formWarningBannerClass,
 } from "@/components/ui/formSurface";
 import {
+    pageDescriptionClass,
     pageEmptyStateClass,
+    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
     pageGridCardClass,
     pageGridCardHoverClass,
     pageInsetHoverClass,
+    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageLoadingStateClass,
+    pageMetaPillClass,
     pageMutedTextClass,
     pageSubtleTextClass,
+    pageTableBodyDividerClass,
+    pageTableHeadClass,
+    pageTableRowClass,
+    pageTableShellClass,
+    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Pencil, Trash2,
@@ -59,6 +68,10 @@ function formatMins(mins: number) {
     const h = Math.floor(raw / 60);
     const m = raw % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function formatPrice(value: number) {
+    return `Rs ${value.toLocaleString("en-IN")}`;
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -319,7 +332,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                     <FieldError id="shift-time-error" error={timeGroupError} />
 
                     <div className="space-y-1.5">
-                        <label className={formCompactLabelClass}>Monthly Price (₹)</label>
+                        <label className={formCompactLabelClass}>Monthly price</label>
                         <div className="relative">
                             <IndianRupee size={13} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} />
                             <input
@@ -342,7 +355,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                     {/* Reserved toggle */}
                     <div className="flex items-center justify-between py-1">
                         <div>
-                            <p className="text-sm text-white font-medium">Reserved Shift</p>
+                            <p className="text-sm font-medium text-[color:var(--text-primary)]">Reserved shift</p>
                             <p className={cn("text-xs", formHelpTextClass)}>Seats in this shift require manual allocation</p>
                         </div>
                         <button
@@ -656,7 +669,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                 {step === "confirm-empty" && (
                     <div className="p-4 space-y-4 sm:p-6">
                         <p className="text-sm text-[color:var(--ui-form-label)]">
-                            This shift has <span className="text-white font-semibold">no active students</span>. It will be removed permanently.
+                            This shift has <span className="font-semibold text-[color:var(--text-primary)]">no active students</span>. It will be removed permanently.
                         </p>
                         {submitError && (
                             <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
@@ -684,12 +697,12 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                         <div className={cn("space-y-2 p-4", formSurfaceClass)}>
                             <div className="flex items-center gap-2 text-sm">
                                 <Users size={14} className="text-cyan-400" />
-                                <span className="text-white font-semibold">{analysis.studentsInShift} student{analysis.studentsInShift !== 1 ? "s" : ""}</span>
+                                <span className="font-semibold text-[color:var(--text-primary)]">{analysis.studentsInShift} student{analysis.studentsInShift !== 1 ? "s" : ""}</span>
                                 <span className={formHelpTextClass}>currently in this shift</span>
                             </div>
                             <div className={cn("flex items-center gap-2 text-xs", formHelpTextClass)}>
                                 <ArrowRight size={12} />
-                                <span>Empty seats elsewhere: <span className="text-white">{analysis.totalEmptyElsewhere}</span></span>
+                                <span>Empty seats elsewhere: <span className="text-[color:var(--text-primary)]">{analysis.totalEmptyElsewhere}</span></span>
                                 {analysis.willOverflowBy > 0 && (
                                     <span className="text-amber-400 flex items-center gap-1">
                                         <AlertTriangle size={11} /> {analysis.willOverflowBy} cannot be reallocated
@@ -776,7 +789,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                             return (
                                                 <div key={alloc.allocationId} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs text-white font-medium truncate">{alloc.studentName}</p>
+                                                        <p className="truncate text-xs font-medium text-[color:var(--text-primary)]">{alloc.studentName}</p>
                                                         <p className="text-[10px] text-[color:var(--ui-table-subtle)]">Seat {alloc.seatLabel}</p>
                                                     </div>
                                                     <select
@@ -947,21 +960,21 @@ function OptionCard({ selected, onClick, icon, title, description, variant, chil
             onClick={onClick}
             className={cn(
                 "cursor-pointer p-4 transition-all",
-                selected ? cn("rounded-xl border", selectedSurface) : cn(pageInsetSurfaceClass, pageInsetHoverClass)
+                selected ? cn("rounded-[var(--ui-radius-control)] border", selectedSurface) : cn(pageInsetSurfaceClass, pageInsetHoverClass)
             )}
         >
             <div className="flex items-start gap-3">
                 <div className="mt-0.5 shrink-0">{icon}</div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white">{title}</p>
+                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{title}</p>
                     <p className={cn("mt-0.5 text-xs leading-relaxed", pageSubtleTextClass)}>{description}</p>
                     {children}
                 </div>
                 <div className={cn(
                     "w-4 h-4 rounded-full border shrink-0 mt-0.5 transition-all flex items-center justify-center",
-                    selected ? "border-cyan-500 bg-cyan-500" : "border-white/20"
+                    selected ? "border-[color:var(--ui-form-accent)] bg-[color:var(--ui-form-accent)]" : "border-[color:var(--ui-form-input-border)]"
                 )}>
-                    {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    {selected && <div className="h-1.5 w-1.5 rounded-full bg-[color:var(--bg-app)]" />}
                 </div>
             </div>
         </div>
@@ -1004,26 +1017,26 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
                 <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-6">
                     <button
                         onClick={() => onSelect("primary")}
-                        className="flex flex-col items-center gap-3 p-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 hover:border-yellow-500/40 transition-all group"
+                        className={cn("group flex cursor-pointer flex-col items-center gap-3 p-6", pageGridCardClass, pageGridCardHoverClass)}
                     >
-                        <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-tone-warning-bg)] text-[color:var(--ui-tone-warning-text)] transition-transform group-hover:scale-105">
                             <Clock size={24} />
                         </div>
                         <div className="text-center">
-                            <p className="text-sm font-bold text-white">Primary</p>
+                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">Primary</p>
                             <p className={cn("mt-1 text-[10px] font-semibold uppercase tracking-wider", formHelpTextClass)}>Single Time Slot</p>
                         </div>
                     </button>
 
                     <button
                         onClick={() => onSelect("multi")}
-                        className="flex flex-col items-center gap-3 p-6 rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/40 transition-all group"
+                        className={cn("group flex cursor-pointer flex-col items-center gap-3 p-6", pageGridCardClass, pageGridCardHoverClass)}
                     >
-                        <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)] transition-transform group-hover:scale-105">
                             <Layers size={24} />
                         </div>
                         <div className="text-center">
-                            <p className="text-sm font-bold text-white">Multi-Shift</p>
+                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">Multi-shift</p>
                             <p className={cn("mt-1 text-[10px] font-semibold uppercase tracking-wider", formHelpTextClass)}>Bundle of 2+ Primary</p>
                         </div>
                     </button>
@@ -1177,7 +1190,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className={formCompactLabelClass}>Bundle Monthly Price (₹)</label>
+                        <label className={formCompactLabelClass}>Bundle monthly price</label>
                         <div className="relative">
                             <IndianRupee size={13} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} />
                             <input
@@ -1204,9 +1217,9 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                                     key={s.id}
                                     onClick={() => toggleShift(s.id)}
                                     className={cn(
-                                        "flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all",
+                                        "flex cursor-pointer items-center justify-between rounded-[var(--ui-radius-control)] border px-3 py-2 text-left transition-all",
                                         selectedShiftIds.includes(s.id)
-                                            ? "bg-orange-500/10 border-orange-500/30 text-orange-200"
+                                            ? "border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] text-[color:var(--ui-badge-warning-text)]"
                                             : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-form-label)] hover:border-[color:var(--ui-form-input-border)]"
                                     )}
                                 >
@@ -1215,10 +1228,12 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                                         <span className="text-[10px] opacity-60 font-mono">{s.startTime} - {s.endTime}</span>
                                     </div>
                                     <div className={cn(
-                                        "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                        selectedShiftIds.includes(s.id) ? "bg-orange-500 border-orange-500" : "border-white/20"
+                                        "flex h-4 w-4 items-center justify-center rounded border transition-all",
+                                        selectedShiftIds.includes(s.id)
+                                            ? "border-[color:var(--ui-tone-warning-progress)] bg-[color:var(--ui-tone-warning-progress)]"
+                                            : "border-[color:var(--ui-form-input-border)]"
                                     )}>
-                                        {selectedShiftIds.includes(s.id) && <CheckCircle2 size={10} className="text-white" />}
+                                        {selectedShiftIds.includes(s.id) && <CheckCircle2 size={10} className="text-[color:var(--bg-app)]" />}
                                     </div>
                                 </button>
                             ))}
@@ -1401,7 +1416,7 @@ function ShiftsContent({
                 <div key={shift.id} className={cn(pageGridCardClass, pageGridCardHoverClass)}>
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                            <p className="truncate font-medium text-white">{shift.name}</p>
+                            <p className="truncate font-medium text-[color:var(--text-primary)]">{shift.name}</p>
                             <div className="mt-2">
                                 <Badge variant="warning" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/20 font-bold tracking-wider text-[10px]">
                                     PRIMARY
@@ -1418,7 +1433,7 @@ function ShiftsContent({
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                        <div className={pageInsetMetricClass}>
                             <div className={cn("text-xs", pageSubtleTextClass)}>Time Window</div>
                             <div className={cn("mt-1", pageMutedTextClass)}>
                                 {shift.startTime && shift.endTime ? (
@@ -1428,9 +1443,9 @@ function ShiftsContent({
                                 )}
                             </div>
                         </div>
-                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                        <div className={pageInsetMetricClass}>
                             <div className={cn("text-xs", pageSubtleTextClass)}>Price</div>
-                            <div className="mt-1 font-semibold text-white">₹{shift.price}</div>
+                            <div className="mt-1 font-semibold text-[color:var(--text-primary)]">{formatPrice(shift.price)}</div>
                         </div>
                     </div>
                 </div>
@@ -1440,7 +1455,7 @@ function ShiftsContent({
                 <div key={ms.id} className={cn(pageGridCardClass, pageGridCardHoverClass)}>
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                            <p className="truncate font-medium text-white">{ms.name}</p>
+                            <p className="truncate font-medium text-[color:var(--text-primary)]">{ms.name}</p>
                             <div className="mt-2">
                                 <Badge variant="warning" className="bg-orange-500/10 text-orange-300 border-orange-500/20 font-bold tracking-wider text-[10px]">
                                     MULTI-SHIFT
@@ -1457,13 +1472,13 @@ function ShiftsContent({
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                        <div className={pageInsetMetricClass}>
                             <div className={cn("text-xs", pageSubtleTextClass)}>Slots</div>
                             <div className={cn("mt-1 text-xs", pageMutedTextClass)}>{ms.components.length} combined</div>
                         </div>
-                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                        <div className={pageInsetMetricClass}>
                             <div className={cn("text-xs", pageSubtleTextClass)}>Price</div>
-                            <div className="mt-1 font-semibold text-white">₹{ms.price}</div>
+                            <div className="mt-1 font-semibold text-[color:var(--text-primary)]">{formatPrice(ms.price)}</div>
                         </div>
                     </div>
 
@@ -1480,26 +1495,37 @@ function ShiftsContent({
     );
 
     return (
-        <div className="p-4 md:p-8 space-y-6 relative">
+        <PageShell className="relative">
             {/* Toast */}
             {toast && (
                 <div className={cn(
-                    "fixed bottom-4 left-4 right-4 z-50 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm shadow-2xl animate-in fade-in slide-in-from-bottom-2 sm:bottom-6 sm:left-auto sm:right-6 sm:w-auto",
-                    toast.type === "success"
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                        : "bg-red-500/10 border-red-500/20 text-red-400"
+                    "fixed bottom-4 left-4 right-4 z-50 flex items-center gap-2 px-4 py-3 text-sm shadow-[var(--ui-dialog-shadow)] animate-in fade-in slide-in-from-bottom-2 sm:bottom-6 sm:left-auto sm:right-6 sm:w-auto",
+                    toast.type === "success" ? formSuccessBannerClass : formErrorBannerClass
                 )}>
                     {toast.type === "success" ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
                     {toast.msg}
                 </div>
             )}
 
-            <PageHeader
-                title="Shifts"
-                subtitle="Manage time windows for seat allocations."
-                onAdd={canManageBranch ? () => setDialog({ open: true, mode: "type-picker" }) : undefined}
-                actionLabel="Add Shift"
-            />
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <p className={pageEyebrowClass}>Branch setup</p>
+                    <h1 className={cn(pageTitleClass, "mt-2")}>Shifts</h1>
+                    <p className={pageDescriptionClass}>
+                        Keep allocation windows simple: primary shifts first, multi-shift bundles only when students need combined access.
+                    </p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <span className={pageMetaPillClass}>
+                        {shifts.length} primary / {multiShifts.length} bundle{multiShifts.length === 1 ? "" : "s"}
+                    </span>
+                    {canManageBranch && (
+                        <AppButton variant="primary" icon={Clock} onClick={() => setDialog({ open: true, mode: "type-picker" })}>
+                            Add shift
+                        </AppButton>
+                    )}
+                </div>
+            </header>
 
             {!canManageBranch && (
                 <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
@@ -1512,22 +1538,25 @@ function ShiftsContent({
                     <Clock size={36} className="mx-auto mb-3 opacity-30" />
                     <p>No shifts found.</p>
                     {canManageBranch && (
-                        <button
+                        <AppButton
+                            variant="secondary"
+                            size="sm"
+                            icon={Clock}
                             onClick={() => setDialog({ open: true, mode: "type-picker" })}
-                            className="mt-3 text-sm text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
+                            className="mt-3"
                         >
-                            + Add your first shift
-                        </button>
+                            Add your first shift
+                        </AppButton>
                     )}
                 </div>
             ) : (
                 <>
                 <div className="md:hidden">{shiftCards}</div>
-                <Card noHover className="hidden overflow-visible p-0 md:block md:p-0">
+                <div className={cn("hidden overflow-visible md:block", pageTableShellClass)}>
                     <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                     <table className="w-full min-w-[54rem] text-left text-sm">
-                        <thead>
-                            <tr className="border-b border-[color:var(--ui-table-divider)] bg-[color:var(--ui-table-head-bg)] text-[color:var(--ui-table-muted)]">
+                        <thead className={pageTableHeadClass}>
+                            <tr className="border-b border-[color:var(--ui-table-divider)] text-[color:var(--ui-table-muted)]">
                                 <th className="px-6 py-4 font-semibold">Shift Name</th>
                                 <th className="px-6 py-4 font-semibold">Type</th>
                                 <th className="px-6 py-4 font-semibold">Time Window</th>
@@ -1535,10 +1564,10 @@ function ShiftsContent({
                                 <th className="px-6 py-4 text-right font-semibold">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
+                        <tbody className={pageTableBodyDividerClass}>
                             {/* Primary Shifts */}
                             {shifts.map(shift => (
-                                <tr key={shift.id} className="group transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)]">
+                                <tr key={shift.id} className={cn("group", pageTableRowClass)}>
                                     <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">{shift.name}</td>
                                     <td className="px-6 py-4">
                                         <Badge variant="warning" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/20 font-bold tracking-wider text-[10px]">
@@ -1549,13 +1578,13 @@ function ShiftsContent({
                                         {shift.startTime && shift.endTime ? (
                                             <span className="font-mono flex items-center gap-1.5">
                                                 <Clock size={12} className="text-[color:var(--ui-table-subtle)]" />
-                                                {shift.startTime} – {shift.endTime}
+                                                {shift.startTime} - {shift.endTime}
                                             </span>
                                         ) : (
                                             <span className="text-xs italic text-[color:var(--ui-table-subtle)]">No time limit</span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">₹{shift.price}</td>
+                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">{formatPrice(shift.price)}</td>
                                     <td className="px-6 py-4 text-right">
                                         {canManageBranch ? (
                                             <RowActions actions={primaryShiftActions(shift)} />
@@ -1570,7 +1599,7 @@ function ShiftsContent({
 
                             {/* Multi Shifts */}
                             {multiShifts.map(ms => (
-                                <tr key={ms.id} className="group border-t border-[color:var(--ui-table-divider)] transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)]">
+                                <tr key={ms.id} className={cn("group", pageTableRowClass)}>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
                                             <span className="font-medium text-[color:var(--ui-table-text)]">{ms.name}</span>
@@ -1593,7 +1622,7 @@ function ShiftsContent({
                                             {ms.components.length} slots combined
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">₹{ms.price}</td>
+                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">{formatPrice(ms.price)}</td>
                                     <td className="px-6 py-4 text-right">
                                         {canManageBranch ? (
                                             <RowActions actions={multiShiftActions(ms)} />
@@ -1608,7 +1637,7 @@ function ShiftsContent({
                         </tbody>
                     </table>
                     </div>
-                </Card>
+                </div>
                 </>
             )}
 
@@ -1658,6 +1687,6 @@ function ShiftsContent({
                     )}
                 </>
             )}
-        </div>
+        </PageShell>
     );
 }
