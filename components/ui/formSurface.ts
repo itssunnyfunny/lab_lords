@@ -9,6 +9,13 @@ export const formDialogHeaderClass =
 export const formDialogFooterClass =
     "border-t border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)]";
 
+export const formDrawerPanelClass =
+    "border-l border-[color:var(--ui-form-dialog-border)] bg-[color:var(--ui-form-dialog-bg)] shadow-[var(--ui-form-dialog-shadow)]";
+
+export const formDrawerHeaderClass = "border-b border-[color:var(--ui-form-section-divider)]";
+
+export const formDrawerFooterClass = "border-t border-[color:var(--ui-form-section-divider)]";
+
 export const formLabelClass = "text-sm font-medium text-[color:var(--ui-form-label)]";
 export const formCompactLabelClass = "text-xs font-medium uppercase tracking-wider text-[color:var(--ui-form-label)]";
 export const formHelpTextClass = "text-[color:var(--ui-form-help)]";
