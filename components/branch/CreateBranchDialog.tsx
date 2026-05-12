@@ -3,6 +3,22 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { X, MapPin, Loader2, Phone, Plus, AlertCircle, AlertTriangle } from "lucide-react";
+import {
+    formControlClass,
+    formDialogFooterClass,
+    formDialogHeaderClass,
+    formDialogOverlayClass,
+    formDialogPanelClass,
+    formErrorBannerClass,
+    formHelpTextClass,
+    formIconClass,
+    formInlineControlClass,
+    formLabelClass,
+    formRequiredClass,
+    formSurfaceClass,
+    formWarningActionClass,
+    formWarningBannerClass,
+} from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import {
@@ -224,23 +240,20 @@ export function CreateBranchDialog({
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
             {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={handleClose}
-            />
+            <div className={formDialogOverlayClass} onClick={handleClose} />
 
             {/* Dialog */}
-            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
+            <div className={cn("relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col sm:max-h-[90vh]", formDialogPanelClass)}>
                 {/* Header */}
-                <div className="flex flex-shrink-0 items-center justify-between p-4 border-b border-white/10 sm:p-6">
+                <div className={cn("flex flex-shrink-0 items-center justify-between p-4 sm:p-6", formDialogHeaderClass)}>
                     <div>
-                        <h2 className="text-lg font-bold text-white">Create New Branch</h2>
-                        <p className="text-sm text-gray-400 mt-0.5">Set up a new location under this organization.</p>
+                        <h2 className="text-lg font-bold text-[color:var(--ui-dialog-title)]">Create New Branch</h2>
+                        <p className={cn("mt-0.5 text-sm", formHelpTextClass)}>Set up a new location under this organization.</p>
                     </div>
                     <button
                         onClick={handleClose}
                         disabled={loading}
-                        className="text-gray-500 hover:text-white transition-colors"
+                        className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}
                     >
                         <X size={20} />
                     </button>
@@ -250,11 +263,11 @@ export function CreateBranchDialog({
                 <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
                     {/* Branch Name */}
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-gray-300">
-                            Branch Name <span className="text-red-400">*</span>
+                        <label className={formLabelClass}>
+                            Branch Name <span className={formRequiredClass}>*</span>
                         </label>
                         <div className="relative">
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                            <MapPin className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={16} />
                             <input
                                 type="text"
                                 name="name"
@@ -264,7 +277,7 @@ export function CreateBranchDialog({
                                 placeholder="e.g. Main Branch, Downtown"
                                 autoFocus
                                 maxLength={120}
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(nameError))}
+                                className={cn(formControlClass, "py-2.5 pl-9 pr-4 text-sm", fieldErrorClass(nameError))}
                                 {...fieldErrorProps("create-branch-name-error", nameError)}
                             />
                         </div>
@@ -272,11 +285,11 @@ export function CreateBranchDialog({
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-gray-300">
-                            Contact Phone <span className="text-red-400">*</span>
+                        <label className={formLabelClass}>
+                            Contact Phone <span className={formRequiredClass}>*</span>
                         </label>
                         <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                            <Phone className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={16} />
                             <input
                                 type="tel"
                                 name="contactPhone"
@@ -284,7 +297,7 @@ export function CreateBranchDialog({
                                 onChange={handleChange}
                                 onBlur={() => markTouched("contactPhone")}
                                 placeholder="+91 98765 43210"
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(contactPhoneError))}
+                                className={cn(formControlClass, "py-2.5 pl-9 pr-4 text-sm", fieldErrorClass(contactPhoneError))}
                                 {...fieldErrorProps("create-branch-contact-phone-error", contactPhoneError)}
                             />
                         </div>
@@ -294,8 +307,8 @@ export function CreateBranchDialog({
                     {/* City + Seats */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-gray-300">
-                                City / Area <span className="text-gray-500">(Optional)</span>
+                            <label className={formLabelClass}>
+                                City / Area <span className={formHelpTextClass}>(Optional)</span>
                             </label>
                             <input
                                 type="text"
@@ -305,14 +318,14 @@ export function CreateBranchDialog({
                                 onBlur={() => markTouched("city")}
                                 placeholder="e.g. Mumbai"
                                 maxLength={FORM_LIMITS.cityMax}
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(cityError))}
+                                className={cn(formControlClass, "px-4 py-2.5 text-sm", fieldErrorClass(cityError))}
                                 {...fieldErrorProps("create-branch-city-error", cityError)}
                             />
                             <FieldError id="create-branch-city-error" error={cityError} />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-gray-300">
-                                Total Seats <span className="text-red-400">*</span>
+                            <label className={formLabelClass}>
+                                Total Seats <span className={formRequiredClass}>*</span>
                             </label>
                             <input
                                 type="number"
@@ -325,7 +338,7 @@ export function CreateBranchDialog({
                                 max={FORM_LIMITS.seatsMax}
                                 step="1"
                                 inputMode="numeric"
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(seatCountError))}
+                                className={cn(formControlClass, "px-4 py-2.5 text-sm", fieldErrorClass(seatCountError))}
                                 {...fieldErrorProps("create-branch-seat-count-error", seatCountError)}
                             />
                             <FieldError id="create-branch-seat-count-error" error={seatCountError} />
@@ -334,11 +347,11 @@ export function CreateBranchDialog({
 
                     {/* Default Monthly Fee */}
                     <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-gray-300">
-                            Default Monthly Fee <span className="text-gray-500">(Optional)</span>
+                        <label className={formLabelClass}>
+                            Default Monthly Fee <span className={formHelpTextClass}>(Optional)</span>
                         </label>
                         <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                            <span className={cn("absolute left-3 top-1/2 -translate-y-1/2 text-sm", formIconClass)}>₹</span>
                             <input
                                 type="number"
                                 name="defaultFee"
@@ -350,7 +363,7 @@ export function CreateBranchDialog({
                                 max={FORM_LIMITS.moneyMax}
                                 step="1"
                                 inputMode="numeric"
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-7 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-all text-sm", fieldErrorClass(defaultFeeError))}
+                                className={cn(formControlClass, "py-2.5 pl-7 pr-4 text-sm", fieldErrorClass(defaultFeeError))}
                                 {...fieldErrorProps("create-branch-default-fee-error", defaultFeeError)}
                             />
                         </div>
@@ -360,10 +373,10 @@ export function CreateBranchDialog({
                     {/* Shifts */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <label className="text-sm font-medium text-gray-300">Shifts & Pricing</label>
+                            <label className={formLabelClass}>Shifts & Pricing</label>
                             <button
                                 onClick={addShift}
-                                className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                                className="flex items-center gap-1 text-xs text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
                             >
                                 <Plus size={12} /> Add Shift
                             </button>
@@ -372,7 +385,7 @@ export function CreateBranchDialog({
                         <div className="space-y-3">
                             {shifts.map((shift, idx) => (
                                 <div key={idx} className="flex flex-col gap-1">
-                                <div className="flex flex-col gap-2 p-3 bg-white/5 rounded-lg border border-white/5 sm:flex-row sm:items-center">
+                                <div className={cn("flex flex-col gap-2 p-3 sm:flex-row sm:items-center", formSurfaceClass)}>
                                     <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-12 sm:items-center">
                                         <div className="col-span-2 sm:col-span-4">
                                             <input
@@ -380,7 +393,7 @@ export function CreateBranchDialog({
                                                 placeholder="Name"
                                                 value={shift.name}
                                                 onChange={(e) => handleShiftChange(idx, "name", e.target.value)}
-                                                className="w-full bg-transparent border-b border-white/10 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
+                                                className={cn(formInlineControlClass, "py-1 text-xs")}
                                             />
                                         </div>
                                         <div className="col-span-1 sm:col-span-3">
@@ -388,7 +401,7 @@ export function CreateBranchDialog({
                                                 type="time"
                                                 value={shift.startTime}
                                                 onChange={(e) => handleShiftChange(idx, "startTime", e.target.value)}
-                                                className="w-full bg-transparent border-b border-white/10 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
+                                                className={cn(formInlineControlClass, "py-1 text-xs")}
                                             />
                                         </div>
                                         <div className="col-span-1 sm:col-span-3">
@@ -396,11 +409,11 @@ export function CreateBranchDialog({
                                                 type="time"
                                                 value={shift.endTime}
                                                 onChange={(e) => handleShiftChange(idx, "endTime", e.target.value)}
-                                                className="w-full bg-transparent border-b border-white/10 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
+                                                className={cn(formInlineControlClass, "py-1 text-xs")}
                                             />
                                         </div>
                                         <div className="col-span-2 relative sm:col-span-2">
-                                            <span className="absolute left-0 top-1 text-gray-500 text-xs">₹</span>
+                                            <span className={cn("absolute left-0 top-1 text-xs", formIconClass)}>₹</span>
                                             <input
                                                 type="number"
                                                 placeholder="0"
@@ -410,30 +423,30 @@ export function CreateBranchDialog({
                                                 max={FORM_LIMITS.moneyMax}
                                                 step={1}
                                                 inputMode="numeric"
-                                                className="w-full bg-transparent border-b border-white/10 py-1 pl-3 text-xs text-white focus:outline-none focus:border-cyan-500"
+                                                className={cn(formInlineControlClass, "py-1 pl-3 text-xs")}
                                             />
                                         </div>
                                     </div>
                                     {shifts.length > 1 && (
                                         <button
                                             onClick={() => removeShift(idx)}
-                                            className="self-end text-gray-500 hover:text-red-400 transition-colors sm:ml-1 sm:self-auto flex-shrink-0"
+                                            className={cn("flex-shrink-0 self-end transition-colors hover:text-[color:var(--ui-form-error-text)] sm:ml-1 sm:self-auto", formHelpTextClass)}
                                         >
                                             <X size={14} />
                                         </button>
                                     )}
                                 </div>
                                 {overlaps.has(idx) && (
-                                    <div className="flex flex-col gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs mt-1">
-                                        <div className="flex items-center gap-1.5 text-amber-400">
+                                    <div className={cn("mt-1 flex flex-col gap-1.5 px-3 py-2 text-xs", formWarningBannerClass)}>
+                                        <div className="flex items-center gap-1.5">
                                             <AlertTriangle size={12} />
                                             <span>{overlaps.get(idx)!.text}</span>
                                         </div>
                                         <div className="flex flex-col gap-2 sm:flex-row">
-                                            <button onClick={() => handleShiftChange(overlaps.get(idx)!.fix1.idx, overlaps.get(idx)!.fix1.field, overlaps.get(idx)!.fix1.val)} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1 rounded transition-colors border border-amber-500/20">
+                                            <button onClick={() => handleShiftChange(overlaps.get(idx)!.fix1.idx, overlaps.get(idx)!.fix1.field, overlaps.get(idx)!.fix1.val)} className={cn("px-2 py-1", formWarningActionClass)}>
                                                 {overlaps.get(idx)!.fix1.label}
                                             </button>
-                                            <button onClick={() => handleShiftChange(overlaps.get(idx)!.fix2.idx, overlaps.get(idx)!.fix2.field, overlaps.get(idx)!.fix2.val)} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1 rounded transition-colors border border-amber-500/20">
+                                            <button onClick={() => handleShiftChange(overlaps.get(idx)!.fix2.idx, overlaps.get(idx)!.fix2.field, overlaps.get(idx)!.fix2.val)} className={cn("px-2 py-1", formWarningActionClass)}>
                                                 {overlaps.get(idx)!.fix2.label}
                                             </button>
                                         </div>
@@ -447,7 +460,7 @@ export function CreateBranchDialog({
 
                     {/* Error */}
                     {error && (
-                        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                        <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                             <AlertCircle size={14} />
                             {error}
                         </div>
@@ -455,7 +468,7 @@ export function CreateBranchDialog({
                 </div>
 
                 {/* Footer */}
-                <div className="flex flex-shrink-0 flex-col-reverse gap-3 p-4 border-t border-white/10 sm:flex-row sm:justify-end sm:p-6">
+                <div className={cn("flex flex-shrink-0 flex-col-reverse gap-3 p-4 sm:flex-row sm:justify-end sm:p-6", formDialogFooterClass)}>
                     <Button variant="ghost" onClick={handleClose} disabled={loading}>
                         Cancel
                     </Button>

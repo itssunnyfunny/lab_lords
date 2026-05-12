@@ -3,6 +3,13 @@
 import { ReactNode, useEffect, useRef } from "react";
 import { CheckCircle2, AlertCircle, Loader2, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import {
+    formControlClass,
+    formHelpTextClass,
+    formLabelClass,
+    formSurfaceClass,
+    formSurfaceHoverClass,
+} from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps } from "@/components/ui/InlineFieldError";
 import { cn } from "@/lib/utils";
 
@@ -69,14 +76,14 @@ export function SettingsWorkspace({
     };
 
     return (
-        <div className="mx-auto max-w-6xl p-4 md:p-8 text-white">
+        <div className="mx-auto max-w-6xl p-4 text-[color:var(--text-primary)] md:p-8">
             <div className="mb-6">
                 <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-                <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+                <p className={cn("mt-1 text-sm", formHelpTextClass)}>{subtitle}</p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-                <nav className="lg:sticky lg:top-6 h-max rounded-xl border border-white/8 bg-white/[0.03] p-2">
+                <nav className={cn("h-max p-2 lg:sticky lg:top-6", formSurfaceClass)}>
                     {sections.map(section => {
                         const Icon = section.icon;
                         const active = activeSection === section.id;
@@ -87,8 +94,8 @@ export function SettingsWorkspace({
                                 className={cn(
                                     "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
                                     active
-                                        ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20"
-                                        : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
+                                        ? "border border-[color:var(--ui-view-toggle-table-ring)] bg-[color:var(--ui-view-toggle-table-active-bg)] text-[color:var(--ui-view-toggle-table-active-text)]"
+                                        : "border border-transparent text-[color:var(--ui-table-muted)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--ui-table-text)]"
                                 )}
                             >
                                 <Icon size={15} />
@@ -117,17 +124,17 @@ export function SettingsPanel({
     children: ReactNode;
 }) {
     return (
-        <section id={id} className="scroll-mt-6 rounded-xl border border-white/8 bg-[#0f111a]/70">
-            <div className="flex items-start gap-3 border-b border-white/8 px-5 py-4">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-cyan-300">
+        <section id={id} className="scroll-mt-6 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] shadow-[var(--ui-panel-shadow)]">
+            <div className="flex items-start gap-3 border-b border-[color:var(--ui-panel-header-border)] px-5 py-4">
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-form-accent)]">
                     <Icon size={16} />
                 </div>
                 <div>
-                    <h2 className="text-base font-semibold">{title}</h2>
-                    {description && <p className="mt-0.5 text-xs text-gray-500">{description}</p>}
+                    <h2 className="text-base font-semibold text-[color:var(--ui-panel-title)]">{title}</h2>
+                    {description && <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>{description}</p>}
                 </div>
             </div>
-            <div className="divide-y divide-white/[0.06]">{children}</div>
+            <div className="divide-y divide-[color:var(--ui-form-section-divider)]">{children}</div>
         </section>
     );
 }
@@ -148,8 +155,8 @@ export function SettingsField({
     return (
         <div className="grid gap-3 px-5 py-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
             <div>
-                <label className="text-sm font-medium text-gray-200">{label}</label>
-                {description && <p className="mt-1 text-xs leading-relaxed text-gray-500">{description}</p>}
+                <label className={formLabelClass}>{label}</label>
+                {description && <p className={cn("mt-1 text-xs leading-relaxed", formHelpTextClass)}>{description}</p>}
             </div>
             <div className="min-w-0">
                 {children}
@@ -170,7 +177,8 @@ export function SettingsInput({
             {...props}
             {...(errorId ? fieldErrorProps(errorId, error) : {})}
             className={cn(
-                "w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-50",
+                formControlClass,
+                "px-3 py-2 text-sm",
                 fieldErrorClass(error),
                 className
             )}
@@ -189,7 +197,8 @@ export function SettingsTextArea({
             {...props}
             {...(errorId ? fieldErrorProps(errorId, error) : {})}
             className={cn(
-                "min-h-24 w-full resize-y rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-cyan-500/50",
+                formControlClass,
+                "min-h-24 resize-y px-3 py-2 text-sm",
                 fieldErrorClass(error),
                 className
             )}
@@ -208,7 +217,8 @@ export function SettingsSelect({
             {...props}
             {...(errorId ? fieldErrorProps(errorId, error) : {})}
             className={cn(
-                "w-full rounded-lg border border-white/10 bg-[#0f111a] px-3 py-2 text-sm text-white outline-none transition-colors focus:border-cyan-500/50",
+                formControlClass,
+                "bg-[color:var(--ui-form-input-select-bg)] px-3 py-2 text-sm",
                 fieldErrorClass(error),
                 className
             )}
@@ -231,14 +241,14 @@ export function SettingsToggle({
         <button
             type="button"
             onClick={() => onChange(!checked)}
-            className="flex w-full items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-left"
+            className={cn("flex w-full items-center justify-between gap-4 px-4 py-3 text-left", formSurfaceClass, formSurfaceHoverClass)}
         >
             <span>
-                <span className="block text-sm font-medium text-white">{label}</span>
-                {description && <span className="mt-0.5 block text-xs text-gray-500">{description}</span>}
+                <span className="block text-sm font-medium text-[color:var(--ui-form-label-strong)]">{label}</span>
+                {description && <span className={cn("mt-0.5 block text-xs", formHelpTextClass)}>{description}</span>}
             </span>
-            <span className={cn("relative h-5 w-10 rounded-full transition-colors", checked ? "bg-cyan-500" : "bg-white/10")}>
-                <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform", checked ? "translate-x-5" : "translate-x-0.5")} />
+            <span className={cn("relative h-5 w-10 rounded-full transition-colors", checked ? "bg-[color:var(--ui-form-toggle-checked-bg)]" : "bg-[color:var(--ui-form-toggle-bg)]")}>
+                <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-[color:var(--ui-form-toggle-thumb)] transition-transform", checked ? "translate-x-5" : "translate-x-0.5")} />
             </span>
         </button>
     );
@@ -254,7 +264,7 @@ export function SegmentedControl<T extends string>({
     onChange: (value: T) => void;
 }) {
     return (
-        <div className="flex flex-wrap gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+        <div className={cn("flex flex-wrap gap-2 p-1", formSurfaceClass)}>
             {options.map(option => (
                 <button
                     key={option.value}
@@ -263,8 +273,8 @@ export function SegmentedControl<T extends string>({
                     className={cn(
                         "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                         value === option.value
-                            ? "bg-cyan-500/15 text-cyan-300"
-                            : "text-gray-400 hover:bg-white/5 hover:text-white"
+                            ? "bg-[color:var(--ui-view-toggle-table-active-bg)] text-[color:var(--ui-view-toggle-table-active-text)]"
+                            : "text-[color:var(--ui-table-muted)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--ui-table-text)]"
                     )}
                 >
                     {option.label}
@@ -277,8 +287,8 @@ export function SegmentedControl<T extends string>({
 export function ReadOnlyRow({ label, value }: { label: string; value: ReactNode }) {
     return (
         <div className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-            <span className="text-gray-500">{label}</span>
-            <span className="min-w-0 truncate text-right font-medium text-gray-300">{value}</span>
+            <span className={formHelpTextClass}>{label}</span>
+            <span className="min-w-0 truncate text-right font-medium text-[color:var(--ui-form-label)]">{value}</span>
         </div>
     );
 }
@@ -301,15 +311,15 @@ export function SettingsSaveBar({
     if (!visible && status === "idle") return null;
 
     return (
-        <div className="fixed bottom-5 left-1/2 z-50 w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 rounded-xl border border-white/10 bg-[#0f111a]/95 p-3 shadow-2xl backdrop-blur">
+        <div className="fixed bottom-5 left-1/2 z-50 w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-savebar-bg)] p-3 shadow-[var(--ui-form-dialog-shadow)] backdrop-blur">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm">
                     {status === "success" ? (
-                        <span className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={15} /> Settings saved.</span>
+                        <span className="flex items-center gap-2 text-[color:var(--ui-tone-success-text)]"><CheckCircle2 size={15} /> Settings saved.</span>
                     ) : status === "error" ? (
-                        <span className="flex items-center gap-2 text-red-400"><AlertCircle size={15} /> {error || "Save failed."}</span>
+                        <span className="flex items-center gap-2 text-[color:var(--ui-form-error-text)]"><AlertCircle size={15} /> {error || "Save failed."}</span>
                     ) : (
-                        <span className="text-gray-400">You have unsaved settings changes.</span>
+                        <span className="text-[color:var(--ui-form-label)]">You have unsaved settings changes.</span>
                     )}
                 </div>
                 <div className="flex justify-end gap-2">

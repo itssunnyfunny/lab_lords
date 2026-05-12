@@ -3,8 +3,21 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import {
+    formCheckboxClass,
+    formControlClass,
+    formDialogFooterClass,
+    formDialogHeaderClass,
+    formDialogPanelClass,
+    formErrorBannerClass,
+    formHelpTextClass,
+    formLabelClass,
+    formSurfaceClass,
+    formSurfaceHoverClass,
+} from "@/components/ui/formSurface";
 import { FieldError, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
+import { cn } from "@/lib/utils";
 
 interface StudentOption {
     id: string;
@@ -228,25 +241,25 @@ export function AllocateSeatDialog({
             : "Confirm";
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[color:var(--ui-form-overlay-bg)] p-3 backdrop-blur-sm sm:items-center sm:p-4">
             <div
-                className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0c14] shadow-2xl animate-in zoom-in-95 duration-200 sm:max-h-[90vh]"
+                className={cn("flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col animate-in zoom-in-95 duration-200 sm:max-h-[90vh]", formDialogPanelClass)}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex flex-shrink-0 items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-4 sm:px-6">
+                <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div>
-                        <h2 className="text-base font-semibold text-white">Allocate Seat</h2>
+                        <h2 className="text-base font-semibold text-[color:var(--ui-dialog-title)]">Allocate Seat</h2>
                         {effectiveStudentName && (
-                            <p className="text-xs text-zinc-400 mt-0.5">
-                                for <span className="text-white">{effectiveStudentName}</span>
+                            <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>
+                                for <span className="text-[color:var(--ui-form-label-strong)]">{effectiveStudentName}</span>
                                 {selectedShiftNames.length > 0 && (
                                     <> · <span className={selectedMultiShiftId ? "text-orange-300" : "text-indigo-300"}>{selectedShiftNames.join(", ")}</span></>
                                 )}
                             </p>
                         )}
                     </div>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+                    <button onClick={onClose} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>
@@ -255,27 +268,27 @@ export function AllocateSeatDialog({
                     {/* Student picker (only when not preselected) */}
                     {!hasStudent && (
                         <div className="space-y-3 mb-6">
-                            <p className="text-sm text-zinc-400">Select an active student:</p>
+                            <p className={formLabelClass}>Select an active student:</p>
                             <input
                                 type="text"
                                 placeholder="Search by name or phone..."
                                 value={studentSearch}
                                 onChange={e => setStudentSearch(e.target.value)}
-                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                                className={cn(formControlClass, "px-3 py-2 text-sm")}
                             />
                             <div className="space-y-1.5 max-h-48 overflow-y-auto pr-2">
                                 {filteredStudents.map(s => (
                                     <button
                                         key={s.id}
                                         onClick={() => { markTouched("student"); setStudentId(s.id); setStudentName(s.name); }}
-                                        className="w-full text-left px-3 py-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 hover:border-white/10 transition-all"
+                                        className={cn("w-full px-3 py-2.5 text-left", formSurfaceClass, formSurfaceHoverClass)}
                                     >
-                                        <p className="text-sm text-white font-medium">{s.name}</p>
-                                        {s.phone && <p className="text-xs text-zinc-500">{s.phone}</p>}
+                                        <p className="text-sm font-medium text-[color:var(--ui-form-label-strong)]">{s.name}</p>
+                                        {s.phone && <p className={cn("text-xs", formHelpTextClass)}>{s.phone}</p>}
                                     </button>
                                 ))}
                                 {filteredStudents.length === 0 && (
-                                    <p className="text-sm text-zinc-500 text-center py-4">No active students found.</p>
+                                    <p className={cn("py-4 text-center text-sm", formHelpTextClass)}>No active students found.</p>
                                 )}
                             </div>
                             <FieldError id="allocate-seat-student-error" error={studentError} />
@@ -296,21 +309,21 @@ export function AllocateSeatDialog({
                             <FieldError id="allocate-seat-selection-error" error={selectionError} />
 
                             {feeLinkLabel && (
-                                <label className="flex items-center gap-3 cursor-pointer group w-max rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
+                                <label className={cn("group flex w-max cursor-pointer items-center gap-3 px-4 py-3", formSurfaceClass, formSurfaceHoverClass)}>
                                     <input
                                         type="checkbox"
                                         checked={linkFeeToSelection}
                                         onChange={(e) => setLinkFeeToSelection(e.target.checked)}
-                                        className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
+                                        className={formCheckboxClass}
                                     />
-                                    <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
+                                    <span className="text-sm font-medium text-[color:var(--ui-form-label-strong)] transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]">
                                         Link monthly fee to {feeLinkLabel} price
                                     </span>
                                 </label>
                             )}
 
                             {submitError && (
-                                <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
+                                <div className={cn("p-3 text-sm", formErrorBannerClass)}>
                                     {submitError}
                                 </div>
                             )}
@@ -319,7 +332,7 @@ export function AllocateSeatDialog({
                 </div>
 
                 {/* Footer */}
-                <div className="flex flex-shrink-0 flex-col-reverse gap-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+                <div className={cn("flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6", formDialogFooterClass)}>
                     <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
                         Cancel
                     </Button>

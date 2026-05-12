@@ -3,6 +3,18 @@
 import { useEffect, useState } from "react";
 import { X, Loader2, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import {
+    formCheckboxClass,
+    formControlClass,
+    formDialogFooterClass,
+    formDialogHeaderClass,
+    formDialogPanelClass,
+    formErrorBannerClass,
+    formHelpTextClass,
+    formIconClass,
+    formLabelClass,
+    formSurfaceClass,
+} from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
 import { FORM_LIMITS, parseIntegerField } from "@/lib/formValidation";
@@ -205,25 +217,25 @@ export function UpdateAllocationDialog({
             : "Update";
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[color:var(--ui-form-overlay-bg)] p-3 backdrop-blur-sm sm:items-center sm:p-4">
             <div
-                className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0c14] shadow-2xl animate-in zoom-in-95 duration-200 sm:max-h-[90vh]"
+                className={cn("flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col animate-in zoom-in-95 duration-200 sm:max-h-[90vh]", formDialogPanelClass)}
                 onClick={e => e.stopPropagation()}
             >
-                <div className="flex flex-shrink-0 items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-4 sm:px-6">
+                <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div>
                         <div className="flex items-center gap-2">
                             <ArrowRightLeft size={15} className="text-indigo-400" />
-                            <h2 className="text-base font-semibold text-white">Change Seat / Shift</h2>
+                            <h2 className="text-base font-semibold text-[color:var(--ui-dialog-title)]">Change Seat / Shift</h2>
                         </div>
-                        <p className="text-xs text-zinc-400 mt-0.5">
-                            for <span className="text-white">{studentName}</span>
+                        <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>
+                            for <span className="text-[color:var(--ui-form-label-strong)]">{studentName}</span>
                             {selectedShiftNames.length > 0 && (
                                 <> · <span className={selectedMultiShiftId ? "text-orange-300" : "text-indigo-300"}>{selectedShiftNames.join(", ")}</span></>
                             )}
                         </p>
                     </div>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+                    <button onClick={onClose} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>
@@ -243,16 +255,16 @@ export function UpdateAllocationDialog({
                     <FieldError id="update-allocation-selection-error" error={selectionError} />
 
                     {feeLinkLabel && (
-                        <div className="mt-5 rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
+                        <div className={cn("mt-5 space-y-3 p-4", formSurfaceClass)}>
                             <div className="flex items-center gap-3">
-                                <span className="text-xs text-zinc-400 whitespace-nowrap">
+                                <span className={cn("whitespace-nowrap text-xs", formHelpTextClass)}>
                                     Monthly fee:{" "}
-                                    <span className="text-white font-medium">
+                                    <span className="font-medium text-[color:var(--ui-form-label-strong)]">
                                         {currentFee != null ? `Rs.${currentFee}` : "--"}
                                     </span>
                                 </span>
                                 <div className="relative flex-1">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm select-none">Rs.</span>
+                                    <span className={cn("absolute left-3 top-1/2 -translate-y-1/2 select-none text-sm", formIconClass)}>Rs.</span>
                                     <input
                                         type="number"
                                         min={0}
@@ -264,21 +276,21 @@ export function UpdateAllocationDialog({
                                         onChange={e => { setNewFee(e.target.value); setSubmitError(null); }}
                                         onBlur={() => markTouched("fee")}
                                         placeholder={linkFeeToSelection ? "Linked to shift price" : "Update fee (optional)"}
-                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 pr-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all disabled:opacity-50", fieldErrorClass(feeError))}
+                                        className={cn(formControlClass, "py-2 pl-10 pr-3 text-sm", fieldErrorClass(feeError))}
                                         {...fieldErrorProps("update-allocation-fee-error", feeError)}
                                     />
                                 </div>
                             </div>
                             <FieldError id="update-allocation-fee-error" error={feeError} />
 
-                            <label className="flex items-center gap-3 cursor-pointer group w-max">
+                            <label className="group flex w-max cursor-pointer items-center gap-3">
                                 <input
                                     type="checkbox"
                                     checked={linkFeeToSelection}
                                     onChange={(e) => setLinkFeeToSelection(e.target.checked)}
-                                    className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
+                                    className={formCheckboxClass}
                                 />
-                                <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
+                                <span className={cn("text-sm font-medium transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]", formLabelClass)}>
                                     Link monthly fee to {feeLinkLabel} price
                                 </span>
                             </label>
@@ -286,7 +298,7 @@ export function UpdateAllocationDialog({
                     )}
                 </div>
 
-                <div className="flex-shrink-0 space-y-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:px-6">
+                <div className={cn("flex-shrink-0 space-y-3 px-4 py-4 sm:px-6", formDialogFooterClass)}>
                     <div className="flex items-center justify-end gap-3">
                         <Button variant="ghost" onClick={onClose} disabled={submitting} className="text-sm h-8 px-4">
                             Cancel
@@ -300,7 +312,7 @@ export function UpdateAllocationDialog({
                     </div>
 
                     {submitError && (
-                        <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
+                        <div className={cn("p-3 text-sm", formErrorBannerClass)}>
                             {submitError}
                         </div>
                     )}
