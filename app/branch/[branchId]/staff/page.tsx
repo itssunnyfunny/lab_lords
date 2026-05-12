@@ -951,11 +951,11 @@ function StaffContent({
             ) : (
                 <>
                 <div className="md:hidden">{staffCards}</div>
-                <Card className="hidden overflow-visible p-0 md:block">
+                <Card noHover className="hidden overflow-visible p-0 md:block md:p-0">
                     <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                     <table className="w-full min-w-[54rem] text-left text-sm">
                         <thead>
-                            <tr className="border-b border-white/5 bg-white/[0.02] text-zinc-400">
+                            <tr className="border-b border-[color:var(--ui-table-divider)] bg-[color:var(--ui-table-head-bg)] text-[color:var(--ui-table-muted)]">
                                 <th className="px-6 py-4 font-medium">Member</th>
                                 <th className="px-6 py-4 font-medium">Role</th>
                                 <th className="px-6 py-4 font-medium">Access</th>
@@ -963,9 +963,9 @@ function StaffContent({
                                 <th className="px-6 py-4 font-medium w-14" />
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
                             {data.map(member => (
-                                <tr key={member.id} className="group hover:bg-white/[0.02] transition-colors">
+                                <tr key={member.id} className="group transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)]">
                                     {/* Member */}
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -973,8 +973,8 @@ function StaffContent({
                                                 {(member.user?.name || member.user?.email || "?")[0].toUpperCase()}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-zinc-200">{member.user?.name || <span className="text-gray-500 italic text-xs">No name</span>}</p>
-                                                <p className="text-xs text-zinc-500 flex items-center gap-1">
+                                                <p className="font-medium text-[color:var(--ui-table-text)]">{member.user?.name || <span className="text-xs italic text-[color:var(--ui-table-subtle)]">No name</span>}</p>
+                                                <p className="flex items-center gap-1 text-xs text-[color:var(--ui-table-subtle)]">
                                                     <Mail size={10} />{member.user?.email}
                                                 </p>
                                             </div>
@@ -994,7 +994,7 @@ function StaffContent({
                                         <AccessSummary member={member} />
                                     </td>
                                     {/* Date */}
-                                    <td className="px-6 py-4 text-zinc-500 text-xs">
+                                    <td className="px-6 py-4 text-xs text-[color:var(--ui-table-subtle)]">
                                         {format(new Date(member.createdAt), "PP")}
                                     </td>
                                     {/* Actions */}
@@ -1002,7 +1002,7 @@ function StaffContent({
                                         {canManageStaff ? (
                                             <RowActions actions={staffMemberActions(member)} />
                                         ) : (
-                                            <span className="text-xs text-zinc-600" title={staffManagementHelpText}>
+                                            <span className="text-xs text-[color:var(--ui-table-subtle)]" title={staffManagementHelpText}>
                                                 View only
                                             </span>
                                         )}

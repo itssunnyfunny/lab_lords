@@ -11,25 +11,25 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses = {
     primary:
-        "border border-[color:var(--ui-button-legacy-primary-border)] bg-[image:var(--ui-button-legacy-primary-bg)] text-[color:var(--ui-button-legacy-primary-text)] shadow-[var(--ui-button-legacy-primary-shadow)] hover:border-[color:var(--ui-button-legacy-primary-hover-border)] hover:shadow-[var(--ui-button-legacy-primary-hover-shadow)]",
+        "border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] hover:border-[color:var(--ui-button-primary-hover-border)] hover:bg-[color:var(--ui-button-primary-hover-bg)]",
     secondary:
-        "border border-[color:var(--ui-button-legacy-secondary-border)] bg-[color:var(--ui-button-legacy-secondary-bg)] text-[color:var(--ui-button-legacy-secondary-text)] backdrop-blur-sm hover:border-[color:var(--ui-button-legacy-secondary-hover-border)] hover:bg-[color:var(--ui-button-legacy-secondary-hover-bg)]",
+        "border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] text-[color:var(--ui-button-secondary-text)] shadow-[var(--ui-button-secondary-shadow)] hover:border-[color:var(--ui-button-secondary-hover-border)] hover:bg-[color:var(--ui-button-secondary-hover-bg)]",
     outline:
-        "border border-[color:var(--ui-button-legacy-outline-border)] bg-[color:var(--ui-button-legacy-outline-bg)] text-[color:var(--ui-button-legacy-outline-text)] hover:border-[color:var(--ui-button-legacy-outline-hover-border)] hover:text-[color:var(--ui-button-legacy-outline-hover-text)]",
+        "border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] text-[color:var(--ui-button-secondary-text)] shadow-[var(--ui-button-secondary-shadow)] hover:border-[color:var(--ui-button-secondary-hover-border)] hover:bg-[color:var(--ui-button-secondary-hover-bg)]",
     ghost:
-        "bg-[color:var(--ui-button-legacy-ghost-bg)] text-[color:var(--ui-button-legacy-ghost-text)] hover:bg-[color:var(--ui-button-legacy-ghost-hover-bg)] hover:text-[color:var(--ui-button-legacy-ghost-hover-text)]",
+        "border-[color:var(--ui-button-quiet-border)] bg-[color:var(--ui-button-quiet-bg)] text-[color:var(--ui-button-quiet-text)] hover:border-[color:var(--ui-button-quiet-hover-border)] hover:bg-[color:var(--ui-button-quiet-hover-bg)] hover:text-[color:var(--ui-button-quiet-hover-text)]",
     danger:
-        "border border-[color:var(--ui-button-legacy-danger-border)] bg-[color:var(--ui-button-legacy-danger-bg)] text-[color:var(--ui-button-legacy-danger-text)] hover:bg-[color:var(--ui-button-legacy-danger-hover-bg)]",
+        "border-[color:var(--ui-button-danger-border)] bg-[color:var(--ui-button-danger-bg)] text-[color:var(--ui-button-danger-text)] hover:border-[color:var(--ui-button-danger-hover-border)] hover:bg-[color:var(--ui-button-danger-hover-bg)]",
     glow:
-        "border border-[color:var(--ui-button-legacy-glow-border)] bg-[color:var(--ui-button-legacy-glow-bg)] text-[color:var(--ui-button-legacy-glow-text)] shadow-[var(--ui-button-legacy-glow-shadow)] hover:bg-[color:var(--ui-button-legacy-glow-hover-bg)] hover:shadow-[var(--ui-button-legacy-glow-hover-shadow)]",
+        "border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] hover:border-[color:var(--ui-button-primary-hover-border)] hover:bg-[color:var(--ui-button-primary-hover-bg)]",
     cyan:
-        "border border-[color:var(--ui-button-legacy-cyan-border)] bg-[color:var(--ui-button-legacy-cyan-bg)] text-[color:var(--ui-button-legacy-cyan-text)] shadow-[var(--ui-button-legacy-cyan-shadow)] hover:bg-[color:var(--ui-button-legacy-cyan-hover-bg)] hover:shadow-[var(--ui-button-legacy-cyan-hover-shadow)]",
+        "border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] hover:border-[color:var(--ui-button-primary-hover-border)] hover:bg-[color:var(--ui-button-primary-hover-bg)]",
 };
 
 const sizeClasses = {
-    sm: "h-8 px-3 text-xs",
-    md: "px-5 py-2.5 text-sm",
-    lg: "px-6 py-3.5 text-base",
+    sm: "h-8 px-2.5 text-xs",
+    md: "h-10 px-3 text-sm",
+    lg: "h-11 px-4 text-base",
     icon: "h-10 w-10 p-0",
 };
 
@@ -41,19 +41,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 ref={ref}
                 disabled={isLoading || props.disabled}
                 className={cn(
-                    "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-[var(--ui-button-legacy-radius)] text-sm font-medium outline-none transition-all duration-300 active:scale-95 focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-app)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                    "group inline-flex items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border font-semibold tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
                     variantClasses[variant],
                     sizeClasses[size],
                     className
                 )}
                 {...props}
             >
-                {/* Shine effect on hover */}
-                <div className="pointer-events-none absolute inset-0 h-full w-full -translate-x-full bg-[image:linear-gradient(to_right,transparent,var(--ui-button-shine),transparent)] group-hover:animate-shimmer" />
-
-                {isLoading && <Loader2 className="relative z-10 h-4 w-4 animate-spin" />}
-                {!isLoading && Icon && <Icon size={16} className="relative z-10" />}
-                {children && <span className="relative z-10 inline-flex items-center gap-2">{children}</span>}
+                {isLoading && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
+                {!isLoading && Icon && <Icon size={16} className="shrink-0" />}
+                {children && <span className="inline-flex min-w-0 items-center gap-2 truncate">{children}</span>}
             </button>
         );
     }

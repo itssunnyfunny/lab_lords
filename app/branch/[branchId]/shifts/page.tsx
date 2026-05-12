@@ -1498,44 +1498,44 @@ function ShiftsContent({
             ) : (
                 <>
                 <div className="md:hidden">{shiftCards}</div>
-                <Card className="hidden overflow-visible p-0 md:block">
+                <Card noHover className="hidden overflow-visible p-0 md:block md:p-0">
                     <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                     <table className="w-full min-w-[54rem] text-left text-sm">
                         <thead>
-                            <tr className="border-b border-white/5 bg-white/[0.02] text-zinc-400">
-                                <th className="px-6 py-4 font-semibold text-gray-400">Shift Name</th>
-                                <th className="px-6 py-4 font-semibold text-gray-400">Type</th>
-                                <th className="px-6 py-4 font-semibold text-gray-400">Time Window</th>
-                                <th className="px-6 py-4 font-semibold text-gray-400">Price</th>
-                                <th className="px-6 py-4 font-semibold text-gray-400 text-right">Actions</th>
+                            <tr className="border-b border-[color:var(--ui-table-divider)] bg-[color:var(--ui-table-head-bg)] text-[color:var(--ui-table-muted)]">
+                                <th className="px-6 py-4 font-semibold">Shift Name</th>
+                                <th className="px-6 py-4 font-semibold">Type</th>
+                                <th className="px-6 py-4 font-semibold">Time Window</th>
+                                <th className="px-6 py-4 font-semibold">Price</th>
+                                <th className="px-6 py-4 text-right font-semibold">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
                             {/* Primary Shifts */}
                             {shifts.map(shift => (
-                                <tr key={shift.id} className="group hover:bg-white/[0.02] transition-colors">
-                                    <td className="px-6 py-4 text-white font-medium">{shift.name}</td>
+                                <tr key={shift.id} className="group transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)]">
+                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">{shift.name}</td>
                                     <td className="px-6 py-4">
                                         <Badge variant="warning" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/20 font-bold tracking-wider text-[10px]">
                                             PRIMARY
                                         </Badge>
                                     </td>
-                                    <td className="px-6 py-4 text-zinc-400">
+                                    <td className="px-6 py-4 text-[color:var(--ui-table-muted)]">
                                         {shift.startTime && shift.endTime ? (
                                             <span className="font-mono flex items-center gap-1.5">
-                                                <Clock size={12} className="text-zinc-600" />
+                                                <Clock size={12} className="text-[color:var(--ui-table-subtle)]" />
                                                 {shift.startTime} – {shift.endTime}
                                             </span>
                                         ) : (
-                                            <span className="text-zinc-500 italic text-xs">No time limit</span>
+                                            <span className="text-xs italic text-[color:var(--ui-table-subtle)]">No time limit</span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-white font-medium">₹{shift.price}</td>
+                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">₹{shift.price}</td>
                                     <td className="px-6 py-4 text-right">
                                         {canManageBranch ? (
                                             <RowActions actions={primaryShiftActions(shift)} />
                                         ) : (
-                                            <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
+                                            <span className="text-xs text-[color:var(--ui-table-subtle)]" title={shiftManageHelpText}>
                                                 View only
                                             </span>
                                         )}
@@ -1545,13 +1545,13 @@ function ShiftsContent({
 
                             {/* Multi Shifts */}
                             {multiShifts.map(ms => (
-                                <tr key={ms.id} className="group hover:bg-white/[0.02] transition-colors border-t border-white/5">
+                                <tr key={ms.id} className="group border-t border-[color:var(--ui-table-divider)] transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)]">
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
-                                            <span className="text-white font-medium">{ms.name}</span>
+                                            <span className="font-medium text-[color:var(--ui-table-text)]">{ms.name}</span>
                                             <div className="flex flex-wrap gap-1 mt-1">
                                                 {ms.components.map(c => (
-                                                    <span key={c.shiftId} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5">
+                                                    <span key={c.shiftId} className="rounded border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-action-bg)] px-1.5 py-0.5 text-[9px] text-[color:var(--ui-table-muted)]">
                                                         {c.shiftName}
                                                     </span>
                                                 ))}
@@ -1564,16 +1564,16 @@ function ShiftsContent({
                                         </Badge>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="text-zinc-500 text-xs">
+                                        <span className="text-xs text-[color:var(--ui-table-subtle)]">
                                             {ms.components.length} slots combined
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-white font-medium">₹{ms.price}</td>
+                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">₹{ms.price}</td>
                                     <td className="px-6 py-4 text-right">
                                         {canManageBranch ? (
                                             <RowActions actions={multiShiftActions(ms)} />
                                         ) : (
-                                            <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
+                                            <span className="text-xs text-[color:var(--ui-table-subtle)]" title={shiftManageHelpText}>
                                                 View only
                                             </span>
                                         )}

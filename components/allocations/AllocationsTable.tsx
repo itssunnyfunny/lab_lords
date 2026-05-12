@@ -203,34 +203,34 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                 return (
                     <div
                         key={alloc.id}
-                        className="relative flex min-h-[250px] flex-col rounded-lg border border-white/10 bg-card p-4 shadow-card transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                        className="relative flex min-h-[250px] flex-col rounded-[var(--ui-table-radius)] border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-bg)] p-4 shadow-[var(--ui-table-shadow)] transition-colors hover:border-[color:var(--ui-button-secondary-hover-border)] hover:bg-[color:var(--ui-table-row-hover-bg)]"
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="truncate font-medium text-zinc-100">{alloc.student.name}</p>
-                                <p className="mt-1 text-xs text-zinc-500">Student assignment</p>
+                                <p className="truncate font-medium text-[color:var(--ui-table-text)]">{alloc.student.name}</p>
+                                <p className="mt-1 text-xs text-[color:var(--ui-table-subtle)]">Student assignment</p>
                             </div>
                             <div className="flex-shrink-0">{renderAllocationStatus(alloc)}</div>
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                            <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                                <div className="text-xs text-zinc-500">Seat</div>
-                                <div className="mt-1 truncate font-semibold text-zinc-100">{alloc.seat.label}</div>
+                            <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-card-border)] bg-[color:var(--ui-table-cell-bg)] p-3">
+                                <div className="text-xs text-[color:var(--ui-table-subtle)]">Seat</div>
+                                <div className="mt-1 truncate font-semibold text-[color:var(--ui-table-text)]">{alloc.seat.label}</div>
                             </div>
-                            <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                                <div className="text-xs text-zinc-500">Start Date</div>
-                                <div className="mt-1 truncate text-zinc-300">{format(new Date(alloc.startDate), "PP")}</div>
+                            <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-card-border)] bg-[color:var(--ui-table-cell-bg)] p-3">
+                                <div className="text-xs text-[color:var(--ui-table-subtle)]">Start Date</div>
+                                <div className="mt-1 truncate text-[color:var(--ui-table-muted)]">{format(new Date(alloc.startDate), "PP")}</div>
                             </div>
                         </div>
 
-                        <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Shift</div>
+                        <div className="mt-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-card-border)] bg-[color:var(--ui-table-cell-bg)] p-3">
+                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--ui-table-subtle)]">Shift</div>
                             {renderShiftSummary(alloc)}
                         </div>
 
                         {actions && (
-                            <div className="mt-auto border-t border-white/5 pt-4">
+                            <div className="mt-auto border-t border-[color:var(--ui-table-divider)] pt-4">
                                 {actions}
                             </div>
                         )}
@@ -239,7 +239,7 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
             })}
 
             {sorted.length === 0 && (
-                <div className="col-span-full rounded-lg border border-dashed border-white/10 py-12 text-center text-zinc-500">
+                <div className="col-span-full rounded-[var(--ui-table-radius)] border border-dashed border-[color:var(--ui-table-empty-border)] py-12 text-center text-[color:var(--ui-table-subtle)]">
                     No allocations found.
                 </div>
             )}
@@ -271,11 +271,11 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
     return (
         <>
             <div className="md:hidden">{allocationCards}</div>
-            <Card className="hidden overflow-hidden md:block">
+            <Card noHover className="hidden overflow-hidden p-0 md:block md:p-0">
             <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             <table className="w-full min-w-[58rem] text-left text-sm">
                 <thead>
-                    <tr className="border-b border-white/5 bg-white/5 text-zinc-400">
+                    <tr className="border-b border-[color:var(--ui-table-divider)] bg-[color:var(--ui-table-head-bg)] text-[color:var(--ui-table-muted)]">
                         <th className="px-6 py-4 font-medium">Student</th>
                         <th className="px-6 py-4 font-medium">Seat</th>
                         <th className="px-6 py-4 font-medium">Shift</th>
@@ -284,17 +284,17 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                         {!isEndedTab && <th className="px-6 py-4 font-medium">Actions</th>}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
                     {sorted.map((alloc) => {
                         const isActive = !alloc.endDate;
                         const isMulti = alloc.isMulti;
 
                         return (
-                            <tr key={alloc.id} className="group hover:bg-white/5 transition-colors">
-                                <td className="px-6 py-4 font-medium text-zinc-200">
+                            <tr key={alloc.id} className="group transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)]">
+                                <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">
                                     {alloc.student.name}
                                 </td>
-                                <td className="px-6 py-4 text-zinc-400">
+                                <td className="px-6 py-4 text-[color:var(--ui-table-muted)]">
                                     {alloc.seat.label}
                                 </td>
                                 <td className="px-6 py-4">
@@ -304,13 +304,13 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/20">
                                                     <Layers size={9} /> MULTI-SHIFT
                                                 </span>
-                                                <span className="text-sm font-semibold text-zinc-100">{alloc.multiShiftName}</span>
+                                                <span className="text-sm font-semibold text-[color:var(--ui-table-text)]">{alloc.multiShiftName}</span>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-1.5">
                                                 {alloc.componentShiftNames?.map((name, i) => (
                                                     <span 
                                                         key={i} 
-                                                        className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-800/80 border border-white/10 text-zinc-300 shadow-sm"
+                                                        className="rounded-md border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-action-bg)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ui-table-muted)] shadow-sm"
                                                     >
                                                         {name}
                                                     </span>
@@ -322,11 +322,11 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                                             <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20">
                                                 PRIMARY
                                             </span>
-                                            <span className="text-sm font-medium text-zinc-200">{alloc.shiftName}</span>
+                                            <span className="text-sm font-medium text-[color:var(--ui-table-text)]">{alloc.shiftName}</span>
                                         </div>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 text-zinc-400">
+                                <td className="px-6 py-4 text-[color:var(--ui-table-muted)]">
                                     {format(new Date(alloc.startDate), "PP")}
                                 </td>
                                 <td className="px-6 py-4">
@@ -335,7 +335,7 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                                     ) : (
                                         <div className="flex flex-col gap-1">
                                             <Badge variant="default">Ended</Badge>
-                                            <span className="text-[10px] text-zinc-500">{alloc.endDate ? format(new Date(alloc.endDate), "PP") : ""}</span>
+                                            <span className="text-[10px] text-[color:var(--ui-table-subtle)]">{alloc.endDate ? format(new Date(alloc.endDate), "PP") : ""}</span>
                                         </div>
                                     )}
                                 </td>
@@ -346,7 +346,7 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                                                 {onUpdateAllocation && (
                                                     <button
                                                         onClick={() => onUpdateAllocation(alloc.ids, alloc.studentId, alloc.student.name, alloc.seat.id, alloc.student.monthlyFee ?? null, alloc.shiftIds, alloc.multiShiftId ?? null)}
-                                                        className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-all"
+                                                        className="inline-flex items-center gap-1 rounded-md border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-action-bg)] px-2 py-1 text-xs text-[color:var(--ui-table-action-text)] transition-all hover:bg-[color:var(--ui-table-action-hover-bg)] hover:text-[color:var(--ui-table-action-hover-text)]"
                                                         title="Change seat / shift"
                                                     >
                                                         <Pencil size={11} />
@@ -370,7 +370,7 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                     })}
                     {sorted.length === 0 && (
                         <tr>
-                            <td colSpan={isEndedTab ? 5 : 6} className="px-6 py-8 text-center text-zinc-500">
+                            <td colSpan={isEndedTab ? 5 : 6} className="px-6 py-8 text-center text-[color:var(--ui-table-subtle)]">
                                 No allocations found.
                             </td>
                         </tr>
