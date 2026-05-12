@@ -3,6 +3,18 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import {
+    formCheckboxClass,
+    formControlClass,
+    formDialogFooterClass,
+    formDialogHeaderClass,
+    formDialogPanelClass,
+    formErrorBannerClass,
+    formLabelClass,
+    formRequiredClass,
+    formSuccessBannerClass,
+    formSurfaceClass,
+} from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { students } from "@/lib/api/students";
 import { CreateStudentDto } from "@/types";
@@ -206,14 +218,14 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[color:var(--ui-form-overlay-bg)] p-3 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
             <div
-                className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col rounded-2xl border border-white/10 bg-[#0a0c14] shadow-2xl animate-in zoom-in-95 duration-200 sm:max-h-[90vh]"
+                className={cn("flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col animate-in zoom-in-95 duration-200 sm:max-h-[90vh]", formDialogPanelClass)}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex flex-shrink-0 items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-4 sm:px-6">
-                    <h2 className="text-lg font-semibold text-white">Add New Student</h2>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+                <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
+                    <h2 className="text-lg font-semibold text-[color:var(--ui-dialog-title)]">Add New Student</h2>
+                    <button onClick={onClose} className="text-[color:var(--ui-form-help)] transition-colors hover:text-[color:var(--ui-table-text)]">
                         <X size={20} />
                     </button>
                 </div>
@@ -221,15 +233,15 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                 <div className="min-h-0 flex-1 overflow-y-auto p-4 custom-scrollbar sm:p-6">
                     <form id="add-student-form" onSubmit={handleSubmit} noValidate className="space-y-6">
                         {error && (
-                            <div className="p-3 text-sm text-red-200 bg-red-900/30 border border-red-900/50 rounded-md">
+                            <div className={cn("p-3 text-sm", formErrorBannerClass)}>
                                 {error}
                             </div>
                         )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label htmlFor="name" className="text-sm font-medium text-zinc-400">
-                                    Full Name <span className="text-red-400">*</span>
+                                <label htmlFor="name" className={formLabelClass}>
+                                    Full Name <span className={formRequiredClass}>*</span>
                                 </label>
                                 <input
                                     id="name"
@@ -238,7 +250,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     value={formData.name}
                                     onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setError(null); }}
                                     onBlur={() => markTouched("name")}
-                                    className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(nameError))}
+                                    className={cn(formControlClass, "px-3 py-2", fieldErrorClass(nameError))}
                                     placeholder="e.g. John Doe"
                                     autoFocus
                                     maxLength={FORM_LIMITS.nameMax}
@@ -248,8 +260,8 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="phone" className="text-sm font-medium text-zinc-400">
-                                    Phone Number <span className="text-red-400">*</span>
+                                <label htmlFor="phone" className={formLabelClass}>
+                                    Phone Number <span className={formRequiredClass}>*</span>
                                 </label>
                                 <input
                                     id="phone"
@@ -258,7 +270,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     value={formData.phone || ""}
                                     onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setError(null); }}
                                     onBlur={() => markTouched("phone")}
-                                    className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(phoneError))}
+                                    className={cn(formControlClass, "px-3 py-2", fieldErrorClass(phoneError))}
                                     placeholder="e.g. +91 98765 43210"
                                     inputMode="tel"
                                     maxLength={24}
@@ -268,7 +280,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="monthlyFee" className="text-sm font-medium text-zinc-400">
+                                <label htmlFor="monthlyFee" className={formLabelClass}>
                                     Monthly Fee
                                 </label>
                                 <input
@@ -284,7 +296,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                         setError(null);
                                     }}
                                     onBlur={() => markTouched("monthlyFee")}
-                                    className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(monthlyFeeError))}
+                                    className={cn(formControlClass, "px-3 py-2", fieldErrorClass(monthlyFeeError))}
                                     placeholder={linkFeeToSelection ? "Linked to shift price" : "Branch default"}
                                     min={0}
                                     max={FORM_LIMITS.moneyMax}
@@ -296,7 +308,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="admissionFee" className="text-sm font-medium text-zinc-400">
+                                <label htmlFor="admissionFee" className={formLabelClass}>
                                     Admission Fee
                                 </label>
                                 <input
@@ -312,7 +324,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                         setError(null);
                                     }}
                                     onBlur={() => markTouched("admissionFee")}
-                                    className={cn("w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white placeholder:text-zinc-600 disabled:opacity-50", fieldErrorClass(admissionFeeError))}
+                                    className={cn(formControlClass, "px-3 py-2", fieldErrorClass(admissionFeeError))}
                                     placeholder="One-time"
                                     min={0}
                                     max={FORM_LIMITS.moneyMax}
@@ -325,28 +337,28 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                         </div>
 
                         {createdStudentId && (
-                            <div className="p-3 text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                            <div className={cn("p-3 text-sm", formSuccessBannerClass)}>
                                 Student profile saved. Pick a different seat and try allocating again.
                             </div>
                         )}
 
-                        <hr className="border-white/5" />
+                        <hr className="border-[color:var(--ui-form-section-divider)]" />
 
                         <div className="space-y-4">
-                            <label className="flex items-center gap-3 cursor-pointer group w-max">
+                            <label className="group flex w-max cursor-pointer items-center gap-3">
                                 <input
                                     type="checkbox"
                                     checked={wantsAllocation}
                                     onChange={(e) => { setWantsAllocation(e.target.checked); markTouched("allocation"); }}
-                                    className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
+                                    className={formCheckboxClass}
                                 />
-                                <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
+                                <span className="text-sm font-medium text-[color:var(--ui-form-label-strong)] transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]">
                                     Allocate seat now (Optional)
                                 </span>
                             </label>
 
                             {wantsAllocation && (
-                                    <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.01] p-3 sm:p-5">
+                                <div className={cn("mt-4 p-3 sm:p-5", formSurfaceClass)}>
                                     <SeatPicker
                                         branchId={branchId}
                                         selectedShiftIds={selectedShiftIds}
@@ -378,14 +390,14 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                     <FieldError id="add-student-allocation-error" error={allocationError} />
 
                                     {feeLinkLabel && (
-                                        <label className="mt-4 flex items-center gap-3 cursor-pointer group w-max">
+                                        <label className={cn("group mt-4 flex w-max cursor-pointer items-center gap-3 px-4 py-3", formSurfaceClass)}>
                                             <input
                                                 type="checkbox"
                                                 checked={linkFeeToSelection}
                                                 onChange={(e) => setLinkFeeToSelection(e.target.checked)}
-                                                className="w-4 h-4 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-indigo-500/50"
+                                                className={formCheckboxClass}
                                             />
-                                            <span className="text-sm font-medium text-white group-hover:text-indigo-200 transition-colors">
+                                            <span className="text-sm font-medium text-[color:var(--ui-form-label-strong)] transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]">
                                                 Link monthly fee to {feeLinkLabel} price
                                             </span>
                                         </label>
@@ -396,7 +408,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                     </form>
                 </div>
 
-                <div className="flex flex-shrink-0 flex-col-reverse gap-3 border-t border-white/5 bg-white/[0.01] px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+                <div className={cn("flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6", formDialogFooterClass)}>
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                         Cancel
                     </Button>
