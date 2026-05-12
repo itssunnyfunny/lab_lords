@@ -1,72 +1,82 @@
-import { Users, Grid, CreditCard, Sparkles, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { CreditCard, Grid3X3, LayoutDashboard, ShieldCheck, Sparkles, Users } from "lucide-react";
+import {
+  landingContainerClass,
+  landingDescriptionClass,
+  landingEyebrowClass,
+  landingInsetClass,
+  landingMutedTextClass,
+  landingPanelClass,
+  landingSectionClass,
+  landingTitleClass,
+} from "@/components/ui/landingSurface";
 
 const features = [
   {
     title: "Multi-Branch Management",
     description: "Control all your study halls or libraries from a single, unified dashboard. Compare metrics and manage staff effortlessly.",
-    icon: <LayoutDashboard className="w-6 h-6 text-cyan-400" />,
+    icon: LayoutDashboard,
+    tone: "text-[color:var(--ui-badge-cyan-text)] bg-[color:var(--ui-badge-cyan-bg)] border-[color:var(--ui-badge-cyan-border)]",
   },
   {
     title: "Visual Seat Allocation",
     description: "Map out your exact physical layout. Drag and drop students to seats, manage shifts seamlessly, and instantly spot available capacity.",
-    icon: <Grid className="w-6 h-6 text-indigo-400" />,
+    icon: Grid3X3,
+    tone: "text-[color:var(--ui-badge-purple-text)] bg-[color:var(--ui-badge-purple-bg)] border-[color:var(--ui-badge-purple-border)]",
   },
   {
     title: "Automated Billing & Dues",
     description: "Never lose track of payments again. Detailed ledgers, automated due-date tracking, and single-click payment recording.",
-    icon: <CreditCard className="w-6 h-6 text-emerald-400" />,
+    icon: CreditCard,
+    tone: "text-[color:var(--ui-badge-success-text)] bg-[color:var(--ui-badge-success-bg)] border-[color:var(--ui-badge-success-border)]",
   },
   {
     title: "AI-Powered Insights",
     description: "Your silent manager. Get intelligent alerts for expiring memberships, low utilization times, and revenue forecasts.",
-    icon: <Sparkles className="w-6 h-6 text-amber-400" />,
+    icon: Sparkles,
+    tone: "text-[color:var(--ui-badge-warning-text)] bg-[color:var(--ui-badge-warning-bg)] border-[color:var(--ui-badge-warning-border)]",
   },
   {
     title: "Student Profiles & History",
     description: "Maintain comprehensive digital records of every student, their ID proofs, past allocations, and behavior logs.",
-    icon: <Users className="w-6 h-6 text-purple-400" />,
+    icon: Users,
+    tone: "text-[color:var(--ui-badge-cyan-text)] bg-[color:var(--ui-badge-cyan-bg)] border-[color:var(--ui-badge-cyan-border)]",
   },
   {
     title: "Role-Based Access Control",
     description: "Safely delegate tasks to branch managers and staff. Granular permissions ensure your financial data stays private.",
-    icon: <ShieldCheck className="w-6 h-6 text-rose-400" />,
+    icon: ShieldCheck,
+    tone: "text-[color:var(--ui-badge-danger-text)] bg-[color:var(--ui-badge-danger-bg)] border-[color:var(--ui-badge-danger-border)]",
   },
 ];
 
 export function LandingFeatures() {
   return (
-    <section id="features" className="relative z-10 border-t border-white/5 bg-[#050508]/50 py-16 sm:py-20 md:py-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto mb-10 max-w-3xl text-center md:mb-16">
-          <h2 className="text-sm font-semibold tracking-wide text-cyan-500 uppercase mb-3">
-            Core Features
-          </h2>
-          <h3 className="mb-5 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-2xl font-extrabold text-transparent sm:text-3xl md:mb-6 md:text-4xl">
-            Everything you need to run at scale
-          </h3>
-          <p className="text-base leading-relaxed text-gray-400 sm:text-lg">
+    <section id="features" className={`${landingSectionClass} bg-[color:var(--ui-form-muted-surface-bg)]`}>
+      <div className={landingContainerClass}>
+        <div className="mb-10 max-w-3xl md:mb-14">
+          <p className={landingEyebrowClass}>Core features</p>
+          <h2 className={`${landingTitleClass} mt-3`}>Everything you need to run at scale</h2>
+          <p className={`${landingDescriptionClass} mt-4`}>
             We&apos;ve built a specialized toolkit that replaces your registers and spreadsheets with an elegant, lightning-fast application.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] p-5 transition-all hover:border-white/10 hover:bg-white/[0.04] sm:p-6 md:p-8"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="bg-[#0c0d12] border border-white/10 w-14 h-14 rounded-xl flex items-center justify-center mb-6 shadow-lg shadow-black/50">
-                {feature.icon}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {features.map(feature => {
+            const Icon = feature.icon;
+            return (
+              <div key={feature.title} className={`${landingPanelClass} p-5`}>
+                <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-[var(--ui-radius-control)] border ${feature.tone}`}>
+                  <Icon size={19} />
+                </div>
+                <h3 className="text-lg font-semibold text-[color:var(--text-primary)]">{feature.title}</h3>
+                <p className={`${landingMutedTextClass} mt-3 text-sm leading-6`}>{feature.description}</p>
+                <div className={`${landingInsetClass} mt-5 h-1.5 overflow-hidden`}>
+                  <div className="h-full w-2/3 rounded-full bg-[color:var(--ui-tone-info-progress)]" />
+                </div>
               </div>
-              <h4 className="mb-3 text-lg font-semibold text-white sm:text-xl">
-                {feature.title}
-              </h4>
-              <p className="text-gray-400 leading-relaxed text-sm">
-                {feature.description}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

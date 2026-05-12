@@ -1,186 +1,176 @@
-import { Users, LayoutDashboard, Grid, ArrowUpRight, ArrowDownRight, Layers, CreditCard, Activity } from "lucide-react";
+import { Activity, AlertTriangle, CalendarClock, CreditCard, Grid3X3, LayoutDashboard, MessageSquareText, Users } from "lucide-react";
+import {
+  landingContainerClass,
+  landingInsetClass,
+  landingMutedTextClass,
+  landingPanelClass,
+  landingSubtleTextClass,
+} from "@/components/ui/landingSurface";
+
+const navItems = [
+  { label: "Dashboard", icon: LayoutDashboard, active: true },
+  { label: "Students", icon: Users },
+  { label: "Seat Map", icon: Grid3X3 },
+  { label: "Allocations", icon: CalendarClock },
+  { label: "Payments", icon: CreditCard },
+  { label: "Overdue", icon: AlertTriangle },
+];
+
+const stats = [
+  { label: "Seat Utilization", value: "85.4%", detail: "128 / 150 booked", tone: "text-[color:var(--ui-tone-info-text)]" },
+  { label: "Active Students", value: "248", detail: "12 joined this week", tone: "text-[color:var(--ui-tone-success-text)]" },
+  { label: "Monthly Revenue", value: "Rs.1.42L", detail: "Rs.37k still due", tone: "text-[color:var(--text-primary)]" },
+];
+
+const activity = [
+  { title: "Seat A12 Allocated", detail: "Aarav Sharma newly enrolled.", tone: "bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]" },
+  { title: "Payment Received", detail: "Rs.2,500 from Priya Patel.", tone: "bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]" },
+  { title: "Overdue Alert", detail: "5 students exceeded 7 days limit.", tone: "bg-[color:var(--ui-badge-warning-bg)] text-[color:var(--ui-badge-warning-text)]" },
+];
+
+const collectionRows = [
+  { student: "Priya Patel", amount: "Rs.2,500", status: "Paid", tone: "text-[color:var(--ui-tone-success-text)]" },
+  { student: "Rahul Mehta", amount: "Rs.1,200", status: "Due", tone: "text-[color:var(--ui-tone-danger-text)]" },
+  { student: "Sneha Rao", amount: "Rs.1,800", status: "Pending", tone: "text-[color:var(--ui-tone-warning-text)]" },
+];
 
 export function LandingMockup() {
   return (
-    <div
-      className="relative z-10 mx-auto mt-12 w-full max-w-6xl px-3 pb-16 sm:mt-16 sm:px-4 sm:pb-24 md:mt-20 md:pb-32"
-      style={{ animationDelay: "0.4s" }}
-    >
-      {/* Intense Glowing gradients perfectly matching the image's style */}
-      <div className="absolute left-1/4 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[90px] pointer-events-none sm:h-[600px] sm:w-[600px] sm:blur-[120px]" />
-      <div className="absolute right-1/4 top-1/2 h-72 w-72 -translate-y-1/2 translate-x-1/2 rounded-full bg-indigo-500/10 blur-[90px] pointer-events-none sm:h-[600px] sm:w-[600px] sm:blur-[120px]" />
-
-      {/* The Floating UI Frame */}
-      <div className="animate-fade-in-up opacity-0 relative group">
-        
-        {/* Glow behind the mockup */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/30 via-indigo-500/30 to-purple-500/30 rounded-2xl blur-xl opacity-60"></div>
-        
-        <div className="animate-float relative rounded-2xl bg-[#030305] border border-white/10 shadow-[0_30px_100px_-20px_rgba(0,0,0,1)] overflow-hidden flex flex-col items-center">
-          
-          {/* Glass header for the mock browser/app frame */}
-          <div className="w-full h-12 bg-white/[0.02] border-b border-white/5 flex items-center px-4 gap-2 backdrop-blur-md relative z-20">
-            <div className="flex gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#ff5f56]" />
-              <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
-              <div className="w-3 h-3 rounded-full bg-[#27c93f]" />
-            </div>
-            <div className="mx-auto flex h-6 w-32 items-center justify-center rounded-md border border-white/5 bg-black/50 sm:w-64">
-              <span className="text-[10px] text-gray-500 uppercase tracking-widest">Lab Lords OS</span>
-            </div>
+    <section className={`${landingContainerClass} relative z-10 pb-16 pt-10 sm:pb-20 md:pb-24`}>
+      <div className={`${landingPanelClass} overflow-hidden`}>
+        <div className="flex h-11 items-center gap-2 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4">
+          <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--ui-tone-danger-progress)]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--ui-tone-warning-progress)]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--ui-tone-success-progress)]" />
+          <div className="ml-3 hidden h-7 min-w-0 flex-1 items-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-input-bg)] px-3 text-xs text-[color:var(--text-muted)] sm:flex">
+            Lab Lords OS
           </div>
-          
-          <div className="flex h-[620px] w-full bg-[#050508] sm:h-[560px] md:h-[600px]">
-            {/* Elegant Sidebar Navigation */}
-            <div className="w-64 border-r border-white/5 bg-[#030305] p-6 hidden md:flex flex-col gap-8 relative z-10">
-              {/* Profile Block */}
-              <div className="flex items-center gap-3 w-full p-2 bg-white/5 border border-white/5 rounded-xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                  <span className="font-bold text-white shadow-sm">D</span>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-white">Downtown Branch</h4>
-                  <p className="text-xs text-gray-500">Premium Plan</p>
-                </div>
+        </div>
+
+        <div className="grid min-h-[560px] grid-cols-1 bg-[color:var(--bg-app)] md:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="hidden border-r border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-4 md:block">
+            <div className={`${landingInsetClass} mb-6 p-3`}>
+              <p className="text-sm font-semibold text-[color:var(--text-primary)]">Downtown Branch</p>
+              <p className={`${landingSubtleTextClass} mt-1 text-xs`}>Premium Plan</p>
+            </div>
+
+            <nav className="space-y-1.5">
+              {navItems.map(item => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.label}
+                    className={`flex items-center gap-3 rounded-[var(--ui-radius-control)] px-3 py-2.5 text-sm font-medium ${
+                      item.active
+                        ? "border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
+                        : "text-[color:var(--text-secondary)]"
+                    }`}
+                  >
+                    <Icon size={16} />
+                    {item.label}
+                  </div>
+                );
+              })}
+            </nav>
+          </aside>
+
+          <div className="p-4 sm:p-5 md:p-6">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]">Branch dashboard</p>
+                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">Branch Overview</h2>
+                <p className={`${landingSubtleTextClass} mt-1 text-sm`}>Live metrics from your facility.</p>
               </div>
-
-              {/* Navigation Items */}
-              <nav className="flex flex-col gap-2">
-                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 px-3">Overview</div>
-                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-                  <LayoutDashboard size={18} />
-                  <span className="text-sm font-medium">Dashboard</span>
-                </div>
-                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 cursor-default transition-colors">
-                  <Users size={18} />
-                  <span className="text-sm font-medium">Students</span>
-                </div>
-                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 cursor-default transition-colors">
-                  <Grid size={18} />
-                  <span className="text-sm font-medium">Seat Map</span>
-                </div>
-                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 cursor-default transition-colors">
-                  <CreditCard size={18} />
-                  <span className="text-sm font-medium">Payments</span>
-                </div>
-              </nav>
-
-              {/* Sparkline minimal mock */}
-              <div className="mt-auto p-4 rounded-xl border border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs text-gray-400">Weekly Seats</span>
-                  <span className="text-xs font-bold text-emerald-400">+12%</span>
-                </div>
-                <div className="flex items-end gap-1.5 h-10 w-full">
-                  {[40, 60, 45, 80, 55, 90, 70].map((h, i) => (
-                    <div key={i} className="flex-1 bg-gradient-to-t from-cyan-500/50 to-cyan-400/80 rounded-sm" style={{ height: `${h}%` }}></div>
-                  ))}
-                </div>
+              <div className={`${landingInsetClass} flex w-max items-center gap-2 px-3 py-2 text-xs text-[color:var(--ui-tone-success-text)]`}>
+                <span className="h-2 w-2 rounded-full bg-[color:var(--ui-tone-success-progress)]" />
+                Live operations
               </div>
             </div>
 
-            {/* Breathtaking Main Content Area */}
-            <div className="relative flex-1 overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0c0c16] to-[#030305] p-4 sm:p-6 md:p-8">
-              
-              {/* Inner ambient light */}
-              <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 blur-[100px] rounded-full"></div>
-
-              <div className="relative z-10 mb-5 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-xl font-bold tracking-tight text-white drop-shadow-md sm:text-2xl">Branch Overview</h3>
-                  <p className="text-sm text-gray-400 mt-1">Live metrics from your facility.</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {stats.map(stat => (
+                <div key={stat.label} className={`${landingInsetClass} p-4`}>
+                  <p className={`${landingMutedTextClass} text-sm`}>{stat.label}</p>
+                  <p className={`mt-2 text-3xl font-semibold tracking-tight ${stat.tone}`}>{stat.value}</p>
+                  <p className={`${landingSubtleTextClass} mt-1 text-xs`}>{stat.detail}</p>
                 </div>
-                <div className="flex w-max items-center gap-2 rounded-lg border border-white/5 bg-white/5 px-3 py-2 shadow-sm sm:px-4">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-medium text-emerald-400">Live Sync</span>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className={`${landingInsetClass} min-h-[250px] p-4`}>
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Allocation board</h3>
+                    <p className={`${landingSubtleTextClass} mt-1 text-xs`}>Shift-aware availability with current bookings</p>
+                  </div>
+                  <CalendarClock size={16} className="text-[color:var(--text-muted)]" />
+                </div>
+
+                <div className="grid grid-cols-8 gap-2">
+                  {Array.from({ length: 40 }).map((_, index) => {
+                    const occupied = [1, 3, 6, 9, 12, 18, 21, 24, 29, 34].includes(index);
+                    const selected = [14, 15, 16].includes(index);
+                    return (
+                      <div
+                        key={index}
+                        className={`aspect-square rounded-[var(--ui-radius-control)] border ${
+                          selected
+                            ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
+                            : occupied
+                              ? "border-[color:var(--ui-badge-danger-border)] bg-[color:var(--ui-badge-danger-bg)]"
+                              : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)]"
+                        }`}
+                      />
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Rich Stats Grid */}
-              <div className="relative z-10 mb-5 grid grid-cols-1 gap-3 sm:mb-8 sm:grid-cols-3 sm:gap-4 md:gap-6">
-                
-                {/* Stat Card 1 */}
-                <div className="group relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent p-4 shadow-xl backdrop-blur-md transition-all duration-300 hover:border-cyan-500/30 sm:p-5 md:p-6">
-                  <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.15)] sm:h-12 sm:w-12">
-                      <Layers size={20} />
-                    </div>
-                    <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-md border border-emerald-500/20">
-                      <ArrowUpRight size={14} /> 4.2%
-                    </div>
+              <div className="space-y-4">
+                <div className={`${landingInsetClass} p-4`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Collection tracker</h3>
+                    <CreditCard size={15} className="text-[color:var(--text-muted)]" />
                   </div>
-                  <div className="text-gray-400 text-sm font-medium mb-1">Seat Utilization</div>
-                  <div className="text-3xl font-extrabold tracking-tighter text-white sm:text-4xl">85.4%</div>
-                </div>
-
-                {/* Stat Card 2 */}
-                <div className="group relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent p-4 shadow-xl backdrop-blur-md transition-all duration-300 hover:border-indigo-500/30 sm:p-5 md:p-6">
-                  <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10 text-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.15)] sm:h-12 sm:w-12">
-                      <Users size={20} />
-                    </div>
-                    <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-md border border-emerald-500/20">
-                      <ArrowUpRight size={14} /> 12 Active
-                    </div>
+                  <div className="mt-4 space-y-2">
+                    {collectionRows.map(row => (
+                      <div key={row.student} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] px-3 py-2">
+                        <p className="truncate text-xs font-medium text-[color:var(--text-primary)]">{row.student}</p>
+                        <p className="text-xs text-[color:var(--text-secondary)]">{row.amount}</p>
+                        <p className={`text-xs font-semibold ${row.tone}`}>{row.status}</p>
+                      </div>
+                    ))}
                   </div>
-                  <div className="text-gray-400 text-sm font-medium mb-1">Total Students</div>
-                  <div className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-3xl font-extrabold tracking-tighter text-transparent sm:text-4xl">248</div>
                 </div>
 
-                {/* Stat Card 3 */}
-                <div className="group relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent p-4 shadow-xl backdrop-blur-md transition-all duration-300 hover:border-purple-500/30 sm:p-5 md:p-6">
-                  <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-purple-500/20 bg-purple-500/10 text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.15)] sm:h-12 sm:w-12">
-                      <Activity size={20} />
-                    </div>
-                    <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-rose-500/10 text-rose-400 rounded-md border border-rose-500/20">
-                      <ArrowDownRight size={14} /> 1.1%
-                    </div>
+                <div className={`${landingInsetClass} p-4`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">AI follow-up queue</h3>
+                    <MessageSquareText size={15} className="text-[color:var(--text-muted)]" />
                   </div>
-                  <div className="text-gray-400 text-sm font-medium mb-1">Monthly Revenue</div>
-                  <div className="text-3xl font-extrabold tracking-tighter text-white sm:text-4xl">Rs.1.42L</div>
-                </div>
-
-              </div>
-
-              {/* Complex Table/Feed Area */}
-              <div className="relative z-10 hidden h-56 w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent shadow-2xl sm:flex md:h-64">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-black/20 backdrop-blur-sm">
-                  <h4 className="text-sm font-semibold text-white">Recent Activity</h4>
-                  <span className="text-xs font-medium text-cyan-400">View All</span>
-                </div>
-                
-                <div className="flex-1 p-2 flex flex-col gap-1 overflow-hidden">
-                  {[
-                    { title: "Seat A12 Allocated", desc: "Aarav Sharma newly enrolled.", time: "2m ago", color: "text-cyan-400", bg: "bg-cyan-500/10" },
-                    { title: "Payment Received", desc: "Rs.2,500 from Priya Patel.", time: "1hr ago", color: "text-emerald-400", bg: "bg-emerald-500/10" },
-                    { title: "Overdue Alert", desc: "5 students exceeded 7 days limit.", time: "3hr ago", color: "text-rose-400", bg: "bg-rose-500/10" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl transition-colors hover:bg-white/[0.02] group">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border border-white/5 ${item.bg}`}>
-                           <Activity size={16} className={item.color} />
+                  <div className="mt-4 space-y-3">
+                    {activity.map(item => (
+                      <div key={item.title} className="flex items-start gap-3">
+                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] ${item.tone}`}>
+                          <Activity size={14} />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">{item.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{item.title}</p>
+                          <p className={`${landingSubtleTextClass} mt-0.5 text-xs`}>{item.detail}</p>
                         </div>
                       </div>
-                      <span className="text-xs font-medium text-gray-600">{item.time}</span>
+                    ))}
+                    <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] px-3 py-2 text-xs leading-5 text-[color:var(--ui-badge-warning-text)]">
+                      5 overdue students have message drafts ready for review.
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-              
-              {/* Fade out absolute overlay at bottom so it blends with background */}
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#030305] to-transparent pointer-events-none z-20" />
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
