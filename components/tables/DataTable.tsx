@@ -32,7 +32,7 @@ export function DataTable<T extends { id: string | number }>({
                 </div>
             ))}
             {data.length === 0 && (
-                <div className="col-span-full rounded-lg border border-dashed border-white/10 py-12 text-center text-textMuted">
+                <div className="col-span-full rounded-[var(--ui-table-radius)] border border-dashed border-[color:var(--ui-table-empty-border)] py-12 text-center text-[color:var(--ui-table-subtle)]">
                     {emptyMessage}
                 </div>
             )}
@@ -41,37 +41,37 @@ export function DataTable<T extends { id: string | number }>({
 
     const tableMinWidth = `${Math.max(44, columns.length * 10 + (actions ? 8 : 0))}rem`;
     const tableView = (
-        <div className="w-full overflow-x-auto overflow-y-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-card shadow-card scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        <div className="w-full overflow-x-auto overflow-y-hidden rounded-[var(--ui-table-radius)] border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-bg)] shadow-[var(--ui-table-shadow)] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             <table className="w-full text-left text-sm" style={{ minWidth: tableMinWidth }}>
-                <thead className="bg-white/[0.02]">
+                <thead className="bg-[color:var(--ui-table-head-bg)]">
                     <tr>
                         {columns.map((col, idx) => (
                             <th
                                 key={idx}
                                 className={cn(
-                                    "py-4 px-6 font-medium text-textSecondary uppercase tracking-wider text-xs",
+                                    "px-6 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]",
                                     col.className
                                 )}
                             >
                                 {col.header}
                             </th>
                         ))}
-                        {actions && <th className="py-4 px-6 text-right text-textSecondary uppercase text-xs">Actions</th>}
+                        {actions && <th className="px-6 py-4 text-right text-xs uppercase text-[color:var(--ui-table-muted)]">Actions</th>}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
+                <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
                     {data.map((item) => (
                         <tr
                             key={item.id}
-                            className="group hover:bg-white/[0.02] transition-colors duration-150"
+                            className="group transition-colors duration-150 hover:bg-[color:var(--ui-table-row-hover-bg)]"
                         >
                             {columns.map((col, idx) => (
-                                <td key={idx} className={cn("py-4 px-6 text-textPrimary", col.className)}>
+                                <td key={idx} className={cn("px-6 py-4 text-[color:var(--ui-table-text)]", col.className)}>
                                     {typeof col.accessor === "function" ? col.accessor(item) : (item[col.accessor] as ReactNode)}
                                 </td>
                             ))}
                             {actions && (
-                                <td className="py-4 px-6 text-right">
+                                <td className="px-6 py-4 text-right">
                                     {actions(item)}
                                 </td>
                             )}
@@ -79,7 +79,7 @@ export function DataTable<T extends { id: string | number }>({
                     ))}
                     {data.length === 0 && (
                         <tr>
-                            <td colSpan={columns.length + (actions ? 1 : 0)} className="py-12 text-center text-textMuted">
+                            <td colSpan={columns.length + (actions ? 1 : 0)} className="py-12 text-center text-[color:var(--ui-table-subtle)]">
                                 {emptyMessage}
                             </td>
                         </tr>
