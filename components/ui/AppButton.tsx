@@ -51,7 +51,7 @@ export const AppButton = forwardRef<HTMLButtonElement, AppButtonProps>(
                 type={type}
                 disabled={disabled || isLoading}
                 className={cn(
-                    "group inline-flex items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border font-semibold tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                    "group inline-flex cursor-pointer items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border font-semibold tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
                     variantClasses[variant],
                     sizeClasses[size],
                     className

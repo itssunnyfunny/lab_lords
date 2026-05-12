@@ -5,9 +5,26 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight, Building2, CreditCard, LayoutGrid, Loader2, Users } from "lucide-react";
 import { analytics, type OrganizationAnalyticsSnapshot } from "@/lib/api/analytics";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { AppButton, AppPanel, PageShell } from "@/components/ui";
 import { DataTable } from "@/components/tables/DataTable";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { cn } from "@/lib/utils";
+import { formErrorBannerClass } from "@/components/ui/formSurface";
+import {
+    pageDescriptionClass,
+    pageEyebrowClass,
+    pageGridCardClass,
+    pageGridCardHoverClass,
+    pageInsetMetricClass,
+    pageLoadingStateClass,
+    pageMetaPillClass,
+    pageMutedTextClass,
+    pageProgressTrackClass,
+    pageSectionDescriptionClass,
+    pageSectionTitleClass,
+    pageSubtleTextClass,
+    pageTitleClass,
+} from "@/components/ui/pageSurface";
 
 type BranchAnalyticsRow = {
     id: string;
@@ -22,7 +39,7 @@ type BranchAnalyticsRow = {
 };
 
 function money(value: number) {
-    return `Rs.${value.toLocaleString("en-IN")}`;
+    return `Rs ${value.toLocaleString("en-IN")}`;
 }
 
 function percent(value: number) {
@@ -37,6 +54,12 @@ function formatAsOf(value: string) {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(date);
+}
+
+function utilizationTone(value: number): "success" | "warning" | "danger" {
+    if (value >= 0.7) return "success";
+    if (value >= 0.4) return "warning";
+    return "danger";
 }
 
 export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: string }> }) {
@@ -87,9 +110,9 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
 
     if (loading && !snapshot) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center p-4 md:p-8 text-white">
-                <Loader2 className="mr-3 animate-spin text-cyan-400" size={28} />
-                <span className="text-gray-400">Loading organization analytics...</span>
+            <div className={pageLoadingStateClass}>
+                <Loader2 className="mr-3 animate-spin text-[color:var(--ui-form-accent)]" size={28} />
+                <span className={pageMutedTextClass}>Loading organization analytics...</span>
             </div>
         );
     }
@@ -98,110 +121,118 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     const collectionRate = collectionBase > 0 ? (snapshot?.payments.paidAmount ?? 0) / collectionBase : 0;
     const usedSeatSlots = snapshot?.seats.usedSlots ?? snapshot?.seats.occupiedSeats ?? 0;
     const totalSeatSlots = snapshot?.seats.totalSlots ?? snapshot?.seats.totalSeats ?? 0;
+    const branchCount = snapshot?.organization.totalBranches ?? rows.length;
 
     return (
-        <div className="space-y-8 p-4 md:p-8 text-white fade-in">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white">Organization Analytics</h1>
-                    <p className="mt-1 text-sm text-gray-400">
-                        Cross-branch health, seating, and payment snapshot.
+        <PageShell>
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <p className={pageEyebrowClass}>Organization analytics</p>
+                    <h1 className={cn(pageTitleClass, "mt-2")}>Cross-branch health</h1>
+                    <p className={pageDescriptionClass}>
+                        Compare locations quickly, then move into the branch that needs work.
                     </p>
                 </div>
                 {snapshot?.asOf && (
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-gray-500">
-                        Updated {formatAsOf(snapshot.asOf)}
-                    </div>
+                    <span className={pageMetaPillClass}>Updated {formatAsOf(snapshot.asOf)}</span>
                 )}
-            </div>
+            </header>
 
             {error && (
-                <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-                    <AlertCircle size={16} />
+                <div className={cn(formErrorBannerClass, "flex items-center gap-2 px-4 py-3 text-sm")}>
+                    <AlertCircle size={16} className="shrink-0" />
                     {error}
                 </div>
             )}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard
+                <StatCard
                     icon={Building2}
-                    label="Branches"
-                    value={(snapshot?.organization.totalBranches ?? 0).toLocaleString("en-IN")}
-                    detail="Active operating locations"
+                    title="Branches"
+                    value={branchCount.toLocaleString("en-IN")}
+                    sub="Operating locations"
+                    tone="info"
                 />
-                <MetricCard
+                <StatCard
                     icon={Users}
-                    label="Students"
-                    value={(snapshot?.students.total ?? 0).toLocaleString("en-IN")}
-                    detail={`${snapshot?.students.active ?? 0} active`}
+                    title="Active students"
+                    value={(snapshot?.students.active ?? 0).toLocaleString("en-IN")}
+                    sub={`${(snapshot?.students.total ?? 0).toLocaleString("en-IN")} total profiles`}
+                    tone="success"
                 />
-                <MetricCard
+                <StatCard
                     icon={LayoutGrid}
-                    label="Seat Utilization"
+                    title="Slot utilization"
                     value={percent(snapshot?.seats.utilizationRatio ?? 0)}
-                    detail={`${usedSeatSlots} of ${totalSeatSlots} slots used`}
+                    sub={`${usedSeatSlots.toLocaleString("en-IN")} of ${totalSeatSlots.toLocaleString("en-IN")} slots used`}
+                    tone={utilizationTone(snapshot?.seats.utilizationRatio ?? 0)}
+                    progress={(snapshot?.seats.utilizationRatio ?? 0) * 100}
                 />
-                <MetricCard
+                <StatCard
                     icon={CreditCard}
-                    label="Collection Rate"
+                    title="Collection rate"
                     value={percent(collectionRate)}
-                    detail={`${money(snapshot?.payments.paidAmount ?? 0)} collected`}
+                    sub={`${money(snapshot?.payments.paidAmount ?? 0)} collected`}
+                    tone={collectionRate >= 0.75 ? "success" : collectionRate >= 0.5 ? "warning" : "danger"}
+                    progress={collectionRate * 100}
                 />
             </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <Card title="Seat Health" noHover>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                <AppPanel title="Seat health" description="How tightly the organization is using available slots.">
                     <div className="space-y-4">
                         <div className="flex items-end justify-between gap-4">
                             <div>
-                                <p className="text-3xl font-bold text-white">{percent(snapshot?.seats.utilizationRatio ?? 0)}</p>
-                                <p className="mt-1 text-sm text-gray-500">Overall utilization</p>
+                                <p className="text-3xl font-semibold tracking-tight text-[color:var(--text-primary)]">
+                                    {percent(snapshot?.seats.utilizationRatio ?? 0)}
+                                </p>
+                                <p className={cn(pageSubtleTextClass, "mt-1 text-sm")}>Overall utilization</p>
                             </div>
-                            <Badge variant="cyan">{usedSeatSlots} slots used</Badge>
+                            <Badge variant="cyan">{usedSeatSlots.toLocaleString("en-IN")} used</Badge>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-white/5">
+                        <div className={pageProgressTrackClass}>
                             <div
-                                className="h-full rounded-full bg-cyan-500"
+                                className="h-full rounded-full bg-[color:var(--ui-tone-info-progress)]"
                                 style={{ width: `${Math.min((snapshot?.seats.utilizationRatio ?? 0) * 100, 100)}%` }}
                             />
                         </div>
                     </div>
-                </Card>
+                </AppPanel>
 
-                <Card title="Student Mix" noHover>
+                <AppPanel title="Student mix" description="Active vs inactive profile balance.">
                     <div className="grid grid-cols-2 gap-3">
-                        <CompactStat label="Active" value={snapshot?.students.active ?? 0} tone="text-emerald-300" />
-                        <CompactStat label="Inactive" value={snapshot?.students.inactive ?? 0} tone="text-gray-400" />
+                        <CompactStat label="Active" value={snapshot?.students.active ?? 0} tone="success" />
+                        <CompactStat label="Inactive" value={snapshot?.students.inactive ?? 0} tone="neutral" />
                     </div>
-                </Card>
+                </AppPanel>
 
-                <Card title="Payments" noHover>
+                <AppPanel title="Payments" description="Open pressure without burying the page in finance detail.">
                     <div className="grid grid-cols-2 gap-3">
-                        <CompactStat label="Paid" value={snapshot?.payments.paidCount ?? 0} tone="text-emerald-300" />
-                        <CompactStat label="Due" value={snapshot?.payments.dueCount ?? 0} tone="text-rose-300" />
+                        <CompactStat label="Paid" value={snapshot?.payments.paidCount ?? 0} tone="success" />
+                        <CompactStat label="Due" value={snapshot?.payments.dueCount ?? 0} tone="danger" />
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-xl bg-white/[0.03] p-3">
-                            <p className="text-xs text-gray-500">Collected</p>
-                            <p className="mt-1 font-semibold text-emerald-300">{money(snapshot?.payments.paidAmount ?? 0)}</p>
-                        </div>
-                        <div className="rounded-xl bg-white/[0.03] p-3">
-                            <p className="text-xs text-gray-500">Due</p>
-                            <p className="mt-1 font-semibold text-rose-300">{money(snapshot?.payments.dueAmount ?? 0)}</p>
-                        </div>
+                        <AmountStat label="Collected" value={money(snapshot?.payments.paidAmount ?? 0)} tone="success" />
+                        <AmountStat label="Due" value={money(snapshot?.payments.dueAmount ?? 0)} tone="danger" />
                     </div>
-                </Card>
+                </AppPanel>
             </div>
 
-            <div>
-                <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-white">Branch Breakdown</h2>
+            <section className="space-y-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 className={pageSectionTitleClass}>Branch breakdown</h2>
+                        <p className={pageSectionDescriptionClass}>
+                            Scan health, then open the branch dashboard for action.
+                        </p>
+                    </div>
+                    <span className={pageMetaPillClass}>{rows.length.toLocaleString("en-IN")} branches</span>
                 </div>
                 <DataTable
                     data={rows}
                     emptyMessage="No branches available for analytics."
                     columns={[
-                        { header: "Branch", accessor: "branchName", className: "font-medium text-white" },
+                        { header: "Branch", accessor: "branchName", className: "font-medium text-[color:var(--text-primary)]" },
                         { header: "Active / Total", accessor: "students" },
                         { header: "Seated / Active", accessor: "seated" },
                         {
@@ -210,11 +241,11 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                         },
                         {
                             header: "Collected",
-                            accessor: (item) => <span className="font-semibold text-emerald-300">{money(item.paidAmount)}</span>,
+                            accessor: (item) => <span className="font-semibold text-[color:var(--ui-tone-success-text)]">{money(item.paidAmount)}</span>,
                         },
                         {
                             header: "Due",
-                            accessor: (item) => <span className="font-semibold text-rose-300">{money(item.dueAmount)}</span>,
+                            accessor: (item) => <span className="font-semibold text-[color:var(--ui-tone-danger-text)]">{money(item.dueAmount)}</span>,
                         },
                         {
                             header: "Overdue",
@@ -223,50 +254,115 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                                 : <Badge variant="success">0</Badge>,
                         },
                     ]}
+                    renderGridCard={(item) => (
+                        <BranchAnalyticsCard item={item} onOpen={() => router.push(`/branch/${item.branchId}/analytics`)} />
+                    )}
                     actions={(item) => (
-                        <Button
-                            variant="outline"
+                        <AppButton
+                            variant="secondary"
                             size="sm"
                             onClick={() => router.push(`/branch/${item.branchId}/analytics`)}
-                            className="gap-1.5 whitespace-nowrap"
+                            rightIcon={ArrowRight}
+                            className="whitespace-nowrap"
                         >
-                            Open <ArrowRight size={13} />
-                        </Button>
+                            Open
+                        </AppButton>
                     )}
                 />
-            </div>
-        </div>
+            </section>
+        </PageShell>
     );
 }
 
-function MetricCard({
-    icon: Icon,
+function CompactStat({
     label,
     value,
-    detail,
+    tone,
 }: {
-    icon: typeof Building2;
     label: string;
-    value: string;
-    detail: string;
+    value: number;
+    tone: "success" | "danger" | "neutral";
 }) {
+    const toneClass = {
+        success: "text-[color:var(--ui-tone-success-text)]",
+        danger: "text-[color:var(--ui-tone-danger-text)]",
+        neutral: "text-[color:var(--text-secondary)]",
+    }[tone];
+
     return (
-        <Card noHover className="p-5">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-300">
-                <Icon size={18} />
-            </div>
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="mt-1 text-2xl font-bold text-white">{value}</p>
-            <p className="mt-2 text-xs leading-5 text-gray-500">{detail}</p>
-        </Card>
+        <div className={pageInsetMetricClass}>
+            <p className={cn(pageSubtleTextClass, "text-xs")}>{label}</p>
+            <p className={cn("mt-1 text-2xl font-semibold", toneClass)}>{value.toLocaleString("en-IN")}</p>
+        </div>
     );
 }
 
-function CompactStat({ label, value, tone }: { label: string; value: number; tone: string }) {
+function AmountStat({
+    label,
+    value,
+    tone,
+}: {
+    label: string;
+    value: string;
+    tone: "success" | "danger";
+}) {
+    const toneClass = tone === "success"
+        ? "text-[color:var(--ui-tone-success-text)]"
+        : "text-[color:var(--ui-tone-danger-text)]";
+
     return (
-        <div className="rounded-xl bg-white/[0.03] p-4">
-            <p className="text-xs text-gray-500">{label}</p>
-            <p className={`mt-1 text-2xl font-bold ${tone}`}>{value.toLocaleString("en-IN")}</p>
+        <div className={pageInsetMetricClass}>
+            <p className={cn(pageSubtleTextClass, "text-xs")}>{label}</p>
+            <p className={cn("mt-1 truncate text-sm font-semibold", toneClass)}>{value}</p>
         </div>
+    );
+}
+
+function BranchAnalyticsCard({ item, onOpen }: { item: BranchAnalyticsRow; onOpen: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onOpen}
+            className={cn(
+                "group flex min-h-[220px] w-full cursor-pointer flex-col justify-between text-left",
+                pageGridCardClass,
+                pageGridCardHoverClass
+            )}
+        >
+            <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-[color:var(--text-primary)]">{item.branchName}</p>
+                        <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>{item.students} students</p>
+                    </div>
+                    <Badge variant={utilizationTone(item.utilization)}>{percent(item.utilization)}</Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div className={pageInsetMetricClass}>
+                        <p className={cn(pageSubtleTextClass, "text-xs")}>Collected</p>
+                        <p className="mt-1 truncate text-sm font-semibold text-[color:var(--ui-tone-success-text)]">
+                            {money(item.paidAmount)}
+                        </p>
+                    </div>
+                    <div className={pageInsetMetricClass}>
+                        <p className={cn(pageSubtleTextClass, "text-xs")}>Due</p>
+                        <p className="mt-1 truncate text-sm font-semibold text-[color:var(--ui-tone-danger-text)]">
+                            {money(item.dueAmount)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between gap-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
+                <span className={cn(pageMutedTextClass, "text-xs")}>
+                    {item.overdueCount > 0 ? `${item.overdueCount} overdue` : "No overdue payments"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)]">
+                    Open analytics
+                    <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                </span>
+            </div>
+        </button>
     );
 }

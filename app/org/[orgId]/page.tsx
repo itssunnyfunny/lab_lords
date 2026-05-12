@@ -3,8 +3,24 @@
 import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AppButton, AppPanel, PageShell } from "@/components/ui";
+import { Badge } from "@/components/ui/Badge";
+import { formErrorBannerClass } from "@/components/ui/formSurface";
+import {
+    pageDescriptionClass,
+    pageEmptyStateClass,
+    pageEyebrowClass,
+    pageGridCardClass,
+    pageGridCardHoverClass,
+    pageInsetMetricClass,
+    pageMetaPillClass,
+    pageSectionDescriptionClass,
+    pageSectionTitleClass,
+    pageSubtleTextClass,
+    pageTitleClass,
+} from "@/components/ui/pageSurface";
 import { analytics, OrganizationAnalyticsSnapshot } from "@/lib/api/analytics";
 import { BranchWithCounts, organizations } from "@/lib/api/organizations";
+import { cn } from "@/lib/utils";
 import {
     AlertCircle,
     ArrowRight,
@@ -21,7 +37,7 @@ import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 
 function Skeleton({ className }: { className?: string }) {
-    return <div className={`animate-pulse rounded-[8px] bg-white/[0.05] ${className ?? ""}`} />;
+    return <div className={cn("animate-pulse rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-surface-bg)]", className)} />;
 }
 
 function DashboardSkeleton() {
@@ -69,20 +85,20 @@ function getBranchStatus(overdueCount: number, utilization: number) {
     if (overdueCount > 0) {
         return {
             label: "Needs follow-up",
-            className: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+            variant: "danger" as const,
         };
     }
 
     if (utilization >= 90) {
         return {
             label: "Capacity tight",
-            className: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+            variant: "warning" as const,
         };
     }
 
     return {
         label: "Operational",
-        className: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+        variant: "success" as const,
     };
 }
 
@@ -166,7 +182,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
     return (
         <PageShell>
             {error && (
-                <div className="flex items-center gap-3 rounded-[8px] border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                <div className={cn(formErrorBannerClass, "flex items-center gap-3 px-4 py-3 text-sm")}>
                     <AlertCircle size={16} className="shrink-0" />
                     {error}
                 </div>
@@ -174,15 +190,15 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
 
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                    <div className={cn(pageEyebrowClass, "flex flex-wrap items-center gap-2")}>
                         <span>Workspace entry</span>
-                        <span className="h-1 w-1 rounded-full bg-gray-600" />
+                        <span className="h-1 w-1 rounded-full bg-[color:var(--text-muted)]" />
                         <span>{formatDate(snapshot?.asOf)}</span>
                     </div>
-                    <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                    <h1 className={cn(pageTitleClass, "mt-2")}>
                         Open a branch dashboard
                     </h1>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
+                    <p className={pageDescriptionClass}>
                         Choose the branch you want to work in. Organization numbers are here only as quick context.
                     </p>
                 </div>
@@ -202,7 +218,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 description="Select a branch to continue to students, payments, seats, shifts, and follow-ups."
                 action={
                     branchList.length > 0 && (
-                        <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-gray-400">
+                        <span className={pageMetaPillClass}>
                             {branchList.length} available
                         </span>
                     )
@@ -210,13 +226,13 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 contentClassName="p-4"
             >
                 {branchList.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-4 px-4 py-14 text-center">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.03]">
-                            <Building2 size={21} className="text-gray-500" />
+                    <div className={cn(pageEmptyStateClass, "min-h-[260px] gap-4")}>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)]">
+                            <Building2 size={21} className="text-[color:var(--text-muted)]" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-white">No branches yet</p>
-                            <p className="mt-1 max-w-sm text-xs leading-5 text-gray-500">
+                            <p className="text-sm font-medium text-[color:var(--text-primary)]">No branches yet</p>
+                            <p className={cn(pageSubtleTextClass, "mt-1 max-w-sm text-xs leading-5")}>
                                 Create your first branch to start using the operational dashboard.
                             </p>
                         </div>
@@ -245,53 +261,56 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                     key={branch.id}
                                     type="button"
                                     onClick={() => router.push(`/branch/${branch.id}`)}
-                                    className="group relative isolate flex min-h-[214px] overflow-hidden rounded-[8px] border border-white/12 bg-[linear-gradient(145deg,rgba(18,26,36,0.96),rgba(7,11,16,0.98))] text-left shadow-[0_18px_50px_rgba(0,0,0,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-300/30 hover:shadow-[0_22px_60px_rgba(0,0,0,0.34)]"
+                                    className={cn(
+                                        "group relative isolate flex min-h-[214px] cursor-pointer overflow-hidden p-0 text-left transition-transform duration-200 hover:-translate-y-0.5",
+                                        pageGridCardClass,
+                                        pageGridCardHoverClass
+                                    )}
                                 >
-                                    <span className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,rgba(103,232,249,0.9),rgba(110,231,183,0.65),rgba(255,255,255,0))]" />
-                                    <span className="absolute bottom-0 right-0 h-24 w-24 rounded-full bg-cyan-300/5 blur-2xl transition-opacity group-hover:opacity-100" />
+                                    <span className="absolute inset-x-0 top-0 h-1 bg-[color:var(--ui-form-accent)]" />
 
                                     <div className="flex min-w-0 flex-1 flex-col justify-between p-5">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex min-w-0 items-start gap-3">
-                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-sm font-semibold text-cyan-100">
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-sm font-semibold text-[color:var(--ui-form-accent)]">
                                                     {branch.name.slice(0, 1).toUpperCase()}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="truncate text-lg font-semibold text-white">{branch.name}</p>
-                                                    <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                                                    <p className="truncate text-lg font-semibold text-[color:var(--text-primary)]">{branch.name}</p>
+                                                    <p className={cn(pageSubtleTextClass, "mt-1 flex items-center gap-1.5 text-xs")}>
                                                         <MapPin size={12} />
                                                         {branch.city || "City not set"}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium ${status.className}`}>
+                                            <Badge variant={status.variant} className="shrink-0">
                                                 {status.label}
-                                            </span>
+                                            </Badge>
                                         </div>
 
-                                        <div className="mt-5 grid grid-cols-3 divide-x divide-white/10 overflow-hidden border-y border-white/10 bg-black/10">
+                                        <div className="mt-5 grid grid-cols-3 divide-x divide-[color:var(--ui-form-section-divider)] overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]">
                                             <div className="px-3 py-3">
-                                                <p className="text-xs text-gray-500">Students</p>
-                                                <p className="mt-1 text-lg font-semibold text-white">{activeStudents.toLocaleString("en-IN")}</p>
+                                                <p className={cn(pageSubtleTextClass, "text-xs")}>Students</p>
+                                                <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{activeStudents.toLocaleString("en-IN")}</p>
                                             </div>
                                             <div className="px-3 py-3">
-                                                <p className="text-xs text-gray-500">Utilization</p>
-                                                <p className="mt-1 text-lg font-semibold text-white">
+                                                <p className={cn(pageSubtleTextClass, "text-xs")}>Utilization</p>
+                                                <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">
                                                     {branchSnapshot ? `${utilization.toFixed(0)}%` : "-"}
                                                 </p>
                                             </div>
                                             <div className="px-3 py-3">
-                                                <p className="text-xs text-gray-500">Overdue</p>
-                                                <p className={overdueCount > 0 ? "mt-1 text-lg font-semibold text-rose-200" : "mt-1 text-lg font-semibold text-white"}>
+                                                <p className={cn(pageSubtleTextClass, "text-xs")}>Overdue</p>
+                                                <p className={overdueCount > 0 ? "mt-1 text-lg font-semibold text-[color:var(--ui-tone-danger-text)]" : "mt-1 text-lg font-semibold text-[color:var(--text-primary)]"}>
                                                     {overdueCount.toLocaleString("en-IN")}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="mt-5 flex items-center justify-between gap-3">
-                                            <span className="text-xs text-gray-500">
+                                            <span className={cn(pageSubtleTextClass, "text-xs")}>
                                                 {branch.defaultFee ? `${formatMoney(branch.defaultFee)} default fee` : "Fee not set"}
                                             </span>
-                                            <span className="inline-flex items-center gap-1.5 rounded-[8px] border border-cyan-200/60 bg-cyan-300 px-3 py-2 text-xs font-semibold text-[#061014] shadow-[inset_0_-2px_0_rgba(0,0,0,0.16)] transition-colors group-hover:bg-cyan-200">
+                                            <span className="inline-flex items-center gap-1.5 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] transition-colors group-hover:bg-[color:var(--ui-button-primary-hover-bg)]">
                                                 Open dashboard
                                                 <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
                                             </span>
@@ -306,8 +325,8 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
 
             <section className="space-y-3">
                 <div>
-                    <h2 className="text-sm font-semibold text-white">Organization snapshot</h2>
-                    <p className="mt-1 text-xs text-gray-500">Secondary context after branch selection.</p>
+                    <h2 className={pageSectionTitleClass}>Organization snapshot</h2>
+                    <p className={pageSectionDescriptionClass}>Secondary context after branch selection.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard
@@ -354,17 +373,17 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 >
                     <div className="space-y-4">
                         <div>
-                            <p className="text-xs text-gray-500">Collected</p>
-                            <p className="mt-1 text-2xl font-semibold text-white">{formatMoney(totals.paidAmount)}</p>
+                            <p className={cn(pageSubtleTextClass, "text-xs")}>Collected</p>
+                            <p className="mt-1 text-2xl font-semibold text-[color:var(--text-primary)]">{formatMoney(totals.paidAmount)}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-[8px] border border-white/10 bg-white/[0.02] p-3">
-                                <p className="text-xs text-gray-500">Due</p>
-                                <p className="mt-1 text-sm font-semibold text-amber-200">{formatMoney(totals.dueAmount)}</p>
+                            <div className={pageInsetMetricClass}>
+                                <p className={cn(pageSubtleTextClass, "text-xs")}>Due</p>
+                                <p className="mt-1 text-sm font-semibold text-[color:var(--ui-tone-warning-text)]">{formatMoney(totals.dueAmount)}</p>
                             </div>
-                            <div className="rounded-[8px] border border-white/10 bg-white/[0.02] p-3">
-                                <p className="text-xs text-gray-500">Fee base</p>
-                                <p className="mt-1 text-sm font-semibold text-gray-200">{formatMoney(totals.defaultMonthlyBase)}</p>
+                            <div className={pageInsetMetricClass}>
+                                <p className={cn(pageSubtleTextClass, "text-xs")}>Fee base</p>
+                                <p className="mt-1 text-sm font-semibold text-[color:var(--text-secondary)]">{formatMoney(totals.defaultMonthlyBase)}</p>
                             </div>
                         </div>
                     </div>
@@ -377,26 +396,26 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 >
                     {attentionBranches.length === 0 ? (
                         <div className="px-4 py-8 text-center">
-                            <CreditCard size={22} className="mx-auto text-emerald-300" />
-                            <p className="mt-3 text-sm font-medium text-white">No overdue branch risk</p>
-                            <p className="mt-1 text-xs text-gray-500">Payment follow-up queue is clear.</p>
+                            <CreditCard size={22} className="mx-auto text-[color:var(--ui-tone-success-text)]" />
+                            <p className="mt-3 text-sm font-medium text-[color:var(--text-primary)]">No overdue branch risk</p>
+                            <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>Payment follow-up queue is clear.</p>
                         </div>
                     ) : (
-                        <div className="divide-y divide-white/10">
+                        <div className="divide-y divide-[color:var(--ui-form-section-divider)]">
                             {attentionBranches.map((branch) => (
                                 <button
                                     key={branch.branchId}
                                     type="button"
                                     onClick={() => router.push(`/branch/${branch.branchId}/payments`)}
-                                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                                    className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)]"
                                 >
                                     <span className="min-w-0">
-                                        <span className="block truncate text-sm font-medium text-white">{branch.branchName}</span>
-                                        <span className="mt-1 block text-xs text-gray-500">
+                                        <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">{branch.branchName}</span>
+                                        <span className={cn(pageSubtleTextClass, "mt-1 block text-xs")}>
                                             {formatMoney(branch.snapshot.payments.dueAmount)} pending
                                         </span>
                                     </span>
-                                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-rose-400/20 bg-rose-400/10 px-2 py-1 text-[11px] font-medium text-rose-200">
+                                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[color:var(--ui-badge-danger-border)] bg-[color:var(--ui-badge-danger-bg)] px-2 py-1 text-[11px] font-medium text-[color:var(--ui-badge-danger-text)]">
                                         {branch.snapshot.payments.overdueCount} overdue
                                         <ArrowRight size={12} />
                                     </span>
@@ -407,27 +426,27 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 </AppPanel>
 
                 <AppPanel title="Setup footprint" contentClassName="p-0">
-                    <div className="divide-y divide-white/10">
+                    <div className="divide-y divide-[color:var(--ui-form-section-divider)]">
                         <div className="flex items-center justify-between px-4 py-3">
-                            <span className="flex items-center gap-2 text-sm text-gray-400">
+                            <span className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                                 <LayoutGrid size={15} />
                                 Seats
                             </span>
-                            <span className="text-sm font-medium text-white">{branchList.reduce((sum, branch) => sum + branch._count.seats, 0)}</span>
+                            <span className="text-sm font-medium text-[color:var(--text-primary)]">{branchList.reduce((sum, branch) => sum + branch._count.seats, 0)}</span>
                         </div>
                         <div className="flex items-center justify-between px-4 py-3">
-                            <span className="flex items-center gap-2 text-sm text-gray-400">
+                            <span className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                                 <Clock size={15} />
                                 Shifts
                             </span>
-                            <span className="text-sm font-medium text-white">{totals.shifts}</span>
+                            <span className="text-sm font-medium text-[color:var(--text-primary)]">{totals.shifts}</span>
                         </div>
                         <div className="flex items-center justify-between px-4 py-3">
-                            <span className="flex items-center gap-2 text-sm text-gray-400">
+                            <span className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                                 <Users size={15} />
                                 Student profiles
                             </span>
-                            <span className="text-sm font-medium text-white">
+                            <span className="text-sm font-medium text-[color:var(--text-primary)]">
                                 {branchList.reduce((sum, branch) => sum + branch._count.students, 0)}
                             </span>
                         </div>
