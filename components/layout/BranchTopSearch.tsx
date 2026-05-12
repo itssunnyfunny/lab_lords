@@ -30,6 +30,20 @@ import type {
     TopSearchResultType,
 } from "@/lib/topSearch";
 import { cn } from "@/lib/utils";
+import { formWarningBannerClass } from "@/components/ui/formSurface";
+import {
+    chromeEmptyStateClass,
+    chromeInputClass,
+    chromeInputIconClass,
+    chromeInputShellClass,
+    chromeListIconClass,
+    chromeListItemActiveClass,
+    chromeListItemClass,
+    chromeMutedTextClass,
+    chromePopoverClass,
+    chromePopoverScrollClass,
+    chromeSubtleTextClass,
+} from "@/components/ui/chromeSurface";
 
 type BranchSearchData = {
     students: StudentSearchRecord[];
@@ -64,16 +78,16 @@ function getBranchId(pathname: string | null) {
 
 function DisabledSearch() {
     return (
-        <div className="relative w-full min-w-0 max-w-sm opacity-70">
+        <div className={cn(chromeInputShellClass, "opacity-70")}>
             <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600"
+                className={chromeInputIconClass}
                 size={16}
             />
             <input
                 type="text"
                 disabled
                 placeholder="Open a branch to search"
-                className="w-full cursor-not-allowed rounded-xl border border-white/5 bg-[#13131a]/30 py-2 pl-10 pr-4 text-sm text-gray-500 placeholder-gray-600"
+                className={chromeInputClass}
             />
         </div>
     );
@@ -264,12 +278,12 @@ export function BranchTopSearch() {
     const showNoActions = query.trim().length === 0 && !loading && !hasResults;
 
     return (
-        <div ref={rootRef} className="relative w-full min-w-0 max-w-sm">
+        <div ref={rootRef} className={chromeInputShellClass}>
             <div className="relative group">
                 <Search
                     className={cn(
-                        "absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors duration-300",
-                        !disabled && "group-focus-within:text-cyan-400"
+                        chromeInputIconClass,
+                        disabled && "group-focus-within:text-[color:var(--ui-form-icon)]"
                     )}
                     size={16}
                 />
@@ -287,32 +301,32 @@ export function BranchTopSearch() {
                     onKeyDown={handleKeyDown}
                     aria-label="Search current branch"
                     className={cn(
-                        "w-full rounded-xl border border-white/5 bg-[#13131a]/50 py-2 pl-10 pr-4 text-sm text-gray-200 placeholder-gray-600 transition-all duration-300 focus:border-cyan-500/30 focus:outline-none focus:ring-1 focus:ring-cyan-500/20",
+                        chromeInputClass,
                         disabled && "cursor-not-allowed opacity-70"
                     )}
                 />
             </div>
 
             {open && !disabled && (
-                <div className="fixed left-3 right-3 top-[4.25rem] z-50 overflow-hidden rounded-xl border border-white/10 bg-[#0f111a]/95 shadow-2xl shadow-black/40 backdrop-blur-xl sm:absolute sm:left-0 sm:right-0 sm:top-12">
-                    <div className="max-h-[min(28rem,calc(100dvh-6rem))] overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                <div className={cn(chromePopoverClass, "sm:absolute sm:left-0 sm:right-0 sm:top-12")}>
+                    <div className={chromePopoverScrollClass}>
                         {loading && (
-                            <div className="flex items-center gap-2 px-4 py-3 text-sm text-gray-400">
-                                <Loader2 size={15} className="animate-spin text-cyan-300" />
+                            <div className={cn("flex items-center gap-2 px-4 py-3 text-sm", chromeMutedTextClass)}>
+                                <Loader2 size={15} className="animate-spin text-[color:var(--ui-form-accent)]" />
                                 Loading branch search...
                             </div>
                         )}
 
                         {loadErrors.length > 0 && (
-                            <div className="mx-2 mb-2 flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-100/80">
-                                <AlertCircle size={14} className="mt-0.5 flex-shrink-0 text-amber-300" />
+                            <div className={cn("mx-2 mb-2 flex items-start gap-2 px-3 py-2 text-xs leading-5", formWarningBannerClass)}>
+                                <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
                                 <span>Some results could not load: {loadErrors.join(", ")}.</span>
                             </div>
                         )}
 
                         {indexedGroups.map(group => (
                             <div key={group.id} className="py-1">
-                                <div className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-gray-600">
+                                <div className={cn("px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider", chromeSubtleTextClass)}>
                                     {group.label}
                                 </div>
                                 <div className="space-y-0.5 px-1.5">
@@ -331,17 +345,15 @@ export function BranchTopSearch() {
                                                     executeResult(result);
                                                 }}
                                                 className={cn(
-                                                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
-                                                    selected
-                                                        ? "bg-cyan-500/10 text-white"
-                                                        : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                                    chromeListItemClass,
+                                                    selected && chromeListItemActiveClass
                                                 )}
                                             >
                                                 <span className={cn(
-                                                    "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border",
+                                                    chromeListIconClass,
                                                     result.type === "action"
-                                                        ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-300"
-                                                        : "border-white/10 bg-white/[0.04] text-gray-400"
+                                                        ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
+                                                        : ""
                                                 )}>
                                                     <Icon size={15} />
                                                 </span>
@@ -349,13 +361,13 @@ export function BranchTopSearch() {
                                                     <span className="block truncate text-sm font-semibold">
                                                         {result.title}
                                                     </span>
-                                                    <span className="block truncate text-xs text-gray-500">
+                                                    <span className={cn("block truncate text-xs", chromeSubtleTextClass)}>
                                                         {result.subtitle}
                                                     </span>
                                                 </span>
                                                 <ArrowRight size={14} className={cn(
                                                     "flex-shrink-0 transition-opacity",
-                                                    selected ? "text-cyan-300 opacity-100" : "text-gray-600 opacity-0"
+                                                    selected ? "text-[color:var(--ui-form-accent)] opacity-100" : "text-[color:var(--text-muted)] opacity-0"
                                                 )} />
                                             </button>
                                         );
@@ -365,19 +377,19 @@ export function BranchTopSearch() {
                         ))}
 
                         {showNoMatches && (
-                            <div className="px-4 py-6 text-center text-sm text-gray-500">
+                            <div className={chromeEmptyStateClass}>
                                 No matches for &quot;{query.trim()}&quot;.
                             </div>
                         )}
 
                         {showNoActions && (
-                            <div className="px-4 py-6 text-center text-sm text-gray-500">
+                            <div className={chromeEmptyStateClass}>
                                 No searchable actions are available for this branch.
                             </div>
                         )}
 
                         {!query.trim() && hasResults && (
-                            <div className="border-t border-white/5 px-4 py-2 text-xs text-gray-600">
+                            <div className={cn("border-t border-[color:var(--ui-panel-header-border)] px-4 py-2 text-xs", chromeSubtleTextClass)}>
                                 Type to search branch records.
                             </div>
                         )}

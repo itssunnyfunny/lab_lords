@@ -1,6 +1,13 @@
 "use client";
 
 import { AppButton, AppPanel } from "@/components/ui";
+import {
+    pageInsetSurfaceClass,
+    pageMutedTextClass,
+    pageSectionDividerClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
+import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { Activity, ArrowRight, IndianRupee, LayoutGrid, TriangleAlert, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -56,12 +63,12 @@ function getActivityContent(item: ActivityItem) {
 function EmptyActivity() {
     return (
         <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.03]">
-                <Activity size={18} className="text-gray-500" />
+            <div className={cn("flex h-10 w-10 items-center justify-center", pageInsetSurfaceClass)}>
+                <Activity size={18} className="text-[color:var(--text-muted)]" />
             </div>
             <div>
-                <p className="text-sm font-medium text-white">No recent activity</p>
-                <p className="mt-1 text-xs text-gray-500">Student, seat, and payment changes will appear here.</p>
+                <p className="text-sm font-medium text-[color:var(--text-primary)]">No recent activity</p>
+                <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>Student, seat, and payment changes will appear here.</p>
             </div>
         </div>
     );
@@ -91,7 +98,7 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
             {visibleItems.length === 0 ? (
                 <EmptyActivity />
             ) : (
-                <div className="divide-y divide-white/10">
+                <div className={cn("divide-y", pageSectionDividerClass)}>
                     {visibleItems.map((item, index) => {
                         const content = getActivityContent(item);
                         const Icon = content.icon;
@@ -104,10 +111,10 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                                        <p className="text-sm font-medium text-white">{content.title}</p>
-                                        <span className="shrink-0 text-xs text-gray-500">{timeAgo}</span>
+                                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{content.title}</p>
+                                        <span className={cn("shrink-0 text-xs", pageSubtleTextClass)}>{timeAgo}</span>
                                     </div>
-                                    <p className="mt-1 text-xs leading-5 text-gray-500">{content.description}</p>
+                                    <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{content.description}</p>
                                 </div>
                             </div>
                         );
