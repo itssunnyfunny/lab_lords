@@ -10,7 +10,7 @@ import type { DataViewMode } from "@/components/tables/DataTable";
 import {
     pageGridCardClass,
     pageGridCardHoverClass,
-    pageInsetSurfaceClass,
+    pageInsetMetricClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
@@ -216,28 +216,28 @@ export function AllocationsTable({ allocations, viewMode = "table", onEndAllocat
                 return (
                     <div
                         key={alloc.id}
-                        className={cn("relative flex min-h-[250px] flex-col", pageGridCardClass, pageGridCardHoverClass)}
+                        className={cn("relative flex min-h-[228px] flex-col", pageGridCardClass, pageGridCardHoverClass)}
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="truncate font-medium text-[color:var(--ui-table-text)]">{alloc.student.name}</p>
-                                <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>Student assignment</p>
+                                <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{alloc.isMulti ? "Multi-shift assignment" : "Primary assignment"}</p>
                             </div>
                             <div className="flex-shrink-0">{renderAllocationStatus(alloc)}</div>
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                            <div className={cn("p-3", pageInsetSurfaceClass)}>
+                            <div className={pageInsetMetricClass}>
                                 <div className={cn("text-xs", pageSubtleTextClass)}>Seat</div>
                                 <div className="mt-1 truncate font-semibold text-[color:var(--ui-table-text)]">{alloc.seat.label}</div>
                             </div>
-                            <div className={cn("p-3", pageInsetSurfaceClass)}>
-                                <div className={cn("text-xs", pageSubtleTextClass)}>Start Date</div>
+                            <div className={pageInsetMetricClass}>
+                                <div className={cn("text-xs", pageSubtleTextClass)}>Started</div>
                                 <div className={cn("mt-1 truncate", pageMutedTextClass)}>{format(new Date(alloc.startDate), "PP")}</div>
                             </div>
                         </div>
 
-                        <div className={cn("mt-3 p-3", pageInsetSurfaceClass)}>
+                        <div className={cn("mt-3", pageInsetMetricClass)}>
                             <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>Shift</div>
                             {renderShiftSummary(alloc)}
                         </div>
