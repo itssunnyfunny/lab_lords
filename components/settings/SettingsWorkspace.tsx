@@ -1,8 +1,8 @@
 "use client";
 
 import { ReactNode, useEffect, useRef } from "react";
-import { CheckCircle2, AlertCircle, Loader2, LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { CheckCircle2, AlertCircle, LucideIcon } from "lucide-react";
+import { AppButton, PageShell } from "@/components/ui";
 import {
     formControlClass,
     formHelpTextClass,
@@ -11,6 +11,13 @@ import {
     formSurfaceHoverClass,
 } from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps } from "@/components/ui/InlineFieldError";
+import {
+    pageFilterShellClass,
+    pageGridCardClass,
+    pageGridCardHoverClass,
+    pageMutedTextClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
 
 export interface SettingsSection {
@@ -76,14 +83,15 @@ export function SettingsWorkspace({
     };
 
     return (
-        <div className="mx-auto max-w-6xl p-4 text-[color:var(--text-primary)] md:p-8">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-                <p className={cn("mt-1 text-sm", formHelpTextClass)}>{subtitle}</p>
+        <div className="p-4 md:p-8">
+            <PageShell>
+            <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">{title}</h1>
+                <p className={cn("mt-1 max-w-2xl text-sm leading-6", pageMutedTextClass)}>{subtitle}</p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-                <nav className={cn("h-max p-2 lg:sticky lg:top-6", formSurfaceClass)}>
+                <nav className={cn("h-max p-1.5 lg:sticky lg:top-6", pageFilterShellClass)}>
                     {sections.map(section => {
                         const Icon = section.icon;
                         const active = activeSection === section.id;
@@ -92,10 +100,10 @@ export function SettingsWorkspace({
                                 key={section.id}
                                 onClick={() => handleSectionClick(section.id)}
                                 className={cn(
-                                    "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
+                                    "flex w-full items-center gap-3 rounded-[var(--ui-radius-control)] border px-3 py-2.5 text-left text-sm transition-colors",
                                     active
-                                        ? "border border-[color:var(--ui-view-toggle-table-ring)] bg-[color:var(--ui-view-toggle-table-active-bg)] text-[color:var(--ui-view-toggle-table-active-text)]"
-                                        : "border border-transparent text-[color:var(--ui-table-muted)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--ui-table-text)]"
+                                        ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
+                                        : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
                                 )}
                             >
                                 <Icon size={15} />
@@ -106,6 +114,7 @@ export function SettingsWorkspace({
                 </nav>
                 <div className="min-w-0 space-y-5 pb-24">{children}</div>
             </div>
+            </PageShell>
         </div>
     );
 }
@@ -124,14 +133,14 @@ export function SettingsPanel({
     children: ReactNode;
 }) {
     return (
-        <section id={id} className="scroll-mt-6 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] shadow-[var(--ui-panel-shadow)]">
-            <div className="flex items-start gap-3 border-b border-[color:var(--ui-panel-header-border)] px-5 py-4">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-form-accent)]">
+        <section id={id} className="scroll-mt-6 overflow-hidden rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] shadow-[var(--ui-panel-shadow)]">
+            <div className="flex items-start gap-3 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-5 py-4">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-form-accent)]">
                     <Icon size={16} />
                 </div>
-                <div>
+                <div className="min-w-0">
                     <h2 className="text-base font-semibold text-[color:var(--ui-panel-title)]">{title}</h2>
-                    {description && <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>{description}</p>}
+                    {description && <p className={cn("mt-0.5 text-xs leading-5", pageMutedTextClass)}>{description}</p>}
                 </div>
             </div>
             <div className="divide-y divide-[color:var(--ui-form-section-divider)]">{children}</div>
@@ -153,7 +162,7 @@ export function SettingsField({
     children: ReactNode;
 }) {
     return (
-        <div className="grid gap-3 px-5 py-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+        <div className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(170px,220px)_minmax(0,1fr)] md:items-center">
             <div>
                 <label className={formLabelClass}>{label}</label>
                 {description && <p className={cn("mt-1 text-xs leading-relaxed", formHelpTextClass)}>{description}</p>}
@@ -293,6 +302,51 @@ export function ReadOnlyRow({ label, value }: { label: string; value: ReactNode 
     );
 }
 
+export function SettingsCard({
+    children,
+    className,
+    onClick,
+}: {
+    children: ReactNode;
+    className?: string;
+    onClick?: () => void;
+}) {
+    if (onClick) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                className={cn("w-full text-left", pageGridCardClass, pageGridCardHoverClass, className)}
+            >
+                {children}
+            </button>
+        );
+    }
+
+    return <div className={cn(pageGridCardClass, className)}>{children}</div>;
+}
+
+export function SettingsEmptyState({ children, className }: { children: ReactNode; className?: string }) {
+    return (
+        <div
+            className={cn(
+                "flex flex-col items-center justify-center rounded-[var(--ui-table-radius)] border border-dashed border-[color:var(--ui-table-empty-border)] bg-[color:var(--ui-table-bg)] px-4 py-6 text-center text-sm text-[color:var(--ui-table-subtle)]",
+                className
+            )}
+        >
+            {children}
+        </div>
+    );
+}
+
+export function SettingsText({ children, className }: { children: ReactNode; className?: string }) {
+    return <p className={cn("text-sm leading-6", pageMutedTextClass, className)}>{children}</p>;
+}
+
+export function SettingsSubtleText({ children, className }: { children: ReactNode; className?: string }) {
+    return <p className={cn("text-xs leading-5", pageSubtleTextClass, className)}>{children}</p>;
+}
+
 export function SettingsSaveBar({
     visible,
     saving,
@@ -323,12 +377,12 @@ export function SettingsSaveBar({
                     )}
                 </div>
                 <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" onClick={onReset} disabled={saving}>
+                    <AppButton variant="quiet" size="sm" onClick={onReset} disabled={saving}>
                         Reset
-                    </Button>
-                    <Button size="sm" onClick={onSave} disabled={!visible || saving} className="min-w-[110px]">
-                        {saving ? <><Loader2 size={13} className="animate-spin" /> Saving</> : "Save Changes"}
-                    </Button>
+                    </AppButton>
+                    <AppButton variant="primary" size="sm" onClick={onSave} disabled={!visible || saving} isLoading={saving} className="min-w-[110px]">
+                        {saving ? "Saving" : "Save changes"}
+                    </AppButton>
                 </div>
             </div>
         </div>
