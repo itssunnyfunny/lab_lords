@@ -3,12 +3,23 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { AppButton, PageShell } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { Loader2, MessageSquare, Copy, CheckCheck, User, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { cn } from "@/lib/utils";
+import { formWarningBannerClass } from "@/components/ui/formSurface";
+import {
+    pageCountBadgeClass,
+    pageEmptyStateClass,
+    pageFilterShellClass,
+    pageGridCardClass,
+    pageInsetSurfaceClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 
 interface OverdueMessageDraft {
     studentId: string;
@@ -34,45 +45,46 @@ function MessageCard({ draft }: { draft: OverdueMessageDraft }) {
     };
 
     return (
-        <Card className="p-5 space-y-3 border border-white/5">
-            {/* Student info row */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <User size={14} className="text-brand-400" />
-                    <span className="text-white font-semibold text-sm">{draft.studentName}</span>
+        <article className={cn(pageGridCardClass, "flex h-full flex-col gap-4")}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <User size={14} className="shrink-0 text-[color:var(--ui-badge-cyan-text)]" />
+                        <h3 className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
+                            {draft.studentName}
+                        </h3>
+                    </div>
+                    <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
+                        Payment reminder draft
+                    </p>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-textSecondary">
+                <div className={cn("flex shrink-0 items-center gap-1.5 whitespace-nowrap", pageCountBadgeClass)}>
                     <Calendar size={12} />
                     <span>Due: {format(new Date(draft.dueDate), "dd MMM yyyy")}</span>
                 </div>
             </div>
 
-            {/* Message */}
             {draft.isOutdated && (
-                <div className="text-xs text-orange-400 bg-orange-500/10 px-2 py-1 rounded">
-                    ⚠ Student data has changed — consider regenerating
+                <div className={cn("px-3 py-2 text-xs", formWarningBannerClass)}>
+                    Student data has changed. Consider regenerating.
                 </div>
             )}
-            <p className="text-textSecondary text-sm leading-relaxed border-l-2 border-brand-500/40 pl-3">
+
+            <p className={cn("p-3 text-sm leading-6", pageInsetSurfaceClass, pageMutedTextClass)}>
                 {draft.message}
             </p>
 
-            {/* Copy button */}
-            <div className="flex justify-end">
-                <Button
-                    variant="ghost"
+            <div className="mt-auto flex justify-end">
+                <AppButton
+                    variant="quiet"
                     size="sm"
-                    className="gap-2 text-xs text-textSecondary hover:text-white"
+                    icon={copied ? CheckCheck : Copy}
                     onClick={handleCopy}
                 >
-                    {copied ? (
-                        <><CheckCheck size={14} className="text-green-400" /> Copied</>
-                    ) : (
-                        <><Copy size={14} /> Copy Message</>
-                    )}
-                </Button>
+                    {copied ? "Copied" : "Copy message"}
+                </AppButton>
             </div>
-        </Card>
+        </article>
     );
 }
 
@@ -128,54 +140,54 @@ function AIMessagesContent({ branchId }: { branchId: string }) {
     }, [branchId, language]);
 
     return (
-        <div className="p-4 md:p-8 space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <PageHeader
-                    title="Message Drafts"
-                    subtitle="AI-drafted payment reminders for overdue students. Copy and send manually."
-                />
-                <div className="flex items-center gap-2 bg-black/20 p-1 rounded-lg border border-white/5">
-                    <Button
-                        variant={language === 'en' ? 'primary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setLanguage('en')}
-                        className="text-xs"
-                    >
-                        English
-                    </Button>
-                    <Button
-                        variant={language === 'hi' ? 'primary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setLanguage('hi')}
-                        className="text-xs"
-                    >
-                        हिंदी (Hindi)
-                    </Button>
-                </div>
-            </div>
-
-            {loading ? (
-                <div className="flex h-96 items-center justify-center">
-                    <Loader2 className="animate-spin text-primary" size={32} />
-                </div>
-            ) : !data || data.items.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground border border-dashed border-white/10 rounded-lg mt-8">
-                    <MessageSquare className="mx-auto mb-4 opacity-50" size={48} />
-                    <p className="text-white font-medium mb-1">No overdue students</p>
-                    <p className="text-textSecondary text-sm">All payments are up to date. No drafts needed.</p>
-                </div>
-            ) : (
-                <>
-                    <p className="text-textSecondary text-sm">
-                        {data.items.length} student{data.items.length > 1 ? "s" : ""} with overdue payments
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {data.items.map((draft) => (
-                            <MessageCard key={`${draft.studentId}-${draft.language}`} draft={draft} />
-                        ))}
+        <div className="p-4 md:p-8">
+            <PageShell>
+                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                    <PageHeader
+                        title="Message Drafts"
+                        subtitle="AI-drafted payment reminders for overdue students. Copy and send manually."
+                    />
+                    <div className={cn("inline-flex w-fit items-center gap-1 p-1", pageFilterShellClass)}>
+                        <AppButton
+                            variant={language === "en" ? "primary" : "quiet"}
+                            size="sm"
+                            onClick={() => setLanguage("en")}
+                        >
+                            English
+                        </AppButton>
+                        <AppButton
+                            variant={language === "hi" ? "primary" : "quiet"}
+                            size="sm"
+                            onClick={() => setLanguage("hi")}
+                        >
+                            Hindi
+                        </AppButton>
                     </div>
-                </>
-            )}
+                </div>
+
+                {loading ? (
+                    <div className={pageLoadingStateClass}>
+                        <Loader2 className="mr-2 animate-spin" size={20} /> Loading message drafts...
+                    </div>
+                ) : !data || data.items.length === 0 ? (
+                    <div className={pageEmptyStateClass}>
+                        <MessageSquare className="mx-auto mb-4 opacity-60" size={42} />
+                        <p className="mb-1 font-medium text-[color:var(--text-primary)]">No overdue students</p>
+                        <p className={cn("text-sm", pageMutedTextClass)}>All payments are up to date. No drafts needed.</p>
+                    </div>
+                ) : (
+                    <>
+                        <p className={cn("text-sm", pageMutedTextClass)}>
+                            {data.items.length} student{data.items.length > 1 ? "s" : ""} with overdue payments
+                        </p>
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            {data.items.map((draft) => (
+                                <MessageCard key={`${draft.studentId}-${draft.language}`} draft={draft} />
+                            ))}
+                        </div>
+                    </>
+                )}
+            </PageShell>
         </div>
     );
 }

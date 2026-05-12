@@ -3,15 +3,30 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card } from "@/components/ui/Card";
+import { AppPanel, PageShell } from "@/components/ui";
+import { Badge } from "@/components/ui/Badge";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { AlertTriangle, CheckCircle, Info, Loader2 } from "lucide-react";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { cn } from "@/lib/utils";
+import { formErrorBannerClass } from "@/components/ui/formSurface";
+import {
+    pageEmptyStateClass,
+    pageGridCardClass,
+    pageInsetSurfaceClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 
 interface AIResponse {
     health: { summary: string };
     risks: { items: Array<{ type: string; severity: string; explanation: string }> };
     actions: { items: Array<{ action: string; reason: string }> };
+}
+
+function getRiskVariant(severity: string): "danger" | "warning" {
+    return severity === "HIGH" ? "danger" : "warning";
 }
 
 export default function AIInsightsPage() {
@@ -54,94 +69,113 @@ function AIInsightsContent({ branchId }: { branchId: string }) {
 
     if (loading) {
         return (
-            <div className="flex h-96 items-center justify-center">
-                <Loader2 className="animate-spin text-primary" size={32} />
+            <div className={pageLoadingStateClass}>
+                <Loader2 className="mr-2 animate-spin" size={20} /> Loading smart insights...
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="p-4 md:p-8 text-center text-red-400">
-                <AlertTriangle className="mx-auto mb-2" size={32} />
-                {error}
+            <div className="p-4 md:p-8">
+                <PageShell maxWidth="content">
+                    <div className={cn("px-4 py-3 text-sm", formErrorBannerClass)}>
+                        <AlertTriangle className="mr-2 inline h-4 w-4" />
+                        {error}
+                    </div>
+                </PageShell>
             </div>
         );
     }
 
     if (!data) {
         return (
-            <div className="p-4 md:p-8 text-center text-textMuted">
-                No data received from API.
+            <div className="p-4 md:p-8">
+                <PageShell maxWidth="content">
+                    <div className={pageEmptyStateClass}>No data received from API.</div>
+                </PageShell>
             </div>
         );
     }
 
+    const risks = data.risks?.items ?? [];
+    const actions = data.actions?.items ?? [];
+
     return (
-        <div className="p-4 md:p-8 space-y-8">
-            <PageHeader
-                title="Smart Insights"
-                subtitle="AI-driven analysis of your branch health."
-            />
+        <div className="p-4 md:p-8">
+            <PageShell maxWidth="content">
+                <PageHeader
+                    title="Smart Insights"
+                    subtitle="AI-driven analysis of your branch health."
+                />
 
-            {/* Health Summary Section */}
-            <Card className="p-6 border-l-4 border-l-primary bg-card/50">
-                <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-                    <Info size={20} className="text-primary" />
-                    Branch Health Summary
-                </h3>
-                <p className="text-textSecondary leading-relaxed">
-                    {data.health?.summary || "No summary available."}
-                </p>
-            </Card>
+                <AppPanel title="Branch health summary" contentClassName="space-y-3">
+                    <div className={cn("flex items-start gap-3 p-4", pageInsetSurfaceClass)}>
+                        <Info size={18} className="mt-0.5 shrink-0 text-[color:var(--ui-tone-info-text)]" />
+                        <p className={cn("text-sm leading-6", pageMutedTextClass)}>
+                            {data.health?.summary || "No summary available."}
+                        </p>
+                    </div>
+                </AppPanel>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Risks Column */}
-                <div className="space-y-4">
-                    <h3 className="text-xl font-bold text-white mb-4">Detected Risks</h3>
-                    {(!data.risks?.items || data.risks.items.length === 0) ? (
-                        <div className="p-6 border border-border rounded-lg text-textMuted bg-card/30">
-                            No major risks detected.
-                        </div>
-                    ) : (
-                        data.risks.items.map((risk, i) => (
-                            <Card key={i} className="p-5 border-l-4 border-l-red-500">
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className="font-mono text-xs px-2 py-1 rounded bg-red-500/10 text-red-400">
-                                        {risk.type}
-                                    </span>
-                                    <span className={`text-xs font-bold ${risk.severity === 'HIGH' ? 'text-red-500' : 'text-yellow-500'}`}>
-                                        {risk.severity}
-                                    </span>
-                                </div>
-                                <p className="text-textSecondary text-sm">{risk.explanation}</p>
-                            </Card>
-                        ))
-                    )}
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                    <AppPanel
+                        title="Detected risks"
+                        description="Only the items that need attention."
+                        contentClassName="space-y-3"
+                    >
+                        {risks.length === 0 ? (
+                            <div className={cn("p-4 text-sm", pageInsetSurfaceClass, pageSubtleTextClass)}>
+                                No major risks detected.
+                            </div>
+                        ) : (
+                            risks.map((risk) => (
+                                <article
+                                    key={`${risk.type}-${risk.severity}`}
+                                    className={cn(pageGridCardClass, "border-l-4 border-l-[color:var(--ui-tone-danger-progress)]")}
+                                >
+                                    <div className="mb-3 flex items-start justify-between gap-3">
+                                        <span className="text-sm font-semibold text-[color:var(--text-primary)]">
+                                            {risk.type}
+                                        </span>
+                                        <Badge variant={getRiskVariant(risk.severity)}>
+                                            {risk.severity}
+                                        </Badge>
+                                    </div>
+                                    <p className={cn("text-sm leading-6", pageMutedTextClass)}>{risk.explanation}</p>
+                                </article>
+                            ))
+                        )}
+                    </AppPanel>
+
+                    <AppPanel
+                        title="Suggested actions"
+                        description="The clearest next steps."
+                        contentClassName="space-y-3"
+                    >
+                        {actions.length === 0 ? (
+                            <div className={cn("p-4 text-sm", pageInsetSurfaceClass, pageSubtleTextClass)}>
+                                No actions required at this time.
+                            </div>
+                        ) : (
+                            actions.map((action) => (
+                                <article
+                                    key={action.action}
+                                    className={cn(pageGridCardClass, "border-l-4 border-l-[color:var(--ui-tone-success-progress)]")}
+                                >
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <CheckCircle size={15} className="shrink-0 text-[color:var(--ui-tone-success-text)]" />
+                                        <span className="text-sm font-semibold text-[color:var(--text-primary)]">
+                                            {action.action.replace(/_/g, " ")}
+                                        </span>
+                                    </div>
+                                    <p className={cn("text-xs leading-5", pageMutedTextClass)}>{action.reason}</p>
+                                </article>
+                            ))
+                        )}
+                    </AppPanel>
                 </div>
-
-                {/* Actions Column */}
-                <div className="space-y-4">
-                    <h3 className="text-xl font-bold text-white mb-4">Suggested Actions</h3>
-                    {data.actions.items.length === 0 ? (
-                        <div className="p-6 border border-border rounded-lg text-textMuted bg-card/30">
-                            No actions required at this time.
-                        </div>
-                    ) : (
-                        data.actions.items.map((action, i) => (
-                            <Card key={i} className="p-5 border-l-4 border-l-green-500">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <CheckCircle size={16} className="text-green-500" />
-                                    <span className="font-semibold text-white text-sm">
-                                        {action.action.replace(/_/g, " ")}
-                                    </span>
-                                </div>
-                                <p className="text-textSecondary text-xs">{action.reason}</p>
-                            </Card>
-                        ))
-                    )}
-                </div>
-            </div>
+            </PageShell>
         </div>
     );
 }
