@@ -225,7 +225,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
             >
                 <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <h2 className="text-lg font-semibold text-[color:var(--ui-dialog-title)]">Add New Student</h2>
-                    <button onClick={onClose} className="text-[color:var(--ui-form-help)] transition-colors hover:text-[color:var(--ui-table-text)]">
+                    <button type="button" onClick={onClose} className="cursor-pointer text-[color:var(--ui-form-help)] transition-colors hover:text-[color:var(--ui-table-text)]">
                         <X size={20} />
                     </button>
                 </div>
@@ -376,7 +376,7 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess, branchId }: AddSt
                                                     setSelectedShiftIds(s.componentShiftIds ?? []);
                                                 }
                                             } else {
-                                                // Primary shift toggle — clear any active multi-shift
+                                                // Primary shift toggle - clear any active multi-shift
                                                 setSelectedMultiShiftId(null);
                                                 setSelectedShiftIds(prev =>
                                                     prev.includes(s.shiftId)

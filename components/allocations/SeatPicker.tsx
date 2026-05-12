@@ -3,6 +3,28 @@
 import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, Lock, Check, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formErrorBannerClass } from "@/components/ui/formSurface";
+import {
+    pickerCheckBoxClass,
+    pickerChoiceCardBaseClass,
+    pickerChoiceCardDisabledClass,
+    pickerChoiceCardIdleClass,
+    pickerChoiceCardSelectedClass,
+    pickerChoiceCardSelectedWarningClass,
+    pickerDividerClass,
+    pickerGroupLabelClass,
+    pickerHintClass,
+    pickerLoadingClass,
+    pickerProgressTrackClass,
+    pickerSeatAvailableClass,
+    pickerSeatButtonBaseClass,
+    pickerSeatCurrentClass,
+    pickerSeatOccupiedClass,
+    pickerSeatSelectedClass,
+    pickerSectionLabelClass,
+    pickerTooltipClass,
+    pickerWarningHintClass,
+} from "@/components/ui/pickerSurface";
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
@@ -45,15 +67,15 @@ export interface SeatMapData {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function capacityBarColor(pct: number, isFull: boolean) {
-    if (isFull) return "bg-red-500/80";
-    if (pct >= 70) return "bg-amber-400/80";
-    return "bg-emerald-400/80";
+    if (isFull) return "bg-[color:var(--ui-tone-danger-progress)]";
+    if (pct >= 70) return "bg-[color:var(--ui-tone-warning-progress)]";
+    return "bg-[color:var(--ui-tone-success-progress)]";
 }
 
 function capacityTextColor(pct: number, isFull: boolean) {
-    if (isFull) return "text-red-400";
-    if (pct >= 70) return "text-amber-400";
-    return "text-emerald-400";
+    if (isFull) return "text-[color:var(--ui-tone-danger-text)]";
+    if (pct >= 70) return "text-[color:var(--ui-tone-warning-text)]";
+    return "text-[color:var(--ui-tone-success-text)]";
 }
 
 function formatTime(t: string | null) {
@@ -182,24 +204,24 @@ export function SeatPicker({
             {/* Step 1: Shifts */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                    <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">
+                    <p className={pickerSectionLabelClass}>
                         Select shift(s)
                     </p>
                     {selectedCount > 0 && (
-                        <span className="text-xs text-indigo-300 font-medium">
+                        <span className="text-xs font-medium text-[color:var(--ui-badge-cyan-text)]">
                             {selectedCount} shift{selectedCount > 1 ? "s" : ""} selected
                         </span>
                     )}
                 </div>
 
                 {shiftsLoading && (
-                    <div className="flex items-center justify-center py-6 text-zinc-500">
+                    <div className={pickerLoadingClass}>
                         <Loader2 size={16} className="animate-spin mr-2" /> Loading shifts...
                     </div>
                 )}
 
                 {shiftsError && (
-                    <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    <div className={cn("p-3 text-sm", formErrorBannerClass)}>
                         {shiftsError}
                     </div>
                 )}
@@ -209,9 +231,9 @@ export function SeatPicker({
                         {/* Primary Shifts */}
                         {primaryShifts.length > 0 && (
                             <div className="space-y-2">
-                                <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-yellow-400/70 inline-block" />
-                                    Primary Shifts
+                                <p className={pickerGroupLabelClass}>
+                                    <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ui-badge-warning-text)]" />
+                                    Primary shifts
                                 </p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {primaryShifts.map(shift => (
@@ -229,9 +251,9 @@ export function SeatPicker({
                         {/* Multi-Shifts */}
                         {multiShifts.length > 0 && (
                             <div className="space-y-2">
-                                <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-orange-400/70 inline-block" />
-                                    Multi-Shifts
+                                <p className={pickerGroupLabelClass}>
+                                    <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ui-badge-purple-text)]" />
+                                    Multi-shifts
                                 </p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {multiShifts.map(shift => (
@@ -256,40 +278,40 @@ export function SeatPicker({
 
                 {/* Hint: only show the "first shift only" caveat for manual multi-primary selections */}
                 {selectedCount > 1 && !selectedMultiShiftId && (
-                    <p className="text-xs text-zinc-400 bg-white/[0.03] border border-white/5 rounded-lg px-3 py-2">
-                        💡 Seat availability is shown for the first selected shift. The same seat will be booked across all selected shifts.
+                    <p className={pickerHintClass}>
+                        Seat availability is shown for the first selected shift. The same seat will be booked across all selected shifts.
                     </p>
                 )}
                 {selectedMultiShiftId && (
-                    <p className="text-xs text-zinc-400 bg-orange-500/[0.06] border border-orange-500/10 rounded-lg px-3 py-2">
-                        💡 Showing seats free across <span className="text-orange-300 font-medium">all component shifts</span>. A seat is available only if it is unoccupied in every shift of this multi-shift.
+                    <p className={pickerWarningHintClass}>
+                        Showing seats free across <span className="font-medium text-[color:var(--ui-badge-warning-text)]">all component shifts</span>. A seat is available only if it is unoccupied in every shift of this multi-shift.
                     </p>
                 )}
             </div>
 
             {/* Step 2: Seats (only if at least one shift is selected) */}
             {primaryShiftId && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 pt-2 border-t border-white/5">
+                <div className={cn("space-y-4 pt-2 animate-in fade-in slide-in-from-top-2 duration-200", pickerDividerClass)}>
                     <div className="flex items-center justify-between">
-                        <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">
+                        <p className={pickerSectionLabelClass}>
                             Select a seat
                         </p>
                         {seatMap && (
-                            <div className="text-[10px] text-zinc-500">
-                                <span className="text-emerald-400 font-medium">{seatMap.availableCount}</span> free
-                                · <span className="text-red-400/80">{seatMap.occupiedCount}</span> taken
+                            <div className="text-[10px] text-[color:var(--text-muted)]">
+                                <span className="font-medium text-[color:var(--ui-tone-success-text)]">{seatMap.availableCount}</span> free
+                                <span className="mx-1">/</span><span className="text-[color:var(--ui-tone-danger-text)]">{seatMap.occupiedCount}</span> taken
                             </div>
                         )}
                     </div>
 
                     {seatMapLoading && (
-                        <div className="flex items-center justify-center py-8 text-zinc-500">
+                        <div className={pickerLoadingClass}>
                             <Loader2 size={16} className="animate-spin mr-2" /> Loading seats...
                         </div>
                     )}
 
                     {seatMapError && (
-                        <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
+                        <div className={cn("p-3 text-sm", formErrorBannerClass)}>
                             {seatMapError}
                         </div>
                     )}
@@ -310,14 +332,14 @@ export function SeatPicker({
                                             onMouseEnter={() => setHoveredSeat(seat.seatId)}
                                             onMouseLeave={() => setHoveredSeat(null)}
                                             className={cn(
-                                                "w-full aspect-square rounded-lg border text-xs font-medium transition-all flex flex-col items-center justify-center select-none gap-0.5",
+                                                pickerSeatButtonBaseClass,
                                                 seat.occupied
-                                                    ? "bg-red-500/10 border-red-500/20 text-red-400/70 cursor-not-allowed"
+                                                    ? pickerSeatOccupiedClass
                                                     : isSelected
-                                                        ? "bg-indigo-500/30 border-indigo-400/60 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+                                                        ? pickerSeatSelectedClass
                                                         : isCurrent
-                                                            ? "bg-amber-500/15 border-amber-400/50 text-amber-200 hover:bg-amber-500/25 hover:border-amber-400/70 cursor-pointer"
-                                                            : "bg-emerald-500/10 border-emerald-400/25 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400/50 cursor-pointer"
+                                                            ? pickerSeatCurrentClass
+                                                            : pickerSeatAvailableClass
                                             )}
                                         >
                                             {isSelected
@@ -325,7 +347,7 @@ export function SeatPicker({
                                                 : <span className="truncate px-1 leading-none">{seat.label}</span>
                                             }
                                             {isCurrent && !isSelected && (
-                                                <span className="text-[8px] font-bold tracking-wide uppercase text-amber-400/80 leading-none">
+                                                <span className="text-[8px] font-bold uppercase leading-none tracking-wide">
                                                     current
                                                 </span>
                                             )}
@@ -333,13 +355,13 @@ export function SeatPicker({
 
                                         {/* Tooltip */}
                                         {seat.occupied && isHovered && seat.occupiedBy && (
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 bg-zinc-900 border border-white/10 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap shadow-xl pointer-events-none">
+                                            <div className={pickerTooltipClass}>
                                                 {seat.occupiedBy}
                                             </div>
                                         )}
                                         {/* Current seat tooltip */}
                                         {isCurrent && !isSelected && isHovered && (
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 bg-amber-900/80 border border-amber-500/30 text-amber-200 text-[10px] px-2 py-1 rounded-md whitespace-nowrap shadow-xl pointer-events-none">
+                                            <div className={pickerTooltipClass}>
                                                 Currently assigned
                                             </div>
                                         )}
@@ -370,32 +392,33 @@ function ShiftCard({
     const isMulti = shift.type === "MULTISHIFT";
 
     return (
-        <div
+        <button
+            type="button"
+            disabled={blocked}
             className={cn(
-                "relative rounded-xl border p-3.5 transition-all text-left w-full cursor-pointer select-none",
+                pickerChoiceCardBaseClass,
                 blocked
-                    ? "border-white/5 bg-white/[0.02] opacity-60 cursor-not-allowed"
+                    ? pickerChoiceCardDisabledClass
                     : isSelected
                         ? isMulti
-                            ? "border-orange-500/50 bg-orange-500/10 shadow-[0_0_15px_rgba(249,115,22,0.15)]"
-                            : "border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
+                            ? pickerChoiceCardSelectedWarningClass
+                            : pickerChoiceCardSelectedClass
+                        : pickerChoiceCardIdleClass
             )}
-            tabIndex={blocked ? -1 : 0}
-            role="checkbox"
-            aria-checked={isSelected}
+            aria-pressed={isSelected}
             onClick={() => !blocked && onToggle(shift)}
-            onKeyDown={(e) => { if (!blocked && (e.key === " " || e.key === "Enter")) onToggle(shift); }}
         >
             {/* Checkmark */}
             {!blocked && (
                 <span className={cn(
-                    "absolute top-2.5 right-2.5 w-4 h-4 rounded border flex items-center justify-center transition-all",
+                    pickerCheckBoxClass,
                     isSelected
-                        ? isMulti ? "bg-orange-500 border-orange-400" : "bg-indigo-500 border-indigo-400"
-                        : "border-white/20 bg-white/5"
+                        ? isMulti
+                            ? "border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-text)] text-[color:var(--bg-app)]"
+                            : "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-text)] text-[color:var(--bg-app)]"
+                        : "border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)]"
                 )}>
-                    {isSelected && <Check size={10} className="text-white" strokeWidth={3} />}
+                    {isSelected && <Check size={10} strokeWidth={3} />}
                 </span>
             )}
 
@@ -403,11 +426,11 @@ function ShiftCard({
             <div className="mb-1 pr-6">
                 <div className="flex items-center gap-1.5 mb-0.5">
                     {isMulti ? (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/20">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[color:var(--ui-badge-warning-text)]">
                             <Layers size={8} /> MULTI-SHIFT
                         </span>
                     ) : (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[color:var(--ui-badge-cyan-text)]">
                             PRIMARY
                         </span>
                     )}
@@ -415,27 +438,27 @@ function ShiftCard({
 
                 <div className="flex items-start justify-between">
                     <div>
-                        <p className={cn("font-medium text-sm", isSelected ? (isMulti ? "text-orange-200" : "text-indigo-200") : "text-white")}>
+                        <p className={cn("text-sm font-medium", isSelected ? undefined : "text-[color:var(--text-primary)]")}>
                             {shift.name}
                         </p>
                         {isMulti && shift.componentShiftNames && (
-                            <p className="text-[11px] text-zinc-500 mt-0.5">
+                            <p className="mt-0.5 text-[11px] text-[color:var(--text-muted)]">
                                 {shift.componentShiftNames.join(" + ")}
                             </p>
                         )}
                         {!isMulti && (shift.startTime || shift.endTime) && (
-                            <p className="text-[11px] text-zinc-500 mt-0.5">
-                                {formatTime(shift.startTime)} – {formatTime(shift.endTime)}
+                            <p className="mt-0.5 text-[11px] text-[color:var(--text-muted)]">
+                                {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
                             </p>
                         )}
                     </div>
                     <div className="text-right flex-shrink-0 ml-4">
                         {shift.studentAlreadyAllocated ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-1.5 py-0.5 text-[10px] text-[color:var(--ui-badge-cyan-text)]">
                                 <Lock size={10} /> Allocated
                             </span>
                         ) : shift.isFull ? (
-                            <span className="text-xs text-red-400 font-medium">Full</span>
+                            <span className="text-xs font-medium text-[color:var(--ui-tone-danger-text)]">Full</span>
                         ) : (
                             <span className={cn("text-xs font-medium", capacityTextColor(pct, shift.isFull))}>
                                 {shift.available} / {shift.totalSeats} free
@@ -446,12 +469,12 @@ function ShiftCard({
             </div>
 
             {/* Capacity bar */}
-            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+            <div className={pickerProgressTrackClass}>
                 <div
                     className={cn("h-full rounded-full transition-all", capacityBarColor(pct, shift.isFull))}
                     style={{ width: `${Math.min(100, pct)}%` }}
                 />
             </div>
-        </div>
+        </button>
     );
 }

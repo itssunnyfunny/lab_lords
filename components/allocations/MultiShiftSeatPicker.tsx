@@ -3,6 +3,18 @@
 import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formErrorBannerClass } from "@/components/ui/formSurface";
+import {
+    pickerDividerClass,
+    pickerLoadingClass,
+    pickerSeatAvailableClass,
+    pickerSeatButtonBaseClass,
+    pickerSeatOccupiedClass,
+    pickerSeatSelectedClass,
+    pickerSectionLabelClass,
+    pickerTooltipClass,
+    pickerWarningHintClass,
+} from "@/components/ui/pickerSurface";
 
 interface SeatCell {
     seatId: string;
@@ -59,7 +71,7 @@ export function MultiShiftSeatPicker({
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-8 text-zinc-500">
+            <div className={pickerLoadingClass}>
                 <Loader2 size={16} className="animate-spin mr-2" /> Loading seats...
             </div>
         );
@@ -67,7 +79,7 @@ export function MultiShiftSeatPicker({
 
     if (error) {
         return (
-            <div className="p-3 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <div className={cn("p-3 text-sm", formErrorBannerClass)}>
                 {error}
             </div>
         );
@@ -76,19 +88,19 @@ export function MultiShiftSeatPicker({
     if (seats.length === 0) return null;
 
     return (
-        <div className="space-y-3 pt-2 border-t border-white/5">
+        <div className={cn("space-y-3 pt-2", pickerDividerClass)}>
             <div className="flex items-center justify-between">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">Select a seat</p>
+                <p className={pickerSectionLabelClass}>Select a seat</p>
                 {stats && (
-                    <div className="text-[10px] text-zinc-500">
-                        <span className="text-emerald-400 font-medium">{stats.available}</span> free
-                        · <span className="text-red-400/80">{stats.occupied}</span> taken
+                    <div className="text-[10px] text-[color:var(--text-muted)]">
+                        <span className="font-medium text-[color:var(--ui-tone-success-text)]">{stats.available}</span> free
+                        <span className="mx-1">/</span><span className="text-[color:var(--ui-tone-danger-text)]">{stats.occupied}</span> taken
                     </div>
                 )}
             </div>
 
-            <p className="text-xs text-zinc-400 bg-orange-500/[0.06] border border-orange-500/10 rounded-lg px-3 py-2">
-                💡 A seat is available only if it is free across <span className="text-orange-300 font-medium">all component shifts</span>.
+            <p className={pickerWarningHintClass}>
+                A seat is available only if it is free across <span className="font-medium text-[color:var(--ui-badge-warning-text)]">all component shifts</span>.
             </p>
 
             <div className="grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-7">
@@ -105,12 +117,12 @@ export function MultiShiftSeatPicker({
                                 onMouseEnter={() => setHoveredSeat(seat.seatId)}
                                 onMouseLeave={() => setHoveredSeat(null)}
                                 className={cn(
-                                    "w-full aspect-square rounded-lg border text-xs font-medium transition-all flex items-center justify-center select-none",
+                                    pickerSeatButtonBaseClass,
                                     seat.occupied
-                                        ? "bg-red-500/10 border-red-500/20 text-red-400/70 cursor-not-allowed"
+                                        ? pickerSeatOccupiedClass
                                         : isSelected
-                                            ? "bg-indigo-500/30 border-indigo-400/60 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.25)]"
-                                            : "bg-emerald-500/10 border-emerald-400/25 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400/50 cursor-pointer"
+                                            ? pickerSeatSelectedClass
+                                            : pickerSeatAvailableClass
                                 )}
                             >
                                 {isSelected
@@ -120,7 +132,7 @@ export function MultiShiftSeatPicker({
                             </button>
 
                             {seat.occupied && isHovered && seat.occupiedBy && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 bg-zinc-900 border border-white/10 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap shadow-xl pointer-events-none">
+                                <div className={pickerTooltipClass}>
                                     {seat.occupiedBy}
                                 </div>
                             )}

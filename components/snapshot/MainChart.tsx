@@ -1,9 +1,9 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
+import { AppPanel } from "@/components/ui";
 import { TrendData } from "@/lib/api/analytics";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface MainChartProps {
     data?: TrendData;
@@ -24,8 +24,8 @@ export function MainChart({
     data = [],
     title = "Analytics Trend",
     variant = "area",
-    valueFormatter = (value) => value.toLocaleString("en-IN"),
-    color = "#6366f1",
+    valueFormatter = value => value.toLocaleString("en-IN"),
+    color = "var(--ui-tone-info-progress)",
     emptyLabel = "No trend data available.",
 }: MainChartProps) {
     const chartData = data.map(d => ({
@@ -35,28 +35,42 @@ export function MainChart({
 
     if (chartData.length === 0) {
         return (
-            <Card className="col-span-1 lg:col-span-2 h-[400px] flex flex-col" title={title}>
-                <div className="flex-1 flex items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] text-sm text-textSecondary">
+            <AppPanel
+                className="col-span-1 flex h-[400px] flex-col lg:col-span-2"
+                title={title}
+                contentClassName="flex min-h-0 flex-1"
+            >
+                <div className="flex flex-1 items-center justify-center rounded-[var(--ui-radius-control)] border border-dashed border-[color:var(--ui-table-empty-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 text-center text-sm text-[color:var(--text-secondary)]">
                     {emptyLabel}
                 </div>
-            </Card>
+            </AppPanel>
         );
     }
 
+    const tooltipStyle = {
+        backgroundColor: "var(--ui-menu-bg)",
+        border: "1px solid var(--ui-menu-border)",
+        borderRadius: "8px",
+    };
+
     return (
-        <Card className="col-span-1 lg:col-span-2 h-[400px] flex flex-col" title={title}>
-            <div className="flex-1 w-full min-h-0 pt-4">
+        <AppPanel
+            className="col-span-1 flex h-[400px] flex-col lg:col-span-2"
+            title={title}
+            contentClassName="flex min-h-0 flex-1"
+        >
+            <div className="min-h-0 w-full flex-1 pt-4">
                 <ResponsiveContainer width="100%" height="100%">
                     {variant === "bar" ? (
                         <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => valueFormatter(Number(value))} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--ui-table-divider)" />
+                            <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} tickFormatter={value => valueFormatter(Number(value))} />
                             <Tooltip
-                                cursor={{ fill: "rgba(255,255,255,0.05)" }}
-                                contentStyle={{ backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
-                                itemStyle={{ color: "#fff" }}
-                                formatter={(value) => valueFormatter(Number(value))}
+                                cursor={{ fill: "var(--ui-form-muted-surface-bg)" }}
+                                contentStyle={tooltipStyle}
+                                itemStyle={{ color: "var(--text-primary)" }}
+                                formatter={value => valueFormatter(Number(value))}
                             />
                             <Bar dataKey="value" fill={color} radius={[6, 6, 0, 0]} />
                         </BarChart>
@@ -68,20 +82,19 @@ export function MainChart({
                                     <stop offset="95%" stopColor={color} stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => valueFormatter(Number(value))} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--ui-table-divider)" />
+                            <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} tickFormatter={value => valueFormatter(Number(value))} />
                             <Tooltip
-                                contentStyle={{ backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
-                                itemStyle={{ color: "#fff" }}
-                                formatter={(value) => valueFormatter(Number(value))}
+                                contentStyle={tooltipStyle}
+                                itemStyle={{ color: "var(--text-primary)" }}
+                                formatter={value => valueFormatter(Number(value))}
                             />
                             <Area type="monotone" dataKey="value" stroke={color} strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
                         </AreaChart>
                     )}
                 </ResponsiveContainer>
             </div>
-        </Card>
+        </AppPanel>
     );
 }
-

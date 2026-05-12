@@ -146,7 +146,7 @@ export function EditStudentDialog({
                         <h2 className="text-base font-bold text-[color:var(--ui-dialog-title)]">Edit Student</h2>
                         <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>Update profile details</p>
                     </div>
-                    <button onClick={handleClose} disabled={loading} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
+                    <button type="button" onClick={handleClose} disabled={loading} className={cn("cursor-pointer transition-colors hover:text-[color:var(--ui-table-text)] disabled:cursor-not-allowed", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>
@@ -198,7 +198,7 @@ export function EditStudentDialog({
                         <div className="flex items-center justify-between gap-3">
                             <label className={formCompactLabelClass}>Monthly Fee</label>
                             {linkedFeeSource && (
-                                <span className="text-[10px] font-medium uppercase tracking-wider text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-2 py-0.5">
+                                <span className="rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[color:var(--ui-badge-cyan-text)]">
                                     Linked
                                 </span>
                             )}

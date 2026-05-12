@@ -1,14 +1,27 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
-import { useEffect, useState } from "react";
+import { AppPanel } from "@/components/ui";
 import { analytics, BranchSnapshot } from "@/lib/api/analytics";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapshot, branchId?: string }) {
-    const [studentData, setStudentData] = useState<{ name: string, active: number, inactive: number }[]>([]);
-    const [paymentData, setPaymentData] = useState<{ name: string, paid: number, due: number }[]>([]);
+const formatMoney = (amount: number) =>
+    new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+    }).format(amount);
+
+const tooltipStyle = {
+    backgroundColor: "var(--ui-menu-bg)",
+    border: "1px solid var(--ui-menu-border)",
+    borderRadius: "8px",
+};
+
+export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapshot; branchId?: string }) {
+    const [studentData, setStudentData] = useState<{ name: string; active: number; inactive: number }[]>([]);
+    const [paymentData, setPaymentData] = useState<{ name: string; paid: number; due: number }[]>([]);
 
     useEffect(() => {
         if (!branchId) return;
@@ -19,28 +32,26 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
 
                 const [stu, pay] = await Promise.all([
                     analytics.getTrends(branchId, { from, to, type: "students" }),
-                    analytics.getTrends(branchId, { from, to, type: "payment" })
+                    analytics.getTrends(branchId, { from, to, type: "payment" }),
                 ]);
 
-                // Group stu by date
-                const stuMap = new Map();
+                const stuMap = new Map<string, { name: string; active: number; inactive: number }>();
                 stu.forEach(t => {
-                    const d = format(new Date(t.date), "EEE"); // Mon, Tue...
+                    const d = format(new Date(t.date), "EEE");
                     if (!stuMap.has(d)) stuMap.set(d, { name: d, active: 0, inactive: 0 });
-                    if (t.category === "Active") stuMap.get(d).active = t.value;
-                    if (t.category === "Inactive") stuMap.get(d).inactive = t.value;
+                    if (t.category === "Active") stuMap.get(d)!.active = t.value;
+                    if (t.category === "Inactive") stuMap.get(d)!.inactive = t.value;
                 });
                 setStudentData(Array.from(stuMap.values()));
 
-                const payMap = new Map();
+                const payMap = new Map<string, { name: string; paid: number; due: number }>();
                 pay.forEach(t => {
                     const d = format(new Date(t.date), "EEE");
                     if (!payMap.has(d)) payMap.set(d, { name: d, paid: 0, due: 0 });
-                    if (t.category === "Collected") payMap.get(d).paid = t.value;
-                    if (t.category === "Pending") payMap.get(d).due = t.value;
+                    if (t.category === "Collected") payMap.get(d)!.paid = t.value;
+                    if (t.category === "Pending") payMap.get(d)!.due = t.value;
                 });
                 setPaymentData(Array.from(payMap.values()));
-
             } catch (err) {
                 console.error("Failed to load footer trends", err);
             }
@@ -51,54 +62,53 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
     if (!snapshot) return null;
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            {/* Active vs Inactive */}
-            <Card title="Active vs. Inactive Students" className="h-[300px]">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <AppPanel title="Active vs. Inactive Students" className="flex h-[300px] flex-col" contentClassName="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={studentData.length > 0 ? studentData : [{ name: 'Loading', active: 0, inactive: 0 }]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                    <BarChart data={studentData.length > 0 ? studentData : [{ name: "Loading", active: 0, inactive: 0 }]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} />
                         <Tooltip
-                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                            cursor={{ fill: "var(--ui-form-muted-surface-bg)" }}
+                            contentStyle={tooltipStyle}
+                            itemStyle={{ color: "var(--text-primary)" }}
                         />
-                        <Bar name="Active" dataKey="active" fill="#6366f1" radius={[4, 4, 0, 0]} stackId="a" />
-                        <Bar name="Inactive" dataKey="inactive" fill="#475569" radius={[4, 4, 0, 0]} stackId="a" />
+                        <Bar name="Active" dataKey="active" fill="var(--ui-tone-info-progress)" radius={[4, 4, 0, 0]} stackId="a" />
+                        <Bar name="Inactive" dataKey="inactive" fill="var(--ui-tone-neutral-progress)" radius={[4, 4, 0, 0]} stackId="a" />
                     </BarChart>
                 </ResponsiveContainer>
-            </Card>
+            </AppPanel>
 
-            {/* Due vs Paid */}
-            <Card title="Due vs. Paid Payments" className="h-[300px]">
-                <div className="flex items-end justify-between h-full pb-4">
+            <AppPanel title="Due vs. Paid Payments" className="flex h-[300px] flex-col" contentClassName="min-h-0 flex-1">
+                <div className="flex h-full items-end justify-between pb-4">
                     <div className="space-y-4">
                         <div>
-                            <p className="text-textSecondary text-sm">Collected</p>
-                            <h3 className="text-2xl font-bold text-white">₹{snapshot.paidAmount.toLocaleString()}</h3>
+                            <p className="text-sm text-[color:var(--text-secondary)]">Collected</p>
+                            <h3 className="text-2xl font-semibold text-[color:var(--text-primary)]">{formatMoney(snapshot.paidAmount)}</h3>
                         </div>
                         <div>
-                            <p className="text-textSecondary text-sm">Pending</p>
-                            <h3 className="text-2xl font-bold text-rose-400">₹{snapshot.dueAmount.toLocaleString()}</h3>
+                            <p className="text-sm text-[color:var(--text-secondary)]">Pending</p>
+                            <h3 className="text-2xl font-semibold text-[color:var(--ui-tone-danger-text)]">{formatMoney(snapshot.dueAmount)}</h3>
                         </div>
                     </div>
-                    <div className="flex-1 h-[200px] ml-10">
+                    <div className="ml-10 h-[200px] flex-1">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={paymentData.length > 0 ? paymentData : [{ name: 'Loading', paid: 0, due: 0 }]} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                            <BarChart data={paymentData.length > 0 ? paymentData : [{ name: "Loading", paid: 0, due: 0 }]} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} />
                                 <Tooltip
-                                    cursor={{ fill: 'transparent' }}
-                                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                                    formatter={(value: number | string | undefined, name: string | number | undefined) => [`₹${value ?? 0}`, String(name ?? "")]}
+                                    cursor={{ fill: "transparent" }}
+                                    contentStyle={tooltipStyle}
+                                    itemStyle={{ color: "var(--text-primary)" }}
+                                    formatter={(value: number | string | undefined, name: string | number | undefined) => [formatMoney(Number(value ?? 0)), String(name ?? "")]}
                                 />
-                                <Bar name="Collected" dataKey="paid" fill="#10b981" radius={[4, 4, 0, 0]} stackId="b" />
-                                <Bar name="Pending" dataKey="due" fill="#ef4444" radius={[4, 4, 0, 0]} stackId="b" />
+                                <Bar name="Collected" dataKey="paid" fill="var(--ui-tone-success-progress)" radius={[4, 4, 0, 0]} stackId="b" />
+                                <Bar name="Pending" dataKey="due" fill="var(--ui-tone-danger-progress)" radius={[4, 4, 0, 0]} stackId="b" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
-            </Card>
+            </AppPanel>
         </div>
     );
 }
-

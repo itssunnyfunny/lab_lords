@@ -225,17 +225,17 @@ export function UpdateAllocationDialog({
                 <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div>
                         <div className="flex items-center gap-2">
-                            <ArrowRightLeft size={15} className="text-indigo-400" />
+                            <ArrowRightLeft size={15} className="text-[color:var(--ui-badge-cyan-text)]" />
                             <h2 className="text-base font-semibold text-[color:var(--ui-dialog-title)]">Change Seat / Shift</h2>
                         </div>
                         <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>
                             for <span className="text-[color:var(--ui-form-label-strong)]">{studentName}</span>
                             {selectedShiftNames.length > 0 && (
-                                <> · <span className={selectedMultiShiftId ? "text-orange-300" : "text-indigo-300"}>{selectedShiftNames.join(", ")}</span></>
+                                <> / <span className={selectedMultiShiftId ? "text-[color:var(--ui-badge-warning-text)]" : "text-[color:var(--ui-badge-cyan-text)]"}>{selectedShiftNames.join(", ")}</span></>
                             )}
                         </p>
                     </div>
-                    <button onClick={onClose} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
+                    <button type="button" onClick={onClose} className={cn("cursor-pointer transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>

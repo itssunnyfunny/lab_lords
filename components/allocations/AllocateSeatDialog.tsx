@@ -127,14 +127,14 @@ export function AllocateSeatDialog({
                 setSelectedShiftIds([]);
                 setSelectedShiftNames([]);
             } else {
-                // select multishift — store component IDs for the submission payload
+                // select multishift - store component IDs for the submission payload
                 setSelectedMultiShiftId(shift.shiftId);
                 setSelectedMultiShiftName(shift.name);
                 setSelectedShiftIds(shift.componentShiftIds ?? []);
                 setSelectedShiftNames([shift.name]);
             }
         } else {
-            // Primary shift toggle — clear any active multi-shift selection first
+            // Primary shift toggle - clear any active multi-shift selection first
             setSelectedMultiShiftId(null);
             setSelectedMultiShiftName(null);
             setSelectedShiftIds(prev => {
@@ -254,12 +254,12 @@ export function AllocateSeatDialog({
                             <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>
                                 for <span className="text-[color:var(--ui-form-label-strong)]">{effectiveStudentName}</span>
                                 {selectedShiftNames.length > 0 && (
-                                    <> · <span className={selectedMultiShiftId ? "text-orange-300" : "text-indigo-300"}>{selectedShiftNames.join(", ")}</span></>
+                                    <> / <span className={selectedMultiShiftId ? "text-[color:var(--ui-badge-warning-text)]" : "text-[color:var(--ui-badge-cyan-text)]"}>{selectedShiftNames.join(", ")}</span></>
                                 )}
                             </p>
                         )}
                     </div>
-                    <button onClick={onClose} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
+                    <button type="button" onClick={onClose} className={cn("cursor-pointer transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>
@@ -281,7 +281,7 @@ export function AllocateSeatDialog({
                                     <button
                                         key={s.id}
                                         onClick={() => { markTouched("student"); setStudentId(s.id); setStudentName(s.name); }}
-                                        className={cn("w-full px-3 py-2.5 text-left", formSurfaceClass, formSurfaceHoverClass)}
+                                        className={cn("w-full cursor-pointer px-3 py-2.5 text-left", formSurfaceClass, formSurfaceHoverClass)}
                                     >
                                         <p className="text-sm font-medium text-[color:var(--ui-form-label-strong)]">{s.name}</p>
                                         {s.phone && <p className={cn("text-xs", formHelpTextClass)}>{s.phone}</p>}
