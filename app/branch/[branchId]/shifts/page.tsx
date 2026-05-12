@@ -6,6 +6,32 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RowActionsMenu, type RowActionsMenuItem } from "@/components/ui/RowActionsMenu";
+import {
+    formCompactLabelClass,
+    formControlClass,
+    formDialogFooterClass,
+    formDialogHeaderClass,
+    formDialogOverlayClass,
+    formDialogPanelClass,
+    formErrorBannerClass,
+    formHelpTextClass,
+    formIconClass,
+    formSurfaceClass,
+    formWarningActionClass,
+    formWarningBannerClass,
+} from "@/components/ui/formSurface";
+import {
+    pageEmptyStateClass,
+    pageErrorIconClass,
+    pageErrorStateClass,
+    pageGridCardClass,
+    pageGridCardHoverClass,
+    pageInsetHoverClass,
+    pageInsetSurfaceClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
@@ -236,15 +262,15 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
+            <div className={cn("cursor-pointer", formDialogOverlayClass)} onClick={onClose} />
+            <div className={cn("relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col", formDialogPanelClass)}>
                 {/* Header */}
-                <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
+                <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div>
-                        <h2 className="text-base font-bold text-white">{mode === "add" ? "Add Shift" : "Edit Shift"}</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">{mode === "add" ? "Create a new time window" : "Update shift details"}</p>
+                        <h2 className="text-base font-bold text-[color:var(--ui-dialog-title)]">{mode === "add" ? "Add Shift" : "Edit Shift"}</h2>
+                        <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>{mode === "add" ? "Create a new time window" : "Update shift details"}</p>
                     </div>
-                    <button onClick={onClose} disabled={loading} className="text-gray-500 hover:text-white transition-colors">
+                    <button onClick={onClose} disabled={loading} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>
@@ -252,7 +278,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                 {/* Body */}
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Shift Name *</label>
+                        <label className={formCompactLabelClass}>Shift Name *</label>
                         <input
                                 type="text"
                                 value={name}
@@ -260,7 +286,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                                 onBlur={() => markTouched("name")}
                                 placeholder="e.g. Morning, Full Time"
                                 autoFocus
-                            className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(nameError))}
+                            className={cn(formControlClass, "px-4 py-2.5 text-sm", fieldErrorClass(nameError))}
                                 {...fieldErrorProps("shift-name-error", nameError)}
                         />
                         <FieldError id="shift-name-error" error={nameError} />
@@ -268,24 +294,24 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Start Time</label>
+                            <label className={formCompactLabelClass}>Start Time</label>
                             <input
                                 type="time"
                                 value={startTime}
                                 onChange={e => { setStartTime(e.target.value); setTimesTouched(true); setError(null); markTouched("timePair"); markTouched("overlap"); }}
                                 onBlur={() => markTouched("startTime")}
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(startTimeError || timePairError || overlapError))}
+                                className={cn(formControlClass, "px-3 py-2.5 text-sm", fieldErrorClass(startTimeError || timePairError || overlapError))}
                                 {...fieldErrorProps("shift-time-error", timeGroupError)}
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">End Time</label>
+                            <label className={formCompactLabelClass}>End Time</label>
                             <input
                                 type="time"
                                 value={endTime}
                                 onChange={e => { setEndTime(e.target.value); setTimesTouched(true); setError(null); markTouched("timePair"); markTouched("overlap"); }}
                                 onBlur={() => markTouched("endTime")}
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-white focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(endTimeError || timePairError || overlapError))}
+                                className={cn(formControlClass, "px-3 py-2.5 text-sm", fieldErrorClass(endTimeError || timePairError || overlapError))}
                                 {...fieldErrorProps("shift-time-error", timeGroupError)}
                             />
                         </div>
@@ -293,9 +319,9 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                     <FieldError id="shift-time-error" error={timeGroupError} />
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Monthly Price (₹)</label>
+                        <label className={formCompactLabelClass}>Monthly Price (₹)</label>
                         <div className="relative">
-                            <IndianRupee size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <IndianRupee size={13} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} />
                             <input
                                 type="number"
                                 value={price}
@@ -306,7 +332,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                                 step="1"
                                 inputMode="numeric"
                                 placeholder="0"
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(priceError))}
+                                className={cn(formControlClass, "py-2.5 pl-8 pr-4 text-sm", fieldErrorClass(priceError))}
                                 {...fieldErrorProps("shift-price-error", priceError)}
                             />
                         </div>
@@ -317,39 +343,39 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                     <div className="flex items-center justify-between py-1">
                         <div>
                             <p className="text-sm text-white font-medium">Reserved Shift</p>
-                            <p className="text-xs text-gray-500">Seats in this shift require manual allocation</p>
+                            <p className={cn("text-xs", formHelpTextClass)}>Seats in this shift require manual allocation</p>
                         </div>
                         <button
                             onClick={() => setIsReserved(v => !v)}
                             className={cn(
                                 "w-10 h-5 rounded-full relative transition-colors",
-                                isReserved ? "bg-cyan-500" : "bg-white/10"
+                                isReserved ? "bg-[color:var(--ui-form-toggle-checked-bg)]" : "bg-[color:var(--ui-form-toggle-bg)]"
                             )}
                         >
                             <div className={cn(
-                                "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform",
+                                "absolute top-0.5 h-4 w-4 rounded-full bg-[color:var(--ui-form-toggle-thumb)] shadow-sm transition-transform",
                                 isReserved ? "translate-x-5" : "translate-x-0.5"
                             )} />
                         </button>
                     </div>
 
                     {error && (
-                        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                        <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                             <AlertCircle size={13} /> {error}
                         </div>
                     )}
 
                     {overlapWith && (
-                        <div className="flex flex-col gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs mt-2">
-                            <div className="flex items-center gap-1.5 text-amber-400">
+                        <div className={cn("mt-2 flex flex-col gap-1.5 px-3 py-2 text-xs", formWarningBannerClass)}>
+                            <div className="flex items-center gap-1.5">
                                 <AlertTriangle size={13} />
                                 <span>Time overlaps with &ldquo;{overlapWith.name}&rdquo; ({overlapWith.startTime} - {overlapWith.endTime}).</span>
                             </div>
                             <div className="flex flex-col gap-1 mt-1">
-                                <button onClick={() => setEndTime(formatMins(parseNullableTime(overlapWith.startTime)! - 1))} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1.5 rounded transition-colors border border-amber-500/20 text-left">
+                                <button onClick={() => setEndTime(formatMins(parseNullableTime(overlapWith.startTime)! - 1))} className={cn("px-2 py-1.5 text-left", formWarningActionClass)}>
                                     Set End Time to {formatMins(parseNullableTime(overlapWith.startTime)! - 1)}
                                 </button>
-                                <button onClick={() => setStartTime(formatMins(parseNullableTime(overlapWith.endTime)! + 1))} className="text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1.5 rounded transition-colors border border-amber-500/20 text-left">
+                                <button onClick={() => setStartTime(formatMins(parseNullableTime(overlapWith.endTime)! + 1))} className={cn("px-2 py-1.5 text-left", formWarningActionClass)}>
                                     Set Start Time to {formatMins(parseNullableTime(overlapWith.endTime)! + 1)}
                                 </button>
                             </div>
@@ -358,7 +384,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                 </div>
 
                 {/* Footer */}
-                <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
+                <div className={cn("flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 sm:flex-row sm:justify-end sm:px-6", formDialogFooterClass)}>
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">
                         Cancel
                     </Button>
@@ -578,22 +604,22 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className={submitting ? "absolute inset-0 cursor-not-allowed bg-black/70 backdrop-blur-sm" : "absolute inset-0 cursor-pointer bg-black/70 backdrop-blur-sm"} onClick={submitting ? undefined : onClose} />
-            <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
+            <div className={cn(submitting ? "cursor-not-allowed" : "cursor-pointer", formDialogOverlayClass)} onClick={submitting ? undefined : onClose} />
+            <div className={cn("relative max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto sm:max-h-[90vh]", formDialogPanelClass)}>
 
                 {/* Header */}
-                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-4 border-b border-white/10 bg-[#0f111a] sm:px-6">
+                <div className={cn("sticky top-0 z-10 flex items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
                             <Trash2 size={15} className="text-red-400" />
                         </div>
                         <div>
-                            <h2 className="text-sm font-bold text-white">Delete &ldquo;{shift.name}&rdquo;</h2>
-                            <p className="text-xs text-gray-500">Resolve before removing this shift</p>
+                            <h2 className="text-sm font-bold text-[color:var(--ui-dialog-title)]">Delete &ldquo;{shift.name}&rdquo;</h2>
+                            <p className={cn("text-xs", formHelpTextClass)}>Resolve before removing this shift</p>
                         </div>
                     </div>
                     {!submitting && (
-                        <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                        <button onClick={onClose} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                             <X size={18} />
                         </button>
                     )}
@@ -601,7 +627,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
                 {/* ── Loading state */}
                 {step === "loading" && (
-                    <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-400">
+                    <div className="flex flex-col items-center justify-center gap-3 py-16 text-[color:var(--ui-form-label)]">
                         <Loader2 size={28} className="animate-spin text-cyan-500" />
                         <p className="text-sm">Analyzing shift impact...</p>
                     </div>
@@ -610,7 +636,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                 {/* ── Blocked: last active shift */}
                 {step === "blocked" && (
                     <div className="p-4 space-y-4 sm:p-6">
-                        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                        <div className={cn("flex items-start gap-3 p-4", formWarningBannerClass)}>
                             <Ban size={18} className="text-amber-400 mt-0.5 shrink-0" />
                             <div>
                                 <p className="text-sm font-semibold text-amber-300">Cannot delete this shift</p>
@@ -629,11 +655,11 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                 {/* ── Confirm empty shift delete */}
                 {step === "confirm-empty" && (
                     <div className="p-4 space-y-4 sm:p-6">
-                        <p className="text-sm text-gray-300">
+                        <p className="text-sm text-[color:var(--ui-form-label)]">
                             This shift has <span className="text-white font-semibold">no active students</span>. It will be removed permanently.
                         </p>
                         {submitError && (
-                            <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                            <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                                 <AlertCircle size={13} /> {submitError}
                             </div>
                         )}
@@ -655,13 +681,13 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                     <div className="p-4 space-y-5 sm:p-6">
 
                         {/* Impact summary */}
-                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-2">
+                        <div className={cn("space-y-2 p-4", formSurfaceClass)}>
                             <div className="flex items-center gap-2 text-sm">
                                 <Users size={14} className="text-cyan-400" />
                                 <span className="text-white font-semibold">{analysis.studentsInShift} student{analysis.studentsInShift !== 1 ? "s" : ""}</span>
-                                <span className="text-gray-500">currently in this shift</span>
+                                <span className={formHelpTextClass}>currently in this shift</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <div className={cn("flex items-center gap-2 text-xs", formHelpTextClass)}>
                                 <ArrowRight size={12} />
                                 <span>Empty seats elsewhere: <span className="text-white">{analysis.totalEmptyElsewhere}</span></span>
                                 {analysis.willOverflowBy > 0 && (
@@ -673,7 +699,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                         </div>
 
                         {analyzeError && (
-                            <div className="flex items-center gap-2 text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                            <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formWarningBannerClass)}>
                                 <AlertTriangle size={13} /> {analyzeError} — Only &ldquo;End All&rdquo; is available.
                             </div>
                         )}
@@ -709,18 +735,18 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                 >
                                     {mode === "REALLOCATE_BULK" && (
                                         <div className="mt-3">
-                                            <label className="text-xs text-gray-500 mb-1.5 block">Select target shift</label>
+                                            <label className={cn("mb-1.5 block text-xs", formHelpTextClass)}>Select target shift</label>
                                             <select
                                                 value={bulkTargetId}
                                                 onChange={e => setBulkTargetId(e.target.value)}
-                                                style={{ colorScheme: 'dark', backgroundColor: '#0f111a' }}
-                                                className="w-full border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                                                style={{ colorScheme: 'dark' }}
+                                                className={cn(formControlClass, "px-3 py-2 text-sm")}
                                             >
-                                                <option value="" disabled className="bg-[#0f111a] text-white">Choose a shift…</option>
+                                                <option value="" disabled className="bg-[color:var(--ui-form-input-select-bg)] text-white">Choose a shift…</option>
                                                 {analysis.otherShifts
                                                     .filter(s => analysis.shiftsWithEnoughCapacity.includes(s.shiftId))
                                                     .map(s => (
-                                                        <option key={s.shiftId} value={s.shiftId} className="bg-[#0f111a] text-white">
+                                                        <option key={s.shiftId} value={s.shiftId} className="bg-[color:var(--ui-form-input-select-bg)] text-white">
                                                             {s.name} — {s.emptySeats} empty seat{s.emptySeats !== 1 ? "s" : ""}
                                                         </option>
                                                     ))
@@ -751,7 +777,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                 <div key={alloc.allocationId} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-xs text-white font-medium truncate">{alloc.studentName}</p>
-                                                        <p className="text-[10px] text-gray-600">Seat {alloc.seatLabel}</p>
+                                                        <p className="text-[10px] text-[color:var(--ui-table-subtle)]">Seat {alloc.seatLabel}</p>
                                                     </div>
                                                     <select
                                                         value={chosenId}
@@ -759,15 +785,16 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                             ...prev,
                                                             [alloc.allocationId]: e.target.value,
                                                         }))}
-                                                        style={{ colorScheme: 'dark', backgroundColor: '#0f111a' }}
+                                                        style={{ colorScheme: 'dark' }}
                                                         className={cn(
-                                                            "border rounded-lg py-1.5 px-2 text-white text-xs focus:outline-none focus:border-cyan-500/50 sm:min-w-[160px]",
-                                                            wouldOverflow ? "border-red-500/50" : "border-white/10"
+                                                            formControlClass,
+                                                            "px-2 py-1.5 text-xs sm:min-w-[160px]",
+                                                            wouldOverflow && "border-[color:var(--ui-form-error-border)] focus:border-[color:var(--ui-form-error-focus-border)]"
                                                         )}
                                                     >
-                                                        <option value="" disabled className="bg-[#0f111a] text-white">Select shift…</option>
+                                                        <option value="" disabled className="bg-[color:var(--ui-form-input-select-bg)] text-white">Select shift…</option>
                                                         {analysis.otherShifts.map(s => (
-                                                            <option key={s.shiftId} value={s.shiftId} disabled={s.emptySeats === 0} className="bg-[#0f111a] text-white">
+                                                            <option key={s.shiftId} value={s.shiftId} disabled={s.emptySeats === 0} className="bg-[color:var(--ui-form-input-select-bg)] text-white">
                                                                 {s.name} ({s.emptySeats} empty)
                                                             </option>
                                                         ))}
@@ -788,7 +815,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                             <OptionCard
                                 selected={mode === "RENAME"}
                                 onClick={() => setMode("RENAME")}
-                                icon={<Pencil size={15} className="text-gray-400" />}
+                                icon={<Pencil size={15} className={pageMutedTextClass} />}
                                 title="Rename / Retime Instead"
                                 description="Don't delete — just change the name or time window. Students stay allocated."
                             >
@@ -797,44 +824,44 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                     return (
                                         <div className="mt-3 space-y-3">
                                             <div>
-                                                <label className="text-xs text-gray-500 mb-1 block">New name</label>
+                                                <label className={cn("mb-1 block text-xs", formHelpTextClass)}>New name</label>
                                                 <input
                                                     type="text"
                                                     value={renameName}
                                                     onChange={e => { setRenameName(e.target.value); setSubmitError(null); }}
                                                     onBlur={() => markTouched("renameName")}
-                                                    className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50", fieldErrorClass(renameNameError))}
+                                                    className={cn(formControlClass, "px-3 py-2 text-sm", fieldErrorClass(renameNameError))}
                                                     {...fieldErrorProps("rename-shift-name-error", renameNameError)}
                                                 />
                                                 <FieldError id="rename-shift-name-error" error={renameNameError} />
                                             </div>
                                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Start time</label>
+                                                    <label className={cn("mb-1 block text-xs", formHelpTextClass)}>Start time</label>
                                                     <input
                                                         type="time"
                                                         value={renameStart}
                                                         onChange={e => { setRenameStart(e.target.value); markTouched("renameTimePair"); markTouched("renameOverlap"); }}
                                                         onBlur={() => markTouched("renameStart")}
-                                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50", fieldErrorClass(renameStartError || renameTimePairError || renameOverlapError))}
+                                                        className={cn(formControlClass, "px-3 py-2 text-sm", fieldErrorClass(renameStartError || renameTimePairError || renameOverlapError))}
                                                         {...fieldErrorProps("rename-shift-time-error", renameTimeGroupError)}
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">End time</label>
+                                                    <label className={cn("mb-1 block text-xs", formHelpTextClass)}>End time</label>
                                                     <input
                                                         type="time"
                                                         value={renameEnd}
                                                         onChange={e => { setRenameEnd(e.target.value); markTouched("renameTimePair"); markTouched("renameOverlap"); }}
                                                         onBlur={() => markTouched("renameEnd")}
-                                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-cyan-500/50", fieldErrorClass(renameEndError || renameTimePairError || renameOverlapError))}
+                                                        className={cn(formControlClass, "px-3 py-2 text-sm", fieldErrorClass(renameEndError || renameTimePairError || renameOverlapError))}
                                                         {...fieldErrorProps("rename-shift-time-error", renameTimeGroupError)}
                                                     />
                                                 </div>
                                             </div>
                                             <FieldError id="rename-shift-time-error" error={renameTimeGroupError} />
                                             {renameOverlapWith && (
-                                                <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                                                <div className={cn("flex items-center gap-2 px-3 py-2 text-xs", formWarningBannerClass)}>
                                                     <AlertTriangle size={13} />
                                                     <span>Time overlaps with &ldquo;{renameOverlapWith.name}&rdquo; ({renameOverlapWith.startTime}&nbsp;–&nbsp;{renameOverlapWith.endTime}). Adjust the times before saving.</span>
                                                 </div>
@@ -849,7 +876,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
                         {/* Submit error */}
                         {submitError && (
-                            <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                            <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                                 <AlertCircle size={13} /> {submitError}
                             </div>
                         )}
@@ -909,27 +936,25 @@ interface OptionCardProps {
 }
 
 function OptionCard({ selected, onClick, icon, title, description, variant, children }: OptionCardProps) {
-    const borderColor = selected
-        ? variant === "danger" ? "border-red-500/40" : variant === "success" ? "border-emerald-500/40" : "border-cyan-500/40"
-        : "border-white/8";
-    const bgColor = selected
-        ? variant === "danger" ? "bg-red-500/5" : variant === "success" ? "bg-emerald-500/5" : "bg-cyan-500/5"
-        : "bg-white/[0.02]";
+    const selectedSurface = variant === "danger"
+        ? "border-red-500/40 bg-red-500/5"
+        : variant === "success"
+            ? "border-emerald-500/40 bg-emerald-500/5"
+            : "border-cyan-500/40 bg-cyan-500/5";
 
     return (
         <div
             onClick={onClick}
             className={cn(
-                "border rounded-xl p-4 cursor-pointer transition-all",
-                borderColor, bgColor,
-                !selected && "hover:border-white/15 hover:bg-white/[0.04]"
+                "cursor-pointer p-4 transition-all",
+                selected ? cn("rounded-xl border", selectedSurface) : cn(pageInsetSurfaceClass, pageInsetHoverClass)
             )}
         >
             <div className="flex items-start gap-3">
                 <div className="mt-0.5 shrink-0">{icon}</div>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white">{title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</p>
+                    <p className={cn("mt-0.5 text-xs leading-relaxed", pageSubtleTextClass)}>{description}</p>
                     {children}
                 </div>
                 <div className={cn(
@@ -964,14 +989,14 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between sm:px-6">
+            <div className={cn("cursor-pointer", formDialogOverlayClass)} onClick={onClose} />
+            <div className={cn("relative w-full max-w-md animate-in zoom-in-95 duration-200", formDialogPanelClass)}>
+                <div className={cn("flex items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div>
-                        <h2 className="text-base font-bold text-white">What type of shift?</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">Select the type of window to create</p>
+                        <h2 className="text-base font-bold text-[color:var(--ui-dialog-title)]">What type of shift?</h2>
+                        <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>Select the type of window to create</p>
                     </div>
-                    <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                    <button onClick={onClose} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>
@@ -986,7 +1011,7 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
                         </div>
                         <div className="text-center">
                             <p className="text-sm font-bold text-white">Primary</p>
-                            <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-wider font-semibold">Single Time Slot</p>
+                            <p className={cn("mt-1 text-[10px] font-semibold uppercase tracking-wider", formHelpTextClass)}>Single Time Slot</p>
                         </div>
                     </button>
 
@@ -999,7 +1024,7 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
                         </div>
                         <div className="text-center">
                             <p className="text-sm font-bold text-white">Multi-Shift</p>
-                            <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-wider font-semibold">Bundle of 2+ Primary</p>
+                            <p className={cn("mt-1 text-[10px] font-semibold uppercase tracking-wider", formHelpTextClass)}>Bundle of 2+ Primary</p>
                         </div>
                     </button>
                 </div>
@@ -1124,37 +1149,37 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl">
-                <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
+            <div className={cn("cursor-pointer", formDialogOverlayClass)} onClick={onClose} />
+            <div className={cn("relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col", formDialogPanelClass)}>
+                <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div>
-                        <h2 className="text-base font-bold text-white">{mode === "add" ? "Add Multi-Shift" : "Edit Multi-Shift"}</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">Bundle of primary shifts</p>
+                        <h2 className="text-base font-bold text-[color:var(--ui-dialog-title)]">{mode === "add" ? "Add Multi-Shift" : "Edit Multi-Shift"}</h2>
+                        <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>Bundle of primary shifts</p>
                     </div>
-                    <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                    <button onClick={onClose} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>
 
                 <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Bundle Name *</label>
+                        <label className={formCompactLabelClass}>Bundle Name *</label>
                         <input
                             type="text"
                             value={name}
                             onChange={e => { setName(e.target.value); setError(null); }}
                             onBlur={() => markTouched("name")}
                             placeholder="e.g. Full Time"
-                            className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/50 text-sm transition-all", fieldErrorClass(nameError))}
+                            className={cn(formControlClass, "px-4 py-2.5 text-sm focus:border-orange-500/50", fieldErrorClass(nameError))}
                             {...fieldErrorProps("multi-shift-name-error", nameError)}
                         />
                         <FieldError id="multi-shift-name-error" error={nameError} />
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Bundle Monthly Price (₹)</label>
+                        <label className={formCompactLabelClass}>Bundle Monthly Price (₹)</label>
                         <div className="relative">
-                            <IndianRupee size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <IndianRupee size={13} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} />
                             <input
                                 type="number"
                                 value={price}
@@ -1164,7 +1189,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                                 max={FORM_LIMITS.moneyMax}
                                 step="1"
                                 inputMode="numeric"
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-8 pr-4 text-white focus:outline-none focus:border-orange-500/50 text-sm transition-all", fieldErrorClass(priceError))}
+                                className={cn(formControlClass, "py-2.5 pl-8 pr-4 text-sm focus:border-orange-500/50", fieldErrorClass(priceError))}
                                 {...fieldErrorProps("multi-shift-price-error", priceError)}
                             />
                         </div>
@@ -1172,7 +1197,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                     </div>
 
                     <div className="space-y-2.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block">Component Shifts *</label>
+                        <label className={cn("block", formCompactLabelClass)}>Component Shifts *</label>
                         <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
                             {primaryShifts.map(s => (
                                 <button
@@ -1182,7 +1207,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                                         "flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all",
                                         selectedShiftIds.includes(s.id)
                                             ? "bg-orange-500/10 border-orange-500/30 text-orange-200"
-                                            : "bg-white/5 border-white/5 text-gray-400 hover:border-white/10"
+                                            : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-form-label)] hover:border-[color:var(--ui-form-input-border)]"
                                     )}
                                 >
                                     <div className="flex flex-col">
@@ -1202,13 +1227,13 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                     </div>
 
                     {error && (
-                        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                        <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                             <AlertCircle size={13} /> {error}
                         </div>
                     )}
                 </div>
 
-                <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
+                <div className={cn("flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 sm:flex-row sm:justify-end sm:px-6", formDialogFooterClass)}>
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
                     <Button
                         onClick={handleSubmit}
@@ -1322,13 +1347,13 @@ function ShiftsContent({
     };
 
     // ── Loading
-    if (loading) return <div className="p-4 md:p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading shifts...</div>;
+    if (loading) return <div className={pageLoadingStateClass}><Loader2 className="animate-spin mr-2" /> Loading shifts...</div>;
 
     // ── Error
     if (error) return (
-        <div className="p-4 md:p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
-            <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
-            <p className="text-gray-400">{error}</p>
+        <div className={pageErrorStateClass}>
+            <AlertCircle className={pageErrorIconClass} />
+            <p className={pageMutedTextClass}>{error}</p>
         </div>
     );
 
@@ -1373,7 +1398,7 @@ function ShiftsContent({
     const shiftCards = (
         <div className="grid gap-4">
             {shifts.map(shift => (
-                <div key={shift.id} className="rounded-xl border border-white/10 bg-card p-4 shadow-card">
+                <div key={shift.id} className={cn(pageGridCardClass, pageGridCardHoverClass)}>
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="truncate font-medium text-white">{shift.name}</p>
@@ -1386,25 +1411,25 @@ function ShiftsContent({
                         {canManageBranch ? (
                             <RowActions actions={primaryShiftActions(shift)} />
                         ) : (
-                            <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
+                            <span className={cn("text-xs", pageSubtleTextClass)} title={shiftManageHelpText}>
                                 View only
                             </span>
                         )}
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                            <div className="text-xs text-zinc-500">Time Window</div>
-                            <div className="mt-1 text-zinc-300">
+                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>Time Window</div>
+                            <div className={cn("mt-1", pageMutedTextClass)}>
                                 {shift.startTime && shift.endTime ? (
                                     <span className="font-mono text-xs">{shift.startTime} - {shift.endTime}</span>
                                 ) : (
-                                    <span className="text-xs italic text-zinc-500">No time limit</span>
+                                    <span className={cn("text-xs italic", pageSubtleTextClass)}>No time limit</span>
                                 )}
                             </div>
                         </div>
-                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                            <div className="text-xs text-zinc-500">Price</div>
+                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>Price</div>
                             <div className="mt-1 font-semibold text-white">₹{shift.price}</div>
                         </div>
                     </div>
@@ -1412,7 +1437,7 @@ function ShiftsContent({
             ))}
 
             {multiShifts.map(ms => (
-                <div key={ms.id} className="rounded-xl border border-white/10 bg-card p-4 shadow-card">
+                <div key={ms.id} className={cn(pageGridCardClass, pageGridCardHoverClass)}>
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="truncate font-medium text-white">{ms.name}</p>
@@ -1425,26 +1450,26 @@ function ShiftsContent({
                         {canManageBranch ? (
                             <RowActions actions={multiShiftActions(ms)} />
                         ) : (
-                            <span className="text-xs text-zinc-600" title={shiftManageHelpText}>
+                            <span className={cn("text-xs", pageSubtleTextClass)} title={shiftManageHelpText}>
                                 View only
                             </span>
                         )}
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                            <div className="text-xs text-zinc-500">Slots</div>
-                            <div className="mt-1 text-xs text-zinc-300">{ms.components.length} combined</div>
+                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>Slots</div>
+                            <div className={cn("mt-1 text-xs", pageMutedTextClass)}>{ms.components.length} combined</div>
                         </div>
-                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                            <div className="text-xs text-zinc-500">Price</div>
+                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>Price</div>
                             <div className="mt-1 font-semibold text-white">₹{ms.price}</div>
                         </div>
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-1.5">
                         {ms.components.map(c => (
-                            <span key={c.shiftId} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5">
+                            <span key={c.shiftId} className="rounded border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] px-1.5 py-0.5 text-[10px] text-[color:var(--text-secondary)]">
                                 {c.shiftName}
                             </span>
                         ))}
@@ -1477,19 +1502,19 @@ function ShiftsContent({
             />
 
             {!canManageBranch && (
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
                     Shift changes are disabled. {shiftManageHelpText}
                 </div>
             )}
 
             {shifts.length === 0 && multiShifts.length === 0 ? (
-                <div className="text-center py-16 border border-dashed border-white/10 rounded-xl text-gray-500">
+                <div className={pageEmptyStateClass}>
                     <Clock size={36} className="mx-auto mb-3 opacity-30" />
                     <p>No shifts found.</p>
                     {canManageBranch && (
                         <button
                             onClick={() => setDialog({ open: true, mode: "type-picker" })}
-                            className="mt-3 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                            className="mt-3 text-sm text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
                         >
                             + Add your first shift
                         </button>

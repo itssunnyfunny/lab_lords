@@ -6,6 +6,29 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import {
+    formControlClass,
+    formDialogOverlayClass,
+    formDialogPanelClass,
+    formHelpTextClass,
+    formIconClass,
+    formSuccessBannerClass,
+    formSurfaceClass,
+    formSurfaceHoverClass,
+    formWarningBannerClass,
+} from "@/components/ui/formSurface";
+import {
+    pageCountBadgeClass,
+    pageErrorIconClass,
+    pageErrorStateClass,
+    pageFilterShellClass,
+    pageGridCardClass,
+    pageGridCardHoverClass,
+    pageInsetSurfaceClass,
+    pageMutedTextClass,
+    pageSectionDividerClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
@@ -249,7 +272,7 @@ function PaymentsContent({
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1.5 text-xs text-gray-500 hover:text-white"
+                    className={cn("gap-1.5 text-xs", pageSubtleTextClass)}
                     onClick={() =>
                         setAuditLog({
                             paymentId: item.id,
@@ -282,7 +305,7 @@ function PaymentsContent({
             )}
 
             {item.status === "DUE" && !canMarkPaid && !canWaivePayments && (
-                <span className="max-w-[180px] text-right text-xs leading-5 text-gray-500" title={paymentActionHelpText}>
+                <span className={cn("max-w-[180px] text-right text-xs leading-5", pageSubtleTextClass)} title={paymentActionHelpText}>
                     {paymentActionHelpText}
                 </span>
             )}
@@ -291,10 +314,10 @@ function PaymentsContent({
 
     if (error) {
         return (
-            <div className="p-4 md:p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
-                <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
+            <div className={pageErrorStateClass}>
+                <AlertCircle className={pageErrorIconClass} />
                 <h2 className="text-xl font-semibold">Something went wrong</h2>
-                <p className="text-gray-400">{error}</p>
+                <p className={pageMutedTextClass}>{error}</p>
                 <Button variant="outline" onClick={() => router.push("/org")}>
                     <ArrowLeft size={16} className="mr-2" />
                     Back to Workspace
@@ -312,7 +335,7 @@ function PaymentsContent({
                 </div>
 
                 {/* Month Selector */}
-                <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/5 bg-surfaceHighlight/50 p-2 sm:w-auto sm:gap-4">
+                <div className={cn("flex w-full items-center justify-between gap-2 p-2 sm:w-auto sm:gap-4", pageFilterShellClass)}>
                     <Button variant="ghost" size="icon" onClick={() => handleMonthChange("prev")}>
                         <ChevronLeft className="w-4 h-4" />
                     </Button>
@@ -330,20 +353,20 @@ function PaymentsContent({
 
             {/* Auto-generation banner */}
             {newlyGenerated !== null && newlyGenerated > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-brand-500/10 border border-brand-500/30 rounded-lg text-sm text-brand-400">
+                <div className={cn("flex items-center gap-2 px-4 py-2 text-sm", formSuccessBannerClass)}>
                     <FileText size={14} />
                     <span>{newlyGenerated} new due payment{newlyGenerated > 1 ? "s" : ""} generated for this billing cycle.</span>
                 </div>
             )}
 
             {!canGeneratePayments && (
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
                     Automatic payment generation is disabled. {paymentGenerationHelpText}
                 </div>
             )}
 
             {/* Tabs */}
-            <div className="flex flex-col gap-3 border-b border-white/10 pb-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className={cn("flex flex-col gap-3 border-b pb-2 sm:flex-row sm:items-center sm:justify-between", pageSectionDividerClass)}>
                 <div className="flex max-w-full items-center gap-2 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab("DUE")}
@@ -352,13 +375,13 @@ function PaymentsContent({
                             "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                             activeTab === "DUE"
                                 ? "border-amber-500 bg-amber-500/5 text-amber-400"
-                                : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
+                                : "border-transparent text-textSecondary hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
                         )}
                     >
                         {activeTab === "DUE" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.65)]" />}
                         Due Payments
                         {data.filter(i => i.status === "DUE").length > 0 && (
-                            <span className="bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                            <span className={pageCountBadgeClass}>
                                 {data.filter(i => i.status === "DUE").length}
                             </span>
                         )}
@@ -370,7 +393,7 @@ function PaymentsContent({
                             "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                             activeTab === "PAID"
                                 ? "border-green-500 bg-green-500/5 text-green-400"
-                                : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
+                                : "border-transparent text-textSecondary hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
                         )}
                     >
                         {activeTab === "PAID" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.65)]" />}
@@ -383,7 +406,7 @@ function PaymentsContent({
                             "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                             activeTab === "WAIVED"
                                 ? "border-violet-500 bg-violet-500/5 text-violet-300"
-                                : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
+                                : "border-transparent text-textSecondary hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
                         )}
                     >
                         {activeTab === "WAIVED" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_8px_rgba(196,181,253,0.5)]" />}
@@ -404,7 +427,7 @@ function PaymentsContent({
                     viewMode={viewMode}
                     emptyMessage="No payments found for this view."
                     renderGridCard={(item, actions) => (
-                        <div className="relative flex min-h-[245px] flex-col rounded-lg border border-white/10 bg-card p-4 shadow-card transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+                        <div className={cn("relative flex min-h-[245px] flex-col", pageGridCardClass, pageGridCardHoverClass)}>
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <div className="font-mono text-xs text-textMuted">#{item.id.slice(-6)}</div>
@@ -415,22 +438,22 @@ function PaymentsContent({
                             </div>
 
                             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                <div className={cn("p-3", pageInsetSurfaceClass)}>
                                     <div className="text-xs text-textMuted">Amount</div>
                                     <div className="mt-1 truncate font-bold text-white">{formatPaymentAmount(item.amount)}</div>
                                 </div>
-                                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                                <div className={cn("p-3", pageInsetSurfaceClass)}>
                                     <div className="text-xs text-textMuted">Method</div>
                                     <div className="mt-1">{renderPaymentMethod(item)}</div>
                                 </div>
                             </div>
 
-                            <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.03] p-3 text-sm">
+                            <div className={cn("mt-3 p-3 text-sm", pageInsetSurfaceClass)}>
                                 <div className="mb-1 text-xs text-textMuted">Due Date</div>
                                 {renderDueDate(item)}
                             </div>
 
-                            <div className="mt-auto border-t border-white/5 pt-4">
+                            <div className={cn("mt-auto border-t pt-4", pageSectionDividerClass)}>
                                 {actions?.(item)}
                             </div>
                         </div>
@@ -521,7 +544,7 @@ function RowDropdown({ onWaive }: { onWaive: () => void }) {
     return (
         <RowActionsMenu
             buttonIcon={MoreHorizontal}
-            buttonClassName="hover:bg-white/5"
+            buttonClassName="hover:bg-[color:var(--ui-form-surface-hover-bg)]"
             menuWidthClassName="w-40"
             actions={[
                 {
@@ -568,13 +591,10 @@ function MarkPaidDialog({
     const dialog = (
         <div className="fixed inset-0 z-[100] flex items-end justify-center p-3 sm:items-center sm:p-4">
             {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={!loading ? onClose : undefined}
-            />
+            <div className={formDialogOverlayClass} onClick={!loading ? onClose : undefined} />
 
             {/* Panel */}
-            <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200 space-y-5">
+            <div className={cn("relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm space-y-5 overflow-y-auto p-4 animate-in fade-in zoom-in-95 duration-200 sm:p-6", formDialogPanelClass)}>
                 {/* Header */}
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -582,14 +602,14 @@ function MarkPaidDialog({
                             <Check size={18} className="text-green-400" />
                         </div>
                         <div>
-                            <h2 className="text-base font-bold text-white">Mark as Paid</h2>
-                            <p className="text-xs text-gray-400 mt-0.5">Select the payment method used</p>
+                            <h2 className="text-base font-bold text-[color:var(--ui-dialog-title)]">Mark as Paid</h2>
+                            <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>Select the payment method used</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
                         disabled={loading}
-                        className="text-gray-500 hover:text-white transition-colors"
+                        className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}
                     >
                         <X size={16} />
                     </button>
@@ -602,21 +622,21 @@ function MarkPaidDialog({
                             key={opt.value}
                             onClick={() => onMethodChange(opt.value)}
                             className={cn(
-                                "w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all",
+                                "w-full flex items-center gap-3 rounded-[var(--ui-radius-control)] border px-4 py-3 text-left transition-all",
                                 method === opt.value
                                     ? "border-green-500/50 bg-green-500/10 text-white"
-                                    : "border-white/8 bg-white/3 text-gray-400 hover:border-white/15 hover:text-white"
+                                    : cn("text-[color:var(--ui-form-label)]", formSurfaceClass, formSurfaceHoverClass)
                             )}
                         >
                             <span className={cn(
                                 "shrink-0",
-                                method === opt.value ? "text-green-400" : "text-gray-500"
+                                method === opt.value ? "text-green-400" : formIconClass
                             )}>
                                 {opt.icon}
                             </span>
                             <span className="flex-1">
                                 <span className="block text-sm font-medium">{opt.label}</span>
-                                <span className="block text-[11px] text-gray-500">{opt.sublabel}</span>
+                                <span className={cn("block text-[11px]", formHelpTextClass)}>{opt.sublabel}</span>
                             </span>
                             {method === opt.value && (
                                 <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
@@ -635,7 +655,7 @@ function MarkPaidDialog({
                         value={referenceId}
                         onChange={(e) => onReferenceIdChange(e.target.value)}
                         placeholder={method === "UPI" ? "UPI Transaction ID (optional)" : "Bank Reference ID (optional)"}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 transition-colors"
+                        className={cn(formControlClass, "px-3 py-2.5 text-sm focus:border-green-500/50")}
                     />
                 </div>
 

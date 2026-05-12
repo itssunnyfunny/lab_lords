@@ -21,6 +21,31 @@ import { useRouter } from "next/navigation";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { EditStudentDialog } from "./EditStudentDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+    formControlClass,
+    formDialogOverlayClass,
+    formDialogPanelClass,
+    formDrawerHeaderClass,
+    formDrawerPanelClass,
+    formHelpTextClass,
+    formSuccessBannerClass,
+    formSurfaceClass,
+    formSurfaceHoverClass,
+    formWarningBannerClass,
+} from "@/components/ui/formSurface";
+import {
+    pageCountBadgeClass,
+    pageErrorIconClass,
+    pageErrorStateClass,
+    pageFilterShellClass,
+    pageGridCardClass,
+    pageGridCardHoverClass,
+    pageInsetSurfaceClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+    pageSectionDividerClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
@@ -88,7 +113,7 @@ function StudentSeatShiftSummary({ student }: { student: StudentListItem }) {
 
     if (!hasAllocation) {
         return (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-xs text-textMuted">
+            <span className={cn("inline-flex items-center gap-1.5 border-dashed px-2.5 py-1.5 text-xs text-textMuted", pageInsetSurfaceClass)}>
                 <Armchair size={13} />
                 No seat assigned
             </span>
@@ -161,16 +186,16 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-            <div className="relative w-full max-w-md bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+            <div className={cn("cursor-pointer", formDialogOverlayClass)} onClick={onCancel} />
+            <div className={cn("relative w-full max-w-md p-6 animate-in zoom-in-95 duration-200", formDialogPanelClass)}>
                 {/* Header */}
                 <div className="flex items-start gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <AlertTriangle size={18} className="text-red-400" />
+                    <div className="w-10 h-10 rounded-full bg-[color:var(--ui-dialog-icon-danger-bg)] text-[color:var(--ui-dialog-icon-danger-text)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <AlertTriangle size={18} />
                     </div>
                     <div>
                         <h3 className="text-white font-semibold text-lg leading-tight">Deactivate {student.name}?</h3>
-                        <p className="text-sm text-gray-400 mt-0.5">
+                        <p className={cn("mt-0.5 text-sm", formHelpTextClass)}>
                             Their seat allocation will be ended immediately.
                         </p>
                     </div>
@@ -178,7 +203,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
 
                 {/* Due payments summary */}
                 {hasDues ? (
-                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 mb-5">
+                    <div className={cn("mb-5 p-4", formWarningBannerClass)}>
                         <p className="text-amber-300 text-sm font-medium mb-1">
                             {duePayments.length} unpaid billing cycle{duePayments.length > 1 ? "s" : ""} — {formatCurrency(totalDue)} total
                         </p>
@@ -194,8 +219,8 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                                         className={cn(
                                             "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
                                             selected
-                                                ? "border-white/20 bg-white/5"
-                                                : "border-white/5 hover:border-white/10 hover:bg-white/3"
+                                                ? "border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-surface-hover-bg)]"
+                                                : cn(formSurfaceClass, formSurfaceHoverClass)
                                         )}
                                     >
                                         <input
@@ -211,7 +236,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                                                 <Icon size={13} />
                                                 {opt.label}
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-0.5">{opt.sublabel}</div>
+                                            <div className={cn("mt-0.5 text-xs", formHelpTextClass)}>{opt.sublabel}</div>
                                         </div>
                                     </label>
                                 );
@@ -219,14 +244,14 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-green-500/5 border border-green-500/15 rounded-xl p-4 mb-5">
+                    <div className={cn("mb-5 p-4", formSuccessBannerClass)}>
                         <p className="text-green-400 text-sm font-medium">✓ No outstanding payments</p>
-                        <p className="text-gray-500 text-xs mt-0.5">This student has a clean financial record.</p>
+                        <p className={cn("mt-0.5 text-xs", pageSubtleTextClass)}>This student has a clean financial record.</p>
                     </div>
                 )}
 
                 {/* Billing note */}
-                <p className="text-xs text-gray-500 mb-5 border-l-2 border-white/10 pl-3">
+                <p className={cn("mb-5 border-l-2 border-[color:var(--ui-form-section-divider)] pl-3 text-xs", formHelpTextClass)}>
                     No future billing cycles will be generated after deactivation.
                 </p>
 
@@ -505,14 +530,14 @@ function StudentsContent({
         }
     };
 
-    if (loading) return <div className="p-4 md:p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading data...</div>;
+    if (loading) return <div className={pageLoadingStateClass}><Loader2 className="animate-spin mr-2" /> Loading data...</div>;
 
     if (error) {
         return (
-            <div className="p-4 md:p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
-                <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
+            <div className={pageErrorStateClass}>
+                <AlertCircle className={pageErrorIconClass} />
                 <h2 className="text-xl font-semibold">Something went wrong</h2>
-                <p className="text-gray-400">{error}</p>
+                <p className={pageMutedTextClass}>{error}</p>
                 <Button variant="outline" onClick={() => router.push("/org")}>
                     <ArrowLeft size={16} className="mr-2" /> Back to Workspace
                 </Button>
@@ -534,29 +559,29 @@ function StudentsContent({
             {(!canViewPayments || !canAllocateSeats) && (
                 <div className="grid gap-2 md:grid-cols-2">
                     {!canViewPayments && (
-                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                        <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
                             Fee details are hidden. {paymentHelpText}
                         </div>
                     )}
                     {!canAllocateSeats && (
-                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                        <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
                             Seat assignment actions are disabled. {allocationHelpText}
                         </div>
                     )}
                 </div>
             )}
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4", pageSectionDividerClass)}>
                 <div className="flex items-center gap-3">
                     <span className="text-sm text-textMuted">Filter:</span>
                     <select
-                        className="bg-surface border border-white/10 rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                        className={cn(formControlClass, "w-auto bg-[color:var(--ui-form-input-select-bg)] px-3 py-1.5 text-sm")}
                         value={selectedShift}
                         onChange={e => setSelectedShift(e.target.value)}
                     >
-                        <option value="" className="bg-zinc-900">All Shifts</option>
+                        <option value="" className="bg-[color:var(--ui-form-input-select-bg)]">All Shifts</option>
                         {shifts.map(s => (
-                            <option key={s.id} value={s.id} className="bg-zinc-900">{s.name}</option>
+                            <option key={s.id} value={s.id} className="bg-[color:var(--ui-form-input-select-bg)]">{s.name}</option>
                         ))}
                     </select>
                 </div>
@@ -579,12 +604,12 @@ function StudentsContent({
                                     aria-current={active ? "page" : undefined}
                                     className={cn(
                                         "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                                        active ? selectedClassName : "border-transparent text-textSecondary hover:bg-white/[0.03] hover:text-white"
+                                        active ? selectedClassName : "border-transparent text-textSecondary hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
                                     )}
                                 >
                                     {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
                                     {tab === "ACTIVE" ? "Active" : "Inactive"} Students
-                                    <span className="bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
+                                    <span className={pageCountBadgeClass}>
                                         {allStudents.filter(s => s.status === tab).length}
                                     </span>
                                 </button>
@@ -601,10 +626,10 @@ function StudentsContent({
                 viewMode={viewMode}
                 emptyMessage="No students found for this view."
                 renderGridCard={(item, actions) => (
-                    <div className="relative flex min-h-[230px] flex-col rounded-lg border border-white/10 bg-card p-4 shadow-card transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+                    <div className={cn("relative flex min-h-[230px] flex-col", pageGridCardClass, pageGridCardHoverClass)}>
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-3">
-                                <div className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg border border-white/10 bg-surface">
+                                <div className={cn("h-11 w-11 flex-shrink-0 overflow-hidden", pageFilterShellClass)}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=random`}
@@ -624,11 +649,11 @@ function StudentsContent({
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                            <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className={cn("p-3", pageInsetSurfaceClass)}>
                                 <div className="text-xs text-textMuted">Joined</div>
                                 <div className="mt-1 truncate text-textSecondary">{format(new Date(item.joinedAt), "PP")}</div>
                             </div>
-                            <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className={cn("p-3", pageInsetSurfaceClass)}>
                                 <div className="text-xs text-textMuted">Monthly Fee</div>
                                 <div className="mt-1 truncate font-semibold text-white">
                                     {typeof item.monthlyFee === "number" ? formatCurrency(item.monthlyFee) : "Not set"}
@@ -637,11 +662,11 @@ function StudentsContent({
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-3">
-                            <div className="min-w-0 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className={cn("min-w-0 p-3", pageInsetSurfaceClass)}>
                                 <div className="mb-2 text-xs font-medium uppercase tracking-wide text-textMuted">Seat & Shift</div>
                                 <StudentSeatShiftSummary student={item} />
                             </div>
-                            <div className="min-w-0 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+                            <div className={cn("min-w-0 p-3", pageInsetSurfaceClass)}>
                                 <div className="mb-2 text-xs font-medium uppercase tracking-wide text-textMuted">Fee Summary</div>
                                 {renderFeeSummary(item)}
                             </div>
@@ -653,7 +678,7 @@ function StudentsContent({
                         header: "Student",
                         accessor: (item) => (
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-surface border border-white/5 overflow-hidden flex-shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-[color:var(--ui-form-input-select-bg)] border border-[color:var(--ui-form-surface-border)] overflow-hidden flex-shrink-0">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=random`} alt={item.name} />
                                 </div>
@@ -765,8 +790,8 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
-            <div className="absolute inset-0 cursor-pointer bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-surface border-l border-white/10 h-full p-6 shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className={cn("cursor-pointer animate-in fade-in", formDialogOverlayClass)} onClick={onClose} />
+            <div className={cn("relative h-full w-full max-w-md p-6 animate-in slide-in-from-right duration-300", formDrawerPanelClass)}>
                 <button onClick={onClose} className="absolute top-4 right-4 text-textMuted hover:text-white">
                     <X size={20} />
                 </button>
@@ -780,14 +805,14 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                     </div>
 
                     <div className="space-y-4">
-                        <h4 className="text-sm font-semibold uppercase tracking-wider text-textMuted border-b border-white/10 pb-2">Payment History</h4>
+                        <h4 className={cn("pb-2 text-sm font-semibold uppercase tracking-wider text-textMuted", formDrawerHeaderClass)}>Payment History</h4>
 
                         <div className="grid grid-cols-2 gap-3 mb-1">
-                            <div className="bg-white/5 p-3 rounded-lg text-center">
+                            <div className={cn("p-3 text-center", formSurfaceClass)}>
                                 <div className="text-xs text-textSecondary">Total Paid</div>
                                 <div className="text-lg font-bold text-green-400">{formatCurrency(financials?.totalPaid || 0)}</div>
                             </div>
-                            <div className="bg-white/5 p-3 rounded-lg text-center">
+                            <div className={cn("p-3 text-center", formSurfaceClass)}>
                                 <div className="text-xs text-textSecondary">Total Due</div>
                                 <div className="text-lg font-bold text-red-400">{formatCurrency(financials?.totalDue || 0)}</div>
                             </div>
@@ -808,8 +833,8 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                                     <div key={p.id} className={cn(
                                         "p-3 rounded-lg border flex justify-between items-center",
                                         p.status === "WAIVED"
-                                            ? "bg-amber-500/5 border-amber-500/15 opacity-70"
-                                            : "bg-white/5 border-white/5"
+                                            ? "bg-[color:var(--ui-form-warning-bg)] border-[color:var(--ui-form-warning-border)] opacity-70"
+                                            : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)]"
                                     )}>
                                         <div>
                                             <div className="text-sm font-medium text-white">
