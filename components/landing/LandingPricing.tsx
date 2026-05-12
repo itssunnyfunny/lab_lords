@@ -1,4 +1,43 @@
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
+import {
+  landingContainerClass,
+  landingDescriptionClass,
+  landingEyebrowClass,
+  landingMutedTextClass,
+  landingPanelClass,
+  landingPrimaryButtonClass,
+  landingSecondaryButtonClass,
+  landingSectionClass,
+  landingSubtleTextClass,
+  landingTitleClass,
+} from "@/components/ui/landingSurface";
+
+const plans = [
+  {
+    name: "Starter",
+    price: "Free",
+    suffix: "/ forever",
+    description: "Perfect for a single starting branch.",
+    featured: false,
+    features: ["1 Branch Location", "Up to 50 Active Students", "Basic Seat Allocation", "Standard Dashboard", "Community Support"],
+  },
+  {
+    name: "Professional",
+    price: "Rs.999",
+    suffix: "/ month",
+    description: "For growing multi-branch businesses.",
+    featured: true,
+    features: ["Up to 3 Branch Locations", "Unlimited Active Students", "Advanced Seat Mapping", "Payment & Due Tracking", "Manager Role Access", "Priority Email Support"],
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    suffix: "",
+    description: "Bespoke limits for large operations.",
+    featured: false,
+    features: ["Unlimited Branch Locations", "Custom Roles & Permissions", "AI-Powered Insights Module", "Detailed audit history", "Dedicated Success Manager", "24/7 Phone Support"],
+  },
+];
 
 export function LandingPricing({
   onDashboardClick,
@@ -6,120 +45,60 @@ export function LandingPricing({
   onDashboardClick: () => void;
 }) {
   return (
-    <section id="pricing" className="line-pattern-bg relative z-10 border-t border-white/5 bg-[#050508]/80 py-16 sm:py-20 md:py-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto mb-10 max-w-3xl text-center md:mb-16">
-          <h2 className="text-sm font-semibold tracking-wide text-cyan-500 uppercase mb-3">
-            Simple Pricing
-          </h2>
-          <h3 className="mb-5 text-2xl font-extrabold text-white sm:text-3xl md:mb-6 md:text-4xl">
-            Scale without limits.
-          </h3>
-          <p className="text-base leading-relaxed text-gray-400 sm:text-lg">
+    <section id="pricing" className={`${landingSectionClass} bg-[color:var(--ui-form-muted-surface-bg)]`}>
+      <div className={landingContainerClass}>
+        <div className="mb-10 max-w-3xl md:mb-14">
+          <p className={landingEyebrowClass}>Simple Pricing</p>
+          <h2 className={`${landingTitleClass} mt-3`}>Scale without limits.</h2>
+          <p className={`${landingDescriptionClass} mt-4`}>
             Start for free, then choose a plan that perfectly fits the size of your operations. No hidden fees or complex contracts.
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-5 md:grid-cols-3 md:gap-8">
-          {/* Starter Plan */}
-          <div className="flex flex-col rounded-3xl border border-white/10 bg-[#0c0d12] p-5 transition-all hover:border-white/20 sm:p-6 md:p-8">
-            <h4 className="text-xl font-semibold text-white mb-2">Starter</h4>
-            <p className="text-gray-400 text-sm mb-6">Perfect for a single starting branch.</p>
-            <div className="mb-6">
-              <span className="text-3xl font-extrabold text-white sm:text-4xl">Free</span>
-              <span className="text-gray-500 font-medium"> / forever</span>
-            </div>
-            <button
-              onClick={onDashboardClick}
-              className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 px-4 rounded-xl transition-all border border-white/10 mb-8"
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {plans.map(plan => (
+            <div
+              key={plan.name}
+              className={`${landingPanelClass} flex flex-col p-5 ${plan.featured ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]" : ""}`}
             >
-              Get Started
-            </button>
-            <div className="space-y-4 flex-1">
-              {[
-                "1 Branch Location",
-                "Up to 50 Active Students",
-                "Basic Seat Allocation",
-                "Standard Dashboard",
-                "Community Support"
-              ].map((feature, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3 h-3 text-cyan-400" />
-                  </div>
-                  <span className="text-gray-300 text-sm">{feature}</span>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-[color:var(--text-primary)]">{plan.name}</h3>
+                  <p className={`${landingMutedTextClass} mt-2 text-sm leading-6`}>{plan.description}</p>
                 </div>
-              ))}
-            </div>
-          </div>
+                {plan.featured && (
+                  <span className="rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ui-badge-cyan-text)]">
+                    Most Popular
+                  </span>
+                )}
+              </div>
 
-          {/* Pro Plan */}
-          <div className="relative flex flex-col rounded-3xl border border-cyan-500/30 bg-gradient-to-b from-[#0c0d12] to-[#0c0d12] p-5 shadow-[0_0_40px_-15px_rgba(6,182,212,0.3)] transform sm:p-6 md:-translate-y-4 md:p-8">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-cyan-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-              Most Popular
-            </div>
-            <h4 className="text-xl font-semibold text-white mb-2">Professional</h4>
-            <p className="text-cyan-100/60 text-sm mb-6">For growing multi-branch businesses.</p>
-            <div className="mb-6">
-              <span className="text-3xl font-extrabold text-white sm:text-4xl">Rs.999</span>
-              <span className="text-gray-500 font-medium"> / month</span>
-            </div>
-            <button
-              onClick={onDashboardClick}
-              className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-cyan-500/20 mb-8"
-            >
-              Get Started
-            </button>
-            <div className="space-y-4 flex-1">
-              {[
-                "Up to 3 Branch Locations",
-                "Unlimited Active Students",
-                "Advanced Seat Mapping",
-                "Payment & Due Tracking",
-                "Manager Role Access",
-                "Priority Email Support"
-              ].map((feature, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3 h-3 text-cyan-400" />
-                  </div>
-                  <span className="text-white text-sm">{feature}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+              <div className="mt-6">
+                <span className="text-3xl font-semibold tracking-tight text-[color:var(--text-primary)]">{plan.price}</span>
+                <span className={`${landingSubtleTextClass} ml-2 text-sm`}>{plan.suffix}</span>
+              </div>
 
-          {/* Enterprise Plan */}
-          <div className="flex flex-col rounded-3xl border border-white/10 bg-[#0c0d12] p-5 transition-all hover:border-white/20 sm:p-6 md:p-8">
-            <h4 className="text-xl font-semibold text-white mb-2">Enterprise</h4>
-            <p className="text-gray-400 text-sm mb-6">Bespoke limits for large operations.</p>
-            <div className="mb-6">
-              <span className="text-3xl font-extrabold text-white sm:text-4xl">Custom</span>
-            </div>
-            <button
-              onClick={onDashboardClick}
-              className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 px-4 rounded-xl transition-all border border-white/10 mb-8"
-            >
-              Get Started
-            </button>
-            <div className="space-y-4 flex-1">
-              {[
-                "Unlimited Branch Locations",
-                "Custom Roles & Permissions",
-                "AI-Powered Insights Module",
-                "Detailed audit history",
-                "Dedicated Success Manager",
-                "24/7 Phone Support"
-              ].map((feature, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-gray-500/20 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3 h-3 text-gray-400" />
+              <button
+                type="button"
+                onClick={onDashboardClick}
+                className={`${plan.featured ? landingPrimaryButtonClass : landingSecondaryButtonClass} mt-6 w-full`}
+              >
+                Get Started
+                <ArrowRight size={15} />
+              </button>
+
+              <div className="mt-6 flex-1 space-y-3">
+                {plan.features.map(feature => (
+                  <div key={feature} className="flex items-center gap-3">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]">
+                      <Check size={12} />
+                    </span>
+                    <span className="text-sm text-[color:var(--text-secondary)]">{feature}</span>
                   </div>
-                  <span className="text-gray-300 text-sm">{feature}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </section>

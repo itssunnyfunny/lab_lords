@@ -1,84 +1,86 @@
-/* eslint-disable @next/next/no-img-element */
-import { Building2, UserPlus, MonitorSmartphone, TrendingUp } from "lucide-react";
+import { Building2, CheckCircle2, MonitorSmartphone, TrendingUp, UserPlus } from "lucide-react";
+import {
+  landingContainerClass,
+  landingDescriptionClass,
+  landingEyebrowClass,
+  landingInsetClass,
+  landingMutedTextClass,
+  landingPanelClass,
+  landingSectionClass,
+  landingSubtleTextClass,
+  landingTitleClass,
+} from "@/components/ui/landingSurface";
+
+const steps = [
+  {
+    step: "01",
+    title: "Set up your branches",
+    description: "Define your physical branch locations, operating hours, and create the exact floor plan mapping your physical seats to the digital workspace.",
+    icon: Building2,
+  },
+  {
+    step: "02",
+    title: "Add your students",
+    description: "Onboard students in seconds. Capture essential contact details, ID proofs, and preferences all in one secure, searchable database.",
+    icon: UserPlus,
+  },
+  {
+    step: "03",
+    title: "Allocate seats dynamically",
+    description: "Assign students to specific seats based on shifts. Our system automatically prevents double-booking while optimizing your floor capacity.",
+    icon: MonitorSmartphone,
+  },
+  {
+    step: "04",
+    title: "Track revenue & grow",
+    description: "Monitor payments, detect upcoming dues, and leverage AI analytics to understand your business health and utilization metrics.",
+    icon: TrendingUp,
+  },
+];
 
 export function LandingHowItWorks() {
-  const steps = [
-    {
-      step: "01",
-      title: "Set up your branches",
-      description: "Define your physical branch locations, operating hours, and create the exact floor plan mapping your physical seats to the digital workspace.",
-      icon: <Building2 className="w-5 h-5 text-cyan-400" />,
-    },
-    {
-      step: "02",
-      title: "Add your students",
-      description: "Onboard students in seconds. Capture essential contact details, ID proofs, and preferences all in one secure, searchable database.",
-      icon: <UserPlus className="w-5 h-5 text-indigo-400" />,
-    },
-    {
-      step: "03",
-      title: "Allocate seats dynamically",
-      description: "Assign students to specific seats based on shifts. Our system automatically prevents double-booking while optimizing your floor capacity.",
-      icon: <MonitorSmartphone className="w-5 h-5 text-emerald-400" />,
-    },
-    {
-      step: "04",
-      title: "Track revenue & grow",
-      description: "Monitor payments, detect upcoming dues, and leverage AI analytics to understand your business health and utilization metrics.",
-      icon: <TrendingUp className="w-5 h-5 text-amber-400" />,
-    },
-  ];
-
   return (
-    <section id="how-it-works" className="relative z-10 bg-[#050508] py-16 sm:py-20 md:py-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center gap-10 lg:flex-row lg:gap-16">
-          <div className="lg:w-1/2">
-            <h2 className="text-sm font-semibold tracking-wide text-cyan-500 uppercase mb-3">
-              How it Works
-            </h2>
-            <h3 className="mb-5 text-3xl font-extrabold leading-tight text-white sm:text-4xl md:mb-6 md:text-5xl">
-              From chaos to <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
-                complete control.
-              </span>
-            </h3>
-            <p className="mb-8 max-w-lg text-base leading-relaxed text-gray-400 sm:text-lg">
+    <section id="how-it-works" className={landingSectionClass}>
+      <div className={landingContainerClass}>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-12">
+          <div>
+            <p className={landingEyebrowClass}>How it Works</p>
+            <h2 className={`${landingTitleClass} mt-3`}>From chaos to complete control.</h2>
+            <p className={`${landingDescriptionClass} mt-4 max-w-xl`}>
               Our refined workflow is designed to map exactly to the real-world operations of your study hall or offline education business.
             </p>
-            
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-4">
-                <img className="h-10 w-10 rounded-full border-2 border-[#050508] sm:h-12 sm:w-12" src="https://i.pravatar.cc/100?img=1" alt="User" />
-                <img className="h-10 w-10 rounded-full border-2 border-[#050508] sm:h-12 sm:w-12" src="https://i.pravatar.cc/100?img=2" alt="User" />
-                <img className="h-10 w-10 rounded-full border-2 border-[#050508] sm:h-12 sm:w-12" src="https://i.pravatar.cc/100?img=3" alt="User" />
-              </div>
-              <div className="text-sm text-gray-400">
-                <strong className="text-white">Join 500+</strong> owners managing<br/>their businesses today.
-              </div>
+
+            <div className={`${landingPanelClass} mt-8 flex items-start gap-3 p-5`}>
+              <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[color:var(--ui-tone-success-text)]" />
+              <p className="text-sm leading-6 text-[color:var(--text-secondary)]">
+                <strong className="text-[color:var(--text-primary)]">Join 500+</strong> owners managing their businesses today.
+              </p>
             </div>
           </div>
 
-          <div className="space-y-8 lg:w-1/2">
-            {steps.map((item, index) => (
-              <div key={index} className="relative flex gap-4 sm:gap-6">
-                {index !== steps.length - 1 && (
-                  <div className="absolute left-6 top-14 bottom-[-32px] w-px bg-gradient-to-b from-white/10 to-transparent" />
-                )}
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#0c0d12] border border-white/10 flex items-center justify-center font-bold text-gray-500 z-10 shadow-lg">
-                  {item.step}
-                </div>
-                <div className="pt-2">
-                  <div className="flex items-center gap-3 mb-2">
-                    {item.icon}
-                  <h4 className="text-lg font-semibold text-white sm:text-xl">{item.title}</h4>
+          <div className={`${landingPanelClass} p-4 sm:p-5`}>
+            <div className="space-y-4">
+              {steps.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.step} className="relative flex gap-4">
+                    {index !== steps.length - 1 && (
+                      <div className="absolute bottom-[-16px] left-5 top-11 w-px bg-[color:var(--ui-form-section-divider)]" />
+                    )}
+                    <div className={`${landingInsetClass} z-10 flex h-10 w-10 shrink-0 items-center justify-center text-[color:var(--ui-form-accent)]`}>
+                      <Icon size={17} />
+                    </div>
+                    <div className="min-w-0 pb-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={landingSubtleTextClass + " text-xs font-semibold"}>{item.step}</span>
+                        <h3 className="text-base font-semibold text-[color:var(--text-primary)]">{item.title}</h3>
+                      </div>
+                      <p className={`${landingMutedTextClass} mt-1 text-sm leading-6`}>{item.description}</p>
+                    </div>
                   </div>
-                  <p className="text-gray-400 leading-relaxed max-w-md">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

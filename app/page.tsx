@@ -14,6 +14,7 @@ import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
 import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { pageLoadingStateClass } from "@/components/ui/pageSurface";
+import { landingRootClass } from "@/components/ui/landingSurface";
 
 type LandingContentProps = {
   isLoaded: boolean;
@@ -59,7 +60,7 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
   }
 
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-[#050508] selection:bg-cyan-500/30 text-white font-sans relative">
+    <main className={landingRootClass}>
       <LandingNavbar onDashboardClick={handleDashboardClick} />
       <div className="overflow-hidden">
         <LandingHero onDashboardClick={handleDashboardClick} />
