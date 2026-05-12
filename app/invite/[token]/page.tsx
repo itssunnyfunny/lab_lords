@@ -3,8 +3,21 @@ import { redirect } from "next/navigation";
 import { Building2, CheckCircle2, Clock, ShieldAlert, UserPlus } from "lucide-react";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { Badge } from "@/components/ui/Badge";
+import { cn } from "@/lib/utils";
 import { getSessionUser } from "@/lib/auth";
 import { StaffInviteService } from "@/services/staffInvite.service";
+import {
+    entryContentClass,
+    entryIconFrameClass,
+    entryInlineInfoClass,
+    entryMutedTextClass,
+    entryPanelClass,
+    entryPrimaryLinkClass,
+    entryRootClass,
+    entrySecondaryLinkClass,
+    entrySubtitleClass,
+    entryTitleClass,
+} from "@/components/ui/entrySurface";
 
 export const dynamic = "force-dynamic";
 
@@ -14,16 +27,14 @@ type InvitePageProps = {
 
 function AuthLinks({ invitePath }: { invitePath: string }) {
     const encodedRedirect = encodeURIComponent(invitePath);
-    const primaryLinkClass = "inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-gradient-to-r from-violet-600 to-indigo-600 px-5 text-sm font-medium text-white shadow-lg shadow-violet-900/20 transition-all hover:border-white/20";
-    const secondaryLinkClass = "inline-flex h-10 w-full items-center justify-center rounded-xl border border-white/10 bg-transparent px-5 text-sm font-medium text-gray-400 transition-all hover:border-white/30 hover:text-white";
 
     return (
         <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href={`/sign-in?redirect_url=${encodedRedirect}`} className={primaryLinkClass}>
+            <Link href={`/sign-in?redirect_url=${encodedRedirect}`} className={cn(entryPrimaryLinkClass, "w-full")}>
                 <UserPlus size={16} />
                 Sign in to join
             </Link>
-            <Link href={`/sign-up?redirect_url=${encodedRedirect}`} className={secondaryLinkClass}>
+            <Link href={`/sign-up?redirect_url=${encodedRedirect}`} className={cn(entrySecondaryLinkClass, "w-full")}>
                 Create account
             </Link>
         </div>
@@ -42,17 +53,17 @@ function InviteState({
     const Icon = variant === "success" ? CheckCircle2 : variant === "danger" ? ShieldAlert : Clock;
 
     return (
-        <main className="relative flex min-h-[100dvh] items-center justify-center overflow-x-hidden overflow-y-auto bg-[#050508] p-4 text-white sm:p-6">
+        <main className={entryRootClass}>
             <AmbientBackground />
-            <section className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-[#0f111a]/85 p-5 shadow-2xl backdrop-blur-3xl sm:p-8">
-                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
-                    <Icon size={24} className={variant === "danger" ? "text-rose-300" : "text-cyan-300"} />
+            <section className={cn(entryContentClass, entryPanelClass, "max-w-lg p-5 sm:p-8")}>
+                <div className={cn(entryIconFrameClass, "mb-5 flex h-12 w-12", variant === "danger" && "text-[color:var(--ui-badge-danger-text)]")}>
+                    <Icon size={24} />
                 </div>
-                <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
-                <p className="mt-3 text-sm leading-6 text-gray-400">{message}</p>
+                <h1 className={entryTitleClass}>{title}</h1>
+                <p className={cn("mt-3", entrySubtitleClass)}>{message}</p>
                 <Link
                     href="/org"
-                    className="mt-6 inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-transparent px-5 text-sm font-medium text-gray-400 transition-all hover:border-white/30 hover:text-white"
+                    className={cn(entrySecondaryLinkClass, "mt-6")}
                 >
                     Go to workspaces
                 </Link>
@@ -118,24 +129,24 @@ export default async function StaffInvitePage({ params }: InvitePageProps) {
     }
 
     return (
-        <main className="relative flex min-h-[100dvh] items-center justify-center overflow-x-hidden overflow-y-auto bg-[#050508] p-4 text-white sm:p-6">
+        <main className={entryRootClass}>
             <AmbientBackground />
-            <section className="relative z-10 w-full max-w-xl rounded-2xl border border-white/10 bg-[#0f111a]/85 p-5 shadow-2xl backdrop-blur-3xl sm:p-8">
-                <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/20 to-violet-500/20">
-                    <Building2 size={28} className="text-white" />
+            <section className={cn(entryContentClass, entryPanelClass, "max-w-xl p-5 sm:p-8")}>
+                <div className={cn(entryIconFrameClass, "mb-6 h-14 w-14")}>
+                    <Building2 size={28} />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Join {invite.branch.name}</h1>
+                    <h1 className={entryTitleClass}>Join {invite.branch.name}</h1>
                     <Badge variant={invite.role === "MANAGER" ? "cyan" : "default"}>
                         {invite.role === "MANAGER" ? "Manager" : "Staff"}
                     </Badge>
                 </div>
-                <p className="mt-2 text-sm text-gray-500">{invite.branch.organization.name}</p>
-                <p className="mt-5 text-sm leading-6 text-gray-400">
+                <p className={cn("mt-2 text-sm", entryMutedTextClass)}>{invite.branch.organization.name}</p>
+                <p className={cn("mt-5", entrySubtitleClass)}>
                     Sign in or create an account to accept this branch invite. Once you are authenticated, your access will be created automatically and you will land inside the branch workspace.
                 </p>
-                <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-gray-400">
-                    <span className="font-medium text-gray-300">Expires:</span>{" "}
+                <div className={cn(entryInlineInfoClass, "mt-6 p-4 text-sm", entryMutedTextClass)}>
+                    <span className="font-medium text-[color:var(--text-primary)]">Expires:</span>{" "}
                     {invite.expiresAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                 </div>
                 <div className="mt-6">

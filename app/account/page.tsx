@@ -24,11 +24,20 @@ import {
     SettingsInput,
     SettingsPanel,
     SettingsSaveBar,
+    SettingsCard,
+    SettingsEmptyState,
     SettingsSelect,
+    SettingsSubtleText,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
-import { Button } from "@/components/ui/Button";
+import { AppButton } from "@/components/ui";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
+import {
+    pageErrorIconClass,
+    pageErrorStateClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+} from "@/components/ui/pageSurface";
 import { validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
 
 interface UserProfile {
@@ -204,21 +213,19 @@ export default function AccountPage() {
 
     if (loading) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center text-white">
-                <Loader2 className="mr-3 animate-spin text-cyan-400" />
-                <span className="text-gray-400">Loading account settings...</span>
+            <div className={pageLoadingStateClass}>
+                <Loader2 className="mr-2 animate-spin" size={20} />
+                Loading account settings...
             </div>
         );
     }
 
     if (fetchError || !profile || !form) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center text-white">
-                <div className="space-y-4 text-center">
-                    <AlertCircle className="mx-auto text-red-400" size={38} />
-                    <p className="text-gray-400">{fetchError || "Account not found."}</p>
-                    <Button variant="outline" onClick={() => router.back()}>Go Back</Button>
-                </div>
+            <div className={pageErrorStateClass}>
+                <AlertCircle className={pageErrorIconClass} />
+                <p className={pageMutedTextClass}>{fetchError || "Account not found."}</p>
+                <AppButton variant="secondary" onClick={() => router.back()}>Go back</AppButton>
             </div>
         );
     }
@@ -330,23 +337,26 @@ export default function AccountPage() {
                     <div className="px-5 py-4">
                         <div className="grid gap-2 md:grid-cols-2">
                             {profile.organizations.map(org => (
-                                <div key={org.id} className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-                                    <div className="flex items-center gap-2 text-sm font-medium text-white">
-                                        <Building2 size={14} className="text-cyan-300" />
+                                <SettingsCard key={org.id}>
+                                    <div className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
+                                        <Building2 size={14} className="text-[color:var(--ui-form-accent)]" />
                                         {org.name}
                                     </div>
-                                    <p className="mt-1 text-xs text-gray-500">{org.businessType || "Education Business"} / {org.branches.length} branches</p>
-                                </div>
+                                    <SettingsSubtleText className="mt-1">{org.businessType || "Education Business"} / {org.branches.length} branches</SettingsSubtleText>
+                                </SettingsCard>
                             ))}
                             {profile.staff.map(member => (
-                                <div key={member.id} className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-                                    <div className="flex items-center gap-2 text-sm font-medium text-white">
-                                        <GitBranch size={14} className="text-violet-300" />
+                                <SettingsCard key={member.id}>
+                                    <div className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
+                                        <GitBranch size={14} className="text-[color:var(--ui-badge-purple-text)]" />
                                         {member.branch.name}
                                     </div>
-                                    <p className="mt-1 text-xs text-gray-500">{member.role}</p>
-                                </div>
+                                    <SettingsSubtleText className="mt-1">{member.role}</SettingsSubtleText>
+                                </SettingsCard>
                             ))}
+                            {profile.organizations.length === 0 && profile.staff.length === 0 && (
+                                <SettingsEmptyState>No workspace access found.</SettingsEmptyState>
+                            )}
                         </div>
                     </div>
                 </SettingsPanel>
