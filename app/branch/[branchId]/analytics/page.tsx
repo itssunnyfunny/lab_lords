@@ -4,9 +4,8 @@ import { KpiRow } from "@/components/snapshot/KpiRow";
 import { MainChart } from "@/components/snapshot/MainChart";
 import { SideStats } from "@/components/snapshot/SideStats";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
+import { AppPanel, PageShell } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
@@ -14,6 +13,17 @@ import { use, useEffect, useMemo, useState } from "react";
 import { AnalyticsPeriod, analytics, BranchSnapshot, TrendData } from "@/lib/api/analytics";
 import { branches } from "@/lib/api/branches";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { formErrorBannerClass } from "@/components/ui/formSurface";
+import {
+    pageFilterShellClass,
+    pageGridCardClass,
+    pageGridCardHoverClass,
+    pageInsetSurfaceClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+    pageSectionDividerClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 
 type ChartKey = "revenue" | "collected" | "due" | "utilization" | "students";
 
@@ -26,6 +36,8 @@ interface BranchAnalyticsRow {
     collected: number;
     due: number;
 }
+
+type SummaryTone = "success" | "danger" | "info" | "neutral";
 
 const PERIODS: { key: AnalyticsPeriod; label: string }[] = [
     { key: "month", label: "Monthly" },
@@ -146,37 +158,38 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
 
     if (loading && !snapshot) {
         return (
-            <div className="p-4 md:p-8 flex items-center justify-center text-white">
+            <div className={pageLoadingStateClass}>
                 <Loader2 className="animate-spin mr-2" /> Loading analytics...
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-8 text-white">
+        <div className="p-4 md:p-8">
+            <PageShell>
             <PageHeader
                 title="Analytics & Trends"
                 subtitle="Branch performance with corrected revenue, collections, dues, and utilization."
             />
 
             {error && (
-                <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+                <div className={cn("px-4 py-3 text-sm", formErrorBannerClass)}>
                     {error}
                 </div>
             )}
 
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="inline-flex w-fit rounded-xl border border-white/10 bg-white/[0.03] p-1">
+                <div className={cn("inline-flex w-fit p-1", pageFilterShellClass)}>
                     {PERIODS.map(item => (
                         <button
                             key={item.key}
                             type="button"
                             onClick={() => setPeriod(item.key)}
                             className={cn(
-                                "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                                "rounded-[var(--ui-radius-control)] px-4 py-2 text-sm font-medium transition-colors",
                                 period === item.key
-                                    ? "bg-white/10 text-white"
-                                    : "text-textSecondary hover:text-white"
+                                    ? "bg-[color:var(--ui-form-input-bg)] text-white"
+                                    : "text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
                             )}
                         >
                             {item.label}
@@ -191,10 +204,10 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                             type="button"
                             onClick={() => setActiveChart(item.key)}
                             className={cn(
-                                "px-3 py-2 rounded-lg text-xs font-semibold border transition-colors",
+                                "rounded-[var(--ui-radius-control)] border px-3 py-2 text-xs font-semibold transition-colors",
                                 activeChart === item.key
-                                    ? "bg-white/10 border-white/20 text-white"
-                                    : "border-white/10 text-textSecondary hover:text-white hover:border-white/20"
+                                    ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-white"
+                                    : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--ui-form-input-border)] hover:text-white"
                             )}
                         >
                             {item.label}
@@ -217,48 +230,120 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                 <SideStats snapshot={snapshot ?? undefined} period={period} />
             </div>
 
-            <div>
-                <h2 className="text-lg font-semibold text-white mb-4">Branch Summary</h2>
-                <DataTable
-                    data={data}
-                    columns={[
-                        { header: "Branch Name", accessor: "branch", className: "font-medium text-white" },
-                        { header: "Total Students", accessor: "students" },
-                        { header: "Seat Utilization", accessor: (item) => <Badge variant="default">{item.util}</Badge> },
-                        { header: "Revenue", accessor: (item) => money(item.revenue) },
-                        { header: "Collected", accessor: (item) => <span className="text-emerald-400 font-semibold">{money(item.collected)}</span> },
-                        { header: "All Due", accessor: (item) => <span className="text-rose-400 font-semibold">{money(item.due)}</span> },
-                    ]}
-                    actions={() => null}
-                />
-            </div>
+            <AppPanel
+                title="Branch Summary"
+                description="A compact snapshot of the current branch numbers."
+                contentClassName="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
+            >
+                {data.map(item => (
+                    <BranchSummaryCard key={`${item.id}-students`} label="Students" value={item.students.toLocaleString("en-IN")} detail={item.branch} tone="info" />
+                ))}
+                {data.map(item => (
+                    <BranchSummaryCard key={`${item.id}-util`} label="Seat utilization" value={item.util} detail="Current occupancy" tone="neutral" badge={item.util} />
+                ))}
+                {data.map(item => (
+                    <BranchSummaryCard key={`${item.id}-revenue`} label="Revenue" value={money(item.revenue)} detail={period === "month" ? "This month" : "All time"} tone="neutral" />
+                ))}
+                {data.map(item => (
+                    <BranchSummaryCard key={`${item.id}-collected`} label="Collected" value={money(item.collected)} detail="Received payments" tone="success" />
+                ))}
+                {data.map(item => (
+                    <BranchSummaryCard key={`${item.id}-due`} label="All due" value={money(item.due)} detail="Open receivables" tone="danger" />
+                ))}
+            </AppPanel>
 
             {snapshot?.seatDetails && (
-                <div>
-                    <h2 className="text-lg font-semibold text-white mb-4">Shift Breakdown</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <AppPanel
+                    title="Shift Breakdown"
+                    description="Capacity and utilization by shift."
+                    contentClassName="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                >
                         {snapshot.seatDetails.shifts.map((shift) => (
-                            <Card key={shift.shiftId} className="p-6 border-white/5 bg-white/[0.02]">
-                                <h3 className="text-sm font-medium text-textSecondary mb-2">{shift.shiftName}</h3>
-                                <div className="flex items-end justify-between">
-                                    <span className="text-2xl font-bold text-white">
-                                        {shift.used} / {shift.capacity}
-                                    </span>
-                                    <span className="text-sm text-emerald-400">
-                                        {shift.occupancyPercent.toFixed(2)}%
-                                    </span>
-                                </div>
-                                <div className="w-full bg-white/5 h-1.5 mt-4 rounded-full overflow-hidden">
-                                    <div
-                                        className="bg-emerald-500 h-full rounded-full"
-                                        style={{ width: `${Math.min(shift.occupancyPercent, 100)}%` }}
-                                    />
-                                </div>
-                            </Card>
+                            <ShiftBreakdownCard key={shift.shiftId} shift={shift} />
                         ))}
-                    </div>
-                </div>
+                </AppPanel>
             )}
+            </PageShell>
+        </div>
+    );
+}
+
+function toneValueClass(tone: SummaryTone) {
+    if (tone === "success") return "text-[color:var(--ui-tone-success-text)]";
+    if (tone === "danger") return "text-[color:var(--ui-tone-danger-text)]";
+    if (tone === "info") return "text-[color:var(--ui-tone-info-text)]";
+    return "text-[color:var(--text-primary)]";
+}
+
+function BranchSummaryCard({
+    label,
+    value,
+    detail,
+    tone,
+    badge,
+}: {
+    label: string;
+    value: string;
+    detail: string;
+    tone: SummaryTone;
+    badge?: string;
+}) {
+    return (
+        <div className={cn("min-w-0 p-4", pageInsetSurfaceClass)}>
+            <div className="flex items-start justify-between gap-3">
+                <p className={cn("text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
+                {badge && <Badge variant="default" className="shrink-0">{badge}</Badge>}
+            </div>
+            <p className={cn("mt-3 truncate text-xl font-semibold tracking-tight", toneValueClass(tone))}>{value}</p>
+            <p className={cn("mt-1 truncate text-xs", pageMutedTextClass)}>{detail}</p>
+        </div>
+    );
+}
+
+function ShiftBreakdownCard({
+    shift,
+}: {
+    shift: NonNullable<BranchSnapshot["seatDetails"]>["shifts"][number];
+}) {
+    const percent = Math.min(Math.max(shift.occupancyPercent, 0), 100);
+    const available = Math.max(shift.capacity - shift.used, 0);
+    const tone = percent >= 90 ? "danger" : percent >= 70 ? "warning" : "success";
+    const barClass = tone === "danger"
+        ? "bg-[color:var(--ui-tone-danger-progress)]"
+        : tone === "warning"
+            ? "bg-[color:var(--ui-tone-warning-progress)]"
+            : "bg-[color:var(--ui-tone-success-progress)]";
+
+    return (
+        <div className={cn(pageGridCardClass, pageGridCardHoverClass)}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-white">{shift.shiftName}</h3>
+                    <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
+                        {available} available of {shift.capacity}
+                    </p>
+                </div>
+                <Badge variant={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "success"}>
+                    {shift.occupancyPercent.toFixed(0)}%
+                </Badge>
+            </div>
+
+            <div className="mt-5 flex items-end justify-between gap-4">
+                <div>
+                    <p className="text-2xl font-semibold tracking-tight text-white">
+                        {shift.used}
+                        <span className={cn("text-sm font-medium", pageMutedTextClass)}> / {shift.capacity}</span>
+                    </p>
+                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>Seats used</p>
+                </div>
+                <div className={cn("rounded-[var(--ui-radius-control)] px-2.5 py-1 text-xs", pageInsetSurfaceClass)}>
+                    Capacity
+                </div>
+            </div>
+
+            <div className={cn("mt-4 h-2 overflow-hidden rounded-full border", pageSectionDividerClass)}>
+                <div className={cn("h-full rounded-full", barClass)} style={{ width: `${percent}%` }} />
+            </div>
         </div>
     );
 }
