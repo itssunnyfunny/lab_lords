@@ -1,15 +1,15 @@
 "use client";
 
-import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
+import { AppButton, PageShell } from "@/components/ui";
 import { Button } from "@/components/ui/Button";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Loader2, AlertCircle, ArrowLeft, X,
     Eye, Pencil, PowerOff, Power,
-    AlertTriangle, CheckCircle2, MinusCircle, Clock, ArrowRightLeft, Armchair,
+    AlertTriangle, CheckCircle2, MinusCircle, Clock, ArrowRightLeft, Armchair, Download, Search, UserPlus,
 } from "lucide-react";
 import { useCallback, useEffect, useState, use, useMemo } from "react";
 import { students, type StudentListItem } from "@/lib/api/students";
@@ -35,16 +35,20 @@ import {
 } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
+    pageDescriptionClass,
+    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
     pageFilterShellClass,
     pageGridCardClass,
     pageGridCardHoverClass,
+    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
+    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
@@ -53,6 +57,7 @@ import { useDataViewMode } from "@/hooks/useDataViewMode";
 import { RowActionsMenu, type RowActionsMenuItem } from "@/components/ui/RowActionsMenu";
 
 type DueResolution = "PAID" | "WAIVED" | "KEEP";
+type StudentRosterTab = "ACTIVE" | "INACTIVE";
 
 const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
@@ -122,7 +127,7 @@ function StudentSeatShiftSummary({ student }: { student: StudentListItem }) {
 
     return (
         <div className="min-w-0 space-y-1 text-xs" title={`${seatText} - ${shiftText}`}>
-            <div className="flex min-w-0 items-center gap-1.5 text-white">
+            <div className="flex min-w-0 items-center gap-1.5 text-[color:var(--text-primary)]">
                 <Armchair size={13} className="flex-shrink-0 text-cyan-300" />
                 <span className="truncate font-medium">{seatText}</span>
             </div>
@@ -140,6 +145,43 @@ type ActionItem = RowActionsMenuItem;
 
 function RowActions({ actions }: { actions: ActionItem[] }) {
     return <RowActionsMenu actions={actions} />;
+}
+
+function StudentTabButton({
+    tab,
+    active,
+    count,
+    onClick,
+}: {
+    tab: StudentRosterTab;
+    active: boolean;
+    count: number;
+    onClick: () => void;
+}) {
+    const activeClassName = tab === "ACTIVE"
+        ? "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]"
+        : "border-[color:var(--ui-badge-default-border)] bg-[color:var(--ui-badge-default-bg)] text-[color:var(--ui-badge-default-text)]";
+    const dotClassName = tab === "ACTIVE"
+        ? "bg-[color:var(--ui-badge-success-text)]"
+        : "bg-[color:var(--ui-badge-default-text)]";
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-pressed={active}
+            className={cn(
+                "inline-flex h-9 cursor-pointer items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 text-sm font-medium transition-colors",
+                active
+                    ? activeClassName
+                    : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
+            )}
+        >
+            {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
+            {tab === "ACTIVE" ? "Active" : "Inactive"}
+            <span className={pageCountBadgeClass}>{count}</span>
+        </button>
+    );
 }
 
 // ─── Inactivate Dialog ────────────────────────────────────────────────────────
@@ -194,7 +236,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                         <AlertTriangle size={18} />
                     </div>
                     <div>
-                        <h3 className="text-white font-semibold text-lg leading-tight">Deactivate {student.name}?</h3>
+                        <h3 className="text-lg font-semibold leading-tight text-[color:var(--text-primary)]">Deactivate {student.name}?</h3>
                         <p className={cn("mt-0.5 text-sm", formHelpTextClass)}>
                             Their seat allocation will be ended immediately.
                         </p>
@@ -205,7 +247,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                 {hasDues ? (
                     <div className={cn("mb-5 p-4", formWarningBannerClass)}>
                         <p className="text-amber-300 text-sm font-medium mb-1">
-                            {duePayments.length} unpaid billing cycle{duePayments.length > 1 ? "s" : ""} — {formatCurrency(totalDue)} total
+                            {duePayments.length} unpaid billing cycle{duePayments.length > 1 ? "s" : ""} - {formatCurrency(totalDue)} total
                         </p>
                         <p className="text-amber-200/60 text-xs">How should these be resolved?</p>
 
@@ -245,7 +287,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                     </div>
                 ) : (
                     <div className={cn("mb-5 p-4", formSuccessBannerClass)}>
-                        <p className="text-green-400 text-sm font-medium">✓ No outstanding payments</p>
+                        <p className="text-green-400 text-sm font-medium">No outstanding payments</p>
                         <p className={cn("mt-0.5 text-xs", pageSubtleTextClass)}>This student has a clean financial record.</p>
                     </div>
                 )}
@@ -260,17 +302,15 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                     <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>
                         Cancel
                     </Button>
-                    <button
+                    <Button
+                        variant="danger"
+                        className="flex-1"
                         onClick={() => onConfirm(hasDues ? resolution : "KEEP")}
                         disabled={loading}
-                        className={cn(
-                            "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                            "bg-red-500/80 hover:bg-red-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        )}
                     >
                         {loading ? <Loader2 size={14} className="animate-spin" /> : <PowerOff size={14} />}
-                        {loading ? "Deactivating…" : "Confirm Deactivate"}
-                    </button>
+                        {loading ? "Deactivating..." : "Confirm deactivate"}
+                    </Button>
                 </div>
             </div>
         </div>
@@ -312,7 +352,7 @@ function StudentsContent({
     const [allPayments, setAllPayments] = useState<Payment[]>([]);
     const [shifts, setShifts] = useState<Shift[]>([]);
 
-    const [activeTab, setActiveTab] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
+    const [activeTab, setActiveTab] = useState<StudentRosterTab>("ACTIVE");
     const [selectedShift, setSelectedShift] = useState<string>("");
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useDataViewMode();
@@ -538,23 +578,43 @@ function StudentsContent({
                 <AlertCircle className={pageErrorIconClass} />
                 <h2 className="text-xl font-semibold">Something went wrong</h2>
                 <p className={pageMutedTextClass}>{error}</p>
-                <Button variant="outline" onClick={() => router.push("/org")}>
-                    <ArrowLeft size={16} className="mr-2" /> Back to Workspace
-                </Button>
+                <AppButton variant="secondary" icon={ArrowLeft} onClick={() => router.push("/org")}>
+                    Back to workspace
+                </AppButton>
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-6">
-            <PageHeader
-                title="Students"
-                subtitle="Manage detailed student profiles and fee history."
-                onSearch={q => setSearchQuery(q)}
-                onExport={handleExportStudents}
-                onAdd={() => setIsAddModalOpen(true)}
-                actionLabel="Add Student"
-            />
+        <PageShell>
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <p className={pageEyebrowClass}>Student roster</p>
+                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>Students</h1>
+                    <p className={pageDescriptionClass}>
+                        Keep profiles, allocation context, and fee signals easy to scan without crowding the roster.
+                    </p>
+                </div>
+
+                <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                    <div className="relative min-w-0 sm:w-72">
+                        <Search className={cn("absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", pageSubtleTextClass)} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Search name or phone..."
+                            className={cn(formControlClass, "h-10 pl-9 pr-3 text-sm")}
+                        />
+                    </div>
+                    <AppButton variant="secondary" icon={Download} onClick={handleExportStudents}>
+                        Export
+                    </AppButton>
+                    <AppButton variant="primary" icon={UserPlus} onClick={() => setIsAddModalOpen(true)}>
+                        Add student
+                    </AppButton>
+                </div>
+            </header>
 
             {(!canViewPayments || !canAllocateSeats) && (
                 <div className="grid gap-2 md:grid-cols-2">
@@ -571,9 +631,9 @@ function StudentsContent({
                 </div>
             )}
 
-            <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4", pageSectionDividerClass)}>
-                <div className="flex items-center gap-3">
-                    <span className="text-sm text-textMuted">Filter:</span>
+            <div className={cn("flex flex-col gap-4 border-b pb-4 md:flex-row md:items-center md:justify-between", pageSectionDividerClass)}>
+                <div className={cn("flex items-center gap-3 px-3 py-2", pageFilterShellClass)}>
+                    <span className={cn("text-sm", pageSubtleTextClass)}>Shift</span>
                     <select
                         className={cn(formControlClass, "w-auto bg-[color:var(--ui-form-input-select-bg)] px-3 py-1.5 text-sm")}
                         value={selectedShift}
@@ -588,33 +648,15 @@ function StudentsContent({
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                     <div className="flex items-center gap-2">
-                        {(["ACTIVE", "INACTIVE"] as const).map(tab => {
-                            const active = activeTab === tab;
-                            const selectedClassName = tab === "ACTIVE"
-                                ? "border-emerald-500 bg-emerald-500/5 text-emerald-400"
-                                : "border-zinc-500 bg-zinc-500/5 text-zinc-300";
-                            const dotClassName = tab === "ACTIVE"
-                                ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.65)]"
-                                : "bg-zinc-300 shadow-[0_0_8px_rgba(212,212,216,0.35)]";
-
-                            return (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    aria-current={active ? "page" : undefined}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                                        active ? selectedClassName : "border-transparent text-textSecondary hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
-                                    )}
-                                >
-                                    {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
-                                    {tab === "ACTIVE" ? "Active" : "Inactive"} Students
-                                    <span className={pageCountBadgeClass}>
-                                        {allStudents.filter(s => s.status === tab).length}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                        {(["ACTIVE", "INACTIVE"] as const).map(tab => (
+                            <StudentTabButton
+                                key={tab}
+                                tab={tab}
+                                active={activeTab === tab}
+                                count={allStudents.filter(s => s.status === tab).length}
+                                onClick={() => setActiveTab(tab)}
+                            />
+                        ))}
                     </div>
 
                     <ViewToggle value={viewMode} onChange={setViewMode} className="hidden md:inline-flex" />
@@ -638,8 +680,8 @@ function StudentsContent({
                                     />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="truncate font-medium text-white">{item.name}</p>
-                                    <p className="truncate text-xs text-textMuted">{item.phone || "No phone"}</p>
+                                    <p className="truncate font-medium text-[color:var(--text-primary)]">{item.name}</p>
+                                    <p className={cn("truncate text-xs", pageSubtleTextClass)}>{item.phone || "No phone"}</p>
                                 </div>
                             </div>
                             <div className="flex flex-shrink-0 items-start gap-2">
@@ -649,25 +691,25 @@ function StudentsContent({
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                            <div className={cn("p-3", pageInsetSurfaceClass)}>
-                                <div className="text-xs text-textMuted">Joined</div>
-                                <div className="mt-1 truncate text-textSecondary">{format(new Date(item.joinedAt), "PP")}</div>
+                            <div className={pageInsetMetricClass}>
+                                <div className={cn("text-xs", pageSubtleTextClass)}>Joined</div>
+                                <div className={cn("mt-1 truncate", pageMutedTextClass)}>{format(new Date(item.joinedAt), "PP")}</div>
                             </div>
-                            <div className={cn("p-3", pageInsetSurfaceClass)}>
-                                <div className="text-xs text-textMuted">Monthly Fee</div>
-                                <div className="mt-1 truncate font-semibold text-white">
+                            <div className={pageInsetMetricClass}>
+                                <div className={cn("text-xs", pageSubtleTextClass)}>Monthly fee</div>
+                                <div className="mt-1 truncate font-semibold text-[color:var(--text-primary)]">
                                     {typeof item.monthlyFee === "number" ? formatCurrency(item.monthlyFee) : "Not set"}
                                 </div>
                             </div>
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-3">
-                            <div className={cn("min-w-0 p-3", pageInsetSurfaceClass)}>
-                                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-textMuted">Seat & Shift</div>
+                            <div className={cn("min-w-0", pageInsetMetricClass)}>
+                                <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>Seat & shift</div>
                                 <StudentSeatShiftSummary student={item} />
                             </div>
-                            <div className={cn("min-w-0 p-3", pageInsetSurfaceClass)}>
-                                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-textMuted">Fee Summary</div>
+                            <div className={cn("min-w-0", pageInsetMetricClass)}>
+                                <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>Fee summary</div>
                                 {renderFeeSummary(item)}
                             </div>
                         </div>
@@ -683,8 +725,8 @@ function StudentsContent({
                                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=random`} alt={item.name} />
                                 </div>
                                 <div>
-                                    <p className="font-medium text-white">{item.name}</p>
-                                    <p className="text-xs text-textMuted">{item.phone || "No phone"}</p>
+                                    <p className="font-medium text-[color:var(--text-primary)]">{item.name}</p>
+                                    <p className={cn("text-xs", pageSubtleTextClass)}>{item.phone || "No phone"}</p>
                                 </div>
                             </div>
                         )
@@ -761,7 +803,7 @@ function StudentsContent({
                 student={selectedStudent}
                 financials={selectedStudent ? studentFinancials.get(selectedStudent.id) : undefined}
             />
-        </div>
+        </PageShell>
     );
 }
 
@@ -792,13 +834,13 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
         <div className="fixed inset-0 z-50 flex justify-end">
             <div className={cn("cursor-pointer animate-in fade-in", formDialogOverlayClass)} onClick={onClose} />
             <div className={cn("relative h-full w-full max-w-md p-6 animate-in slide-in-from-right duration-300", formDrawerPanelClass)}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-textMuted hover:text-white">
+                <button onClick={onClose} className="absolute top-4 right-4 cursor-pointer text-textMuted transition-colors hover:text-[color:var(--text-primary)]">
                     <X size={20} />
                 </button>
 
                 <div className="mt-2 space-y-6">
                     <div>
-                        <h3 className="text-xl font-bold text-white">{student.name}</h3>
+                        <h3 className="text-xl font-bold text-[color:var(--text-primary)]">{student.name}</h3>
                         <p className="text-sm text-textSecondary">{student.phone}</p>
                         <div className="mt-2 text-sm text-textMuted">Joined {format(new Date(student.joinedAt), "PP")}</div>
                         <Badge className="mt-2" variant={student.status === "ACTIVE" ? "success" : "default"}>{student.status}</Badge>
@@ -818,7 +860,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                             </div>
                         </div>
 
-                        {/* Waived summary — only show if > 0 */}
+                        {/* Waived summary only shows if there is a resolved amount. */}
                         {(financials?.totalWaived || 0) > 0 && (
                             <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-3 text-center">
                                 <div className="text-xs text-amber-400/70">Waived (resolved, not pursued)</div>
@@ -837,13 +879,13 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                                             : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)]"
                                     )}>
                                         <div>
-                                            <div className="text-sm font-medium text-white">
+                                            <div className="text-sm font-medium text-[color:var(--text-primary)]">
                                                 {p.type === "ADMISSION" ? "Admission Fee" : "Monthly Fee"}
                                             </div>
                                             <div className="text-xs text-textSecondary">Due: {format(new Date(p.dueDate), "MMM d, yyyy")}</div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-sm font-bold text-white">{formatCurrency(p.amount)}</div>
+                                            <div className="text-sm font-bold text-[color:var(--text-primary)]">{formatCurrency(p.amount)}</div>
                                             {paymentBadge(p.status)}
                                         </div>
                                     </div>

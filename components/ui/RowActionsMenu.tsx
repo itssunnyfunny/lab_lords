@@ -144,7 +144,7 @@ export function RowActionsMenu({
                                 action.onClick();
                             }}
                             className={cn(
-                                "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                                "flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                                 action.variant === "danger"
                                     ? "text-[color:var(--ui-menu-item-danger-text)] hover:bg-[color:var(--ui-menu-item-danger-hover-bg)]"
                                     : action.variant === "warning"
@@ -168,7 +168,7 @@ export function RowActionsMenu({
                 type="button"
                 onClick={() => setOpen(value => !value)}
                 className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-control)] text-[color:var(--ui-menu-trigger-text)] transition-all hover:bg-[color:var(--ui-menu-trigger-hover-bg)] hover:text-[color:var(--ui-menu-trigger-hover-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
+                    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--ui-radius-control)] text-[color:var(--ui-menu-trigger-text)] transition-all hover:bg-[color:var(--ui-menu-trigger-hover-bg)] hover:text-[color:var(--ui-menu-trigger-hover-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
                     open && "bg-[color:var(--ui-menu-trigger-active-bg)] text-[color:var(--ui-menu-trigger-active-text)]",
                     buttonClassName
                 )}
