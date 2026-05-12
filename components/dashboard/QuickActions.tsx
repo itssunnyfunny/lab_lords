@@ -1,6 +1,12 @@
 "use client";
 
 import { AppPanel } from "@/components/ui";
+import {
+    pageInsetHoverClass,
+    pageInsetSurfaceClass,
+    pageMutedTextClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
 import { cn } from "@/lib/utils";
@@ -68,13 +74,13 @@ export function QuickActions({ branchId }: { branchId: string }) {
             {loading && (
                 <div className="space-y-2 p-2">
                     {[0, 1, 2].map((item) => (
-                        <div key={item} className="h-14 animate-pulse rounded-[8px] bg-white/[0.04]" />
+                        <div key={item} className="h-14 animate-pulse rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-muted-surface-bg)]" />
                     ))}
                 </div>
             )}
 
             {!loading && visibleActions.length === 0 && unavailableActions.length === 0 && (
-                <p className="px-3 py-4 text-sm text-gray-500">No quick actions available for your access.</p>
+                <p className={cn("px-3 py-4 text-sm", pageSubtleTextClass)}>No quick actions available for your access.</p>
             )}
 
             {!loading && (
@@ -84,16 +90,16 @@ export function QuickActions({ branchId }: { branchId: string }) {
                             key={action.label}
                             type="button"
                             onClick={() => router.push(`/branch/${branchId}${action.route}`)}
-                            className="group flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+                            className={cn("group flex w-full items-center gap-3 rounded-[var(--ui-radius-control)] border border-transparent px-3 py-2.5 text-left", pageInsetHoverClass)}
                         >
                             <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px]", action.tone)}>
                                 <action.icon size={16} />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium text-white">{action.label}</p>
-                                <p className="truncate text-xs text-gray-500">{action.description}</p>
+                                <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{action.label}</p>
+                                <p className={cn("truncate text-xs", pageSubtleTextClass)}>{action.description}</p>
                             </div>
-                            <ArrowRight size={14} className="shrink-0 text-gray-600 transition-colors group-hover:text-gray-300" />
+                            <ArrowRight size={14} className="shrink-0 text-[color:var(--text-muted)] transition-colors group-hover:text-[color:var(--text-secondary)]" />
                         </button>
                     ))}
 
@@ -107,14 +113,14 @@ export function QuickActions({ branchId }: { branchId: string }) {
                                 title={helpText}
                                 className="flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-left opacity-70"
                             >
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-white/[0.03] text-gray-600">
+                                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px]", pageInsetSurfaceClass, pageSubtleTextClass)}>
                                     <action.icon size={16} />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-gray-500">{action.label}</p>
-                                    <p className="truncate text-xs text-gray-600">{helpText}</p>
+                                    <p className={cn("truncate text-sm font-medium", pageMutedTextClass)}>{action.label}</p>
+                                    <p className={cn("truncate text-xs", pageSubtleTextClass)}>{helpText}</p>
                                 </div>
-                                <LockKeyhole size={14} className="shrink-0 text-gray-700" />
+                                <LockKeyhole size={14} className="shrink-0 text-[color:var(--text-muted)]" />
                             </div>
                         );
                     })}

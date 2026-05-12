@@ -29,6 +29,18 @@ import {
     type StudentNotificationRecord,
 } from "@/lib/branchNotifications";
 import { cn } from "@/lib/utils";
+import { formWarningBannerClass } from "@/components/ui/formSurface";
+import {
+    chromeCompactIconButtonClass,
+    chromeEmptyStateClass,
+    chromeIconButtonClass,
+    chromeListItemClass,
+    chromeMutedTextClass,
+    chromePopoverClass,
+    chromePopoverHeaderClass,
+    chromePopoverScrollClass,
+    chromeSubtleTextClass,
+} from "@/components/ui/chromeSurface";
 
 type NotificationData = {
     overdue: OverduePaymentNotificationData | null;
@@ -128,7 +140,7 @@ function DisabledBell() {
     return (
         <span
             title="Open a branch to view notifications"
-            className="relative rounded-full p-2 text-gray-600"
+            className={cn("relative", chromeIconButtonClass, "pointer-events-none opacity-50")}
             aria-label="Notifications unavailable outside a branch"
         >
             <Bell size={20} />
@@ -299,75 +311,76 @@ export function BranchNotifications() {
                     void loadNotifications();
                 }}
                 className={cn(
-                    "relative rounded-full p-2 text-gray-400 transition-colors hover:bg-white/5 hover:text-white",
-                    open && "bg-white/5 text-white",
+                    "relative rounded-full",
+                    chromeIconButtonClass,
+                    open && "bg-[color:var(--ui-form-surface-hover-bg)] text-[color:var(--text-primary)]",
                     disabled && "cursor-not-allowed opacity-60"
                 )}
                 aria-label={alertCount > 0 ? `${alertCount} branch notifications` : "Branch notifications"}
             >
                 <Bell size={20} />
                 {loading && !loaded && (
-                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[color:var(--ui-form-accent)] shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                 )}
                 {alertCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-[#0a0a0e] bg-rose-500 px-1 text-[10px] font-bold leading-none text-white shadow-[0_0_10px_rgba(244,63,94,0.55)]">
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-[color:var(--bg-app)] bg-[color:var(--accent-danger)] px-1 text-[10px] font-bold leading-none text-white shadow-[0_0_10px_rgba(244,63,94,0.55)]">
                         {alertCount > 9 ? "9+" : alertCount}
                     </span>
                 )}
             </button>
 
             {open && !disabled && (
-                <div className="fixed left-3 right-3 top-[4.25rem] z-50 overflow-hidden rounded-xl border border-white/10 bg-[#0f111a]/95 shadow-2xl shadow-black/40 backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[22rem]">
-                    <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                <div className={cn(chromePopoverClass, "sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[22rem]")}>
+                    <div className={chromePopoverHeaderClass}>
                         <div>
-                            <h2 className="text-sm font-bold text-white">Notifications</h2>
-                            <p className="text-xs text-gray-500">Current branch alerts</p>
+                            <h2 className="text-sm font-bold text-[color:var(--text-primary)]">Notifications</h2>
+                            <p className={cn("text-xs", chromeSubtleTextClass)}>Current branch alerts</p>
                         </div>
                         <button
                             type="button"
                             onClick={() => void loadNotifications({ force: true })}
                             disabled={loading}
-                            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            className={cn("h-8 w-8", chromeCompactIconButtonClass)}
                             aria-label="Refresh notifications"
                         >
                             {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                         </button>
                     </div>
 
-                    <div className="max-h-[min(28rem,calc(100dvh-6rem))] overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <div className={chromePopoverScrollClass}>
                         {loadErrors.length > 0 && (
-                            <div className="mx-3 mb-2 flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-100/80">
-                                <AlertCircle size={14} className="mt-0.5 flex-shrink-0 text-amber-300" />
+                            <div className={cn("mx-3 mb-2 flex items-start gap-2 px-3 py-2 text-xs leading-5", formWarningBannerClass)}>
+                                <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
                                 <span>Some alerts could not load: {loadErrors.join(", ")}.</span>
                             </div>
                         )}
 
                         {loading && !loaded && (
-                            <div className="flex items-center gap-2 px-4 py-6 text-sm text-gray-400">
-                                <Loader2 size={15} className="animate-spin text-cyan-300" />
+                            <div className={cn("flex items-center gap-2 px-4 py-6 text-sm", chromeMutedTextClass)}>
+                                <Loader2 size={15} className="animate-spin text-[color:var(--ui-form-accent)]" />
                                 Loading notifications...
                             </div>
                         )}
 
                         {!loading && loaded && notifications.length === 0 && (
-                            <div className="px-5 py-8 text-center">
+                            <div className={chromeEmptyStateClass}>
                                 <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
                                     <CheckCircle2 size={20} />
                                 </div>
-                                <p className="text-sm font-semibold text-white">All clear</p>
-                                <p className="mt-1 text-xs leading-5 text-gray-500">
+                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">All clear</p>
+                                <p className={cn("mt-1 text-xs leading-5", chromeSubtleTextClass)}>
                                     No overdue payments, seating gaps, capacity alerts, or active invites need attention.
                                 </p>
                             </div>
                         )}
 
                         {!loading && loaded && notifications.length > 0 && unreadNotifications.length === 0 && (
-                            <div className="px-5 py-8 text-center">
+                            <div className={chromeEmptyStateClass}>
                                 <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-500/20 bg-cyan-500/10 text-cyan-300">
                                     <CheckCircle2 size={20} />
                                 </div>
-                                <p className="text-sm font-semibold text-white">No new notifications</p>
-                                <p className="mt-1 text-xs leading-5 text-gray-500">
+                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">No new notifications</p>
+                                <p className={cn("mt-1 text-xs leading-5", chromeSubtleTextClass)}>
                                     You already opened the current alerts. They will return when branch data changes.
                                 </p>
                             </div>
@@ -379,7 +392,7 @@ export function BranchNotifications() {
                                     <button
                                         type="button"
                                         onClick={() => markRead(unreadNotifications)}
-                                        className="rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-white"
+                                        className="rounded-[var(--ui-radius-control)] px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
                                     >
                                         Mark all read
                                     </button>
@@ -392,7 +405,7 @@ export function BranchNotifications() {
                                             key={notification.id}
                                             type="button"
                                             onClick={() => openNotification(notification)}
-                                            className="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-white/5"
+                                            className={cn(chromeListItemClass, "items-start py-3")}
                                         >
                                             <span className={cn(
                                                 "mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border",
@@ -401,10 +414,10 @@ export function BranchNotifications() {
                                                 <Icon size={16} />
                                             </span>
                                             <span className="min-w-0 flex-1">
-                                                <span className="block text-sm font-semibold text-white">
+                                                <span className="block text-sm font-semibold text-[color:var(--text-primary)]">
                                                     {notification.title}
                                                 </span>
-                                                <span className="mt-0.5 block text-xs leading-5 text-gray-500">
+                                                <span className={cn("mt-0.5 block text-xs leading-5", chromeSubtleTextClass)}>
                                                     {notification.message}
                                                 </span>
                                             </span>

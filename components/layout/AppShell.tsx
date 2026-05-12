@@ -8,6 +8,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { BranchTopSearch } from "@/components/layout/BranchTopSearch";
 import { BranchNotifications } from "@/components/layout/BranchNotifications";
 import { Menu, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+    chromeAppRootClass,
+    chromeCompactIconButtonClass,
+    chromeDividerClass,
+    chromeHeaderClass,
+    chromeIconButtonClass,
+    chromeInlineCardHoverClass,
+    chromeMobilePanelClass,
+    chromeMutedTextClass,
+    chromeOverlayClass,
+} from "@/components/ui/chromeSurface";
 
 interface User {
     name: string;
@@ -28,8 +40,8 @@ function ClerkAccountSummary({ user }: { user?: User }) {
 
     return (
         <div className="text-right hidden sm:block">
-            <p className="text-xs font-bold text-white tracking-wide">{displayName}</p>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider">{displayRole}</p>
+            <p className="text-xs font-bold tracking-wide text-[color:var(--text-primary)]">{displayName}</p>
+            <p className={cn("text-[10px] uppercase tracking-wider", chromeMutedTextClass)}>{displayRole}</p>
         </div>
     );
 }
@@ -37,8 +49,8 @@ function ClerkAccountSummary({ user }: { user?: User }) {
 function DevAccountSummary() {
     return (
         <div className="text-right hidden sm:block">
-            <p className="text-xs font-bold text-white tracking-wide">Local Dev</p>
-            <p className="text-[10px] text-amber-300 uppercase tracking-wider">Auth Bypass</p>
+            <p className="text-xs font-bold tracking-wide text-[color:var(--text-primary)]">Local Dev</p>
+            <p className="text-[10px] uppercase tracking-wider text-[color:var(--ui-form-warning-action-text)]">Auth Bypass</p>
         </div>
     );
 }
@@ -54,7 +66,7 @@ function AccountSummary({ user }: { user?: User }) {
 function AccountControl() {
     if (isAuthBypassEnabled()) {
         return (
-            <div className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+            <div className="rounded-full border border-[color:var(--ui-form-warning-border)] bg-[color:var(--ui-form-warning-bg)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[color:var(--ui-form-warning-action-text)]">
                 Local
             </div>
         );
@@ -92,7 +104,7 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
     }, [mobileNavOpen]);
 
     return (
-        <div className="flex h-[100dvh] max-w-full overflow-hidden text-white font-sans selection:bg-cyan-500/30 selection:text-cyan-50">
+        <div className={chromeAppRootClass}>
             <AmbientBackground />
 
             {/* Sidebar Area - Glassmorphic */}
@@ -104,18 +116,18 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                 <div className="fixed inset-0 z-[80] md:hidden">
                     <button
                         type="button"
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        className={chromeOverlayClass}
                         aria-label="Close navigation"
                         onClick={() => setMobileNavOpen(false)}
                     />
                     <aside
-                        className="relative h-full w-[min(18rem,calc(100vw-2rem))] overflow-hidden border-r border-white/10 bg-[#050508] shadow-2xl"
+                        className={chromeMobilePanelClass}
                         aria-label="Mobile navigation"
                     >
                         <button
                             type="button"
                             onClick={() => setMobileNavOpen(false)}
-                            className="absolute right-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                            className={cn("absolute right-3 top-3 z-50", chromeCompactIconButtonClass)}
                             aria-label="Close navigation"
                         >
                             <X size={17} />
@@ -130,12 +142,12 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 max-w-full relative z-10">
                 {/* Top Header */}
-                <header className="h-16 border-b border-white/5 bg-[#0a0a0e]/60 backdrop-blur-md flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6 sticky top-0 z-40">
+                <header className={chromeHeaderClass}>
                     <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4 md:max-w-md">
                         <button
                             type="button"
                             onClick={() => setMobileNavOpen(true)}
-                            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition-colors hover:bg-white/10 hover:text-white md:hidden"
+                            className={cn("flex-shrink-0 md:hidden", chromeIconButtonClass)}
                             aria-label="Open navigation"
                             aria-expanded={mobileNavOpen}
                         >
@@ -148,12 +160,12 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                         {showBranchChrome && (
                             <>
                                 <BranchNotifications />
-                                <div className="hidden h-6 w-[1px] bg-white/10 sm:block md:mx-2" />
+                                <div className={cn("hidden h-6 w-[1px] sm:block md:mx-2", chromeDividerClass)} />
                             </>
                         )}
                         <button
                             onClick={() => router.push('/account')}
-                            className="hidden items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer sm:flex"
+                            className={cn("hidden items-center gap-3 rounded-full border border-transparent py-1 pl-2 pr-1 transition-colors sm:flex", chromeInlineCardHoverClass)}
                         >
                             <AccountSummary user={user} />
                         </button>

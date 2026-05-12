@@ -20,6 +20,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { SidebarItem } from "./SidebarItem";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import type { StaffAction } from "@/types";
+import { cn } from "@/lib/utils";
+import {
+    chromeCompactIconButtonClass,
+    chromeSidebarClass,
+    chromeSidebarFooterClass,
+    chromeSidebarHeaderClass,
+    chromeSidebarSectionLabelClass,
+} from "@/components/ui/chromeSurface";
 
 type BranchNavItem = {
     icon: LucideIcon;
@@ -82,26 +90,26 @@ export function BranchSidebar() {
 
         return (
             <div className="space-y-2">
-                <div className="px-2 text-[10px] font-bold uppercase tracking-widest text-gray-600">{label}</div>
+                <div className={chromeSidebarSectionLabelClass}>{label}</div>
                 {renderItems(visibleItems)}
             </div>
         );
     };
 
     return (
-        <div className="w-full md:w-64 bg-[#050508]/90 backdrop-blur-xl border-r border-white/5 flex flex-col h-full relative z-30">
-            <div className="h-14 flex items-center gap-2 px-4 border-b border-white/5 bg-[#0a0a0e]/50">
+        <div className={chromeSidebarClass}>
+            <div className={chromeSidebarHeaderClass}>
                 <button
                     type="button"
                     onClick={() => router.push("/")}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/5 hover:text-white"
+                    className={cn("shrink-0", chromeCompactIconButtonClass)}
                     aria-label="Back to home"
                 >
                     <ChevronRight size={17} className="rotate-180 transition-transform" />
                 </button>
                 <div className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold leading-tight text-white">{access?.branchName ?? "Loading..."}</span>
-                    <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80">
+                    <span className="block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]">{access?.branchName ?? "Loading..."}</span>
+                    <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-form-accent)]">
                         {access?.role ?? (loading ? "Checking access" : "Branch Connected")}
                     </span>
                 </div>
@@ -116,7 +124,7 @@ export function BranchSidebar() {
             </div>
 
             {canSee("manage_branch") && (
-                <div className="px-3 py-3 border-t border-white/5 bg-[#0a0a0e]/35">
+                <div className={chromeSidebarFooterClass}>
                     <SidebarItem
                         icon={Settings}
                         label="Branch Settings"

@@ -1,6 +1,11 @@
 "use client";
 
 import { AppButton, AppPanel } from "@/components/ui";
+import {
+    pageInsetSurfaceClass,
+    pageSectionDividerClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
 import { ArrowRight, CalendarCheck, CheckCircle2, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -70,23 +75,23 @@ export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps
         >
             {shifts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.03]">
-                        <CalendarCheck size={18} className="text-gray-500" />
+                    <div className={cn("flex h-10 w-10 items-center justify-center", pageInsetSurfaceClass)}>
+                        <CalendarCheck size={18} className="text-[color:var(--text-muted)]" />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-white">No shifts configured</p>
-                        <p className="mt-1 text-xs text-gray-500">Create shifts before tracking seat utilization.</p>
+                        <p className="text-sm font-medium text-[color:var(--text-primary)]">No shifts configured</p>
+                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>Create shifts before tracking seat utilization.</p>
                     </div>
                     <button
                         type="button"
                         onClick={() => router.push(`/branch/${branchId}/shifts`)}
-                        className="text-xs font-medium text-cyan-300 transition-colors hover:text-cyan-200"
+                        className="text-xs font-medium text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
                     >
                         Set up shifts
                     </button>
                 </div>
             ) : (
-                <div className="divide-y divide-white/10">
+                <div className={cn("divide-y", pageSectionDividerClass)}>
                     {shifts.map((shift) => {
                         const percent = Math.max(0, Math.min(shift.occupancyPercent, 100));
                         const state = getShiftState(shift.occupancyPercent);
@@ -96,8 +101,8 @@ export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps
                             <div key={shift.shiftId} className="px-4 py-3">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium text-white">{shift.shiftName}</p>
-                                        <p className="mt-1 text-xs text-gray-500">
+                                        <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{shift.shiftName}</p>
+                                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
                                             {shift.used.toLocaleString("en-IN")} of {shift.capacity.toLocaleString("en-IN")} slots used
                                         </p>
                                     </div>
@@ -112,7 +117,7 @@ export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps
                                     </span>
                                 </div>
                                 <div className="mt-3 flex items-center gap-3">
-                                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--ui-form-muted-surface-bg)]">
                                         <div className={cn("h-full rounded-full", state.bar)} style={{ width: `${percent}%` }} />
                                     </div>
                                     <span className={cn("w-11 text-right text-xs font-semibold", state.text)}>

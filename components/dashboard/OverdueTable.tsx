@@ -1,6 +1,15 @@
 "use client";
 
 import { AppButton, AppPanel } from "@/components/ui";
+import {
+    pageInsetSurfaceClass,
+    pageSectionDividerClass,
+    pageSubtleTextClass,
+    pageTableBodyDividerClass,
+    pageTableHeadClass,
+    pageTableRowClass,
+} from "@/components/ui/pageSurface";
+import { cn } from "@/lib/utils";
 import { daysPastDue } from "@/lib/utils/paymentStatus";
 import { ArrowRight, CheckCircle2, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -66,15 +75,15 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
                         <CheckCircle2 size={20} className="text-emerald-300" />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-white">No overdue payments</p>
-                        <p className="mt-1 text-xs text-gray-500">Collections are clear right now.</p>
+                        <p className="text-sm font-medium text-[color:var(--text-primary)]">No overdue payments</p>
+                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>Collections are clear right now.</p>
                     </div>
                 </div>
             ) : (
                 <>
                     <div className="hidden md:block">
                         <table className="w-full text-left text-sm">
-                            <thead className="border-b border-white/10 text-xs font-medium text-gray-500">
+                            <thead className={cn("border-b text-xs font-medium text-[color:var(--ui-table-muted)]", pageSectionDividerClass, pageTableHeadClass)}>
                                 <tr>
                                     <th className="px-4 py-3 font-medium">Student</th>
                                     <th className="px-4 py-3 font-medium">Due date</th>
@@ -82,27 +91,27 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
                                     <th className="px-4 py-3 text-right font-medium">Amount</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-white/10">
+                            <tbody className={pageTableBodyDividerClass}>
                                 {shown.map((payment) => {
                                     const overdueDays = daysPastDue(payment.dueDate);
 
                                     return (
-                                        <tr key={payment.paymentId} className="transition-colors hover:bg-white/[0.03]">
+                                        <tr key={payment.paymentId} className={pageTableRowClass}>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-white/[0.05] text-xs font-semibold text-gray-300">
+                                                    <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center text-xs font-semibold text-[color:var(--text-secondary)]", pageInsetSurfaceClass)}>
                                                         {getInitials(payment.studentName)}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="truncate font-medium text-white">{payment.studentName}</p>
+                                                        <p className="truncate font-medium text-[color:var(--text-primary)]">{payment.studentName}</p>
                                                         <p className="text-xs text-rose-300">
                                                             {overdueDays === 0 ? "Due today" : `${overdueDays} days overdue`}
                                                         </p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-gray-300">{formatDueDate(payment.dueDate)}</td>
-                                            <td className="px-4 py-3 text-gray-400">
+                                            <td className="px-4 py-3 text-[color:var(--text-secondary)]">{formatDueDate(payment.dueDate)}</td>
+                                            <td className="px-4 py-3 text-[color:var(--text-secondary)]">
                                                 {payment.phone ? (
                                                     <span className="inline-flex items-center gap-1.5">
                                                         <Phone size={12} />
@@ -112,7 +121,7 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
                                                     "Not added"
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-right font-semibold text-white">{formatMoney(payment.amount)}</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</td>
                                         </tr>
                                     );
                                 })}
@@ -120,7 +129,7 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
                         </table>
                     </div>
 
-                    <div className="divide-y divide-white/10 md:hidden">
+                    <div className={cn("divide-y md:hidden", pageSectionDividerClass)}>
                         {shown.map((payment) => {
                             const overdueDays = daysPastDue(payment.dueDate);
 
@@ -128,13 +137,13 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
                                 <div key={payment.paymentId} className="px-4 py-3">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
-                                            <p className="truncate text-sm font-medium text-white">{payment.studentName}</p>
+                                            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{payment.studentName}</p>
                                             <p className="mt-1 text-xs text-rose-300">
                                                 {overdueDays === 0 ? "Due today" : `${overdueDays} days overdue`}
                                             </p>
-                                            <p className="mt-1 text-xs text-gray-500">{payment.phone ?? "Phone not added"}</p>
+                                            <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{payment.phone ?? "Phone not added"}</p>
                                         </div>
-                                        <p className="shrink-0 text-sm font-semibold text-white">{formatMoney(payment.amount)}</p>
+                                        <p className="shrink-0 text-sm font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</p>
                                     </div>
                                 </div>
                             );
@@ -145,7 +154,7 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
                         <button
                             type="button"
                             onClick={() => router.push(`/branch/${branchId}/payments`)}
-                            className="flex w-full items-center justify-center gap-1.5 border-t border-white/10 px-4 py-3 text-xs font-medium text-gray-400 transition-colors hover:bg-white/[0.03] hover:text-white"
+                            className={cn("flex w-full items-center justify-center gap-1.5 border-t px-4 py-3 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)] hover:text-[color:var(--text-primary)]", pageSectionDividerClass)}
                         >
                             View {payments.length - shown.length} more overdue payments
                             <ArrowRight size={13} />
