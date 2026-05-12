@@ -3,7 +3,7 @@
 import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { AppButton, PageShell } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import {
@@ -19,15 +19,20 @@ import {
 } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
+    pageDescriptionClass,
+    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
     pageFilterShellClass,
     pageGridCardClass,
     pageGridCardHoverClass,
+    pageInsetMetricClass,
     pageInsetSurfaceClass,
+    pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
+    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
@@ -211,6 +216,9 @@ function PaymentsContent({
         if (activeTab === "WAIVED") return item.status === "WAIVED";
         return true;
     });
+    const dueCount = data.filter(i => i.status === "DUE").length;
+    const paidCount = data.filter(i => i.status === "PAID").length;
+    const waivedCount = data.filter(i => i.status === "WAIVED").length;
 
     const isCurrentMonth = (date: Date) => format(date, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
@@ -269,10 +277,11 @@ function PaymentsContent({
     const renderPaymentActions = (item: PaymentRow) => (
         <div className="flex flex-wrap items-center justify-end gap-2">
             {(item.status === "PAID" || item.status === "WAIVED") && (
-                <Button
-                    variant="ghost"
+                <AppButton
+                    variant="quiet"
                     size="sm"
-                    className={cn("gap-1.5 text-xs", pageSubtleTextClass)}
+                    icon={History}
+                    className={cn("text-xs", pageSubtleTextClass)}
                     onClick={() =>
                         setAuditLog({
                             paymentId: item.id,
@@ -280,22 +289,22 @@ function PaymentsContent({
                         })
                     }
                 >
-                    <History size={13} />
                     History
-                </Button>
+                </AppButton>
             )}
 
             {item.status === "DUE" && (canMarkPaid || canWaivePayments) && (
                 <>
                     {canMarkPaid && (
-                        <Button
-                            variant="outline"
+                        <AppButton
+                            variant="secondary"
                             size="sm"
-                            className="gap-2 text-xs border-green-500/50 text-green-400 hover:bg-green-500/10"
+                            icon={Check}
+                            className="text-xs"
                             onClick={() => handleMarkPaid(item.id)}
                         >
-                            <Check size={14} /> Mark Paid
-                        </Button>
+                            Mark paid
+                        </AppButton>
                     )}
 
                     {canWaivePayments && (
@@ -318,38 +327,39 @@ function PaymentsContent({
                 <AlertCircle className={pageErrorIconClass} />
                 <h2 className="text-xl font-semibold">Something went wrong</h2>
                 <p className={pageMutedTextClass}>{error}</p>
-                <Button variant="outline" onClick={() => router.push("/org")}>
-                    <ArrowLeft size={16} className="mr-2" />
-                    Back to Workspace
-                </Button>
+                <AppButton variant="secondary" icon={ArrowLeft} onClick={() => router.push("/org")}>
+                    Back to workspace
+                </AppButton>
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Payment History</h1>
-                    <p className="text-textSecondary">Track incoming revenue and pending dues.</p>
+        <PageShell>
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <p className={pageEyebrowClass}>Branch payments</p>
+                    <h1 className={cn(pageTitleClass, "mt-2")}>Payment history</h1>
+                    <p className={pageDescriptionClass}>
+                        Review dues, record collections, and keep waived payments separate from active follow-up.
+                    </p>
                 </div>
 
-                {/* Month Selector */}
                 <div className={cn("flex w-full items-center justify-between gap-2 p-2 sm:w-auto sm:gap-4", pageFilterShellClass)}>
-                    <Button variant="ghost" size="icon" onClick={() => handleMonthChange("prev")}>
-                        <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <div className="text-center min-w-[120px]">
-                        <div className="font-semibold text-white">{format(currentDate, "MMMM yyyy")}</div>
+                    <AppButton variant="quiet" size="icon" onClick={() => handleMonthChange("prev")} aria-label="Previous month">
+                        <ChevronLeft className="h-4 w-4" />
+                    </AppButton>
+                    <div className="min-w-[132px] text-center">
+                        <div className="font-semibold text-[color:var(--text-primary)]">{format(currentDate, "MMMM yyyy")}</div>
                         {isCurrentMonth(currentDate) && (
-                            <div className="text-xs text-brand-400 font-medium">Current Month</div>
+                            <div className="text-xs font-medium text-[color:var(--ui-form-accent)]">Current month</div>
                         )}
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleMonthChange("next")}>
-                        <ChevronRight className="w-4 h-4" />
-                    </Button>
+                    <AppButton variant="quiet" size="icon" onClick={() => handleMonthChange("next")} aria-label="Next month">
+                        <ChevronRight className="h-4 w-4" />
+                    </AppButton>
                 </div>
-            </div>
+            </header>
 
             {/* Auto-generation banner */}
             {newlyGenerated !== null && newlyGenerated > 0 && (
@@ -365,61 +375,37 @@ function PaymentsContent({
                 </div>
             )}
 
-            {/* Tabs */}
             <div className={cn("flex flex-col gap-3 border-b pb-2 sm:flex-row sm:items-center sm:justify-between", pageSectionDividerClass)}>
                 <div className="flex max-w-full items-center gap-2 overflow-x-auto">
-                    <button
+                    <PaymentTabButton
+                        label="Due"
+                        count={dueCount}
+                        active={activeTab === "DUE"}
+                        tone="warning"
                         onClick={() => setActiveTab("DUE")}
-                        aria-current={activeTab === "DUE" ? "page" : undefined}
-                        className={cn(
-                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-                            activeTab === "DUE"
-                                ? "border-amber-500 bg-amber-500/5 text-amber-400"
-                                : "border-transparent text-textSecondary hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
-                        )}
-                    >
-                        {activeTab === "DUE" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.65)]" />}
-                        Due Payments
-                        {data.filter(i => i.status === "DUE").length > 0 && (
-                            <span className={pageCountBadgeClass}>
-                                {data.filter(i => i.status === "DUE").length}
-                            </span>
-                        )}
-                    </button>
-                    <button
+                    />
+                    <PaymentTabButton
+                        label="Paid"
+                        count={paidCount}
+                        active={activeTab === "PAID"}
+                        tone="success"
                         onClick={() => setActiveTab("PAID")}
-                        aria-current={activeTab === "PAID" ? "page" : undefined}
-                        className={cn(
-                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-                            activeTab === "PAID"
-                                ? "border-green-500 bg-green-500/5 text-green-400"
-                                : "border-transparent text-textSecondary hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
-                        )}
-                    >
-                        {activeTab === "PAID" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.65)]" />}
-                        Paid History
-                    </button>
-                    <button
+                    />
+                    <PaymentTabButton
+                        label="Waived"
+                        count={waivedCount}
+                        active={activeTab === "WAIVED"}
+                        tone="neutral"
                         onClick={() => setActiveTab("WAIVED")}
-                        aria-current={activeTab === "WAIVED" ? "page" : undefined}
-                        className={cn(
-                            "inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-                            activeTab === "WAIVED"
-                                ? "border-violet-500 bg-violet-500/5 text-violet-300"
-                                : "border-transparent text-textSecondary hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
-                        )}
-                    >
-                        {activeTab === "WAIVED" && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_8px_rgba(196,181,253,0.5)]" />}
-                        Waived History
-                    </button>
+                    />
                 </div>
 
                 <ViewToggle value={viewMode} onChange={setViewMode} className="hidden md:inline-flex" />
             </div>
 
             {loading ? (
-                <div className="py-20 flex items-center justify-center text-white">
-                    <Loader2 className="animate-spin mr-2" /> Loading payments...
+                <div className={pageLoadingStateClass}>
+                    <Loader2 className="mr-2 animate-spin" /> Loading payments...
                 </div>
             ) : (
                 <DataTable
@@ -430,26 +416,26 @@ function PaymentsContent({
                         <div className={cn("relative flex min-h-[245px] flex-col", pageGridCardClass, pageGridCardHoverClass)}>
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <div className="font-mono text-xs text-textMuted">#{item.id.slice(-6)}</div>
-                                    <div className="mt-1 truncate font-medium text-white">{item.student?.name || "Unknown"}</div>
-                                    <div className="truncate text-xs text-textSecondary">{item.student?.phone || "No phone"}</div>
+                                    <div className={cn("font-mono text-xs", pageSubtleTextClass)}>#{item.id.slice(-6)}</div>
+                                    <div className="mt-1 truncate font-medium text-[color:var(--text-primary)]">{item.student?.name || "Unknown"}</div>
+                                    <div className={cn("truncate text-xs", pageMutedTextClass)}>{item.student?.phone || "No phone"}</div>
                                 </div>
                                 <div className="flex-shrink-0">{renderPaymentStatus(item)}</div>
                             </div>
 
                             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                <div className={cn("p-3", pageInsetSurfaceClass)}>
-                                    <div className="text-xs text-textMuted">Amount</div>
-                                    <div className="mt-1 truncate font-bold text-white">{formatPaymentAmount(item.amount)}</div>
+                                <div className={pageInsetMetricClass}>
+                                    <div className={cn("text-xs", pageSubtleTextClass)}>Amount</div>
+                                    <div className="mt-1 truncate font-semibold text-[color:var(--text-primary)]">{formatPaymentAmount(item.amount)}</div>
                                 </div>
-                                <div className={cn("p-3", pageInsetSurfaceClass)}>
-                                    <div className="text-xs text-textMuted">Method</div>
+                                <div className={pageInsetMetricClass}>
+                                    <div className={cn("text-xs", pageSubtleTextClass)}>Method</div>
                                     <div className="mt-1">{renderPaymentMethod(item)}</div>
                                 </div>
                             </div>
 
                             <div className={cn("mt-3 p-3 text-sm", pageInsetSurfaceClass)}>
-                                <div className="mb-1 text-xs text-textMuted">Due Date</div>
+                                <div className={cn("mb-1 text-xs", pageSubtleTextClass)}>Due date</div>
                                 {renderDueDate(item)}
                             </div>
 
@@ -464,8 +450,8 @@ function PaymentsContent({
                             header: "Student",
                             accessor: (item) => (
                                 <div>
-                                    <div className="text-white font-medium">{item.student?.name || "Unknown"}</div>
-                                    <div className="text-xs text-textSecondary">{item.student?.phone}</div>
+                                    <div className="font-medium text-[color:var(--text-primary)]">{item.student?.name || "Unknown"}</div>
+                                    <div className={cn("text-xs", pageMutedTextClass)}>{item.student?.phone}</div>
                                 </div>
                             )
                         },
@@ -476,7 +462,7 @@ function PaymentsContent({
                         {
                             header: "Amount",
                             accessor: (item) => (
-                                <span className="font-bold text-white">
+                                <span className="font-semibold text-[color:var(--text-primary)]">
                                     {formatPaymentAmount(item.amount)}
                                 </span>
                             )
@@ -489,7 +475,7 @@ function PaymentsContent({
                             header: "Method",
                             accessor: (item) => {
                                 const m = item.paymentMethod ?? null;
-                                if (!m) return <span className="text-textSecondary text-xs">—</span>;
+                                if (!m) return <span className={cn("text-xs", pageMutedTextClass)}>-</span>;
                                 const map = {
                                     CASH: { label: "Cash", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
                                     UPI:  { label: "UPI",  cls: "text-blue-400  bg-blue-500/10  border-blue-500/20"  },
@@ -536,7 +522,7 @@ function PaymentsContent({
                 paymentId={auditLog?.paymentId ?? ""}
                 studentName={auditLog?.studentName ?? ""}
             />
-        </div>
+        </PageShell>
     );
 }
 
@@ -559,6 +545,50 @@ function RowDropdown({ onWaive }: { onWaive: () => void }) {
 }
 
 // ─── Mark Paid Dialog ─────────────────────────────────────────────────────────
+
+function PaymentTabButton({
+    label,
+    count,
+    active,
+    tone,
+    onClick,
+}: {
+    label: string;
+    count: number;
+    active: boolean;
+    tone: "warning" | "success" | "neutral";
+    onClick: () => void;
+}) {
+    const activeClass = {
+        warning: "border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] text-[color:var(--ui-badge-warning-text)]",
+        success: "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]",
+        neutral: "border-[color:var(--ui-badge-purple-border)] bg-[color:var(--ui-badge-purple-bg)] text-[color:var(--ui-badge-purple-text)]",
+    }[tone];
+
+    const dotClass = {
+        warning: "bg-[color:var(--ui-tone-warning-progress)]",
+        success: "bg-[color:var(--ui-tone-success-progress)]",
+        neutral: "bg-[color:var(--ui-badge-purple-text)]",
+    }[tone];
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+                "inline-flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-medium transition-colors",
+                active
+                    ? activeClass
+                    : "border-transparent text-[color:var(--text-secondary)] hover:border-[color:var(--ui-form-surface-border)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
+            )}
+        >
+            {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClass)} />}
+            {label}
+            {count > 0 && <span className={pageCountBadgeClass}>{count}</span>}
+        </button>
+    );
+}
 
 type PayMethod = "CASH" | "UPI" | "BANK_TRANSFER";
 
@@ -622,15 +652,15 @@ function MarkPaidDialog({
                             key={opt.value}
                             onClick={() => onMethodChange(opt.value)}
                             className={cn(
-                                "w-full flex items-center gap-3 rounded-[var(--ui-radius-control)] border px-4 py-3 text-left transition-all",
+                                "flex w-full cursor-pointer items-center gap-3 rounded-[var(--ui-radius-control)] border px-4 py-3 text-left transition-all",
                                 method === opt.value
-                                    ? "border-green-500/50 bg-green-500/10 text-white"
+                                    ? "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--text-primary)]"
                                     : cn("text-[color:var(--ui-form-label)]", formSurfaceClass, formSurfaceHoverClass)
                             )}
                         >
                             <span className={cn(
                                 "shrink-0",
-                                method === opt.value ? "text-green-400" : formIconClass
+                                method === opt.value ? "text-[color:var(--ui-tone-success-text)]" : formIconClass
                             )}>
                                 {opt.icon}
                             </span>
@@ -639,7 +669,7 @@ function MarkPaidDialog({
                                 <span className={cn("block text-[11px]", formHelpTextClass)}>{opt.sublabel}</span>
                             </span>
                             {method === opt.value && (
-                                <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--ui-tone-success-progress)]" />
                             )}
                         </button>
                     ))}
@@ -661,17 +691,17 @@ function MarkPaidDialog({
 
                 {/* Footer */}
                 <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
-                    <Button variant="ghost" onClick={onClose} disabled={loading}>
+                    <AppButton variant="quiet" onClick={onClose} disabled={loading}>
                         Cancel
-                    </Button>
-                    <Button
-                        variant="cyan"
+                    </AppButton>
+                    <AppButton
+                        variant="primary"
                         onClick={onConfirm}
                         isLoading={loading}
-                        className="bg-green-600 hover:bg-green-500 text-white border-green-500"
+                        icon={Check}
                     >
-                        <Check size={14} className="mr-1.5" /> Confirm Payment
-                    </Button>
+                        Confirm payment
+                    </AppButton>
                 </div>
             </div>
         </div>
