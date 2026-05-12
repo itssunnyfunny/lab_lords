@@ -19,7 +19,7 @@ export function FieldError({
     if (!error) return null;
 
     return (
-        <p id={id} className={cn("mt-1.5 flex items-start gap-1.5 text-xs text-red-400", className)}>
+        <p id={id} className={cn("mt-1.5 flex items-start gap-1.5 text-xs text-[color:var(--ui-form-error-text)]", className)}>
             <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
             <span>{error}</span>
         </p>
@@ -28,7 +28,7 @@ export function FieldError({
 
 export function fieldErrorClass(error?: string | null) {
     return error
-        ? "border-red-500/60 focus:border-red-400/70 focus:ring-red-500/20"
+        ? "border-[color:var(--ui-form-error-border)] focus:border-[color:var(--ui-form-error-focus-border)] focus:ring-[color:var(--ui-form-error-ring)]"
         : "";
 }
 

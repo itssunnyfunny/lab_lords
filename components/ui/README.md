@@ -7,6 +7,7 @@ This folder is the central home for shared product UI primitives.
 - Use `AppButton` for new product actions.
 - Use `AppPanel` for framed operational surfaces.
 - Use `PageShell` for app pages that need the standard max width, spacing, and text color.
+- Use `formSurface.ts` helpers for dialog shells, labels, inputs, checkboxes, inline errors, and form sub-surfaces.
 
 ## Design source
 
@@ -15,3 +16,4 @@ This folder is the central home for shared product UI primitives.
 - Page code should prefer composing these primitives over repeating one-off Tailwind color and surface recipes.
 
 Existing `Button`, `Card`, `Badge`, dialog, and menu primitives are token-backed compatibility components while pages are migrated gradually. `Button` intentionally shares the same visual language as `AppButton`.
+Form-heavy pages and dialogs should compose `formSurface.ts` helpers so app-wide form tone can be changed from the token file instead of editing every page.
