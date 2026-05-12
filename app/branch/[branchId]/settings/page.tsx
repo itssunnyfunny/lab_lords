@@ -21,22 +21,34 @@ import {
     Shield,
     Users,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { AppButton } from "@/components/ui";
+import { Badge } from "@/components/ui/Badge";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     ReadOnlyRow,
     SegmentedControl,
+    SettingsCard,
+    SettingsEmptyState,
     SettingsField,
     SettingsInput,
     SettingsPanel,
     SettingsSaveBar,
     SettingsSelect,
+    SettingsSubtleText,
     SettingsTextArea,
     SettingsToggle,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
+import { cn } from "@/lib/utils";
+import { formWarningBannerClass } from "@/components/ui/formSurface";
+import {
+    pageErrorIconClass,
+    pageErrorStateClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+} from "@/components/ui/pageSurface";
 import {
     FORM_LIMITS,
     parseIntegerField,
@@ -317,21 +329,19 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
 
     if (loading) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center text-white">
-                <Loader2 className="mr-3 animate-spin text-cyan-400" />
-                <span className="text-gray-400">Loading branch settings...</span>
+            <div className={pageLoadingStateClass}>
+                <Loader2 className="mr-2 animate-spin" size={20} />
+                Loading branch settings...
             </div>
         );
     }
 
     if (fetchError || !branch || !form) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center text-white">
-                <div className="space-y-4 text-center">
-                    <AlertCircle className="mx-auto text-red-400" size={38} />
-                    <p className="text-gray-400">{fetchError || "Branch not found."}</p>
-                    <Button variant="outline" onClick={() => router.back()}>Back</Button>
-                </div>
+            <div className={pageErrorStateClass}>
+                <AlertCircle className={pageErrorIconClass} />
+                <p className={pageMutedTextClass}>{fetchError || "Branch not found."}</p>
+                <AppButton variant="secondary" onClick={() => router.back()}>Back</AppButton>
             </div>
         );
     }
@@ -413,7 +423,7 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
                     </SettingsField>
                     {!form.aiEnabled && (
                         <div className="px-5 py-4">
-                            <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                            <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
                                 AI is off for this branch. Existing reports remain visible, but new generation is blocked.
                             </div>
                         </div>
@@ -424,22 +434,22 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
                     <ReadOnlyRow label="Staff members" value={counts.staff} />
                     <div className="grid gap-2 px-5 py-4 md:grid-cols-2">
                         {staff.map(member => (
-                            <div key={member.id} className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
+                            <SettingsCard key={member.id}>
                                 <div className="flex items-center justify-between gap-3">
-                                    <span className="truncate text-sm font-medium text-white">{member.user?.name || member.user?.email || member.user?.id}</span>
-                                    <span className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-xs text-cyan-300">{member.role}</span>
+                                    <span className="truncate text-sm font-medium text-[color:var(--text-primary)]">{member.user?.name || member.user?.email || member.user?.id}</span>
+                                    <Badge variant="cyan">{member.role}</Badge>
                                 </div>
-                                <p className="mt-1 truncate text-xs text-gray-500">{member.user?.email || "No email"}</p>
-                            </div>
+                                <SettingsSubtleText className="mt-1 truncate">{member.user?.email || "No email"}</SettingsSubtleText>
+                            </SettingsCard>
                         ))}
                         {staff.length === 0 && (
-                            <div className="rounded-lg border border-dashed border-white/10 p-6 text-center text-sm text-gray-500">No staff records found.</div>
+                            <SettingsEmptyState>No staff records found.</SettingsEmptyState>
                         )}
                     </div>
                     <div className="px-5 pb-4">
-                        <Button variant="outline" size="sm" onClick={() => router.push(`/branch/${branchId}/staff`)}>
-                            Manage Staff
-                        </Button>
+                        <AppButton variant="secondary" size="sm" onClick={() => router.push(`/branch/${branchId}/staff`)}>
+                            Manage staff
+                        </AppButton>
                     </div>
                 </SettingsPanel>
 
@@ -449,25 +459,25 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
                     <ReadOnlyRow label="Created" value={<span className="inline-flex items-center gap-2"><Calendar size={14} />{format(new Date(branch.createdAt), "PPP")}</span>} />
                     <ReadOnlyRow label="Last data change" value={format(new Date(branch.lastDataChange), "PPp")} />
                     <div className="px-5 py-4">
-                        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
-                            <CalendarClock size={15} className="text-cyan-300" />
+                        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
+                            <CalendarClock size={15} className="text-[color:var(--ui-form-accent)]" />
                             Active shifts
                         </div>
                         <div className="grid gap-2 md:grid-cols-2">
                             {shifts.length === 0 ? (
-                                <div className="rounded-lg border border-dashed border-white/10 p-5 text-center text-sm text-gray-500">No active shifts.</div>
+                                <SettingsEmptyState>No active shifts.</SettingsEmptyState>
                             ) : shifts.map(shift => (
-                                <div key={shift.id} className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
+                                <SettingsCard key={shift.id}>
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="text-sm font-medium text-white">{shift.name}</span>
-                                        <span className="text-xs text-emerald-300">Rs {shift.price.toLocaleString("en-IN")}</span>
+                                        <span className="text-sm font-medium text-[color:var(--text-primary)]">{shift.name}</span>
+                                        <span className="text-xs text-[color:var(--ui-tone-success-text)]">Rs {shift.price.toLocaleString("en-IN")}</span>
                                     </div>
-                                    <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                                    <p className="mt-1 flex items-center gap-1 text-xs text-[color:var(--text-muted)]">
                                         <Clock size={11} />
                                         {shift.startTime && shift.endTime ? `${shift.startTime} - ${shift.endTime}` : "Flexible"}
                                         {shift.isReserved ? " / Reserved" : ""}
                                     </p>
-                                </div>
+                                </SettingsCard>
                             ))}
                         </div>
                     </div>

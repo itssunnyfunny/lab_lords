@@ -18,19 +18,28 @@ import {
     Phone,
     Shield,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { AppButton } from "@/components/ui";
 import {
     ReadOnlyRow,
     SegmentedControl,
+    SettingsCard,
+    SettingsEmptyState,
     SettingsField,
     SettingsInput,
     SettingsPanel,
     SettingsSaveBar,
     SettingsSelect,
+    SettingsSubtleText,
     SettingsTextArea,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
+import {
+    pageErrorIconClass,
+    pageErrorStateClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+} from "@/components/ui/pageSurface";
 import {
     parseIntegerField,
     validateOptionalEmail,
@@ -270,21 +279,19 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
 
     if (loading) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center text-white">
-                <Loader2 className="mr-3 animate-spin text-cyan-400" />
-                <span className="text-gray-400">Loading organization settings...</span>
+            <div className={pageLoadingStateClass}>
+                <Loader2 className="mr-2 animate-spin" size={20} />
+                Loading organization settings...
             </div>
         );
     }
 
     if (fetchError || !org || !form) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center text-white">
-                <div className="space-y-4 text-center">
-                    <AlertCircle className="mx-auto text-red-400" size={38} />
-                    <p className="text-gray-400">{fetchError || "Organization not found."}</p>
-                    <Button variant="outline" onClick={() => router.back()}>Back</Button>
-                </div>
+            <div className={pageErrorStateClass}>
+                <AlertCircle className={pageErrorIconClass} />
+                <p className={pageMutedTextClass}>{fetchError || "Organization not found."}</p>
+                <AppButton variant="secondary" onClick={() => router.back()}>Back</AppButton>
             </div>
         );
     }
@@ -357,19 +364,20 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
                     <ReadOnlyRow label="Total branches" value={org._count.branches} />
                     <div className="grid gap-2 px-5 py-4 md:grid-cols-2">
                         {org.branches.length === 0 ? (
-                            <div className="rounded-lg border border-dashed border-white/10 p-6 text-center text-sm text-gray-500">No branches yet.</div>
+                            <SettingsEmptyState>No branches yet.</SettingsEmptyState>
                         ) : org.branches.map(branch => (
-                            <button
+                            <SettingsCard
                                 key={branch.id}
                                 onClick={() => router.push(`/branch/${branch.id}/settings`)}
-                                className="rounded-lg border border-white/8 bg-white/[0.03] p-3 text-left transition-colors hover:border-cyan-500/30 hover:bg-white/[0.05]"
                             >
-                                <div className="flex items-center gap-2 text-sm font-medium text-white">
-                                    <GitBranch size={14} className="text-cyan-300" />
+                                <div className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
+                                    <GitBranch size={14} className="text-[color:var(--ui-form-accent)]" />
                                     {branch.name}
                                 </div>
-                                <p className="mt-1 text-xs text-gray-500">{branch.city || "No city set"} / {format(new Date(branch.createdAt), "PP")}</p>
-                            </button>
+                                <SettingsSubtleText className="mt-1">
+                                    {branch.city || "No city set"} / {format(new Date(branch.createdAt), "PP")}
+                                </SettingsSubtleText>
+                            </SettingsCard>
                         ))}
                     </div>
                 </SettingsPanel>
