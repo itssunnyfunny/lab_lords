@@ -1,16 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { type ComponentType, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { AllocationsTable } from "@/components/allocations/AllocationsTable";
 import { AllocateSeatDialog } from "@/components/allocations/AllocateSeatDialog";
 import { UpdateAllocationDialog } from "@/components/allocations/UpdateAllocationDialog";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { useDataViewMode } from "@/hooks/useDataViewMode";
+import { AppButton, PageShell } from "@/components/ui";
+import {
+    pageCountBadgeClass,
+    pageEmptyStateClass,
+    pageErrorIconClass,
+    pageErrorStateClass,
+    pageInsetSurfaceClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+    pageSectionDividerClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
+import { cn } from "@/lib/utils";
+import { AlertCircle, ArrowRightLeft, CalendarCheck, Loader2, UserPlus, Users } from "lucide-react";
 
 interface AllocationRow {
     id: string;
@@ -134,70 +146,107 @@ function AllocationsContent({ branchId }: { branchId: string }) {
         }
     };
 
-    if (loading) return <div className="p-4 md:p-8 text-zinc-400">Loading allocations...</div>;
-    if (error) return <div className="p-4 md:p-8 text-red-500">Error: {error}</div>;
+    const allocationCounts = useMemo(() => {
+        const active = allocations.filter(alloc => !alloc.endDate).length;
+        const ended = allocations.length - active;
+        const multiShift = allocations.filter(alloc => alloc.multiShiftId || alloc.multiShift).length;
+        return { active, ended, multiShift };
+    }, [allocations]);
+
+    if (loading) return (
+        <div className={pageLoadingStateClass}>
+            <Loader2 className="mr-2 animate-spin" />
+            Loading allocations...
+        </div>
+    );
+
+    if (error) return (
+        <div className={pageErrorStateClass}>
+            <AlertCircle className={pageErrorIconClass} />
+            <h2 className="text-xl font-semibold">Allocations did not load</h2>
+            <p className={pageMutedTextClass}>{error}</p>
+            <AppButton variant="secondary" onClick={() => fetchAllocations()}>
+                Try again
+            </AppButton>
+        </div>
+    );
 
     const filteredAllocations = allocations.filter(alloc => 
         activeTab === "ACTIVE" ? !alloc.endDate : !!alloc.endDate
     );
 
     return (
-        <div className="p-4 md:p-8 space-y-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-2xl font-semibold text-white">Seat Allocations</h1>
-                    <p className="text-zinc-400 mt-1">Manage student seat assignments</p>
+        <div className="p-4 md:p-8">
+            <PageShell>
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">Seat Allocations</h1>
+                    <p className={cn("mt-2 max-w-2xl text-sm leading-6", pageMutedTextClass)}>
+                        Assign students to seats and keep active or ended allocation history easy to scan.
+                    </p>
                 </div>
-                <Button onClick={() => setIsDialogOpen(true)}>+ Allocate Seat</Button>
-            </div>
 
-            <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-center md:justify-end">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                    <div className="flex items-center gap-2">
-                        {(["ACTIVE", "ENDED"] as const).map(tab => {
-                            const active = activeTab === tab;
-                            const selectedClassName = tab === "ACTIVE"
-                                ? "border-cyan-500 bg-cyan-500/5 text-cyan-400"
-                                : "border-slate-500 bg-slate-500/5 text-slate-300";
-                            const dotClassName = tab === "ACTIVE"
-                                ? "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.65)]"
-                                : "bg-slate-300 shadow-[0_0_8px_rgba(203,213,225,0.35)]";
+                <AppButton variant="primary" icon={UserPlus} onClick={() => setIsDialogOpen(true)}>
+                    Allocate Seat
+                </AppButton>
+            </header>
 
-                            return (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    aria-current={active ? "page" : undefined}
-                                    className={`inline-flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                                        active
-                                            ? selectedClassName
-                                            : "border-transparent text-zinc-400 hover:bg-white/[0.03] hover:text-zinc-200"
-                                    }`}
-                                >
-                                    {active && <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dotClassName}`} />}
-                                    {tab === "ACTIVE" ? "Active" : "Ended"} Allocations
-                                    <span className="bg-white/10 text-white px-2 py-0.5 rounded-full text-xs">
-                                        {allocations.filter(a => tab === "ACTIVE" ? !a.endDate : !!a.endDate).length}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
+            <section className="grid gap-3 sm:grid-cols-3">
+                <AllocationMetric icon={Users} label="Active" value={allocationCounts.active} detail="Current seat assignments" tone="success" />
+                <AllocationMetric icon={CalendarCheck} label="Ended" value={allocationCounts.ended} detail="Historical allocations" tone="neutral" />
+                <AllocationMetric icon={ArrowRightLeft} label="Multi-shift" value={allocationCounts.multiShift} detail="Linked shift assignments" tone="info" />
+            </section>
 
-                    <ViewToggle value={viewMode} onChange={setViewMode} className="hidden md:inline-flex" />
+            <div className={cn("flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between", pageSectionDividerClass)}>
+                <div className="flex max-w-full items-center gap-2 overflow-x-auto">
+                    {(["ACTIVE", "ENDED"] as const).map(tab => {
+                        const active = activeTab === tab;
+                        const count = tab === "ACTIVE" ? allocationCounts.active : allocationCounts.ended;
+                        const selectedClassName = tab === "ACTIVE"
+                            ? "border-cyan-500 bg-cyan-500/5 text-cyan-300"
+                            : "border-slate-500 bg-slate-500/5 text-slate-300";
+                        const dotClassName = tab === "ACTIVE"
+                            ? "bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.65)]"
+                            : "bg-slate-300 shadow-[0_0_8px_rgba(203,213,225,0.35)]";
+
+                        return (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                aria-current={active ? "page" : undefined}
+                                className={cn(
+                                    "inline-flex items-center gap-2 whitespace-nowrap rounded-t-md border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+                                    active ? selectedClassName : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
+                                )}
+                            >
+                                {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
+                                {tab === "ACTIVE" ? "Active" : "Ended"} Allocations
+                                <span className={pageCountBadgeClass}>{count}</span>
+                            </button>
+                        );
+                    })}
                 </div>
+
+                <ViewToggle value={viewMode} onChange={setViewMode} className="hidden md:inline-flex" />
             </div>
 
             {filteredAllocations.length === 0 ? (
-                <EmptyState
-                    title={`No ${activeTab === "ACTIVE" ? "Active" : "Ended"} Allocations`}
-                    description={
-                        activeTab === "ACTIVE" 
-                            ? "No seats are currently allocated. Use Allocate Seat to assign students to seats."
-                            : "No ended allocations found."
-                    }
-                    actionScript={activeTab === "ACTIVE" ? <Button onClick={() => setIsDialogOpen(true)}>Allocate Seat</Button> : undefined}
-                />
+                <div className={pageEmptyStateClass}>
+                    <Users size={34} className="mb-4 opacity-60" />
+                    <h2 className="text-lg font-semibold text-white">
+                        No {activeTab === "ACTIVE" ? "active" : "ended"} allocations
+                    </h2>
+                    <p className={cn("mt-2 max-w-md text-sm", pageMutedTextClass)}>
+                        {activeTab === "ACTIVE"
+                            ? "No seats are currently allocated. Assign a student to a seat when they are ready to start."
+                            : "Ended allocations will appear here after seats are released."}
+                    </p>
+                    {activeTab === "ACTIVE" && (
+                        <AppButton className="mt-5" variant="primary" icon={UserPlus} onClick={() => setIsDialogOpen(true)}>
+                            Allocate Seat
+                        </AppButton>
+                    )}
+                </div>
             ) : (
                 <AllocationsTable
                     allocations={filteredAllocations}
@@ -242,6 +291,40 @@ function AllocationsContent({ branchId }: { branchId: string }) {
                     }}
                 />
             )}
+            </PageShell>
+        </div>
+    );
+}
+
+function AllocationMetric({
+    icon: Icon,
+    label,
+    value,
+    detail,
+    tone,
+}: {
+    icon: ComponentType<{ size?: number; className?: string }>;
+    label: string;
+    value: number;
+    detail: string;
+    tone: "success" | "neutral" | "info";
+}) {
+    const toneClass = tone === "success"
+        ? "text-[color:var(--ui-tone-success-text)]"
+        : tone === "info"
+            ? "text-[color:var(--ui-tone-info-text)]"
+            : "text-[color:var(--text-primary)]";
+
+    return (
+        <div className={cn("flex items-start gap-3 p-4", pageInsetSurfaceClass)}>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-muted-surface-bg)]">
+                <Icon size={17} className={toneClass} />
+            </div>
+            <div className="min-w-0">
+                <p className={cn("text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
+                <p className={cn("mt-1 text-2xl font-semibold tracking-tight", toneClass)}>{value}</p>
+                <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p>
+            </div>
         </div>
     );
 }
