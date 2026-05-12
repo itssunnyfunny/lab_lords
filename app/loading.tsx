@@ -1,7 +1,11 @@
+import { Loader2 } from "lucide-react";
+import { pageLoadingStateClass } from "@/components/ui/pageSurface";
+
 export default function Loading() {
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-[#0f172a]">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-indigo-500"></div>
+        <div className={pageLoadingStateClass}>
+            <Loader2 className="mr-2 animate-spin" size={20} />
+            Loading...
         </div>
     );
 }

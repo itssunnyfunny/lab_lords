@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { AppButton } from "@/components/ui";
+import { cn } from "@/lib/utils";
+import { formErrorBannerClass } from "@/components/ui/formSurface";
+import { entryPanelClass, entryRootClass, entrySubtitleClass, entryTitleClass } from "@/components/ui/entrySurface";
 
 export default function Error({
     error,
@@ -17,24 +19,23 @@ export default function Error({
     }, [error]);
 
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-[#0f172a] p-4">
-            <Card title="Something went wrong" className="w-full max-w-md border-red-900/50 bg-[#1e293b]">
-                <div className="p-6 space-y-4">
-                    <div className="bg-red-950/30 p-4 rounded-lg border border-red-900/50">
-                        <p className="text-red-400 text-sm font-mono break-words">
-                            {error.message || "An unexpected error occurred."}
-                        </p>
-                    </div>
-                    <div className="flex justify-end gap-3">
-                        <Button
-                            variant="primary"
-                            onClick={() => reset()}
-                        >
-                            Try again
-                        </Button>
-                    </div>
+        <div className={entryRootClass}>
+            <section className={cn(entryPanelClass, "w-full max-w-md p-5 sm:p-6")}>
+                <div className="space-y-2">
+                    <h1 className={entryTitleClass}>Something went wrong</h1>
+                    <p className={entrySubtitleClass}>The app hit an unexpected problem on this screen.</p>
                 </div>
-            </Card>
+                <div className={cn("mt-5 p-4", formErrorBannerClass)}>
+                    <p className="break-words font-mono text-sm">
+                        {error.message || "An unexpected error occurred."}
+                    </p>
+                </div>
+                <div className="mt-5 flex justify-end">
+                    <AppButton variant="primary" onClick={() => reset()}>
+                        Try again
+                    </AppButton>
+                </div>
+            </section>
         </div>
     );
 }

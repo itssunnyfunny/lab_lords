@@ -3,10 +3,17 @@
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { AppButton } from "@/components/ui";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
 import type { BranchAccess, StaffAction } from "@/types";
+import { cn } from "@/lib/utils";
+import {
+    pageErrorStateClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+} from "@/components/ui/pageSurface";
+import { entryIconFrameClass, entrySubtitleClass, entryTitleClass } from "@/components/ui/entrySurface";
 
 type BranchAccessGuardProps = {
     branchId: string | undefined;
@@ -18,9 +25,9 @@ type BranchAccessGuardProps = {
 
 export function BranchAccessLoading({ label = "Checking access..." }: { label?: string }) {
     return (
-        <div className="flex min-h-[60vh] items-center justify-center p-8 text-white" role="status">
-            <Loader2 className="mr-3 animate-spin text-cyan-400" />
-            <span className="text-sm text-gray-400">{label}</span>
+        <div className={pageLoadingStateClass} role="status">
+            <Loader2 className="mr-2 animate-spin" size={20} />
+            {label}
         </div>
     );
 }
@@ -37,22 +44,22 @@ export function BranchNoAccess({
     const router = useRouter();
 
     return (
-        <div className="flex min-h-[60vh] items-center justify-center p-8 text-white" role="alert">
+        <div className={pageErrorStateClass} role="alert">
             <div className="max-w-md space-y-5 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10">
-                    <ShieldAlert size={24} className="text-amber-300" />
+                <div className={cn(entryIconFrameClass, "mx-auto flex h-12 w-12 text-[color:var(--ui-form-warning-action-text)]")}>
+                    <ShieldAlert size={24} />
                 </div>
                 <div className="space-y-2">
-                    <h1 className="text-xl font-semibold text-white">{title}</h1>
-                    <p className="text-sm leading-6 text-gray-400">{description}</p>
+                    <h1 className={entryTitleClass}>{title}</h1>
+                    <p className={cn(entrySubtitleClass, pageMutedTextClass)}>{description}</p>
                 </div>
-                <Button
-                    variant="outline"
+                <AppButton
+                    variant="secondary"
                     icon={ArrowLeft}
                     onClick={() => router.push(branchId ? `/branch/${branchId}` : "/org")}
                 >
                     Back to dashboard
-                </Button>
+                </AppButton>
             </div>
         </div>
     );

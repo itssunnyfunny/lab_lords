@@ -13,6 +13,7 @@ import { LandingFeatures } from "@/components/landing/LandingFeatures";
 import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
 import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFooter } from "@/components/landing/LandingFooter";
+import { pageLoadingStateClass } from "@/components/ui/pageSurface";
 
 type LandingContentProps = {
   isLoaded: boolean;
@@ -50,9 +51,9 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
 
   if (isRedirecting) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-[#050508] text-white">
-        <Loader2 className="animate-spin mr-3 text-cyan-500" size={24} />
-        <span className="text-gray-400">Loading workspace...</span>
+      <div className={pageLoadingStateClass}>
+        <Loader2 className="mr-2 animate-spin" size={20} />
+        Loading workspace...
       </div>
     );
   }
