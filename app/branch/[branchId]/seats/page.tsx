@@ -16,13 +16,16 @@ import {
     formWarningBannerClass,
 } from "@/components/ui/formSurface";
 import {
+    pageDescriptionClass,
     pageEmptyStateClass,
+    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
     pageFilterShellClass,
     pageGridCardClass,
     pageGridCardHoverClass,
     pageInsetHoverClass,
+    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageLoadingStateClass,
     pageMutedTextClass,
@@ -32,6 +35,7 @@ import {
     pageTableHeadClass,
     pageTableRowClass,
     pageTableShellClass,
+    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import type { DataViewMode } from "@/components/tables/DataTable";
@@ -423,36 +427,34 @@ function SeatsContent({
     }
 
     return (
-        <div className="p-4 md:p-8">
-            <PageShell>
-                <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="min-w-0">
-                        <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                            Seats
-                        </h1>
-                        <p className={cn("mt-2 max-w-xl text-sm leading-6", pageMutedTextClass)}>
-                            Review seat availability by shift and manage active allocations.
-                        </p>
-                    </div>
+        <PageShell>
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <p className={pageEyebrowClass}>Seat map</p>
+                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>Seats</h1>
+                    <p className={pageDescriptionClass}>
+                        Review availability by shift and move straight into allocation work.
+                    </p>
+                </div>
 
-                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-                        <div className="relative min-w-0 sm:w-72">
-                            <Search className={cn("absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", pageSubtleTextClass)} />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
-                                placeholder="Search seat, student, shift..."
-                                className={cn(formControlClass, "h-10 pl-9 pr-3 text-sm")}
-                            />
-                        </div>
-                        {canManageBranch && (
-                            <AppButton variant="primary" icon={UserPlus} onClick={() => setIsAddModalOpen(true)} className="sm:w-auto">
-                                Add Seat
-                            </AppButton>
-                        )}
+                <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                    <div className="relative min-w-0 sm:w-72">
+                        <Search className={cn("absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", pageSubtleTextClass)} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Search seat, student, shift..."
+                            className={cn(formControlClass, "h-10 pl-9 pr-3 text-sm")}
+                        />
                     </div>
-                </header>
+                    {canManageBranch && (
+                        <AppButton variant="primary" icon={UserPlus} onClick={() => setIsAddModalOpen(true)} className="sm:w-auto">
+                            Add seat
+                        </AppButton>
+                    )}
+                </div>
+            </header>
 
             {!canManageBranch && (
                 <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
@@ -466,7 +468,7 @@ function SeatsContent({
                     <button
                         type="button"
                         onClick={() => setActionError(null)}
-                        className="transition-colors hover:text-white"
+                        className="transition-colors hover:text-[color:var(--text-primary)]"
                         aria-label="Dismiss error"
                     >
                         <X size={16} />
@@ -599,8 +601,7 @@ function SeatsContent({
                 loading={releaseLoading}
                 variant="warning"
             />
-            </PageShell>
-        </div>
+        </PageShell>
     );
 }
 
@@ -629,7 +630,7 @@ function ShiftFilterPanel({
         <div className="space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h2 className="text-sm font-semibold text-white">Shift scope</h2>
+                    <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">Shift scope</h2>
                     <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>Seat status is calculated inside the selected shift.</p>
                 </div>
                 <p className={cn("text-xs font-medium", pageMutedTextClass)}>{selectedLabel}</p>
@@ -709,22 +710,22 @@ function ShiftFilterChip({
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                "group min-w-[156px] rounded-[7px] border px-3 py-2 text-left transition-colors",
+                "group min-w-[156px] cursor-pointer rounded-[var(--ui-radius-control)] border px-3 py-2 text-left transition-colors",
                 active
                     ? cn(toneClasses.active, "shadow-sm shadow-black/20")
-                    : "border-transparent bg-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
+                    : "border-transparent bg-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
             )}
         >
             <div className="flex items-center gap-2">
                 <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", toneClasses.dot)} />
                 <div className="min-w-0 flex-1">
-                    <p className={cn("truncate text-sm font-semibold", active ? "text-white" : pageMutedTextClass)}>{label}</p>
+                    <p className={cn("truncate text-sm font-semibold", active ? "text-[color:var(--text-primary)]" : pageMutedTextClass)}>{label}</p>
                     <p className={cn("mt-0.5 truncate text-[11px]", pageSubtleTextClass)}>{sublabel}</p>
                 </div>
             </div>
             <p className={cn("mt-2 text-[11px] font-medium", active ? toneClasses.text : pageSubtleTextClass)}>
                 {count}
-                <span className="ml-1 text-gray-600">· {percent}%</span>
+                <span className="ml-1 text-[color:var(--text-muted)]">/ {percent}%</span>
             </p>
         </button>
     );
@@ -771,7 +772,7 @@ function SummaryMetric({
     tone: "neutral" | "success" | "warning" | "danger" | "info";
 }) {
     const valueClass = {
-        neutral: "text-white",
+        neutral: "text-[color:var(--text-primary)]",
         success: "text-emerald-200",
         warning: "text-amber-200",
         danger: "text-rose-200",
@@ -779,7 +780,7 @@ function SummaryMetric({
     }[tone];
 
     return (
-        <div className={cn("px-3 py-2.5", pageInsetSurfaceClass)}>
+        <div className={pageInsetMetricClass}>
             <p className={cn("text-[11px] font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
             <div className="mt-1 flex items-baseline justify-between gap-3">
                 <p className={cn("text-xl font-semibold tracking-tight", valueClass)}>{value}</p>
@@ -810,12 +811,12 @@ function StatusFilterChip({
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                "inline-flex h-8 items-center gap-2 rounded-[8px] border px-2.5 text-xs font-semibold transition-colors",
-                active ? tone : cn(pageInsetSurfaceClass, pageInsetHoverClass, "text-[color:var(--text-secondary)] hover:text-white")
+                "inline-flex h-8 cursor-pointer items-center gap-2 rounded-[var(--ui-radius-control)] border px-2.5 text-xs font-semibold transition-colors",
+                active ? tone : cn(pageInsetSurfaceClass, pageInsetHoverClass, "text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]")
             )}
         >
             {filter.label}
-            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-white">
+            <span className="rounded-full bg-[color:var(--ui-table-action-bg)] px-1.5 py-0.5 text-[10px] text-[color:var(--text-primary)]">
                 {filter.count}
             </span>
         </button>
@@ -860,14 +861,14 @@ function SeatGrid({
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="truncate text-base font-semibold text-white">{seat.label}</p>
+                                <p className="truncate text-base font-semibold text-[color:var(--text-primary)]">{seat.label}</p>
                                 <p className={cn("mt-1 truncate text-xs", pageSubtleTextClass)}>{shiftText}</p>
                             </div>
                             <SeatStatusBadge status={seat.status} />
                         </div>
 
                         <div className="mt-3 min-h-[42px] flex-1">
-                            <p className={cn("truncate text-sm font-medium", allocated ? "text-white" : "text-amber-100")}>
+                            <p className={cn("truncate text-sm font-medium", allocated ? "text-[color:var(--text-primary)]" : "text-[color:var(--ui-tone-warning-text)]")}>
                                 {allocated ? studentNames.join(", ") || "Student" : "Available"}
                             </p>
                             <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
@@ -930,11 +931,11 @@ function SeatList({
                                 <tr key={seat.id} className={pageTableRowClass}>
                                     <td className="px-5 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
+                                            <div className="flex h-9 w-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]">
                                                 <Armchair size={16} />
                                             </div>
                                             <div>
-                                                <p className="font-medium text-white">{seat.label}</p>
+                                                <p className="font-medium text-[color:var(--text-primary)]">{seat.label}</p>
                                                 <p className="text-xs text-textMuted">{seat.allocations.length} allocation{seat.allocations.length === 1 ? "" : "s"}</p>
                                             </div>
                                         </div>
@@ -992,7 +993,7 @@ function SeatEmptyState({
             <div className={cn("flex h-14 w-14 items-center justify-center", pageInsetSurfaceClass, pageMutedTextClass)}>
                 {hasSeats ? <SearchX size={24} /> : <Armchair size={24} />}
             </div>
-            <h3 className="mt-4 text-lg font-semibold text-white">
+            <h3 className="mt-4 text-lg font-semibold text-[color:var(--text-primary)]">
                 {hasSeats ? "No seats match this view" : "No seats yet"}
             </h3>
             <p className="mt-2 max-w-md text-sm text-textSecondary">
@@ -1051,7 +1052,7 @@ function SeatDetailsDrawer({
                                 </span>
                             )}
                         </div>
-                        <h2 className="truncate text-2xl font-semibold text-white">Seat {seat.label}</h2>
+                        <h2 className="truncate text-2xl font-semibold text-[color:var(--text-primary)]">Seat {seat.label}</h2>
                         <p className="mt-1 text-sm text-textSecondary">
                             {allocated ? studentNames.join(", ") || "Allocated" : "Available for assignment"}
                         </p>
@@ -1059,7 +1060,7 @@ function SeatDetailsDrawer({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-[var(--ui-radius-control)] p-2 text-textMuted transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
+                        className="rounded-[var(--ui-radius-control)] p-2 text-textMuted transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
                         aria-label="Close details"
                     >
                         <X size={18} />
@@ -1070,17 +1071,17 @@ function SeatDetailsDrawer({
                     <div className="grid grid-cols-2 gap-3">
                         <div className={cn("p-3", formSurfaceClass)}>
                             <p className="text-xs uppercase tracking-wide text-textMuted">Allocations</p>
-                            <p className="mt-2 text-xl font-semibold text-white">{seat.allocations.length}</p>
+                            <p className="mt-2 text-xl font-semibold text-[color:var(--text-primary)]">{seat.allocations.length}</p>
                         </div>
                         <div className={cn("p-3", formSurfaceClass)}>
                             <p className="text-xs uppercase tracking-wide text-textMuted">Scope</p>
-                            <p className="mt-2 truncate text-sm font-medium text-white">{activeShiftName ?? "All shifts"}</p>
+                            <p className="mt-2 truncate text-sm font-medium text-[color:var(--text-primary)]">{activeShiftName ?? "All shifts"}</p>
                         </div>
                     </div>
 
                     <div>
                         <div className="mb-3 flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-white">Active allocations</h3>
+                            <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Active allocations</h3>
                             {allocated && <Badge variant="purple">{seat.allocations.length}</Badge>}
                         </div>
 
@@ -1099,7 +1100,7 @@ function SeatDetailsDrawer({
                                                         <User size={15} />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="truncate font-medium text-white">{allocation.student?.name ?? "Student"}</p>
+                                                        <p className="truncate font-medium text-[color:var(--text-primary)]">{allocation.student?.name ?? "Student"}</p>
                                                         <p className="truncate text-xs text-textMuted">{allocation.student?.phone ?? "No phone"}</p>
                                                     </div>
                                                 </div>
