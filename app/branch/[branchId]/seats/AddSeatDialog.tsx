@@ -90,7 +90,7 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
             >
                 <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <h2 className="text-lg font-semibold text-[color:var(--ui-dialog-title)]">Add New Seat</h2>
-                    <button onClick={onClose} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
+                    <button type="button" onClick={onClose} className={cn("cursor-pointer transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={20} />
                     </button>
                 </div>

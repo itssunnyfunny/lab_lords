@@ -67,7 +67,11 @@ function getTrendWindow(period: AnalyticsPeriod, chart: ChartKey) {
 }
 
 function money(value: number) {
-    return `₹${value.toLocaleString("en-IN")}`;
+    return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+    }).format(value);
 }
 
 export default function AnalyticsPage({ params }: { params: Promise<{ branchId: string }> }) {

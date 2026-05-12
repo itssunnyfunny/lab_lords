@@ -2,6 +2,8 @@
 
 import { Search, Filter, Plus, Download } from "lucide-react";
 import { AppButton } from "@/components/ui";
+import { formControlClass } from "@/components/ui/formSurface";
+import { pageDescriptionClass, pageTitleClass } from "@/components/ui/pageSurface";
 
 interface PageHeaderProps {
     title: string;
@@ -17,8 +19,8 @@ export function PageHeader({ title, subtitle, onSearch, onFilter, onAdd, onExpor
     return (
         <div className="mb-6 flex flex-col justify-between gap-4 md:mb-8 md:flex-row md:items-end fade-in">
             <div className="min-w-0">
-                <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--text-primary)] md:text-3xl">{title}</h1>
-                {subtitle && <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--text-secondary)]">{subtitle}</p>}
+                <h1 className={`${pageTitleClass} truncate`}>{title}</h1>
+                {subtitle && <p className={pageDescriptionClass}>{subtitle}</p>}
             </div>
 
             <div className="flex w-full flex-wrap items-center gap-3 md:w-auto md:justify-end">
@@ -28,7 +30,7 @@ export function PageHeader({ title, subtitle, onSearch, onFilter, onAdd, onExpor
                         <input
                             type="text"
                             placeholder="Search..."
-                            className="h-10 w-full rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)] pl-9 pr-4 text-sm text-[color:var(--ui-form-input-text)] outline-none transition-colors placeholder:text-[color:var(--ui-form-input-placeholder)] focus:border-[color:var(--ui-form-input-focus-border)] focus:ring-2 focus:ring-[color:var(--ui-form-input-focus-ring)] md:w-64"
+                            className={`${formControlClass} h-10 w-full pl-9 pr-4 text-sm md:w-64`}
                             onChange={(e) => onSearch(e.target.value)}
                         />
                     </div>

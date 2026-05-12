@@ -1,8 +1,8 @@
-import React from 'react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Copy, Check } from 'lucide-react';
-import { AIMessageDraft } from '@/ai/contracts/messageDraft.contract';
+import React from "react";
+import { AIMessageDraft } from "@/ai/contracts/messageDraft.contract";
+import { AppButton, AppPanel } from "@/components/ui";
+import { Badge } from "@/components/ui/Badge";
+import { Check, Copy } from "lucide-react";
 
 interface MessageDraftProps {
     draft: AIMessageDraft;
@@ -19,49 +19,37 @@ export function MessageDraft({ draft, actionType }: MessageDraftProps) {
     };
 
     return (
-        <Card className="flex flex-col h-full bg-black/20 border-white/5 hover:border-white/10 transition-colors">
-            <div className="p-4 flex-1 space-y-4">
+        <AppPanel className="flex h-full flex-col" contentClassName="flex flex-1 flex-col p-0">
+            <div className="flex-1 space-y-4 p-4">
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono uppercase bg-primary/10 text-primary px-2 py-1 rounded border border-primary/20">
-                        {actionType.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-auto bg-black/40 px-2 py-1 rounded">
-                        {draft.language === 'en' ? 'English' : 'Hindi'}
+                    <Badge variant="cyan">{actionType.replace(/_/g, " ")}</Badge>
+                    <span className="ml-auto rounded-full border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2.5 py-1 text-xs text-[color:var(--text-secondary)]">
+                        {draft.language === "en" ? "English" : "Hindi"}
                     </span>
                 </div>
 
-                <div className="bg-black/40 p-3 rounded-md border border-white/5 relative group">
+                <div className="relative rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
                     {draft.isOutdated && (
-                        <div className="absolute -top-3 right-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-[10px] px-2 py-0.5 rounded shadow-sm backdrop-blur-md flex items-center gap-1">
-                            ⚠️ Outdated
+                        <div className="absolute -top-3 right-2 rounded-full border border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ui-badge-warning-text)] shadow-[var(--ui-badge-warning-shadow)]">
+                            Outdated
                         </div>
                     )}
-                    <p className="text-sm text-gray-300 italic min-h-[80px]">
-                        &quot;{draft.message}&quot;
+                    <p className="min-h-[80px] text-sm leading-6 text-[color:var(--text-secondary)]">
+                        {draft.message}
                     </p>
                 </div>
             </div>
 
-            <div className="p-3 border-t border-white/5 bg-white/5 flex justify-end">
-                <Button
-                    variant="ghost"
+            <div className="flex justify-end border-t border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
+                <AppButton
+                    variant="quiet"
                     size="sm"
+                    icon={copied ? Check : Copy}
                     onClick={handleCopy}
-                    className="flex items-center gap-2 hover:bg-white/10"
                 >
-                    {copied ? (
-                        <>
-                            <Check className="h-4 w-4 text-green-400" />
-                            <span className="text-green-400 text-xs">Copied</span>
-                        </>
-                    ) : (
-                        <>
-                            <Copy className="h-4 w-4" />
-                            <span className="text-xs">Copy Text</span>
-                        </>
-                    )}
-                </Button>
+                    {copied ? "Copied" : "Copy text"}
+                </AppButton>
             </div>
-        </Card>
+        </AppPanel>
     );
 }
