@@ -12,14 +12,17 @@ import { useDataViewMode } from "@/hooks/useDataViewMode";
 import { AppButton, PageShell } from "@/components/ui";
 import {
     pageCountBadgeClass,
+    pageDescriptionClass,
     pageEmptyStateClass,
+    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
-    pageInsetSurfaceClass,
+    pageInsetMetricClass,
     pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
+    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
 import { AlertCircle, ArrowRightLeft, CalendarCheck, Loader2, UserPlus, Users } from "lucide-react";
@@ -36,6 +39,8 @@ interface AllocationRow {
     multiShiftId: string | null;
     multiShift?: { id: string; name: string } | null;
 }
+
+type AllocationTab = "ACTIVE" | "ENDED";
 
 export default function AllocationsPage() {
     const params = useParams();
@@ -56,7 +61,7 @@ function AllocationsContent({ branchId }: { branchId: string }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<"ACTIVE" | "ENDED">("ACTIVE");
+    const [activeTab, setActiveTab] = useState<AllocationTab>("ACTIVE");
     const [viewMode, setViewMode] = useDataViewMode();
 
     // Optional: pre-selected student passed via query param from students page
@@ -176,18 +181,18 @@ function AllocationsContent({ branchId }: { branchId: string }) {
     );
 
     return (
-        <div className="p-4 md:p-8">
-            <PageShell>
+        <PageShell>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <h1 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">Seat Allocations</h1>
-                    <p className={cn("mt-2 max-w-2xl text-sm leading-6", pageMutedTextClass)}>
-                        Assign students to seats and keep active or ended allocation history easy to scan.
+                    <p className={pageEyebrowClass}>Seat workflow</p>
+                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>Allocations</h1>
+                    <p className={pageDescriptionClass}>
+                        Keep current seat assignments visible, then move quickly into changes, releases, or allocation history.
                     </p>
                 </div>
 
                 <AppButton variant="primary" icon={UserPlus} onClick={() => setIsDialogOpen(true)}>
-                    Allocate Seat
+                    Allocate seat
                 </AppButton>
             </header>
 
@@ -203,24 +208,25 @@ function AllocationsContent({ branchId }: { branchId: string }) {
                         const active = activeTab === tab;
                         const count = tab === "ACTIVE" ? allocationCounts.active : allocationCounts.ended;
                         const selectedClassName = tab === "ACTIVE"
-                            ? "border-cyan-500 bg-cyan-500/5 text-cyan-300"
-                            : "border-slate-500 bg-slate-500/5 text-slate-300";
+                            ? "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]"
+                            : "border-[color:var(--ui-badge-default-border)] bg-[color:var(--ui-badge-default-bg)] text-[color:var(--ui-badge-default-text)]";
                         const dotClassName = tab === "ACTIVE"
-                            ? "bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.65)]"
-                            : "bg-slate-300 shadow-[0_0_8px_rgba(203,213,225,0.35)]";
+                            ? "bg-[color:var(--ui-badge-success-text)]"
+                            : "bg-[color:var(--ui-badge-default-text)]";
 
                         return (
                             <button
+                                type="button"
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                aria-current={active ? "page" : undefined}
+                                aria-pressed={active}
                                 className={cn(
-                                    "inline-flex items-center gap-2 whitespace-nowrap rounded-t-md border-b-2 px-4 py-2 text-sm font-medium transition-colors",
-                                    active ? selectedClassName : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
+                                    "inline-flex h-9 cursor-pointer items-center gap-2 whitespace-nowrap rounded-[var(--ui-radius-control)] border px-3 text-sm font-medium transition-colors",
+                                    active ? selectedClassName : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
                                 )}
                             >
                                 {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
-                                {tab === "ACTIVE" ? "Active" : "Ended"} Allocations
+                                {tab === "ACTIVE" ? "Active" : "Ended"}
                                 <span className={pageCountBadgeClass}>{count}</span>
                             </button>
                         );
@@ -233,7 +239,7 @@ function AllocationsContent({ branchId }: { branchId: string }) {
             {filteredAllocations.length === 0 ? (
                 <div className={pageEmptyStateClass}>
                     <Users size={34} className="mb-4 opacity-60" />
-                    <h2 className="text-lg font-semibold text-white">
+                    <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
                         No {activeTab === "ACTIVE" ? "active" : "ended"} allocations
                     </h2>
                     <p className={cn("mt-2 max-w-md text-sm", pageMutedTextClass)}>
@@ -243,7 +249,7 @@ function AllocationsContent({ branchId }: { branchId: string }) {
                     </p>
                     {activeTab === "ACTIVE" && (
                         <AppButton className="mt-5" variant="primary" icon={UserPlus} onClick={() => setIsDialogOpen(true)}>
-                            Allocate Seat
+                            Allocate seat
                         </AppButton>
                     )}
                 </div>
@@ -291,8 +297,7 @@ function AllocationsContent({ branchId }: { branchId: string }) {
                     }}
                 />
             )}
-            </PageShell>
-        </div>
+        </PageShell>
     );
 }
 
@@ -316,7 +321,7 @@ function AllocationMetric({
             : "text-[color:var(--text-primary)]";
 
     return (
-        <div className={cn("flex items-start gap-3 p-4", pageInsetSurfaceClass)}>
+        <div className={cn("flex items-start gap-3", pageInsetMetricClass)}>
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-muted-surface-bg)]">
                 <Icon size={17} className={toneClass} />
             </div>

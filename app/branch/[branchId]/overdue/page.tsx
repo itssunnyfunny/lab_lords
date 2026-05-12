@@ -23,11 +23,14 @@ import { AppButton, AppPanel, PageShell } from "@/components/ui";
 import { formControlClass, formHelpTextClass, formWarningBannerClass } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
+    pageDescriptionClass,
     pageEmptyStateClass,
+    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
     pageGridCardClass,
     pageGridCardHoverClass,
+    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageLoadingStateClass,
     pageMutedTextClass,
@@ -37,6 +40,7 @@ import {
     pageTableHeadClass,
     pageTableRowClass,
     pageTableShellClass,
+    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { cn } from "@/lib/utils";
@@ -234,45 +238,43 @@ function OverdueContent({ branchId }: { branchId: string }) {
     }
 
     return (
-        <div className="p-4 md:p-8">
-            <PageShell>
-                <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="min-w-0">
-                        <AppButton variant="quiet" size="sm" icon={ArrowLeft} onClick={() => router.back()}>
-                            Back
-                        </AppButton>
-                        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                            Overdue Collections
-                        </h1>
-                        <p className={cn("mt-2 max-w-2xl text-sm leading-6", pageMutedTextClass)}>
-                            Work the collection queue by urgency, fix missing contact details, then copy reminder drafts for manual follow-up.
-                        </p>
-                    </div>
+        <PageShell>
+            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    <AppButton variant="quiet" size="sm" icon={ArrowLeft} onClick={() => router.back()}>
+                        Back
+                    </AppButton>
+                    <p className={cn(pageEyebrowClass, "mt-4")}>Collections queue</p>
+                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>Overdue collections</h1>
+                    <p className={pageDescriptionClass}>
+                        Work the collection queue by urgency, fix missing contact details, then copy reminder drafts for manual follow-up.
+                    </p>
+                </div>
 
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                        <AppButton
-                            variant="secondary"
-                            icon={RefreshCw}
-                            onClick={() => fetchOverdue("refresh")}
-                            disabled={refreshing}
-                            className={refreshing ? "[&_svg]:animate-spin" : undefined}
-                        >
-                            Refresh
-                        </AppButton>
-                        <AppButton
-                            variant="primary"
-                            icon={CreditCard}
-                            onClick={() => router.push(`/branch/${branchId}/payments`)}
-                        >
-                            Resolve in Payments
-                        </AppButton>
-                    </div>
-                </header>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <AppButton
+                        variant="secondary"
+                        icon={RefreshCw}
+                        onClick={() => fetchOverdue("refresh")}
+                        disabled={refreshing}
+                        className={refreshing ? "[&_svg]:animate-spin" : undefined}
+                    >
+                        Refresh
+                    </AppButton>
+                    <AppButton
+                        variant="primary"
+                        icon={CreditCard}
+                        onClick={() => router.push(`/branch/${branchId}/payments`)}
+                    >
+                        Resolve in payments
+                    </AppButton>
+                </div>
+            </header>
 
                 {payments.length === 0 ? (
                     <div className={pageEmptyStateClass}>
                         <SearchX size={36} className="mb-4 opacity-60" />
-                        <h2 className="text-lg font-semibold text-white">No overdue payments</h2>
+                        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">No overdue payments</h2>
                         <p className={cn("mt-2 max-w-md text-sm", pageMutedTextClass)}>
                             The collection queue is clear. New overdue payments will appear here after the grace period.
                         </p>
@@ -329,10 +331,10 @@ function OverdueContent({ branchId }: { branchId: string }) {
                                             onClick={() => setFilter(item.value)}
                                             aria-pressed={active}
                                             className={cn(
-                                                "rounded-[var(--ui-radius-control)] border px-3 py-2 text-left transition-colors",
+                                                "cursor-pointer rounded-[var(--ui-radius-control)] border px-3 py-2 text-left transition-colors",
                                                 active
-                                                    ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-white"
-                                                    : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
+                                                    ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
+                                                    : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
                                             )}
                                         >
                                             <span className="flex items-center justify-between gap-3">
@@ -355,7 +357,7 @@ function OverdueContent({ branchId }: { branchId: string }) {
                             {visiblePayments.length === 0 ? (
                                 <div className={cn("min-h-[220px]", pageEmptyStateClass)}>
                                     <SearchX size={30} className="mb-3 opacity-60" />
-                                    <p className="font-medium text-white">No payments in this queue</p>
+                                    <p className="font-medium text-[color:var(--text-primary)]">No payments in this queue</p>
                                     <p className={cn("mt-1 text-sm", pageMutedTextClass)}>Switch filters to continue collection work.</p>
                                 </div>
                             ) : (
@@ -386,7 +388,7 @@ function OverdueContent({ branchId }: { branchId: string }) {
                                                         return (
                                                             <tr key={payment.paymentId} className={pageTableRowClass}>
                                                                 <td className="px-5 py-4">
-                                                                    <p className="font-medium text-white">{payment.studentName}</p>
+                                                                    <p className="font-medium text-[color:var(--text-primary)]">{payment.studentName}</p>
                                                                     <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{severity.helper}</p>
                                                                 </td>
                                                                 <td className="px-5 py-4">
@@ -402,7 +404,7 @@ function OverdueContent({ branchId }: { branchId: string }) {
                                                                     <Badge variant={severity.variant}>{days} days</Badge>
                                                                 </td>
                                                                 <td className={cn("px-5 py-4", pageMutedTextClass)}>{formatDueDate(payment.dueDate)}</td>
-                                                                <td className="px-5 py-4 text-right font-semibold text-white">{formatMoney(payment.amount)}</td>
+                                                                <td className="px-5 py-4 text-right font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</td>
                                                             </tr>
                                                         );
                                                     })}
@@ -431,7 +433,7 @@ function OverdueContent({ branchId }: { branchId: string }) {
                                         <div key={draft.paymentId} className={cn(pageGridCardClass, pageGridCardHoverClass)}>
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
-                                                    <p className="truncate font-semibold text-white">{draft.studentName}</p>
+                                                    <p className="truncate font-semibold text-[color:var(--text-primary)]">{draft.studentName}</p>
                                                     <p className={cn("mt-1 flex items-center gap-1.5 text-xs", pageSubtleTextClass)}>
                                                         <Phone size={12} /> {draft.phone || "Phone not added"}
                                                     </p>
@@ -460,8 +462,7 @@ function OverdueContent({ branchId }: { branchId: string }) {
                         )}
                     </>
                 )}
-            </PageShell>
-        </div>
+        </PageShell>
     );
 }
 
@@ -483,7 +484,7 @@ function MetricCard({
             : "text-[color:var(--ui-tone-success-text)]";
 
     return (
-        <div className={cn("p-4", pageInsetSurfaceClass)}>
+        <div className={pageInsetMetricClass}>
             <p className={cn("text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
             <p className={cn("mt-2 text-2xl font-semibold tracking-tight", valueClass)}>{value}</p>
             <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p>
@@ -499,18 +500,18 @@ function OverduePaymentCard({ payment }: { payment: OverduePayment }) {
         <div className={cn(pageGridCardClass, pageGridCardHoverClass)}>
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="truncate font-semibold text-white">{payment.studentName}</p>
+                    <p className="truncate font-semibold text-[color:var(--text-primary)]">{payment.studentName}</p>
                     <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{severity.helper}</p>
                 </div>
                 <Badge variant={severity.variant}>{days} days</Badge>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div className={cn("p-3", pageInsetSurfaceClass)}>
+                <div className={pageInsetMetricClass}>
                     <p className={cn("text-xs", pageSubtleTextClass)}>Amount</p>
-                    <p className="mt-1 font-semibold text-white">{formatMoney(payment.amount)}</p>
+                    <p className="mt-1 font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</p>
                 </div>
-                <div className={cn("p-3", pageInsetSurfaceClass)}>
+                <div className={pageInsetMetricClass}>
                     <p className={cn("text-xs", pageSubtleTextClass)}>Due date</p>
                     <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{formatDueDate(payment.dueDate)}</p>
                 </div>
