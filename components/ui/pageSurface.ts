@@ -11,6 +11,20 @@ export const pageSubtleTextClass = "text-[color:var(--text-muted)]";
 
 export const pageSectionDividerClass = "border-[color:var(--ui-form-section-divider)]";
 
+export const pageEyebrowClass = "text-xs font-medium text-[color:var(--text-muted)]";
+
+export const pageTitleClass =
+    "text-2xl font-semibold tracking-tight text-[color:var(--text-primary)] md:text-3xl";
+
+export const pageDescriptionClass = "mt-2 max-w-2xl text-sm leading-6 text-[color:var(--text-secondary)]";
+
+export const pageSectionTitleClass = "text-sm font-semibold text-[color:var(--text-primary)]";
+
+export const pageSectionDescriptionClass = "mt-1 text-xs leading-5 text-[color:var(--text-muted)]";
+
+export const pageMetaPillClass =
+    "rounded-full border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2.5 py-1 text-xs text-[color:var(--text-secondary)]";
+
 export const pageGridCardClass =
     "rounded-[var(--ui-card-radius)] border border-[color:var(--ui-card-border)] bg-[color:var(--ui-card-bg)] p-4 shadow-[var(--ui-card-shadow)]";
 
@@ -22,6 +36,12 @@ export const pageInsetSurfaceClass =
 
 export const pageInsetHoverClass =
     "transition-colors hover:border-[color:var(--ui-form-input-border)] hover:bg-[color:var(--ui-form-surface-hover-bg)]";
+
+export const pageInsetMetricClass =
+    "rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3";
+
+export const pageProgressTrackClass =
+    "h-2 overflow-hidden rounded-full bg-[color:var(--ui-stat-track)]";
 
 export const pageFilterShellClass =
     "rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]";

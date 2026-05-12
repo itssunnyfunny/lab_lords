@@ -8,7 +8,7 @@ This folder is the central home for shared product UI primitives.
 - Use `AppPanel` for framed operational surfaces.
 - Use `PageShell` for app pages that need the standard max width, spacing, and text color.
 - Use `formSurface.ts` helpers for dialog shells, labels, inputs, checkboxes, inline errors, and form sub-surfaces.
-- Use `pageSurface.ts` helpers for page loading/error states, list cards, filter shells, empty states, dividers, and custom tables.
+- Use `pageSurface.ts` helpers for page loading/error states, page hierarchy text, list cards, metric insets, filter shells, empty states, dividers, and custom tables.
 - Use `chromeSurface.ts` helpers for app shell, sidebar, header, search, notifications, and branch chrome surfaces.
 - Use `entrySurface.ts` helpers for auth, invite, workspace picker, and other standalone entry pages.
 
