@@ -14,6 +14,31 @@ import {
 import { staff, StaffInviteResponse, StaffWithUser } from "@/lib/api/staff";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { RowActionsMenu, type RowActionsMenuItem } from "@/components/ui/RowActionsMenu";
+import {
+    formCompactLabelClass,
+    formControlClass,
+    formDialogFooterClass,
+    formDialogHeaderClass,
+    formDialogOverlayClass,
+    formDialogPanelClass,
+    formErrorBannerClass,
+    formHelpTextClass,
+    formIconClass,
+    formSurfaceClass,
+    formSurfaceHoverClass,
+    formWarningBannerClass,
+} from "@/components/ui/formSurface";
+import {
+    pageEmptyStateClass,
+    pageErrorIconClass,
+    pageErrorStateClass,
+    pageGridCardClass,
+    pageGridCardHoverClass,
+    pageInsetSurfaceClass,
+    pageLoadingStateClass,
+    pageMutedTextClass,
+    pageSubtleTextClass,
+} from "@/components/ui/pageSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -145,7 +170,7 @@ function RolePermissionSummary({ role }: { role: StaffRoleOption }) {
 
     return (
         <div className="mt-2 space-y-2">
-            <p className="text-xs text-gray-500">{details.summary}</p>
+            <p className={cn("text-xs", formHelpTextClass)}>{details.summary}</p>
             <div className="grid gap-1.5">
                 {details.can.map(item => (
                     <div key={item} className="flex items-start gap-2 text-xs text-emerald-300/90">
@@ -195,7 +220,7 @@ function PermissionModeButton({
                 "inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-semibold transition-colors",
                 active
                     ? "bg-cyan-500/15 text-cyan-200"
-                    : "text-gray-500 hover:bg-white/5 hover:text-white"
+                    : "text-[color:var(--ui-form-help)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--ui-table-text)]"
             )}
         >
             {children}
@@ -226,7 +251,7 @@ function PermissionControls({
                     return (
                         <div
                             key={option.action}
-                            className="grid gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 md:grid-cols-[minmax(0,1fr)_260px]"
+                            className={cn("grid gap-3 p-3 md:grid-cols-[minmax(0,1fr)_260px]", formSurfaceClass)}
                         >
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -235,10 +260,10 @@ function PermissionControls({
                                         {effective ? "Allowed" : "Blocked"}
                                     </Badge>
                                 </div>
-                                <p className="mt-1 text-xs text-gray-500">{option.summary}</p>
+                                <p className={cn("mt-1 text-xs", formHelpTextClass)}>{option.summary}</p>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-black/20 p-1">
+                            <div className={cn("grid grid-cols-3 gap-1 p-1", formSurfaceClass)}>
                                 <PermissionModeButton
                                     active={override === null}
                                     onClick={() => onChange(option.action, null)}
@@ -319,15 +344,15 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
+            <div className={cn("cursor-pointer", formDialogOverlayClass)} onClick={onClose} />
+            <div className={cn("relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col sm:max-h-[90vh]", formDialogPanelClass)}>
                 {/* Header */}
-                <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
+                <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div>
-                        <h2 className="text-base font-bold text-white">Staff Access</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">{member.user?.name || member.user?.email}</p>
+                        <h2 className="text-base font-bold text-[color:var(--ui-dialog-title)]">Staff Access</h2>
+                        <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>{member.user?.name || member.user?.email}</p>
                     </div>
-                    <button onClick={onClose} disabled={loading} className="text-gray-500 hover:text-white transition-colors">
+                    <button onClick={onClose} disabled={loading} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}>
                         <X size={18} />
                     </button>
                 </div>
@@ -343,16 +368,16 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
                                     "w-full flex items-start gap-4 p-4 rounded-xl border transition-all text-left",
                                     role === r
                                         ? "border-cyan-500/40 bg-cyan-500/5"
-                                        : "border-white/5 bg-white/[0.02] hover:border-white/10"
+                                        : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] hover:border-[color:var(--ui-form-input-border)]"
                                 )}
                             >
                                 <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
-                                    role === r ? "bg-cyan-500/20" : "bg-white/5"
+                                    role === r ? "bg-cyan-500/20" : "bg-[color:var(--ui-form-input-bg)]"
                                 )}>
-                                    {r === "MANAGER" ? <Shield size={15} className={role === r ? "text-cyan-400" : "text-gray-500"} /> : <UserCog size={15} className={role === r ? "text-cyan-400" : "text-gray-500"} />}
+                                    {r === "MANAGER" ? <Shield size={15} className={role === r ? "text-cyan-400" : formIconClass} /> : <UserCog size={15} className={role === r ? "text-cyan-400" : formIconClass} />}
                                 </div>
                                 <div className="flex-1">
-                                    <p className={cn("text-sm font-semibold", role === r ? "text-white" : "text-gray-400")}>{ROLE_DETAILS[r].label}</p>
+                                    <p className={cn("text-sm font-semibold", role === r ? "text-[color:var(--ui-form-label-strong)]" : "text-[color:var(--ui-form-label)]")}>{ROLE_DETAILS[r].label}</p>
                                     <RolePermissionSummary role={r} />
                                 </div>
                                 {role === r && <div className="w-4 h-4 rounded-full border-2 border-cyan-500 bg-cyan-500/30 flex-shrink-0 mt-1" />}
@@ -367,14 +392,14 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess }: EditRo
                     />
 
                     {error && (
-                        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                        <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                             <AlertCircle size={13} /> {error}
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
+                <div className={cn("flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 sm:flex-row sm:justify-end sm:px-6", formDialogFooterClass)}>
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
                     <Button onClick={handleSave} disabled={loading || !hasChanges} className="text-sm h-8 px-4 min-w-[120px] justify-center">
                         {loading
@@ -447,21 +472,21 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden bg-[#0f111a] border border-white/10 rounded-2xl shadow-2xl sm:max-h-[90vh]">
-                <div className="flex flex-shrink-0 items-center justify-between px-4 py-4 border-b border-white/10 sm:px-6">
+            <div className={cn("cursor-pointer", formDialogOverlayClass)} onClick={onClose} />
+            <div className={cn("relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col sm:max-h-[90vh]", formDialogPanelClass)}>
+                <div className={cn("flex flex-shrink-0 items-center justify-between px-4 py-4 sm:px-6", formDialogHeaderClass)}>
                     <div>
-                        <h2 className="text-base font-bold text-white">Add Staff Member</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">Enter their account email and assign a role</p>
+                        <h2 className="text-base font-bold text-[color:var(--ui-dialog-title)]">Add Staff Member</h2>
+                        <p className={cn("mt-0.5 text-xs", formHelpTextClass)}>Enter their account email and assign a role</p>
                     </div>
-                    <button onClick={onClose} disabled={loading} className="text-gray-500 hover:text-white transition-colors"><X size={18} /></button>
+                    <button onClick={onClose} disabled={loading} className={cn("transition-colors hover:text-[color:var(--ui-table-text)]", formHelpTextClass)}><X size={18} /></button>
                 </div>
 
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Email *</label>
+                        <label className={formCompactLabelClass}>Email *</label>
                         <div className="relative">
-                            <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <Mail size={14} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} />
                             <input
                                 type="email"
                                 value={email}
@@ -469,23 +494,23 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
                                 onBlur={() => markTouched("email")}
                                 placeholder="teammate@example.com"
                                 autoFocus
-                                className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 text-sm transition-all", fieldErrorClass(emailError))}
+                                className={cn(formControlClass, "py-2.5 pl-9 pr-4 text-sm", fieldErrorClass(emailError))}
                                 {...fieldErrorProps("add-staff-email-error", emailError)}
                             />
                         </div>
                         <FieldError id="add-staff-email-error" error={emailError} />
-                        <p className="text-xs text-gray-600">The user must sign in once before they can be added.</p>
+                        <p className="text-xs text-[color:var(--ui-table-subtle)]">The user must sign in once before they can be added.</p>
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Role</label>
+                        <label className={formCompactLabelClass}>Role</label>
                         <div className="grid gap-2">
                             {(["MANAGER", "STAFF"] as const).map(r => (
                                 <button key={r} onClick={() => setRole(r)}
-                                    className={cn("rounded-lg border p-3 text-left transition-all",
+                                    className={cn("rounded-[var(--ui-radius-control)] border p-3 text-left transition-all",
                                         role === r
                                             ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400"
-                                            : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/20"
+                                            : cn("text-[color:var(--ui-form-label)]", formSurfaceClass, formSurfaceHoverClass)
                                     )}>
                                     <div className="flex items-center gap-2 text-sm font-semibold">
                                         {r === "MANAGER" ? <Shield size={14} /> : <UserCog size={14} />}
@@ -498,13 +523,13 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess }: AddStaffDialog
                     </div>
 
                     {error && (
-                        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                        <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                             <AlertCircle size={13} /> {error}
                         </div>
                     )}
                 </div>
 
-                <div className="flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 border-t border-white/10 sm:flex-row sm:justify-end sm:px-6">
+                <div className={cn("flex flex-shrink-0 flex-col-reverse gap-3 px-4 py-4 sm:flex-row sm:justify-end sm:px-6", formDialogFooterClass)}>
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="text-sm h-8 px-3">Cancel</Button>
                     <Button onClick={handleAdd} disabled={loading} className="text-sm h-8 px-4 min-w-[100px] justify-center">
                         {loading
@@ -557,13 +582,13 @@ function InviteLinkPanel({
                         <Link2 size={16} className="text-cyan-300" />
                         Invite by link
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className={cn("mt-1 text-xs", formHelpTextClass)}>
                         Create a one-use link for a new staff member. Links expire in 7 days.
                     </p>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+                    <div className={cn("grid grid-cols-2 gap-2 p-1", formSurfaceClass)}>
                         {(["MANAGER", "STAFF"] as const).map(role => (
                             <button
                                 key={role}
@@ -573,7 +598,7 @@ function InviteLinkPanel({
                                     "h-8 rounded-lg px-3 text-xs font-semibold transition-colors",
                                     inviteRole === role
                                         ? "bg-cyan-500/15 text-cyan-200"
-                                        : "text-gray-500 hover:text-white"
+                                        : "text-[color:var(--ui-form-help)] hover:text-[color:var(--ui-table-text)]"
                                 )}
                             >
                                 {ROLE_DETAILS[role].label}
@@ -590,13 +615,13 @@ function InviteLinkPanel({
                 <div className="mt-4 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.04] p-3">
                     <div className="mb-2 flex items-center justify-between gap-3">
                         <span className="text-xs font-semibold uppercase tracking-wider text-cyan-200">Latest invite</span>
-                        <span className="text-xs text-gray-500">Expires {format(new Date(invite.expiresAt), "PPp")}</span>
+                        <span className={cn("text-xs", formHelpTextClass)}>Expires {format(new Date(invite.expiresAt), "PPp")}</span>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                             readOnly
                             value={invite.inviteUrl}
-                            className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 font-mono text-xs text-gray-300 outline-none"
+                            className={cn(formControlClass, "h-10 min-w-0 flex-1 px-3 font-mono text-xs")}
                         />
                         <Button variant="outline" onClick={() => onCopyInvite(invite)} className="h-10 whitespace-nowrap">
                             {copiedInviteId === invite.id ? <><CheckCircle2 size={14} /> Copied</> : <><Copy size={14} /> Copy link</>}
@@ -613,17 +638,17 @@ function InviteLinkPanel({
                 </div>
             )}
 
-            <div className="mt-4 border-t border-white/5 pt-4">
+            <div className="mt-4 border-t border-[color:var(--ui-form-section-divider)] pt-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                         <h3 className="text-sm font-semibold text-white">Active invite links</h3>
-                        <p className="text-xs text-gray-500">Copy an existing link or revoke it when it should no longer be used.</p>
+                        <p className={cn("text-xs", formHelpTextClass)}>Copy an existing link or revoke it when it should no longer be used.</p>
                     </div>
-                    {invitesLoading && <Loader2 size={14} className="animate-spin text-gray-500" />}
+                    {invitesLoading && <Loader2 size={14} className={cn("animate-spin", formHelpTextClass)} />}
                 </div>
 
                 {!invitesLoading && activeInvites.length === 0 && (
-                    <div className="rounded-lg border border-dashed border-white/10 px-4 py-3 text-sm text-gray-500">
+                    <div className={cn("rounded-[var(--ui-radius-control)] border border-dashed border-[color:var(--ui-form-surface-border)] px-4 py-3 text-sm", formHelpTextClass)}>
                         No active invite links.
                     </div>
                 )}
@@ -631,15 +656,15 @@ function InviteLinkPanel({
                 {olderInvites.length > 0 && (
                     <div className="space-y-2">
                         {olderInvites.map(item => (
-                            <div key={item.id} className="flex flex-col gap-3 rounded-lg border border-white/8 bg-white/[0.03] p-3 md:flex-row md:items-center">
+                            <div key={item.id} className={cn("flex flex-col gap-3 p-3 md:flex-row md:items-center", formSurfaceClass)}>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Badge variant={item.role === "MANAGER" ? "cyan" : "default"}>
                                             {ROLE_DETAILS[item.role].label}
                                         </Badge>
-                                        <span className="text-xs text-gray-500">Expires {format(new Date(item.expiresAt), "PPp")}</span>
+                                        <span className={cn("text-xs", formHelpTextClass)}>Expires {format(new Date(item.expiresAt), "PPp")}</span>
                                     </div>
-                                    <p className="mt-1 truncate font-mono text-xs text-gray-500">{item.inviteUrl}</p>
+                                    <p className={cn("mt-1 truncate font-mono text-xs", formHelpTextClass)}>{item.inviteUrl}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button variant="outline" size="sm" onClick={() => onCopyInvite(item)}>
@@ -661,7 +686,7 @@ function InviteLinkPanel({
             </div>
 
             {error && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                <div className={cn("mt-3 flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                     <AlertCircle size={13} /> {error}
                 </div>
             )}
@@ -810,12 +835,12 @@ function StaffContent({
         }
     };
 
-    if (loading) return <div className="p-4 md:p-8 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2" /> Loading staff...</div>;
+    if (loading) return <div className={pageLoadingStateClass}><Loader2 className="animate-spin mr-2" /> Loading staff...</div>;
 
     if (error) return (
-        <div className="p-4 md:p-8 flex flex-col items-center justify-center text-white h-[50vh] space-y-4">
-            <AlertCircle className="w-12 h-12 text-red-400 opacity-80" />
-            <p className="text-gray-400">{error}</p>
+        <div className={pageErrorStateClass}>
+            <AlertCircle className={pageErrorIconClass} />
+            <p className={pageMutedTextClass}>{error}</p>
         </div>
     );
 
@@ -838,16 +863,16 @@ function StaffContent({
             {data.map(member => (
                 <div
                     key={member.id}
-                    className="rounded-xl border border-white/10 bg-card p-4 shadow-card"
+                    className={cn(pageGridCardClass, pageGridCardHoverClass)}
                 >
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border border-white/5 flex items-center justify-center text-sm font-bold text-cyan-300 flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border border-[color:var(--ui-card-border)] flex items-center justify-center text-sm font-bold text-cyan-300 flex-shrink-0">
                                 {(member.user?.name || member.user?.email || "?")[0].toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                                <p className="truncate font-medium text-zinc-200">{member.user?.name || <span className="text-gray-500 italic text-xs">No name</span>}</p>
-                                <p className="mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-zinc-500">
+                                <p className="truncate font-medium text-[color:var(--ui-table-text)]">{member.user?.name || <span className={cn("italic text-xs", pageSubtleTextClass)}>No name</span>}</p>
+                                <p className={cn("mt-1 flex min-w-0 items-center gap-1 truncate text-xs", pageSubtleTextClass)}>
                                     <Mail size={10} className="flex-shrink-0" />{member.user?.email}
                                 </p>
                             </div>
@@ -855,15 +880,15 @@ function StaffContent({
                         {canManageStaff ? (
                             <RowActions actions={staffMemberActions(member)} />
                         ) : (
-                            <span className="text-xs text-zinc-600" title={staffManagementHelpText}>
+                            <span className={cn("text-xs", pageSubtleTextClass)} title={staffManagementHelpText}>
                                 View only
                             </span>
                         )}
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                            <div className="text-xs text-zinc-500">Role</div>
+                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>Role</div>
                             <div className="mt-2">
                                 <Badge variant={member.role === "MANAGER" ? "cyan" : "default"}>
                                     {member.role === "MANAGER"
@@ -873,14 +898,14 @@ function StaffContent({
                                 </Badge>
                             </div>
                         </div>
-                        <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                            <div className="text-xs text-zinc-500">Added</div>
-                            <div className="mt-2 text-xs text-zinc-300">{format(new Date(member.createdAt), "PP")}</div>
+                        <div className={cn("p-3", pageInsetSurfaceClass)}>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>Added</div>
+                            <div className={cn("mt-2 text-xs", pageMutedTextClass)}>{format(new Date(member.createdAt), "PP")}</div>
                         </div>
                     </div>
 
-                    <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.03] p-3">
-                        <div className="mb-2 text-xs text-zinc-500">Access</div>
+                    <div className={cn("mt-3 p-3", pageInsetSurfaceClass)}>
+                        <div className={cn("mb-2 text-xs", pageSubtleTextClass)}>Access</div>
                         <AccessSummary member={member} />
                     </div>
                 </div>
@@ -911,7 +936,7 @@ function StaffContent({
             />
 
             {!canManageStaff && (
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/80">
+                <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
                     Staff changes and invite links are disabled. {staffManagementHelpText}
                 </div>
             )}
@@ -939,11 +964,11 @@ function StaffContent({
             )}
 
             {data.length === 0 ? (
-                <div className="text-center py-16 border border-dashed border-white/10 rounded-xl text-gray-500 space-y-3">
+                <div className={cn("space-y-3", pageEmptyStateClass)}>
                     <UserPlus size={36} className="mx-auto opacity-30" />
                     <p>No staff members yet.</p>
                     {canManageStaff && (
-                        <button onClick={() => setAddOpen(true)} className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+                        <button onClick={() => setAddOpen(true)} className="text-sm text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]">
                             + Add your first staff member
                         </button>
                     )}
@@ -969,7 +994,7 @@ function StaffContent({
                                     {/* Member */}
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border border-white/5 flex items-center justify-center text-sm font-bold text-cyan-300 flex-shrink-0">
+                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border border-[color:var(--ui-card-border)] flex items-center justify-center text-sm font-bold text-cyan-300 flex-shrink-0">
                                                 {(member.user?.name || member.user?.email || "?")[0].toUpperCase()}
                                             </div>
                                             <div>

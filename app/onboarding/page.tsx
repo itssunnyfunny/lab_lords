@@ -6,6 +6,16 @@ import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { GlowText } from "@/components/ui/GlowText";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import {
+    formControlClass,
+    formErrorBannerClass,
+    formHelpTextClass,
+    formIconClass,
+    formInlineControlClass,
+    formLabelClass,
+    formRequiredClass,
+    formSurfaceClass,
+} from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { ArrowRight, Building2, MapPin, Loader2, Phone, X } from "lucide-react";
 import { apiClient } from "@/lib/api/core";
@@ -184,22 +194,22 @@ export default function OnboardingPage() {
                             {step === 1 ? "Create your organization" : "Setup your first branch"}
                         </GlowText>
                     </h2>
-                    <p className="text-gray-400">
+                    <p className={formHelpTextClass}>
                         {step === 1
                             ? "This represents your business identity."
                             : "Define your capacity and operations."}
                     </p>
                 </div>
 
-                <Card className="max-h-none overflow-visible border-white/10 bg-[#0f111a]/60 p-5 backdrop-blur-xl sm:max-h-[80vh] sm:overflow-y-auto sm:p-8">
+                <Card className="max-h-none overflow-visible border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-dialog-bg)] p-5 backdrop-blur-xl sm:max-h-[80vh] sm:overflow-y-auto sm:p-8">
                     {step === 1 && (
                         <div className="space-y-6">
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Organization Name <span className="text-red-400">*</span>
+                                <label className={cn("mb-2 block", formLabelClass)}>
+                                    Organization Name <span className={formRequiredClass}>*</span>
                                 </label>
                                 <div className="relative">
-                                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                                    <Building2 className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={18} />
                                     <input
                                         type="text"
                                         name="orgName"
@@ -208,7 +218,7 @@ export default function OnboardingPage() {
                                         onBlur={() => markTouched("orgName")}
                                         placeholder="e.g. Apex Study Halls"
                                         maxLength={120}
-                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(orgNameError))}
+                                        className={cn(formControlClass, "py-3 pl-10 pr-4", fieldErrorClass(orgNameError))}
                                         autoFocus
                                         {...fieldErrorProps("onboarding-org-name-error", orgNameError)}
                                     />
@@ -217,11 +227,11 @@ export default function OnboardingPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Owner Phone <span className="text-red-400">*</span>
+                                <label className={cn("mb-2 block", formLabelClass)}>
+                                    Owner Phone <span className={formRequiredClass}>*</span>
                                 </label>
                                 <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                                    <Phone className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={18} />
                                     <input
                                         type="tel"
                                         name="ownerPhone"
@@ -229,7 +239,7 @@ export default function OnboardingPage() {
                                         onChange={handleInputChange}
                                         onBlur={() => markTouched("ownerPhone")}
                                         placeholder="+91 98765 43210"
-                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(ownerPhoneError))}
+                                        className={cn(formControlClass, "py-3 pl-10 pr-4", fieldErrorClass(ownerPhoneError))}
                                         {...fieldErrorProps("onboarding-owner-phone-error", ownerPhoneError)}
                                     />
                                 </div>
@@ -237,23 +247,23 @@ export default function OnboardingPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Business Type <span className="text-gray-500">(Optional)</span>
+                                <label className={cn("mb-2 block", formLabelClass)}>
+                                    Business Type <span className={formHelpTextClass}>(Optional)</span>
                                 </label>
                                 <select
                                     name="businessType"
                                     value={formData.businessType}
                                     onChange={handleInputChange}
                                     onBlur={() => markTouched("businessType")}
-                                    className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all appearance-none", fieldErrorClass(businessTypeError))}
+                                    className={cn(formControlClass, "appearance-none px-4 py-3", fieldErrorClass(businessTypeError))}
                                     {...fieldErrorProps("onboarding-business-type-error", businessTypeError)}
                                 >
-                                    <option value="" className="bg-[#0f111a] text-gray-500">Select type...</option>
-                                    <option value="Study Hall" className="bg-[#0f111a]">Study Hall</option>
-                                    <option value="Library" className="bg-[#0f111a]">Library</option>
-                                    <option value="Coaching Center" className="bg-[#0f111a]">Coaching Center</option>
-                                    <option value="Tuition" className="bg-[#0f111a]">Tuition</option>
-                                    <option value="Other" className="bg-[#0f111a]">Other</option>
+                                    <option value="" className="bg-[color:var(--ui-form-input-select-bg)] text-[color:var(--ui-form-help)]">Select type...</option>
+                                    <option value="Study Hall" className="bg-[color:var(--ui-form-input-select-bg)]">Study Hall</option>
+                                    <option value="Library" className="bg-[color:var(--ui-form-input-select-bg)]">Library</option>
+                                    <option value="Coaching Center" className="bg-[color:var(--ui-form-input-select-bg)]">Coaching Center</option>
+                                    <option value="Tuition" className="bg-[color:var(--ui-form-input-select-bg)]">Tuition</option>
+                                    <option value="Other" className="bg-[color:var(--ui-form-input-select-bg)]">Other</option>
                                 </select>
                                 <FieldError id="onboarding-business-type-error" error={businessTypeError} />
                             </div>
@@ -270,11 +280,11 @@ export default function OnboardingPage() {
                     {step === 2 && (
                         <div className="space-y-6">
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Branch Name <span className="text-red-400">*</span>
+                                <label className={cn("mb-2 block", formLabelClass)}>
+                                    Branch Name <span className={formRequiredClass}>*</span>
                                 </label>
                                 <div className="relative">
-                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                                    <MapPin className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={18} />
                                     <input
                                         type="text"
                                         name="branchName"
@@ -283,7 +293,7 @@ export default function OnboardingPage() {
                                         onBlur={() => markTouched("branchName")}
                                         placeholder="e.g. Main Branch, Downtown"
                                         maxLength={120}
-                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(branchNameError))}
+                                        className={cn(formControlClass, "py-3 pl-10 pr-4", fieldErrorClass(branchNameError))}
                                         autoFocus
                                         {...fieldErrorProps("onboarding-branch-name-error", branchNameError)}
                                     />
@@ -293,8 +303,8 @@ export default function OnboardingPage() {
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                                        City / Area <span className="text-gray-500">(Opt)</span>
+                                    <label className={cn("mb-2 block", formLabelClass)}>
+                                        City / Area <span className={formHelpTextClass}>(Opt)</span>
                                     </label>
                                     <input
                                         type="text"
@@ -304,14 +314,14 @@ export default function OnboardingPage() {
                                         onBlur={() => markTouched("city")}
                                         placeholder="e.g. New York"
                                         maxLength={FORM_LIMITS.cityMax}
-                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(cityError))}
+                                        className={cn(formControlClass, "px-4 py-3", fieldErrorClass(cityError))}
                                         {...fieldErrorProps("onboarding-city-error", cityError)}
                                     />
                                     <FieldError id="onboarding-city-error" error={cityError} />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                                        Total Seats <span className="text-red-400">*</span>
+                                    <label className={cn("mb-2 block", formLabelClass)}>
+                                        Total Seats <span className={formRequiredClass}>*</span>
                                     </label>
                                     <input
                                         type="number"
@@ -324,7 +334,7 @@ export default function OnboardingPage() {
                                         max={FORM_LIMITS.seatsMax}
                                         step="1"
                                         inputMode="numeric"
-                                        className={cn("w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all", fieldErrorClass(seatCountError))}
+                                        className={cn(formControlClass, "px-4 py-3", fieldErrorClass(seatCountError))}
                                         {...fieldErrorProps("onboarding-seat-count-error", seatCountError)}
                                     />
                                     <FieldError id="onboarding-seat-count-error" error={seatCountError} />
@@ -333,12 +343,12 @@ export default function OnboardingPage() {
 
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <label className="block text-sm font-medium text-gray-300">
+                                    <label className={cn("block", formLabelClass)}>
                                         Shifts & Pricing
                                     </label>
                                     <button
                                         onClick={addShift}
-                                        className="text-xs text-cyan-400 hover:text-cyan-300"
+                                        className="text-xs text-[color:var(--ui-form-accent)] hover:text-[color:var(--ui-form-accent-hover)]"
                                     >
                                         + Add Shift
                                     </button>
@@ -346,7 +356,7 @@ export default function OnboardingPage() {
 
                                 <div className="space-y-3">
                                     {formData.shifts.map((shift, idx) => (
-                                        <div key={idx} className="flex flex-col gap-3 rounded-lg border border-white/5 bg-white/5 p-3 sm:flex-row sm:items-start sm:gap-2">
+                                        <div key={idx} className={cn("flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:gap-2", formSurfaceClass)}>
                                             <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-12 sm:gap-2">
                                                 <div className="sm:col-span-4">
                                                     <input
@@ -354,7 +364,7 @@ export default function OnboardingPage() {
                                                         placeholder="Name"
                                                         value={shift.name}
                                                         onChange={(e) => handleShiftChange(idx, "name", e.target.value)}
-                                                        className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
+                                                        className={cn(formInlineControlClass, "py-1 text-sm")}
                                                     />
                                                 </div>
                                                 <div className="sm:col-span-3">
@@ -362,7 +372,7 @@ export default function OnboardingPage() {
                                                         type="time"
                                                         value={shift.startTime || ""}
                                                         onChange={(e) => handleShiftChange(idx, "startTime", e.target.value)}
-                                                        className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
+                                                        className={cn(formInlineControlClass, "py-1 text-sm")}
                                                     />
                                                 </div>
                                                 <div className="sm:col-span-3">
@@ -370,11 +380,11 @@ export default function OnboardingPage() {
                                                         type="time"
                                                         value={shift.endTime || ""}
                                                         onChange={(e) => handleShiftChange(idx, "endTime", e.target.value)}
-                                                        className="w-full bg-transparent border-b border-white/10 py-1 text-sm text-white focus:outline-none focus:border-cyan-500"
+                                                        className={cn(formInlineControlClass, "py-1 text-sm")}
                                                     />
                                                 </div>
                                                 <div className="relative sm:col-span-2">
-                                                    <span className="absolute left-0 top-1 text-xs text-gray-500">Rs.</span>
+                                                    <span className={cn("absolute left-0 top-1 text-xs", formIconClass)}>Rs.</span>
                                                     <input
                                                         type="number"
                                                         placeholder="Price"
@@ -384,14 +394,14 @@ export default function OnboardingPage() {
                                                         max={FORM_LIMITS.moneyMax}
                                                         step={1}
                                                         inputMode="numeric"
-                                                        className="w-full border-b border-white/10 bg-transparent py-1 pl-6 text-sm text-white focus:border-cyan-500 focus:outline-none"
+                                                        className={cn(formInlineControlClass, "py-1 pl-6 text-sm")}
                                                     />
                                                 </div>
                                             </div>
                                             {formData.shifts.length > 1 && (
                                                 <button
                                                     onClick={() => removeShift(idx)}
-                                                    className="self-end text-gray-500 hover:text-red-400 sm:mt-1"
+                                                    className={cn("self-end hover:text-[color:var(--ui-form-error-text)] sm:mt-1", formHelpTextClass)}
                                                     aria-label="Remove shift"
                                                 >
                                                     <X size={14} />
@@ -416,7 +426,7 @@ export default function OnboardingPage() {
                     )}
 
                     {error && (
-                        <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm text-center">
+                        <div className={cn("mt-4 p-3 text-center text-sm", formErrorBannerClass)}>
                             {error}
                         </div>
                     )}
@@ -425,7 +435,7 @@ export default function OnboardingPage() {
                 {step === 2 && (
                     <button
                         onClick={() => setStep(1)}
-                        className="w-full text-center mt-4 text-sm text-gray-500 hover:text-gray-300 transition-colors"
+                        className={cn("mt-4 w-full text-center text-sm transition-colors hover:text-[color:var(--ui-form-label)]", formHelpTextClass)}
                         disabled={loading}
                     >
                         Back to Organization details
