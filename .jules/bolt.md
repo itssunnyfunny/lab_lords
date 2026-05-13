@@ -14,3 +14,6 @@
 ## 2025-04-23 - [Batch Insert Optimization for Manual Shift Deletion]
 **Learning:** Found an N+1 query problem in \`services/shift.service.ts\` within \`ShiftService.deleteShift\`'s \`REALLOCATE_MANUAL\` handler where it sequentially queries and updates the database multiple times inside a loop for each shifted student.
 **Action:** Replaced the loop body queries with bulk pre-fetches (fetching old allocations, relevant active student allocations, all seats, and active branch allocations). Converted the inner sequential \`create\` and \`update\` calls into array accumulation (pushed into \`newAllocationsToCreate\`) while managing state locally via mock array injections, followed by an \`updateMany\` and \`createMany\` after the loop.
+## 2024-10-31 - Eliminate database query waterfalls in service methods and transactions
+**Learning:** Sequential Prisma queries (`await prisma.*` or `await tx.*`) for independent entities within service methods (like `shift.service.ts`) cause significant N+1-like delay bottlenecks, especially inside transactions which hold locks.
+**Action:** Replace sequential 'await' calls with concurrent execution using 'Promise.all([...])' whenever fetching multiple, independent entities within service methods or transaction blocks to minimize total query time and database connection/lock duration.
