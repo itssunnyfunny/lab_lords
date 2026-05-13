@@ -197,18 +197,34 @@ export class ShiftService {
 
         const branchId = shift.branchId;
 
-        const activeShiftCount = await prisma.shift.count({
-            where: { branchId, status: "ACTIVE" },
-        });
-        const isLastActiveShift = activeShiftCount <= 1;
+        // ⚡ Bolt: Eliminate database query waterfall inside analyzeShiftDeletion.
+        // Grouped independent counts and lookups to reduce sequential execution overhead.
+        const [
+            activeShiftCount,
+            rawAllocations,
+            otherActiveShifts,
+            totalBranchSeats
+        ] = await Promise.all([
+            prisma.shift.count({
+                where: { branchId, status: "ACTIVE" },
+            }),
+            prisma.seatAllocation.findMany({
+                where: { shiftId, endDate: null },
+                include: {
+                    student: { select: { id: true, name: true } },
+                    seat: { select: { label: true } },
+                },
+            }),
+            prisma.shift.findMany({
+                where: { branchId, status: "ACTIVE", id: { not: shiftId } },
+                include: {
+                    _count: { select: { seatAllocations: { where: { endDate: null } } } },
+                },
+            }),
+            prisma.seat.count({ where: { branchId } })
+        ]);
 
-        const rawAllocations = await prisma.seatAllocation.findMany({
-            where: { shiftId, endDate: null },
-            include: {
-                student: { select: { id: true, name: true } },
-                seat: { select: { label: true } },
-            },
-        });
+        const isLastActiveShift = activeShiftCount <= 1;
 
         const allocations = rawAllocations.map(a => ({
             allocationId: a.id,
@@ -218,15 +234,6 @@ export class ShiftService {
         }));
 
         const studentsInShift = allocations.length;
-
-        const otherActiveShifts = await prisma.shift.findMany({
-            where: { branchId, status: "ACTIVE", id: { not: shiftId } },
-            include: {
-                _count: { select: { seatAllocations: { where: { endDate: null } } } },
-            },
-        });
-
-        const totalBranchSeats = await prisma.seat.count({ where: { branchId } });
 
         const otherShifts = otherActiveShifts.map(s => {
             const activeAllocations = s._count.seatAllocations;
@@ -302,25 +309,26 @@ export class ShiftService {
                 if (!target || target.status !== "ACTIVE") throw new Error("Target shift not found or inactive.");
                 if (target.id === shiftId) throw new Error("Target shift cannot be the same shift.");
 
-                // Validate capacity
-                const totalSeats = await tx.seat.count({ where: { branchId } });
-                const targetActive = await tx.seatAllocation.count({
-                    where: { shiftId: targetShiftId, endDate: null },
-                });
-                const sourceAllocations = await tx.seatAllocation.findMany({
-                    where: { shiftId, endDate: null },
-                    include: { seat: true, student: true },
-                });
+                // ⚡ Bolt: Eliminate database query waterfall inside deleteShift (REALLOCATE_BULK).
+                // Grouped capacity checks, allocation fetches, and branch shift overlap lookups.
+                const [totalSeats, targetActive, sourceAllocations, allShifts] = await Promise.all([
+                    tx.seat.count({ where: { branchId } }),
+                    tx.seatAllocation.count({
+                        where: { shiftId: targetShiftId, endDate: null },
+                    }),
+                    tx.seatAllocation.findMany({
+                        where: { shiftId, endDate: null },
+                        include: { seat: true, student: true },
+                    }),
+                    tx.shift.findMany({
+                        where: { branchId, status: "ACTIVE" },
+                        select: { id: true, startTime: true, endTime: true },
+                    })
+                ]);
 
                 if (targetActive + sourceAllocations.length > totalSeats) {
                     throw new Error("Target shift does not have enough capacity for all students.");
                 }
-
-                // Load all branch shifts for overlap comparison
-                const allShifts = await tx.shift.findMany({
-                    where: { branchId, status: "ACTIVE" },
-                    select: { id: true, startTime: true, endTime: true },
-                });
                 const shiftMap = new Map(allShifts.map(s => [s.id, s]));
 
                 const targetShiftData = shiftMap.get(targetShiftId);
@@ -406,11 +414,15 @@ export class ShiftService {
             const { assignments } = resolution;
 
             await prisma.$transaction(async (tx) => {
-                const totalSeats = await tx.seat.count({ where: { branchId } });
-                const allShifts = await tx.shift.findMany({
-                    where: { branchId, status: "ACTIVE" },
-                    select: { id: true, name: true, startTime: true, endTime: true },
-                });
+                // ⚡ Bolt: Eliminate database query waterfall inside deleteShift (REALLOCATE_MANUAL).
+                // Grouped total seats count and shift metadata lookup.
+                const [totalSeats, allShifts] = await Promise.all([
+                    tx.seat.count({ where: { branchId } }),
+                    tx.shift.findMany({
+                        where: { branchId, status: "ACTIVE" },
+                        select: { id: true, name: true, startTime: true, endTime: true },
+                    })
+                ]);
                 const shiftMap = new Map(allShifts.map(s => [s.id, s]));
 
                 // Group assignments by targetShiftId to validate capacity in bulk
