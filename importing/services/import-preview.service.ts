@@ -1,0 +1,66 @@
+import { ImportSessionService } from "./import-session.service";
+import type { CommitMode, ImportIssue, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
+import type { ImportPreview } from "@/importing/contracts/import-preview.contract";
+
+export class ImportPreviewService {
+    static async getPreview(
+        userId: string,
+        branchId: string,
+        sessionId: string,
+        mode: CommitMode = "SAFE_PARTIAL"
+    ): Promise<ImportPreview> {
+        const detail = await ImportSessionService.revalidateSession(userId, branchId, sessionId);
+        const rows = detail.rows.map(row => {
+            const issues = (Array.isArray(row.issues) ? row.issues : []) as ImportIssue[];
+            const warnings = (Array.isArray(row.warnings) ? row.warnings : []) as ImportIssue[];
+            const willImport = !row.skipped && ["READY", "WARNING"].includes(row.status);
+
+            return {
+                rowId: row.id,
+                rowNumber: row.rowNumber,
+                status: row.status,
+                normalizedData: row.normalizedData as ImportNormalizedRow | null,
+                issues,
+                warnings,
+                willImport,
+            };
+        });
+
+        const importableRows = rows.filter(row => row.willImport);
+        const createSeats = new Set<string>();
+        const createShifts = new Set<string>();
+        const createMultiShifts = new Set<string>();
+
+        for (const row of importableRows) {
+            const normalized = row.normalizedData;
+            if (!normalized) continue;
+            if (normalized.seat?.label && row.warnings.some(warning => warning.code === "WILL_CREATE_SEAT")) createSeats.add(normalized.seat.label);
+            if (normalized.shift?.name && row.warnings.some(warning => warning.code === "WILL_CREATE_SHIFT")) createShifts.add(normalized.shift.name);
+            if (normalized.multiShift?.name && row.warnings.some(warning => warning.code === "WILL_CREATE_MULTI_SHIFT")) createMultiShifts.add(normalized.multiShift.name);
+        }
+
+        const paymentRows = importableRows.filter(row => row.normalizedData?.payment);
+        return {
+            mode,
+            canCommit: detail.status === "READY_TO_COMMIT" || (mode === "SAFE_PARTIAL" && importableRows.length > 0),
+            summary: {
+                createStudents: importableRows.filter(row => row.normalizedData?.student?.name).length,
+                createSeats: createSeats.size,
+                createShifts: createShifts.size,
+                createMultiShifts: createMultiShifts.size,
+                createAllocations: importableRows.filter(row =>
+                    row.normalizedData?.allocation?.seatLabel &&
+                    (row.normalizedData.allocation.shiftName || row.normalizedData.allocation.multiShiftName)
+                ).length,
+                generatePayments: paymentRows.length,
+                markPaid: paymentRows.filter(row => row.normalizedData?.payment?.status === "PAID").length,
+                markWaived: paymentRows.filter(row => row.normalizedData?.payment?.status === "WAIVED").length,
+                skippedRows: rows.filter(row => row.status === "SKIPPED").length,
+                blockedRows: rows.filter(row => ["BLOCKED", "CONFLICT"].includes(row.status)).length,
+                warningRows: rows.filter(row => row.warnings.length > 0).length,
+            },
+            rows,
+            warnings: rows.flatMap(row => row.warnings.map(warning => warning.message)).slice(0, 20),
+        };
+    }
+}

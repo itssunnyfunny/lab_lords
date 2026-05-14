@@ -147,6 +147,64 @@ export class PaymentService {
         };
     }
 
+    static async ensureMonthlyPaymentForStudent(
+        userId: string,
+        branchId: string,
+        data: {
+            studentId: string;
+            periodStart: Date;
+            periodEnd: Date;
+            dueDate?: Date;
+            amount?: number;
+        }
+    ) {
+        await this.assertBranchAccess(userId, branchId, "generate_payments");
+
+        const periodStart = startOfDay(data.periodStart);
+        const periodEnd = startOfDay(data.periodEnd);
+        const dueDate = startOfDay(data.dueDate ?? data.periodEnd);
+
+        const student = await prisma.student.findUnique({
+            where: { id: data.studentId },
+            select: { id: true, branchId: true, monthlyFee: true, status: true },
+        });
+
+        if (!student) throw new Error("Student not found");
+        if (student.branchId !== branchId) throw new Error("Student does not belong to this branch");
+        if (student.status !== StudentStatus.ACTIVE) throw new Error("Only ACTIVE students can receive monthly payments");
+
+        const existing = await prisma.payment.findUnique({
+            where: {
+                studentId_periodStart: {
+                    studentId: student.id,
+                    periodStart,
+                },
+            },
+        });
+
+        if (existing) return existing;
+
+        const payment = await prisma.payment.create({
+            data: {
+                branchId,
+                studentId: student.id,
+                amount: data.amount ?? student.monthlyFee,
+                status: PaymentStatus.DUE,
+                type: PaymentType.MONTHLY,
+                periodStart,
+                periodEnd,
+                dueDate,
+            },
+        });
+
+        await prisma.branch.update({
+            where: { id: branchId },
+            data: { lastDataChange: new Date() },
+        });
+
+        return payment;
+    }
+
     /**
      * Lists payments for a branch with optional status filter.
      * Supports strict monthly view logic:

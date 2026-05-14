@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { StudentStatus, PaymentType, PaymentStatus } from "@/types";
-import { CreateStudentDto, DueResolution, UpdateStudentProfileDto } from "@/types";
+import { CreateImportedStudentDto, CreateStudentDto, DueResolution, UpdateStudentProfileDto } from "@/types";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { StaffService } from "@/services/staff.service";
 import { startOfDay } from "date-fns";
@@ -233,6 +233,101 @@ export class StudentService {
 
         // 2. If seat + shifts provided, assign via SeatAllocationService
         //    (runs its own transaction with full cross-shift conflict checks)
+        if (data.seatId && shiftIds.length > 0) {
+            await SeatAllocationService.assignSeatToShifts(
+                userId,
+                data.seatId,
+                student.id,
+                shiftIds
+            );
+        }
+
+        return student;
+    }
+
+    static async createImportedStudent(
+        userId: string,
+        branchId: string,
+        data: CreateImportedStudentDto
+    ) {
+        const branch = await this.verifyBranchAccess(userId, branchId);
+        const nameResult = validateRequiredText(data.name, "Student name");
+        if (!nameResult.ok) throw new Error(nameResult.error);
+        const phoneResult = validatePhone(data.phone ?? undefined);
+        if (!phoneResult.ok) throw new Error(phoneResult.error);
+        const monthlyFeeResult = parseIntegerField(data.monthlyFee, "Monthly fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!monthlyFeeResult.ok) throw new Error(monthlyFeeResult.error);
+        const admissionFeeResult = parseIntegerField(data.admissionFee, "Admission fee", {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!admissionFeeResult.ok) throw new Error(admissionFeeResult.error);
+        const linkedShiftResult = validateOptionalId(data.feeLinkedShiftId, "Linked shift");
+        if (!linkedShiftResult.ok) throw new Error(linkedShiftResult.error);
+        const linkedMultiShiftResult = validateOptionalId(data.feeLinkedMultiShiftId, "Linked multi-shift");
+        if (!linkedMultiShiftResult.ok) throw new Error(linkedMultiShiftResult.error);
+
+        const joinedAt = data.joinedAt instanceof Date && !Number.isNaN(data.joinedAt.getTime())
+            ? data.joinedAt
+            : new Date();
+        const shiftIds = data.shiftIds && data.shiftIds.length > 0 ? data.shiftIds : [];
+
+        const student = await prisma.$transaction(async (tx) => {
+            if (phoneResult.value) {
+                await this.assertUniqueBranchIdentity(tx, branchId, nameResult.value, phoneResult.value);
+            }
+
+            const feeData = await this.resolveMonthlyFeeData(
+                tx,
+                branchId,
+                {
+                    monthlyFee: monthlyFeeResult.value,
+                    feeLinkedShiftId: linkedShiftResult.value,
+                    feeLinkedMultiShiftId: linkedMultiShiftResult.value,
+                },
+                monthlyFeeResult.value ?? branch.defaultFee ?? 0
+            );
+
+            const created = await tx.student.create({
+                data: {
+                    branchId,
+                    name: nameResult.value,
+                    phone: phoneResult.value ?? null,
+                    status: StudentStatus.ACTIVE,
+                    monthlyFee: feeData.monthlyFee,
+                    feeLinkedShiftId: feeData.feeLinkedShiftId,
+                    feeLinkedMultiShiftId: feeData.feeLinkedMultiShiftId,
+                    joinedAt,
+                },
+            });
+
+            const admissionFee = admissionFeeResult.value ?? branch.defaultAdmissionFee ?? 0;
+            if (admissionFee > 0) {
+                await tx.payment.create({
+                    data: {
+                        branchId,
+                        studentId: created.id,
+                        amount: admissionFee,
+                        status: PaymentStatus.DUE,
+                        type: PaymentType.ADMISSION,
+                        dueDate: startOfDay(joinedAt),
+                        periodStart: startOfDay(joinedAt),
+                        periodEnd: startOfDay(joinedAt),
+                    },
+                });
+            }
+
+            await tx.branch.update({
+                where: { id: branchId },
+                data: { lastDataChange: new Date() },
+            });
+
+            return created;
+        });
+
         if (data.seatId && shiftIds.length > 0) {
             await SeatAllocationService.assignSeatToShifts(
                 userId,
