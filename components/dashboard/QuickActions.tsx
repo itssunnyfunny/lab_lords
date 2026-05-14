@@ -11,7 +11,7 @@ import { useBranchAccess } from "@/hooks/useBranchAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
 import { cn } from "@/lib/utils";
 import type { StaffAction } from "@/types";
-import { ArrowRight, CalendarCheck, CreditCard, Grid, LockKeyhole, LucideIcon, UserPlus } from "lucide-react";
+import { ArrowRight, CalendarCheck, CreditCard, Grid, LockKeyhole, LucideIcon, UploadCloud, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Action {
@@ -30,6 +30,14 @@ const actions: Action[] = [
         icon: UserPlus,
         route: "/students",
         tone: "text-cyan-300 bg-cyan-400/10",
+        permission: "students",
+    },
+    {
+        label: "Import records",
+        description: "Onboard existing data",
+        icon: UploadCloud,
+        route: "/onboarding/import",
+        tone: "text-sky-300 bg-sky-400/10",
         permission: "students",
     },
     {
