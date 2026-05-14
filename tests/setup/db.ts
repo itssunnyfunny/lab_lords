@@ -44,6 +44,10 @@ export async function resetDatabase() {
   await testPrisma.$executeRawUnsafe(`
     TRUNCATE TABLE
       "AuditLog",
+      "ImportCommit",
+      "ImportQuestion",
+      "ImportRow",
+      "ImportSession",
       "MessageDraft",
       "BranchAIReport",
       "StaffInvite",
