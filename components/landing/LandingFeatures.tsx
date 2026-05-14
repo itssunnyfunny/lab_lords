@@ -1,80 +1,112 @@
-import { CreditCard, Grid3X3, LayoutDashboard, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { BrainCircuit, CreditCard, Database, Grid3X3, KeyRound, Network, ShieldCheck, Users } from "lucide-react";
 import {
   landingContainerClass,
   landingDescriptionClass,
   landingEyebrowClass,
-  landingInsetClass,
   landingMutedTextClass,
   landingPanelClass,
   landingSectionClass,
   landingTitleClass,
 } from "@/components/ui/landingSurface";
+import { LandingReveal } from "@/components/landing/LandingReveal";
 
 const features = [
   {
-    title: "Multi-Branch Management",
-    description: "Control all your study halls or libraries from a single, unified dashboard. Compare metrics and manage staff effortlessly.",
-    icon: LayoutDashboard,
-    tone: "text-[color:var(--ui-badge-cyan-text)] bg-[color:var(--ui-badge-cyan-bg)] border-[color:var(--ui-badge-cyan-border)]",
-  },
-  {
-    title: "Visual Seat Allocation",
-    description: "Map out your exact physical layout. Drag and drop students to seats, manage shifts seamlessly, and instantly spot available capacity.",
+    title: "A real allocation engine, not a colored grid",
+    description:
+      "Map physical seats once, then assign students by shift with overlap checks that block impossible bookings before they create front-desk confusion.",
     icon: Grid3X3,
-    tone: "text-[color:var(--ui-badge-purple-text)] bg-[color:var(--ui-badge-purple-bg)] border-[color:var(--ui-badge-purple-border)]",
-  },
-  {
-    title: "Automated Billing & Dues",
-    description: "Never lose track of payments again. Detailed ledgers, automated due-date tracking, and single-click payment recording.",
-    icon: CreditCard,
-    tone: "text-[color:var(--ui-badge-success-text)] bg-[color:var(--ui-badge-success-bg)] border-[color:var(--ui-badge-success-border)]",
-  },
-  {
-    title: "AI-Powered Insights",
-    description: "Your silent manager. Get intelligent alerts for expiring memberships, low utilization times, and revenue forecasts.",
-    icon: Sparkles,
-    tone: "text-[color:var(--ui-badge-warning-text)] bg-[color:var(--ui-badge-warning-bg)] border-[color:var(--ui-badge-warning-border)]",
-  },
-  {
-    title: "Student Profiles & History",
-    description: "Maintain comprehensive digital records of every student, their ID proofs, past allocations, and behavior logs.",
-    icon: Users,
     tone: "text-[color:var(--ui-badge-cyan-text)] bg-[color:var(--ui-badge-cyan-bg)] border-[color:var(--ui-badge-cyan-border)]",
+    layout: "lg:col-span-2",
   },
   {
-    title: "Role-Based Access Control",
-    description: "Safely delegate tasks to branch managers and staff. Granular permissions ensure your financial data stays private.",
+    title: "Branch-safe data",
+    description:
+      "Students, seats, payments, staff, and AI outputs stay scoped to the right branch so operators can expand without leaking context.",
     icon: ShieldCheck,
-    tone: "text-[color:var(--ui-badge-danger-text)] bg-[color:var(--ui-badge-danger-bg)] border-[color:var(--ui-badge-danger-border)]",
+    tone: "text-[color:var(--ui-badge-success-text)] bg-[color:var(--ui-badge-success-bg)] border-[color:var(--ui-badge-success-border)]",
+    layout: "",
   },
+  {
+    title: "Payment memory",
+    description:
+      "Track paid, due, waived, and pending balances against the student record instead of chasing notes across registers and chats.",
+    icon: CreditCard,
+    tone: "text-[color:var(--ui-badge-warning-text)] bg-[color:var(--ui-badge-warning-bg)] border-[color:var(--ui-badge-warning-border)]",
+    layout: "",
+  },
+  {
+    title: "Owner-approved AI",
+    description:
+      "The system can draft overdue messages and branch health reports, but it never acts on its own. Your team reviews before anything leaves the app.",
+    icon: BrainCircuit,
+    tone: "text-[color:var(--ui-badge-purple-text)] bg-[color:var(--ui-badge-purple-bg)] border-[color:var(--ui-badge-purple-border)]",
+    layout: "",
+  },
+  {
+    title: "Staff permissions that match the floor",
+    description:
+      "Managers and staff can be given operational access without exposing owner-level finance and configuration decisions.",
+    icon: KeyRound,
+    tone: "text-[color:var(--ui-badge-danger-text)] bg-[color:var(--ui-badge-danger-bg)] border-[color:var(--ui-badge-danger-border)]",
+    layout: "",
+  },
+  {
+    title: "Records built for migration",
+    description:
+      "Student profiles, branch settings, shifts, seats, and audit history are structured for the moment your business outgrows notebooks.",
+    icon: Database,
+    tone: "text-[color:var(--ui-badge-cyan-text)] bg-[color:var(--ui-badge-cyan-bg)] border-[color:var(--ui-badge-cyan-border)]",
+    layout: "",
+  },
+];
+
+const operatorOutcomes = [
+  { label: "Front desk", value: "knows who sits where", icon: Users },
+  { label: "Managers", value: "act inside their permission lane", icon: KeyRound },
+  { label: "Owners", value: "see branch health without waiting", icon: Network },
 ];
 
 export function LandingFeatures() {
   return (
-    <section id="features" className={`${landingSectionClass} bg-[color:var(--ui-form-muted-surface-bg)]`}>
-      <div className={landingContainerClass}>
-        <div className="mb-10 max-w-3xl md:mb-14">
-          <p className={landingEyebrowClass}>Core features</p>
-          <h2 className={`${landingTitleClass} mt-3`}>Everything you need to run at scale</h2>
-          <p className={`${landingDescriptionClass} mt-4`}>
-            We&apos;ve built a specialized toolkit that replaces your registers and spreadsheets with an elegant, lightning-fast application.
-          </p>
+    <section id="features" className={`${landingSectionClass} overflow-hidden bg-[color:var(--ui-form-muted-surface-bg)]`}>
+      <span className="landing-section-glow left-[4%] top-20 h-52 w-52 bg-emerald-400/10 [animation-delay:1.2s]" aria-hidden="true" />
+      <div className={`${landingContainerClass} relative`}>
+        <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(280px,0.5fr)] lg:items-end">
+          <LandingReveal variant="left">
+            <p className={landingEyebrowClass}>What becomes calmer</p>
+            <h2 className={`${landingTitleClass} mt-3`}>Purpose-built controls for branches that run on physical capacity.</h2>
+            <p className={`${landingDescriptionClass} mt-4 max-w-2xl`}>
+              Every surface is tuned for offline education operators: seat inventory, shift timing, fee discipline, delegated staff work, and reviewable AI support.
+            </p>
+          </LandingReveal>
+
+          <div className="grid grid-cols-1 gap-2">
+            {operatorOutcomes.map(outcome => {
+              const Icon = outcome.icon;
+              return (
+                <LandingReveal key={outcome.label} delay={120} variant="right" className="landing-animated-card flex items-center gap-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] px-3 py-2.5">
+                  <Icon size={15} className="shrink-0 text-[color:var(--ui-tone-info-text)]" />
+                  <p className="min-w-0 text-sm text-[color:var(--text-secondary)]">
+                    <span className="font-semibold text-[color:var(--text-primary)]">{outcome.label}</span> {outcome.value}
+                  </p>
+                </LandingReveal>
+              );
+            })}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {features.map(feature => {
+          {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <div key={feature.title} className={`${landingPanelClass} p-5`}>
+              <LandingReveal key={feature.title} delay={80 + index * 70} variant="up" className={`${landingPanelClass} landing-animated-card ${feature.layout} p-5`}>
                 <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-[var(--ui-radius-control)] border ${feature.tone}`}>
                   <Icon size={19} />
                 </div>
-                <h3 className="text-lg font-semibold text-[color:var(--text-primary)]">{feature.title}</h3>
-                <p className={`${landingMutedTextClass} mt-3 text-sm leading-6`}>{feature.description}</p>
-                <div className={`${landingInsetClass} mt-5 h-1.5 overflow-hidden`}>
-                  <div className="h-full w-2/3 rounded-full bg-[color:var(--ui-tone-info-progress)]" />
-                </div>
-              </div>
+                <h3 className="max-w-xl text-lg font-semibold text-[color:var(--text-primary)]">{feature.title}</h3>
+                <p className={`${landingMutedTextClass} mt-3 max-w-2xl text-sm leading-6`}>{feature.description}</p>
+              </LandingReveal>
             );
           })}
         </div>
