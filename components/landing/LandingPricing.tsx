@@ -1,4 +1,4 @@
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
 import {
   landingContainerClass,
   landingDescriptionClass,
@@ -11,31 +11,32 @@ import {
   landingSubtleTextClass,
   landingTitleClass,
 } from "@/components/ui/landingSurface";
+import { LandingReveal } from "@/components/landing/LandingReveal";
 
 const plans = [
   {
     name: "Starter",
     price: "Free",
     suffix: "/ forever",
-    description: "Perfect for a single starting branch.",
+    description: "For one branch proving the workflow.",
     featured: false,
-    features: ["1 Branch Location", "Up to 50 Active Students", "Basic Seat Allocation", "Standard Dashboard", "Community Support"],
+    features: ["1 branch", "50 active students", "Seat allocation", "Student records", "Core dashboard"],
   },
   {
-    name: "Professional",
+    name: "Operator",
     price: "Rs.999",
     suffix: "/ month",
-    description: "For growing multi-branch businesses.",
+    description: "For busy branches that need payments, roles, and cleaner daily control.",
     featured: true,
-    features: ["Up to 3 Branch Locations", "Unlimited Active Students", "Advanced Seat Mapping", "Payment & Due Tracking", "Manager Role Access", "Priority Email Support"],
+    features: ["Up to 3 branches", "Unlimited students", "Payment and due tracking", "Manager access", "AI draft review", "Priority support"],
   },
   {
-    name: "Enterprise",
+    name: "Scale",
     price: "Custom",
     suffix: "",
-    description: "Bespoke limits for large operations.",
+    description: "For multi-location education operators with custom rollout needs.",
     featured: false,
-    features: ["Unlimited Branch Locations", "Custom Roles & Permissions", "AI-Powered Insights Module", "Detailed audit history", "Dedicated Success Manager", "24/7 Phone Support"],
+    features: ["Unlimited branches", "Custom roles", "Advanced analytics", "Audit history", "Migration support", "Dedicated success"],
   },
 ];
 
@@ -45,21 +46,42 @@ export function LandingPricing({
   onDashboardClick: () => void;
 }) {
   return (
-    <section id="pricing" className={`${landingSectionClass} bg-[color:var(--ui-form-muted-surface-bg)]`}>
-      <div className={landingContainerClass}>
-        <div className="mb-10 max-w-3xl md:mb-14">
-          <p className={landingEyebrowClass}>Simple Pricing</p>
-          <h2 className={`${landingTitleClass} mt-3`}>Scale without limits.</h2>
-          <p className={`${landingDescriptionClass} mt-4`}>
-            Start for free, then choose a plan that perfectly fits the size of your operations. No hidden fees or complex contracts.
-          </p>
+    <section id="pricing" className={`${landingSectionClass} overflow-hidden bg-[color:var(--ui-form-muted-surface-bg)]`}>
+      <span className="landing-section-glow left-[16%] top-24 h-52 w-52 bg-cyan-400/10 [animation-delay:1.6s]" aria-hidden="true" />
+      <div className={`${landingContainerClass} relative`}>
+        <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(280px,0.5fr)] lg:items-end">
+          <LandingReveal variant="left">
+            <p className={landingEyebrowClass}>Pricing</p>
+            <h2 className={`${landingTitleClass} mt-3`}>Start with the branch you have. Scale when the system earns it.</h2>
+            <p className={`${landingDescriptionClass} mt-4 max-w-2xl`}>
+              Keep the entry point simple, then move into deeper operations once your branch depends on the workflow.
+            </p>
+          </LandingReveal>
+
+          <LandingReveal variant="right" delay={120} className={`${landingPanelClass} landing-animated-card p-4`}>
+            <div className="flex items-center gap-3">
+              <div className="landing-live-pulse flex h-10 w-10 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] text-[color:var(--ui-badge-warning-text)]">
+                <Sparkles size={17} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[color:var(--text-primary)]">No lock-in theatre</p>
+                <p className={`${landingSubtleTextClass} mt-1 text-xs`}>The free tier is useful enough to validate a real branch.</p>
+              </div>
+            </div>
+          </LandingReveal>
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {plans.map(plan => (
-            <div
+          {plans.map((plan, index) => (
+            <LandingReveal
               key={plan.name}
-              className={`${landingPanelClass} flex flex-col p-5 ${plan.featured ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]" : ""}`}
+              delay={100 + index * 90}
+              variant={plan.featured ? "scale" : "up"}
+              className={`${landingPanelClass} flex flex-col p-5 ${
+                plan.featured
+                  ? "landing-animated-card border-[color:var(--ui-badge-cyan-border)] bg-[rgba(6,182,212,0.1)] shadow-[0_20px_60px_rgba(34,211,238,0.08)]"
+                  : "landing-animated-card"
+              }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -67,8 +89,8 @@ export function LandingPricing({
                   <p className={`${landingMutedTextClass} mt-2 text-sm leading-6`}>{plan.description}</p>
                 </div>
                 {plan.featured && (
-                  <span className="rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ui-badge-cyan-text)]">
-                    Most Popular
+                  <span className="shrink-0 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ui-badge-cyan-text)]">
+                    Best fit
                   </span>
                 )}
               </div>
@@ -81,13 +103,13 @@ export function LandingPricing({
               <button
                 type="button"
                 onClick={onDashboardClick}
-                className={`${plan.featured ? landingPrimaryButtonClass : landingSecondaryButtonClass} mt-6 w-full`}
+                className={`${plan.featured ? `${landingPrimaryButtonClass} landing-cta-shine` : landingSecondaryButtonClass} mt-6 w-full`}
               >
-                Get Started
+                Start this plan
                 <ArrowRight size={15} />
               </button>
 
-              <div className="mt-6 flex-1 space-y-3">
+              <div className="mt-6 flex-1 space-y-3 border-t border-[color:var(--ui-form-section-divider)] pt-5">
                 {plan.features.map(feature => (
                   <div key={feature} className="flex items-center gap-3">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]">
@@ -97,7 +119,7 @@ export function LandingPricing({
                   </div>
                 ))}
               </div>
-            </div>
+            </LandingReveal>
           ))}
         </div>
       </div>
