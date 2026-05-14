@@ -1,40 +1,231 @@
-import { ArrowRight, Building2, CheckCircle2, CreditCard, Grid3X3, MessageSquareText, PlayCircle, Users } from "lucide-react";
+import {
+  ArrowRight,
+  Bell,
+  Building2,
+  CalendarClock,
+  CheckCircle2,
+  CreditCard,
+  Grid3X3,
+  MessageSquareText,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import {
   landingContainerClass,
   landingDescriptionClass,
   landingEyebrowClass,
-  landingInsetClass,
   landingMetricClass,
-  landingPanelClass,
   landingPrimaryButtonClass,
   landingSecondaryButtonClass,
   landingSubtleTextClass,
 } from "@/components/ui/landingSurface";
 
 const heroMetrics = [
-  { label: "Seat occupancy", value: "84%", detail: "126 of 150 seats", tone: "text-[color:var(--ui-tone-info-text)]", icon: Grid3X3 },
-  { label: "Active students", value: "248", detail: "18 morning shift", tone: "text-[color:var(--ui-tone-success-text)]", icon: Users },
-  { label: "Fees collected", value: "Rs.1.42L", detail: "Rs.37k due", tone: "text-[color:var(--text-primary)]", icon: CreditCard },
+  {
+    label: "Seat utilization",
+    value: "85.4%",
+    detail: "128 of 150 seats booked",
+    tone: "text-[color:var(--ui-tone-info-text)]",
+    icon: Grid3X3,
+  },
+  {
+    label: "Fee health",
+    value: "Rs.1.42L",
+    detail: "Rs.37k in active dues",
+    tone: "text-[color:var(--ui-tone-success-text)]",
+    icon: CreditCard,
+  },
+  {
+    label: "AI drafts",
+    value: "14",
+    detail: "Ready for owner review",
+    tone: "text-[color:var(--ui-tone-warning-text)]",
+    icon: MessageSquareText,
+  },
 ];
 
-const commandItems = [
-  { label: "Dashboard", active: true },
-  { label: "Seat map" },
+const sceneNavItems = [
+  { label: "Command", active: true },
+  { label: "Students" },
+  { label: "Seats" },
   { label: "Payments" },
-  { label: "Messages" },
+  { label: "AI queue" },
 ];
 
-const seatRows = [
-  ["A1", "A2", "A3", "A4", "A5", "A6"],
-  ["B1", "B2", "B3", "B4", "B5", "B6"],
-  ["C1", "C2", "C3", "C4", "C5", "C6"],
-  ["D1", "D2", "D3", "D4", "D5", "D6"],
+const seatCells = Array.from({ length: 48 }, (_, index) => index);
+
+const feeRows = [
+  { name: "Priya Patel", status: "Paid", amount: "Rs.2,500", tone: "text-[color:var(--ui-tone-success-text)]" },
+  { name: "Rahul Mehta", status: "Due", amount: "Rs.1,200", tone: "text-[color:var(--ui-tone-danger-text)]" },
+  { name: "Sneha Rao", status: "Review", amount: "Rs.1,800", tone: "text-[color:var(--ui-tone-warning-text)]" },
 ];
 
-const paymentRows = [
-  { name: "Rahul Mehta", amount: "Rs.1,200", status: "Due", tone: "text-[color:var(--ui-tone-danger-text)]" },
-  { name: "Priya Patel", amount: "Rs.2,500", status: "Paid", tone: "text-[color:var(--ui-tone-success-text)]" },
+const timeline = [
+  { time: "08:40", title: "Morning shift opened", detail: "42 students checked in" },
+  { time: "09:10", title: "Seat B3 released", detail: "Auto-conflict check passed" },
+  { time: "09:25", title: "Due reminder drafted", detail: "Hindi message ready" },
 ];
+
+const trustItems = [
+  { value: "Branch-first", label: "Every record stays scoped to the right location.", delay: "[animation-delay:520ms]" },
+  { value: "Shift-safe", label: "Seat conflicts are blocked before they reach staff.", delay: "[animation-delay:620ms]" },
+  { value: "Human-led AI", label: "Drafts and insights wait for owner approval.", delay: "[animation-delay:720ms]" },
+];
+
+function HeroDashboardScene() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_68%_22%,rgba(6,182,212,0.14),transparent_32%),linear-gradient(90deg,var(--bg-app)_0%,rgba(5,5,8,0.99)_47%,rgba(5,5,8,0.78)_72%,rgba(5,5,8,0.92)_100%)]" />
+      <div
+        className="landing-dashboard-drift absolute inset-x-[-18%] top-16 hidden h-[660px] max-w-[1500px] opacity-30 md:block lg:left-[50%] lg:right-[-34%] lg:top-14 lg:opacity-[0.62]"
+      >
+        <div className="relative h-full overflow-hidden rounded-[20px] border border-white/10 bg-[rgba(8,12,18,0.88)] shadow-[0_40px_120px_rgba(0,0,0,0.55)]">
+          <div className="landing-scanline absolute inset-y-0 z-20 w-1/3 bg-[linear-gradient(90deg,transparent,rgba(103,232,249,0.12),transparent)]" />
+          <div className="flex h-14 items-center justify-between border-b border-white/10 bg-white/[0.035] px-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]">
+                <Building2 size={17} />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Lab Lords Branch OS</p>
+                <p className="text-sm font-semibold text-[color:var(--text-primary)]">Downtown Branch</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] px-3 py-2 text-xs text-[color:var(--text-secondary)]">
+              <Bell size={13} />
+              6 actions
+            </div>
+          </div>
+
+          <div className="grid h-[calc(100%-3.5rem)] grid-cols-[180px_minmax(0,1fr)_290px]">
+            <aside className="border-r border-white/10 bg-white/[0.025] p-4">
+              <div className="mb-5 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] p-3">
+                <p className="text-xs font-semibold text-[color:var(--text-primary)]">May operations</p>
+                <p className="mt-1 text-[11px] text-[color:var(--text-muted)]">3 shifts running today</p>
+              </div>
+              <nav className="space-y-2">
+                {sceneNavItems.map(item => (
+                  <div
+                    key={item.label}
+                    className={`rounded-[var(--ui-radius-control)] px-3 py-2 text-xs font-semibold ${
+                      item.active
+                        ? "border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
+                        : "text-[color:var(--text-muted)]"
+                    }`}
+                  >
+                    {item.label}
+                  </div>
+                ))}
+              </nav>
+            </aside>
+
+            <div className="p-5">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Live command center</p>
+                  <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">Branch Overview</h2>
+                </div>
+                <div className="landing-live-pulse flex items-center gap-2 rounded-full border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--ui-badge-success-text)]">
+                  <CheckCircle2 size={13} />
+                  9:00 AM shift live
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {heroMetrics.map(metric => {
+                  const Icon = metric.icon;
+                  return (
+                    <div key={metric.label} className={landingMetricClass}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-[11px] font-medium text-[color:var(--text-muted)]">{metric.label}</p>
+                        <Icon size={13} className="shrink-0 text-[color:var(--text-muted)]" />
+                      </div>
+                      <p className={`mt-2 text-xl font-semibold tracking-tight ${metric.tone}`}>{metric.value}</p>
+                      <p className="mt-1 truncate text-[11px] text-[color:var(--text-muted)]">{metric.detail}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 grid grid-cols-[minmax(0,1fr)_220px] gap-4">
+                <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[color:var(--text-primary)]">Seat map</p>
+                      <p className="mt-1 text-xs text-[color:var(--text-muted)]">Conflict-aware across morning, evening, and full-day shifts.</p>
+                    </div>
+                    <span className="text-xs font-semibold text-[color:var(--ui-tone-info-text)]">22 free</span>
+                  </div>
+                  <div className="grid grid-cols-8 gap-2">
+                    {seatCells.map(index => {
+                      const selected = [10, 11, 12, 27].includes(index);
+                      const occupied = [1, 4, 6, 9, 15, 18, 21, 24, 30, 37, 42].includes(index);
+
+                      return (
+                        <div
+                          key={index}
+                          className={`aspect-square rounded-[6px] border ${
+                            selected
+                              ? "landing-seat-breathe border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
+                              : occupied
+                                ? "border-[color:var(--ui-badge-danger-border)] bg-[color:var(--ui-badge-danger-bg)]"
+                                : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)]"
+                          }`}
+                          style={selected ? { animationDelay: `${index * 55}ms` } : undefined}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-[color:var(--text-primary)]">Fee queue</p>
+                      <CreditCard size={14} className="text-[color:var(--text-muted)]" />
+                    </div>
+                    <div className="space-y-2">
+                      {feeRows.map(row => (
+                        <div key={row.name} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 text-xs">
+                          <span className="truncate text-[color:var(--text-secondary)]">{row.name}</span>
+                          <span className={`font-semibold ${row.tone}`}>{row.status}</span>
+                          <span className="col-span-2 text-[11px] text-[color:var(--text-muted)]">{row.amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-badge-warning-text)]">Recommended action</p>
+                    <p className="mt-2 text-sm font-semibold leading-5 text-[color:var(--text-primary)]">Approve 5 overdue reminders before noon.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <aside className="border-l border-white/10 bg-white/[0.025] p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-[color:var(--text-primary)]">Today&apos;s pulse</p>
+                <TrendingUp size={15} className="text-[color:var(--ui-tone-success-text)]" />
+              </div>
+              <div className="space-y-4">
+                {timeline.map(item => (
+                  <div key={item.title} className="relative pl-8">
+                    <span className="landing-live-pulse absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[9px] font-semibold text-[color:var(--ui-badge-cyan-text)]" />
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">{item.time}</p>
+                    <p className="mt-1 text-xs font-semibold text-[color:var(--text-primary)]">{item.title}</p>
+                    <p className="mt-1 text-[11px] leading-5 text-[color:var(--text-muted)]">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function LandingHero({
   onDashboardClick,
@@ -42,168 +233,67 @@ export function LandingHero({
   onDashboardClick: () => void;
 }) {
   return (
-    <section className="relative z-10">
-      <div className={`${landingContainerClass} grid gap-8 pt-14 sm:pt-16 md:grid-cols-[minmax(0,0.9fr)_minmax(320px,0.78fr)] md:items-center md:gap-10 md:pt-20`}>
-        <div className="max-w-3xl text-left">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-3 py-1.5 text-[color:var(--ui-badge-cyan-text)]">
-            <Building2 size={14} />
-            <span className={landingEyebrowClass}>Seats, fees, shifts, and follow-ups</span>
+    <section className="relative z-10 overflow-hidden border-b border-[color:var(--ui-panel-header-border)]">
+      <HeroDashboardScene />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(5,5,8,0.16) 0%, rgba(5,5,8,0.04) 46%, var(--bg-app) 100%)",
+        }}
+      />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-[72%] bg-[linear-gradient(90deg,var(--bg-app)_0%,rgba(5,5,8,0.96)_55%,rgba(5,5,8,0.38)_82%,transparent_100%)]" />
+
+      <div className={`${landingContainerClass} relative z-10 flex min-h-[calc(100svh-16rem)] flex-col justify-center py-8 sm:py-10 lg:min-h-[500px] xl:min-h-[500px]`}>
+        <div className="max-w-2xl">
+          <div className="landing-reveal mb-5 inline-flex items-center gap-2 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[rgba(6,182,212,0.14)] px-3 py-1.5 text-[color:var(--ui-badge-cyan-text)] shadow-[0_0_34px_rgba(6,182,212,0.12)] backdrop-blur-md">
+            <ShieldCheck size={14} />
+            <span className={landingEyebrowClass}>Micro-ERP for offline education operators</span>
           </div>
 
-          <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-[color:var(--text-primary)] sm:text-5xl lg:text-7xl">
-            The Operating System for Offline Education.
+          <h1 className="max-w-2xl text-5xl font-semibold tracking-tight text-[color:var(--text-primary)] [text-shadow:0_16px_50px_rgba(0,0,0,0.95)] sm:text-6xl">
+            <span className="landing-reveal block [animation-delay:90ms]">Lab Lords</span>
+            <span className="landing-reveal block [animation-delay:170ms]">Branch OS</span>
           </h1>
 
-          <p className={`${landingDescriptionClass} mt-5 max-w-2xl text-base sm:text-lg`}>
-            Lab Lords brings seat allocation, student records, shift planning, fee collection, and AI follow-ups into one branch dashboard built for coaching centers and study libraries.
+          <p className={`${landingDescriptionClass} landing-reveal mt-4 max-w-lg text-base text-slate-300 [animation-delay:270ms] sm:text-lg`}>
+            Run seats, shifts, fee dues, staff permissions, and owner-approved AI follow-ups from one readable command center.
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={onDashboardClick} className={landingPrimaryButtonClass}>
-              Start Free Trial
+          <div className="landing-reveal mt-7 flex flex-col gap-3 [animation-delay:380ms] sm:flex-row">
+            <button type="button" onClick={onDashboardClick} className={`${landingPrimaryButtonClass} landing-cta-shine`}>
+              Start with your branch
               <ArrowRight size={16} />
             </button>
             <button type="button" onClick={onDashboardClick} className={landingSecondaryButtonClass}>
-              <PlayCircle size={16} />
-              View Live Demo
+              <CalendarClock size={16} />
+              View live workspace
             </button>
           </div>
         </div>
 
-        <div className={`${landingPanelClass} overflow-hidden`}>
-          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 py-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]">
-                <Building2 size={16} />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Lab Lords Branch OS</p>
-                <h2 className="mt-1 truncate text-base font-semibold text-[color:var(--text-primary)]">Downtown Branch</h2>
-              </div>
+        <div className="mt-6 grid max-w-4xl grid-cols-1 gap-3 sm:grid-cols-3">
+          {trustItems.map(item => (
+            <div key={item.value} className={`landing-reveal rounded-[var(--ui-radius-control)] border border-white/10 bg-black/35 px-4 py-3 shadow-[0_14px_34px_rgba(0,0,0,0.22)] backdrop-blur-md ${item.delay}`}>
+              <p className="text-sm font-semibold text-[color:var(--text-primary)]">{item.value}</p>
+              <p className={`${landingSubtleTextClass} mt-1 text-xs leading-5`}>{item.label}</p>
             </div>
-            <span className="shrink-0 rounded-full border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ui-badge-success-text)]">
-              Live
-            </span>
-          </div>
+          ))}
+        </div>
 
-          <div className="grid bg-[color:var(--bg-app)] lg:grid-cols-[118px_minmax(0,1fr)]">
-            <nav className="hidden border-r border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3 lg:block">
-              <div className="space-y-1.5">
-                {commandItems.map(item => (
-                  <div
-                    key={item.label}
-                    className={`rounded-[var(--ui-radius-control)] px-3 py-2 text-xs font-semibold ${
-                      item.active
-                        ? "border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
-                        : "text-[color:var(--text-secondary)]"
-                    }`}
-                  >
-                    {item.label}
-                  </div>
-                ))}
-              </div>
-            </nav>
-
-            <div className="space-y-4 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between md:flex-col lg:flex-row">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Today in branch</p>
-                  <h3 className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">Morning shift operations</h3>
-                </div>
-                <div className="flex w-max items-center gap-2 rounded-full border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--ui-badge-success-text)]">
-                  <CheckCircle2 size={13} />
-                  9:00 AM shift active
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1 xl:grid-cols-3">
-                {heroMetrics.map(metric => {
-                  const Icon = metric.icon;
-                  return (
-                    <div key={metric.label} className={landingMetricClass}>
-                      <div className="flex items-center justify-between gap-2">
-                        <p className={`${landingSubtleTextClass} truncate text-[11px]`}>{metric.label}</p>
-                        <Icon size={13} className="shrink-0 text-[color:var(--text-muted)]" />
-                      </div>
-                      <p className={`mt-2 text-lg font-semibold tracking-tight ${metric.tone}`}>{metric.value}</p>
-                      <p className={`${landingSubtleTextClass} mt-1 truncate text-[11px]`}>{metric.detail}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_180px]">
-                <div className={landingInsetClass + " p-3"}>
-                  <div className="mb-3 space-y-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-[color:var(--text-primary)]">Seat map</p>
-                      <span className="shrink-0 text-xs font-medium text-[color:var(--ui-tone-info-text)]">24 free</span>
-                    </div>
-                    <p className={`${landingSubtleTextClass} text-xs`}>Morning shift allocation and availability.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    {seatRows.map(row => (
-                      <div key={row[0]} className="grid grid-cols-6 gap-2">
-                        {row.map(label => {
-                          const selected = ["B3", "B4", "D2"].includes(label);
-                          const occupied = ["A2", "A5", "B1", "C4", "C6", "D5"].includes(label);
-                          return (
-                            <div
-                              key={label}
-                              className={`flex h-8 items-center justify-center rounded-[var(--ui-radius-control)] border text-[10px] font-semibold ${
-                                selected
-                                  ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
-                                  : occupied
-                                    ? "border-[color:var(--ui-badge-danger-border)] bg-[color:var(--ui-badge-danger-bg)] text-[color:var(--ui-badge-danger-text)]"
-                                    : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--text-secondary)]"
-                              }`}
-                            >
-                              {label}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                  <div className={landingInsetClass + " p-3"}>
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-[color:var(--text-primary)]">Fee queue</p>
-                      <CreditCard size={14} className="text-[color:var(--text-muted)]" />
-                    </div>
-                    <div className="space-y-2">
-                      {paymentRows.map(row => (
-                        <div key={row.name} className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] px-3 py-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="truncate text-xs font-medium text-[color:var(--text-primary)]">{row.name}</p>
-                            <p className={`text-xs font-semibold ${row.tone}`}>{row.status}</p>
-                          </div>
-                          <p className={`${landingSubtleTextClass} mt-1 text-xs`}>{row.amount}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className={landingInsetClass + " p-3"}>
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-[color:var(--text-primary)]">AI follow-up</p>
-                      <MessageSquareText size={14} className="text-[color:var(--text-muted)]" />
-                    </div>
-                    <p className="text-xl font-semibold text-[color:var(--ui-tone-warning-text)]">5 drafts</p>
-                    <p className={`${landingSubtleTextClass} mt-1 text-xs`}>Ready for overdue students.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-3 py-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-badge-cyan-text)]">Recommended next action</p>
-                <p className="mt-1 text-sm font-semibold text-[color:var(--text-primary)]">Allocate seat B3 to Priya Sharma and send the fee confirmation.</p>
-              </div>
-            </div>
-          </div>
+        <div className="landing-reveal mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-[color:var(--text-muted)] [animation-delay:820ms]">
+          <span className="inline-flex items-center gap-2">
+            <Users size={14} className="text-[color:var(--ui-tone-success-text)]" />
+            248 active students
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <Grid3X3 size={14} className="text-[color:var(--ui-tone-info-text)]" />
+            150 mapped seats
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <MessageSquareText size={14} className="text-[color:var(--ui-tone-warning-text)]" />
+            14 owner-approved drafts
+          </span>
         </div>
       </div>
     </section>
