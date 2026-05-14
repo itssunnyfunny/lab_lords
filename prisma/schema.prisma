@@ -25,6 +25,8 @@ model User {
   organizations          Organization[]
   staff                  Staff[]
   auditLogs              AuditLog[]
+  importSessionsUploaded ImportSession[] @relation("ImportSessionUploadedBy")
+  importCommits          ImportCommit[]  @relation("ImportCommitCommittedBy")
 }
 
 model Organization {
@@ -74,6 +76,7 @@ model Branch {
   staffInvites           StaffInvite[]
   students               Student[]
   auditLogs              AuditLog[]
+  importSessions         ImportSession[]
 }
 
 model Student {
@@ -258,6 +261,85 @@ model MessageDraft {
   @@index([branchId, studentId])
 }
 
+model ImportSession {
+  id               String              @id @default(cuid())
+  branchId          String
+  uploadedByUserId  String
+  sourceType        ImportSourceType
+  fileName          String?
+  fileMeta          Json?
+  status            ImportSessionStatus @default(UPLOADED)
+  mapping           Json?
+  summary           Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  branch            Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  uploadedBy        User                @relation("ImportSessionUploadedBy", fields: [uploadedByUserId], references: [id])
+  rows              ImportRow[]
+  questions         ImportQuestion[]
+  commits           ImportCommit[]
+
+  @@index([branchId])
+  @@index([uploadedByUserId])
+  @@index([branchId, createdAt])
+}
+
+model ImportRow {
+  id               String          @id @default(cuid())
+  importSessionId  String
+  rowNumber        Int
+  rawData          Json
+  mappedData       Json?
+  normalizedData   Json?
+  status           ImportRowStatus @default(NEEDS_REVIEW)
+  issues           Json?
+  warnings         Json?
+  confidence       Int?
+  skipped          Boolean         @default(false)
+  createdEntityIds Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  session          ImportSession   @relation(fields: [importSessionId], references: [id], onDelete: Cascade)
+
+  @@index([importSessionId])
+  @@index([status])
+}
+
+model ImportQuestion {
+  id              String               @id @default(cuid())
+  importSessionId String
+  rowId           String?
+  field           String?
+  question        String
+  options         Json?
+  answer          Json?
+  status          ImportQuestionStatus @default(OPEN)
+  createdAt       DateTime             @default(now())
+  answeredAt      DateTime?
+
+  session         ImportSession        @relation(fields: [importSessionId], references: [id], onDelete: Cascade)
+
+  @@index([importSessionId])
+  @@index([status])
+}
+
+model ImportCommit {
+  id                String             @id @default(cuid())
+  importSessionId   String
+  committedByUserId String
+  status            ImportCommitStatus
+  summary           Json
+  errors            Json?
+  createdAt         DateTime           @default(now())
+
+  session           ImportSession      @relation(fields: [importSessionId], references: [id], onDelete: Cascade)
+  committedBy       User               @relation("ImportCommitCommittedBy", fields: [committedByUserId], references: [id])
+
+  @@index([importSessionId])
+}
+
 enum StudentStatus {
   ACTIVE
   INACTIVE
@@ -298,6 +380,53 @@ enum PaymentType {
 enum BranchAIStatus {
   IDLE
   RUNNING
+}
+
+enum ImportSourceType {
+  CSV
+  XLSX
+  XLS
+  PDF
+  PASTED_TABLE
+  OTHER
+}
+
+enum ImportSessionStatus {
+  UPLOADED
+  ANALYZING
+  NEEDS_MAPPING
+  NEEDS_INFO
+  VALIDATED
+  READY_TO_COMMIT
+  COMMITTING
+  COMMITTED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum ImportRowStatus {
+  READY
+  NEEDS_REVIEW
+  BLOCKED
+  WARNING
+  DUPLICATE
+  CONFLICT
+  IMPORTED
+  FAILED
+  SKIPPED
+}
+
+enum ImportQuestionStatus {
+  OPEN
+  ANSWERED
+  CANCELLED
+}
+
+enum ImportCommitStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
 }
 
 model AuditLog {

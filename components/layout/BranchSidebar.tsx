@@ -15,6 +15,7 @@ import {
     TriangleAlert,
     UserCircle,
     Users,
+    UploadCloud,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { SidebarItem } from "./SidebarItem";
@@ -60,6 +61,7 @@ export function BranchSidebar() {
 
     const operationItems: BranchNavItem[] = [
         { icon: Users, label: "Students", href: `${basePath}/students`, permission: "students", active: current => current === `${basePath}/students` },
+        { icon: UploadCloud, label: "Import Assistant", href: `${basePath}/onboarding/import`, permission: "students", active: current => current?.startsWith(`${basePath}/onboarding/import`) ?? false },
         { icon: Grid, label: "Seats & Maps", href: `${basePath}/seats`, permission: "seat_allocation", active: current => current === `${basePath}/seats` },
         { icon: CalendarClock, label: "Shifts", href: `${basePath}/shifts`, permission: "seat_allocation", active: current => current === `${basePath}/shifts` },
         { icon: CalendarCheck, label: "Allocations", href: `${basePath}/allocations`, permission: "seat_allocation", active: current => current?.startsWith(`${basePath}/allocations`) ?? false },
