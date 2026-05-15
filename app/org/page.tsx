@@ -1,6 +1,7 @@
 "use client";
 
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
+import { AppLogo } from "@/components/brand/AppLogo";
 import { Badge } from "@/components/ui/Badge";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -61,6 +62,7 @@ export default function OrgSelectionPage() {
 
             <div className={cn(entryContentClass, "max-w-4xl")}>
                 <div className="mb-8 text-center sm:mb-12">
+                    <AppLogo className="mb-5 justify-center" subtitle="Workspace" />
                     <h1 className={cn(entryTitleClass, "mb-2")}>Select workspace</h1>
                     <p className={entrySubtitleClass}>Choose the organization you want to work in.</p>
                 </div>

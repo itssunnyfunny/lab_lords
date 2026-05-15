@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Building2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { AppLogo } from "@/components/brand/AppLogo";
 import {
   landingContainerClass,
   landingNavLinkClass,
@@ -14,19 +15,10 @@ export function LandingNavbar({
   return (
     <nav className="sticky top-0 z-50 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--bg-app)]/88 backdrop-blur-xl">
       <div className={`${landingContainerClass} flex h-16 items-center justify-between gap-4`}>
-        <div className="landing-reveal flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]">
-            <Building2 size={18} />
-          </div>
-          <div className="min-w-0">
-            <span className="block truncate text-base font-semibold tracking-tight text-[color:var(--text-primary)] sm:text-lg">
-              Lab Lords
-            </span>
-            <span className="hidden truncate text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)] sm:block">
-              Branch OS
-            </span>
-          </div>
-        </div>
+        <AppLogo
+          className="landing-reveal"
+          subtitleClassName="hidden sm:block"
+        />
 
         <div className="landing-reveal hidden items-center gap-8 [animation-delay:120ms] md:flex">
           <Link href="#platform" className={landingNavLinkClass}>

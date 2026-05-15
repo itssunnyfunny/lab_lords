@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   Bell,
-  Building2,
   CalendarClock,
   CheckCircle2,
   CreditCard,
@@ -11,6 +10,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { LogoMark } from "@/components/brand/AppLogo";
 import {
   landingContainerClass,
   landingDescriptionClass,
@@ -84,9 +84,7 @@ function HeroDashboardScene() {
           <div className="landing-scanline absolute inset-y-0 z-20 w-1/3 bg-[linear-gradient(90deg,transparent,rgba(103,232,249,0.12),transparent)]" />
           <div className="flex h-14 items-center justify-between border-b border-white/10 bg-white/[0.035] px-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]">
-                <Building2 size={17} />
-              </div>
+              <LogoMark className="h-9 w-9" title="" />
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Lab Lords Branch OS</p>
                 <p className="text-sm font-semibold text-[color:var(--text-primary)]">Downtown Branch</p>

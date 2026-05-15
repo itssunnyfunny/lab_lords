@@ -4,7 +4,6 @@ import {
     BarChart2,
     CalendarCheck,
     CalendarClock,
-    ChevronRight,
     CreditCard,
     FileText,
     Grid,
@@ -21,9 +20,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { SidebarItem } from "./SidebarItem";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import type { StaffAction } from "@/types";
-import { cn } from "@/lib/utils";
+import { LogoMark } from "@/components/brand/AppLogo";
 import {
-    chromeCompactIconButtonClass,
     chromeSidebarClass,
     chromeSidebarFooterClass,
     chromeSidebarHeaderClass,
@@ -104,10 +102,10 @@ export function BranchSidebar() {
                 <button
                     type="button"
                     onClick={() => router.push("/")}
-                    className={cn("shrink-0", chromeCompactIconButtonClass)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
                     aria-label="Back to home"
                 >
-                    <ChevronRight size={17} className="rotate-180 transition-transform" />
+                    <LogoMark className="h-10 w-10" title="" />
                 </button>
                 <div className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]">{access?.branchName ?? "Loading..."}</span>

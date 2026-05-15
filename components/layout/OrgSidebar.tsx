@@ -3,6 +3,7 @@
 import { LayoutDashboard, BarChart3, Settings } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { useRouter, usePathname } from "next/navigation";
+import { AppLogo } from "@/components/brand/AppLogo";
 import {
     chromeOrgSidebarClass,
     chromeSidebarFooterClass,
@@ -25,11 +26,12 @@ export function OrgSidebar() {
     return (
         <div className={chromeOrgSidebarClass}>
             <div className={chromeSidebarHeaderClass}>
-                <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-button-primary-bg)] font-bold text-[color:var(--ui-button-primary-text)]">L</div>
-                <div>
-                    <span className="block text-lg font-bold tracking-tight text-[color:var(--text-primary)]">Lab Lords</span>
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[color:var(--text-muted)]">Operations</span>
-                </div>
+                <AppLogo
+                    subtitle="Operations"
+                    markClassName="h-10 w-10"
+                    titleClassName="text-lg font-bold sm:text-lg"
+                    subtitleClassName="tracking-widest"
+                />
             </div>
 
             <div className="flex-1 p-6 space-y-2">

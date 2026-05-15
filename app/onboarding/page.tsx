@@ -25,7 +25,8 @@ import {
     formSurfaceClass,
 } from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
-import { ArrowLeft, ArrowRight, Building2, CheckCircle2, MapPin, Phone, Plus, Settings2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CheckCircle2, MapPin, Phone, Plus, X } from "lucide-react";
+import { LogoMark } from "@/components/brand/AppLogo";
 import { apiClient } from "@/lib/api/core";
 import {
     FORM_LIMITS,
@@ -205,7 +206,7 @@ export default function OnboardingPage() {
                 <div className={cn(entryPanelClass, "grid overflow-hidden lg:grid-cols-[320px_minmax(0,1fr)]")}>
                     <aside className="border-b border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] p-5 lg:border-b-0 lg:border-r lg:p-6">
                         <div className={cn(entryIconFrameClass, "h-11 w-11")}>
-                            <Settings2 size={19} />
+                            <LogoMark className="h-9 w-9" title="Lab Lords logo" />
                         </div>
                         <h1 className={cn(entryTitleClass, "mt-5")}>Set up Lab Lords</h1>
                         <p className={cn(entrySubtitleClass, "mt-3")}>
