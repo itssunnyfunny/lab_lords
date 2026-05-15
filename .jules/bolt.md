@@ -14,3 +14,7 @@
 ## 2025-04-23 - [Batch Insert Optimization for Manual Shift Deletion]
 **Learning:** Found an N+1 query problem in \`services/shift.service.ts\` within \`ShiftService.deleteShift\`'s \`REALLOCATE_MANUAL\` handler where it sequentially queries and updates the database multiple times inside a loop for each shifted student.
 **Action:** Replaced the loop body queries with bulk pre-fetches (fetching old allocations, relevant active student allocations, all seats, and active branch allocations). Converted the inner sequential \`create\` and \`update\` calls into array accumulation (pushed into \`newAllocationsToCreate\`) while managing state locally via mock array injections, followed by an \`updateMany\` and \`createMany\` after the loop.
+
+## 2024-05-14 - [Batch Insert Optimization in updateAllocation using createManyAndReturn]
+**Learning:** Found a performance bottleneck in `services/seatAllocation.service.ts` where updating allocations executed multiple `tx.seatAllocation.create` calls wrapped in a `Promise.all`. While parallelized at the JS level, this still issues multiple database INSERT statements (N+1 inserts).
+**Action:** Replaced the `Promise.all` + `.map` + `.create` pattern with a single `tx.seatAllocation.createManyAndReturn` batch operation. This executes a single bulk INSERT query while still returning the newly created records, reducing DB roundtrips and resolving the N+1 bottleneck.

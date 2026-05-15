@@ -344,18 +344,14 @@ export class SeatAllocationService {
             }
 
             // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            const created = await tx.seatAllocation.createManyAndReturn({
+                data: newShiftIds.map((shiftId) => ({
+                    seatId: newSeatId,
+                    studentId,
+                    shiftId,
+                    ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+                })),
+            });
 
             await tx.branch.update({
                 where: { id: branchId },
