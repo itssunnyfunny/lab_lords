@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, CheckCircle2, Clock, ShieldAlert, UserPlus } from "lucide-react";
+import { CheckCircle2, Clock, ShieldAlert, UserPlus } from "lucide-react";
+import { LogoMark } from "@/components/brand/AppLogo";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
@@ -133,7 +134,7 @@ export default async function StaffInvitePage({ params }: InvitePageProps) {
             <AmbientBackground />
             <section className={cn(entryContentClass, entryPanelClass, "max-w-xl p-5 sm:p-8")}>
                 <div className={cn(entryIconFrameClass, "mb-6 h-14 w-14")}>
-                    <Building2 size={28} />
+                    <LogoMark className="h-11 w-11" title="Lab Lords logo" />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                     <h1 className={entryTitleClass}>Join {invite.branch.name}</h1>

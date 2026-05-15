@@ -1,7 +1,7 @@
 import { SignUp } from "@clerk/nextjs";
 import { isAuthBypassEnabled } from "@/lib/authMode";
-import { Building2 } from "lucide-react";
 import { redirect } from "next/navigation";
+import { LogoMark } from "@/components/brand/AppLogo";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { getSafeRedirectPath } from "@/lib/safeRedirect";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ export default async function SignUpPage({
       <div className={cn(entryContentClass, "flex max-w-md flex-col items-center")}>
         <div className="mb-6 text-center sm:mb-8">
           <div className={cn(entryIconFrameClass, "mb-4 h-14 w-14 sm:h-16 sm:w-16")}>
-            <Building2 size={32} />
+            <LogoMark className="h-11 w-11 sm:h-12 sm:w-12" title="Lab Lords logo" />
           </div>
           <h1 className={cn(entryTitleClass, "mb-2")}>
             Lab Lords
