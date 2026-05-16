@@ -343,19 +343,19 @@ export class SeatAllocationService {
                 if (s.branchId !== branchId) throw new Error(`Shift "${s.name}" does not belong to this branch.`);
             }
 
-            // Create new allocations
-            const created = await Promise.all(
-                newShiftIds.map((shiftId) =>
-                    tx.seatAllocation.create({
-                        data: {
-                            seatId: newSeatId,
-                            studentId,
-                            shiftId,
-                            ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
-                        },
-                    })
-                )
-            );
+            // ⚡ Bolt: Optimizing bulk allocation creation
+            // Impact: Replaced N queries (Promise.all + create) with a single createManyAndReturn bulk operation
+            // This reduces DB roundtrips while preserving the returned records.
+            const payload = newShiftIds.map((shiftId) => ({
+                seatId: newSeatId,
+                studentId,
+                shiftId,
+                ...(newMultiShiftId ? { multiShiftId: newMultiShiftId } : {}),
+            }));
+
+            const created = await tx.seatAllocation.createManyAndReturn({
+                data: payload,
+            });
 
             await tx.branch.update({
                 where: { id: branchId },
