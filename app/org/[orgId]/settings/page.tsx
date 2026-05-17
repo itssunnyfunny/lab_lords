@@ -12,13 +12,12 @@ import {
     CreditCard,
     GitBranch,
     Hash,
-    Loader2,
     Mail,
     MapPin,
     Phone,
     Shield,
 } from "lucide-react";
-import { AppButton } from "@/components/ui";
+import { AppButton, PageLoadingSkeleton } from "@/components/ui";
 import {
     ReadOnlyRow,
     SegmentedControl,
@@ -37,7 +36,6 @@ import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import {
     pageErrorIconClass,
     pageErrorStateClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
 } from "@/components/ui/pageSurface";
 import {
@@ -278,12 +276,7 @@ export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: s
     };
 
     if (loading) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="mr-2 animate-spin" size={20} />
-                Loading organization settings...
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading organization settings" variant="settings" maxWidth="content" />;
     }
 
     if (fetchError || !org || !form) {

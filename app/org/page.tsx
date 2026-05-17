@@ -3,7 +3,8 @@
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { AppLogo } from "@/components/brand/AppLogo";
 import { Badge } from "@/components/ui/Badge";
-import { Building2, Loader2 } from "lucide-react";
+import { EntryLoadingSkeleton } from "@/components/ui";
+import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { organizations } from "@/lib/api/organizations";
@@ -22,7 +23,6 @@ import {
     pageEmptyStateClass,
     pageGridCardClass,
     pageGridCardHoverClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
 } from "@/components/ui/pageSurface";
 
@@ -68,10 +68,7 @@ export default function OrgSelectionPage() {
                 </div>
 
                 {loading ? (
-                    <div className={pageLoadingStateClass}>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Loading workspaces...
-                    </div>
+                    <EntryLoadingSkeleton label="Loading workspaces" />
                 ) : error ? (
                     <div className={cn("p-4 text-center text-sm", formErrorBannerClass)}>
                         {error}

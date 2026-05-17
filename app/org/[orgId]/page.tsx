@@ -2,7 +2,7 @@
 
 import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { AppButton, AppPanel, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
 import { formErrorBannerClass } from "@/components/ui/formSurface";
 import {
@@ -36,29 +36,8 @@ import {
 import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 
-function Skeleton({ className }: { className?: string }) {
-    return <div className={cn("animate-pulse rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-surface-bg)]", className)} />;
-}
-
 function DashboardSkeleton() {
-    return (
-        <PageShell>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-9 w-80" />
-                </div>
-                <Skeleton className="h-10 w-40" />
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <Skeleton className="h-48 sm:col-span-2 xl:col-span-4" />
-            </div>
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
-                <Skeleton className="h-32" />
-                <Skeleton className="h-96" />
-            </div>
-        </PageShell>
-    );
+    return <PageLoadingSkeleton label="Loading organization dashboard" variant="workspace" rows={4} />;
 }
 
 function formatMoney(value: number) {

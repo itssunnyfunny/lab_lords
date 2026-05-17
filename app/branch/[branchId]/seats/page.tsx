@@ -2,7 +2,7 @@
 
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, AppPanel, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
     formControlClass,
@@ -27,7 +27,6 @@ import {
     pageInsetHoverClass,
     pageInsetMetricClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
@@ -405,12 +404,7 @@ function SeatsContent({
     };
 
     if (loading) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="mr-2 animate-spin" />
-                Loading seats...
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading seats" variant="cards" rows={6} />;
     }
 
     if (error) {

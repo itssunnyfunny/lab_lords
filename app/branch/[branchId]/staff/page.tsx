@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { PageLoadingSkeleton } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Loader2, AlertCircle,
@@ -35,7 +36,6 @@ import {
     pageGridCardClass,
     pageGridCardHoverClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSubtleTextClass,
 } from "@/components/ui/pageSurface";
@@ -835,7 +835,7 @@ function StaffContent({
         }
     };
 
-    if (loading) return <div className={pageLoadingStateClass}><Loader2 className="animate-spin mr-2" /> Loading staff...</div>;
+    if (loading) return <PageLoadingSkeleton label="Loading staff" variant="table" rows={5} />;
 
     if (error) return (
         <div className={pageErrorStateClass}>

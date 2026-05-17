@@ -8,7 +8,6 @@ import {
     Check,
     Copy,
     CreditCard,
-    Loader2,
     MessageSquare,
     Phone,
     RefreshCw,
@@ -19,7 +18,7 @@ import {
 import { format } from "date-fns";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, AppPanel, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { formControlClass, formHelpTextClass, formWarningBannerClass } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
@@ -32,7 +31,6 @@ import {
     pageGridCardHoverClass,
     pageInsetMetricClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
@@ -216,12 +214,7 @@ function OverdueContent({ branchId }: { branchId: string }) {
     };
 
     if (loading) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="mr-2 animate-spin" />
-                Loading overdue queue...
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading overdue queue" variant="table" rows={5} />;
     }
 
     if (error) {

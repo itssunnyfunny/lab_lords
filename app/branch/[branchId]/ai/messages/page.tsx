@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AppButton, PageShell } from "@/components/ui";
+import { AppButton, LoadingCardGrid, PageShell } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
-import { Loader2, MessageSquare, Copy, CheckCheck, User, Calendar } from "lucide-react";
+import { MessageSquare, Copy, CheckCheck, User, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,6 @@ import {
     pageFilterShellClass,
     pageGridCardClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSubtleTextClass,
 } from "@/components/ui/pageSurface";
@@ -166,9 +165,7 @@ function AIMessagesContent({ branchId }: { branchId: string }) {
                 </div>
 
                 {loading ? (
-                    <div className={pageLoadingStateClass}>
-                        <Loader2 className="mr-2 animate-spin" size={20} /> Loading message drafts...
-                    </div>
+                    <LoadingCardGrid cards={4} />
                 ) : !data || data.items.length === 0 ? (
                     <div className={pageEmptyStateClass}>
                         <MessageSquare className="mx-auto mb-4 opacity-60" size={42} />

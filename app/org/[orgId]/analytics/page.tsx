@@ -2,10 +2,10 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowRight, Building2, CreditCard, LayoutGrid, Loader2, Users } from "lucide-react";
+import { AlertCircle, ArrowRight, Building2, CreditCard, LayoutGrid, Users } from "lucide-react";
 import { analytics, type OrganizationAnalyticsSnapshot } from "@/lib/api/analytics";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, AppPanel, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { DataTable } from "@/components/tables/DataTable";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,6 @@ import {
     pageGridCardClass,
     pageGridCardHoverClass,
     pageInsetMetricClass,
-    pageLoadingStateClass,
     pageMetaPillClass,
     pageMutedTextClass,
     pageProgressTrackClass,
@@ -109,12 +108,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     }, [snapshot]);
 
     if (loading && !snapshot) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="mr-3 animate-spin text-[color:var(--ui-form-accent)]" size={28} />
-                <span className={pageMutedTextClass}>Loading organization analytics...</span>
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading organization analytics" variant="analytics" />;
     }
 
     const collectionBase = (snapshot?.payments.paidAmount ?? 0) + (snapshot?.payments.dueAmount ?? 0);

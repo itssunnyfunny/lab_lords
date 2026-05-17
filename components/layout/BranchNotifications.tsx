@@ -30,12 +30,12 @@ import {
 } from "@/lib/branchNotifications";
 import { cn } from "@/lib/utils";
 import { formWarningBannerClass } from "@/components/ui/formSurface";
+import { SkeletonBlock } from "@/components/ui";
 import {
     chromeCompactIconButtonClass,
     chromeEmptyStateClass,
     chromeIconButtonClass,
     chromeListItemClass,
-    chromeMutedTextClass,
     chromePopoverClass,
     chromePopoverHeaderClass,
     chromePopoverScrollClass,
@@ -78,6 +78,23 @@ const SEVERITY_STYLES: Record<BranchNotificationSeverity, string> = {
     warning: "border-amber-500/25 bg-amber-500/10 text-amber-300",
     info: "border-cyan-500/25 bg-cyan-500/10 text-cyan-300",
 };
+
+function NotificationSkeleton() {
+    return (
+        <div role="status" aria-live="polite" className="space-y-2 px-3 py-3">
+            <span className="sr-only">Loading notifications</span>
+            {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="flex items-start gap-3 rounded-[var(--ui-radius-control)] px-1 py-2">
+                    <SkeletonBlock className="h-9 w-9" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                        <SkeletonBlock className="h-4 w-40 max-w-full" />
+                        <SkeletonBlock className="h-3 w-56 max-w-full" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
 
 const READ_EVENT = "lab-lords-branch-notifications-read";
 const MAX_READ_KEYS = 100;
@@ -356,10 +373,7 @@ export function BranchNotifications() {
                         )}
 
                         {loading && !loaded && (
-                            <div className={cn("flex items-center gap-2 px-4 py-6 text-sm", chromeMutedTextClass)}>
-                                <Loader2 size={15} className="animate-spin text-[color:var(--ui-form-accent)]" />
-                                Loading notifications...
-                            </div>
+                            <NotificationSkeleton />
                         )}
 
                         {!loading && loaded && notifications.length === 0 && (

@@ -3,7 +3,7 @@
 import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, PageShell } from "@/components/ui";
+import { AppButton, LoadingTableSkeleton, PageShell } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import {
@@ -28,7 +28,6 @@ import {
     pageGridCardHoverClass,
     pageInsetMetricClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
@@ -36,7 +35,7 @@ import {
 } from "@/components/ui/pageSurface";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
-import { FileText, Loader2, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
+import { FileText, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
 import { useCallback, useEffect, useState, use } from "react";
 import { payments } from "@/lib/api/payments";
 import type { Payment } from "@/app/generated/prisma/browser";
@@ -404,9 +403,7 @@ function PaymentsContent({
             </div>
 
             {loading ? (
-                <div className={pageLoadingStateClass}>
-                    <Loader2 className="mr-2 animate-spin" /> Loading payments...
-                </div>
+                <LoadingTableSkeleton rows={7} />
             ) : (
                 <DataTable
                     data={filteredData}

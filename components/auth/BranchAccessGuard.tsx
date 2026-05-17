@@ -2,15 +2,14 @@
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
-import { AppButton } from "@/components/ui";
+import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { AppButton, PageLoadingSkeleton } from "@/components/ui";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
 import type { BranchAccess, StaffAction } from "@/types";
 import { cn } from "@/lib/utils";
 import {
     pageErrorStateClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
 } from "@/components/ui/pageSurface";
 import { entryIconFrameClass, entrySubtitleClass, entryTitleClass } from "@/components/ui/entrySurface";
@@ -24,12 +23,7 @@ type BranchAccessGuardProps = {
 };
 
 export function BranchAccessLoading({ label = "Checking access..." }: { label?: string }) {
-    return (
-        <div className={pageLoadingStateClass} role="status">
-            <Loader2 className="mr-2 animate-spin" size={20} />
-            {label}
-        </div>
-    );
+    return <PageLoadingSkeleton label={label} variant="workspace" />;
 }
 
 export function BranchNoAccess({

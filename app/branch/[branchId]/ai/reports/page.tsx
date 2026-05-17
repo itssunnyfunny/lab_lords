@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AppPanel, PageShell } from "@/components/ui";
+import { AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
-import { Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle } from "lucide-react";
 import { BranchHealthPanel } from "@/components/ai/BranchHealthPanel";
 import { AIStructuredBranchReport } from "@/ai/contracts/structuredReport.contract";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import {
     pageGridCardClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSubtleTextClass,
 } from "@/components/ui/pageSurface";
@@ -72,11 +71,7 @@ function AIReportsContent({ branchId }: { branchId: string }) {
     }, [fetchData]);
 
     if (loading) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="mr-2 animate-spin" size={20} /> Loading AI branch health...
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading AI branch health" variant="ai" maxWidth="content" />;
     }
 
     const report = data?.report ?? null;
