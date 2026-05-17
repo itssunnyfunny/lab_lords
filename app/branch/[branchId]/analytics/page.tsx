@@ -5,10 +5,9 @@ import { MainChart } from "@/components/snapshot/MainChart";
 import { SideStats } from "@/components/snapshot/SideStats";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
-import { AppPanel, PageShell } from "@/components/ui";
+import { AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 import { use, useEffect, useMemo, useState } from "react";
 import { AnalyticsPeriod, analytics, BranchSnapshot, TrendData } from "@/lib/api/analytics";
 import { branches } from "@/lib/api/branches";
@@ -19,7 +18,6 @@ import {
     pageGridCardClass,
     pageGridCardHoverClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
@@ -161,11 +159,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
             : money;
 
     if (loading && !snapshot) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="animate-spin mr-2" /> Loading analytics...
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading branch analytics" variant="analytics" />;
     }
 
     return (

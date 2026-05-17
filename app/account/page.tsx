@@ -10,7 +10,6 @@ import {
     GitBranch,
     Hash,
     LayoutDashboard,
-    Loader2,
     Mail,
     Monitor,
     Shield,
@@ -30,12 +29,11 @@ import {
     SettingsSubtleText,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
-import { AppButton } from "@/components/ui";
+import { AppButton, PageLoadingSkeleton } from "@/components/ui";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import {
     pageErrorIconClass,
     pageErrorStateClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
 } from "@/components/ui/pageSurface";
 import { validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
@@ -212,12 +210,7 @@ export default function AccountPage() {
     };
 
     if (loading) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="mr-2 animate-spin" size={20} />
-                Loading account settings...
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading account settings" variant="settings" maxWidth="content" />;
     }
 
     if (fetchError || !profile || !form) {

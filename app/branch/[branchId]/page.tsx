@@ -1,6 +1,6 @@
 "use client";
 
-import { AppButton, AppPanel, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { OverdueTable } from "@/components/dashboard/OverdueTable";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentActivity, ActivityItem } from "@/components/dashboard/RecentActivity";
@@ -68,35 +68,8 @@ interface DashboardData {
     branchName: string;
 }
 
-function Skeleton({ className }: { className?: string }) {
-    return <div className={`animate-pulse rounded-[8px] bg-white/[0.05] ${className ?? ""}`} />;
-}
-
 function DashboardSkeleton() {
-    return (
-        <PageShell>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-56" />
-                    <Skeleton className="h-9 w-72" />
-                </div>
-                <Skeleton className="h-10 w-48" />
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {[0, 1, 2, 3].map((item) => (
-                    <Skeleton key={item} className="h-32" />
-                ))}
-            </div>
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.75fr)]">
-                <Skeleton className="h-72" />
-                <Skeleton className="h-72" />
-            </div>
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-                <Skeleton className="h-80" />
-                <Skeleton className="h-80" />
-            </div>
-        </PageShell>
-    );
+    return <PageLoadingSkeleton label="Loading branch dashboard" variant="dashboard" rows={6} />;
 }
 
 function formatDateLabel() {

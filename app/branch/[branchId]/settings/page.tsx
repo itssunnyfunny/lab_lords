@@ -14,14 +14,13 @@ import {
     GitBranch,
     Hash,
     IndianRupee,
-    Loader2,
     MapPin,
     MessageSquare,
     Phone,
     Shield,
     Users,
 } from "lucide-react";
-import { AppButton } from "@/components/ui";
+import { AppButton, PageLoadingSkeleton } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
@@ -46,7 +45,6 @@ import { formWarningBannerClass } from "@/components/ui/formSurface";
 import {
     pageErrorIconClass,
     pageErrorStateClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
 } from "@/components/ui/pageSurface";
 import {
@@ -328,12 +326,7 @@ function BranchSettingsContent({ branchId }: { branchId: string }) {
     };
 
     if (loading) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="mr-2 animate-spin" size={20} />
-                Loading branch settings...
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading branch settings" variant="settings" maxWidth="content" />;
     }
 
     if (fetchError || !branch || !form) {

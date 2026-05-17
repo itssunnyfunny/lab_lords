@@ -5,7 +5,6 @@ import { isAuthBypassEnabled } from "@/lib/authMode";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { organizations } from "@/lib/api/organizations";
-import { Loader2 } from "lucide-react";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingMockup } from "@/components/landing/LandingMockup";
@@ -13,7 +12,7 @@ import { LandingFeatures } from "@/components/landing/LandingFeatures";
 import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
 import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFooter } from "@/components/landing/LandingFooter";
-import { pageLoadingStateClass } from "@/components/ui/pageSurface";
+import { PageLoadingSkeleton } from "@/components/ui";
 import { landingRootClass } from "@/components/ui/landingSurface";
 
 type LandingContentProps = {
@@ -51,12 +50,7 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
   };
 
   if (isRedirecting) {
-    return (
-      <div className={pageLoadingStateClass}>
-        <Loader2 className="mr-2 animate-spin" size={20} />
-        Loading workspace...
-      </div>
-    );
+    return <PageLoadingSkeleton label="Loading workspace" variant="workspace" />;
   }
 
   return (

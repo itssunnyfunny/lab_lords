@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AppPanel, PageShell } from "@/components/ui";
+import { AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
-import { AlertTriangle, CheckCircle, Info, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { cn } from "@/lib/utils";
 import { formErrorBannerClass } from "@/components/ui/formSurface";
@@ -14,7 +14,6 @@ import {
     pageEmptyStateClass,
     pageGridCardClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSubtleTextClass,
 } from "@/components/ui/pageSurface";
@@ -68,11 +67,7 @@ function AIInsightsContent({ branchId }: { branchId: string }) {
     }, [branchId]);
 
     if (loading) {
-        return (
-            <div className={pageLoadingStateClass}>
-                <Loader2 className="mr-2 animate-spin" size={20} /> Loading smart insights...
-            </div>
-        );
+        return <PageLoadingSkeleton label="Loading smart insights" variant="ai" maxWidth="content" />;
     }
 
     if (error) {
