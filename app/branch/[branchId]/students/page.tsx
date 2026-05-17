@@ -3,7 +3,7 @@
 import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, PageShell } from "@/components/ui";
+import { AppButton, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { Button } from "@/components/ui/Button";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
@@ -44,7 +44,6 @@ import {
     pageGridCardHoverClass,
     pageInsetMetricClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
@@ -570,7 +569,7 @@ function StudentsContent({
         }
     };
 
-    if (loading) return <div className={pageLoadingStateClass}><Loader2 className="animate-spin mr-2" /> Loading data...</div>;
+    if (loading) return <PageLoadingSkeleton label="Loading students" variant="table" rows={7} />;
 
     if (error) {
         return (

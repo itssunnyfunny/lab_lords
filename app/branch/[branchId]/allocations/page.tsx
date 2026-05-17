@@ -9,7 +9,7 @@ import { UpdateAllocationDialog } from "@/components/allocations/UpdateAllocatio
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { useDataViewMode } from "@/hooks/useDataViewMode";
-import { AppButton, PageShell } from "@/components/ui";
+import { AppButton, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import {
     pageCountBadgeClass,
     pageDescriptionClass,
@@ -18,14 +18,13 @@ import {
     pageErrorIconClass,
     pageErrorStateClass,
     pageInsetMetricClass,
-    pageLoadingStateClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
     pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
-import { AlertCircle, ArrowRightLeft, CalendarCheck, Loader2, UserPlus, Users } from "lucide-react";
+import { AlertCircle, ArrowRightLeft, CalendarCheck, UserPlus, Users } from "lucide-react";
 
 interface AllocationRow {
     id: string;
@@ -158,12 +157,7 @@ function AllocationsContent({ branchId }: { branchId: string }) {
         return { active, ended, multiShift };
     }, [allocations]);
 
-    if (loading) return (
-        <div className={pageLoadingStateClass}>
-            <Loader2 className="mr-2 animate-spin" />
-            Loading allocations...
-        </div>
-    );
+    if (loading) return <PageLoadingSkeleton label="Loading allocations" variant="table" rows={6} />;
 
     if (error) return (
         <div className={pageErrorStateClass}>

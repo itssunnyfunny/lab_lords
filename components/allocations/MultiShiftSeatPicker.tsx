@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SkeletonBlock } from "@/components/ui";
 import { formErrorBannerClass } from "@/components/ui/formSurface";
 import {
     pickerDividerClass,
-    pickerLoadingClass,
     pickerSeatAvailableClass,
     pickerSeatButtonBaseClass,
     pickerSeatOccupiedClass,
@@ -28,6 +28,17 @@ interface MultiShiftSeatPickerProps {
     multiShiftId: string;
     selectedSeatId: string | null;
     onSelectSeat: (seatId: string | null) => void;
+}
+
+function MultiShiftSeatSkeleton() {
+    return (
+        <div role="status" aria-live="polite" className="grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-7">
+            <span className="sr-only">Loading seats</span>
+            {Array.from({ length: 14 }, (_, index) => (
+                <SkeletonBlock key={index} className="aspect-square w-full" />
+            ))}
+        </div>
+    );
 }
 
 /**
@@ -70,11 +81,7 @@ export function MultiShiftSeatPicker({
     }, [branchId, multiShiftId]);
 
     if (loading) {
-        return (
-            <div className={pickerLoadingClass}>
-                <Loader2 size={16} className="animate-spin mr-2" /> Loading seats...
-            </div>
-        );
+        return <MultiShiftSeatSkeleton />;
     }
 
     if (error) {

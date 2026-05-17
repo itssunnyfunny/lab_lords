@@ -10,7 +10,6 @@ import {
     Command,
     CreditCard,
     Grid,
-    Loader2,
     Search,
     UserCircle,
     Users,
@@ -31,6 +30,7 @@ import type {
 } from "@/lib/topSearch";
 import { cn } from "@/lib/utils";
 import { formWarningBannerClass } from "@/components/ui/formSurface";
+import { SkeletonBlock } from "@/components/ui";
 import {
     chromeEmptyStateClass,
     chromeInputClass,
@@ -39,7 +39,6 @@ import {
     chromeListIconClass,
     chromeListItemActiveClass,
     chromeListItemClass,
-    chromeMutedTextClass,
     chromePopoverClass,
     chromePopoverScrollClass,
     chromeSubtleTextClass,
@@ -89,6 +88,23 @@ function DisabledSearch() {
                 placeholder="Open a branch to search"
                 className={chromeInputClass}
             />
+        </div>
+    );
+}
+
+function SearchPopoverSkeleton() {
+    return (
+        <div role="status" aria-live="polite" className="space-y-2 px-3 py-3">
+            <span className="sr-only">Loading branch search</span>
+            {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="flex items-center gap-3 rounded-[var(--ui-radius-control)] px-1 py-2">
+                    <SkeletonBlock className="h-8 w-8" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                        <SkeletonBlock className="h-4 w-36 max-w-full" />
+                        <SkeletonBlock className="h-3 w-48 max-w-full" />
+                    </div>
+                </div>
+            ))}
         </div>
     );
 }
@@ -311,10 +327,7 @@ export function BranchTopSearch() {
                 <div className={cn(chromePopoverClass, "sm:absolute sm:left-0 sm:right-0 sm:top-12")}>
                     <div className={chromePopoverScrollClass}>
                         {loading && (
-                            <div className={cn("flex items-center gap-2 px-4 py-3 text-sm", chromeMutedTextClass)}>
-                                <Loader2 size={15} className="animate-spin text-[color:var(--ui-form-accent)]" />
-                                Loading branch search...
-                            </div>
+                            <SearchPopoverSkeleton />
                         )}
 
                         {loadErrors.length > 0 && (

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Activity, DollarSign, TrendingUp, Users } from "lucide-react";
 import { AIStructuredBranchReport } from "@/ai/contracts/structuredReport.contract";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, AppPanel } from "@/components/ui";
+import { AppButton, AppPanel, SkeletonBlock } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { formWarningActionClass, formWarningBannerClass } from "@/components/ui/formSurface";
 import {
@@ -73,11 +73,15 @@ export function BranchHealthPanel({
 
     if (isLoading) {
         return (
-            <AppPanel className="animate-pulse" title="Branch health analysis">
+            <AppPanel title="Branch health analysis">
                 <div className="grid gap-3 md:grid-cols-3">
-                    <div className="h-28 rounded-[var(--ui-card-radius)] bg-[color:var(--ui-form-muted-surface-bg)]" />
-                    <div className="h-28 rounded-[var(--ui-card-radius)] bg-[color:var(--ui-form-muted-surface-bg)]" />
-                    <div className="h-28 rounded-[var(--ui-card-radius)] bg-[color:var(--ui-form-muted-surface-bg)]" />
+                    {Array.from({ length: 3 }, (_, index) => (
+                        <div key={index} className="space-y-3 rounded-[var(--ui-card-radius)] border border-[color:var(--ui-card-border)] bg-[color:var(--ui-card-bg)] p-4">
+                            <SkeletonBlock className="h-4 w-24" />
+                            <SkeletonBlock className="h-7 w-20" />
+                            <SkeletonBlock className="h-2 w-full rounded-full" />
+                        </div>
+                    ))}
                 </div>
             </AppPanel>
         );

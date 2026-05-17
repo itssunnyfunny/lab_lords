@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, PageShell } from "@/components/ui";
+import { AppButton, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { Button } from "@/components/ui/Button";
 import { RowActionsMenu, type RowActionsMenuItem } from "@/components/ui/RowActionsMenu";
 import {
@@ -32,7 +32,6 @@ import {
     pageInsetHoverClass,
     pageInsetMetricClass,
     pageInsetSurfaceClass,
-    pageLoadingStateClass,
     pageMetaPillClass,
     pageMutedTextClass,
     pageSubtleTextClass,
@@ -1362,7 +1361,7 @@ function ShiftsContent({
     };
 
     // ── Loading
-    if (loading) return <div className={pageLoadingStateClass}><Loader2 className="animate-spin mr-2" /> Loading shifts...</div>;
+    if (loading) return <PageLoadingSkeleton label="Loading shifts" variant="table" rows={6} />;
 
     // ── Error
     if (error) return (

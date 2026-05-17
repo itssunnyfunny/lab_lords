@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2, Lock, Check, Layers } from "lucide-react";
+import { CheckCircle2, Lock, Check, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SkeletonBlock } from "@/components/ui";
 import { formErrorBannerClass } from "@/components/ui/formSurface";
 import {
     pickerCheckBoxClass,
@@ -14,7 +15,6 @@ import {
     pickerDividerClass,
     pickerGroupLabelClass,
     pickerHintClass,
-    pickerLoadingClass,
     pickerProgressTrackClass,
     pickerSeatAvailableClass,
     pickerSeatButtonBaseClass,
@@ -84,6 +84,38 @@ function formatTime(t: string | null) {
     const suffix = h < 12 ? "AM" : "PM";
     const hh = h % 12 || 12;
     return `${hh}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+function ShiftPickerSkeleton() {
+    return (
+        <div role="status" aria-live="polite" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <span className="sr-only">Loading shifts</span>
+            {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="space-y-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] p-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-2">
+                            <SkeletonBlock className="h-3 w-20 rounded-full" />
+                            <SkeletonBlock className="h-4 w-28" />
+                            <SkeletonBlock className="h-3 w-24" />
+                        </div>
+                        <SkeletonBlock className="h-5 w-16 rounded-full" />
+                    </div>
+                    <SkeletonBlock className="h-1.5 w-full rounded-full" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function SeatPickerSkeleton() {
+    return (
+        <div role="status" aria-live="polite" className="grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-7">
+            <span className="sr-only">Loading seats</span>
+            {Array.from({ length: 14 }, (_, index) => (
+                <SkeletonBlock key={index} className="aspect-square w-full" />
+            ))}
+        </div>
+    );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -215,9 +247,7 @@ export function SeatPicker({
                 </div>
 
                 {shiftsLoading && (
-                    <div className={pickerLoadingClass}>
-                        <Loader2 size={16} className="animate-spin mr-2" /> Loading shifts...
-                    </div>
+                    <ShiftPickerSkeleton />
                 )}
 
                 {shiftsError && (
@@ -305,9 +335,7 @@ export function SeatPicker({
                     </div>
 
                     {seatMapLoading && (
-                        <div className={pickerLoadingClass}>
-                            <Loader2 size={16} className="animate-spin mr-2" /> Loading seats...
-                        </div>
+                        <SeatPickerSkeleton />
                     )}
 
                     {seatMapError && (

@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { payments, AuditLogEntry } from "@/lib/api/payments";
 import { format } from "date-fns";
-import { ShieldCheck, X, Loader2, AlertCircle, History } from "lucide-react";
+import { ShieldCheck, X, AlertCircle, History } from "lucide-react";
 import { createPortal } from "react-dom";
+import { SkeletonBlock } from "@/components/ui";
 import {
     formDialogHeaderClass,
     formDialogOverlayClass,
@@ -95,9 +96,21 @@ export function PaymentAuditLog({
                 {/* Body */}
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
                     {loading && (
-                        <div className="flex items-center justify-center gap-2 py-10 text-sm text-[color:var(--ui-form-label)]">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Loading history...
+                        <div role="status" aria-live="polite" className="space-y-3">
+                            <span className="sr-only">Loading payment history</span>
+                            {Array.from({ length: 3 }, (_, index) => (
+                                <div key={index} className={cn("flex items-start gap-3 p-3", formSurfaceClass)}>
+                                    <SkeletonBlock className="h-8 w-8 rounded-full" />
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <SkeletonBlock className="h-5 w-24 rounded-full" />
+                                            <SkeletonBlock className="h-4 w-16" />
+                                        </div>
+                                        <SkeletonBlock className="h-3 w-4/5" />
+                                        <SkeletonBlock className="h-3 w-2/5" />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 
