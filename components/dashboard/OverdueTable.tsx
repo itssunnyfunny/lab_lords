@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
 import { daysPastDue } from "@/lib/utils/paymentStatus";
-import { ArrowRight, CheckCircle2, Phone } from "lucide-react";
+import { ArrowRight, CheckCircle2, MessageSquareText, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface OverduePayment {
@@ -57,14 +57,24 @@ export function OverdueTable({ payments, branchId }: OverdueTableProps) {
             title="Payment follow-ups"
             description="Students with overdue dues, ordered for collection work."
             action={
-                <AppButton
-                    onClick={() => router.push(`/branch/${branchId}/payments`)}
-                    variant="quiet"
-                    size="sm"
-                    rightIcon={ArrowRight}
-                >
-                    Payments
-                </AppButton>
+                <div className="flex flex-wrap gap-2">
+                    <AppButton
+                        onClick={() => router.push(`/branch/${branchId}/payments`)}
+                        variant="quiet"
+                        size="sm"
+                        rightIcon={ArrowRight}
+                    >
+                        Payments
+                    </AppButton>
+                    <AppButton
+                        onClick={() => router.push(`/branch/${branchId}/ai/messages`)}
+                        variant="quiet"
+                        size="sm"
+                        icon={MessageSquareText}
+                    >
+                        Drafts
+                    </AppButton>
+                </div>
             }
             contentClassName="p-0"
             className="h-full"
