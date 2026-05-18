@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { MESSAGE_DRAFT_ACTION_PREFIX } from "@/lib/messageDrafts";
 import { StaffService } from "@/services/staff.service";
 import { PaymentStatus, StudentStatus, PaymentType, PaymentMethod } from "@/types";
 import type { StaffAction } from "@/types";
@@ -330,7 +331,7 @@ export class PaymentService {
                 where: {
                     studentId: payment.studentId,
                     branchId: payment.branchId,
-                    action: "FOLLOW_UP_OVERDUE_PAYMENTS"
+                    action: { startsWith: MESSAGE_DRAFT_ACTION_PREFIX }
                 }
             });
 

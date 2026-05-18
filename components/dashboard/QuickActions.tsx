@@ -11,7 +11,7 @@ import { useBranchAccess } from "@/hooks/useBranchAccess";
 import { getPermissionHelpText } from "@/lib/permissionMessages";
 import { cn } from "@/lib/utils";
 import type { StaffAction } from "@/types";
-import { ArrowRight, CalendarCheck, CreditCard, Grid, LockKeyhole, LucideIcon, UploadCloud, UserPlus } from "lucide-react";
+import { ArrowRight, CalendarCheck, CreditCard, Grid, LockKeyhole, LucideIcon, MessageSquareText, TriangleAlert, UploadCloud, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Action {
@@ -25,20 +25,20 @@ interface Action {
 
 const actions: Action[] = [
     {
-        label: "Add student",
-        description: "Create a student profile",
-        icon: UserPlus,
-        route: "/students",
-        tone: "text-cyan-300 bg-cyan-400/10",
-        permission: "students",
+        label: "Overdue queue",
+        description: "Prioritize collection follow-ups",
+        icon: TriangleAlert,
+        route: "/overdue",
+        tone: "text-rose-300 bg-rose-400/10",
+        permission: "view_payments",
     },
     {
-        label: "Import records",
-        description: "Onboard existing data",
-        icon: UploadCloud,
-        route: "/onboarding/import",
-        tone: "text-sky-300 bg-sky-400/10",
-        permission: "students",
+        label: "Draft follow-ups",
+        description: "Review AI reminder drafts",
+        icon: MessageSquareText,
+        route: "/ai/messages",
+        tone: "text-indigo-300 bg-indigo-400/10",
+        permission: "analytics",
     },
     {
         label: "Record payment",
@@ -49,12 +49,28 @@ const actions: Action[] = [
         permission: "mark_payment_paid",
     },
     {
+        label: "Add student",
+        description: "Create a student profile",
+        icon: UserPlus,
+        route: "/students",
+        tone: "text-cyan-300 bg-cyan-400/10",
+        permission: "students",
+    },
+    {
         label: "Assign seat",
         description: "Allocate a student to a slot",
         icon: Grid,
         route: "/allocations",
         tone: "text-violet-300 bg-violet-400/10",
         permission: "seat_allocation",
+    },
+    {
+        label: "Import records",
+        description: "Onboard existing data",
+        icon: UploadCloud,
+        route: "/onboarding/import",
+        tone: "text-sky-300 bg-sky-400/10",
+        permission: "students",
     },
     {
         label: "Manage shifts",
@@ -76,7 +92,7 @@ export function QuickActions({ branchId }: { branchId: string }) {
         <AppPanel
             title="Next actions"
             description="Shortcuts for common branch operations."
-            contentClassName="p-2"
+            contentClassName="max-h-[312px] overflow-y-auto p-2 scrollbar-thin"
             className="h-full"
         >
             {loading && (

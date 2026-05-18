@@ -1,164 +1,487 @@
-import { prisma } from "@/lib/prisma"
-import { callGemini } from "../llm/gemini.client"
-import { format } from "date-fns"
-import { getOverduePayments } from "@/analytics/payment.analytics"
+import { getOverduePayments } from "@/analytics/payment.analytics";
+import {
+    buildMessageDraftAction,
+    includedMessageFields,
+    MESSAGE_DRAFT_ACTION_PREFIX,
+    MESSAGE_REGENERATION_COOLDOWN_MS,
+    normalizeMessageInclude,
+    parseMessageLanguage,
+    parseReminderTone,
+    type MessageDraftInclude,
+} from "@/lib/messageDrafts";
+import { prisma } from "@/lib/prisma";
+import type { MessageLanguage, ReminderTone } from "@/types/settings";
+import { format } from "date-fns";
+import { callGemini } from "../llm/gemini.client";
 
 export interface OverdueMessageDraft {
-  studentId: string
-  studentName: string
-  dueDate: string        // ISO string
-  language: "en" | "hi"
-  message: string
-  isOutdated?: boolean
+    studentId: string;
+    studentName: string;
+    phone: string | null;
+    dueDate: string;
+    amount: number;
+    daysOverdue: number;
+    paymentCount: number;
+    language: MessageLanguage;
+    tone: ReminderTone;
+    include: MessageDraftInclude;
+    message: string;
+    createdAt?: string;
+    isOutdated?: boolean;
 }
 
-const ACTION = "FOLLOW_UP_OVERDUE_PAYMENTS"
+export interface DraftOverdueMessagesOptions {
+    language?: MessageLanguage;
+    tone?: ReminderTone;
+    include?: unknown;
+    regenerateStudentIds?: string[];
+    allowGeneration?: boolean;
+    generateMissing?: boolean;
+    now?: Date;
+}
 
-/**
- * Standalone function — independent from the AI reports pipeline.
- *
- * Logic:
- * 1. Fetch all DUE payments that match the shared 7-day overdue rule.
- * 2. For each overdue payment, check if a MessageDraft already exists in DB.
- * 3. Return cached drafts immediately (skip Gemini).
- * 4. Batch the remaining students → call Gemini once with name + dueDate.
- * 5. Persist new drafts, return everything.
- */
-export async function draftOverdueMessages(
-  branchId: string,
-  language: "en" | "hi" = "en"
-): Promise<OverdueMessageDraft[]> {
-  const overdueResult = await getOverduePayments(branchId)
-  const overduePayments = overdueResult.payments
+export interface DraftOverdueMessagesResult {
+    language: MessageLanguage;
+    tone: ReminderTone;
+    include: MessageDraftInclude;
+    action: string;
+    items: OverdueMessageDraft[];
+    meta: {
+        cachedCount: number;
+        generatedCount: number;
+        pendingGenerationCount: number;
+        selectedRegenerationCount: number;
+        rateLimited: boolean;
+        nextAllowedCallAt: string;
+        cooldownSeconds: number;
+    };
+}
 
-  // Use the same overdue ledger as payments, analytics, and reports.
-  if (overduePayments.length === 0) {
-    return []
-  }
+interface MessageTarget {
+    studentId: string;
+    studentName: string;
+    phone: string | null;
+    dueDate: Date;
+    amount: number;
+    daysOverdue: number;
+    paymentCount: number;
+}
 
-  const results: OverdueMessageDraft[] = []
-  const needsGeneration: Array<{ studentId: string; studentName: string; dueDate: Date; amount: number }> = []
+type GeneratedMessage = {
+    studentId: string;
+    message: string;
+};
 
-  // 2️⃣ For each, check if draft already exists in DB
-  for (const payment of overduePayments) {
-    // De-duplicate: if same student has multiple overdue payments, only one draft per student per language
-    const alreadyQueued = needsGeneration.some(n => n.studentId === payment.studentId)
-    const alreadyInResults = results.some(r => r.studentId === payment.studentId)
-    if (alreadyQueued || alreadyInResults) continue
+function uniqueStrings(values: string[] | undefined) {
+    return new Set((values ?? []).filter(value => typeof value === "string" && value.trim().length > 0));
+}
 
-    const existing = await prisma.messageDraft.findFirst({
-      where: { branchId, studentId: payment.studentId, action: ACTION, language },
-      include: { student: { select: { updatedAt: true } } }
-    })
+function formatMoney(amount: number) {
+    return `Rs ${amount.toLocaleString("en-IN")}`;
+}
 
-    if (existing) {
-      // 3️⃣ Return cached
-      const isOutdated = existing.student
-        ? existing.student.updatedAt > existing.createdAt
-        : false
+function formatDueDate(date: Date) {
+    return format(date, "dd MMM yyyy");
+}
 
-      results.push({
-        studentId: payment.studentId,
-        studentName: payment.studentName,
-        dueDate: payment.dueDate.toISOString(),
-        language: existing.language as "en" | "hi",
-        message: existing.message,
-        isOutdated
-      })
-    } else {
-      // 4️⃣ Queue for generation
-      needsGeneration.push({
-        studentId: payment.studentId,
-        studentName: payment.studentName,
-        dueDate: payment.dueDate,
-        amount: payment.amount
-      })
+function buildTargets(payments: Awaited<ReturnType<typeof getOverduePayments>>["payments"]): MessageTarget[] {
+    const byStudent = new Map<string, MessageTarget>();
+
+    for (const payment of payments) {
+        const existing = byStudent.get(payment.studentId);
+        if (!existing) {
+            byStudent.set(payment.studentId, {
+                studentId: payment.studentId,
+                studentName: payment.studentName,
+                phone: payment.phone,
+                dueDate: payment.dueDate,
+                amount: payment.amount,
+                daysOverdue: payment.daysOverdue,
+                paymentCount: 1,
+            });
+            continue;
+        }
+
+        existing.amount += payment.amount;
+        existing.paymentCount += 1;
+        existing.daysOverdue = Math.max(existing.daysOverdue, payment.daysOverdue);
+        if (payment.dueDate.getTime() < existing.dueDate.getTime()) {
+            existing.dueDate = payment.dueDate;
+        }
     }
-  }
 
-  console.log(`[Messages] ${results.length} cached, generating for ${needsGeneration.length} student(s)`)
+    return Array.from(byStudent.values()).sort((left, right) => {
+        const overdueDiff = right.daysOverdue - left.daysOverdue;
+        if (overdueDiff !== 0) return overdueDiff;
+        return right.amount - left.amount;
+    });
+}
 
-  // 5️⃣ Batch call Gemini for students without drafts
-  if (needsGeneration.length > 0) {
-    const studentList = needsGeneration.map(s => ({
-      id: s.studentId,
-      name: s.studentName,
-      dueDate: format(s.dueDate, "dd MMM yyyy"),
-      amount: `₹${s.amount}`
-    }))
+function targetPayload(targets: MessageTarget[]) {
+    return targets.map(target => ({
+        studentId: target.studentId,
+        name: target.studentName,
+        oldestDueDate: formatDueDate(target.dueDate),
+        totalDue: formatMoney(target.amount),
+        pendingPayments: target.paymentCount,
+        daysOverdue: target.daysOverdue,
+    }));
+}
 
-    const prompt = `
-You are an assistant for a study hall manager.
-Generate short, polite payment reminder messages for overdue students.
-Language: ${language === "hi" ? "Hindi (Polite, Formal)" : "English (Polite, Professional)"}.
-Every message MUST include ALL THREE of: the student's name, the due date, and the amount due.
-Keep it SHORT — under 30 words per message.
-Output ONLY a JSON array: [{ "studentId": "...", "message": "..." }]
-Do NOT output markdown or code blocks.
+function toneInstruction(tone: ReminderTone) {
+    if (tone === "friendly") {
+        return "warm, simple, conversational, and encouraging";
+    }
+    if (tone === "firm") {
+        return "direct and clear about pending payment, while still respectful";
+    }
+    return "polite, respectful, and professional";
+}
+
+function languageInstruction(language: MessageLanguage) {
+    if (language === "hi") {
+        return [
+            "Write in natural everyday Hinglish/Roman Hindi for Indian WhatsApp messages.",
+            "Avoid formal textbook Hindi words like priya, bhugtan, kripya, sheeghra, or jama karein.",
+            "Prefer normal words like fee, pending, clear, aaj, kal, please, and desk.",
+        ].join(" ");
+    }
+
+    return "Write in clear everyday English.";
+}
+
+function fieldInstruction(include: MessageDraftInclude) {
+    const selected = includedMessageFields(include);
+    const excluded = (["name", "date", "fee"] as const).filter(field => !include[field]);
+
+    return [
+        `Required data fields in every message: ${selected.join(", ")}.`,
+        excluded.length > 0 ? `Do not mention excluded fields: ${excluded.join(", ")}.` : "All available fields may be used.",
+        "The fee field means the rupee amount due. The date field means the oldest due date.",
+    ].join(" ");
+}
+
+function buildPrompt(targets: MessageTarget[], language: MessageLanguage, tone: ReminderTone, include: MessageDraftInclude) {
+    return `
+You are writing payment follow-up messages for a study hall manager.
+${languageInstruction(language)}
+Tone: ${toneInstruction(tone)}.
+${fieldInstruction(include)}
+Keep every message under 28 words.
+Do not add threats, discounts, emojis, URLs, markdown, or signatures.
+Use only the facts provided for each student.
+Output ONLY a JSON array shaped like: [{ "studentId": "...", "message": "..." }]
 
 Students:
-${JSON.stringify(studentList)}
-`
+${JSON.stringify(targetPayload(targets))}
+`;
+}
 
-    try {
-      const aiResponse = await callGemini(prompt)
-      const clean = aiResponse?.replace(/```json/g, "").replace(/```/g, "").trim() || "[]"
-      const generated: Array<{ studentId: string; message: string }> = JSON.parse(clean)
+function parseGeneratedMessages(response: string | null): GeneratedMessage[] {
+    if (!response) return [];
 
-      for (const item of generated) {
-        const meta = needsGeneration.find(n => n.studentId === item.studentId)
-        if (!meta || !item.message) continue
+    const clean = response.replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(clean) as unknown;
 
-        // Persist to DB
-        await prisma.messageDraft.create({
-          data: {
-            branchId,
-            studentId: item.studentId,
-            action: ACTION,
-            language,
-            message: item.message
-          }
-        })
-
-        results.push({
-          studentId: item.studentId,
-          studentName: meta.studentName,
-          dueDate: meta.dueDate.toISOString(),
-          language,
-          message: item.message,
-          isOutdated: false
-        })
-      }
-    } catch (err) {
-      console.error("[Messages] Gemini call failed, using fallback", err)
-      // Fallback — static message with student name
-      for (const meta of needsGeneration) {
-        const fallback = language === "en"
-          ? `Hi ${meta.studentName}, your payment of ₹${meta.amount} due on ${format(meta.dueDate, "dd MMM yyyy")} is pending. Please clear it at your earliest.`
-          : `प्रिय ${meta.studentName}, ${format(meta.dueDate, "dd MMM yyyy")} का ₹${meta.amount} का भुगतान अभी बाकी है। कृपया जल्द से जल्द जमा करें।`
-
-        // Persist fallback too so we don't call AI again
-        await prisma.messageDraft.create({
-          data: {
-            branchId,
-            studentId: meta.studentId,
-            action: ACTION,
-            language,
-            message: fallback
-          }
-        })
-
-        results.push({
-          studentId: meta.studentId,
-          studentName: meta.studentName,
-          dueDate: meta.dueDate.toISOString(),
-          language,
-          message: fallback,
-          isOutdated: false
-        })
-      }
+    if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is GeneratedMessage =>
+            Boolean(
+                item &&
+                typeof item === "object" &&
+                typeof (item as GeneratedMessage).studentId === "string" &&
+                typeof (item as GeneratedMessage).message === "string"
+            )
+        );
     }
-  }
 
-  return results
+    if (parsed && typeof parsed === "object" && Array.isArray((parsed as { messages?: unknown }).messages)) {
+        return ((parsed as { messages: unknown[] }).messages).filter((item): item is GeneratedMessage =>
+            Boolean(
+                item &&
+                typeof item === "object" &&
+                typeof (item as GeneratedMessage).studentId === "string" &&
+                typeof (item as GeneratedMessage).message === "string"
+            )
+        );
+    }
+
+    return [];
+}
+
+function buildFallbackMessage(
+    target: MessageTarget,
+    language: MessageLanguage,
+    tone: ReminderTone,
+    include: MessageDraftInclude
+) {
+    const greeting = include.name ? `Hi ${target.studentName}, ` : "Hi, ";
+    const amount = include.fee ? `${formatMoney(target.amount)} ` : "";
+    const date = include.date ? `${formatDueDate(target.dueDate)} wali ` : "";
+
+    if (language === "hi") {
+        const subject = `${date}${amount}fee`.replace(/\s+/g, " ").trim();
+        if (tone === "friendly") {
+            return `${greeting}quick reminder, ${subject} pending hai. Time mile to clear kar dena.`;
+        }
+        if (tone === "firm") {
+            return `${greeting}${subject} pending hai. Aaj clear kar dena ya desk se baat kar lena.`;
+        }
+        return `${greeting}${subject} pending hai. Please clear kar dena.`;
+    }
+
+    const subject = include.fee ? `your fee of ${formatMoney(target.amount)}` : "your fee";
+    const dateText = include.date ? ` due on ${formatDueDate(target.dueDate)}` : "";
+
+    if (tone === "friendly") {
+        return `${greeting}quick reminder, ${subject}${dateText} is still pending. Please clear it when you can.`;
+    }
+    if (tone === "firm") {
+        return `${greeting}${subject}${dateText} is pending. Please clear it today or contact the desk.`;
+    }
+    return `${greeting}${subject}${dateText} is pending. Please clear it at your earliest.`;
+}
+
+function draftFromRecord(
+    target: MessageTarget,
+    message: string,
+    language: MessageLanguage,
+    tone: ReminderTone,
+    include: MessageDraftInclude,
+    createdAt?: Date,
+    isOutdated = false
+): OverdueMessageDraft {
+    return {
+        studentId: target.studentId,
+        studentName: target.studentName,
+        phone: target.phone,
+        dueDate: target.dueDate.toISOString(),
+        amount: target.amount,
+        daysOverdue: target.daysOverdue,
+        paymentCount: target.paymentCount,
+        language,
+        tone,
+        include,
+        message,
+        createdAt: createdAt?.toISOString(),
+        isOutdated,
+    };
+}
+
+async function getLastMessageGeneratedAt(branchId: string) {
+    const latest = await prisma.messageDraft.findFirst({
+        where: {
+            branchId,
+            action: { startsWith: MESSAGE_DRAFT_ACTION_PREFIX },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+    });
+
+    return latest?.createdAt ?? null;
+}
+
+export async function draftOverdueMessages(
+    branchId: string,
+    optionsOrLanguage: DraftOverdueMessagesOptions | MessageLanguage = {}
+): Promise<DraftOverdueMessagesResult> {
+    const options = typeof optionsOrLanguage === "string"
+        ? { language: optionsOrLanguage }
+        : optionsOrLanguage;
+    const now = options.now ?? new Date();
+    const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: {
+            defaultMessageLanguage: true,
+            reminderTone: true,
+            aiEnabled: true,
+        },
+    });
+
+    if (!branch) throw new Error("Branch not found");
+    if (!branch.aiEnabled) throw new Error("AI is disabled for this branch");
+
+    const fallbackLanguage = branch.defaultMessageLanguage === "hi" ? "hi" : "en";
+    const language = parseMessageLanguage(options.language, fallbackLanguage);
+    const tone = parseReminderTone(options.tone, parseReminderTone(branch.reminderTone));
+    const include = normalizeMessageInclude(options.include);
+    const action = buildMessageDraftAction(tone, include);
+    const selectedRegenerationIds = uniqueStrings(options.regenerateStudentIds);
+    const allowGeneration = options.allowGeneration ?? true;
+    const generateMissing = options.generateMissing ?? true;
+
+    const overdueResult = await getOverduePayments(branchId);
+    const targets = buildTargets(overdueResult.payments);
+    const targetIds = targets.map(target => target.studentId);
+
+    if (targets.length === 0) {
+        return {
+            language,
+            tone,
+            include,
+            action,
+            items: [],
+            meta: {
+                cachedCount: 0,
+                generatedCount: 0,
+                pendingGenerationCount: 0,
+                selectedRegenerationCount: 0,
+                rateLimited: false,
+                nextAllowedCallAt: now.toISOString(),
+                cooldownSeconds: MESSAGE_REGENERATION_COOLDOWN_MS / 1000,
+            },
+        };
+    }
+
+    const [existingDrafts, studentRows, lastGeneratedAt] = await Promise.all([
+        prisma.messageDraft.findMany({
+            where: {
+                branchId,
+                action,
+                language,
+                studentId: { in: targetIds },
+            },
+            orderBy: { createdAt: "desc" },
+        }),
+        prisma.student.findMany({
+            where: {
+                branchId,
+                id: { in: targetIds },
+            },
+            select: {
+                id: true,
+                updatedAt: true,
+            },
+        }),
+        getLastMessageGeneratedAt(branchId),
+    ]);
+
+    const latestDraftByStudentId = new Map<string, (typeof existingDrafts)[number]>();
+    for (const draft of existingDrafts) {
+        if (draft.studentId && !latestDraftByStudentId.has(draft.studentId)) {
+            latestDraftByStudentId.set(draft.studentId, draft);
+        }
+    }
+
+    const studentUpdatedAtById = new Map(studentRows.map(student => [student.id, student.updatedAt]));
+    const resultsByStudentId = new Map<string, OverdueMessageDraft>();
+    const generationTargets: MessageTarget[] = [];
+    let selectedRegenerationCount = 0;
+
+    for (const target of targets) {
+        const existing = latestDraftByStudentId.get(target.studentId);
+        const isSelectedForRegeneration = selectedRegenerationIds.has(target.studentId);
+
+        if (existing && !isSelectedForRegeneration) {
+            const studentUpdatedAt = studentUpdatedAtById.get(target.studentId);
+            resultsByStudentId.set(
+                target.studentId,
+                draftFromRecord(
+                    target,
+                    existing.message,
+                    language,
+                    tone,
+                    include,
+                    existing.createdAt,
+                    studentUpdatedAt ? studentUpdatedAt > existing.createdAt : false
+                )
+            );
+            continue;
+        }
+
+        if (isSelectedForRegeneration) {
+            selectedRegenerationCount += 1;
+        }
+        if (allowGeneration && (isSelectedForRegeneration || (!existing && generateMissing))) {
+            generationTargets.push(target);
+        } else {
+            resultsByStudentId.set(
+                target.studentId,
+                draftFromRecord(
+                    target,
+                    existing?.message ?? "",
+                    language,
+                    tone,
+                    include,
+                    existing?.createdAt,
+                    existing ? (studentUpdatedAtById.get(target.studentId) ?? new Date(0)) > existing.createdAt : false
+                )
+            );
+        }
+    }
+
+    const cooldownUntil = lastGeneratedAt
+        ? new Date(lastGeneratedAt.getTime() + MESSAGE_REGENERATION_COOLDOWN_MS)
+        : now;
+    const regenerationCoolingDown = cooldownUntil.getTime() > now.getTime();
+    const rateLimited = generationTargets.length > 0 && regenerationCoolingDown;
+    let generatedCount = 0;
+
+    if (!rateLimited && generationTargets.length > 0) {
+        const generatedByStudentId = new Map<string, string>();
+
+        try {
+            const aiResponse = await callGemini(buildPrompt(generationTargets, language, tone, include));
+            for (const item of parseGeneratedMessages(aiResponse)) {
+                generatedByStudentId.set(item.studentId, item.message.trim());
+            }
+        } catch (error) {
+            console.error("[Messages] Gemini response could not be parsed, using fallback", error);
+        }
+
+        for (const target of generationTargets) {
+            const message = generatedByStudentId.get(target.studentId) || buildFallbackMessage(target, language, tone, include);
+
+            await prisma.messageDraft.deleteMany({
+                where: {
+                    branchId,
+                    studentId: target.studentId,
+                    action,
+                    language,
+                },
+            });
+
+            const created = await prisma.messageDraft.create({
+                data: {
+                    branchId,
+                    studentId: target.studentId,
+                    action,
+                    language,
+                    message,
+                },
+            });
+
+            resultsByStudentId.set(
+                target.studentId,
+                draftFromRecord(target, message, language, tone, include, created.createdAt, false)
+            );
+        }
+
+        generatedCount = generationTargets.length;
+    }
+
+    const items = targets
+        .map(target => resultsByStudentId.get(target.studentId))
+        .filter((draft): draft is OverdueMessageDraft => Boolean(draft));
+    const nextAllowedCallAt = generatedCount > 0
+        ? new Date(now.getTime() + MESSAGE_REGENERATION_COOLDOWN_MS)
+        : regenerationCoolingDown
+            ? cooldownUntil
+            : now;
+
+    return {
+        language,
+        tone,
+        include,
+        action,
+        items,
+        meta: {
+            cachedCount: Math.max(0, items.length - generatedCount),
+            generatedCount,
+            pendingGenerationCount: rateLimited ? generationTargets.length : 0,
+            selectedRegenerationCount,
+            rateLimited,
+            nextAllowedCallAt: nextAllowedCallAt.toISOString(),
+            cooldownSeconds: MESSAGE_REGENERATION_COOLDOWN_MS / 1000,
+        },
+    };
 }

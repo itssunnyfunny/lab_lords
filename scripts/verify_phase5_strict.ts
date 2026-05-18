@@ -57,7 +57,7 @@ async function runVerification() {
     const messagesEn = await draftOverdueMessages(riskySnapshot.branchId, "en");
     const messagesHi = await draftOverdueMessages(riskySnapshot.branchId, "hi");
 
-    if (messagesEn.length > 0 && messagesHi.length > 0 && messagesEn[0].message !== messagesHi[0].message) {
+    if (messagesEn.items.length > 0 && messagesHi.items.length > 0 && messagesEn.items[0].message !== messagesHi.items[0].message) {
         console.log("PASS: Drafts generated in English and Hindi.");
     } else {
         console.error("FAIL: Message drafting");
