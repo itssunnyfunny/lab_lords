@@ -18,3 +18,7 @@
 ## 2025-05-15 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested simultaneously resulted in multiple `tx.seatAllocation.create(...)` database roundtrips wrapped in `Promise.all`. While `Promise.all` executes them in parallel, it's still N separate insert queries sent to the database.
 **Action:** Replaced the `Promise.all` loop body with an array mapping to create a payload, and executed a single `tx.seatAllocation.createManyAndReturn(...)` to perform a bulk insert while natively preserving the returned records.
+
+## 2026-05-18 - [Batch Insert Optimization in Seat Allocation Service for assignSeatToShifts]
+**Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` within `assignSeatToShifts` where multiple seat allocations requested simultaneously via a shift array resulted in sequential `tx.seatAllocation.create(...)` database roundtrips.
+**Action:** Replaced the sequential `tx.seatAllocation.create` calls within the loop with an array accumulation pattern, and executed a single `tx.seatAllocation.createManyAndReturn(...)` after the loop. This minimizes DB inserts while cleanly returning the created records natively.
