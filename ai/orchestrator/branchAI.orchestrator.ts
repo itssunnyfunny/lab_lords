@@ -2,7 +2,7 @@ import { readBranchSnapshotForAI } from "../readers/branch.reader"
 import { detectBranchRisks } from "../riskDetection/branchRiskDetector"
 import { suggestActionsForBranch } from "../actionSuggestions/branchActionSuggester"
 import { generateBranchHealthReport } from "../branchHealthReport"
-import { AIStructuredBranchReport } from "../contracts/structuredReport.contract"
+import { AIBranchReportSnapshot, AIStructuredBranchReport } from "../contracts/structuredReport.contract"
 import { prisma } from "@/lib/prisma"
 import type { Prisma } from "@/app/generated/prisma/client"
 import { startOfDay } from "date-fns"
@@ -22,6 +22,7 @@ export interface BranchAIResponse {
     nextAllowedCallAt?: string
 
     report: AIStructuredBranchReport
+    snapshot?: AIBranchReportSnapshot
 
     // Legacy fields kept for compatibility if needed, but 'report' is now the main structured object
     risks: {
@@ -39,6 +40,36 @@ export interface BranchAIResponse {
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const STUCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - force reset if stuck running
 const PAYMENT_OVERDUE_RULE_VERSION = "due-after-7-days-any-due-v2";
+
+function buildReportSnapshot(snapshot: Awaited<ReturnType<typeof readBranchSnapshotForAI>>): AIBranchReportSnapshot {
+    return {
+        branchName: snapshot.branchName,
+        asOf: snapshot.asOf.toISOString(),
+        seats: {
+            total: snapshot.seats.total,
+            occupied: snapshot.seats.occupied,
+            available: snapshot.seats.available,
+            utilizationPercent: snapshot.seats.utilizationPercent,
+            shiftBreakdown: snapshot.seats.shiftBreakdown.map((shift) => ({
+                shiftName: shift.shiftName,
+                used: shift.used,
+                capacity: shift.capacity,
+                occupancyPercent: shift.occupancyPercent,
+            })),
+        },
+        students: {
+            total: snapshot.students.total,
+            active: snapshot.students.active,
+            inactive: snapshot.students.inactive,
+        },
+        payments: {
+            dueCount: snapshot.payments.dueCount,
+            paidCount: snapshot.payments.paidCount,
+            overdueCount: snapshot.payments.overdueCount,
+            overdueAmount: snapshot.payments.overduePayments.reduce((total, payment) => total + payment.amount, 0),
+        },
+    };
+}
 
 export async function runBranchAI(
     branchId: string
@@ -167,6 +198,7 @@ export async function runBranchAI(
             hasPendingChanges: false,
 
             report: structuredReport,
+            snapshot: buildReportSnapshot(snapshot),
 
             risks: {
                 total: risks.length,
