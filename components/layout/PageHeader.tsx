@@ -4,6 +4,7 @@ import { Search, Filter, Plus, Download } from "lucide-react";
 import { AppButton } from "@/components/ui";
 import { formControlClass } from "@/components/ui/formSurface";
 import { pageDescriptionClass, pageTitleClass } from "@/components/ui/pageSurface";
+import type { ReactNode } from "react";
 
 interface PageHeaderProps {
     title: string;
@@ -12,10 +13,24 @@ interface PageHeaderProps {
     onFilter?: () => void;
     onAdd?: () => void;
     onExport?: () => void;
+    exportLabel?: string;
+    exportAriaLabel?: string;
+    extraActions?: ReactNode;
     actionLabel?: string;
 }
 
-export function PageHeader({ title, subtitle, onSearch, onFilter, onAdd, onExport, actionLabel = "Add New" }: PageHeaderProps) {
+export function PageHeader({
+    title,
+    subtitle,
+    onSearch,
+    onFilter,
+    onAdd,
+    onExport,
+    exportLabel,
+    exportAriaLabel,
+    extraActions,
+    actionLabel = "Add New",
+}: PageHeaderProps) {
     return (
         <div className="mb-6 flex flex-col justify-between gap-4 md:mb-8 md:flex-row md:items-end fade-in">
             <div className="min-w-0">
@@ -41,8 +56,18 @@ export function PageHeader({ title, subtitle, onSearch, onFilter, onAdd, onExpor
                 )}
 
                 {onExport && (
-                    <AppButton variant="secondary" size="icon" icon={Download} onClick={onExport} aria-label="Export" />
+                    <AppButton
+                        variant="secondary"
+                        size={exportLabel ? "md" : "icon"}
+                        icon={Download}
+                        onClick={onExport}
+                        aria-label={exportAriaLabel ?? exportLabel ?? "Export"}
+                    >
+                        {exportLabel}
+                    </AppButton>
                 )}
+
+                {extraActions}
 
                 {onAdd && (
                     <AppButton onClick={onAdd} variant="primary" icon={Plus} className="flex-shrink-0 whitespace-nowrap">
