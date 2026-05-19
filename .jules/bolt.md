@@ -18,3 +18,7 @@
 ## 2025-05-15 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested simultaneously resulted in multiple `tx.seatAllocation.create(...)` database roundtrips wrapped in `Promise.all`. While `Promise.all` executes them in parallel, it's still N separate insert queries sent to the database.
 **Action:** Replaced the `Promise.all` loop body with an array mapping to create a payload, and executed a single `tx.seatAllocation.createManyAndReturn(...)` to perform a bulk insert while natively preserving the returned records.
+
+## 2025-05-18 - [Batch Upsert Optimization in Staff Service]
+**Learning:** Prisma lacks a native `upsertMany` function. When updating multiple staff permission overrides in `services/staff.service.ts`, the loop executed sequential `upsert` queries, leading to an N+1 performance bottleneck.
+**Action:** Replaced the loop-based sequential upserts with a bulk reset strategy where the `createdAt` timestamp reset is acceptable. Performed a targeted `deleteMany` (using an `in` clause on action types) followed by a single `createMany` bulk insertion. This reduces O(N) database operations to O(1) operations.
