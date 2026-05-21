@@ -169,24 +169,25 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift (with optional multiShiftId)
-                const allocation = await tx.seatAllocation.create({
-                    data: {
-                        seatId,
-                        studentId,
-                        shiftId: requestedShift.id,
-                        ...(multiShiftId ? { multiShiftId } : {}),
-                    },
-                });
-
                 // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
                 const mockAllocation = { shiftId: requestedShift.id } as SeatAllocation;
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
 
-                allocationsToCreate.push(allocation);
+                allocationsToCreate.push({
+                    seatId,
+                    studentId,
+                    shiftId: requestedShift.id,
+                    ...(multiShiftId ? { multiShiftId } : {}),
+                });
             }
+
+            // 8. ⚡ Bolt: Bulk insert allocations to prevent N+1 queries during allocation creation
+            // Impact: Replaced N queries (tx.seatAllocation.create) with a single createManyAndReturn bulk operation
+            const createdAllocations = await tx.seatAllocation.createManyAndReturn({
+                data: allocationsToCreate
+            });
 
             // 9. Update Branch lastDataChange
             await tx.branch.update({
@@ -194,7 +195,7 @@ export class SeatAllocationService {
                 data: { lastDataChange: new Date() },
             });
 
-            return allocationsToCreate;
+            return createdAllocations;
         });
     }
 
