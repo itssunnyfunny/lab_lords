@@ -133,7 +133,9 @@ export class SeatAllocationService {
                 where: { studentId, endDate: null },
             });
 
-            const allocationsToCreate = [];
+            // ⚡ Bolt: Optimizing bulk seat allocation
+            // Impact: Replaced N queries (create) with a single createManyAndReturn bulk operation
+            const allocationsPayload = [];
 
             for (const requestedShift of requestedShifts) {
                 const newStart = parseNullableTime(requestedShift.startTime);
@@ -169,14 +171,11 @@ export class SeatAllocationService {
                     }
                 }
 
-                // 8. Create allocation for this shift (with optional multiShiftId)
-                const allocation = await tx.seatAllocation.create({
-                    data: {
-                        seatId,
-                        studentId,
-                        shiftId: requestedShift.id,
-                        ...(multiShiftId ? { multiShiftId } : {}),
-                    },
+                allocationsPayload.push({
+                    seatId,
+                    studentId,
+                    shiftId: requestedShift.id,
+                    ...(multiShiftId ? { multiShiftId } : {}),
                 });
 
                 // Push mock objects into live arrays so subsequent loop iterations
@@ -184,9 +183,12 @@ export class SeatAllocationService {
                 const mockAllocation = { shiftId: requestedShift.id } as SeatAllocation;
                 activeSeatAllocations.push(mockAllocation);
                 activeStudentAllocations.push(mockAllocation);
-
-                allocationsToCreate.push(allocation);
             }
+
+            // 8. Bulk create allocations for these shifts
+            const allocationsCreated = await tx.seatAllocation.createManyAndReturn({
+                data: allocationsPayload,
+            });
 
             // 9. Update Branch lastDataChange
             await tx.branch.update({
@@ -194,7 +196,7 @@ export class SeatAllocationService {
                 data: { lastDataChange: new Date() },
             });
 
-            return allocationsToCreate;
+            return allocationsCreated;
         });
     }
 
