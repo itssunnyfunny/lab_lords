@@ -1,0 +1,56 @@
+name: Production Prisma Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type RUN_PRODUCTION_MIGRATION to apply pending Prisma migrations.
+        required: true
+        type: string
+
+jobs:
+  migrate:
+    name: Apply Production Migrations
+    if: ${{ github.event.inputs.confirm == 'RUN_PRODUCTION_MIGRATION' }}
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_DATABASE_URL }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify migration database URL is configured
+        run: |
+          if [ -z "$DIRECT_URL" ]; then
+            echo "PRODUCTION_DIRECT_DATABASE_URL is not configured."
+            exit 1
+          fi
+          case "$DIRECT_URL" in
+            *localhost*|*127.0.0.1*|*mydb_test*|*lab_lords_test*)
+              echo "Refusing to run production migrations against a local or test database URL."
+              exit 1
+              ;;
+          esac
+
+      - name: Show pending migration status
+        continue-on-error: true
+        run: pnpm prisma migrate status
+
+      - name: Apply pending migrations
+        run: pnpm prisma migrate deploy
