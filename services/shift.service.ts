@@ -327,11 +327,24 @@ export class ShiftService {
                 const targetStart = parseNullableTime(targetShiftData?.startTime);
                 const targetEnd = parseNullableTime(targetShiftData?.endTime);
 
+                // ⚡ Bolt: Optimizing N+1 query for student active allocations
+                // Impact: Changed O(n) individual queries to a single batch query.
+                const studentIds = sourceAllocations.map(a => a.studentId);
+                const allStudentActiveAllocs = await tx.seatAllocation.findMany({
+                    where: { studentId: { in: studentIds }, endDate: null, shiftId: { not: shiftId } },
+                });
+
+                const studentAllocMap = new Map<string, typeof allStudentActiveAllocs>();
+                for (const sa of allStudentActiveAllocs) {
+                    if (!studentAllocMap.has(sa.studentId)) {
+                        studentAllocMap.set(sa.studentId, []);
+                    }
+                    studentAllocMap.get(sa.studentId)!.push(sa);
+                }
+
                 for (const oldAlloc of sourceAllocations) {
                     // Check: student not already in target or any time-overlapping shift
-                    const studentActiveAllocs = await tx.seatAllocation.findMany({
-                        where: { studentId: oldAlloc.studentId, endDate: null, shiftId: { not: shiftId } },
-                    });
+                    const studentActiveAllocs = studentAllocMap.get(oldAlloc.studentId) || [];
                     for (const sa of studentActiveAllocs) {
                         if (sa.shiftId === targetShiftId) {
                             throw new Error(

@@ -18,3 +18,7 @@
 ## 2025-05-15 - [Batch Insert Optimization in Seat Allocation Service]
 **Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where multiple seat allocations requested simultaneously resulted in multiple `tx.seatAllocation.create(...)` database roundtrips wrapped in `Promise.all`. While `Promise.all` executes them in parallel, it's still N separate insert queries sent to the database.
 **Action:** Replaced the `Promise.all` loop body with an array mapping to create a payload, and executed a single `tx.seatAllocation.createManyAndReturn(...)` to perform a bulk insert while natively preserving the returned records.
+
+## 2025-05-16 - [Batch Select Optimization in Shift Service]
+**Learning:** Found an N+1 query problem in `services/shift.service.ts` within `ShiftService.deleteShift`'s `REALLOCATE_BULK` handler where it sequentially queried `tx.seatAllocation.findMany` inside a loop for each shifted student.
+**Action:** Replaced the loop body queries with a single bulk pre-fetch using an `in` operator on student IDs, then mapped the active allocations to a local Map grouped by `studentId`. This allows O(1) in-memory checks inside the loop and converts O(N) database operations into a single query.
