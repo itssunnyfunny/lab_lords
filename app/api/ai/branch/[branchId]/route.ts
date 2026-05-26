@@ -1,5 +1,6 @@
 import { runBranchAI } from "@/ai/orchestrator/branchAI.orchestrator"
 import { getSessionUser } from "@/lib/auth"
+import { checkRateLimit, getRequestRateLimitKey } from "@/lib/rateLimit"
 import { StaffService } from "@/services/staff.service"
 
 export async function GET(
@@ -14,6 +15,21 @@ export async function GET(
         }
 
         await StaffService.authorize(user.id, params.branchId, "analytics")
+
+        const rateLimit = checkRateLimit(
+            getRequestRateLimitKey(request, "ai-report", `${user.id}:${params.branchId}`),
+            { limit: 3, windowMs: 15 * 60 * 1000 }
+        )
+
+        if (!rateLimit.allowed) {
+            return Response.json(
+                { error: "Too many AI report requests. Try again later." },
+                {
+                    status: 429,
+                    headers: { "Retry-After": String(rateLimit.retryAfter) },
+                }
+            )
+        }
 
         const result = await runBranchAI(params.branchId)
 
