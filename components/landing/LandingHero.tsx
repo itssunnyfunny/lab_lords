@@ -228,7 +228,7 @@ function HeroDashboardScene() {
 export function LandingHero({
   onDashboardClick,
 }: {
-  onDashboardClick: () => void;
+  onDashboardClick: (source: string) => void;
 }) {
   return (
     <section className="relative z-10 overflow-hidden border-b border-[color:var(--ui-panel-header-border)]">
@@ -259,11 +259,11 @@ export function LandingHero({
           </p>
 
           <div className="landing-reveal mt-7 flex flex-col gap-3 [animation-delay:380ms] sm:flex-row">
-            <button type="button" onClick={onDashboardClick} className={`${landingPrimaryButtonClass} landing-cta-shine`}>
+            <button type="button" onClick={() => onDashboardClick("landing_hero_primary")} className={`${landingPrimaryButtonClass} landing-cta-shine`}>
               Start with your branch
               <ArrowRight size={16} />
             </button>
-            <button type="button" onClick={onDashboardClick} className={landingSecondaryButtonClass}>
+            <button type="button" onClick={() => onDashboardClick("landing_hero_secondary")} className={landingSecondaryButtonClass}>
               <CalendarClock size={16} />
               View live workspace
             </button>

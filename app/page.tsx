@@ -5,6 +5,7 @@ import { isAuthBypassEnabled } from "@/lib/authMode";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { organizations } from "@/lib/api/organizations";
+import { trackEvent } from "@/lib/tracking";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingMockup } from "@/components/landing/LandingMockup";
@@ -24,8 +25,13 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const handleDashboardClick = async () => {
+  const handleDashboardClick = async (source = "landing_cta") => {
     if (!isLoaded) return;
+
+    trackEvent("landing_cta_clicked", {
+      source,
+      signed_in: isSignedIn,
+    });
 
     if (!isSignedIn) {
       router.push("/sign-in");
