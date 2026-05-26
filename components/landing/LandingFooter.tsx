@@ -1,4 +1,6 @@
 import { AppLogo } from "@/components/brand/AppLogo";
+import { CookieSettingsButton } from "@/components/analytics/CookieSettingsButton";
+import Link from "next/link";
 import {
   landingContainerClass,
   landingMutedTextClass,
@@ -12,7 +14,7 @@ export function LandingFooter() {
     <footer className="relative z-10 overflow-hidden border-t border-[color:var(--ui-panel-header-border)] bg-[color:var(--bg-app)] py-10">
       <span className="landing-section-glow bottom-0 right-[20%] h-40 w-40 bg-cyan-400/10 [animation-delay:2s]" aria-hidden="true" />
       <div className={`${landingContainerClass} relative`}>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
           <LandingReveal variant="left" className="max-w-md">
             <AppLogo className="mb-4" />
             <p className={`${landingMutedTextClass} text-sm leading-6`}>
@@ -37,13 +39,26 @@ export function LandingFooter() {
               <li><a href="#features" className={landingNavLinkClass}>AI review</a></li>
             </ul>
           </LandingReveal>
+
+          <LandingReveal delay={220} variant="up" className="md:min-w-44">
+            <h4 className="mb-4 font-semibold text-[color:var(--text-primary)]">Trust</h4>
+            <ul className="space-y-3">
+              <li><Link href="/privacy" className={landingNavLinkClass}>Privacy</Link></li>
+              <li><Link href="/terms" className={landingNavLinkClass}>Terms</Link></li>
+              <li><Link href="/cookies" className={landingNavLinkClass}>Cookies</Link></li>
+              <li><Link href="/support" className={landingNavLinkClass}>Support</Link></li>
+            </ul>
+          </LandingReveal>
         </div>
 
-        <LandingReveal delay={240} className="mt-8 flex flex-col gap-2 border-t border-[color:var(--ui-panel-header-border)] pt-6 text-sm md:flex-row md:items-center md:justify-between">
+        <LandingReveal delay={280} className="mt-8 flex flex-col gap-2 border-t border-[color:var(--ui-panel-header-border)] pt-6 text-sm md:flex-row md:items-center md:justify-between">
           <p className={landingSubtleTextClass}>
             &copy; {new Date().getFullYear()} Lab Lords. All rights reserved.
           </p>
-          <p className={landingSubtleTextClass}>Built with precision for education operators.</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <CookieSettingsButton className={landingSubtleTextClass}>Cookie settings</CookieSettingsButton>
+            <p className={landingSubtleTextClass}>Built with precision for education operators.</p>
+          </div>
         </LandingReveal>
       </div>
     </footer>

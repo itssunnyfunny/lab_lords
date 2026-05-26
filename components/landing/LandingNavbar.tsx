@@ -10,7 +10,7 @@ import {
 export function LandingNavbar({
   onDashboardClick,
 }: {
-  onDashboardClick: () => void;
+  onDashboardClick: (source: string) => void;
 }) {
   return (
     <nav className="sticky top-0 z-50 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--bg-app)]/88 backdrop-blur-xl">
@@ -36,11 +36,11 @@ export function LandingNavbar({
           <button
             type="button"
             className="hidden text-sm font-medium text-[color:var(--text-secondary)] transition-colors hover:text-[color:var(--text-primary)] sm:inline"
-            onClick={onDashboardClick}
+            onClick={() => onDashboardClick("landing_nav_sign_in")}
           >
             Sign in
           </button>
-          <button type="button" onClick={onDashboardClick} className={`${landingPrimaryButtonClass} landing-cta-shine h-10 px-3 sm:px-4`}>
+          <button type="button" onClick={() => onDashboardClick("landing_nav_workspace")} className={`${landingPrimaryButtonClass} landing-cta-shine h-10 px-3 sm:px-4`}>
             <span className="hidden sm:inline">Open workspace</span>
             <span className="sm:hidden">Open</span>
             <ArrowRight size={14} />
