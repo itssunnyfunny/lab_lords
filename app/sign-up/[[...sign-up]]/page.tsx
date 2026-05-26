@@ -1,5 +1,7 @@
 import { SignUp } from "@clerk/nextjs";
+import type { Metadata } from "next";
 import { isAuthBypassEnabled } from "@/lib/authMode";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogoMark } from "@/components/brand/AppLogo";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
@@ -13,6 +15,14 @@ import {
   entrySubtitleClass,
   entryTitleClass,
 } from "@/components/ui/entrySurface";
+
+export const metadata: Metadata = {
+  title: "Sign up",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function SignUpPage({
   searchParams,
@@ -48,6 +58,18 @@ export default async function SignUpPage({
             elements: entryClerkAppearanceElements,
           }}
         />
+
+        <p className="mt-4 text-center text-xs leading-5 text-[color:var(--text-muted)]">
+          By continuing, you agree to the{" "}
+          <Link className="text-[color:var(--ui-form-accent)] hover:text-[color:var(--ui-form-accent-hover)]" href="/terms">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link className="text-[color:var(--ui-form-accent)] hover:text-[color:var(--ui-form-accent-hover)]" href="/privacy">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
     </main>
   );
