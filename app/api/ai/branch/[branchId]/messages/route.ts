@@ -1,5 +1,6 @@
 import { draftOverdueMessages } from "@/ai/messageDrafting/branchMessageDrafter"
 import { getSessionUser } from "@/lib/auth"
+import { checkRateLimit, getRequestRateLimitKey } from "@/lib/rateLimit"
 import { StaffService } from "@/services/staff.service"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -50,6 +51,21 @@ export async function POST(
         }
 
         await StaffService.authorize(user.id, branchId, "analytics")
+
+        const rateLimit = checkRateLimit(
+            getRequestRateLimitKey(req, "ai-message-generation", `${user.id}:${branchId}`),
+            { limit: 8, windowMs: 15 * 60 * 1000 }
+        )
+
+        if (!rateLimit.allowed) {
+            return NextResponse.json(
+                { error: "Too many message generation requests. Try again later." },
+                {
+                    status: 429,
+                    headers: { "Retry-After": String(rateLimit.retryAfter) },
+                }
+            )
+        }
 
         const body = await req.json().catch(() => ({})) as {
             language?: "en" | "hi";

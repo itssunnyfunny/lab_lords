@@ -1,4 +1,5 @@
 import { SignIn } from "@clerk/nextjs";
+import type { Metadata } from "next";
 import { isAuthBypassEnabled } from "@/lib/authMode";
 import { redirect } from "next/navigation";
 import { LogoMark } from "@/components/brand/AppLogo";
@@ -13,6 +14,14 @@ import {
   entrySubtitleClass,
   entryTitleClass,
 } from "@/components/ui/entrySurface";
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function SignInPage({
   searchParams,

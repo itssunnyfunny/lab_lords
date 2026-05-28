@@ -43,7 +43,7 @@ const plans = [
 export function LandingPricing({
   onDashboardClick,
 }: {
-  onDashboardClick: () => void;
+  onDashboardClick: (source: string) => void;
 }) {
   return (
     <section id="pricing" className={`${landingSectionClass} overflow-hidden bg-[color:var(--ui-form-muted-surface-bg)]`}>
@@ -102,7 +102,7 @@ export function LandingPricing({
 
               <button
                 type="button"
-                onClick={onDashboardClick}
+                onClick={() => onDashboardClick(`landing_pricing_${plan.name.toLowerCase()}`)}
                 className={`${plan.featured ? `${landingPrimaryButtonClass} landing-cta-shine` : landingSecondaryButtonClass} mt-6 w-full`}
               >
                 Start this plan
