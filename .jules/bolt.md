@@ -22,3 +22,7 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+
+## 2025-05-24 - [Batch Insert Optimization in assignSeatToShifts]
+**Learning:** Found an N+1 query problem in `services/seatAllocation.service.ts` where allocating a seat across multiple requested shifts sequentially inserted each seat allocation in a loop using `tx.seatAllocation.create(...)`, resulting in excessive database roundtrips.
+**Action:** Replaced the loop body with pushing the expected object payload into a local array (`allocationsToCreate`), while preserving the `mockAllocation` local state updates needed for same-transaction validations. Then, replaced the individual calls with a single `tx.seatAllocation.createManyAndReturn(...)` to perform a bulk database insertion in O(1) queries.
