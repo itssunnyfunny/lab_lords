@@ -2,6 +2,7 @@ import type {
     ImportColumnMapping,
     ImportIssue,
     ImportNormalizedRow,
+    ImportOptions,
     ParsedImportRow,
 } from "@/importing/contracts/import-session.contract";
 import type { PaymentMethod, PaymentStatus } from "@/app/generated/prisma/enums";
@@ -19,7 +20,7 @@ export function normalizePhoneKey(value: unknown) {
 }
 
 export function parseImportMoney(value: unknown): number | undefined {
-    const text = compactImportText(value).replace(/[₹,\s]/g, "");
+    const text = compactImportText(value).replace(/[^\d.]/g, "");
     if (!text) return undefined;
     const normalized = text.match(/^\d+(\.\d+)?$/) ? Number(text) : Number.NaN;
     if (!Number.isFinite(normalized)) return undefined;
@@ -193,4 +194,34 @@ export function normalizeImportRow(
         issues,
         confidence: confidenceCount > 0 ? Math.round(confidenceTotal / confidenceCount) : null,
     };
+}
+
+export function applyImportDefaults(normalized: ImportNormalizedRow, options?: ImportOptions) {
+    if (!options) return normalized;
+
+    if (normalized.student && !normalized.student.joinedAt && options.defaultJoinedAt) {
+        normalized.student = { ...normalized.student, joinedAt: parseImportDate(options.defaultJoinedAt) ?? options.defaultJoinedAt };
+    }
+
+    const hasSeat = Boolean(normalized.allocation?.seatLabel ?? normalized.seat?.label);
+    if (!hasSeat && options.defaultSeatLabel) {
+        normalized.seat = { ...normalized.seat, label: options.defaultSeatLabel };
+        normalized.allocation = { ...normalized.allocation, seatLabel: options.defaultSeatLabel };
+    }
+
+    const hasAllocationSeat = Boolean(normalized.allocation?.seatLabel ?? normalized.seat?.label);
+    const hasShift = Boolean(normalized.allocation?.shiftName ?? normalized.shift?.name);
+    const hasMultiShift = Boolean(normalized.allocation?.multiShiftName ?? normalized.multiShift?.name);
+
+    if (hasAllocationSeat && !hasShift && !hasMultiShift && options.defaultShiftName) {
+        normalized.shift = { ...normalized.shift, name: options.defaultShiftName };
+        normalized.allocation = { ...normalized.allocation, shiftName: options.defaultShiftName };
+    }
+
+    if (hasAllocationSeat && !hasShift && !hasMultiShift && options.defaultMultiShiftName) {
+        normalized.multiShift = { ...normalized.multiShift, name: options.defaultMultiShiftName };
+        normalized.allocation = { ...normalized.allocation, multiShiftName: options.defaultMultiShiftName };
+    }
+
+    return normalized;
 }

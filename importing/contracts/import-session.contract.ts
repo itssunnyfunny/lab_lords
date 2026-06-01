@@ -59,11 +59,73 @@ export type ImportAIQuestion = {
     options?: string[];
 };
 
+export type ImportDetectedColumnKind =
+    | "name"
+    | "phone"
+    | "date"
+    | "money"
+    | "paymentStatus"
+    | "paymentMethod"
+    | "seat"
+    | "shift"
+    | "time"
+    | "text"
+    | "empty";
+
+export type ImportColumnProfile = {
+    column: string;
+    filledRows: number;
+    emptyRows: number;
+    fillRate: number;
+    uniqueValueCount: number;
+    sampleValues: string[];
+    detectedKind: ImportDetectedColumnKind;
+};
+
+export type ImportSourceProfile = {
+    rowCount: number;
+    columnCount: number;
+    emptyCellRate: number;
+    columns: ImportColumnProfile[];
+    highSignalColumns: string[];
+    lowSignalColumns: string[];
+};
+
+export type ImportAttentionBucket = {
+    code: string;
+    label: string;
+    severity: "error" | "warning" | "info";
+    count: number;
+    message: string;
+    action?: string;
+    fields?: string[];
+    sampleRowNumbers?: number[];
+};
+
+export type ImportPipelineStep = {
+    id: "extract" | "profile" | "ai_mapping" | "validate" | "review" | "commit";
+    label: string;
+    status: "pending" | "running" | "completed" | "needs_attention" | "failed";
+    detail?: string;
+};
+
+export type ImportSessionAnalysis = {
+    generatedAt: string;
+    sourceProfile: ImportSourceProfile;
+    attention: ImportAttentionBucket[];
+    pipeline: ImportPipelineStep[];
+    model?: string;
+    notes?: string[];
+};
+
 export type ImportMappingResult = {
     entityTypesDetected: ImportEntityType[];
     columnMappings: ImportColumnMapping[];
     questions: ImportAIQuestion[];
     warnings: string[];
+    suggestedImportOptions?: Partial<ImportOptions>;
+    analysisNotes?: string[];
+    model?: string;
     usedFallback?: boolean;
 };
 
@@ -95,6 +157,9 @@ export type ImportOptions = {
     customPeriodEnd?: string;
     paymentMapping?: ImportPaymentMapping;
     defaultJoinedAt?: string;
+    defaultSeatLabel?: string;
+    defaultShiftName?: string;
+    defaultMultiShiftName?: string;
     createUnknownSeats?: boolean;
     createUnknownShifts?: boolean;
     createUnknownMultiShifts?: boolean;
@@ -106,6 +171,7 @@ export type ImportMappingState = {
     questions?: ImportAIQuestion[];
     warnings?: string[];
     importOptions?: ImportOptions;
+    analysis?: ImportSessionAnalysis;
     usedFallback?: boolean;
 };
 
@@ -167,6 +233,9 @@ export type ImportSessionSummary = {
     readinessScore: number;
     detectedEntityCounts: Record<ImportEntityType, number>;
     warnings: string[];
+    openQuestions?: number;
+    attention?: ImportAttentionBucket[];
+    sourceProfile?: ImportSourceProfile;
 };
 
 export type CreateImportSessionInput =
