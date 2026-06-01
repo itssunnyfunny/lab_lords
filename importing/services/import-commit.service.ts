@@ -105,10 +105,6 @@ export class ImportCommitService {
         mode: CommitMode = "SAFE_PARTIAL"
     ): Promise<ImportCommitResult> {
         const detail = await ImportSessionService.revalidateSession(userId, branchId, sessionId);
-        if (detail.status !== "READY_TO_COMMIT") {
-            throw new Error("Import session is not ready to commit.");
-        }
-
         const rows = detail.rows.map(row => ({
             id: row.id,
             rowNumber: row.rowNumber,
@@ -117,12 +113,18 @@ export class ImportCommitService {
             normalizedData: row.normalizedData as ImportNormalizedRow | null,
             warnings: row.warnings,
         }));
+        const importableRows = rows.filter(row => !row.skipped && ["READY", "WARNING"].includes(row.status));
+        const hasOpenQuestions = detail.questions?.some((question: { status?: string }) => question.status === "OPEN") ?? false;
+        const canSafePartial = mode === "SAFE_PARTIAL" && !hasOpenQuestions && importableRows.length > 0;
+        if (detail.status !== "READY_TO_COMMIT" && !canSafePartial) {
+            throw new Error("Import session is not ready to commit.");
+        }
+
         const blockedRows = rows.filter(row => ["BLOCKED", "CONFLICT", "NEEDS_REVIEW", "DUPLICATE"].includes(row.status));
         if (mode === "STRICT_ALL_OR_NOTHING" && blockedRows.length > 0) {
             throw new Error("Strict import refused because blocked or review rows remain.");
         }
 
-        const importableRows = rows.filter(row => !row.skipped && ["READY", "WARNING"].includes(row.status));
         const mapping = detail.mapping as ImportMappingState;
         await this.ensureCommitPermissions(userId, branchId, importableRows, mapping);
 
@@ -264,8 +266,9 @@ export class ImportCommitService {
                 }
             }
 
-            const status = errors.length > 0 ? "PARTIAL" : "COMMITTED";
-            const commitStatus = errors.length > 0 ? "PARTIAL" : "SUCCESS";
+            const isPartial = errors.length > 0 || summary.skippedRows > 0;
+            const status = isPartial ? "PARTIAL" : "COMMITTED";
+            const commitStatus = isPartial ? "PARTIAL" : "SUCCESS";
 
             await prisma.importCommit.create({
                 data: {

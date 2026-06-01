@@ -40,9 +40,10 @@ export class ImportPreviewService {
         }
 
         const paymentRows = importableRows.filter(row => row.normalizedData?.payment);
+        const hasOpenQuestions = detail.questions?.some((question: { status?: string }) => question.status === "OPEN") ?? false;
         return {
             mode,
-            canCommit: detail.status === "READY_TO_COMMIT" || (mode === "SAFE_PARTIAL" && importableRows.length > 0),
+            canCommit: detail.status === "READY_TO_COMMIT" || (mode === "SAFE_PARTIAL" && !hasOpenQuestions && importableRows.length > 0),
             summary: {
                 createStudents: importableRows.filter(row => row.normalizedData?.student?.name).length,
                 createSeats: createSeats.size,

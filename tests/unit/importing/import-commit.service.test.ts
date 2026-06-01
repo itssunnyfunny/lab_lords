@@ -118,7 +118,11 @@ describe("ImportCommitService", () => {
     });
 
     it("does not run when the session is not READY_TO_COMMIT", async () => {
-        mocks.revalidateSession.mockResolvedValueOnce({ ...readyDetail, status: "NEEDS_INFO" });
+        mocks.revalidateSession.mockResolvedValueOnce({
+            ...readyDetail,
+            status: "NEEDS_INFO",
+            questions: [{ status: "OPEN" }],
+        });
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
         await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1")).rejects.toThrow("not ready");
@@ -147,8 +151,12 @@ describe("ImportCommitService", () => {
 
         const result = await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL");
 
+        expect(result.status).toBe("PARTIAL");
         expect(result.summary.skippedRows).toBe(1);
         expect(mocks.createImportedStudent).toHaveBeenCalledTimes(1);
+        expect(mocks.prisma.importCommit.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ status: "PARTIAL" }),
+        }));
     });
 
     it("refuses blocked rows in STRICT_ALL_OR_NOTHING mode", async () => {

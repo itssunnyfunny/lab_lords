@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ImportSessionService } from "./import-session.service";
+import { StaffService } from "@/services/staff.service";
 import type { ImportMappingState, ImportOptions } from "@/importing/contracts/import-session.contract";
 import type { Prisma } from "@/app/generated/prisma/client";
 
@@ -18,9 +19,19 @@ function answerToOptions(field: string | null, answer: unknown): Partial<ImportO
     if (field === "payment.status" && ["GENERATE_DUE", "IMPORT_PAID_UNPAID", "SKIP_PAYMENTS"].includes(value)) {
         return { paymentAction: value as ImportOptions["paymentAction"] };
     }
+    if (field === "student.joinedAt") {
+        return { defaultJoinedAt: value === "USE_TODAY" ? new Date().toISOString() : value };
+    }
     if (field === "seat.label" && value === "YES_CREATE_SEATS") return { createUnknownSeats: true };
+    if (field === "seat.label" && value && value !== "NO_SKIP_ALLOCATIONS") return { defaultSeatLabel: value };
     if (field === "allocation.shiftName" && value === "CREATE_SHIFT") return { createUnknownShifts: true };
+    if (field === "allocation.shiftName" && value && !["MAP_TO_EXISTING_SHIFT", "SKIP_ALLOCATIONS"].includes(value)) {
+        return { defaultShiftName: value };
+    }
     if (field === "allocation.multiShiftName" && value === "CREATE_MULTI_SHIFT") return { createUnknownMultiShifts: true };
+    if (field === "allocation.multiShiftName" && value && !["MAP_TO_EXISTING_MULTI_SHIFT", "SKIP_ALLOCATIONS"].includes(value)) {
+        return { defaultMultiShiftName: value };
+    }
     return {};
 }
 
@@ -35,6 +46,7 @@ export class ImportQuestionService {
         sessionId: string,
         input: { questionId: string; answer: unknown; applyToAffectedRows?: boolean }
     ) {
+        await StaffService.authorize(userId, branchId, "students");
         const session = await prisma.importSession.findFirst({
             where: { id: sessionId, branchId },
             include: { questions: { where: { id: input.questionId } }, rows: { take: 1 } },
@@ -54,6 +66,7 @@ export class ImportQuestionService {
                 ...(current?.importOptions ?? {}),
                 ...answerToOptions(question.field, input.answer),
             },
+            analysis: current?.analysis,
             usedFallback: current?.usedFallback,
         };
 
