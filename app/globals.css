@@ -31,6 +31,20 @@ textarea {
   font-family: inherit;
 }
 
+select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background: var(--ui-form-input-select-bg);
+  color: var(--ui-form-input-text);
+}
+
+select option:disabled {
+  color: var(--ui-form-input-placeholder);
+}
+
 * {
   border-color: var(--border-subtle);
 }
