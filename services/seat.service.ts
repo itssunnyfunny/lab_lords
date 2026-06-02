@@ -3,6 +3,7 @@ import { StaffService } from "@/services/staff.service";
 import type { StaffAction } from "@/types";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import { validateSeatLabel } from "@/lib/formValidation";
+import { endOfDay } from "date-fns";
 
 export type SeatOccupancySnapshot = {
     branchId: string
@@ -113,6 +114,7 @@ export class SeatService {
 
     static async generateOccupancySnapshot(branchId: string, asOf?: Date): Promise<SeatOccupancySnapshot> {
         const date = asOf ?? new Date()
+        const allocationStartCutoff = endOfDay(date)
 
         // ⚡ Bolt: Fetch branch info and active allocations concurrently to prevent waterfall delay
         const [branchInfo, activeAllocations] = await Promise.all([
@@ -126,7 +128,7 @@ export class SeatService {
             prisma.seatAllocation.findMany({
                 where: {
                     seat: { branchId },
-                    startDate: { lte: date },
+                    startDate: { lte: allocationStartCutoff },
                     OR: [
                         { endDate: null },
                         { endDate: { gt: date } },

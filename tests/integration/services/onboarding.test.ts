@@ -58,9 +58,25 @@ describe("OnboardingService Integration", () => {
       const user = await createUser();
       const { branch } = await OnboardingService.createNetwork(baseParams(user.id));
 
-      const shiftCount = await testPrisma.shift.count({ where: { branchId: branch.id } });
-      // Service creates 3 default shifts (Morning, Evening, Reserved) when none supplied
-      expect(shiftCount).toBeGreaterThanOrEqual(2);
+      const shifts = await testPrisma.shift.findMany({
+        where: { branchId: branch.id },
+        orderBy: { startTime: "asc" },
+      });
+      expect(shifts.map(shift => ({
+        name: shift.name,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+      }))).toEqual([
+        { name: "Morning", startTime: "06:00", endTime: "09:59" },
+        { name: "Afternoon", startTime: "10:00", endTime: "15:59" },
+        { name: "Evening", startTime: "16:00", endTime: "21:59" },
+      ]);
+
+      const fullTime = await testPrisma.multiShift.findUnique({
+        where: { branchId_name: { branchId: branch.id, name: "Full Time" } },
+        include: { components: { include: { shift: true }, orderBy: { order: "asc" } } },
+      });
+      expect(fullTime?.components.map(component => component.shift.name)).toEqual(["Morning", "Afternoon", "Evening"]);
     });
 
     it("creates correct number of seats when seatCount is supplied", async () => {

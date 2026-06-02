@@ -11,12 +11,9 @@ import {
     validateOptionalTime,
     validateRequiredText,
 } from "@/lib/formValidation";
+import { DEFAULT_PRIMARY_SHIFTS, ensureDefaultShiftsAndFullTime } from "@/services/defaultShifts";
 
-export const DEFAULT_SHIFTS = [
-    { name: "Morning", startTime: "06:00", endTime: "11:59", price: 0, isReserved: false },
-    { name: "Afternoon", startTime: "12:00", endTime: "16:59", price: 0, isReserved: false },
-    { name: "Evening", startTime: "17:00", endTime: "22:00", price: 0, isReserved: false },
-];
+export const DEFAULT_SHIFTS = DEFAULT_PRIMARY_SHIFTS;
 
 // ─── Resolution Plan Types ─────────────────────────────────────────────────────
 
@@ -563,30 +560,7 @@ export class ShiftService {
     static async ensureDefaultShifts(branchId: string) {
         // ⚡ Bolt: Batch database queries to prevent N+1 bottleneck.
         // Replaced loop-based findFirst + create with a single findMany and createMany.
-        const existingShifts = await prisma.shift.findMany({
-            where: {
-                branchId,
-                name: { in: DEFAULT_SHIFTS.map(def => def.name) },
-                status: "ACTIVE"
-            },
-            select: { name: true }
-        });
-
-        const existingNames = new Set(existingShifts.map(s => s.name));
-        const missingShifts = DEFAULT_SHIFTS.filter(def => !existingNames.has(def.name));
-
-        if (missingShifts.length > 0) {
-            await prisma.shift.createMany({
-                data: missingShifts.map(def => ({
-                    branchId,
-                    name: def.name,
-                    startTime: def.startTime,
-                    endTime: def.endTime,
-                    price: def.price,
-                    isReserved: def.isReserved,
-                })),
-            });
-        }
+        await ensureDefaultShiftsAndFullTime(branchId);
     }
 
     static async listShifts(userId: string, branchId: string) {

@@ -182,7 +182,6 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
         ? existingShifts.find(s => {
             if (s.id === initial?.id) return false;
             if (!s.startTime || !s.endTime || !startTime || !endTime) return false;
-            if (s.name.toLowerCase() === "full time" || name.toLowerCase() === "full time") return false;
             const start1 = parseNullableTime(startTime);
             const end1 = parseNullableTime(endTime);
             const start2 = parseNullableTime(s.startTime);
@@ -296,7 +295,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                                 value={name}
                                 onChange={e => { setName(e.target.value); setError(null); }}
                                 onBlur={() => markTouched("name")}
-                                placeholder="e.g. Morning, Full Time"
+                                placeholder="e.g. Morning, Afternoon"
                                 autoFocus
                             className={cn(formControlClass, "px-4 py-2.5 text-sm", fieldErrorClass(nameError))}
                                 {...fieldErrorProps("shift-name-error", nameError)}

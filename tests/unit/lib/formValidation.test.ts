@@ -79,5 +79,9 @@ describe("formValidation", () => {
       { name: "A", startTime: "06:00", endTime: "12:00" },
       { name: "B", startTime: "11:00", endTime: "18:00" },
     ]).ok).toBe(false);
+    expect(validateShiftDrafts([
+      { name: "Morning", startTime: "06:00", endTime: "09:59" },
+      { name: "Full Time", startTime: "06:00", endTime: "21:59" },
+    ]).ok).toBe(false);
   });
 });

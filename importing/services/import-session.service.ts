@@ -8,14 +8,25 @@ import type {
     ImportMappingState,
     ImportNormalizedRow,
     ImportSessionSummary,
+    ImportSourceProfile,
     ParsedImportSource,
 } from "@/importing/contracts/import-session.contract";
 import { parseCsv } from "@/importing/parsers/csv.parser";
 import { parsePdf } from "@/importing/parsers/pdf.parser";
 import { parsePastedTable } from "@/importing/parsers/pasted-table.parser";
 import { parseXlsx } from "@/importing/parsers/xlsx.parser";
+import {
+    buildImportAttention,
+    buildImportSessionAnalysis,
+    buildImportSourceProfile,
+    buildImportSourceProfileFromRows,
+    hasManualNormalizedData,
+    markManualNormalizedData,
+} from "@/importing/pipeline/import-extraction.pipeline";
 import { detectDuplicateImportRows, detectExistingStudentDuplicates } from "@/importing/utils/duplicate-detector";
-import { normalizeImportRow } from "@/importing/utils/row-normalizer";
+import { dedupeImportQuestionDrafts } from "@/importing/utils/import-question-dedupe";
+import { applyImportDefaults, normalizeImportRow } from "@/importing/utils/row-normalizer";
+import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
 import { buildFallbackMappings } from "@/importing/utils/column-normalizer";
 import { mergeValidatorResults, validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
 import { validateImportAllocation } from "@/importing/validators/import-allocation.validator";
@@ -73,10 +84,17 @@ function summarizeRows(rows: Array<{
     skipped: boolean;
     normalizedData: unknown;
     warnings: unknown;
-}>, mapping?: ImportMappingState | null): ImportSessionSummary {
+}>, input: {
+    mapping?: ImportMappingState | null;
+    sourceProfile?: ImportSourceProfile;
+    openQuestions?: number;
+} = {}): ImportSessionSummary {
     const summary = emptySummary();
     summary.totalRows = rows.length;
-    summary.warnings = mapping?.warnings ?? [];
+    summary.warnings = input.mapping?.warnings ?? [];
+    summary.openQuestions = input.openQuestions ?? 0;
+    summary.attention = input.mapping?.analysis?.attention ?? [];
+    summary.sourceProfile = input.sourceProfile;
 
     for (const row of rows) {
         if (row.status === "READY") summary.readyRows++;
@@ -129,7 +147,75 @@ function normalizeMapping(mapping: unknown, columns: string[]): ImportMappingSta
         questions: state.questions ?? [],
         warnings: state.warnings ?? [],
         importOptions: state.importOptions ?? {},
+        analysis: state.analysis,
         usedFallback: state.usedFallback,
+    };
+}
+
+function sourceProfileFromSession(input: {
+    fileMeta: unknown;
+    rows: { rawData: unknown }[];
+}, columns: string[]): ImportSourceProfile {
+    const meta = input.fileMeta;
+    if (
+        meta &&
+        typeof meta === "object" &&
+        !Array.isArray(meta) &&
+        "sourceProfile" in meta
+    ) {
+        return (meta as { sourceProfile: ImportSourceProfile }).sourceProfile;
+    }
+
+    return buildImportSourceProfileFromRows(
+        columns,
+        input.rows.map(row => row.rawData as Record<string, string>)
+    );
+}
+
+function mappingWithComputedAnalysis(input: {
+    mapping: ImportMappingState;
+    sourceProfile: ImportSourceProfile;
+    rows: Array<{
+        rowNumber: number;
+        status: string;
+        skipped?: boolean;
+        issues?: unknown;
+        warnings?: unknown;
+        confidence?: number | null;
+    }>;
+    questions: Array<{
+        status: string;
+        field?: string | null;
+        rowId?: string | null;
+    }>;
+    sessionStatus?: string;
+}): ImportMappingState {
+    const existing = input.mapping.analysis;
+    const attention = existing?.attention?.length
+        ? existing.attention
+        : buildImportAttention({
+            rows: input.rows,
+            questions: input.questions,
+            mapping: input.mapping,
+        });
+    const computed = buildImportSessionAnalysis({
+        sourceProfile: existing?.sourceProfile ?? input.sourceProfile,
+        attention,
+        mapping: input.mapping,
+        sessionStatus: input.sessionStatus,
+        model: existing?.model,
+        notes: existing?.notes,
+    });
+
+    return {
+        ...input.mapping,
+        analysis: {
+            ...computed,
+            ...(existing ?? {}),
+            sourceProfile: existing?.sourceProfile ?? computed.sourceProfile,
+            attention,
+            pipeline: existing?.pipeline?.length ? existing.pipeline : computed.pipeline,
+        },
     };
 }
 
@@ -161,27 +247,37 @@ export class ImportSessionService {
     static async createSession(userId: string, branchId: string, input: CreateImportSessionInput) {
         await this.authorize(userId, branchId);
         const parsed = await parseImportSource(input);
+        const sourceProfile = buildImportSourceProfile(parsed);
 
-        const session = await prisma.importSession.create({
-            data: {
-                branchId,
-                uploadedByUserId: userId,
-                sourceType: input.sourceType,
-                fileName: input.fileName,
-                fileMeta: asJson({
-                    ...(input.fileMeta ?? {}),
-                    columns: parsed.columns,
-                    rowCount: parsed.rows.length,
-                }),
-                rows: {
-                    create: parsed.rows.map((row, index) => ({
-                        rowNumber: index + 2,
+        const session = await prisma.$transaction(async tx => {
+            const created = await tx.importSession.create({
+                data: {
+                    branchId,
+                    uploadedByUserId: userId,
+                    sourceType: input.sourceType,
+                    fileName: input.fileName,
+                    fileMeta: asJson({
+                        ...(input.fileMeta ?? {}),
+                        columns: parsed.columns,
+                        rowCount: parsed.rows.length,
+                        sourceProfile,
+                    }),
+                    summary: asJson({ ...emptySummary(), totalRows: parsed.rows.length, sourceProfile }),
+                },
+            });
+
+            const chunkSize = 500;
+            for (let index = 0; index < parsed.rows.length; index += chunkSize) {
+                await tx.importRow.createMany({
+                    data: parsed.rows.slice(index, index + chunkSize).map((row, offset) => ({
+                        importSessionId: created.id,
+                        rowNumber: index + offset + 2,
                         rawData: asJson(row),
                     })),
-                },
-                summary: asJson({ ...emptySummary(), totalRows: parsed.rows.length }),
-            },
-            include: { rows: true },
+                });
+            }
+
+            return created;
         });
 
         return {
@@ -224,10 +320,28 @@ export class ImportSessionService {
         });
 
         if (!session) throw new Error("Import session not found");
+        const columns = Object.keys((session.rows[0]?.rawData ?? {}) as Record<string, unknown>);
+        const sourceProfile = sourceProfileFromSession(session, columns);
+        const openQuestions = session.questions.filter(question => question.status === "OPEN").length;
+        const mapping = mappingWithComputedAnalysis({
+            mapping: normalizeMapping(session.mapping, columns),
+            sourceProfile,
+            rows: session.rows,
+            questions: session.questions,
+            sessionStatus: session.status,
+        });
+        const summary = summarizeRows(session.rows, {
+            mapping,
+            sourceProfile,
+            openQuestions,
+        });
+
         return {
             ...session,
             createdAt: toStringDate(session.createdAt),
             updatedAt: toStringDate(session.updatedAt),
+            mapping,
+            summary,
             rows: session.rows.map(row => ({
                 id: row.id,
                 rowNumber: row.rowNumber,
@@ -355,16 +469,24 @@ export class ImportSessionService {
 
         try {
             const columns = Object.keys((session.rows[0]?.rawData ?? {}) as Record<string, unknown>);
+            const sourceProfile = sourceProfileFromSession(session, columns);
             const context = await this.getValidationContext(branchId);
             const aiMapping = await mapImportColumns({
                 branchContext: context.aiBranchContext,
+                sourceProfile,
                 columns,
                 sampleRows: session.rows.slice(0, 8).map(row => row.rawData as Record<string, string>),
             });
 
             const mapping: ImportMappingState = {
                 ...aiMapping,
-                importOptions: {},
+                importOptions: aiMapping.suggestedImportOptions ?? {},
+                analysis: buildImportSessionAnalysis({
+                    sourceProfile,
+                    attention: [],
+                    model: aiMapping.model,
+                    notes: aiMapping.analysisNotes,
+                }),
             };
 
             await prisma.importSession.update({
@@ -445,11 +567,30 @@ export class ImportSessionService {
         if (!session) throw new Error("Import session not found");
 
         for (const edit of input.edits ?? []) {
+            const existingRow = edit.normalizedData
+                ? await prisma.importRow.findFirst({
+                    where: { id: edit.rowId, importSessionId: sessionId },
+                    select: { mappedData: true },
+                })
+                : null;
+
             await prisma.importRow.updateMany({
                 where: { id: edit.rowId, importSessionId: sessionId },
                 data: {
-                    ...(edit.rawData ? { rawData: asJson(edit.rawData) } : {}),
-                    ...(edit.normalizedData ? { normalizedData: asJson(edit.normalizedData) } : {}),
+                    ...(edit.rawData ? {
+                        rawData: asJson(edit.rawData),
+                        mappedData: asJson({}),
+                        normalizedData: asJson({}),
+                        issues: asJson([]),
+                        warnings: asJson([]),
+                        confidence: null,
+                        status: "NEEDS_REVIEW" as ImportRowStatus,
+                    } : {}),
+                    ...(edit.normalizedData ? {
+                        normalizedData: asJson(edit.normalizedData),
+                        mappedData: asJson(markManualNormalizedData(existingRow?.mappedData ?? {})),
+                        confidence: 100,
+                    } : {}),
                 },
             });
         }
@@ -481,18 +622,24 @@ export class ImportSessionService {
 
         const columns = Object.keys((session.rows[0]?.rawData ?? {}) as Record<string, unknown>);
         const mapping = normalizeMapping(session.mapping, columns);
+        const sourceProfile = sourceProfileFromSession(session, columns);
         const context = await this.getValidationContext(branchId);
         const normalizedRows = session.rows.map(row => {
             if (
+                hasManualNormalizedData(row.mappedData) &&
                 row.normalizedData &&
                 typeof row.normalizedData === "object" &&
                 !Array.isArray(row.normalizedData) &&
                 Object.keys(row.normalizedData as Record<string, unknown>).length > 0
             ) {
+                const normalizedData = promoteKnownMultiShiftAllocation(
+                    applyImportDefaults(row.normalizedData as ImportNormalizedRow, mapping.importOptions),
+                    context
+                );
                 return {
                     row,
                     mappedData: row.mappedData ?? {},
-                    normalizedData: row.normalizedData as ImportNormalizedRow,
+                    normalizedData,
                     normalizationIssues: [] as ImportIssue[],
                     confidence: row.confidence,
                 };
@@ -503,10 +650,14 @@ export class ImportSessionService {
                 mapping.columnMappings,
                 mapping.importOptions?.paymentMapping
             );
+            const normalizedData = promoteKnownMultiShiftAllocation(
+                applyImportDefaults(normalized.normalizedData, mapping.importOptions),
+                context
+            );
             return {
                 row,
                 mappedData: normalized.mappedData,
-                normalizedData: normalized.normalizedData,
+                normalizedData,
                 normalizationIssues: normalized.issues,
                 confidence: normalized.confidence,
             };
@@ -557,10 +708,7 @@ export class ImportSessionService {
                 warnings,
             });
 
-            questionDrafts.push(...result.questions.map(question => ({
-                ...question,
-                rowId: item.row.id,
-            })));
+            questionDrafts.push(...result.questions);
 
             await prisma.importRow.update({
                 where: { id: item.row.id },
@@ -579,15 +727,11 @@ export class ImportSessionService {
             where: { importSessionId: sessionId, status: "OPEN" },
         });
 
-        const uniqueQuestions = new Map<string, { rowId?: string; field?: string; question: string; options?: unknown }>();
-        for (const question of questionDrafts) {
-            const key = `${question.rowId ?? "session"}:${question.field ?? ""}:${question.question}`;
-            if (!uniqueQuestions.has(key)) uniqueQuestions.set(key, question);
-        }
+        const uniqueQuestions = dedupeImportQuestionDrafts(questionDrafts);
 
-        if (uniqueQuestions.size > 0) {
+        if (uniqueQuestions.length > 0) {
             await prisma.importQuestion.createMany({
-                data: Array.from(uniqueQuestions.values()).map(question => ({
+                data: uniqueQuestions.map(question => ({
                     importSessionId: sessionId,
                     rowId: question.rowId,
                     field: question.field,
@@ -598,20 +742,40 @@ export class ImportSessionService {
         }
 
         const rows = await prisma.importRow.findMany({ where: { importSessionId: sessionId } });
-        const openQuestions = await prisma.importQuestion.count({ where: { importSessionId: sessionId, status: "OPEN" } });
-        const summary = summarizeRows(rows, mapping);
+        const questions = await prisma.importQuestion.findMany({ where: { importSessionId: sessionId } });
+        const openQuestions = questions.filter(question => question.status === "OPEN").length;
         const hasReviewBlocking = rows.some(row => ["NEEDS_REVIEW", "DUPLICATE"].includes(row.status));
         const status: ImportSessionStatus =
             openQuestions > 0 ? "NEEDS_INFO" :
             hasReviewBlocking ? "VALIDATED" :
             rows.some(row => row.status === "READY" || row.status === "WARNING") ? "READY_TO_COMMIT" :
             "NEEDS_MAPPING";
+        const attention = buildImportAttention({ rows, questions, mapping });
+        const nextMapping: ImportMappingState = {
+            ...mapping,
+            analysis: buildImportSessionAnalysis({
+                sourceProfile,
+                attention,
+                mapping,
+                sessionStatus: status,
+                model: mapping.analysis?.model,
+                notes: mapping.analysis?.notes,
+            }),
+        };
+        const summary = {
+            ...summarizeRows(rows, {
+                mapping: nextMapping,
+                sourceProfile,
+                openQuestions,
+            }),
+            attention,
+        };
 
         await prisma.importSession.update({
             where: { id: sessionId },
             data: {
                 status,
-                mapping: asJson(mapping),
+                mapping: asJson(nextMapping),
                 summary: asJson(summary),
             },
         });

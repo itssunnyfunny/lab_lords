@@ -8,6 +8,7 @@ import { ShiftService } from "@/services/shift.service";
 import { StaffService } from "@/services/staff.service";
 import { StudentService } from "@/services/student.service";
 import type { CommitMode, ImportCommitResult, ImportMappingState, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
+import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
 import { ImportSessionService } from "./import-session.service";
 import type { PaymentMethod } from "@/app/generated/prisma/enums";
 import type { Prisma } from "@/app/generated/prisma/client";
@@ -105,10 +106,6 @@ export class ImportCommitService {
         mode: CommitMode = "SAFE_PARTIAL"
     ): Promise<ImportCommitResult> {
         const detail = await ImportSessionService.revalidateSession(userId, branchId, sessionId);
-        if (detail.status !== "READY_TO_COMMIT") {
-            throw new Error("Import session is not ready to commit.");
-        }
-
         const rows = detail.rows.map(row => ({
             id: row.id,
             rowNumber: row.rowNumber,
@@ -117,12 +114,18 @@ export class ImportCommitService {
             normalizedData: row.normalizedData as ImportNormalizedRow | null,
             warnings: row.warnings,
         }));
+        const importableRows = rows.filter(row => !row.skipped && ["READY", "WARNING"].includes(row.status));
+        const hasOpenQuestions = detail.questions?.some((question: { status?: string }) => question.status === "OPEN") ?? false;
+        const canSafePartial = mode === "SAFE_PARTIAL" && !hasOpenQuestions && importableRows.length > 0;
+        if (detail.status !== "READY_TO_COMMIT" && !canSafePartial) {
+            throw new Error("Import session is not ready to commit.");
+        }
+
         const blockedRows = rows.filter(row => ["BLOCKED", "CONFLICT", "NEEDS_REVIEW", "DUPLICATE"].includes(row.status));
         if (mode === "STRICT_ALL_OR_NOTHING" && blockedRows.length > 0) {
             throw new Error("Strict import refused because blocked or review rows remain.");
         }
 
-        const importableRows = rows.filter(row => !row.skipped && ["READY", "WARNING"].includes(row.status));
         const mapping = detail.mapping as ImportMappingState;
         await this.ensureCommitPermissions(userId, branchId, importableRows, mapping);
 
@@ -149,7 +152,9 @@ export class ImportCommitService {
             let context = await this.loadBusinessContext(branchId);
 
             for (const row of importableRows) {
-                const normalized = row.normalizedData;
+                const normalized = row.normalizedData
+                    ? promoteKnownMultiShiftAllocation(row.normalizedData, context)
+                    : null;
                 if (!normalized?.student?.name) continue;
                 const createdEntityIds: Record<string, unknown> = {};
 
@@ -264,8 +269,9 @@ export class ImportCommitService {
                 }
             }
 
-            const status = errors.length > 0 ? "PARTIAL" : "COMMITTED";
-            const commitStatus = errors.length > 0 ? "PARTIAL" : "SUCCESS";
+            const isPartial = errors.length > 0 || summary.skippedRows > 0;
+            const status = isPartial ? "PARTIAL" : "COMMITTED";
+            const commitStatus = isPartial ? "PARTIAL" : "SUCCESS";
 
             await prisma.importCommit.create({
                 data: {

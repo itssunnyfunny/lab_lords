@@ -34,7 +34,7 @@ describe("BranchService Integration", () => {
       expect(branch.name).toBe("Main Branch");
     });
 
-    it("creates default shifts (Morning, Afternoon, Evening, Full Time) when none supplied", async () => {
+    it("creates default primary shifts and Full Time multi-shift when none supplied", async () => {
       const user = await createUser();
       const org = await createOrg({ ownerId: user.id });
 
@@ -45,8 +45,25 @@ describe("BranchService Integration", () => {
         contactPhone: "9876543210",
       });
 
-      const shifts = await testPrisma.shift.findMany({ where: { branchId: branch.id } });
-      expect(shifts.length).toBeGreaterThanOrEqual(3);
+      const shifts = await testPrisma.shift.findMany({
+        where: { branchId: branch.id },
+        orderBy: { startTime: "asc" },
+      });
+      expect(shifts.map(shift => ({
+        name: shift.name,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+      }))).toEqual([
+        { name: "Morning", startTime: "06:00", endTime: "09:59" },
+        { name: "Afternoon", startTime: "10:00", endTime: "15:59" },
+        { name: "Evening", startTime: "16:00", endTime: "21:59" },
+      ]);
+
+      const fullTime = await testPrisma.multiShift.findUnique({
+        where: { branchId_name: { branchId: branch.id, name: "Full Time" } },
+        include: { components: { include: { shift: true }, orderBy: { order: "asc" } } },
+      });
+      expect(fullTime?.components.map(component => component.shift.name)).toEqual(["Morning", "Afternoon", "Evening"]);
     });
 
     it("creates the correct number of seats when seatCount supplied", async () => {
@@ -141,8 +158,8 @@ describe("BranchService Integration", () => {
           name: "Invalid Shifts",
           contactPhone: "9876543210",
           shifts: [
-            { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
-            { name: "Morning", startTime: "13:00", endTime: "18:00", price: 0 },
+            { name: "Morning", startTime: "06:00", endTime: "09:59", price: 0 },
+            { name: "Morning", startTime: "10:00", endTime: "15:59", price: 0 },
           ],
         })
       ).rejects.toThrow(/duplicate shift name/i);

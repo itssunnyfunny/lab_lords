@@ -118,7 +118,11 @@ describe("ImportCommitService", () => {
     });
 
     it("does not run when the session is not READY_TO_COMMIT", async () => {
-        mocks.revalidateSession.mockResolvedValueOnce({ ...readyDetail, status: "NEEDS_INFO" });
+        mocks.revalidateSession.mockResolvedValueOnce({
+            ...readyDetail,
+            status: "NEEDS_INFO",
+            questions: [{ status: "OPEN" }],
+        });
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
         await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1")).rejects.toThrow("not ready");
@@ -147,8 +151,12 @@ describe("ImportCommitService", () => {
 
         const result = await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL");
 
+        expect(result.status).toBe("PARTIAL");
         expect(result.summary.skippedRows).toBe(1);
         expect(mocks.createImportedStudent).toHaveBeenCalledTimes(1);
+        expect(mocks.prisma.importCommit.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ status: "PARTIAL" }),
+        }));
     });
 
     it("refuses blocked rows in STRICT_ALL_OR_NOTHING mode", async () => {
@@ -171,6 +179,49 @@ describe("ImportCommitService", () => {
         await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
 
         expect(mocks.assignSeatToShifts).toHaveBeenCalledWith("user_1", "seat_1", "student_1", ["shift_1"]);
+    });
+
+    it("expands a known Full Time multi-shift from a plain shift value", async () => {
+        mocks.prisma.shift.findMany.mockResolvedValueOnce([
+            { id: "shift_morning", name: "Morning" },
+            { id: "shift_afternoon", name: "Afternoon" },
+            { id: "shift_evening", name: "Evening" },
+        ]);
+        mocks.prisma.multiShift.findMany.mockResolvedValueOnce([{
+            id: "multi_full_time",
+            name: "Full Time",
+            components: [
+                { shiftId: "shift_morning", shift: { name: "Morning" } },
+                { shiftId: "shift_afternoon", shift: { name: "Afternoon" } },
+                { shiftId: "shift_evening", shift: { name: "Evening" } },
+            ],
+        }]);
+        mocks.assignSeatToShifts.mockResolvedValueOnce([
+            { id: "allocation_morning" },
+            { id: "allocation_afternoon" },
+            { id: "allocation_evening" },
+        ]);
+        mocks.revalidateSession.mockResolvedValueOnce({
+            ...readyDetail,
+            rows: [{
+                ...readyDetail.rows[0],
+                normalizedData: {
+                    ...readyDetail.rows[0].normalizedData,
+                    allocation: { seatLabel: "A1", shiftName: "Full Time" },
+                },
+            }],
+        });
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
+
+        expect(mocks.assignSeatToShifts).toHaveBeenCalledWith(
+            "user_1",
+            "seat_1",
+            "student_1",
+            ["shift_morning", "shift_afternoon", "shift_evening"],
+            "multi_full_time"
+        );
     });
 
     it("uses PaymentService for generated and paid transitions", async () => {
