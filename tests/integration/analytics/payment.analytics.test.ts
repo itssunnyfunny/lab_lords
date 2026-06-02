@@ -283,8 +283,8 @@ describe("Analytics corrections", () => {
       const firstStudent = await createStudent({ branchId: branch.id, name: "A", joinedAt: addMonths(asOf, -1) });
       const secondStudent = await createStudent({ branchId: branch.id, name: "B", joinedAt: addMonths(asOf, -1) });
 
-      await createAllocation({ seatId: seat.id, studentId: firstStudent.id, shiftId: shift.id });
-      await createAllocation({ seatId: seat.id, studentId: secondStudent.id, shiftId: secondShift.id });
+      await createAllocation({ seatId: seat.id, studentId: firstStudent.id, shiftId: shift.id, startDate: asOf });
+      await createAllocation({ seatId: seat.id, studentId: secondStudent.id, shiftId: secondShift.id, startDate: asOf });
 
       const trend = await getSeatUtilizationTrend(branch.id, asOf, asOf);
 
@@ -311,9 +311,9 @@ describe("Analytics corrections", () => {
         createStudent({ branchId: branch.id, name: "C", joinedAt: addMonths(asOf, -1) }),
       ]);
 
-      await createAllocation({ seatId: seat.id, studentId: students[0].id, shiftId: shift.id });
-      await createAllocation({ seatId: seat.id, studentId: students[1].id, shiftId: secondShift.id });
-      await createAllocation({ seatId: secondSeat.id, studentId: students[2].id, shiftId: shift.id });
+      await createAllocation({ seatId: seat.id, studentId: students[0].id, shiftId: shift.id, startDate: asOf });
+      await createAllocation({ seatId: seat.id, studentId: students[1].id, shiftId: secondShift.id, startDate: asOf });
+      await createAllocation({ seatId: secondSeat.id, studentId: students[2].id, shiftId: shift.id, startDate: asOf });
 
       const snapshot = await getOrganizationHealthSnapshot(org.id, asOf);
 
