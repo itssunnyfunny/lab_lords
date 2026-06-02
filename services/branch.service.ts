@@ -20,6 +20,11 @@ import {
 import { CreateBranchDto, MESSAGE_LANGUAGES, REMINDER_TONES, UpdateBranchSettingsDto } from "@/types";
 import { ShiftService } from "./shift.service";
 import { StaffService } from "./staff.service";
+import {
+    DEFAULT_PRIMARY_SHIFTS,
+    ensureDefaultFullTimeMultiShift,
+    includesDefaultPrimaryShiftNames,
+} from "@/services/defaultShifts";
 
 interface CreateBranchForOrgParams {
     organizationId: string;
@@ -100,12 +105,8 @@ export class BranchService {
             // 2. Create shifts (custom or defaults)
             const shiftsToCreate = shiftsResult?.ok && shiftsResult.value.length > 0
                 ? shiftsResult.value
-                : [
-                    { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
-                    { name: "Afternoon", startTime: "12:00", endTime: "17:00", price: 0 },
-                    { name: "Evening", startTime: "17:00", endTime: "22:00", price: 0 },
-                    { name: "Full Time", startTime: "06:00", endTime: "22:00", price: 0 },
-                ];
+                : DEFAULT_PRIMARY_SHIFTS;
+            const shouldCreateDefaultFullTime = includesDefaultPrimaryShiftNames(shiftsToCreate);
 
 
             // ⚡ Bolt: Replaced O(n) individual shift creations with single bulk insert
@@ -118,8 +119,12 @@ export class BranchService {
                         startTime: shift.startTime,
                         endTime: shift.endTime,
                         price: shift.price,
+                        isReserved: "isReserved" in shift ? shift.isReserved : false,
                     }))
                 });
+            }
+            if (shouldCreateDefaultFullTime) {
+                await ensureDefaultFullTimeMultiShift(tx, branch.id);
             }
 
             // 3. Create seats

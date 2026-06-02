@@ -230,7 +230,6 @@ export function validateShiftDrafts(
         for (let j = i + 1; j < normalized.length; j++) {
             const a = normalized[i];
             const b = normalized[j];
-            if (a.name.toLowerCase() === "full time" || b.name.toLowerCase() === "full time") continue;
             if (!a.startTime || !a.endTime || !b.startTime || !b.endTime) continue;
             if (
                 timesOverlap(

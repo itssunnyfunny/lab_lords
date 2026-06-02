@@ -26,6 +26,7 @@ import {
 import { detectDuplicateImportRows, detectExistingStudentDuplicates } from "@/importing/utils/duplicate-detector";
 import { dedupeImportQuestionDrafts } from "@/importing/utils/import-question-dedupe";
 import { applyImportDefaults, normalizeImportRow } from "@/importing/utils/row-normalizer";
+import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
 import { buildFallbackMappings } from "@/importing/utils/column-normalizer";
 import { mergeValidatorResults, validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
 import { validateImportAllocation } from "@/importing/validators/import-allocation.validator";
@@ -631,7 +632,10 @@ export class ImportSessionService {
                 !Array.isArray(row.normalizedData) &&
                 Object.keys(row.normalizedData as Record<string, unknown>).length > 0
             ) {
-                const normalizedData = applyImportDefaults(row.normalizedData as ImportNormalizedRow, mapping.importOptions);
+                const normalizedData = promoteKnownMultiShiftAllocation(
+                    applyImportDefaults(row.normalizedData as ImportNormalizedRow, mapping.importOptions),
+                    context
+                );
                 return {
                     row,
                     mappedData: row.mappedData ?? {},
@@ -646,7 +650,10 @@ export class ImportSessionService {
                 mapping.columnMappings,
                 mapping.importOptions?.paymentMapping
             );
-            const normalizedData = applyImportDefaults(normalized.normalizedData, mapping.importOptions);
+            const normalizedData = promoteKnownMultiShiftAllocation(
+                applyImportDefaults(normalized.normalizedData, mapping.importOptions),
+                context
+            );
             return {
                 row,
                 mappedData: normalized.mappedData,

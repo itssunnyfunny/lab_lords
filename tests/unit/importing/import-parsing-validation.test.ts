@@ -12,6 +12,7 @@ import {
     markManualNormalizedData,
 } from "@/importing/pipeline/import-extraction.pipeline";
 import { applyImportDefaults, parseImportMoney } from "@/importing/utils/row-normalizer";
+import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
 import { validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
 import { validateImportPayment } from "@/importing/validators/import-payment.validator";
 import { validateImportShift } from "@/importing/validators/import-shift.validator";
@@ -194,6 +195,30 @@ describe("import mapping and validation", () => {
 
         expect(normalized.allocation?.shiftName).toBe("Morning");
         expect(normalized.student?.joinedAt).toContain("2026-01-01");
+    });
+
+    it("promotes known multi-shift names from plain shift columns", () => {
+        const normalized = promoteKnownMultiShiftAllocation(
+            { student: { name: "Asha" }, allocation: { seatLabel: "A1", shiftName: "Full Time" } },
+            {
+                shiftsByName: new Map([["morning", { name: "Morning" }]]),
+                multiShiftsByName: new Map([[
+                    "full time",
+                    {
+                        name: "Full Time",
+                        components: [
+                            { shiftName: "Morning" },
+                            { shiftName: "Afternoon" },
+                            { shiftName: "Evening" },
+                        ],
+                    },
+                ]]),
+            }
+        );
+
+        expect(normalized.allocation?.shiftName).toBeUndefined();
+        expect(normalized.allocation?.multiShiftName).toBe("Full Time");
+        expect(normalized.multiShift?.componentShiftNames).toEqual(["Morning", "Afternoon", "Evening"]);
     });
 
     it("parses formatted money values", () => {

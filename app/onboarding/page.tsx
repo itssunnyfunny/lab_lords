@@ -78,8 +78,9 @@ export default function OnboardingPage() {
         city: "",
         seatCount: "",
         shifts: [
-            { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
-            { name: "Evening", startTime: "16:00", endTime: "22:00", price: 0 },
+            { name: "Morning", startTime: "06:00", endTime: "09:59", price: 0 },
+            { name: "Afternoon", startTime: "10:00", endTime: "15:59", price: 0 },
+            { name: "Evening", startTime: "16:00", endTime: "21:59", price: 0 },
         ] as OnboardingShiftDraft[],
     });
 

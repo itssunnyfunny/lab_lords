@@ -181,6 +181,49 @@ describe("ImportCommitService", () => {
         expect(mocks.assignSeatToShifts).toHaveBeenCalledWith("user_1", "seat_1", "student_1", ["shift_1"]);
     });
 
+    it("expands a known Full Time multi-shift from a plain shift value", async () => {
+        mocks.prisma.shift.findMany.mockResolvedValueOnce([
+            { id: "shift_morning", name: "Morning" },
+            { id: "shift_afternoon", name: "Afternoon" },
+            { id: "shift_evening", name: "Evening" },
+        ]);
+        mocks.prisma.multiShift.findMany.mockResolvedValueOnce([{
+            id: "multi_full_time",
+            name: "Full Time",
+            components: [
+                { shiftId: "shift_morning", shift: { name: "Morning" } },
+                { shiftId: "shift_afternoon", shift: { name: "Afternoon" } },
+                { shiftId: "shift_evening", shift: { name: "Evening" } },
+            ],
+        }]);
+        mocks.assignSeatToShifts.mockResolvedValueOnce([
+            { id: "allocation_morning" },
+            { id: "allocation_afternoon" },
+            { id: "allocation_evening" },
+        ]);
+        mocks.revalidateSession.mockResolvedValueOnce({
+            ...readyDetail,
+            rows: [{
+                ...readyDetail.rows[0],
+                normalizedData: {
+                    ...readyDetail.rows[0].normalizedData,
+                    allocation: { seatLabel: "A1", shiftName: "Full Time" },
+                },
+            }],
+        });
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
+
+        expect(mocks.assignSeatToShifts).toHaveBeenCalledWith(
+            "user_1",
+            "seat_1",
+            "student_1",
+            ["shift_morning", "shift_afternoon", "shift_evening"],
+            "multi_full_time"
+        );
+    });
+
     it("uses PaymentService for generated and paid transitions", async () => {
         mocks.revalidateSession.mockResolvedValueOnce(readyDetail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");

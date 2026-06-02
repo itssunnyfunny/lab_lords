@@ -7,6 +7,11 @@ import {
     validateRequiredText,
     validateShiftDrafts,
 } from "@/lib/formValidation";
+import {
+    DEFAULT_PRIMARY_SHIFTS,
+    ensureDefaultFullTimeMultiShift,
+    includesDefaultPrimaryShiftNames,
+} from "@/services/defaultShifts";
 
 interface CreateNetworkParams {
     userId: string;
@@ -90,11 +95,8 @@ export class OnboardingService {
             // 3. Create Custom Shifts (or defaults if not provided, though generic defaults lack price context)
             const shiftsToCreate = shiftsResult?.ok && shiftsResult.value.length > 0
                 ? shiftsResult.value
-                : [
-                    { name: "Morning", startTime: "06:00", endTime: "12:00", price: 0 },
-                    { name: "Evening", startTime: "16:00", endTime: "22:00", price: 0 },
-                    { name: "Reserved", startTime: null, endTime: null, price: 0 },
-                ];
+                : DEFAULT_PRIMARY_SHIFTS;
+            const shouldCreateDefaultFullTime = includesDefaultPrimaryShiftNames(shiftsToCreate);
 
             // ⚡ Bolt: Bulk shift creation to prevent N+1 query problem during network setup
             if (shiftsToCreate.length > 0) {
@@ -105,8 +107,12 @@ export class OnboardingService {
                         startTime: shift.startTime,
                         endTime: shift.endTime,
                         price: shift.price,
+                        isReserved: "isReserved" in shift ? shift.isReserved : false,
                     }))
                 });
+            }
+            if (shouldCreateDefaultFullTime) {
+                await ensureDefaultFullTimeMultiShift(tx, branch.id);
             }
 
             // 4. Create Seats

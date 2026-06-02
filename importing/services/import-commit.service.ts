@@ -8,6 +8,7 @@ import { ShiftService } from "@/services/shift.service";
 import { StaffService } from "@/services/staff.service";
 import { StudentService } from "@/services/student.service";
 import type { CommitMode, ImportCommitResult, ImportMappingState, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
+import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
 import { ImportSessionService } from "./import-session.service";
 import type { PaymentMethod } from "@/app/generated/prisma/enums";
 import type { Prisma } from "@/app/generated/prisma/client";
@@ -151,7 +152,9 @@ export class ImportCommitService {
             let context = await this.loadBusinessContext(branchId);
 
             for (const row of importableRows) {
-                const normalized = row.normalizedData;
+                const normalized = row.normalizedData
+                    ? promoteKnownMultiShiftAllocation(row.normalizedData, context)
+                    : null;
                 if (!normalized?.student?.name) continue;
                 const createdEntityIds: Record<string, unknown> = {};
 
