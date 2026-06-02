@@ -101,8 +101,10 @@ export async function getPaymentPeriodStats(
   const periodStart = selectedPeriod === "month" ? startOfMonth(date) : undefined
   const periodEnd = selectedPeriod === "month" ? endOfMonth(date) : dayEnd(date)
 
-  const [revenueRows, collectedRows, openLedger] = await Promise.all([
-    prisma.payment.findMany({
+  // ⚡ Bolt: Replaced memory-heavy findMany + reduce with database-level aggregate
+  // Impact: Reduces memory overhead from O(N) to O(1) and eliminates payload transfer for thousands of payment records.
+  const [revenueAgg, collectedAgg, openLedger] = await Promise.all([
+    prisma.payment.aggregate({
       where: {
         branchId,
         status: { not: "WAIVED" },
@@ -110,9 +112,9 @@ export async function getPaymentPeriodStats(
           ? { gte: periodStart, lte: periodEnd }
           : { lte: periodEnd },
       },
-      select: { amount: true },
+      _sum: { amount: true },
     }),
-    prisma.payment.findMany({
+    prisma.payment.aggregate({
       where: {
         branchId,
         status: "PAID",
@@ -126,13 +128,13 @@ export async function getPaymentPeriodStats(
               { paidAt: null, dueDate: { lte: periodEnd } },
             ],
       },
-      select: { amount: true },
+      _sum: { amount: true },
     }),
     getOpenPaymentLedger(branchId, date),
   ])
 
-  const revenueAmount = revenueRows.reduce((sum, p) => sum + p.amount, 0)
-  const paidAmount = collectedRows.reduce((sum, p) => sum + p.amount, 0)
+  const revenueAmount = revenueAgg._sum.amount ?? 0
+  const paidAmount = collectedAgg._sum.amount ?? 0
   const dueAmount = openLedger.dueAmount
 
   return {
@@ -154,9 +156,11 @@ export async function getPaymentStats(
   const date = resolveAsOf(asOf)
   const dateEnd = dueAsOfCutoff(date)
 
-  const [openLedger, paidRows] = await Promise.all([
+  // ⚡ Bolt: Replaced memory-heavy findMany + reduce with database-level aggregate and count
+  // Impact: Reduces memory overhead from O(N) to O(1) and eliminates payload transfer for thousands of payment records.
+  const [openLedger, paidAgg] = await Promise.all([
     getOpenPaymentLedger(branchId, date),
-    prisma.payment.findMany({
+    prisma.payment.aggregate({
       where: {
         branchId,
         status: "PAID",
@@ -165,17 +169,16 @@ export async function getPaymentStats(
           { paidAt: null, dueDate: { lte: dateEnd } },
         ],
       },
-      select: {
-        amount: true,
-      },
+      _sum: { amount: true },
+      _count: { _all: true },
     }),
   ])
 
-  const paidAmount = paidRows.reduce((sum, p) => sum + p.amount, 0)
+  const paidAmount = paidAgg._sum.amount ?? 0
 
   return {
     dueCount: openLedger.dueCount,
-    paidCount: paidRows.length,
+    paidCount: paidAgg._count._all,
     overdueCount: openLedger.overdueCount,
     dueAmount: openLedger.dueAmount,
     paidAmount,
