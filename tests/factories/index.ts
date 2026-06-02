@@ -142,6 +142,7 @@ export async function createAllocation(overrides: {
   seatId: string;
   studentId: string;
   shiftId: string;
+  startDate?: Date;
   endDate?: Date | null;
   id?: string;
 }) {
@@ -151,6 +152,7 @@ export async function createAllocation(overrides: {
       seatId: overrides.seatId,
       studentId: overrides.studentId,
       shiftId: overrides.shiftId,
+      startDate: overrides.startDate ?? new Date("2026-01-01T00:00:00.000Z"),
       endDate: overrides.endDate ?? null,
     },
   });

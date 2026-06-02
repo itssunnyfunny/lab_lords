@@ -138,7 +138,7 @@ export default function BranchDashboardPage({
                 const month = format(new Date(), "yyyy-MM");
                 const [snapshot, studentsResult, allocationsResult, monthPayments, overdueResult] =
                     await Promise.all([
-                        access.permissions.analytics ? analytics.getSnapshot(branchId) : Promise.resolve(null),
+                        access.permissions.analytics ? analytics.getSnapshot(branchId, { period: "month" }) : Promise.resolve(null),
                         access.permissions.students ? branches.getStudents(branchId) : Promise.resolve([]),
                         access.permissions.seat_allocation
                             ? fetchJson<AllocationSummary[]>(`/api/branches/${branchId}/seat-allocations?activeOnly=true`, [])
