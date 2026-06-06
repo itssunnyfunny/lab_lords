@@ -4,6 +4,8 @@ declare global {
   interface Window {
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
+    labLordsGaMeasurementId?: string;
+    labLordsGaPagePath?: string;
   }
 }
 
@@ -29,11 +31,16 @@ export function setStoredCookieConsent(consent: CookieConsent) {
 
 export function initializeGoogleAnalytics(measurementId: string) {
   if (typeof window === "undefined" || !measurementId) return;
+  if (window.labLordsGaMeasurementId === measurementId) return;
 
   window.dataLayer = window.dataLayer ?? [];
-  window.gtag = window.gtag ?? function gtag(...args: unknown[]) {
-    window.dataLayer?.push(args);
+  window.gtag = window.gtag ?? function gtag() {
+    // Google tag expects the native arguments object, not a rest-parameter array.
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer?.push(arguments);
   };
+  window.labLordsGaMeasurementId = measurementId;
+  window.labLordsGaPagePath = undefined;
 
   window.gtag("js", new Date());
   window.gtag("config", measurementId, { send_page_view: false });
@@ -41,6 +48,9 @@ export function initializeGoogleAnalytics(measurementId: string) {
 
 export function trackPageView(path: string, title?: string) {
   if (typeof window === "undefined" || !window.gtag) return;
+  if (window.labLordsGaPagePath === path) return;
+
+  window.labLordsGaPagePath = path;
 
   window.gtag("event", "page_view", {
     page_path: path,
