@@ -64,6 +64,7 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
     <>
       {analyticsEnabled && (
         <Script
+          id="google-analytics"
           src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
           strategy="afterInteractive"
         />
