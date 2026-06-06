@@ -3,9 +3,10 @@ import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isAuthBypassEnabled } from "@/lib/authMode";
 
-const isProtectedRoute = createRouteMatcher([
+export const isProtectedRoute = createRouteMatcher([
   "/account(.*)",
   "/branch(.*)",
+  "/invite(.*)",
   "/onboarding(.*)",
   "/org(.*)",
 ]);
@@ -26,7 +27,7 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
 
 export const config = {
   matcher: [
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|xml|txt|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
 };
