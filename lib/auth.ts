@@ -1,5 +1,4 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { getAuthBypassEmail, isAuthBypassEnabled } from "@/lib/authMode";
 import { prisma } from "@/lib/prisma";
 
 export type SessionUser = {
@@ -38,32 +37,7 @@ async function findSessionUserByClerkId(clerkId: string): Promise<SessionUser | 
   return user;
 }
 
-async function getBypassSessionUser(): Promise<SessionUser> {
-  const email = getAuthBypassEmail();
-
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, email: true },
-  });
-
-  if (existingUser) {
-    return existingUser;
-  }
-
-  return prisma.user.create({
-    data: {
-      email,
-      name: "Local Dev User",
-    },
-    select: { id: true, email: true },
-  });
-}
-
 export async function getSessionUser(): Promise<SessionUser | null> {
-  if (isAuthBypassEnabled()) {
-    return getBypassSessionUser();
-  }
-
   const { userId: clerkId } = await auth();
 
   if (!clerkId) {

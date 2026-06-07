@@ -1,7 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { isAuthBypassEnabled } from "@/lib/authMode";
 
 export const isProtectedRoute = createRouteMatcher([
   "/account(.*)",
@@ -18,10 +16,6 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, req) => {
 });
 
 export function proxy(req: NextRequest, event: NextFetchEvent) {
-  if (isAuthBypassEnabled()) {
-    return NextResponse.next();
-  }
-
   return clerkAuthMiddleware(req, event);
 }
 

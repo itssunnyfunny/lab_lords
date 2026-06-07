@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
-import { isAuthBypassEnabled } from "@/lib/authMode";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
@@ -66,16 +65,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const content = isAuthBypassEnabled()
-    ? children
-    : <ClerkProvider>{children}</ClerkProvider>;
-
   return (
     <html lang="en" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {content}
+        <ClerkProvider>{children}</ClerkProvider>
         <Suspense fallback={null}>
           <AnalyticsProvider measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
         </Suspense>

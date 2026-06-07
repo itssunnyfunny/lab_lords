@@ -1,7 +1,6 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { isAuthBypassEnabled } from "@/lib/authMode";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { organizations } from "@/lib/api/organizations";
@@ -74,15 +73,7 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
   );
 }
 
-function ClerkLandingPage() {
+export default function RootPage() {
   const { isLoaded, isSignedIn } = useUser();
   return <LandingContent isLoaded={isLoaded} isSignedIn={isSignedIn ?? false} />;
-}
-
-export default function RootPage() {
-  if (isAuthBypassEnabled()) {
-    return <LandingContent isLoaded={true} isSignedIn={true} />;
-  }
-
-  return <ClerkLandingPage />;
 }
