@@ -129,7 +129,7 @@ flowchart TD
 - Responsibility: Shared runtime helpers: Prisma client, auth/auth-mode, safe redirects, permission messages, branch access, branch notifications, top search, API clients, validation, mock data, and class-name utilities.
 - Included files documented: 22.
 - File categories present: Frontend API client wrapper, Shared library/helper.
-- Notable child paths: `lib/api`, `lib/auth.ts`, `lib/authMode.ts`, `lib/branchNotifications.ts`, `lib/branchPageAccess.ts`, `lib/formValidation.ts`, `lib/mock-data.ts`, `lib/permissionMessages.ts`, `lib/prisma.ts`, `lib/safeRedirect.ts`, `lib/settingsValidation.ts`, `lib/topSearch.ts`, `lib/utils`, `lib/utils.ts`.
+- Notable child paths: `lib/api`, `lib/auth.ts`, `lib/branchNotifications.ts`, `lib/branchPageAccess.ts`, `lib/formValidation.ts`, `lib/mock-data.ts`, `lib/permissionMessages.ts`, `lib/prisma.ts`, `lib/safeRedirect.ts`, `lib/settingsValidation.ts`, `lib/topSearch.ts`, `lib/utils`, `lib/utils.ts`.
 
 ### `prisma/`
 - Responsibility: Database schema, migrations, migration lock, and seed data.
@@ -713,7 +713,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 | /branch/[branchId]/students | app/branch/[branchId]/students/page.tsx | Next.js page / screen | `./AddStudentDialog`, `./EditStudentDialog`, `@/app/generated/prisma/browser`, `@/components/auth/BranchAccessGuard`, `@/components/tables/DataTable`, `@/components/tables/ViewToggle`, `@/components/ui`, `@/components/ui/Badge`, ... (+12 more) | - |
 | / | app/error.tsx | Next.js app UI file | `@/components/ui`, `@/components/ui/entrySurface`, `@/components/ui/formSurface`, `@/lib/utils` | - |
 | /invite/[token] | app/invite/[token]/page.tsx | Next.js page / screen | `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/Badge`, `@/components/ui/entrySurface`, `@/lib/auth`, `@/lib/utils`, `@/services/staffInvite.service` | - |
-| / | app/layout.tsx | Next.js layout | `@/lib/authMode` | - |
+| / | app/layout.tsx | Next.js layout | `@/components/analytics/AnalyticsProvider`, `@/lib/site` | - |
 | / | app/loading.tsx | Next.js app UI file | `@/components/ui/pageSurface` | - |
 | /onboarding | app/onboarding/page.tsx | Next.js page / screen | `@/components/brand/AppLogo`, `@/components/ui`, `@/components/ui/InlineFieldError`, `@/components/ui/entrySurface`, `@/components/ui/formSurface`, `@/lib/api/core`, `@/lib/formValidation`, `@/lib/utils` | - |
 | /org/[orgId]/analytics | app/org/[orgId]/analytics/page.tsx | Next.js page / screen | `@/components/dashboard/StatCard`, `@/components/tables/DataTable`, `@/components/ui`, `@/components/ui/Badge`, `@/components/ui/formSurface`, `@/components/ui/pageSurface`, `@/lib/api/analytics`, `@/lib/utils` | - |
@@ -722,8 +722,8 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 | /org/[orgId]/settings | app/org/[orgId]/settings/page.tsx | Next.js page / screen | `@/components/settings/SettingsWorkspace`, `@/components/ui`, `@/components/ui/InlineFieldError`, `@/components/ui/pageSurface`, `@/lib/formValidation` | - |
 | /org | app/org/page.tsx | Next.js page / screen | `@/app/generated/prisma/browser`, `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/Badge`, `@/components/ui/entrySurface`, `@/components/ui/formSurface`, `@/components/ui/pageSurface`, `@/lib/api/organizations`, ... (+1 more) | - |
 | / | app/page.tsx | Next.js page / screen | `@/components/landing/LandingFeatures`, `@/components/landing/LandingFooter`, `@/components/landing/LandingHero`, `@/components/landing/LandingHowItWorks`, `@/components/landing/LandingMockup`, `@/components/landing/LandingNavbar`, `@/components/landing/LandingPricing`, `@/components/ui/landingSurface`, ... (+3 more) | - |
-| /sign-in/[[...sign-in]] | app/sign-in/[[...sign-in]]/page.tsx | Next.js page / screen | `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/entrySurface`, `@/lib/authMode`, `@/lib/safeRedirect`, `@/lib/utils` | - |
-| /sign-up/[[...sign-up]] | app/sign-up/[[...sign-up]]/page.tsx | Next.js page / screen | `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/entrySurface`, `@/lib/authMode`, `@/lib/safeRedirect`, `@/lib/utils` | - |
+| /sign-in/[[...sign-in]] | app/sign-in/[[...sign-in]]/page.tsx | Next.js page / screen | `@/components/auth/AuthPageShell`, `@/components/ui/entrySurface`, `@/lib/safeRedirect` | - |
+| /sign-up/[[...sign-up]] | app/sign-up/[[...sign-up]]/page.tsx | Next.js page / screen | `@/components/auth/AuthPageShell`, `@/components/ui/entrySurface`, `@/lib/safeRedirect` | - |
 
 ## Migration Index
 
@@ -779,7 +779,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - `services/payment.service.ts`, payment route handlers, `lib/utils/paymentStatus.ts`, audit-log routes, and analytics modules coordinate due generation, overdue classification, pay/waive actions, monthly views, audit trails, and permission gates.
 
 ### Settings Persistence
-- Account, organization, and branch settings are validated through `lib/settingsValidation.ts`, persisted through user/org/branch services, and surfaced through settings pages/components without changing the temporary auth behavior.
+- Account, organization, and branch settings are validated through `lib/settingsValidation.ts`, persisted through user/org/branch services, and surfaced through settings pages/components behind Clerk authentication.
 
 ### AI Branch Report And Messages
 - AI flows read branch/payment/org snapshots, build health/risk/action suggestion contracts, call Gemini via `ai/llm/gemini.client.ts`, persist branch reports/message drafts, and feed branch AI pages. Import column mapping also uses AI helpers but remains isolated under `importing/ai`.
@@ -873,7 +873,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 ### `.env`
 - Category: Environment variable manifest.
 - Responsibility: Repository file.
-- Environment keys present (values redacted): `AUTH_BYPASS_EMAIL`, `DATABASE_URL`, `GEMINI_API_KEY`, `NEXT_PUBLIC_AUTH_BYPASS_ENABLED`, `Test_API_Key`, `Test_Key_Secret`.
+- Environment keys present (values redacted): `DATABASE_URL`, `GEMINI_API_KEY`, `Test_API_Key`, `Test_Key_Secret`.
 
 ### `.env.test`
 - Category: Environment variable manifest.
@@ -1794,7 +1794,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - Category: Next.js layout.
 - Responsibility: Next.js layout for /.
 - App route context: `/`.
-- Local imports: `@/lib/authMode`.
+- Local imports: `@/components/analytics/AnalyticsProvider`, `@/lib/site`.
 - External/runtime imports: `@clerk/nextjs`, `next`, `next/font/google`.
 - Exports/symbols: `RootLayout`, `metadata`.
 
@@ -1863,7 +1863,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - Category: Next.js page / screen.
 - Responsibility: Next.js page for /.
 - App route context: `/`.
-- Local imports: `@/components/landing/LandingFeatures`, `@/components/landing/LandingFooter`, `@/components/landing/LandingHero`, `@/components/landing/LandingHowItWorks`, `@/components/landing/LandingMockup`, `@/components/landing/LandingNavbar`, `@/components/landing/LandingPricing`, `@/components/ui/landingSurface`, `@/components/ui/pageSurface`, `@/lib/api/organizations`, `@/lib/authMode`.
+- Local imports: `@/components/landing/LandingFeatures`, `@/components/landing/LandingFooter`, `@/components/landing/LandingHero`, `@/components/landing/LandingHowItWorks`, `@/components/landing/LandingMockup`, `@/components/landing/LandingNavbar`, `@/components/landing/LandingPricing`, `@/components/ui/landingSurface`, `@/components/ui/pageSurface`, `@/lib/api/organizations`.
 - External/runtime imports: `@clerk/nextjs`, `lucide-react`, `next/navigation`, `react`.
 - Exports/symbols: `RootPage`.
 
@@ -1871,16 +1871,16 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - Category: Next.js page / screen.
 - Responsibility: Next.js page for /sign-in/[[...sign-in]].
 - App route context: `/sign-in/[[...sign-in]]`.
-- Local imports: `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/entrySurface`, `@/lib/authMode`, `@/lib/safeRedirect`, `@/lib/utils`.
-- External/runtime imports: `@clerk/nextjs`, `next/navigation`.
+- Local imports: `@/components/auth/AuthPageShell`, `@/components/ui/entrySurface`, `@/lib/safeRedirect`.
+- External/runtime imports: `@clerk/nextjs`.
 - Exports/symbols: `SignInPage`.
 
 ### `app/sign-up/[[...sign-up]]/page.tsx`
 - Category: Next.js page / screen.
 - Responsibility: Next.js page for /sign-up/[[...sign-up]].
 - App route context: `/sign-up/[[...sign-up]]`.
-- Local imports: `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/entrySurface`, `@/lib/authMode`, `@/lib/safeRedirect`, `@/lib/utils`.
-- External/runtime imports: `@clerk/nextjs`, `next/navigation`.
+- Local imports: `@/components/auth/AuthPageShell`, `@/components/ui/entrySurface`, `@/lib/safeRedirect`.
+- External/runtime imports: `@clerk/nextjs`, `next/link`.
 - Exports/symbols: `SignUpPage`.
 
 ## React Components
@@ -2110,7 +2110,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 ### `components/layout/AppShell.tsx`
 - Category: React component.
 - Responsibility: Application shell/navigation component for branch or organization workspaces.
-- Local imports: `@/components/layout/BranchNotifications`, `@/components/layout/BranchTopSearch`, `@/components/ui/AmbientBackground`, `@/components/ui/chromeSurface`, `@/lib/authMode`, `@/lib/utils`.
+- Local imports: `@/components/layout/BranchNotifications`, `@/components/layout/BranchTopSearch`, `@/components/ui/AmbientBackground`, `@/components/ui/chromeSurface`, `@/lib/utils`.
 - External/runtime imports: `@clerk/nextjs`, `lucide-react`, `next/navigation`, `react`.
 - Exports/symbols: `AppShell`.
 - Prisma/domain models referenced: `User`.
@@ -2721,17 +2721,10 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 ### `lib/auth.ts`
 - Category: Shared library/helper.
 - Responsibility: Shared runtime helper for auth, validation, permissions, notifications, search, or utilities.
-- Local imports: `@/lib/authMode`, `@/lib/prisma`.
+- Local imports: `@/lib/prisma`.
 - External/runtime imports: `@clerk/nextjs/server`.
 - Exports/symbols: `SessionUser`, `getSessionUser`.
 - Prisma/domain models referenced: `User`.
-
-### `lib/authMode.ts`
-- Category: Shared library/helper.
-- Responsibility: Shared runtime helper for auth, validation, permissions, notifications, search, or utilities.
-- Local imports: -.
-- External/runtime imports: -.
-- Exports/symbols: `getAuthBypassEmail`, `isAuthBypassEnabled`.
 
 ### `lib/branchNotifications.ts`
 - Category: Shared library/helper.
@@ -3092,7 +3085,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 ### `proxy.ts`
 - Category: Project file.
 - Responsibility: Repository file.
-- Local imports: `@/lib/authMode`.
+- Local imports: -.
 - External/runtime imports: `@clerk/nextjs/server`, `next/server`.
 - Exports/symbols: `config`, `proxy`.
 
@@ -3146,7 +3139,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - Responsibility: Local diagnostic or verification script.
 - Local imports: -.
 - External/runtime imports: `dotenv`.
-- Exports/symbols: `KeyMode`, `authBypassEnabled`, `databaseUrl`, `envFile`, `getKeyMode`, `hasDatabase`, `hasPublishableKey`, `hasSecretKey`, `isTestEnv`, `keyMode`, `marker`, `pkMode`, `publishableKey`, `secretKey`, `skMode`, `status`.
+- Exports/symbols: `KeyMode`, `databaseUrl`, `envFile`, `getKeyMode`, `hasDatabase`, `hasPublishableKey`, `hasSecretKey`, `isTestEnv`, `keyMode`, `marker`, `pkMode`, `publishableKey`, `secretKey`, `skMode`, `status`.
 
 ### `scripts/debug_payments.ts`
 - Category: Diagnostic/verification script.
@@ -3836,7 +3829,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - `app/branch/[branchId]/students/page.tsx` imports `./AddStudentDialog`, `./EditStudentDialog`, `@/app/generated/prisma/browser`, `@/components/auth/BranchAccessGuard`, `@/components/tables/DataTable`, `@/components/tables/ViewToggle`, `@/components/ui`, `@/components/ui/Badge`, `@/components/ui/Button`, `@/components/ui/ConfirmDialog`, `@/components/ui/RowActionsMenu`, `@/components/ui/formSurface`, `@/components/ui/pageSurface`, `@/hooks/useDataViewMode`, `@/lib/api/branches`, `@/lib/api/payments`, `@/lib/api/students`, `@/lib/branchPageAccess`, `@/lib/permissionMessages`, `@/lib/utils`, `date-fns`, `lucide-react`, ... (+2 more).
 - `app/error.tsx` imports `@/components/ui`, `@/components/ui/entrySurface`, `@/components/ui/formSurface`, `@/lib/utils`, `react`.
 - `app/invite/[token]/page.tsx` imports `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/Badge`, `@/components/ui/entrySurface`, `@/lib/auth`, `@/lib/utils`, `@/services/staffInvite.service`, `lucide-react`, `next/link`, `next/navigation`.
-- `app/layout.tsx` imports `@/lib/authMode`, `@clerk/nextjs`, `next`, `next/font/google`.
+- `app/layout.tsx` imports `@/components/analytics/AnalyticsProvider`, `@/lib/site`, `@clerk/nextjs`, `next`, `next/font/google`, `react`.
 - `app/loading.tsx` imports `@/components/ui/pageSurface`, `lucide-react`.
 - `app/onboarding/page.tsx` imports `@/components/brand/AppLogo`, `@/components/ui`, `@/components/ui/InlineFieldError`, `@/components/ui/entrySurface`, `@/components/ui/formSurface`, `@/lib/api/core`, `@/lib/formValidation`, `@/lib/utils`, `lucide-react`, `next/navigation`, `react`.
 - `app/org/[orgId]/analytics/page.tsx` imports `@/components/dashboard/StatCard`, `@/components/tables/DataTable`, `@/components/ui`, `@/components/ui/Badge`, `@/components/ui/formSurface`, `@/components/ui/pageSurface`, `@/lib/api/analytics`, `@/lib/utils`, `lucide-react`, `next/navigation`, `react`.
@@ -3844,9 +3837,9 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - `app/org/[orgId]/page.tsx` imports `@/components/branch/CreateBranchDialog`, `@/components/dashboard/StatCard`, `@/components/ui`, `@/components/ui/Badge`, `@/components/ui/formSurface`, `@/components/ui/pageSurface`, `@/lib/api/analytics`, `@/lib/api/organizations`, `@/lib/utils`, `lucide-react`, `next/navigation`, `react`.
 - `app/org/[orgId]/settings/page.tsx` imports `@/components/settings/SettingsWorkspace`, `@/components/ui`, `@/components/ui/InlineFieldError`, `@/components/ui/pageSurface`, `@/lib/formValidation`, `date-fns`, `lucide-react`, `next/navigation`, `react`.
 - `app/org/page.tsx` imports `@/app/generated/prisma/browser`, `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/Badge`, `@/components/ui/entrySurface`, `@/components/ui/formSurface`, `@/components/ui/pageSurface`, `@/lib/api/organizations`, `@/lib/utils`, `lucide-react`, `next/navigation`, `react`.
-- `app/page.tsx` imports `@/components/landing/LandingFeatures`, `@/components/landing/LandingFooter`, `@/components/landing/LandingHero`, `@/components/landing/LandingHowItWorks`, `@/components/landing/LandingMockup`, `@/components/landing/LandingNavbar`, `@/components/landing/LandingPricing`, `@/components/ui/landingSurface`, `@/components/ui/pageSurface`, `@/lib/api/organizations`, `@/lib/authMode`, `@clerk/nextjs`, `lucide-react`, `next/navigation`, `react`.
-- `app/sign-in/[[...sign-in]]/page.tsx` imports `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/entrySurface`, `@/lib/authMode`, `@/lib/safeRedirect`, `@/lib/utils`, `@clerk/nextjs`, `next/navigation`.
-- `app/sign-up/[[...sign-up]]/page.tsx` imports `@/components/brand/AppLogo`, `@/components/ui/AmbientBackground`, `@/components/ui/entrySurface`, `@/lib/authMode`, `@/lib/safeRedirect`, `@/lib/utils`, `@clerk/nextjs`, `next/navigation`.
+- `app/page.tsx` imports `@/components/landing/LandingFeatures`, `@/components/landing/LandingFooter`, `@/components/landing/LandingHero`, `@/components/landing/LandingHowItWorks`, `@/components/landing/LandingMockup`, `@/components/landing/LandingNavbar`, `@/components/landing/LandingPricing`, `@/components/ui/landingSurface`, `@/components/ui/pageSurface`, `@/lib/api/organizations`, `@clerk/nextjs`, `next/navigation`, `react`.
+- `app/sign-in/[[...sign-in]]/page.tsx` imports `@/components/auth/AuthPageShell`, `@/components/ui/entrySurface`, `@/lib/safeRedirect`, `@clerk/nextjs`, `next`.
+- `app/sign-up/[[...sign-up]]/page.tsx` imports `@/components/auth/AuthPageShell`, `@/components/ui/entrySurface`, `@/lib/safeRedirect`, `@clerk/nextjs`, `next`, `next/link`.
 - `components/ai/BranchHealthPanel.tsx` imports `@/ai/contracts/structuredReport.contract`, `@/components/ui`, `@/components/ui/Badge`, `@/components/ui/formSurface`, `@/components/ui/pageSurface`, `@/lib/utils`, `lucide-react`, `react`.
 - `components/ai/MessageDraft.tsx` imports `@/ai/contracts/messageDraft.contract`, `@/components/ui`, `@/components/ui/Badge`, `lucide-react`, `react`.
 - `components/allocations/AllocateSeatDialog.tsx` imports `./SeatPicker`, `@/components/ui/Button`, `@/components/ui/InlineFieldError`, `@/components/ui/formSurface`, `@/lib/utils`, `lucide-react`, `react`.
@@ -3871,7 +3864,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - `components/landing/LandingNavbar.tsx` imports `@/components/brand/AppLogo`, `@/components/ui/landingSurface`, `lucide-react`, `next/link`.
 - `components/landing/LandingPricing.tsx` imports `@/components/landing/LandingReveal`, `@/components/ui/landingSurface`, `lucide-react`.
 - `components/landing/LandingReveal.tsx` imports `@/lib/utils`, `react`.
-- `components/layout/AppShell.tsx` imports `@/components/layout/BranchNotifications`, `@/components/layout/BranchTopSearch`, `@/components/ui/AmbientBackground`, `@/components/ui/chromeSurface`, `@/lib/authMode`, `@/lib/utils`, `@clerk/nextjs`, `lucide-react`, `next/navigation`, `react`.
+- `components/layout/AppShell.tsx` imports `@/components/layout/BranchNotifications`, `@/components/layout/BranchTopSearch`, `@/components/ui/AmbientBackground`, `@/components/ui/chromeSurface`, `@/lib/utils`, `@clerk/nextjs`, `lucide-react`, `next/navigation`, `react`.
 - `components/layout/BranchNotifications.tsx` imports `@/components/ui/chromeSurface`, `@/components/ui/formSurface`, `@/hooks/useBranchAccess`, `@/lib/api/branches`, `@/lib/api/seats`, `@/lib/api/staff`, `@/lib/branchNotifications`, `@/lib/utils`, `lucide-react`, `next/navigation`, `react`.
 - `components/layout/BranchSidebar.tsx` imports `./SidebarItem`, `@/components/brand/AppLogo`, `@/components/ui/chromeSurface`, `@/hooks/useBranchAccess`, `@/types`, `lucide-react`, `next/navigation`.
 - `components/layout/BranchTopSearch.tsx` imports `@/components/ui/chromeSurface`, `@/components/ui/formSurface`, `@/hooks/useBranchAccess`, `@/lib/api/branches`, `@/lib/api/payments`, `@/lib/api/staff`, `@/lib/topSearch`, `@/lib/utils`, `lucide-react`, `next/navigation`, `react`.
@@ -3932,7 +3925,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - `lib/api/seats.ts` imports `./core`, `@/app/generated/prisma/browser`.
 - `lib/api/staff.ts` imports `./core`, `@/app/generated/prisma/browser`, `@/types`.
 - `lib/api/students.ts` imports `./core`, `@/app/generated/prisma/browser`, `@/types`.
-- `lib/auth.ts` imports `@/lib/authMode`, `@/lib/prisma`, `@clerk/nextjs/server`.
+- `lib/auth.ts` imports `@/lib/prisma`, `@clerk/nextjs/server`.
 - `lib/branchNotifications.ts` imports `@/types`.
 - `lib/branchPageAccess.ts` imports `@/types`.
 - `lib/formValidation.ts` imports `@/utils/shiftTime`.
@@ -3945,7 +3938,7 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - `next.config.ts` imports `next`.
 - `prisma.config.ts` imports `prisma/config`.
 - `prisma/seed.ts` imports `../app/generated/prisma/client`, `@prisma/adapter-pg`, `date-fns`, `fs`.
-- `proxy.ts` imports `@/lib/authMode`, `@clerk/nextjs/server`, `next/server`.
+- `proxy.ts` imports `@clerk/nextjs/server`, `next/server`.
 - `scripts/audit_allocation_safety.ts` imports `../app/generated/prisma/enums`, `../lib/prisma`, `../services/seatAllocation.service`.
 - `scripts/audit_analytics_consistency.ts` imports `../app/generated/prisma/enums`, `../lib/prisma`.
 - `scripts/audit_payment_engine.ts` imports `../app/generated/prisma/enums`, `../lib/prisma`, `../services/payment.service`, `../services/student.service`, `date-fns`.
@@ -4213,7 +4206,6 @@ Main consumers detected: `prisma/migrations/20260425143443_add_audit_log/migrati
 - `lib/api/staff.ts` exports `StaffInviteResponse`, `StaffWithUser`, `staff`.
 - `lib/api/students.ts` exports `StudentListItem`, `StudentSeatAllocation`, `students`.
 - `lib/auth.ts` exports `SessionUser`, `getSessionUser`.
-- `lib/authMode.ts` exports `getAuthBypassEmail`, `isAuthBypassEnabled`.
 - `lib/branchNotifications.ts` exports `AllocationNotificationRecord`, `BranchNotification`, `BranchNotificationAccess`, `BranchNotificationKind`, `BranchNotificationSeverity`, `BuildBranchNotificationsInput`, `OverduePaymentNotificationData`, `ShiftCapacityNotificationRecord`, `StaffInviteNotificationRecord`, `StudentNotificationRecord`, `buildBranchNotifications`.
 - `lib/branchPageAccess.ts` exports `BRANCH_PAGE_ACCESS`, `BranchPageAccessKey`, `hasBranchPageAccess`.
 - `lib/formValidation.ts` exports `FORM_LIMITS`, `NormalizedShiftDraft`, `ShiftDraftInput`, `ValidationResult`, `compactText`, `parseIntegerField`, `validateOptionalEmail`, `validateOptionalId`, `validateOptionalText`, `validateOptionalTime`, `validatePhone`, `validateRequiredPhone`, `validateRequiredText`, `validateSeatLabel`, `validateShiftDrafts`.

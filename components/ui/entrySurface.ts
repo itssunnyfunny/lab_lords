@@ -26,18 +26,70 @@ export const entryPrimaryLinkClass =
 export const entrySecondaryLinkClass =
     "inline-flex h-10 items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-5 text-sm font-semibold text-[color:var(--ui-button-secondary-text)] shadow-[var(--ui-button-secondary-shadow)] transition-colors hover:border-[color:var(--ui-button-secondary-hover-border)] hover:bg-[color:var(--ui-button-secondary-hover-bg)]";
 
-export const entryClerkAppearanceElements = {
-    rootBox: "w-full",
-    cardBox: "w-full",
-    card: "w-full max-w-full border border-[color:var(--ui-form-dialog-border)] bg-[color:var(--ui-form-dialog-bg)] shadow-[var(--ui-form-dialog-shadow)] backdrop-blur-3xl",
-    headerTitle: "text-[color:var(--text-primary)]",
-    headerSubtitle: "text-[color:var(--text-secondary)]",
-    socialButtonsBlockButton:
-        "border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] text-[color:var(--ui-button-secondary-text)] hover:bg-[color:var(--ui-button-secondary-hover-bg)]",
-    formFieldInput:
-        "border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--ui-form-input-text)]",
-    formButtonPrimary:
-        "bg-[color:var(--ui-button-primary-bg)] text-[color:var(--ui-button-primary-text)] hover:bg-[color:var(--ui-button-primary-hover-bg)]",
-    footerActionText: "text-[color:var(--text-muted)]",
-    footerActionLink: "text-[color:var(--ui-form-accent)] hover:text-[color:var(--ui-form-accent-hover)]",
+export const entryClerkAppearance = {
+    variables: {
+        colorPrimary: "#67e8f9",
+        colorBackground: "#0f111a",
+        colorInputBackground: "#171a24",
+        colorInputText: "#f9fafb",
+        colorText: "#f9fafb",
+        colorTextSecondary: "#b6bdc9",
+        colorDanger: "#fca5a5",
+        colorNeutral: "#a8b0bd",
+        borderRadius: "12px",
+        fontFamily: "inherit",
+    },
+    elements: {
+        rootBox: "w-full",
+        cardBox: "w-full shadow-none",
+        card:
+            "w-full max-w-full gap-5 rounded-2xl border border-white/10 !bg-[#0f111a] px-5 py-6 shadow-[0_24px_70px_rgba(0,0,0,0.38)] sm:px-7 sm:py-7",
+        header: "gap-2 text-left",
+        headerTitle: "!text-xl font-semibold tracking-tight !text-white",
+        headerSubtitle: "text-sm leading-6 !text-slate-300",
+        socialButtons: "gap-3",
+        socialButtonsBlockButton:
+            "min-h-11 rounded-xl !border-white/15 !bg-white/[0.04] text-sm font-semibold !text-slate-100 shadow-none transition-colors hover:!border-white/25 hover:!bg-white/[0.07] focus-visible:ring-2 focus-visible:ring-cyan-300/40",
+        socialButtonsBlockButtonText: "font-semibold !text-slate-100",
+        dividerRow: "gap-3",
+        dividerLine: "!bg-white/10",
+        dividerText: "text-xs font-medium uppercase tracking-[0.14em] !text-slate-400",
+        form: "gap-4",
+        formFieldRow: "gap-4",
+        formField: "gap-2",
+        formFieldLabel: "text-sm font-medium !text-slate-200",
+        formFieldInput:
+            "min-h-11 rounded-xl !border-white/15 !bg-[#171a24] px-3.5 text-base !text-white shadow-none outline-none transition-colors placeholder:!text-slate-500 focus:!border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/15 sm:text-sm",
+        formFieldInputShowPasswordButton:
+            "!text-slate-400 hover:!text-white focus-visible:ring-2 focus-visible:ring-cyan-300/40",
+        formFieldAction:
+            "font-medium !text-cyan-300 hover:!text-cyan-200",
+        formFieldErrorText: "text-sm !text-red-300",
+        formFieldSuccessText: "text-sm !text-emerald-300",
+        formButtonPrimary:
+            "min-h-11 rounded-xl !border-cyan-200/70 !bg-cyan-300 text-sm font-semibold !text-slate-950 shadow-none transition-colors hover:!bg-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-200/50",
+        otpCodeFieldInput:
+            "h-12 !border-white/15 !bg-[#171a24] !text-white focus:!border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/15",
+        identityPreview:
+            "rounded-xl !border-white/10 !bg-white/[0.04]",
+        identityPreviewText: "!text-white",
+        identityPreviewEditButton:
+            "!text-cyan-300 hover:!text-cyan-200",
+        alternativeMethodsBlockButton:
+            "min-h-11 rounded-xl !border-white/15 !bg-white/[0.04] !text-slate-100 hover:!border-white/25 hover:!bg-white/[0.07]",
+        alert:
+            "rounded-xl !border-red-400/30 !bg-red-400/10",
+        alertText: "text-sm !text-red-200",
+        footer: "gap-4",
+        footerAction: "gap-1.5",
+        footerActionText: "text-sm !text-slate-400",
+        footerActionLink:
+            "text-sm font-semibold !text-cyan-300 hover:!text-cyan-200",
+        footerPages: "!text-slate-400",
+        footerPageLink: "!text-slate-400 hover:!text-slate-200",
+        backLink:
+            "font-medium !text-cyan-300 hover:!text-cyan-200",
+        formResendCodeLink:
+            "font-medium !text-cyan-300 hover:!text-cyan-200",
+    },
 };
