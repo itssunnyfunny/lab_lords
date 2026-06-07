@@ -42,19 +42,12 @@ const hasDatabase = Boolean(databaseUrl);
 const hasPublishableKey = Boolean(publishableKey);
 const hasSecretKey = Boolean(secretKey);
 const isTestEnv = envFile.includes("test");
-const authBypassEnabled = process.env.NODE_ENV !== "production"
-    && process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED === "true";
 
 console.log(`Checking auth environment from ${envFile}`);
 status("DATABASE_URL", hasDatabase, hasDatabase ? "set" : "not set");
 status("Clerk publishable key", hasPublishableKey, hasPublishableKey ? "set" : "not set");
 status("Clerk secret key", hasSecretKey, hasSecretKey ? "set" : "not set");
-status("Local auth bypass", authBypassEnabled, authBypassEnabled ? `enabled for ${process.env.AUTH_BYPASS_EMAIL || "alice@lablord.com"}` : "disabled");
 console.log(`MODE    Clerk key mode: ${keyMode}`);
-
-if (authBypassEnabled) {
-    console.log("NOTE    Local auth bypass skips Clerk only outside production. Do not use it for deployment.");
-}
 
 if (keyMode === "development/test") {
     console.log("NOTE    Clerk will show its development-mode banner with test keys. That is expected for local dev.");
@@ -68,6 +61,6 @@ if (isTestEnv) {
     console.log("NOTE    Vitest does not require Clerk keys because Clerk is mocked in tests.");
 }
 
-if (!hasDatabase || (!isTestEnv && !authBypassEnabled && (!hasPublishableKey || !hasSecretKey))) {
+if (!hasDatabase || (!isTestEnv && (!hasPublishableKey || !hasSecretKey))) {
     process.exitCode = 1;
 }

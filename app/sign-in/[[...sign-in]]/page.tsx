@@ -1,7 +1,5 @@
 import { SignIn } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { isAuthBypassEnabled } from "@/lib/authMode";
-import { redirect } from "next/navigation";
 import { LogoMark } from "@/components/brand/AppLogo";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { getSafeRedirectPath } from "@/lib/safeRedirect";
@@ -30,10 +28,6 @@ export default async function SignInPage({
 }) {
   const params = await searchParams;
   const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/org");
-
-  if (isAuthBypassEnabled()) {
-    redirect(fallbackRedirectUrl);
-  }
 
   return (
     <main className={entryRootClass}>

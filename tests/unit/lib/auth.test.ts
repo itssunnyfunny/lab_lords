@@ -37,24 +37,6 @@ function clerkUser(overrides: Record<string, unknown> = {}) {
 describe("getSessionUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED;
-    delete process.env.AUTH_BYPASS_EMAIL;
-  });
-
-  it("uses the configured local bypass user without calling Clerk", async () => {
-    process.env.NEXT_PUBLIC_AUTH_BYPASS_ENABLED = "true";
-    process.env.AUTH_BYPASS_EMAIL = "ALICE@LABLORD.COM";
-    mocks.prismaUser.findUnique.mockResolvedValueOnce({
-      id: "local_alice",
-      email: "alice@lablord.com",
-    });
-
-    await expect(getSessionUser()).resolves.toEqual({
-      id: "local_alice",
-      email: "alice@lablord.com",
-    });
-    expect(mocks.auth).not.toHaveBeenCalled();
-    expect(mocks.currentUser).not.toHaveBeenCalled();
   });
 
   it("returns null when Clerk has no signed-in user", async () => {

@@ -7,7 +7,7 @@ Guidance for coding agents working in this repository.
 - `app/` - Next.js App Router pages, layouts, loading/error UI, and API routes.
 - `components/` - Shared React components for UI, layout, dashboards, analytics, AI, payments, allocations, and tables.
 - `services/` - Backend/business logic used by API routes. This is the main domain layer.
-- `lib/` - Prisma client setup, temporary auth helper, API client wrappers, and shared utilities.
+- `lib/` - Prisma client setup, Clerk session helper, API client wrappers, and shared utilities.
 - `prisma/` - Prisma schema, migrations, and seed data.
 - `tests/` - Vitest unit, integration, and e2e-style tests plus test setup helpers.
 - `ai/` - Gemini client, AI contracts, prompts, readers, orchestrator, reports, and risk/message generation logic.
@@ -91,7 +91,7 @@ Do not use PowerShell direct invocation of pnpm.cmd.
 - Use the `@/*` path alias for imports when it matches existing style.
 - Keep changes scoped to the requested behavior.
 - Do not introduce unrelated refactors, formatting churn, dependency changes, or schema changes unless asked.
-- Preserve the current temporary auth behavior unless the task specifically concerns authentication.
+- Preserve Clerk-backed authentication and application-level authorization checks.
 - For database access, use the existing Prisma client from `lib/prisma.ts` in app code.
 - For tests, use the existing Vitest setup and test DB helpers under `tests/setup/`.
 - Add or update tests when changing service behavior, utility logic, analytics calculations, or API behavior.
@@ -107,7 +107,7 @@ Do not use PowerShell direct invocation of pnpm.cmd.
 - `.next/`, `node_modules/`, `tsconfig.tsbuildinfo` - Generated/local artifacts.
 - `public/` image assets - Avoid replacing assets unless the task is visual/content-related.
 - `prisma/seed.ts` - Seed data affects demos and tests; change only when requested.
-- `lib/auth.ts` - Temporary auth behavior is intentional for this phase.
+- `lib/auth.ts` - Clerk-to-Prisma user linking and session resolution.
 - Broad UI/theme files such as `app/globals.css`, `styles/tokens.css`, and `tailwind.config.ts` unless the task is styling-related.
 
 ## Notes

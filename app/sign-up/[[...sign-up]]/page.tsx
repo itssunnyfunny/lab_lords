@@ -1,8 +1,6 @@
 import { SignUp } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { isAuthBypassEnabled } from "@/lib/authMode";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { LogoMark } from "@/components/brand/AppLogo";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { getSafeRedirectPath } from "@/lib/safeRedirect";
@@ -31,10 +29,6 @@ export default async function SignUpPage({
 }) {
   const params = await searchParams;
   const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/onboarding");
-
-  if (isAuthBypassEnabled()) {
-    redirect(fallbackRedirectUrl);
-  }
 
   return (
     <main className={entryRootClass}>

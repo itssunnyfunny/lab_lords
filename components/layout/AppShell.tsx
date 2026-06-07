@@ -1,7 +1,6 @@
 "use client";
 
 import { UserButton, useUser } from "@clerk/nextjs";
-import { isAuthBypassEnabled } from "@/lib/authMode";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { usePathname, useRouter } from "next/navigation";
@@ -33,7 +32,7 @@ interface AppShellProps {
     user?: User;
 }
 
-function ClerkAccountSummary({ user }: { user?: User }) {
+function AccountSummary({ user }: { user?: User }) {
     const { user: clerkUser } = useUser();
     const displayName = user?.name ?? clerkUser?.fullName ?? clerkUser?.primaryEmailAddress?.emailAddress ?? "Account";
     const displayRole = user?.role ?? "Workspace User";
@@ -44,35 +43,6 @@ function ClerkAccountSummary({ user }: { user?: User }) {
             <p className={cn("text-[10px] uppercase tracking-wider", chromeMutedTextClass)}>{displayRole}</p>
         </div>
     );
-}
-
-function DevAccountSummary() {
-    return (
-        <div className="text-right hidden sm:block">
-            <p className="text-xs font-bold tracking-wide text-[color:var(--text-primary)]">Local Dev</p>
-            <p className="text-[10px] uppercase tracking-wider text-[color:var(--ui-form-warning-action-text)]">Auth Bypass</p>
-        </div>
-    );
-}
-
-function AccountSummary({ user }: { user?: User }) {
-    if (isAuthBypassEnabled()) {
-        return <DevAccountSummary />;
-    }
-
-    return <ClerkAccountSummary user={user} />;
-}
-
-function AccountControl() {
-    if (isAuthBypassEnabled()) {
-        return (
-            <div className="rounded-full border border-[color:var(--ui-form-warning-border)] bg-[color:var(--ui-form-warning-bg)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[color:var(--ui-form-warning-action-text)]">
-                Local
-            </div>
-        );
-    }
-
-    return <UserButton />;
 }
 
 export function AppShell({ children, sidebar, user }: AppShellProps) {
@@ -169,7 +139,7 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                         >
                             <AccountSummary user={user} />
                         </button>
-                        <AccountControl />
+                        <UserButton />
                     </div>
                 </header>
 

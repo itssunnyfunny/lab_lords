@@ -34,24 +34,6 @@ Seeded emails that already have app data:
 
 If you sign in with a different email, the app creates a new local user and sends you through onboarding.
 
-## Local Bypass For Feature Testing
-
-When you are testing app features and do not want Clerk forms, email verification, or passwords in the way, enable the local-only bypass:
-
-```bash
-NEXT_PUBLIC_AUTH_BYPASS_ENABLED="true"
-AUTH_BYPASS_EMAIL="alice@lablord.com"
-```
-
-Behavior:
-
-- Middleware stops redirecting local app pages to Clerk.
-- API routes use the local Prisma user with `AUTH_BYPASS_EMAIL`.
-- If that email does not exist, a local user row is created and onboarding starts normally.
-- The bypass is ignored when `NODE_ENV=production`.
-
-Use `alice@lablord.com` after seeding if you want the full seeded demo workspace.
-
 ## Tests
 
 Tests use `.env.test` and a separate PostgreSQL database whose URL must include `test`.
@@ -72,7 +54,6 @@ NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
 NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL="/org"
 NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL="/onboarding"
-NEXT_PUBLIC_AUTH_BYPASS_ENABLED="false"
 ```
 
 Production checklist:

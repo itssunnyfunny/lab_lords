@@ -45,7 +45,7 @@ const steps = [
 
 const migrationPoints = [
   "No schema changes needed for the landing redesign",
-  "Preserves temporary auth and existing dashboard routes",
+  "Fits the existing Clerk auth and dashboard routes",
   "Uses the app's current dark operational UI language",
 ];
 

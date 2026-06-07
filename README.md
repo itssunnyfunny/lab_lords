@@ -52,9 +52,6 @@ NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
 NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL="/org"
 NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL="/onboarding"
-# Optional local-only bypass for feature testing without Clerk:
-NEXT_PUBLIC_AUTH_BYPASS_ENABLED="false"
-AUTH_BYPASS_EMAIL="alice@lablord.com"
 GEMINI_API_KEY="your-gemini-api-key"
 ```
 
@@ -114,8 +111,6 @@ http://localhost:3000
 Local development should use Clerk test keys when testing real auth. Clerk will show its development-mode banner with `pk_test` / `sk_test` keys; that is expected locally.
 
 For a smooth seeded demo account, create or sign up a Clerk development user with `alice@lablord.com` after seeding. The app will link that Clerk user to the seeded local Alice account on first authenticated request.
-
-For feature testing without Clerk, set `NEXT_PUBLIC_AUTH_BYPASS_ENABLED="true"` in local `.env`. This bypass is hard-disabled in `NODE_ENV=production`.
 
 ## Tests
 
