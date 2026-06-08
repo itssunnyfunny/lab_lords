@@ -19,7 +19,7 @@ export default async function SignUpPage({
   searchParams?: Promise<{ redirect_url?: string }>;
 }) {
   const params = await searchParams;
-  const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/onboarding");
+  const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/app");
 
   return (
     <AuthPageShell

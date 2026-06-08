@@ -1,3 +1,4 @@
+import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AppLogo } from "@/components/brand/AppLogo";
@@ -8,9 +9,13 @@ import {
 } from "@/components/ui/landingSurface";
 
 export function LandingNavbar({
-  onDashboardClick,
+  isSignedIn,
+  onSignInClick,
+  onWorkspaceClick,
 }: {
-  onDashboardClick: (source: string) => void;
+  isSignedIn: boolean;
+  onSignInClick: (source: string) => void;
+  onWorkspaceClick: (source: string) => void;
 }) {
   return (
     <nav className="sticky top-0 z-50 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--bg-app)]/88 backdrop-blur-xl">
@@ -33,18 +38,34 @@ export function LandingNavbar({
         </div>
 
         <div className="landing-reveal flex shrink-0 items-center gap-2 [animation-delay:220ms]">
+          {!isSignedIn && (
+            <button
+              type="button"
+              className="text-sm font-medium text-[color:var(--text-secondary)] transition-colors hover:text-[color:var(--text-primary)]"
+              onClick={() => onSignInClick("landing_nav_sign_in")}
+            >
+              Sign in
+            </button>
+          )}
           <button
             type="button"
-            className="hidden text-sm font-medium text-[color:var(--text-secondary)] transition-colors hover:text-[color:var(--text-primary)] sm:inline"
-            onClick={() => onDashboardClick("landing_nav_sign_in")}
+            onClick={() => onWorkspaceClick("landing_nav_workspace")}
+            className={`${landingPrimaryButtonClass} landing-cta-shine h-10 px-3 sm:px-4`}
           >
-            Sign in
-          </button>
-          <button type="button" onClick={() => onDashboardClick("landing_nav_workspace")} className={`${landingPrimaryButtonClass} landing-cta-shine h-10 px-3 sm:px-4`}>
-            <span className="hidden sm:inline">Open workspace</span>
-            <span className="sm:hidden">Open</span>
+            {isSignedIn ? (
+              <>
+                <span className="hidden sm:inline">Open workspace</span>
+                <span className="sm:hidden">Open</span>
+              </>
+            ) : (
+              <>
+                <span className="hidden sm:inline">Start with your branch</span>
+                <span className="sm:hidden">Start</span>
+              </>
+            )}
             <ArrowRight size={14} />
           </button>
+          {isSignedIn && <UserButton />}
         </div>
       </div>
     </nav>

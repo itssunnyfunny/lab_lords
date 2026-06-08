@@ -18,7 +18,7 @@ export default async function SignInPage({
   searchParams?: Promise<{ redirect_url?: string }>;
 }) {
   const params = await searchParams;
-  const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/org");
+  const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/app");
 
   return (
     <AuthPageShell mode="sign-in">
