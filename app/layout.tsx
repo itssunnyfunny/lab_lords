@@ -70,7 +70,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ClerkProvider>{children}</ClerkProvider>
+        <ClerkProvider
+          signInFallbackRedirectUrl="/app"
+          signUpFallbackRedirectUrl="/app"
+          afterSignOutUrl="/"
+        >
+          {children}
+        </ClerkProvider>
         <Suspense fallback={null}>
           <AnalyticsProvider measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
         </Suspense>

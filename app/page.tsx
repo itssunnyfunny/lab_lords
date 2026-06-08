@@ -3,7 +3,6 @@
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { organizations } from "@/lib/api/organizations";
 import { trackEvent } from "@/lib/tracking";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { LandingHero } from "@/components/landing/LandingHero";
@@ -24,34 +23,30 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const handleDashboardClick = async (source = "landing_cta") => {
-    if (!isLoaded) return;
-
+  const trackLandingClick = (source: string) => {
     trackEvent("landing_cta_clicked", {
       source,
       signed_in: isSignedIn,
     });
+  };
+
+  const handleSignInClick = (source = "landing_nav_sign_in") => {
+    if (!isLoaded) return;
+    trackLandingClick(source);
+    router.push(isSignedIn ? "/app" : "/sign-in");
+  };
+
+  const handleWorkspaceClick = (source = "landing_cta") => {
+    if (!isLoaded) return;
+    trackLandingClick(source);
 
     if (!isSignedIn) {
-      router.push("/sign-in");
+      router.push("/sign-up");
       return;
     }
 
     setIsRedirecting(true);
-
-    try {
-      const data = await organizations.getAll();
-
-      if (data.length === 0) {
-        router.push("/onboarding");
-      } else {
-        // For now: 1 user = 1 org, go straight to the org dashboard
-        router.push(`/org/${data[0].id}`);
-      }
-    } catch {
-      // On error, fall through to onboarding so the user isn't stuck
-      router.push("/onboarding");
-    }
+    router.push("/app");
   };
 
   if (isRedirecting) {
@@ -60,14 +55,21 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
 
   return (
     <main className={landingRootClass}>
-      <LandingNavbar onDashboardClick={handleDashboardClick} />
+      <LandingNavbar
+        isSignedIn={isSignedIn}
+        onSignInClick={handleSignInClick}
+        onWorkspaceClick={handleWorkspaceClick}
+      />
       <div className="overflow-hidden">
-        <LandingHero onDashboardClick={handleDashboardClick} />
+        <LandingHero
+          isSignedIn={isSignedIn}
+          onWorkspaceClick={handleWorkspaceClick}
+        />
         <LandingMockup />
       </div>
       <LandingFeatures />
       <LandingHowItWorks />
-      <LandingPricing onDashboardClick={handleDashboardClick} />
+      <LandingPricing onDashboardClick={handleWorkspaceClick} />
       <LandingFooter />
     </main>
   );

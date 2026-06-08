@@ -23,6 +23,8 @@ describe("proxy matcher", () => {
   it.each([
     "https://lablords.in/account",
     "https://lablords.in/account/preferences",
+    "https://lablords.in/app",
+    "https://lablords.in/app/open",
     "https://lablords.in/branch",
     "https://lablords.in/branch/example",
     "https://lablords.in/branch/example/payments",

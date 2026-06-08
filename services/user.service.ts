@@ -27,6 +27,48 @@ const USER_SETTINGS_FIELDS = [
 ] as const;
 
 export class UserService {
+    static async getWorkspaceRoutingState(userId: string) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                organizations: {
+                    select: {
+                        id: true,
+                        createdAt: true,
+                        branches: {
+                            select: {
+                                id: true,
+                                createdAt: true,
+                            },
+                            orderBy: { createdAt: "desc" },
+                        },
+                    },
+                    orderBy: { createdAt: "desc" },
+                },
+                staff: {
+                    select: {
+                        createdAt: true,
+                        branch: {
+                            select: {
+                                id: true,
+                                createdAt: true,
+                            },
+                        },
+                    },
+                    orderBy: { createdAt: "desc" },
+                },
+            },
+        });
+
+        return {
+            ownedOrganizations: user?.organizations ?? [],
+            staffBranches: user?.staff.map(member => ({
+                id: member.branch.id,
+                createdAt: member.createdAt,
+            })) ?? [],
+        };
+    }
+
     static async getUserProfile(userId: string) {
         return prisma.user.findUnique({
             where: { id: userId },
