@@ -22,3 +22,6 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+## 2026-06-09 - Optimizing loop queries in shift.service.ts
+**Learning:** O(N) database queries inside nested loops (e.g. `await tx.seatAllocation.findMany` inside a loop over `sourceAllocations`) in Prisma can severely bottleneck performance during bulk operations like shift auto-reallocation.
+**Action:** Always extract the queries out of loops by pre-fetching the necessary data using batched queries (`in: [ids]`) and load them into a Map for O(1) in-memory lookups instead.
