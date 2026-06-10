@@ -29,6 +29,9 @@ export function LandingNavbar({
           <Link href="#platform" className={landingNavLinkClass}>
             Platform
           </Link>
+          <Link href="#software" className={landingNavLinkClass}>
+            Software
+          </Link>
           <Link href="#workflow" className={landingNavLinkClass}>
             Workflow
           </Link>

@@ -8,6 +8,7 @@ import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingMockup } from "@/components/landing/LandingMockup";
 import { LandingFeatures } from "@/components/landing/LandingFeatures";
+import { LandingSoftware } from "@/components/landing/LandingSoftware";
 import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
 import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFooter } from "@/components/landing/LandingFooter";
@@ -68,6 +69,7 @@ function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
         <LandingMockup />
       </div>
       <LandingFeatures />
+      <LandingSoftware />
       <LandingHowItWorks />
       <LandingPricing onDashboardClick={handleWorkspaceClick} />
       <LandingFooter />

@@ -45,6 +45,13 @@ describe("proxy matcher", () => {
     "https://lablords.in/terms",
     "https://lablords.in/cookies",
     "https://lablords.in/support",
+    "https://lablords.in/software/study-hall-management",
+    "https://lablords.in/software/library-management",
+    "https://lablords.in/software/seat-management",
+    "https://lablords.in/software/student-fee-management",
+    "https://lablords.in/software/fee-reminder",
+    "https://lablords.in/software/coaching-management",
+    "https://lablords.in/software/tuition-management",
   ])("keeps public page %s accessible without authentication", url => {
     expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true);
     expect(isProtectedRoute(new NextRequest(url))).toBe(false);

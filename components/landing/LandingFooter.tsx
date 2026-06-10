@@ -8,13 +8,18 @@ import {
   landingSubtleTextClass,
 } from "@/components/ui/landingSurface";
 import { LandingReveal } from "@/components/landing/LandingReveal";
+import {
+  getSoftwarePagePath,
+  softwarePageSlugs,
+  softwarePages,
+} from "@/lib/softwarePages";
 
 export function LandingFooter() {
   return (
     <footer className="relative z-10 overflow-hidden border-t border-[color:var(--ui-panel-header-border)] bg-[color:var(--bg-app)] py-10">
       <span className="landing-section-glow bottom-0 right-[20%] h-40 w-40 bg-cyan-400/10 [animation-delay:2s]" aria-hidden="true" />
       <div className={`${landingContainerClass} relative`}>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
           <LandingReveal variant="left" className="max-w-md">
             <AppLogo className="mb-4" />
             <p className={`${landingMutedTextClass} text-sm leading-6`}>
@@ -25,22 +30,35 @@ export function LandingFooter() {
           <LandingReveal delay={100} variant="up" className="md:min-w-44">
             <h4 className="mb-4 font-semibold text-[color:var(--text-primary)]">Product</h4>
             <ul className="space-y-3">
-              <li><a href="#platform" className={landingNavLinkClass}>Platform</a></li>
-              <li><a href="#features" className={landingNavLinkClass}>Capabilities</a></li>
-              <li><a href="#workflow" className={landingNavLinkClass}>Workflow</a></li>
+              <li><Link href="/#platform" className={landingNavLinkClass}>Platform</Link></li>
+              <li><Link href="/#features" className={landingNavLinkClass}>Capabilities</Link></li>
+              <li><Link href="/#workflow" className={landingNavLinkClass}>Workflow</Link></li>
             </ul>
           </LandingReveal>
 
           <LandingReveal delay={180} variant="up" className="md:min-w-44">
-            <h4 className="mb-4 font-semibold text-[color:var(--text-primary)]">Business</h4>
+            <h4 className="mb-4 font-semibold text-[color:var(--text-primary)]">Software</h4>
             <ul className="space-y-3">
-              <li><a href="#pricing" className={landingNavLinkClass}>Pricing</a></li>
-              <li><a href="#platform" className={landingNavLinkClass}>Branch control</a></li>
-              <li><a href="#features" className={landingNavLinkClass}>AI review</a></li>
+              {softwarePageSlugs.map(slug => (
+                <li key={slug}>
+                  <Link href={getSoftwarePagePath(slug)} className={landingNavLinkClass}>
+                    {softwarePages[slug].shortName}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </LandingReveal>
 
           <LandingReveal delay={220} variant="up" className="md:min-w-44">
+            <h4 className="mb-4 font-semibold text-[color:var(--text-primary)]">Business</h4>
+            <ul className="space-y-3">
+              <li><Link href="/#pricing" className={landingNavLinkClass}>Pricing</Link></li>
+              <li><Link href="/#platform" className={landingNavLinkClass}>Branch control</Link></li>
+              <li><Link href="/#features" className={landingNavLinkClass}>AI review</Link></li>
+            </ul>
+          </LandingReveal>
+
+          <LandingReveal delay={260} variant="up" className="md:min-w-44">
             <h4 className="mb-4 font-semibold text-[color:var(--text-primary)]">Trust</h4>
             <ul className="space-y-3">
               <li><Link href="/privacy" className={landingNavLinkClass}>Privacy</Link></li>
@@ -51,7 +69,7 @@ export function LandingFooter() {
           </LandingReveal>
         </div>
 
-        <LandingReveal delay={280} className="mt-8 flex flex-col gap-2 border-t border-[color:var(--ui-panel-header-border)] pt-6 text-sm md:flex-row md:items-center md:justify-between">
+        <LandingReveal delay={320} className="mt-8 flex flex-col gap-2 border-t border-[color:var(--ui-panel-header-border)] pt-6 text-sm md:flex-row md:items-center md:justify-between">
           <p className={landingSubtleTextClass}>
             &copy; {new Date().getFullYear()} Lab Lords. All rights reserved.
           </p>
