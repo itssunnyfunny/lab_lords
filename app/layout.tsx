@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+import { getGoogleAnalyticsBootstrapScript } from "@/lib/tracking";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { Suspense } from "react";
 import "./globals.css";
 
@@ -80,8 +82,21 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
   return (
     <html lang="en" className="dark">
+      <head>
+        {measurementId && (
+          <Script
+            id="google-analytics-consent-default"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{
+              __html: getGoogleAnalyticsBootstrapScript(measurementId),
+            }}
+          />
+        )}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -92,8 +107,15 @@ export default function RootLayout({
         >
           {children}
         </ClerkProvider>
+        {measurementId && (
+          <Script
+            id="google-analytics"
+            src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+            strategy="afterInteractive"
+          />
+        )}
         <Suspense fallback={null}>
-          <AnalyticsProvider measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+          <AnalyticsProvider measurementId={measurementId} />
         </Suspense>
       </body>
     </html>
