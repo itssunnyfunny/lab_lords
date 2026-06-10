@@ -24,6 +24,17 @@ export const metadata: Metadata = {
     template: "%s | Lab Lords",
   },
   description: siteConfig.description,
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   alternates: {
     canonical: absoluteUrl("/"),
   },
@@ -42,21 +53,27 @@ export const metadata: Metadata = {
     description: siteConfig.description,
     images: [
       {
-        url: "/icon.png",
-        width: 512,
-        height: 512,
-        alt: "Lab Lords logo",
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Lab Lords - Study Hall & Coaching Management Software",
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Lab Lords | Branch OS for Education Operators",
     description: siteConfig.description,
-    images: ["/icon.png"],
+    images: ["/twitter-image.png"],
   },
   icons: {
-    icon: "/icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "1024x1024" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", type: "image/png", sizes: "180x180" },
+    ],
   },
 };
 
