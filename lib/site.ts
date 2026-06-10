@@ -1,7 +1,8 @@
 export const siteConfig = {
   name: "Lab Lords",
   shortName: "Lab Lords",
-  description: "Micro-ERP for offline education businesses that run seats, shifts, fees, staff permissions, and owner-approved AI follow-ups.",
+  homeTitle: "Lab Lords — Study Hall & Library Management Software",
+  description: "Manage seats, shifts, students, fees, dues, staff, and branches for study halls, libraries, coaching centres, and tuition centres in India.",
   url: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://lablords.in").replace(/\/$/, ""),
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "lablords.in@gmail.com",
 };
