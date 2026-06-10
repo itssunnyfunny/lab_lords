@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   applicationName: siteConfig.name,
   title: {
-    default: "Lab Lords | Branch OS for Education Operators",
+    default: siteConfig.homeTitle,
     template: "%s | Lab Lords",
   },
   description: siteConfig.description,
@@ -49,31 +49,29 @@ export const metadata: Metadata = {
     type: "website",
     url: absoluteUrl("/"),
     siteName: siteConfig.name,
-    title: "Lab Lords | Branch OS for Education Operators",
+    title: siteConfig.homeTitle,
     description: siteConfig.description,
     images: [
       {
         url: "/opengraph-image.png",
         width: 1200,
         height: 630,
-        alt: "Lab Lords - Study Hall & Coaching Management Software",
+        alt: "Lab Lords - Study Hall & Library Management Software",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Lab Lords | Branch OS for Education Operators",
+    title: siteConfig.homeTitle,
     description: siteConfig.description,
     images: ["/twitter-image.png"],
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png", type: "image/png", sizes: "1024x1024" },
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
     ],
-    apple: [
-      { url: "/apple-icon.png", type: "image/png", sizes: "180x180" },
-    ],
+    apple: [{ url: "/apple-icon.png" }],
   },
 };
 

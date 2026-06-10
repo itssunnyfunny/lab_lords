@@ -37,7 +37,7 @@ const heroMetrics = [
     icon: CreditCard,
   },
   {
-    label: "AI drafts",
+    label: "Follow-up drafts",
     value: "14",
     detail: "Ready for owner review",
     tone: "text-[color:var(--ui-tone-warning-text)]",
@@ -50,7 +50,7 @@ const sceneNavItems = [
   { label: "Students" },
   { label: "Seats" },
   { label: "Payments" },
-  { label: "AI queue" },
+  { label: "Review queue" },
 ];
 
 const seatCells = Array.from({ length: 48 }, (_, index) => index);
@@ -70,7 +70,7 @@ const timeline = [
 const trustItems = [
   { value: "Branch-first", label: "Every record stays scoped to the right location.", delay: "[animation-delay:520ms]" },
   { value: "Shift-safe", label: "Seat conflicts are blocked before they reach staff.", delay: "[animation-delay:620ms]" },
-  { value: "Human-led AI", label: "Drafts and insights wait for owner approval.", delay: "[animation-delay:720ms]" },
+  { value: "Owner control", label: "Messages and insights wait for owner approval.", delay: "[animation-delay:720ms]" },
 ];
 
 function HeroDashboardScene() {
@@ -86,7 +86,7 @@ function HeroDashboardScene() {
             <div className="flex items-center gap-3">
               <LogoMark className="h-9 w-9" title="" />
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Lab Lords Branch OS</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">Lab Lords operations</p>
                 <p className="text-sm font-semibold text-[color:var(--text-primary)]">Downtown Branch</p>
               </div>
             </div>
@@ -245,19 +245,18 @@ export function LandingHero({
       <div className="pointer-events-none absolute inset-y-0 left-0 w-[72%] bg-[linear-gradient(90deg,var(--bg-app)_0%,rgba(5,5,8,0.96)_55%,rgba(5,5,8,0.38)_82%,transparent_100%)]" />
 
       <div className={`${landingContainerClass} relative z-10 flex min-h-[calc(100svh-16rem)] flex-col justify-center py-8 sm:py-10 lg:min-h-[500px] xl:min-h-[500px]`}>
-        <div className="max-w-2xl">
+        <div className="max-w-3xl">
           <div className="landing-reveal mb-5 inline-flex items-center gap-2 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[rgba(6,182,212,0.14)] px-3 py-1.5 text-[color:var(--ui-badge-cyan-text)] shadow-[0_0_34px_rgba(6,182,212,0.12)] backdrop-blur-md">
             <ShieldCheck size={14} />
-            <span className={landingEyebrowClass}>Micro-ERP for offline education operators</span>
+            <span className={landingEyebrowClass}>Operations software for offline education</span>
           </div>
 
-          <h1 className="max-w-2xl text-5xl font-semibold tracking-tight text-[color:var(--text-primary)] [text-shadow:0_16px_50px_rgba(0,0,0,0.95)] sm:text-6xl">
-            <span className="landing-reveal block [animation-delay:90ms]">Lab Lords</span>
-            <span className="landing-reveal block [animation-delay:170ms]">Branch OS</span>
+          <h1 className="landing-reveal max-w-3xl text-4xl font-semibold tracking-tight text-[color:var(--text-primary)] [animation-delay:90ms] [text-shadow:0_16px_50px_rgba(0,0,0,0.95)] sm:text-5xl">
+            Management software for study halls, libraries, coaching centres, and tuition businesses.
           </h1>
 
-          <p className={`${landingDescriptionClass} landing-reveal mt-4 max-w-lg text-base text-slate-300 [animation-delay:270ms] sm:text-lg`}>
-            Run seats, shifts, fee dues, staff permissions, and owner-approved AI follow-ups from one readable command center.
+          <p className={`${landingDescriptionClass} landing-reveal mt-4 max-w-2xl text-base text-slate-300 [animation-delay:270ms] sm:text-lg`}>
+            Lab Lords helps offline education businesses manage seats, shifts, students, fees, dues, staff, and branches from one simple dashboard.
           </p>
 
           <div className="landing-reveal mt-7 flex flex-col gap-3 [animation-delay:380ms] sm:flex-row">
@@ -292,7 +291,7 @@ export function LandingHero({
           </span>
           <span className="inline-flex items-center gap-2">
             <MessageSquareText size={14} className="text-[color:var(--ui-tone-warning-text)]" />
-            14 owner-approved drafts
+            14 drafts ready for review
           </span>
         </div>
       </div>
