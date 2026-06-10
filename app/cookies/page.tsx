@@ -16,7 +16,7 @@ const sections: LegalSection[] = [
   },
   {
     title: "Analytics cookies",
-    body: "Analytics cookies help us understand page views and product usage patterns so we can improve reliability and user experience. These are loaded only after you accept optional analytics cookies.",
+    body: "Google Analytics loads with analytics storage denied by default. Before you choose, Google may receive limited cookieless consent and measurement pings, but Lab Lords does not allow analytics cookies to be written. Analytics cookies and full page-view measurement are enabled only after you accept optional analytics.",
   },
   {
     title: "Managing choices",
