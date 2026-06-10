@@ -1,15 +1,16 @@
 "use client";
 
-import Script from "next/script";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   COOKIE_CONSENT_CHANGE_EVENT,
   CookieConsent,
   getStoredCookieConsent,
-  initializeGoogleAnalytics,
+  isPublicAnalyticsPage,
   setStoredCookieConsent,
   trackPageView,
+  updateGoogleAnalyticsConsent,
 } from "@/lib/tracking";
 
 type AnalyticsProviderProps = {
@@ -20,6 +21,7 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [showPreferences, setShowPreferences] = useState(false);
+  const appliedConsent = useRef<CookieConsent | null>(null);
   const consent = useSyncExternalStore(
     subscribeToCookieConsent,
     getStoredCookieConsent,
@@ -40,63 +42,73 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
     };
   }, []);
 
-  const analyticsReady = consent === "accepted" && Boolean(measurementId);
+  useEffect(() => {
+    if (!measurementId || consent === null || appliedConsent.current === consent) return;
+
+    updateGoogleAnalyticsConsent(consent);
+    appliedConsent.current = consent;
+
+    if (consent === "accepted") {
+      trackPageView(pagePath);
+    }
+  }, [consent, measurementId, pagePath]);
 
   useEffect(() => {
-    if (!analyticsReady || !measurementId) return;
-    initializeGoogleAnalytics(measurementId);
-  }, [analyticsReady, measurementId]);
-
-  useEffect(() => {
-    if (!analyticsReady) return;
+    if (!measurementId || consent !== "accepted") return;
     trackPageView(pagePath);
-  }, [analyticsReady, pagePath]);
+  }, [consent, measurementId, pagePath]);
 
   const saveConsent = (nextConsent: CookieConsent) => {
+    updateGoogleAnalyticsConsent(nextConsent);
+    appliedConsent.current = nextConsent;
+
+    if (nextConsent === "accepted") {
+      trackPageView(pagePath);
+    }
+
     setStoredCookieConsent(nextConsent);
     setShowPreferences(false);
   };
 
-  const shouldShowBanner = showPreferences || consent === null;
-  const analyticsEnabled = consent === "accepted" && Boolean(measurementId);
+  const shouldShowBanner =
+    Boolean(measurementId) &&
+    isPublicAnalyticsPage(pathname) &&
+    (showPreferences || consent === null);
 
   return (
     <>
-      {analyticsEnabled && (
-        <Script
-          id="google-analytics"
-          src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-          strategy="afterInteractive"
-        />
-      )}
-
       {shouldShowBanner && (
-        <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-[color:var(--ui-panel-border)] bg-[color:var(--bg-app)]/95 px-4 py-4 shadow-[0_-20px_70px_rgba(0,0,0,0.38)] backdrop-blur-xl sm:px-6">
-          <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-sm font-semibold text-[color:var(--text-primary)]">Cookie preferences</p>
-              <p className="mt-1 text-sm leading-6 text-[color:var(--text-secondary)]">
-                Lab Lords uses essential cookies for sign-in and optional analytics cookies to understand page usage. You can accept or reject optional analytics at any time.
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                className="inline-flex h-10 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-4 text-sm font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)]"
-                onClick={() => saveConsent("rejected")}
-              >
-                Reject optional
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-10 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-4 text-sm font-semibold text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] transition-colors hover:bg-[color:var(--ui-button-primary-hover-bg)]"
-                onClick={() => saveConsent("accepted")}
-              >
-                Accept analytics
-              </button>
-            </div>
+        <aside
+          aria-label="Cookie preferences"
+          className="fixed inset-x-4 bottom-4 z-[80] mx-auto max-w-2xl rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--bg-app)]/95 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl sm:left-auto sm:right-5 sm:mx-0 sm:p-5"
+        >
+          <p className="text-sm leading-6 text-[color:var(--text-secondary)]">
+            We use essential cookies to run Lab Lords and optional analytics to understand website usage.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-3.5 text-sm font-semibold text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] transition-colors hover:bg-[color:var(--ui-button-primary-hover-bg)]"
+              onClick={() => saveConsent("accepted")}
+            >
+              Accept analytics
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3.5 text-sm font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)]"
+              onClick={() => saveConsent("rejected")}
+            >
+              Reject
+            </button>
+            <Link
+              href="/cookies"
+              className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] px-3 text-sm font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
+              onClick={() => setShowPreferences(false)}
+            >
+              Manage
+            </Link>
           </div>
-        </div>
+        </aside>
       )}
     </>
   );

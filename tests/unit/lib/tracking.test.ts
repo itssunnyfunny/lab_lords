@@ -1,47 +1,63 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  initializeGoogleAnalytics,
+  getGoogleAnalyticsBootstrapScript,
+  isPublicAnalyticsPage,
   trackPageView,
+  updateGoogleAnalyticsConsent,
 } from "@/lib/tracking";
 
 describe("Google Analytics tracking", () => {
+  let cookieWrites: string[];
+
   beforeEach(() => {
+    cookieWrites = [];
+    const dataLayer: unknown[] = [];
     vi.stubGlobal("window", {
-      dataLayer: undefined,
-      gtag: undefined,
+      dataLayer,
+      gtag: (...args: unknown[]) => dataLayer.push(args),
+      labLordsGaConsent: undefined,
       labLordsGaMeasurementId: undefined,
       labLordsGaPagePath: undefined,
       location: {
         href: "https://example.com/",
+        hostname: "example.com",
       },
     });
-    vi.stubGlobal("document", {
+    const documentStub = {
+      cookie: "",
       title: "Lab Lords",
+    };
+    Object.defineProperty(documentStub, "cookie", {
+      get: () => "_ga=client-id; _ga_TEST=session-id; essential=kept",
+      set: (value: string) => cookieWrites.push(value),
     });
+    vi.stubGlobal("document", documentStub);
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("initializes a measurement ID only once", () => {
-    initializeGoogleAnalytics("G-TEST123");
-    initializeGoogleAnalytics("G-TEST123");
+  it("updates analytics consent while keeping advertising consent denied", () => {
+    updateGoogleAnalyticsConsent("accepted");
+    updateGoogleAnalyticsConsent("rejected");
 
-    expect(window.dataLayer).toHaveLength(2);
-    expect(Array.from(window.dataLayer?.[0] as ArrayLike<unknown>)).toEqual([
-      "js",
-      expect.any(Date),
-    ]);
-    expect(Array.from(window.dataLayer?.[1] as ArrayLike<unknown>)).toEqual([
-      "config",
-      "G-TEST123",
-      { send_page_view: false },
+    expect(window.dataLayer).toEqual([
+      [
+        "consent",
+        "update",
+        { analytics_storage: "granted" },
+      ],
+      [
+        "consent",
+        "update",
+        { analytics_storage: "denied" },
+      ],
     ]);
   });
 
-  it("tracks the first page and App Router path changes without duplicates", () => {
-    initializeGoogleAnalytics("G-TEST123");
+  it("tracks accepted page views and App Router path changes without duplicates", () => {
+    updateGoogleAnalyticsConsent("accepted");
 
     trackPageView("/");
     trackPageView("/");
@@ -50,7 +66,7 @@ describe("Google Analytics tracking", () => {
 
     expect(
       window.dataLayer
-        ?.slice(2)
+        ?.slice(1)
         .map((entry) => Array.from(entry as ArrayLike<unknown>))
     ).toEqual([
       [
@@ -81,5 +97,39 @@ describe("Google Analytics tracking", () => {
         },
       ],
     ]);
+  });
+
+  it("does not track page views while analytics storage is denied", () => {
+    window.labLordsGaConsent = "rejected";
+
+    trackPageView("/");
+
+    expect(window.dataLayer).toHaveLength(0);
+  });
+
+  it("expires existing Google Analytics cookies when consent is rejected", () => {
+    updateGoogleAnalyticsConsent("rejected");
+
+    expect(cookieWrites).toContain("_ga=; Max-Age=0; Path=/; SameSite=Lax");
+    expect(cookieWrites).toContain("_ga_TEST=; Max-Age=0; Path=/; SameSite=Lax");
+    expect(cookieWrites.some(cookie => cookie.startsWith("essential="))).toBe(false);
+  });
+
+  it("places denied consent before config in the bootstrap script", () => {
+    const script = getGoogleAnalyticsBootstrapScript("G-TEST123");
+
+    expect(script).toContain('"analytics_storage":"denied"');
+    expect(script).toContain('"ad_user_data":"denied"');
+    expect(script.indexOf('"consent", "default"')).toBeLessThan(
+      script.indexOf('"config", measurementId')
+    );
+  });
+
+  it("shows consent controls only on public marketing and legal routes", () => {
+    expect(isPublicAnalyticsPage("/")).toBe(true);
+    expect(isPublicAnalyticsPage("/cookies")).toBe(true);
+    expect(isPublicAnalyticsPage("/software/library-management")).toBe(true);
+    expect(isPublicAnalyticsPage("/app")).toBe(false);
+    expect(isPublicAnalyticsPage("/branch/branch-1")).toBe(false);
   });
 });
