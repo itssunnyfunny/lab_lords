@@ -12,18 +12,15 @@ declare global {
 
 const RESERVED_PREFIX = "lab_lords";
 const GOOGLE_ANALYTICS_COOKIE_PREFIX = "_ga";
-const PUBLIC_ANALYTICS_PATHS = new Set([
-  "/",
-  "/cookies",
-  "/privacy",
-  "/support",
-  "/terms",
-]);
 const DENIED_CONSENT = {
   analytics_storage: "denied",
   ad_storage: "denied",
   ad_user_data: "denied",
   ad_personalization: "denied",
+} as const;
+const GRANTED_ANALYTICS_CONSENT = {
+  ...DENIED_CONSENT,
+  analytics_storage: "granted",
 } as const;
 const GOOGLE_ANALYTICS_CONFIG = {
   send_page_view: false,
@@ -36,41 +33,71 @@ export const COOKIE_CONSENT_CHANGE_EVENT = `${COOKIE_CONSENT_KEY}_changed`;
 
 export type CookieConsent = "accepted" | "rejected";
 
+let fallbackCookieConsent: CookieConsent | null = null;
+
 export function getStoredCookieConsent(): CookieConsent | null {
   if (typeof window === "undefined") return null;
 
-  const value = window.localStorage.getItem(COOKIE_CONSENT_KEY);
-  return value === "accepted" || value === "rejected" ? value : null;
+  try {
+    const value = window.localStorage.getItem(COOKIE_CONSENT_KEY);
+    if (value === "accepted" || value === "rejected") {
+      fallbackCookieConsent = value;
+    }
+  } catch {
+    // Some privacy modes disable localStorage. Keep consent usable for this page session.
+  }
+
+  return fallbackCookieConsent;
 }
 
 export function setStoredCookieConsent(consent: CookieConsent) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(COOKIE_CONSENT_KEY, consent);
+
+  fallbackCookieConsent = consent;
+
+  try {
+    window.localStorage.setItem(COOKIE_CONSENT_KEY, consent);
+  } catch {
+    // The in-memory fallback still lets the user dismiss the prompt for this page session.
+  }
+
   window.dispatchEvent(new Event(COOKIE_CONSENT_CHANGE_EVENT));
 }
 
-export function getGoogleAnalyticsBootstrapScript(measurementId: string) {
-  const serializedMeasurementId = JSON.stringify(measurementId);
-  const serializedDeniedConsent = JSON.stringify(DENIED_CONSENT);
-  const serializedConfig = JSON.stringify(GOOGLE_ANALYTICS_CONFIG);
+export function enableGoogleAnalytics(measurementId: string) {
+  if (
+    typeof window === "undefined" ||
+    typeof document === "undefined" ||
+    !measurementId
+  ) return;
 
-  return `
-(function () {
-  var measurementId = ${serializedMeasurementId};
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = window.gtag || function gtag() {
-    window.dataLayer.push(arguments);
+  window.dataLayer = window.dataLayer ?? [];
+  window.gtag = window.gtag ?? function gtag() {
+    // Google Tag expects the native arguments object in its data layer.
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer?.push(arguments);
   };
-  window.labLordsGaConsent = "rejected";
-  window.labLordsGaMeasurementId = measurementId;
-  window.labLordsGaPagePath = undefined;
-  window.gtag("consent", "default", ${serializedDeniedConsent});
-  window.gtag("set", "ads_data_redaction", true);
-  window.gtag("set", "url_passthrough", false);
-  window.gtag("js", new Date());
-  window.gtag("config", measurementId, ${serializedConfig});
-})();
-  `.trim();
+
+  if (window.labLordsGaMeasurementId !== measurementId) {
+    window.labLordsGaMeasurementId = measurementId;
+    window.labLordsGaPagePath = undefined;
+    window.labLordsGaConsent = "accepted";
+    window.gtag("consent", "default", GRANTED_ANALYTICS_CONSENT);
+    window.gtag("set", "ads_data_redaction", true);
+    window.gtag("set", "url_passthrough", false);
+    window.gtag("js", new Date());
+    window.gtag("config", measurementId, GOOGLE_ANALYTICS_CONFIG);
+  } else {
+    updateGoogleAnalyticsConsent("accepted");
+  }
+
+  if (document.getElementById("google-analytics")) return;
+
+  const script = document.createElement("script");
+  script.id = "google-analytics";
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+  document.head.appendChild(script);
 }
 
 export function updateGoogleAnalyticsConsent(consent: CookieConsent) {
@@ -147,10 +174,6 @@ export function clearGoogleAnalyticsCookies() {
       expireCookie(name, domain);
     }
   }
-}
-
-export function isPublicAnalyticsPage(pathname: string) {
-  return PUBLIC_ANALYTICS_PATHS.has(pathname) || pathname.startsWith("/software/");
 }
 
 function expireCookie(name: string, domain?: string) {

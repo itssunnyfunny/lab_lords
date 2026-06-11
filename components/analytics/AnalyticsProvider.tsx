@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   COOKIE_CONSENT_CHANGE_EVENT,
   CookieConsent,
+  enableGoogleAnalytics,
   getStoredCookieConsent,
-  isPublicAnalyticsPage,
   setStoredCookieConsent,
   trackPageView,
   updateGoogleAnalyticsConsent,
@@ -21,7 +21,6 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [showPreferences, setShowPreferences] = useState(false);
-  const appliedConsent = useRef<CookieConsent | null>(null);
   const consent = useSyncExternalStore(
     subscribeToCookieConsent,
     getStoredCookieConsent,
@@ -43,15 +42,15 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   }, []);
 
   useEffect(() => {
-    if (!measurementId || consent === null || appliedConsent.current === consent) return;
-
-    updateGoogleAnalyticsConsent(consent);
-    appliedConsent.current = consent;
+    if (!measurementId || consent === null) return;
 
     if (consent === "accepted") {
-      trackPageView(pagePath);
+      enableGoogleAnalytics(measurementId);
+      return;
     }
-  }, [consent, measurementId, pagePath]);
+
+    updateGoogleAnalyticsConsent("rejected");
+  }, [consent, measurementId]);
 
   useEffect(() => {
     if (!measurementId || consent !== "accepted") return;
@@ -59,20 +58,12 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   }, [consent, measurementId, pagePath]);
 
   const saveConsent = (nextConsent: CookieConsent) => {
-    updateGoogleAnalyticsConsent(nextConsent);
-    appliedConsent.current = nextConsent;
-
-    if (nextConsent === "accepted") {
-      trackPageView(pagePath);
-    }
-
     setStoredCookieConsent(nextConsent);
     setShowPreferences(false);
   };
 
   const shouldShowBanner =
     Boolean(measurementId) &&
-    isPublicAnalyticsPage(pathname) &&
     (showPreferences || consent === null);
 
   return (

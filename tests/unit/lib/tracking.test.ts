@@ -1,23 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  getGoogleAnalyticsBootstrapScript,
-  isPublicAnalyticsPage,
+  enableGoogleAnalytics,
+  getStoredCookieConsent,
+  setStoredCookieConsent,
   trackPageView,
   updateGoogleAnalyticsConsent,
 } from "@/lib/tracking";
 
 describe("Google Analytics tracking", () => {
   let cookieWrites: string[];
+  let appendedScripts: Array<Record<string, unknown>>;
 
   beforeEach(() => {
     cookieWrites = [];
+    appendedScripts = [];
     const dataLayer: unknown[] = [];
     vi.stubGlobal("window", {
       dataLayer,
+      dispatchEvent: vi.fn(),
       gtag: (...args: unknown[]) => dataLayer.push(args),
       labLordsGaConsent: undefined,
       labLordsGaMeasurementId: undefined,
       labLordsGaPagePath: undefined,
+      localStorage: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(),
+      },
       location: {
         href: "https://example.com/",
         hostname: "example.com",
@@ -25,6 +33,11 @@ describe("Google Analytics tracking", () => {
     });
     const documentStub = {
       cookie: "",
+      createElement: vi.fn(() => ({})),
+      getElementById: vi.fn(() => null),
+      head: {
+        appendChild: vi.fn(script => appendedScripts.push(script)),
+      },
       title: "Lab Lords",
     };
     Object.defineProperty(documentStub, "cookie", {
@@ -115,21 +128,42 @@ describe("Google Analytics tracking", () => {
     expect(cookieWrites.some(cookie => cookie.startsWith("essential="))).toBe(false);
   });
 
-  it("places denied consent before config in the bootstrap script", () => {
-    const script = getGoogleAnalyticsBootstrapScript("G-TEST123");
+  it("loads Google Analytics only after analytics consent is enabled", () => {
+    enableGoogleAnalytics("G-TEST123");
 
-    expect(script).toContain('"analytics_storage":"denied"');
-    expect(script).toContain('"ad_user_data":"denied"');
-    expect(script.indexOf('"consent", "default"')).toBeLessThan(
-      script.indexOf('"config", measurementId')
-    );
+    expect(window.dataLayer?.slice(0, 2)).toEqual([
+      [
+        "consent",
+        "default",
+        {
+          analytics_storage: "granted",
+          ad_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+        },
+      ],
+      ["set", "ads_data_redaction", true],
+    ]);
+    expect(appendedScripts).toEqual([
+      expect.objectContaining({
+        id: "google-analytics",
+        async: true,
+        src: "https://www.googletagmanager.com/gtag/js?id=G-TEST123",
+      }),
+    ]);
   });
 
-  it("shows consent controls only on public marketing and legal routes", () => {
-    expect(isPublicAnalyticsPage("/")).toBe(true);
-    expect(isPublicAnalyticsPage("/cookies")).toBe(true);
-    expect(isPublicAnalyticsPage("/software/library-management")).toBe(true);
-    expect(isPublicAnalyticsPage("/app")).toBe(false);
-    expect(isPublicAnalyticsPage("/branch/branch-1")).toBe(false);
+  it("keeps consent usable when localStorage is unavailable", () => {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get: () => {
+        throw new DOMException("Storage is blocked", "SecurityError");
+      },
+    });
+
+    setStoredCookieConsent("accepted");
+
+    expect(getStoredCookieConsent()).toBe("accepted");
+    expect(window.dispatchEvent).toHaveBeenCalledOnce();
   });
 });
