@@ -12,13 +12,6 @@ declare global {
 
 const RESERVED_PREFIX = "lab_lords";
 const GOOGLE_ANALYTICS_COOKIE_PREFIX = "_ga";
-const PUBLIC_ANALYTICS_PATHS = new Set([
-  "/",
-  "/cookies",
-  "/privacy",
-  "/support",
-  "/terms",
-]);
 const DENIED_CONSENT = {
   analytics_storage: "denied",
   ad_storage: "denied",
@@ -36,16 +29,34 @@ export const COOKIE_CONSENT_CHANGE_EVENT = `${COOKIE_CONSENT_KEY}_changed`;
 
 export type CookieConsent = "accepted" | "rejected";
 
+let fallbackCookieConsent: CookieConsent | null = null;
+
 export function getStoredCookieConsent(): CookieConsent | null {
   if (typeof window === "undefined") return null;
 
-  const value = window.localStorage.getItem(COOKIE_CONSENT_KEY);
-  return value === "accepted" || value === "rejected" ? value : null;
+  try {
+    const value = window.localStorage.getItem(COOKIE_CONSENT_KEY);
+    if (value === "accepted" || value === "rejected") {
+      fallbackCookieConsent = value;
+    }
+  } catch {
+    // Some privacy modes disable localStorage. Keep consent usable for this page session.
+  }
+
+  return fallbackCookieConsent;
 }
 
 export function setStoredCookieConsent(consent: CookieConsent) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(COOKIE_CONSENT_KEY, consent);
+
+  fallbackCookieConsent = consent;
+
+  try {
+    window.localStorage.setItem(COOKIE_CONSENT_KEY, consent);
+  } catch {
+    // The in-memory fallback still lets the user dismiss the prompt for this page session.
+  }
+
   window.dispatchEvent(new Event(COOKIE_CONSENT_CHANGE_EVENT));
 }
 
@@ -147,10 +158,6 @@ export function clearGoogleAnalyticsCookies() {
       expireCookie(name, domain);
     }
   }
-}
-
-export function isPublicAnalyticsPage(pathname: string) {
-  return PUBLIC_ANALYTICS_PATHS.has(pathname) || pathname.startsWith("/software/");
 }
 
 function expireCookie(name: string, domain?: string) {

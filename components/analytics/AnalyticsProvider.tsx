@@ -7,7 +7,6 @@ import {
   COOKIE_CONSENT_CHANGE_EVENT,
   CookieConsent,
   getStoredCookieConsent,
-  isPublicAnalyticsPage,
   setStoredCookieConsent,
   trackPageView,
   updateGoogleAnalyticsConsent,
@@ -72,7 +71,6 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
 
   const shouldShowBanner =
     Boolean(measurementId) &&
-    isPublicAnalyticsPage(pathname) &&
     (showPreferences || consent === null);
 
   return (

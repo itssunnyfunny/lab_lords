@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getGoogleAnalyticsBootstrapScript,
-  isPublicAnalyticsPage,
+  getStoredCookieConsent,
+  setStoredCookieConsent,
   trackPageView,
   updateGoogleAnalyticsConsent,
 } from "@/lib/tracking";
@@ -14,10 +15,15 @@ describe("Google Analytics tracking", () => {
     const dataLayer: unknown[] = [];
     vi.stubGlobal("window", {
       dataLayer,
+      dispatchEvent: vi.fn(),
       gtag: (...args: unknown[]) => dataLayer.push(args),
       labLordsGaConsent: undefined,
       labLordsGaMeasurementId: undefined,
       labLordsGaPagePath: undefined,
+      localStorage: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(),
+      },
       location: {
         href: "https://example.com/",
         hostname: "example.com",
@@ -125,11 +131,17 @@ describe("Google Analytics tracking", () => {
     );
   });
 
-  it("shows consent controls only on public marketing and legal routes", () => {
-    expect(isPublicAnalyticsPage("/")).toBe(true);
-    expect(isPublicAnalyticsPage("/cookies")).toBe(true);
-    expect(isPublicAnalyticsPage("/software/library-management")).toBe(true);
-    expect(isPublicAnalyticsPage("/app")).toBe(false);
-    expect(isPublicAnalyticsPage("/branch/branch-1")).toBe(false);
+  it("keeps consent usable when localStorage is unavailable", () => {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get: () => {
+        throw new DOMException("Storage is blocked", "SecurityError");
+      },
+    });
+
+    setStoredCookieConsent("accepted");
+
+    expect(getStoredCookieConsent()).toBe("accepted");
+    expect(window.dispatchEvent).toHaveBeenCalledOnce();
   });
 });
