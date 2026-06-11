@@ -46,24 +46,16 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
 
     updateGoogleAnalyticsConsent(consent);
     appliedConsent.current = consent;
-
-    if (consent === "accepted") {
-      trackPageView(pagePath);
-    }
-  }, [consent, measurementId, pagePath]);
+  }, [consent, measurementId]);
 
   useEffect(() => {
-    if (!measurementId || consent !== "accepted") return;
+    if (!measurementId) return;
     trackPageView(pagePath);
-  }, [consent, measurementId, pagePath]);
+  }, [measurementId, pagePath]);
 
   const saveConsent = (nextConsent: CookieConsent) => {
     updateGoogleAnalyticsConsent(nextConsent);
     appliedConsent.current = nextConsent;
-
-    if (nextConsent === "accepted") {
-      trackPageView(pagePath);
-    }
 
     setStoredCookieConsent(nextConsent);
     setShowPreferences(false);

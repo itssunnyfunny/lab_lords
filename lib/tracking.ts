@@ -24,7 +24,7 @@ const GOOGLE_ANALYTICS_CONFIG = {
   allow_ad_personalization_signals: false,
 } as const;
 
-export const COOKIE_CONSENT_KEY = `${RESERVED_PREFIX}_cookie_consent`;
+export const COOKIE_CONSENT_KEY = `${RESERVED_PREFIX}_cookie_consent_v2`;
 export const COOKIE_CONSENT_CHANGE_EVENT = `${COOKIE_CONSENT_KEY}_changed`;
 
 export type CookieConsent = "accepted" | "rejected";
@@ -99,11 +99,7 @@ export function updateGoogleAnalyticsConsent(consent: CookieConsent) {
 }
 
 export function trackPageView(path: string, title?: string) {
-  if (
-    typeof window === "undefined" ||
-    !window.gtag ||
-    window.labLordsGaConsent !== "accepted"
-  ) return;
+  if (typeof window === "undefined" || !window.gtag) return;
   if (window.labLordsGaPagePath === path) return;
 
   window.labLordsGaPagePath = path;

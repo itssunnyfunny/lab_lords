@@ -3,6 +3,7 @@ import {
   getGoogleAnalyticsBootstrapScript,
   getStoredCookieConsent,
   setStoredCookieConsent,
+  trackEvent,
   trackPageView,
   updateGoogleAnalyticsConsent,
 } from "@/lib/tracking";
@@ -105,10 +106,28 @@ describe("Google Analytics tracking", () => {
     ]);
   });
 
-  it("does not track page views while analytics storage is denied", () => {
+  it("sends cookieless page views while analytics storage is denied", () => {
     window.labLordsGaConsent = "rejected";
 
     trackPageView("/");
+
+    expect(window.dataLayer).toEqual([
+      [
+        "event",
+        "page_view",
+        {
+          page_path: "/",
+          page_location: "https://example.com/",
+          page_title: "Lab Lords",
+        },
+      ],
+    ]);
+  });
+
+  it("keeps custom analytics events disabled until consent is accepted", () => {
+    window.labLordsGaConsent = "rejected";
+
+    trackEvent("pricing_viewed", { plan: "Growth" });
 
     expect(window.dataLayer).toHaveLength(0);
   });
