@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  enableGoogleAnalytics,
+  getGoogleAnalyticsBootstrapScript,
   getStoredCookieConsent,
   setStoredCookieConsent,
   trackPageView,
@@ -9,11 +9,9 @@ import {
 
 describe("Google Analytics tracking", () => {
   let cookieWrites: string[];
-  let appendedScripts: Array<Record<string, unknown>>;
 
   beforeEach(() => {
     cookieWrites = [];
-    appendedScripts = [];
     const dataLayer: unknown[] = [];
     vi.stubGlobal("window", {
       dataLayer,
@@ -33,11 +31,6 @@ describe("Google Analytics tracking", () => {
     });
     const documentStub = {
       cookie: "",
-      createElement: vi.fn(() => ({})),
-      getElementById: vi.fn(() => null),
-      head: {
-        appendChild: vi.fn(script => appendedScripts.push(script)),
-      },
       title: "Lab Lords",
     };
     Object.defineProperty(documentStub, "cookie", {
@@ -128,29 +121,14 @@ describe("Google Analytics tracking", () => {
     expect(cookieWrites.some(cookie => cookie.startsWith("essential="))).toBe(false);
   });
 
-  it("loads Google Analytics only after analytics consent is enabled", () => {
-    enableGoogleAnalytics("G-TEST123");
+  it("places denied consent before config in the bootstrap script", () => {
+    const script = getGoogleAnalyticsBootstrapScript("G-TEST123");
 
-    expect(window.dataLayer?.slice(0, 2)).toEqual([
-      [
-        "consent",
-        "default",
-        {
-          analytics_storage: "granted",
-          ad_storage: "denied",
-          ad_user_data: "denied",
-          ad_personalization: "denied",
-        },
-      ],
-      ["set", "ads_data_redaction", true],
-    ]);
-    expect(appendedScripts).toEqual([
-      expect.objectContaining({
-        id: "google-analytics",
-        async: true,
-        src: "https://www.googletagmanager.com/gtag/js?id=G-TEST123",
-      }),
-    ]);
+    expect(script).toContain('"analytics_storage":"denied"');
+    expect(script).toContain('"ad_user_data":"denied"');
+    expect(script.indexOf('"consent", "default"')).toBeLessThan(
+      script.indexOf('"config", measurementId')
+    );
   });
 
   it("keeps consent usable when localStorage is unavailable", () => {

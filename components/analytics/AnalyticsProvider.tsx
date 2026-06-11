@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   COOKIE_CONSENT_CHANGE_EVENT,
   CookieConsent,
-  enableGoogleAnalytics,
   getStoredCookieConsent,
   setStoredCookieConsent,
   trackPageView,
@@ -21,6 +20,7 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [showPreferences, setShowPreferences] = useState(false);
+  const appliedConsent = useRef<CookieConsent | null>(null);
   const consent = useSyncExternalStore(
     subscribeToCookieConsent,
     getStoredCookieConsent,
@@ -42,15 +42,15 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   }, []);
 
   useEffect(() => {
-    if (!measurementId || consent === null) return;
+    if (!measurementId || consent === null || appliedConsent.current === consent) return;
+
+    updateGoogleAnalyticsConsent(consent);
+    appliedConsent.current = consent;
 
     if (consent === "accepted") {
-      enableGoogleAnalytics(measurementId);
-      return;
+      trackPageView(pagePath);
     }
-
-    updateGoogleAnalyticsConsent("rejected");
-  }, [consent, measurementId]);
+  }, [consent, measurementId, pagePath]);
 
   useEffect(() => {
     if (!measurementId || consent !== "accepted") return;
@@ -58,6 +58,13 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   }, [consent, measurementId, pagePath]);
 
   const saveConsent = (nextConsent: CookieConsent) => {
+    updateGoogleAnalyticsConsent(nextConsent);
+    appliedConsent.current = nextConsent;
+
+    if (nextConsent === "accepted") {
+      trackPageView(pagePath);
+    }
+
     setStoredCookieConsent(nextConsent);
     setShowPreferences(false);
   };

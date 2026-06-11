@@ -16,7 +16,7 @@ const sections: LegalSection[] = [
   },
   {
     title: "Analytics cookies",
-    body: "Google Analytics is not loaded and analytics measurement is not sent until you accept optional analytics. If you reject analytics, Lab Lords does not load Google Analytics and removes existing Google Analytics cookies for this site.",
+    body: "Google Analytics loads with analytics storage denied by default. Before you choose, Google may receive limited cookieless consent and measurement pings, but Lab Lords does not allow analytics cookies to be written. Analytics cookies and full page-view measurement are enabled only after you accept optional analytics.",
   },
   {
     title: "Managing choices",

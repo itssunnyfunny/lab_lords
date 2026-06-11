@@ -18,10 +18,6 @@ const DENIED_CONSENT = {
   ad_user_data: "denied",
   ad_personalization: "denied",
 } as const;
-const GRANTED_ANALYTICS_CONSENT = {
-  ...DENIED_CONSENT,
-  analytics_storage: "granted",
-} as const;
 const GOOGLE_ANALYTICS_CONFIG = {
   send_page_view: false,
   allow_google_signals: false,
@@ -64,40 +60,28 @@ export function setStoredCookieConsent(consent: CookieConsent) {
   window.dispatchEvent(new Event(COOKIE_CONSENT_CHANGE_EVENT));
 }
 
-export function enableGoogleAnalytics(measurementId: string) {
-  if (
-    typeof window === "undefined" ||
-    typeof document === "undefined" ||
-    !measurementId
-  ) return;
+export function getGoogleAnalyticsBootstrapScript(measurementId: string) {
+  const serializedMeasurementId = JSON.stringify(measurementId);
+  const serializedDeniedConsent = JSON.stringify(DENIED_CONSENT);
+  const serializedConfig = JSON.stringify(GOOGLE_ANALYTICS_CONFIG);
 
-  window.dataLayer = window.dataLayer ?? [];
-  window.gtag = window.gtag ?? function gtag() {
-    // Google Tag expects the native arguments object in its data layer.
-    // eslint-disable-next-line prefer-rest-params
-    window.dataLayer?.push(arguments);
+  return `
+(function () {
+  var measurementId = ${serializedMeasurementId};
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function gtag() {
+    window.dataLayer.push(arguments);
   };
-
-  if (window.labLordsGaMeasurementId !== measurementId) {
-    window.labLordsGaMeasurementId = measurementId;
-    window.labLordsGaPagePath = undefined;
-    window.labLordsGaConsent = "accepted";
-    window.gtag("consent", "default", GRANTED_ANALYTICS_CONSENT);
-    window.gtag("set", "ads_data_redaction", true);
-    window.gtag("set", "url_passthrough", false);
-    window.gtag("js", new Date());
-    window.gtag("config", measurementId, GOOGLE_ANALYTICS_CONFIG);
-  } else {
-    updateGoogleAnalyticsConsent("accepted");
-  }
-
-  if (document.getElementById("google-analytics")) return;
-
-  const script = document.createElement("script");
-  script.id = "google-analytics";
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
-  document.head.appendChild(script);
+  window.labLordsGaConsent = "rejected";
+  window.labLordsGaMeasurementId = measurementId;
+  window.labLordsGaPagePath = undefined;
+  window.gtag("consent", "default", ${serializedDeniedConsent});
+  window.gtag("set", "ads_data_redaction", true);
+  window.gtag("set", "url_passthrough", false);
+  window.gtag("js", new Date());
+  window.gtag("config", measurementId, ${serializedConfig});
+})();
+  `.trim();
 }
 
 export function updateGoogleAnalyticsConsent(consent: CookieConsent) {

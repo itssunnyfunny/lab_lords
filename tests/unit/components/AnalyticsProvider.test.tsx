@@ -22,7 +22,6 @@ describe("AnalyticsProvider", () => {
       );
 
       expect(html).toContain('aria-label="Cookie preferences"');
-      expect(html).not.toContain("googletagmanager.com");
     }
   );
 
