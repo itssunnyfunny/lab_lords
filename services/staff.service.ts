@@ -366,33 +366,34 @@ export class StaffService {
                 });
             }
 
-            for (const update of permissionUpdates) {
-                if (update.allowed === null) {
-                    await tx.staffPermissionOverride.deleteMany({
-                        where: {
-                            staffId,
-                            action: update.permissionAction,
-                        },
-                    });
-                    continue;
-                }
+            if (permissionUpdates.length > 0) {
+                // ⚡ Bolt: Optimizing bulk staff permission updates.
+                // Impact: Replaced N queries (upsert/deleteMany in loop) with two O(1) queries (deleteMany + createMany).
 
-                await tx.staffPermissionOverride.upsert({
+                const actionsToUpdate = permissionUpdates.map((u) => u.permissionAction);
+
+                // Step 1: Remove all existing overrides for the actions being updated
+                await tx.staffPermissionOverride.deleteMany({
                     where: {
-                        staffId_action: {
-                            staffId,
-                            action: update.permissionAction,
-                        },
-                    },
-                    create: {
                         staffId,
-                        action: update.permissionAction,
-                        allowed: update.allowed,
-                    },
-                    update: {
-                        allowed: update.allowed,
+                        action: { in: actionsToUpdate },
                     },
                 });
+
+                // Step 2: Insert the new non-null overrides
+                const overridesToCreate = permissionUpdates
+                    .filter((u) => u.allowed !== null)
+                    .map((u) => ({
+                        staffId,
+                        action: u.permissionAction,
+                        allowed: u.allowed as boolean,
+                    }));
+
+                if (overridesToCreate.length > 0) {
+                    await tx.staffPermissionOverride.createMany({
+                        data: overridesToCreate,
+                    });
+                }
             }
 
             return tx.staff.findUniqueOrThrow({
