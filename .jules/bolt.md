@@ -22,3 +22,7 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+
+## $(date +%Y-%m-%d) - Optimize bulk shift reassignment validation queries
+**Learning:** In the `shift.service.ts` `resolveOvercapacity` bulk reassignment branch, validating individual student allocations within a loop using `findMany` results in an N+1 query bottleneck, especially when reassigning many students at once.
+**Action:** Replace sequential DB fetches in loops with a single batch DB query (`findMany` with `in` clause) before the loop. Use in-memory processing (`filter()`) on the batched results during iteration to eliminate the N+1 problem and drastically reduce DB overhead.
