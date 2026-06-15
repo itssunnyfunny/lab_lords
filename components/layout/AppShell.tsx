@@ -19,6 +19,10 @@ import {
     chromeMutedTextClass,
     chromeOverlayClass,
 } from "@/components/ui/chromeSurface";
+import {
+    accountMenuClerkAppearance,
+    accountProfileClerkAppearance,
+} from "@/components/ui/entrySurface";
 
 interface User {
     name: string;
@@ -139,7 +143,11 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                         >
                             <AccountSummary user={user} />
                         </button>
-                        <UserButton />
+                        <UserButton
+                            appearance={accountMenuClerkAppearance}
+                            userProfileMode="modal"
+                            userProfileProps={{ appearance: accountProfileClerkAppearance }}
+                        />
                     </div>
                 </header>
 

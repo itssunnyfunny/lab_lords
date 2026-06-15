@@ -7,6 +7,10 @@ import {
   landingNavLinkClass,
   landingPrimaryButtonClass,
 } from "@/components/ui/landingSurface";
+import {
+  accountMenuClerkAppearance,
+  accountProfileClerkAppearance,
+} from "@/components/ui/entrySurface";
 
 export function LandingNavbar({
   isSignedIn,
@@ -68,7 +72,13 @@ export function LandingNavbar({
             )}
             <ArrowRight size={14} />
           </button>
-          {isSignedIn && <UserButton />}
+          {isSignedIn && (
+            <UserButton
+              appearance={accountMenuClerkAppearance}
+              userProfileMode="modal"
+              userProfileProps={{ appearance: accountProfileClerkAppearance }}
+            />
+          )}
         </div>
       </div>
     </nav>
