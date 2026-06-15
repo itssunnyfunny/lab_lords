@@ -26,19 +26,21 @@ export const entryPrimaryLinkClass =
 export const entrySecondaryLinkClass =
     "inline-flex h-10 items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-5 text-sm font-semibold text-[color:var(--ui-button-secondary-text)] shadow-[var(--ui-button-secondary-shadow)] transition-colors hover:border-[color:var(--ui-button-secondary-hover-border)] hover:bg-[color:var(--ui-button-secondary-hover-bg)]";
 
+const clerkThemeVariables = {
+    colorPrimary: "#67e8f9",
+    colorBackground: "#0f111a",
+    colorInputBackground: "#171a24",
+    colorInputText: "#f9fafb",
+    colorText: "#f9fafb",
+    colorTextSecondary: "#b6bdc9",
+    colorDanger: "#fca5a5",
+    colorNeutral: "#a8b0bd",
+    borderRadius: "12px",
+    fontFamily: "inherit",
+};
+
 export const entryClerkAppearance = {
-    variables: {
-        colorPrimary: "#67e8f9",
-        colorBackground: "#0f111a",
-        colorInputBackground: "#171a24",
-        colorInputText: "#f9fafb",
-        colorText: "#f9fafb",
-        colorTextSecondary: "#b6bdc9",
-        colorDanger: "#fca5a5",
-        colorNeutral: "#a8b0bd",
-        borderRadius: "12px",
-        fontFamily: "inherit",
-    },
+    variables: clerkThemeVariables,
     elements: {
         rootBox: "w-full",
         cardBox: "w-full shadow-none",
@@ -91,5 +93,68 @@ export const entryClerkAppearance = {
             "font-medium !text-cyan-300 hover:!text-cyan-200",
         formResendCodeLink:
             "font-medium !text-cyan-300 hover:!text-cyan-200",
+    },
+};
+
+export const accountMenuClerkAppearance = {
+    variables: clerkThemeVariables,
+    elements: {
+        avatarBox:
+            "h-9 w-9 rounded-full ring-1 ring-white/15 transition-shadow hover:ring-cyan-300/45 focus-visible:ring-2 focus-visible:ring-cyan-300/60",
+        userButtonPopoverCard:
+            "rounded-xl !border !border-white/10 !bg-[#0f111a] shadow-[0_24px_70px_rgba(0,0,0,0.48)]",
+        userButtonPopoverMain: "!bg-[#0f111a]",
+        userButtonPopoverActionButton:
+            "rounded-lg !text-slate-200 transition-colors hover:!bg-white/[0.06] hover:!text-white",
+        userButtonPopoverActionButtonIcon: "!text-slate-400",
+        userButtonPopoverActionButtonText: "font-medium",
+        userPreviewMainIdentifier: "!text-white",
+        userPreviewSecondaryIdentifier: "!text-slate-400",
+        userButtonPopoverFooter: "!border-white/10 !bg-[#0b0d14]",
+        userButtonPopoverFooterPages: "!text-slate-500",
+        userButtonPopoverFooterPagesLink: "!text-slate-400 hover:!text-slate-200",
+    },
+};
+
+export const accountProfileClerkAppearance = {
+    variables: clerkThemeVariables,
+    elements: {
+        modalBackdrop: "!bg-black/75 backdrop-blur-sm",
+        modalContent:
+            "overflow-hidden rounded-2xl !border !border-white/10 !bg-[#0f111a] shadow-[0_28px_90px_rgba(0,0,0,0.58)]",
+        cardBox: "shadow-none",
+        card:
+            "rounded-2xl !border !border-white/10 !bg-[#0f111a] shadow-[0_28px_90px_rgba(0,0,0,0.52)]",
+        navbar: "!border-white/10 !bg-[#0b0d14]",
+        navbarButton:
+            "rounded-lg !text-slate-400 transition-colors hover:!bg-white/[0.05] hover:!text-white",
+        navbarButtonIcon: "!text-slate-500",
+        navbarMobileMenuButton:
+            "rounded-lg !border-white/10 !bg-white/[0.04] !text-slate-200 hover:!bg-white/[0.08]",
+        pageScrollBox: "!bg-[#0f111a]",
+        page: "gap-6 !bg-[#0f111a]",
+        headerTitle: "!text-white",
+        headerSubtitle: "!text-slate-400",
+        profileSection: "rounded-xl !border-white/10 !bg-white/[0.025]",
+        profileSectionTitle: "!border-white/10",
+        profileSectionTitleText: "!text-slate-100",
+        profileSectionContent: "!border-white/10",
+        profileSectionPrimaryButton:
+            "rounded-lg !border-white/15 !bg-white/[0.04] !text-cyan-300 hover:!border-white/25 hover:!bg-white/[0.08] hover:!text-cyan-200",
+        profileSectionItem: "!border-white/10",
+        profileSectionItemText: "!text-slate-200",
+        profileSectionItemAction: "!text-cyan-300 hover:!text-cyan-200",
+        formFieldLabel: "!text-slate-200",
+        formFieldInput:
+            "rounded-xl !border-white/15 !bg-[#171a24] !text-white placeholder:!text-slate-500 focus:!border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/15",
+        formButtonPrimary:
+            "rounded-xl !border-cyan-200/70 !bg-cyan-300 font-semibold !text-slate-950 hover:!bg-cyan-200",
+        formButtonReset:
+            "rounded-xl !text-slate-300 hover:!bg-white/[0.05] hover:!text-white",
+        badge: "!border-white/10 !bg-white/[0.05] !text-slate-300",
+        alert: "rounded-xl !border-red-400/30 !bg-red-400/10",
+        alertText: "!text-red-200",
+        modalCloseButton:
+            "rounded-lg !text-slate-400 hover:!bg-white/[0.06] hover:!text-white",
     },
 };
