@@ -180,6 +180,7 @@ export class StaffService {
             return {
                 branchId,
                 branchName: branch.name,
+                organizationId: branch.organizationId,
                 isOwner: true,
                 role: "OWNER",
                 permissions: buildOwnerPermissions(),
@@ -210,6 +211,7 @@ export class StaffService {
         return {
             branchId,
             branchName: branch.name,
+            organizationId: branch.organizationId,
             isOwner: false,
             role: staffMember.role,
             staffId: staffMember.id,
