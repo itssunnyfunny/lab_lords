@@ -31,14 +31,8 @@ function timeValue(value: DateLike) {
     return new Date(value).getTime() || 0;
 }
 
-function collectAccessibleBranches(state: WorkspaceRoutingState) {
+function collectStaffBranches(state: WorkspaceRoutingState) {
     const branchesById = new Map<string, WorkspaceRoutingBranch>();
-
-    for (const org of state.ownedOrganizations) {
-        for (const branch of org.branches) {
-            branchesById.set(branch.id, branch);
-        }
-    }
 
     for (const branch of state.staffBranches) {
         const existing = branchesById.get(branch.id);
@@ -53,29 +47,30 @@ function collectAccessibleBranches(state: WorkspaceRoutingState) {
 }
 
 export function resolveWorkspacePath(state: WorkspaceRoutingState) {
-    const accessibleBranches = collectAccessibleBranches(state);
-    const accessibleBranchIds = new Set(accessibleBranches.map(branch => branch.id));
-    const lastBranchId = normalizeLastBranchHint(state.lastBranchId);
-
-    if (lastBranchId && accessibleBranchIds.has(lastBranchId)) {
-        return `/branch/${lastBranchId}`;
-    }
-
-    if (accessibleBranches.length === 1) {
-        return `/branch/${accessibleBranches[0].id}`;
-    }
-
-    if (accessibleBranches.length === 0) {
-        return "/onboarding";
-    }
-
-    if (state.ownedOrganizations.length === 1) {
-        return `/org/${state.ownedOrganizations[0].id}`;
-    }
-
     if (state.ownedOrganizations.length > 1) {
         return "/org";
     }
 
-    return `/branch/${accessibleBranches[0].id}`;
+    if (state.ownedOrganizations.length === 1) {
+        const organization = state.ownedOrganizations[0];
+
+        if (organization.branches.length === 1) {
+            return `/branch/${organization.branches[0].id}`;
+        }
+
+        return `/org/${organization.id}`;
+    }
+
+    const staffBranches = collectStaffBranches(state);
+    if (staffBranches.length === 0) {
+        return "/onboarding";
+    }
+
+    const staffBranchIds = new Set(staffBranches.map(branch => branch.id));
+    const lastBranchId = normalizeLastBranchHint(state.lastBranchId);
+    if (lastBranchId && staffBranchIds.has(lastBranchId)) {
+        return `/branch/${lastBranchId}`;
+    }
+
+    return `/branch/${staffBranches[0].id}`;
 }

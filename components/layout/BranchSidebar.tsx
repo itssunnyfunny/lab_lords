@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    ArrowLeft,
     BarChart2,
     CalendarCheck,
     CalendarClock,
@@ -123,15 +124,28 @@ export function BranchSidebar() {
                 </div>
             </div>
 
-            {canSee("manage_branch") && (
+            {(access?.isOwner || canSee("manage_branch")) && (
                 <div className={chromeSidebarFooterClass}>
-                    <SidebarItem
-                        icon={Settings}
-                        label="Branch Settings"
-                        isActive={pathname === `${basePath}/settings`}
-                        onClick={() => router.push(`${basePath}/settings`)}
-                        density="compact"
-                    />
+                    <div className="space-y-2">
+                        {access?.isOwner && (
+                            <SidebarItem
+                                icon={ArrowLeft}
+                                label="Back to organization"
+                                isActive={false}
+                                onClick={() => router.push(`/org/${access.organizationId}`)}
+                                density="compact"
+                            />
+                        )}
+                        {canSee("manage_branch") && (
+                            <SidebarItem
+                                icon={Settings}
+                                label="Branch Settings"
+                                isActive={pathname === `${basePath}/settings`}
+                                onClick={() => router.push(`${basePath}/settings`)}
+                                density="compact"
+                            />
+                        )}
+                    </div>
                 </div>
             )}
         </div>

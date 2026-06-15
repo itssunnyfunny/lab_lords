@@ -33,7 +33,8 @@ const mockBranch = (ownerId: string) =>
   prisma.branch.findUnique = vi.fn().mockResolvedValue({
     id: "branch_1",
     name: "Test Branch",
-    organization: { ownerId },
+    organizationId: "org_1",
+    organization: { id: "org_1", ownerId },
   } as never);
 
 const mockStaff = (
@@ -176,6 +177,7 @@ describe("StaffService.getBranchAccess()", () => {
     expect(access).toMatchObject({
       branchId: "branch_1",
       branchName: "Test Branch",
+      organizationId: "org_1",
       isOwner: true,
       role: "OWNER",
     });
@@ -197,6 +199,7 @@ describe("StaffService.getBranchAccess()", () => {
     expect(access).toMatchObject({
       branchId: "branch_1",
       branchName: "Test Branch",
+      organizationId: "org_1",
       isOwner: false,
       role: "STAFF",
       staffId: "staff_1",

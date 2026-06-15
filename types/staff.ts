@@ -36,6 +36,7 @@ export type BranchAccessRole = "OWNER" | StaffRole;
 export type BranchAccess = {
     branchId: string;
     branchName: string;
+    organizationId: string;
     isOwner: boolean;
     role: BranchAccessRole;
     staffId?: string;

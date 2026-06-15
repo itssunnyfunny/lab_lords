@@ -140,9 +140,11 @@ describe("StaffService Integration", () => {
       const staffAccess = await StaffService.getBranchAccess(staffUser.id, branch.id);
 
       expect(ownerAccess.isOwner).toBe(true);
+      expect(ownerAccess.organizationId).toBe(branch.organizationId);
       expect(ownerAccess.role).toBe("OWNER");
       expect(ownerAccess.permissions.staff_management).toBe(true);
       expect(staffAccess.isOwner).toBe(false);
+      expect(staffAccess.organizationId).toBe(branch.organizationId);
       expect(staffAccess.role).toBe("STAFF");
       expect(staffAccess.permissions.students).toBe(true);
       expect(staffAccess.permissions.analytics).toBe(true);
