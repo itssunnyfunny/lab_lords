@@ -9,6 +9,7 @@ import {
     validateRequiredText,
     validateShiftDrafts,
 } from "@/lib/formValidation";
+import { checkRateLimit, getRequestRateLimitKey } from "@/lib/rateLimit";
 
 function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : "Failed to complete setup";
@@ -19,6 +20,18 @@ export async function POST(req: Request) {
         const user = await getSessionUser();
         if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const rateLimit = checkRateLimit(
+            getRequestRateLimitKey(req, "onboarding", user.id),
+            { limit: 3, windowMs: 60 * 1000 } // Limit to 3 onboarding attempts per minute
+        );
+
+        if (!rateLimit.allowed) {
+            return NextResponse.json(
+                { error: "Too many requests. Please try again later." },
+                { status: 429, headers: { "Retry-After": rateLimit.retryAfter.toString() } }
+            );
         }
 
         const body = await req.json();
