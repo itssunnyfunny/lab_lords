@@ -22,7 +22,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { orgName, ownerPhone, businessType, branchName, city, defaultFee, seatCount, shifts } = body;
+        const { orgName, ownerPhone, businessType, branchName, city, defaultFee, seatCount, shifts, includeFullTimeMultiShift } = body;
 
         const orgNameResult = validateRequiredText(orgName, "Organization name", 120);
         if (!orgNameResult.ok) return NextResponse.json({ error: orgNameResult.error }, { status: 400 });
@@ -40,6 +40,9 @@ export async function POST(req: Request) {
         if (!seatCountResult.ok) return NextResponse.json({ error: seatCountResult.error }, { status: 400 });
         const shiftsResult = Array.isArray(shifts) ? validateShiftDrafts(shifts) : { ok: true as const, value: undefined };
         if (!shiftsResult.ok) return NextResponse.json({ error: shiftsResult.error }, { status: 400 });
+        if (includeFullTimeMultiShift !== undefined && typeof includeFullTimeMultiShift !== "boolean") {
+            return NextResponse.json({ error: "Full Time multi-shift selection is invalid." }, { status: 400 });
+        }
 
         const result = await OnboardingService.createNetwork({
             userId: user.id,
@@ -55,6 +58,7 @@ export async function POST(req: Request) {
             },
             seatCount: seatCountResult.value,
             shifts: shiftsResult.value,
+            includeFullTimeMultiShift,
         });
 
         return NextResponse.json(result, { status: 201 });
