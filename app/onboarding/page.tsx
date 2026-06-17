@@ -27,7 +27,7 @@ import {
     formSurfaceHoverClass,
 } from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
-import { ArrowLeft, ArrowRight, Building2, CheckCircle2, LayoutDashboard, MapPin, Phone, Plus, UploadCloud, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CheckCircle2, Layers, LayoutDashboard, MapPin, Phone, Plus, UploadCloud, X } from "lucide-react";
 import { LogoMark } from "@/components/brand/AppLogo";
 import { apiClient } from "@/lib/api/core";
 import {
@@ -55,6 +55,21 @@ interface OnboardingResponse {
 
 type FieldKey = "orgName" | "ownerPhone" | "businessType" | "branchName" | "city" | "seatCount" | "shifts";
 type OnboardingStep = 1 | 2 | 3;
+
+const DEFAULT_ONBOARDING_SHIFTS: OnboardingShiftDraft[] = [
+    { name: "Morning", startTime: "06:00", endTime: "09:59", price: 0 },
+    { name: "Afternoon", startTime: "10:00", endTime: "15:59", price: 0 },
+    { name: "Evening", startTime: "16:00", endTime: "21:59", price: 0 },
+];
+
+const DEFAULT_FULL_TIME_MULTI_SHIFT = {
+    name: "Full Time",
+    price: 0,
+} as const;
+
+function normalizedShiftName(value: string) {
+    return value.trim().toLowerCase();
+}
 
 const stepItems = [
     { step: 1, label: "Organization", description: "Business identity and owner contact" },
@@ -94,11 +109,8 @@ export default function OnboardingPage() {
         branchName: "",
         city: "",
         seatCount: "",
-        shifts: [
-            { name: "Morning", startTime: "06:00", endTime: "09:59", price: 0 },
-            { name: "Afternoon", startTime: "10:00", endTime: "15:59", price: 0 },
-            { name: "Evening", startTime: "16:00", endTime: "21:59", price: 0 },
-        ] as OnboardingShiftDraft[],
+        shifts: DEFAULT_ONBOARDING_SHIFTS,
+        includeFullTimeMultiShift: true,
     });
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -128,6 +140,14 @@ export default function OnboardingPage() {
         setFormData(prev => ({
             ...prev,
             shifts: prev.shifts.filter((_, i) => i !== index),
+        }));
+    };
+
+    const removeFullTimeMultiShift = () => {
+        markTouched("shifts");
+        setFormData(prev => ({
+            ...prev,
+            includeFullTimeMultiShift: false,
         }));
     };
 
@@ -207,6 +227,7 @@ export default function OnboardingPage() {
                 city: cityResult.value,
                 seatCount: seatCountResult.value,
                 shifts: shiftsResult.value,
+                includeFullTimeMultiShift: formData.includeFullTimeMultiShift,
             }) as OnboardingResponse;
 
             setCreatedBranchId(res.branch.id);
@@ -230,6 +251,11 @@ export default function OnboardingPage() {
         if (!createdBranchId) return;
         router.push(`/branch/${createdBranchId}`);
     };
+
+    const defaultShiftNames = new Set(formData.shifts.map(shift => normalizedShiftName(shift.name)));
+    const fullTimeComponentNames = DEFAULT_ONBOARDING_SHIFTS.map(shift => shift.name);
+    const showFullTimeMultiShift = formData.includeFullTimeMultiShift
+        && fullTimeComponentNames.every(name => defaultShiftNames.has(normalizedShiftName(name)));
 
     return (
         <div className={cn(entryRootClass, "items-start py-8 sm:items-center")}>
@@ -433,6 +459,9 @@ export default function OnboardingPage() {
                                     </div>
 
                                     <div className="space-y-3">
+                                        <p className={cn("text-xs font-semibold uppercase tracking-wide", formHelpTextClass)}>
+                                            Primary shifts
+                                        </p>
                                         {formData.shifts.map((shift, idx) => (
                                             <div key={idx} className={cn("flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:gap-2", formSurfaceClass)}>
                                                 <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-12 sm:gap-2">
@@ -489,6 +518,60 @@ export default function OnboardingPage() {
                                             </div>
                                         ))}
                                     </div>
+
+                                    {showFullTimeMultiShift && (
+                                        <div className="space-y-3 pt-1">
+                                            <p className={cn("text-xs font-semibold uppercase tracking-wide", formHelpTextClass)}>
+                                                Multi-shift
+                                            </p>
+                                            <div className={cn("flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:gap-3", formSurfaceClass)}>
+                                                <div className="flex min-w-0 flex-1 items-start gap-3">
+                                                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]">
+                                                        <Layers size={15} />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                            <div>
+                                                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                                                                    {DEFAULT_FULL_TIME_MULTI_SHIFT.name}
+                                                                </p>
+                                                                <p className={cn("mt-1 text-xs", formHelpTextClass)}>
+                                                                    Combines all default primary shifts for full-day access.
+                                                                </p>
+                                                            </div>
+                                                            <div className="relative w-full sm:w-24">
+                                                                <span className={cn("absolute left-0 top-1 text-xs", formIconClass)}>Rs.</span>
+                                                                <input
+                                                                    type="number"
+                                                                    value={DEFAULT_FULL_TIME_MULTI_SHIFT.price}
+                                                                    readOnly
+                                                                    aria-label="Full Time multi-shift price"
+                                                                    className={cn(formInlineControlClass, "py-1 pl-6 text-sm")}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        {fullTimeComponentNames.length > 0 && (
+                                                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                                                {fullTimeComponentNames.map((name, index) => (
+                                                                    <span key={`${name}-${index}`} className="rounded border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2 py-1 text-[10px] font-semibold text-[color:var(--ui-form-help)]">
+                                                                        {name}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={removeFullTimeMultiShift}
+                                                    className={cn("self-end transition-colors hover:text-[color:var(--ui-form-error-text)] sm:mt-1", formHelpTextClass)}
+                                                    aria-label="Remove Full Time multi-shift"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <FieldError id="onboarding-shifts-error" error={shiftsError} />
                                 </div>
 
