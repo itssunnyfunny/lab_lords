@@ -26,6 +26,7 @@ interface CreateNetworkParams {
         defaultFee?: number;
     };
     seatCount?: number;
+    includeFullTimeMultiShift?: boolean;
     shifts?: {
         name: string;
         startTime: string | null;
@@ -96,7 +97,8 @@ export class OnboardingService {
             const shiftsToCreate = shiftsResult?.ok && shiftsResult.value.length > 0
                 ? shiftsResult.value
                 : DEFAULT_PRIMARY_SHIFTS;
-            const shouldCreateDefaultFullTime = includesDefaultPrimaryShiftNames(shiftsToCreate);
+            const shouldCreateDefaultFullTime = params.includeFullTimeMultiShift !== false
+                && includesDefaultPrimaryShiftNames(shiftsToCreate);
 
             // ⚡ Bolt: Bulk shift creation to prevent N+1 query problem during network setup
             if (shiftsToCreate.length > 0) {

@@ -79,6 +79,19 @@ describe("OnboardingService Integration", () => {
       expect(fullTime?.components.map(component => component.shift.name)).toEqual(["Morning", "Afternoon", "Evening"]);
     });
 
+    it("skips the default Full Time multi-shift when disabled", async () => {
+      const user = await createUser();
+      const { branch } = await OnboardingService.createNetwork({
+        ...baseParams(user.id),
+        includeFullTimeMultiShift: false,
+      });
+
+      const fullTimeCount = await testPrisma.multiShift.count({
+        where: { branchId: branch.id, name: "Full Time" },
+      });
+      expect(fullTimeCount).toBe(0);
+    });
+
     it("creates correct number of seats when seatCount is supplied", async () => {
       const user = await createUser();
       const { branch } = await OnboardingService.createNetwork({
