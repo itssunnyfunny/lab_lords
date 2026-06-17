@@ -22,10 +22,12 @@ import {
     formInlineControlClass,
     formLabelClass,
     formRequiredClass,
+    formSuccessBannerClass,
     formSurfaceClass,
+    formSurfaceHoverClass,
 } from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
-import { ArrowLeft, ArrowRight, Building2, CheckCircle2, MapPin, Phone, Plus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CheckCircle2, LayoutDashboard, MapPin, Phone, Plus, UploadCloud, X } from "lucide-react";
 import { LogoMark } from "@/components/brand/AppLogo";
 import { apiClient } from "@/lib/api/core";
 import {
@@ -52,17 +54,32 @@ interface OnboardingResponse {
 }
 
 type FieldKey = "orgName" | "ownerPhone" | "businessType" | "branchName" | "city" | "seatCount" | "shifts";
+type OnboardingStep = 1 | 2 | 3;
 
 const stepItems = [
     { step: 1, label: "Organization", description: "Business identity and owner contact" },
     { step: 2, label: "First branch", description: "Seats, location, shifts, and pricing" },
+    { step: 3, label: "Import assistance", description: "Import existing records or begin with a clean workspace" },
 ] as const;
+
+const stepHeadings: Record<OnboardingStep, string> = {
+    1: "Organization details",
+    2: "First branch details",
+    3: "Import assistance",
+};
+
+const stepDescriptions: Record<OnboardingStep, string> = {
+    1: "Name the business and add the owner contact used for operations.",
+    2: "Define a usable branch with seats and shifts before entering the dashboard.",
+    3: "Choose whether this branch should begin with imported records or a clean workspace.",
+};
 
 export default function OnboardingPage() {
     const router = useRouter();
-    const [step, setStep] = useState<1 | 2>(1);
+    const [step, setStep] = useState<OnboardingStep>(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [createdBranchId, setCreatedBranchId] = useState<string | null>(null);
     const {
         markTouched,
         markSubmitted,
@@ -192,13 +209,26 @@ export default function OnboardingPage() {
                 shifts: shiftsResult.value,
             }) as OnboardingResponse;
 
-            router.push(`/branch/${res.branch.id}`);
+            setCreatedBranchId(res.branch.id);
+            resetFieldErrors();
+            setStep(3);
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Failed to complete setup. Please try again.";
             console.error("Setup failed", err);
             setError(message);
+        } finally {
             setLoading(false);
         }
+    };
+
+    const openImportAssistant = () => {
+        if (!createdBranchId) return;
+        router.push(`/branch/${createdBranchId}/onboarding/import`);
+    };
+
+    const openCleanWorkspace = () => {
+        if (!createdBranchId) return;
+        router.push(`/branch/${createdBranchId}`);
     };
 
     return (
@@ -211,7 +241,7 @@ export default function OnboardingPage() {
                         </div>
                         <h1 className={cn(entryTitleClass, "mt-5")}>Set up Lab Lords</h1>
                         <p className={cn(entrySubtitleClass, "mt-3")}>
-                            Create the organization and first branch so the dashboard opens with real operational structure.
+                            Create the organization, first branch, and preferred starting point for operational records.
                         </p>
 
                         <div className="mt-8 space-y-3">
@@ -243,15 +273,13 @@ export default function OnboardingPage() {
                     <main className="p-5 sm:p-6 lg:p-8">
                         <div className="mb-6">
                             <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-form-accent)]">
-                                Step {step} of 2
+                                Step {step} of 3
                             </p>
                             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">
-                                {step === 1 ? "Organization details" : "First branch details"}
+                                {stepHeadings[step]}
                             </h2>
                             <p className={cn("mt-2 text-sm leading-6", entryMutedTextClass)}>
-                                {step === 1
-                                    ? "Name the business and add the owner contact used for operations."
-                                    : "Define a usable branch with seats and shifts before entering the dashboard."}
+                                {stepDescriptions[step]}
                             </p>
                         </div>
 
@@ -483,8 +511,74 @@ export default function OnboardingPage() {
                                         rightIcon={loading ? undefined : ArrowRight}
                                         className="sm:min-w-40"
                                     >
-                                        {loading ? "Setting up..." : "Finish setup"}
+                                        {loading ? "Setting up..." : "Create branch"}
                                     </AppButton>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 3 && (
+                            <div className="space-y-5">
+                                <div className={cn("flex items-start gap-3 p-4", formSuccessBannerClass)}>
+                                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold">Organization and branch created</p>
+                                        <p className="mt-1 text-sm leading-6">
+                                            Your branch structure is ready. Select the preferred starting point for operational records.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <button
+                                        type="button"
+                                        onClick={openImportAssistant}
+                                        disabled={!createdBranchId}
+                                        className={cn(
+                                            "group flex h-full flex-col items-start gap-4 p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                                            formSurfaceClass,
+                                            formSurfaceHoverClass
+                                        )}
+                                    >
+                                        <span className={cn(entryIconFrameClass, "h-11 w-11")}>
+                                            <UploadCloud size={20} />
+                                        </span>
+                                        <span>
+                                            <span className="block text-base font-semibold text-[color:var(--text-primary)]">Import existing records</span>
+                                            <span className={cn("mt-2 block text-sm leading-6", entryMutedTextClass)}>
+                                                Bring students, seats, shifts, allocations, and payment records from a spreadsheet or pasted table.
+                                            </span>
+                                        </span>
+                                        <span className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-[color:var(--ui-form-accent)]">
+                                            Open Import Assistant
+                                            <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                                        </span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={openCleanWorkspace}
+                                        disabled={!createdBranchId}
+                                        className={cn(
+                                            "group flex h-full flex-col items-start gap-4 p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                                            formSurfaceClass,
+                                            formSurfaceHoverClass
+                                        )}
+                                    >
+                                        <span className={cn(entryIconFrameClass, "h-11 w-11")}>
+                                            <LayoutDashboard size={20} />
+                                        </span>
+                                        <span>
+                                            <span className="block text-base font-semibold text-[color:var(--text-primary)]">Begin with a clean workspace</span>
+                                            <span className={cn("mt-2 block text-sm leading-6", entryMutedTextClass)}>
+                                                Open the branch with configured seats and shifts, then add records manually as operations begin.
+                                            </span>
+                                        </span>
+                                        <span className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-[color:var(--ui-form-accent)]">
+                                            Go to branch dashboard
+                                            <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
                         )}
