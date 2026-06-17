@@ -57,7 +57,7 @@ export default function ImportAssistantPage({ params }: { params: Promise<{ bran
                         </p>
                     </div>
                     <AppButton variant="quiet" icon={ArrowLeft} onClick={() => router.push(`/branch/${branchId}`)}>
-                        Skip import
+                        Continue with clean workspace
                     </AppButton>
                 </div>
 
