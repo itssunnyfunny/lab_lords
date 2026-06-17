@@ -175,8 +175,8 @@ export class SeatAllocationService {
                 // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
                 const mockAllocation = { shiftId: requestedShift.id, shift: requestedShift };
-                activeSeatAllocations.push(mockAllocation as typeof activeSeatAllocations[0]);
-                activeStudentAllocations.push(mockAllocation as typeof activeStudentAllocations[0]);
+                activeSeatAllocations.push(mockAllocation as unknown as typeof activeSeatAllocations[0]);
+                activeStudentAllocations.push(mockAllocation as unknown as typeof activeStudentAllocations[0]);
 
                 allocationsToCreate.push(allocation);
             }
