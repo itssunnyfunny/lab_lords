@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { StaffService } from "@/services/staff.service";
 import { StudentStatus, SeatAllocationFilters } from "@/types";
-import type { SeatAllocation } from "@/app/generated/prisma/client";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 
 export class SeatAllocationService {
@@ -118,19 +117,15 @@ export class SeatAllocationService {
                 }
             }
 
-            // 6. Load ALL active shifts in branch for conflict lookups
-            const allBranchShifts = await tx.shift.findMany({
-                where: { branchId, status: "ACTIVE" },
-                select: { id: true, name: true, startTime: true, endTime: true },
-            });
-            const shiftTimeMap = new Map(allBranchShifts.map(s => [s.id, s]));
-
             // 7. Load existing active seat allocations (for seat + student conflict checks)
+            // Includes shift times to avoid N+1 or bulk map queries
             const activeSeatAllocations = await tx.seatAllocation.findMany({
                 where: { seatId, endDate: null },
+                include: { shift: { select: { name: true, startTime: true, endTime: true } } }
             });
             const activeStudentAllocations = await tx.seatAllocation.findMany({
                 where: { studentId, endDate: null },
+                include: { shift: { select: { name: true, startTime: true, endTime: true } } }
             });
 
             const allocationsToCreate = [];
@@ -144,11 +139,10 @@ export class SeatAllocationService {
                     if (alloc.shiftId === requestedShift.id) {
                         throw new Error(`Seat is already assigned in shift "${requestedShift.name}".`);
                     }
-                    if (!multiShiftId) {
-                        const existing = shiftTimeMap.get(alloc.shiftId);
-                        if (existing && timesOverlap(newStart, newEnd, parseNullableTime(existing.startTime), parseNullableTime(existing.endTime))) {
+                    if (!multiShiftId && alloc.shift) {
+                        if (timesOverlap(newStart, newEnd, parseNullableTime(alloc.shift.startTime), parseNullableTime(alloc.shift.endTime))) {
                             throw new Error(
-                                `Seat is already occupied during this time (conflict with "${existing.name}")`
+                                `Seat is already occupied during this time (conflict with "${alloc.shift.name}")`
                             );
                         }
                     }
@@ -159,11 +153,10 @@ export class SeatAllocationService {
                     if (alloc.shiftId === requestedShift.id) {
                         throw new Error(`Student already has a seat in shift "${requestedShift.name}".`);
                     }
-                    if (!multiShiftId) {
-                        const existing = shiftTimeMap.get(alloc.shiftId);
-                        if (existing && timesOverlap(newStart, newEnd, parseNullableTime(existing.startTime), parseNullableTime(existing.endTime))) {
+                    if (!multiShiftId && alloc.shift) {
+                        if (timesOverlap(newStart, newEnd, parseNullableTime(alloc.shift.startTime), parseNullableTime(alloc.shift.endTime))) {
                             throw new Error(
-                                `Student is already allocated in an overlapping shift ("${existing.name}")`
+                                `Student is already allocated in an overlapping shift ("${alloc.shift.name}")`
                             );
                         }
                     }
@@ -181,9 +174,9 @@ export class SeatAllocationService {
 
                 // Push mock objects into live arrays so subsequent loop iterations
                 // also see allocations created earlier in this transaction.
-                const mockAllocation = { shiftId: requestedShift.id } as SeatAllocation;
-                activeSeatAllocations.push(mockAllocation);
-                activeStudentAllocations.push(mockAllocation);
+                const mockAllocation = { shiftId: requestedShift.id, shift: requestedShift };
+                activeSeatAllocations.push(mockAllocation as typeof activeSeatAllocations[0]);
+                activeStudentAllocations.push(mockAllocation as typeof activeStudentAllocations[0]);
 
                 allocationsToCreate.push(allocation);
             }

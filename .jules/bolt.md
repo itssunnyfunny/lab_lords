@@ -22,3 +22,6 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+## 2024-05-18 - Avoid Broad DB Table Scans via Relation Includes
+**Learning:** We often fall into the trap of loading an entire branch's subset of data (like all shifts for a branch) into a Map to do O(1) in-memory conflict checking against a list of active allocations. While better than an N+1 query loop, this broad table scan pulls unneeded records and increases DB payload.
+**Action:** Always check if the required relational data (like the shift time window for an allocation) can be resolved directly by adding an `include: { relation: { select: {...} } }` block to the query that fetches the base records (e.g. `activeAllocations`). This avoids building bulk lookup maps entirely and only fetches precisely the related data that is actively needed.
