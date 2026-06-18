@@ -22,3 +22,6 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+## 2024-06-10 - O(1) Batch Operations Over O(N) Loop Upserts
+**Learning:** In `services/staff.service.ts`, individual `deleteMany` and `upsert` calls inside a loop sequentially updated permissions, causing N+1 DB operations.
+**Action:** Replaced loop logic with a single batch `deleteMany` (using `{ in: [...] }`) followed by `createMany` to achieve O(1) operations inside transactions while matching `upsert` semantics exactly.
