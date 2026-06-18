@@ -1,0 +1,4 @@
+## 2025-06-15 - Rate Limiting API Routes in Next.js Serverless Environment
+**Vulnerability:** Missing rate limit on `/api/branches/[branchId]/staff-invites` POST endpoint, exposing it to brute-force and spam attacks.
+**Learning:** Next.js runs in a serverless environment. A simple in-memory `Map` inside `lib/rateLimit.ts` is insufficient for proper global rate limiting because each serverless function invocation may run in an isolated environment without shared state. While it provides basic per-instance limits, it does not guarantee cross-instance protection.
+**Prevention:** For robust rate limiting in a distributed Next.js environment, utilize an external store like Redis (e.g., via Upstash). Ensure that API routes performing sensitive or high-volume actions always implement rate limits.
