@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { StaffInviteService } from "@/services/staffInvite.service";
 import { getSessionUser } from "@/lib/auth";
 import { StaffRole } from "@/types";
+import { checkRateLimit, getRequestRateLimitKey } from "@/lib/rateLimit";
 
 function isStaffRole(role: unknown): role is StaffRole {
     return role === StaffRole.MANAGER || role === StaffRole.STAFF;
@@ -64,6 +65,21 @@ export async function POST(
         const user = await getSessionUser();
         if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const rateLimit = checkRateLimit(
+            getRequestRateLimitKey(req, "staff-invite", user.id),
+            { limit: 10, windowMs: 60 * 60 * 1000 } // 10 requests per hour
+        );
+
+        if (!rateLimit.allowed) {
+            return NextResponse.json(
+                { error: "Too many staff invite requests. Try again later." },
+                {
+                    status: 429,
+                    headers: { "Retry-After": String(rateLimit.retryAfter) },
+                }
+            );
         }
 
         const body = await req.json().catch(() => ({}));
