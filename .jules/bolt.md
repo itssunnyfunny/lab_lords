@@ -22,3 +22,7 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+
+## 2026-06-18 - [N+1 Query and Memory Optimization in Multi-Shift Seat Map]
+**Learning:** Found an O(N) memory overhead in `app/api/branches/[branchId]/multi-shifts/[multiShiftId]/seat-map/route.ts` where all branch shifts were loaded into memory to resolve shift times for seat allocations.
+**Action:** Replaced broad memory lookup array with Prisma's relational `include` to fetch specific required related data alongside base records.

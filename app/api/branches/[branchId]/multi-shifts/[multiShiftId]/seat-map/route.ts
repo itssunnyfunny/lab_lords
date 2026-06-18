@@ -51,20 +51,16 @@ export async function GET(_req: Request, { params }: Params) {
 
         const componentShiftIds = new Set(ms.components.map(c => c.shiftId));
 
-        // All active shifts in branch — needed to resolve time windows of existing allocations
-        const allShifts = await prisma.shift.findMany({
-            where: { branchId, status: "ACTIVE" },
-            select: { id: true, startTime: true, endTime: true },
-        });
-        const shiftTimeMap = new Map(allShifts.map(s => [s.id, s]));
-
         // All seats with their active allocations
         const seats = await prisma.seat.findMany({
             where: { branchId },
             include: {
                 seatAllocations: {
                     where: { endDate: null },
-                    include: { student: { select: { name: true } } },
+                    include: {
+                        student: { select: { name: true } },
+                        shift: { select: { startTime: true, endTime: true } },
+                    },
                 },
             },
             orderBy: { label: "asc" },
@@ -83,7 +79,7 @@ export async function GET(_req: Request, { params }: Params) {
                 }
 
                 // (b) time-overlap with any component shift
-                const allocShift = shiftTimeMap.get(alloc.shiftId);
+                const allocShift = alloc.shift;
                 if (allocShift?.startTime && allocShift?.endTime) {
                     const as = parseTime(allocShift.startTime);
                     const ae = parseTime(allocShift.endTime);
