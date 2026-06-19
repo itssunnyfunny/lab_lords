@@ -135,6 +135,14 @@ export default function BranchDashboardPage({
             setError(null);
 
             try {
+                const ensureResponse = await fetch(`/api/branches/${branchId}/payments/ensure`, {
+                    method: "POST",
+                    cache: "no-store",
+                });
+                if (!ensureResponse.ok) {
+                    throw new Error("Failed to ensure branch payments");
+                }
+
                 const month = format(new Date(), "yyyy-MM");
                 const [snapshot, studentsResult, allocationsResult, monthPayments, overdueResult] =
                     await Promise.all([

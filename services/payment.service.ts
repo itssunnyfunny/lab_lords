@@ -6,6 +6,16 @@ import type { StaffAction } from "@/types";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { addMonths, startOfDay, isBefore, startOfMonth, endOfMonth } from "date-fns";
 
+const STUDENT_GENERATION_BATCH_SIZE = 250;
+const PAYMENT_INSERT_BATCH_SIZE = 1000;
+
+type PaymentGenerationSummary = {
+    generatedCount: number;
+    skippedCount: number;
+    totalStudents: number;
+    updatedBranchIds: string[];
+};
+
 export class PaymentService {
     /**
      * Helper to verify that the user owns the branch via its organization.
@@ -41,18 +51,169 @@ export class PaymentService {
         return branch;
     }
 
+    private static async createPaymentBatch(
+        paymentsToCreate: Prisma.PaymentCreateManyInput[],
+        changedBranchIds: Set<string>,
+        studentsWithCreatedPayments: Set<string>
+    ) {
+        if (paymentsToCreate.length === 0) {
+            return 0;
+        }
 
+        const createdPayments = await prisma.payment.createManyAndReturn({
+            data: paymentsToCreate,
+            skipDuplicates: true,
+            select: {
+                branchId: true,
+                studentId: true,
+            },
+        });
+
+        for (const payment of createdPayments) {
+            changedBranchIds.add(payment.branchId);
+            studentsWithCreatedPayments.add(payment.studentId);
+        }
+
+        return createdPayments.length;
+    }
+
+    private static paymentDueDateKey(studentId: string, dueDate: Date | string) {
+        return `${studentId}:${startOfDay(new Date(dueDate)).toISOString()}`;
+    }
+
+    private static async generateMissingDuePayments(params: {
+        branchId?: string;
+        asOfDate?: Date;
+    }): Promise<PaymentGenerationSummary> {
+        const { branchId, asOfDate = new Date() } = params;
+        const today = startOfDay(asOfDate);
+        const changedBranchIds = new Set<string>();
+        const studentsWithCreatedPayments = new Set<string>();
+
+        let generatedCount = 0;
+        let totalStudents = 0;
+        let cursor: string | undefined;
+        let paymentsToCreate: Prisma.PaymentCreateManyInput[] = [];
+
+        while (true) {
+            const students = await prisma.student.findMany({
+                where: {
+                    ...(branchId ? { branchId } : {}),
+                    status: StudentStatus.ACTIVE,
+                },
+                select: {
+                    id: true,
+                    branchId: true,
+                    joinedAt: true,
+                    monthlyFee: true,
+                },
+                orderBy: { id: "asc" },
+                take: STUDENT_GENERATION_BATCH_SIZE,
+                ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            });
+
+            if (students.length === 0) {
+                break;
+            }
+
+            totalStudents += students.length;
+            cursor = students[students.length - 1].id;
+            const batchPaymentsToCreate: Prisma.PaymentCreateManyInput[] = [];
+
+            for (const student of students) {
+                let month = 1;
+
+                while (true) {
+                    const dueDate = addMonths(student.joinedAt, month);
+                    const dueDateNormalized = startOfDay(dueDate);
+
+                    if (isBefore(today, dueDateNormalized)) break;
+
+                    batchPaymentsToCreate.push({
+                        branchId: student.branchId,
+                        studentId: student.id,
+                        amount: student.monthlyFee,
+                        status: PaymentStatus.DUE,
+                        type: PaymentType.MONTHLY,
+                        periodStart: startOfDay(addMonths(student.joinedAt, month - 1)),
+                        periodEnd: dueDate,
+                        dueDate,
+                    });
+
+                    month++;
+                }
+            }
+
+            const existingMonthlyPayments = await prisma.payment.findMany({
+                where: {
+                    type: PaymentType.MONTHLY,
+                    studentId: { in: students.map(student => student.id) },
+                    dueDate: { lte: today },
+                },
+                select: {
+                    studentId: true,
+                    dueDate: true,
+                },
+            });
+            const existingDueDates = new Set(
+                existingMonthlyPayments.map(payment =>
+                    this.paymentDueDateKey(payment.studentId, payment.dueDate)
+                )
+            );
+
+            for (const payment of batchPaymentsToCreate) {
+                if (existingDueDates.has(this.paymentDueDateKey(payment.studentId, payment.dueDate))) {
+                    continue;
+                }
+
+                paymentsToCreate.push(payment);
+
+                if (paymentsToCreate.length >= PAYMENT_INSERT_BATCH_SIZE) {
+                    generatedCount += await this.createPaymentBatch(
+                        paymentsToCreate,
+                        changedBranchIds,
+                        studentsWithCreatedPayments
+                    );
+                    paymentsToCreate = [];
+                }
+            }
+
+            if (paymentsToCreate.length >= PAYMENT_INSERT_BATCH_SIZE) {
+                generatedCount += await this.createPaymentBatch(
+                    paymentsToCreate,
+                    changedBranchIds,
+                    studentsWithCreatedPayments
+                );
+                paymentsToCreate = [];
+            }
+        }
+
+        if (paymentsToCreate.length > 0) {
+            generatedCount += await this.createPaymentBatch(
+                paymentsToCreate,
+                changedBranchIds,
+                studentsWithCreatedPayments
+            );
+        }
+
+        if (changedBranchIds.size > 0) {
+            await prisma.branch.updateMany({
+                where: { id: { in: Array.from(changedBranchIds) } },
+                data: { lastDataChange: new Date() },
+            });
+        }
+
+        return {
+            generatedCount,
+            skippedCount: Math.max(totalStudents - studentsWithCreatedPayments.size, 0),
+            totalStudents,
+            updatedBranchIds: Array.from(changedBranchIds),
+        };
+    }
 
     /**
-     * Generates due payments for all ACTIVE students in a branch.
-     *
-     * ANCHOR-BASED LOGIC (idempotent):
-     * - For each active student, compute due dates as addMonths(joinedAt, N)
-     *   for N = 1, 2, 3 … until dueDate > today.
-     * - This anchors permanently on the join day-of-month (e.g. always the 19th).
-     * - Check if a MONTHLY payment already exists for each dueDate — skip if yes.
-     * - Works correctly whether the previous month was PAID or DUE.
-     * - Handles catch-up: if the app was not opened for 10 months, generates all 10.
+     * Generates due payments for all ACTIVE students in a branch after checking
+     * that the actor has explicit payment-generation permission.
      */
     static async generateDuePaymentsForBranch(
         userId: string,
@@ -60,92 +221,25 @@ export class PaymentService {
         asOfDate: Date = new Date()
     ) {
         await this.assertBranchAccess(userId, branchId, "generate_payments");
+        return this.generateMissingDuePayments({ branchId, asOfDate });
+    }
 
-        const today = startOfDay(asOfDate);
+    /**
+     * Ensures a branch has all currently due monthly payments. Intended for
+     * trusted system flows after branch access has already been confirmed.
+     */
+    static async ensureDuePaymentsForBranch(
+        branchId: string,
+        asOfDate: Date = new Date()
+    ) {
+        return this.generateMissingDuePayments({ branchId, asOfDate });
+    }
 
-        // Fetch all active students and their existing MONTHLY payment dueDates
-        // (so we can skip already-generated dates without hitting DB per-date)
-        const students = await prisma.student.findMany({
-            where: {
-                branchId,
-                status: StudentStatus.ACTIVE,
-            },
-            select: {
-                id: true,
-                joinedAt: true,
-                monthlyFee: true,
-                payments: {
-                    where: { type: PaymentType.MONTHLY },
-                    select: { dueDate: true },
-                },
-            },
-        });
-
-
-        let generatedCount = 0;
-        let skippedCount = 0;
-        const paymentsToCreate = [];
-
-        for (const student of students) {
-            // Build a Set of existing due dates (as ISO strings) for O(1) lookup
-            const existingDueDates = new Set(
-                student.payments.map((p) => startOfDay(p.dueDate).toISOString())
-            );
-
-            let paymentsGeneratedForStudent = 0;
-            let month = 1;
-
-            // Walk anchor-based due dates: joinedAt + 1 month, +2 months, …
-            while (true) {
-                const dueDate = addMonths(student.joinedAt, month);
-                const dueDateNormalized = startOfDay(dueDate);
-
-                // Stop when dueDate is in the future
-                if (isBefore(today, dueDateNormalized)) break;
-
-                // Skip if already generated (idempotent)
-                if (!existingDueDates.has(dueDateNormalized.toISOString())) {
-                    paymentsToCreate.push({
-                        branchId,
-                        studentId: student.id,
-                        amount: student.monthlyFee,
-                        status: PaymentStatus.DUE,
-                        type: PaymentType.MONTHLY,
-                        // periodStart = previous anchor (normalized to midnight to avoid
-                        // colliding with the ADMISSION payment's periodStart timestamp)
-                        periodStart: startOfDay(addMonths(student.joinedAt, month - 1)),
-                        periodEnd: dueDate,
-                        dueDate: dueDate,
-                    });
-                    paymentsGeneratedForStudent++;
-                }
-
-                month++;
-            }
-
-            if (paymentsGeneratedForStudent === 0) {
-                skippedCount++;
-            }
-        }
-
-        if (paymentsToCreate.length > 0) {
-            // Bulk insert to avoid N+1 query problem during generation
-            const created = await prisma.payment.createMany({
-                data: paymentsToCreate,
-            });
-            generatedCount = created.count;
-
-            await prisma.branch.update({
-                where: { id: branchId },
-                data: { lastDataChange: new Date() },
-            });
-        }
-
-        return {
-            generatedCount,
-            skippedCount,
-            totalStudents: students.length,
-        };
+    /**
+     * Cron entrypoint for generating due payments across every branch.
+     */
+    static async generateDuePaymentsForAllActiveStudents(asOfDate: Date = new Date()) {
+        return this.generateMissingDuePayments({ asOfDate });
     }
 
     static async ensureMonthlyPaymentForStudent(
@@ -286,7 +380,7 @@ export class PaymentService {
                 },
             },
             orderBy: {
-                dueDate: "asc", // Sort by due date ascending (oldest first) so overdue shows at top provided we group/sort in UI
+                dueDate: "asc",
             },
         });
     }
@@ -413,5 +507,4 @@ export class PaymentService {
             return updatedPayment;
         });
     }
-
 }
