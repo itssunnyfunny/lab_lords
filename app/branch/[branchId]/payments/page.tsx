@@ -12,10 +12,8 @@ import {
     formDialogPanelClass,
     formHelpTextClass,
     formIconClass,
-    formSuccessBannerClass,
     formSurfaceClass,
     formSurfaceHoverClass,
-    formWarningBannerClass,
 } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
@@ -35,7 +33,7 @@ import {
 } from "@/components/ui/pageSurface";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
-import { FileText, AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal, Banknote, Smartphone, Building2, X } from "lucide-react";
 import { useCallback, useEffect, useState, use } from "react";
 import { payments } from "@/lib/api/payments";
 import type { Payment } from "@/app/generated/prisma/browser";
@@ -45,7 +43,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
-import { getAnyPermissionHelpText, getPermissionHelpText } from "@/lib/permissionMessages";
+import { getAnyPermissionHelpText } from "@/lib/permissionMessages";
 import { useDataViewMode } from "@/hooks/useDataViewMode";
 
 type PaymentRow = Payment & {
@@ -66,7 +64,6 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
             {access => (
                 <PaymentsContent
                     branchId={branchId}
-                    canGeneratePayments={access.permissions.generate_payments}
                     canMarkPaid={access.permissions.mark_payment_paid}
                     canWaivePayments={access.permissions.waive_payments}
                 />
@@ -77,18 +74,15 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
 
 function PaymentsContent({
     branchId,
-    canGeneratePayments,
     canMarkPaid,
     canWaivePayments,
 }: {
     branchId: string;
-    canGeneratePayments: boolean;
     canMarkPaid: boolean;
     canWaivePayments: boolean;
 }) {
     const router = useRouter();
     const paymentActionHelpText = getAnyPermissionHelpText(["mark_payment_paid", "waive_payments"]);
-    const paymentGenerationHelpText = getPermissionHelpText("generate_payments");
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [activeTab, setActiveTab] = useState<PaymentTab>("DUE");
@@ -97,7 +91,6 @@ function PaymentsContent({
     const [data, setData] = useState<PaymentRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [newlyGenerated, setNewlyGenerated] = useState<number | null>(null);
 
     const [paymentToMark, setPaymentToMark] = useState<string | null>(null);
     const [marking, setMarking] = useState(false);
@@ -123,48 +116,15 @@ function PaymentsContent({
         }
     }, [branchId, currentDate]);
 
-    const generateAndLoad = useCallback(async () => {
+    const loadPagePayments = useCallback(async () => {
         setLoading(true);
-        setNewlyGenerated(null);
-        try {
-            if (canGeneratePayments) {
-                // 1. Auto-generate all missed due payments (anchor-based, idempotent)
-                const genRes = await fetch(`/api/branches/${branchId}/payments/generate`, {
-                    method: "POST",
-                    cache: "no-store",
-                });
-                if (genRes.ok) {
-                    const genData = await genRes.json();
-                    if (genData.generatedCount > 0) {
-                        setNewlyGenerated(genData.generatedCount);
-                    }
-                }
-            }
-        } catch (genErr) {
-            // Log the error — generation failure shouldn't block viewing existing
-            // payments, but it must NOT be silently swallowed (Bug 2 fix)
-            console.error("[PAYMENT_GENERATION_FAILED]", genErr);
-        } finally {
-            // 2. Always fetch the current month's payments after generation
-            await loadPayments();
-            setLoading(false);
-        }
-    }, [branchId, canGeneratePayments, loadPayments]);
+        await loadPayments();
+        setLoading(false);
+    }, [loadPayments]);
 
     useEffect(() => {
-        generateAndLoad();
-        // Generation is intentionally tied to branch changes, not month navigation.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [branchId]);
-
-    // Re-fetch (without re-generating) when month changes
-    useEffect(() => {
-        if (!loading) {
-            loadPayments();
-        }
-        // The loading guard intentionally prevents the initial generation pass from double-fetching.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentDate]);
+        loadPagePayments();
+    }, [loadPagePayments]);
 
     const handleMonthChange = (direction: "prev" | "next") => {
         setCurrentDate(prev => direction === "prev" ? subMonths(prev, 1) : addMonths(prev, 1));
@@ -359,20 +319,6 @@ function PaymentsContent({
                     </AppButton>
                 </div>
             </header>
-
-            {/* Auto-generation banner */}
-            {newlyGenerated !== null && newlyGenerated > 0 && (
-                <div className={cn("flex items-center gap-2 px-4 py-2 text-sm", formSuccessBannerClass)}>
-                    <FileText size={14} />
-                    <span>{newlyGenerated} new due payment{newlyGenerated > 1 ? "s" : ""} generated for this billing cycle.</span>
-                </div>
-            )}
-
-            {!canGeneratePayments && (
-                <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
-                    Automatic payment generation is disabled. {paymentGenerationHelpText}
-                </div>
-            )}
 
             <div className={cn("flex flex-col gap-3 border-b pb-2 sm:flex-row sm:items-center sm:justify-between", pageSectionDividerClass)}>
                 <div className="flex max-w-full items-center gap-2 overflow-x-auto">
