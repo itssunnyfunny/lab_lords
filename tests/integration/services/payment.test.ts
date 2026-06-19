@@ -79,6 +79,34 @@ describe("PaymentService Integration", () => {
       expect(result.generatedCount).toBe(4);
     });
 
+    it("generates the next monthly due even when the previous monthly due is still unpaid", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { user, branch } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
+
+      await createPayment({
+        branchId: branch.id,
+        studentId: student.id,
+        dueDate: addMonths(BASE, 1),
+        periodStart: BASE,
+        periodEnd: addMonths(BASE, 1),
+        status: "DUE",
+      });
+
+      const result = await PaymentService.generateDuePaymentsForBranch(user.id, branch.id, addMonths(BASE, 2));
+      const monthlyPayments = await testPrisma.payment.findMany({
+        where: { branchId: branch.id, studentId: student.id, type: "MONTHLY" },
+        orderBy: { dueDate: "asc" },
+      });
+
+      expect(result.generatedCount).toBe(1);
+      expect(monthlyPayments.map(payment => payment.status)).toEqual(["DUE", "DUE"]);
+      expect(monthlyPayments.map(payment => payment.dueDate.toISOString())).toEqual([
+        addMonths(BASE, 1).toISOString(),
+        addMonths(BASE, 2).toISOString(),
+      ]);
+    });
+
     it("does not generate payments for INACTIVE students", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       const { user, branch } = await createTestWorld();
@@ -107,6 +135,66 @@ describe("PaymentService Integration", () => {
       await expect(
         PaymentService.generateDuePaymentsForBranch(staffUser.id, branch.id)
       ).rejects.toThrow(/Unauthorized/i);
+    });
+
+    it("ensures branch payments without requiring a user id", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { branch } = await createTestWorld();
+      await createStudent({ branchId: branch.id, joinedAt: BASE });
+
+      const result = await PaymentService.ensureDuePaymentsForBranch(branch.id, addMonths(BASE, 2));
+
+      expect(result.generatedCount).toBe(2);
+      expect(result.totalStudents).toBe(1);
+      expect(result.updatedBranchIds).toEqual([branch.id]);
+    });
+
+    it("cron generation covers active students across branches and skips inactive students", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const first = await createTestWorld();
+      const second = await createTestWorld();
+      const inactive = await createStudent({ branchId: first.branch.id, joinedAt: BASE });
+
+      await createStudent({ branchId: first.branch.id, joinedAt: BASE });
+      await createStudent({ branchId: second.branch.id, joinedAt: BASE });
+      await testPrisma.student.update({
+        where: { id: inactive.id },
+        data: { status: "INACTIVE" },
+      });
+
+      const result = await PaymentService.generateDuePaymentsForAllActiveStudents(addMonths(BASE, 1));
+
+      expect(result.generatedCount).toBe(2);
+      expect(result.totalStudents).toBe(2);
+      expect(new Set(result.updatedBranchIds)).toEqual(new Set([first.branch.id, second.branch.id]));
+    });
+
+    it("cron generation is idempotent when re-run", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { branch } = await createTestWorld();
+      await createStudent({ branchId: branch.id, joinedAt: BASE });
+
+      await PaymentService.generateDuePaymentsForAllActiveStudents(addMonths(BASE, 1));
+      const secondRun = await PaymentService.generateDuePaymentsForAllActiveStudents(addMonths(BASE, 1));
+
+      const payments = await testPrisma.payment.findMany({ where: { branchId: branch.id } });
+      expect(payments.filter(p => p.type === "MONTHLY")).toHaveLength(1);
+      expect(secondRun.generatedCount).toBe(0);
+    });
+
+    it("handles concurrent branch ensures without duplicating payments", async () => {
+      const BASE = new Date("2026-01-01T00:00:00.000Z");
+      const { branch } = await createTestWorld();
+      await createStudent({ branchId: branch.id, joinedAt: BASE });
+
+      const results = await Promise.all([
+        PaymentService.ensureDuePaymentsForBranch(branch.id, addMonths(BASE, 1)),
+        PaymentService.ensureDuePaymentsForBranch(branch.id, addMonths(BASE, 1)),
+      ]);
+
+      const payments = await testPrisma.payment.findMany({ where: { branchId: branch.id } });
+      expect(payments.filter(p => p.type === "MONTHLY")).toHaveLength(1);
+      expect(results.reduce((sum, result) => sum + result.generatedCount, 0)).toBe(1);
     });
   });
 
