@@ -1,0 +1,4 @@
+## 2026-06-19 - Added Rate Limiting to Staff Invite Endpoint
+**Vulnerability:** The POST endpoint for creating staff invites lacked rate limiting, potentially allowing malicious actors or automated scripts to create an excessive number of invites, leading to denial of service, resource exhaustion, or spam.
+**Learning:** Even internal endpoints intended for authorized users can be abused if they lack proper protections. Next.js API routes are vulnerable without explicit rate limiting.
+**Prevention:** Implement rate limiting using a combination of the user's ID and the resource ID (e.g., branch ID) to ensure that users cannot abuse the endpoint within a specific branch context. Use established utilities like `checkRateLimit` to perform these checks before parsing request bodies to save compute.
