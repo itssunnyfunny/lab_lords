@@ -16,6 +16,13 @@ export type AuditLogEntry = {
     user: { id: string; name: string | null; email: string };
 };
 
+export type PaymentGenerationSummary = {
+    generatedCount: number;
+    skippedCount: number;
+    totalStudents: number;
+    updatedBranchIds: string[];
+};
+
 export const payments = {
     // List payments for a branch
     list: async (branchId: string, status?: "DUE" | "PAID" | "WAIVED"): Promise<Payment[]> => {
@@ -25,7 +32,7 @@ export const payments = {
     },
 
     // Generate payments (if logic exists in frontend to trigger this)
-    generate: async (branchId: string): Promise<{ generated: number }> => {
+    generate: async (branchId: string): Promise<PaymentGenerationSummary> => {
         return apiClient.post(`/branches/${branchId}/payments/generate`, {});
     },
 
