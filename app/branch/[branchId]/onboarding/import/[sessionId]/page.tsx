@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     AlertTriangle,
@@ -92,6 +92,16 @@ type ImportDetail = {
             pipeline?: ImportPipelineStep[];
             model?: string;
             notes?: string[];
+            detectedPaymentValues?: string[];
+            ai?: {
+                status: "success" | "fallback" | "unavailable" | "invalid_response" | "error";
+                model?: string;
+                attemptedAt: string;
+                durationMs: number;
+                fallbackReason?: string;
+                error?: string;
+                usedStructuredOutput?: boolean;
+            };
         };
     } | null;
     summary?: {
@@ -110,6 +120,16 @@ type ImportDetail = {
         sourceProfile?: ImportSourceProfile;
     } | null;
     rows: ImportRow[];
+    rowPage?: {
+        filter: RowFilter;
+        limit: number | null;
+        cursor: string | null;
+        nextCursor: string | null;
+        hasMore: boolean;
+        totalRows: number;
+        filteredRows: number;
+        returnedRows: number;
+    };
     questions: ImportQuestion[];
     commits?: { status: string; summary: Record<string, number>; errors?: unknown }[];
 };
@@ -133,11 +153,11 @@ type PaymentMethodDraft = NonNullable<ImportNormalizedRow["payment"]>["method"];
 
 const tabs: { id: Tab; label: string }[] = [
     { id: "attention", label: "Attention" },
-    { id: "mapping", label: "Guesses" },
-    { id: "rows", label: "Rows" },
+    { id: "mapping", label: "Column meanings" },
+    { id: "rows", label: "Fix rows" },
     { id: "payments", label: "Payments" },
-    { id: "questions", label: "Questions" },
-    { id: "preview", label: "Preview" },
+    { id: "questions", label: "Decisions" },
+    { id: "preview", label: "Final check" },
 ];
 
 const importFieldClass =
@@ -169,6 +189,17 @@ function attentionVariant(severity: ImportAttentionBucket["severity"]): "danger"
     if (severity === "error") return "danger";
     if (severity === "warning") return "warning";
     return "cyan";
+}
+
+function aiVariant(status?: string): "success" | "warning" | "danger" | "cyan" {
+    if (status === "success") return "success";
+    if (status === "error" || status === "invalid_response") return "danger";
+    if (status === "fallback" || status === "unavailable") return "warning";
+    return "cyan";
+}
+
+function manualRow(row: ImportRow) {
+    return row.mappedData?.__manualNormalizedData === true;
 }
 
 function stepIcon(step: ImportPipelineStep) {
@@ -277,6 +308,34 @@ function joinValues(values?: string[]) {
     return (values ?? []).join(", ");
 }
 
+const optionLabels: Record<string, string> = {
+    CURRENT_MONTH: "Current month",
+    PREVIOUS_MONTH: "Previous month",
+    CUSTOM_PERIOD: "Custom period",
+    USE_JOINED_AT_ANNIVERSARY: "Use joined date cycle",
+    SKIP_PAYMENTS: "Import students only",
+    GENERATE_DUE: "Generate due payments",
+    IMPORT_PAID_UNPAID: "Import paid/unpaid from file",
+    YES_CREATE_SEATS: "Create missing seats",
+    SKIP_UNKNOWN_SEAT_ALLOCATION: "Import student without that seat",
+    CREATE_SHIFT: "Create missing shift",
+    SKIP_UNKNOWN_SHIFT_ALLOCATION: "Import student without that shift",
+    SKIP_MISSING_SHIFT_ALLOCATION: "Import student without allocation",
+    CREATE_MULTI_SHIFT: "Create missing multi-shift",
+    SKIP_UNKNOWN_MULTI_SHIFT_ALLOCATION: "Import student without that multi-shift",
+};
+
+const rowFilterLabels: Record<RowFilter, string> = {
+    attention: "Needs attention",
+    ready: "Ready",
+    all: "All rows",
+    skipped: "Skipped",
+};
+
+function optionLabel(option: string) {
+    return optionLabels[option] ?? option;
+}
+
 function tabCount(tab: Tab, detail: ImportDetail | null, attention: ImportAttentionBucket[]) {
     if (!detail) return 0;
     if (tab === "attention") return attention.length;
@@ -294,6 +353,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
     const [activeTab, setActiveTab] = useState<Tab>("attention");
     const [rowFilter, setRowFilter] = useState<RowFilter>("attention");
     const [loading, setLoading] = useState(true);
+    const [analyzing, setAnalyzing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -303,22 +363,42 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
     const [rowDraft, setRowDraft] = useState<RowDraft | null>(null);
     const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({});
     const [paymentDraft, setPaymentDraft] = useState({ paid: "", unpaid: "", waived: "" });
+    const analysisStartedRef = useRef(false);
 
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            setDetail(await importSessions.detail<ImportDetail>(branchId, sessionId));
+            setDetail(await importSessions.detail<ImportDetail>(branchId, sessionId, {
+                rowFilter,
+                limit: 150,
+            }));
         } catch (loadError) {
             setError(loadError instanceof Error ? loadError.message : "Failed to load import session.");
         } finally {
             setLoading(false);
         }
-    }, [branchId, sessionId]);
+    }, [branchId, rowFilter, sessionId]);
 
     useEffect(() => {
         load();
     }, [load]);
+
+    useEffect(() => {
+        if (!detail || detail.status !== "UPLOADED" || analysisStartedRef.current) return;
+        analysisStartedRef.current = true;
+        setAnalyzing(true);
+        setError(null);
+        importSessions.analyze<ImportDetail>(branchId, sessionId)
+            .then(nextDetail => {
+                setDetail(nextDetail);
+                setPreview(null);
+            })
+            .catch(analyzeError => {
+                setError(analyzeError instanceof Error ? analyzeError.message : "Failed to analyze import session.");
+            })
+            .finally(() => setAnalyzing(false));
+    }, [branchId, detail, sessionId]);
 
     const mapping = detail?.mapping?.columnMappings ?? [];
     const options = detail?.mapping?.importOptions ?? {};
@@ -327,6 +407,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
     const openQuestions = questions.filter(question => question.status === "OPEN");
     const attention = detail?.mapping?.analysis?.attention ?? detail?.summary?.attention ?? [];
     const pipeline = detail?.mapping?.analysis?.pipeline ?? [];
+    const aiTrace = detail?.mapping?.analysis?.ai;
     const sourceProfile = detail?.mapping?.analysis?.sourceProfile ?? detail?.summary?.sourceProfile;
     const sourceColumns = useMemo(() => new Map((sourceProfile?.columns ?? []).map(column => [column.column, column])), [sourceProfile]);
     const latestCommit = detail?.commits?.[0];
@@ -425,6 +506,26 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
         }
     }, [branchId, commitMode, sessionId]);
 
+    const loadMoreRows = async () => {
+        if (!detail?.rowPage?.hasMore || !detail.rowPage.nextCursor) return;
+        setSaving(true);
+        try {
+            const nextPage = await importSessions.detail<ImportDetail>(branchId, sessionId, {
+                rowFilter,
+                limit: 150,
+                cursor: detail.rowPage.nextCursor,
+            });
+            setDetail(prev => prev ? {
+                ...nextPage,
+                rows: [...prev.rows, ...nextPage.rows],
+            } : nextPage);
+        } catch (loadMoreError) {
+            setError(loadMoreError instanceof Error ? loadMoreError.message : "Failed to load more rows.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     useEffect(() => {
         if (activeTab === "preview" && detail) loadPreview();
     }, [activeTab, detail, loadPreview]);
@@ -451,10 +552,53 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
     });
     const readiness = detail?.summary?.readinessScore ?? 0;
     const detectedPaymentValues = useMemo(
-        () => Array.from(new Set(rows.map(row => row.normalizedData?.payment?.rawStatus).filter((value): value is string => Boolean(value)))),
-        [rows]
+        () => detail?.mapping?.analysis?.detectedPaymentValues?.length
+            ? detail.mapping.analysis.detectedPaymentValues
+            : Array.from(new Set(rows.map(row => row.normalizedData?.payment?.rawStatus).filter((value): value is string => Boolean(value)))),
+        [detail?.mapping?.analysis?.detectedPaymentValues, rows]
     );
     const canCommit = preview?.canCommit ?? (detail?.status === "READY_TO_COMMIT" && openQuestions.length === 0);
+    const hasBlockingAttention = attention.some(item => item.severity === "error");
+    const importImpact: Array<[string, number, "success" | "warning" | "danger" | "default" | "cyan"]> = [
+        ["Students", preview?.summary.createStudents ?? detail?.summary?.detectedEntityCounts?.STUDENT ?? 0, "success" as const],
+        ["Allocations", preview?.summary.createAllocations ?? detail?.summary?.detectedEntityCounts?.ALLOCATION ?? 0, "cyan" as const],
+        ["Payments", preview?.summary.generatePayments ?? detail?.summary?.detectedEntityCounts?.PAYMENT ?? 0, "warning" as const],
+        ["Create seats", preview?.summary.createSeats ?? 0, "cyan" as const],
+        ["Skipped", preview?.summary.skippedRows ?? detail?.summary?.skippedRows ?? 0, "default" as const],
+        ["Blocked", preview?.summary.blockedRows ?? ((detail?.summary?.blockedRows ?? 0) + (detail?.summary?.conflictRows ?? 0)), "danger" as const],
+    ];
+    const guideSteps = [
+        {
+            label: "Upload",
+            tab: "attention" as Tab,
+            status: "completed",
+            detail: sourceProfile ? `${sourceProfile.rowCount} rows extracted` : "Source received",
+        },
+        {
+            label: "Column meanings",
+            tab: "mapping" as Tab,
+            status: mapping.length > 0 && !detail?.mapping?.usedFallback ? "completed" : "needs_attention",
+            detail: detail?.mapping?.usedFallback ? "Review fallback mapping" : `${mapping.filter(item => item.targetField !== "ignore").length} mapped`,
+        },
+        {
+            label: "Decisions",
+            tab: "questions" as Tab,
+            status: openQuestions.length === 0 ? "completed" : "needs_attention",
+            detail: openQuestions.length === 0 ? "No open decisions" : `${openQuestions.length} to answer`,
+        },
+        {
+            label: "Fix rows",
+            tab: "rows" as Tab,
+            status: hasBlockingAttention ? "needs_attention" : "completed",
+            detail: hasBlockingAttention ? "Blocking rows remain" : "Importable rows available",
+        },
+        {
+            label: "Final check",
+            tab: "preview" as Tab,
+            status: canCommit ? "completed" : "pending",
+            detail: canCommit ? "Ready for confirmation" : "Preview before import",
+        },
+    ];
 
     return (
         <BranchAccessGuard branchId={branchId} permission="students">
@@ -487,6 +631,13 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                     <div className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading import session...
+                    </div>
+                )}
+
+                {analyzing && (
+                    <div className="flex items-center gap-3 rounded-[8px] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] p-3 text-sm text-[color:var(--ui-badge-cyan-text)]">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Analyzing source data with Gemini and deterministic import checks...
                     </div>
                 )}
 
@@ -551,6 +702,58 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                     })}
                                 </div>
                             )}
+
+                            {aiTrace && (
+                                <div className={cn("flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between", pageInsetSurfaceClass)}>
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge variant={aiVariant(aiTrace.status)}>AI {aiTrace.status.replace(/_/g, " ")}</Badge>
+                                            {aiTrace.model && <span className={cn("text-xs", pageMutedTextClass)}>{aiTrace.model}</span>}
+                                            <span className={cn("text-xs", pageSubtleTextClass)}>{aiTrace.durationMs}ms</span>
+                                        </div>
+                                        {(aiTrace.fallbackReason || aiTrace.error) && (
+                                            <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{aiTrace.fallbackReason ?? aiTrace.error}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="grid gap-2 md:grid-cols-5">
+                                {guideSteps.map(step => {
+                                    const variant = step.status === "completed" ? "success" : step.status === "needs_attention" ? "warning" : "default";
+                                    return (
+                                        <button
+                                            key={step.label}
+                                            type="button"
+                                            onClick={() => setActiveTab(step.tab)}
+                                            className={cn(
+                                                "min-h-24 rounded-[8px] border p-3 text-left transition-colors hover:bg-white/[0.04]",
+                                                activeTab === step.tab
+                                                    ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
+                                                    : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]"
+                                            )}
+                                        >
+                                            <Badge variant={variant}>{step.status.replace("_", " ")}</Badge>
+                                            <p className="mt-2 text-sm font-semibold text-[color:var(--text-primary)]">{step.label}</p>
+                                            <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{step.detail}</p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </AppPanel>
+
+                        <AppPanel title="What will happen" description="Current import plan based on the staged rows. Final check gives the exact commit count.">
+                            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                                {importImpact.map(([label, value, variant]) => (
+                                    <div key={label} className={pageInsetMetricClass}>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className={cn("text-xs", pageMutedTextClass)}>{label}</p>
+                                            <Badge variant={variant}>{String(value)}</Badge>
+                                        </div>
+                                        <p className="mt-2 text-lg font-semibold text-[color:var(--text-primary)]">{String(value)}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </AppPanel>
 
                         <div className="flex gap-2 overflow-x-auto rounded-[8px] border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-bg)] p-1">
@@ -574,7 +777,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
 
                         {activeTab === "attention" && (
                             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-                                <AppPanel title="Needs attention" description="Grouped by blocker, warning, and review decision.">
+                                <AppPanel title="Needs attention" description="Grouped by blocker, warning, and decision.">
                                     <div className="space-y-3">
                                         {attention.length === 0 && (
                                             <div className={cn("p-4 text-sm", pageInsetSurfaceClass, pageMutedTextClass)}>
@@ -654,7 +857,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
 
                         {activeTab === "mapping" && (
                             <AppPanel
-                                title="Column guesses"
+                                title="Column meanings"
                                 description={detail.mapping?.usedFallback ? "Fallback matching is active." : "AI-assisted column mapping."}
                             >
                                 <div className="overflow-x-auto">
@@ -728,12 +931,18 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                                 variant={rowFilter === filter ? "primary" : "secondary"}
                                                 onClick={() => setRowFilter(filter)}
                                             >
-                                                {filter}
+                                                {rowFilterLabels[filter]}
                                             </AppButton>
                                         ))}
                                     </div>
                                 }
                             >
+                                {detail.rowPage && (
+                                    <div className={cn("mb-3 flex flex-wrap items-center gap-2 text-xs", pageMutedTextClass)}>
+                                        <span>Showing {detail.rowPage.returnedRows} of {detail.rowPage.filteredRows} {rowFilterLabels[detail.rowPage.filter].toLowerCase()}.</span>
+                                        {detail.rowPage.hasMore && <Badge variant="warning">More rows available</Badge>}
+                                    </div>
+                                )}
                                 <div className={cn("overflow-x-auto", pageTableShellClass)}>
                                     <table className="w-full min-w-[1180px] text-left text-sm">
                                         <thead className={cn("text-xs uppercase text-[color:var(--text-muted)]", pageTableHeadClass)}>
@@ -759,7 +968,12 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                                 };
                                                 return (
                                                     <tr key={row.id} className={pageTableRowClass}>
-                                                        <td className="p-3"><Badge variant={statusVariant(row.status)}>{statusLabels[row.status] ?? row.status}</Badge></td>
+                                                        <td className="p-3">
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                <Badge variant={statusVariant(row.status)}>{statusLabels[row.status] ?? row.status}</Badge>
+                                                                {manualRow(row) && <Badge variant="purple">Manual</Badge>}
+                                                            </div>
+                                                        </td>
                                                         {editing ? (
                                                             <>
                                                                 <td className="p-3"><input value={rowDraft.studentName} onChange={event => updateDraft("studentName", event.target.value)} className={cn("w-36", importFieldClass)} /></td>
@@ -825,6 +1039,13 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                         </tbody>
                                     </table>
                                 </div>
+                                {detail.rowPage?.hasMore && (
+                                    <div className="mt-3 flex justify-center">
+                                        <AppButton variant="secondary" size="sm" onClick={loadMoreRows} isLoading={saving}>
+                                            Load more rows
+                                        </AppButton>
+                                    </div>
+                                )}
                             </AppPanel>
                         )}
 
@@ -861,6 +1082,28 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                         </select>
                                     </label>
                                 </div>
+                                {options.paymentCycle === "CUSTOM_PERIOD" && (
+                                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                                        <label className="space-y-2">
+                                            <span className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">Custom period start</span>
+                                            <input
+                                                type="date"
+                                                value={options.customPeriodStart?.slice(0, 10) ?? ""}
+                                                onChange={event => updateOption({ customPeriodStart: event.target.value })}
+                                                className={cn("w-full", importFieldClass)}
+                                            />
+                                        </label>
+                                        <label className="space-y-2">
+                                            <span className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">Custom period end</span>
+                                            <input
+                                                type="date"
+                                                value={options.customPeriodEnd?.slice(0, 10) ?? ""}
+                                                onChange={event => updateOption({ customPeriodEnd: event.target.value })}
+                                                className={cn("w-full", importFieldClass)}
+                                            />
+                                        </label>
+                                    </div>
+                                )}
                                 <div className="mt-5 grid gap-4 lg:grid-cols-3">
                                     <label className="space-y-2">
                                         <span className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">Paid values</span>
@@ -907,9 +1150,9 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                         )}
 
                         {activeTab === "questions" && (
-                            <AppPanel title="Questions" description="Answers revalidate affected rows.">
+                            <AppPanel title="Decisions" description="Answers revalidate affected rows.">
                                 <div className="space-y-3">
-                                    {questions.length === 0 && <p className={pageMutedTextClass}>No questions.</p>}
+                                    {questions.length === 0 && <p className={pageMutedTextClass}>No decisions are waiting.</p>}
                                     {questions.map(question => (
                                         <div key={question.id} className={cn("p-4", pageInsetSurfaceClass)}>
                                             <div className="flex items-start gap-3">
@@ -925,7 +1168,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                                             <div className="mt-3 flex flex-wrap gap-2">
                                                                 {(question.options ?? []).map(option => (
                                                                     <AppButton key={option} size="sm" variant="secondary" onClick={() => answerQuestion(question.id, option)} isLoading={saving}>
-                                                                        {option}
+                                                                        {optionLabel(option)}
                                                                     </AppButton>
                                                                 ))}
                                                             </div>
@@ -957,7 +1200,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                         )}
 
                         {activeTab === "preview" && (
-                            <AppPanel title="Final preview" description="Importable rows and business records for this commit.">
+                            <AppPanel title="Final check" description="Importable rows and business records for this commit.">
                                 {!preview ? (
                                     <div className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                                         <Loader2 className="h-4 w-4 animate-spin" />
