@@ -3,10 +3,15 @@ import { GoogleGenAI } from "@google/genai";
 type GeminiCallOptions = {
     model?: string;
     responseMimeType?: "application/json" | "text/plain";
+    responseJsonSchema?: unknown;
 };
 
-export const DEFAULT_GEMINI_FLASH_MODEL = "gemini-3-flash-preview";
-export const DEFAULT_GEMINI_PRO_MODEL = "gemini-3-pro-preview";
+export type GeminiJsonResult<T> =
+    | { ok: true; data: T; rawText: string; error?: undefined }
+    | { ok: false; data?: undefined; rawText: string | null; error: string };
+
+export const DEFAULT_GEMINI_FLASH_MODEL = "gemini-3.5-flash";
+export const DEFAULT_GEMINI_PRO_MODEL = "gemini-3.5-flash";
 
 let genAI: GoogleGenAI | null = null;
 let warnedMissingKey = false;
@@ -40,6 +45,7 @@ function normalizeGeminiModel(model: string) {
         "gemini-3-flash": DEFAULT_GEMINI_FLASH_MODEL,
         "gemini-3-flash-preview": DEFAULT_GEMINI_FLASH_MODEL,
         "gemini-flash": DEFAULT_GEMINI_FLASH_MODEL,
+        "gemini-flash-latest": DEFAULT_GEMINI_FLASH_MODEL,
     };
 
     return aliases[value] ?? value;
@@ -51,6 +57,23 @@ export function resolveGeminiModel(model?: string) {
 
 export function resolveGeminiProModel(model?: string) {
     return normalizeGeminiModel(model ?? process.env.GEMINI_IMPORT_MODEL ?? process.env.GEMINI_PRO_MODEL ?? DEFAULT_GEMINI_PRO_MODEL);
+}
+
+function generationConfig(options: GeminiCallOptions) {
+    if (options.responseJsonSchema) {
+        return {
+            responseFormat: {
+                text: {
+                    mimeType: options.responseMimeType ?? "application/json",
+                    schema: options.responseJsonSchema,
+                },
+            },
+        };
+    }
+
+    return {
+        responseMimeType: options.responseMimeType ?? "application/json",
+    };
 }
 
 export async function callGemini(prompt: string, options: GeminiCallOptions = {}): Promise<string | null> {
@@ -72,12 +95,10 @@ export async function callGemini(prompt: string, options: GeminiCallOptions = {}
                     parts: [{ text: prompt }],
                 },
             ],
-            config: {
-                responseMimeType: options.responseMimeType ?? "application/json",
-            },
+            config: generationConfig(options),
         });
 
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text;
         console.log("Gemini response:", text ? "Success" : "Empty");
         return text ?? null;
     } catch (error: unknown) {
@@ -93,5 +114,41 @@ export async function callGemini(prompt: string, options: GeminiCallOptions = {}
 
         if (error instanceof Error && error.stack) console.error("Stack:", error.stack);
         return null;
+    }
+}
+
+function cleanJson(raw: string) {
+    return raw.replace(/```json/g, "").replace(/```/g, "").trim();
+}
+
+export async function callGeminiJson<T>(
+    prompt: string,
+    options: GeminiCallOptions = {}
+): Promise<GeminiJsonResult<T>> {
+    const rawText = await callGemini(prompt, {
+        ...options,
+        responseMimeType: "application/json",
+    });
+
+    if (!rawText) {
+        return {
+            ok: false,
+            rawText,
+            error: "Gemini returned no structured response.",
+        };
+    }
+
+    try {
+        return {
+            ok: true,
+            data: JSON.parse(cleanJson(rawText)) as T,
+            rawText,
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            rawText,
+            error: error instanceof Error ? error.message : "Gemini JSON could not be parsed.",
+        };
     }
 }
