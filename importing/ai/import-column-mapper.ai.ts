@@ -1,6 +1,7 @@
-import { callGemini, resolveGeminiProModel } from "@/ai/llm/gemini.client";
+import { callGeminiJson, resolveGeminiProModel } from "@/ai/llm/gemini.client";
 import {
     IMPORT_TARGET_FIELDS,
+    type ImportAITrace,
     type ImportMappingResult,
     type ImportOptions,
     type ImportTargetField,
@@ -9,9 +10,44 @@ import {
 import { buildFallbackMappings } from "@/importing/utils/column-normalizer";
 import { buildImportColumnMappingPrompt } from "./prompts/import-column-mapping.prompt";
 
-function cleanJson(raw: string) {
-    return raw.replace(/```json/g, "").replace(/```/g, "").trim();
-}
+const IMPORT_COLUMN_MAPPING_SCHEMA = {
+    type: "object",
+    properties: {
+        entityTypesDetected: {
+            type: "array",
+            items: { type: "string", enum: ["STUDENT", "SEAT", "SHIFT", "ALLOCATION", "PAYMENT"] },
+        },
+        columnMappings: {
+            type: "array",
+            items: {
+                type: "object",
+                properties: {
+                    sourceColumn: { type: "string" },
+                    targetField: { type: "string", enum: IMPORT_TARGET_FIELDS },
+                    confidence: { type: "number" },
+                    reason: { type: "string" },
+                },
+                required: ["sourceColumn", "targetField", "confidence"],
+            },
+        },
+        questions: {
+            type: "array",
+            items: {
+                type: "object",
+                properties: {
+                    field: { type: "string" },
+                    question: { type: "string" },
+                    options: { type: "array", items: { type: "string" } },
+                },
+                required: ["question"],
+            },
+        },
+        warnings: { type: "array", items: { type: "string" } },
+        suggestedImportOptions: { type: "object" },
+        analysisNotes: { type: "array", items: { type: "string" } },
+    },
+    required: ["entityTypesDetected", "columnMappings", "questions", "warnings"],
+};
 
 function isTargetField(value: unknown): value is ImportTargetField {
     return typeof value === "string" && (IMPORT_TARGET_FIELDS as readonly string[]).includes(value);
@@ -47,6 +83,13 @@ function sanitizeSuggestedImportOptions(value: unknown): Partial<ImportOptions> 
         next.paymentAction = value.paymentAction as ImportOptions["paymentAction"];
     }
 
+    if (typeof value.customPeriodStart === "string") next.customPeriodStart = value.customPeriodStart;
+    if (typeof value.customPeriodEnd === "string") next.customPeriodEnd = value.customPeriodEnd;
+    if (typeof value.skipUnknownSeatAllocations === "boolean") next.skipUnknownSeatAllocations = value.skipUnknownSeatAllocations;
+    if (typeof value.skipUnknownShiftAllocations === "boolean") next.skipUnknownShiftAllocations = value.skipUnknownShiftAllocations;
+    if (typeof value.skipUnknownMultiShiftAllocations === "boolean") next.skipUnknownMultiShiftAllocations = value.skipUnknownMultiShiftAllocations;
+    if (typeof value.skipMissingShiftAllocations === "boolean") next.skipMissingShiftAllocations = value.skipMissingShiftAllocations;
+
     if (isRecord(value.paymentMapping)) {
         next.paymentMapping = {
             paidValues: stringsFrom(value.paymentMapping.paidValues),
@@ -60,24 +103,53 @@ function sanitizeSuggestedImportOptions(value: unknown): Partial<ImportOptions> 
     return Object.keys(next).length > 0 ? next : undefined;
 }
 
-function sanitizeMappingResult(value: unknown, columns: string[]): ImportMappingResult | null {
+function sanitizeMappingResult(value: unknown, columns: string[], aiTrace?: ImportAITrace): ImportMappingResult | null {
     if (!value || typeof value !== "object") return null;
     const result = value as Record<string, unknown>;
     const columnMappingsInput = Array.isArray(result.columnMappings) ? result.columnMappings : [];
     const columnSet = new Set(columns);
+    const warnings = Array.isArray(result.warnings) ? result.warnings.filter((item): item is string => typeof item === "string") : [];
+    const seenColumns = new Set<string>();
+    const seenTargets = new Set<ImportTargetField>();
 
-    const columnMappings = columnMappingsInput
+    const validCandidateMappings = columnMappingsInput
         .filter(isRecord)
         .filter(item => typeof item.sourceColumn === "string" && columnSet.has(item.sourceColumn) && isTargetField(item.targetField))
-        .map(item => ({
-            sourceColumn: item.sourceColumn as string,
-            targetField: item.targetField as ImportTargetField,
-            confidence: Math.max(0, Math.min(100, Number(item.confidence) || 50)),
-            reason: typeof item.reason === "string" ? item.reason : undefined,
-        }));
+        .map(item => {
+            const sourceColumn = item.sourceColumn as string;
+            const targetField = item.targetField as ImportTargetField;
+            const duplicateColumn = seenColumns.has(sourceColumn);
+            const duplicateTarget = targetField !== "ignore" && seenTargets.has(targetField);
+            seenColumns.add(sourceColumn);
+            if (targetField !== "ignore") seenTargets.add(targetField);
 
-    if (columnMappings.length === 0) return null;
+            if (duplicateColumn) {
+                warnings.push(`Gemini mapped "${sourceColumn}" more than once; the first mapping was kept.`);
+                return null;
+            }
 
+            if (duplicateTarget) {
+                warnings.push(`Gemini mapped more than one column to "${targetField}"; "${sourceColumn}" was left for review.`);
+                return {
+                    sourceColumn,
+                    targetField: "ignore" as const,
+                    confidence: 40,
+                    reason: `Duplicate target "${targetField}" needs manual review.`,
+                };
+            }
+
+            return {
+                sourceColumn,
+                targetField,
+                confidence: Math.max(0, Math.min(100, Number(item.confidence) || 50)),
+                reason: typeof item.reason === "string" ? item.reason : undefined,
+            };
+        })
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    if (validCandidateMappings.length === 0) return null;
+
+    const columnMappings = [...validCandidateMappings];
     const mappedColumns = new Set(columnMappings.map(mapping => mapping.sourceColumn));
     for (const column of columns) {
         if (!mappedColumns.has(column)) {
@@ -111,10 +183,11 @@ function sanitizeMappingResult(value: unknown, columns: string[]): ImportMapping
         entityTypesDetected,
         columnMappings,
         questions,
-        warnings: Array.isArray(result.warnings) ? result.warnings.filter((item): item is string => typeof item === "string") : [],
+        warnings,
         suggestedImportOptions: sanitizeSuggestedImportOptions(result.suggestedImportOptions),
         analysisNotes: stringsFrom(result.analysisNotes).slice(0, 5),
         model: resolveGeminiProModel(),
+        aiTrace,
     };
 }
 
@@ -125,23 +198,65 @@ export async function mapImportColumns(input: {
     sampleRows: ParsedImportRow[];
 }): Promise<ImportMappingResult> {
     const model = resolveGeminiProModel();
+    const attemptedAt = new Date().toISOString();
+    const startedAt = Date.now();
     try {
-        const raw = await callGemini(buildImportColumnMappingPrompt(input), { model, responseMimeType: "application/json" });
-        if (raw) {
-            const parsed = JSON.parse(cleanJson(raw));
-            const sanitized = sanitizeMappingResult(parsed, input.columns);
+        const result = await callGeminiJson<unknown>(buildImportColumnMappingPrompt(input), {
+            model,
+            responseJsonSchema: IMPORT_COLUMN_MAPPING_SCHEMA,
+        });
+        const durationMs = Date.now() - startedAt;
+        if (result.ok) {
+            const sanitized = sanitizeMappingResult(result.data, input.columns, {
+                status: "success",
+                model,
+                attemptedAt,
+                durationMs,
+                usedStructuredOutput: true,
+            });
             if (sanitized) return sanitized;
-        }
-    } catch {
-        // Deterministic fallback below.
-    }
 
+            return fallbackMapping(input.columns, {
+                status: "invalid_response",
+                model,
+                attemptedAt,
+                durationMs,
+                fallbackReason: "Gemini JSON did not contain a usable column mapping.",
+                usedStructuredOutput: true,
+            });
+        }
+        return fallbackMapping(input.columns, {
+            status: result.rawText ? "invalid_response" : "unavailable",
+            model,
+            attemptedAt,
+            durationMs,
+            fallbackReason: result.error,
+            error: result.error,
+            usedStructuredOutput: true,
+        });
+    } catch {
+        return fallbackMapping(input.columns, {
+            status: "error",
+            model,
+            attemptedAt,
+            durationMs: Date.now() - startedAt,
+            fallbackReason: "Gemini mapping failed before a structured response was available.",
+            usedStructuredOutput: true,
+        });
+    }
+}
+
+function fallbackMapping(columns: string[], aiTrace: ImportAITrace): ImportMappingResult {
     return {
         entityTypesDetected: ["STUDENT"],
-        columnMappings: buildFallbackMappings(input.columns),
+        columnMappings: buildFallbackMappings(columns),
         questions: [],
-        warnings: ["AI mapping was unavailable, so deterministic column matching was used."],
-        model,
+        warnings: [aiTrace.fallbackReason ?? "AI mapping was unavailable, so deterministic column matching was used."],
+        model: aiTrace.model,
         usedFallback: true,
+        aiTrace: {
+            ...aiTrace,
+            status: aiTrace.status === "success" ? "fallback" : aiTrace.status,
+        },
     };
 }

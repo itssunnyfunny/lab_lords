@@ -3,14 +3,27 @@ import { emptyValidatorResult, type ImportValidatorResult } from "./import-requi
 
 export function validateImportSeat(
     normalized: ImportNormalizedRow,
-    context: { seatsByLabel: Map<string, { id: string; label: string }>; createUnknownSeats?: boolean }
+    context: {
+        seatsByLabel: Map<string, { id: string; label: string }>;
+        createUnknownSeats?: boolean;
+        skipUnknownSeatAllocations?: boolean;
+    }
 ): ImportValidatorResult {
     const result = emptyValidatorResult();
     const label = normalized.allocation?.seatLabel ?? normalized.seat?.label;
     if (!label) return result;
 
     const known = context.seatsByLabel.has(label.toLowerCase());
-    if (!known && !context.createUnknownSeats) {
+    if (!known && context.skipUnknownSeatAllocations) {
+        result.warnings.push({
+            code: "ALLOCATION_SKIPPED_UNKNOWN_SEAT",
+            field: "allocation.seatLabel",
+            message: `Student will import without allocation because seat "${label}" is not in this branch.`,
+            severity: "info",
+        });
+    }
+
+    if (!known && !context.createUnknownSeats && !context.skipUnknownSeatAllocations) {
         result.warnings.push({
             code: "UNKNOWN_SEAT",
             field: "allocation.seatLabel",
@@ -20,7 +33,7 @@ export function validateImportSeat(
         result.questions.push({
             field: "seat.label",
             question: `Create missing seat "${label}" during import?`,
-            options: ["YES_CREATE_SEATS", "NO_SKIP_ALLOCATIONS"],
+            options: ["YES_CREATE_SEATS", "SKIP_UNKNOWN_SEAT_ALLOCATION"],
         });
     }
 

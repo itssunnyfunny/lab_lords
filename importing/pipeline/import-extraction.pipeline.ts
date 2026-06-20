@@ -1,4 +1,5 @@
 import type {
+    ImportAITrace,
     ImportAttentionBucket,
     ImportColumnProfile,
     ImportDetectedColumnKind,
@@ -231,6 +232,17 @@ export function buildImportAttention(input: {
         });
     }
 
+    if ((input.mapping?.warnings ?? []).length > 0) {
+        buckets.set("MAPPING_WARNINGS", {
+            code: "MAPPING_WARNINGS",
+            label: "Mapping Warnings",
+            severity: "warning",
+            count: input.mapping?.warnings?.length ?? 0,
+            message: input.mapping?.warnings?.[0] ?? "Column mapping needs review.",
+            action: "Review column meanings before importing.",
+        });
+    }
+
     const lowConfidenceMappings = (input.mapping?.columnMappings ?? []).filter(mapping =>
         mapping.targetField !== "ignore" && mapping.confidence < 70
     );
@@ -329,6 +341,8 @@ export function buildImportSessionAnalysis(input: {
     sessionStatus?: string;
     model?: string;
     notes?: string[];
+    ai?: ImportAITrace;
+    detectedPaymentValues?: string[];
 }): ImportSessionAnalysis {
     return {
         generatedAt: new Date().toISOString(),
@@ -342,5 +356,7 @@ export function buildImportSessionAnalysis(input: {
         }),
         model: input.model,
         notes: input.notes,
+        ai: input.ai,
+        detectedPaymentValues: input.detectedPaymentValues,
     };
 }

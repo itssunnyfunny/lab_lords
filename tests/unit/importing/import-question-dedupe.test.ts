@@ -20,13 +20,13 @@ describe("dedupeImportQuestionDrafts", () => {
                 rowId: "row_1",
                 field: "seat.label",
                 question: "Create missing seat \"A1\" during import?",
-                options: ["YES_CREATE_SEATS", "NO_SKIP_ALLOCATIONS"],
+                options: ["YES_CREATE_SEATS", "SKIP_UNKNOWN_SEAT_ALLOCATION"],
             },
             {
                 rowId: "row_2",
                 field: "seat.label",
                 question: "Create missing seat \"A2\" during import?",
-                options: ["YES_CREATE_SEATS", "NO_SKIP_ALLOCATIONS"],
+                options: ["YES_CREATE_SEATS", "SKIP_UNKNOWN_SEAT_ALLOCATION"],
             },
         ]);
 

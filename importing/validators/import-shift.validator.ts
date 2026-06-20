@@ -8,6 +8,9 @@ export function validateImportShift(
         multiShiftsByName: Map<string, { id: string; name: string }>;
         createUnknownShifts?: boolean;
         createUnknownMultiShifts?: boolean;
+        skipUnknownShiftAllocations?: boolean;
+        skipUnknownMultiShiftAllocations?: boolean;
+        skipMissingShiftAllocations?: boolean;
     }
 ): ImportValidatorResult {
     const result = emptyValidatorResult();
@@ -15,7 +18,16 @@ export function validateImportShift(
     const multiShiftName = normalized.allocation?.multiShiftName ?? normalized.multiShift?.name;
     const hasSeat = Boolean(normalized.allocation?.seatLabel ?? normalized.seat?.label);
 
-    if (hasSeat && !shiftName && !multiShiftName) {
+    if (hasSeat && !shiftName && !multiShiftName && context.skipMissingShiftAllocations) {
+        result.warnings.push({
+            code: "ALLOCATION_SKIPPED_MISSING_SHIFT",
+            field: "allocation.shiftName",
+            message: "Student will import without allocation because no shift was provided.",
+            severity: "info",
+        });
+    }
+
+    if (hasSeat && !shiftName && !multiShiftName && !context.skipMissingShiftAllocations) {
         result.warnings.push({
             code: "MISSING_ALLOCATION_SHIFT",
             field: "allocation.shiftName",
@@ -25,7 +37,7 @@ export function validateImportShift(
         result.questions.push({
             field: "allocation.shiftName",
             question: "Which shift should rows without a shift use?",
-            options: Array.from(context.shiftsByName.values()).map(shift => shift.name),
+            options: [...Array.from(context.shiftsByName.values()).map(shift => shift.name), "SKIP_MISSING_SHIFT_ALLOCATION"],
         });
     }
 
@@ -37,6 +49,13 @@ export function validateImportShift(
                 message: `Shift "${shiftName}" will be created without times unless corrected.`,
                 severity: "warning",
             });
+        } else if (context.skipUnknownShiftAllocations) {
+            result.warnings.push({
+                code: "ALLOCATION_SKIPPED_UNKNOWN_SHIFT",
+                field: "allocation.shiftName",
+                message: `Student will import without allocation because shift "${shiftName}" is not in this branch.`,
+                severity: "info",
+            });
         } else {
             result.warnings.push({
                 code: "UNKNOWN_SHIFT",
@@ -47,7 +66,7 @@ export function validateImportShift(
             result.questions.push({
                 field: "allocation.shiftName",
                 question: `What should happen with unknown shift "${shiftName}"?`,
-                options: ["CREATE_SHIFT", "MAP_TO_EXISTING_SHIFT", "SKIP_ALLOCATIONS"],
+                options: ["CREATE_SHIFT", "SKIP_UNKNOWN_SHIFT_ALLOCATION"],
             });
         }
     }
@@ -60,6 +79,13 @@ export function validateImportShift(
                 message: `Multi-shift "${multiShiftName}" will be created if its component shifts are known.`,
                 severity: "warning",
             });
+        } else if (context.skipUnknownMultiShiftAllocations) {
+            result.warnings.push({
+                code: "ALLOCATION_SKIPPED_UNKNOWN_MULTI_SHIFT",
+                field: "allocation.multiShiftName",
+                message: `Student will import without allocation because multi-shift "${multiShiftName}" is not in this branch.`,
+                severity: "info",
+            });
         } else {
             result.warnings.push({
                 code: "UNKNOWN_MULTI_SHIFT",
@@ -70,7 +96,7 @@ export function validateImportShift(
             result.questions.push({
                 field: "allocation.multiShiftName",
                 question: `Create or map unknown multi-shift "${multiShiftName}"?`,
-                options: ["CREATE_MULTI_SHIFT", "MAP_TO_EXISTING_MULTI_SHIFT", "SKIP_ALLOCATIONS"],
+                options: ["CREATE_MULTI_SHIFT", "SKIP_UNKNOWN_MULTI_SHIFT_ALLOCATION"],
             });
         }
     }

@@ -109,6 +109,16 @@ export type ImportPipelineStep = {
     detail?: string;
 };
 
+export type ImportAITrace = {
+    status: "success" | "fallback" | "unavailable" | "invalid_response" | "error";
+    model?: string;
+    attemptedAt: string;
+    durationMs: number;
+    fallbackReason?: string;
+    error?: string;
+    usedStructuredOutput?: boolean;
+};
+
 export type ImportSessionAnalysis = {
     generatedAt: string;
     sourceProfile: ImportSourceProfile;
@@ -116,6 +126,8 @@ export type ImportSessionAnalysis = {
     pipeline: ImportPipelineStep[];
     model?: string;
     notes?: string[];
+    ai?: ImportAITrace;
+    detectedPaymentValues?: string[];
 };
 
 export type ImportMappingResult = {
@@ -127,6 +139,7 @@ export type ImportMappingResult = {
     analysisNotes?: string[];
     model?: string;
     usedFallback?: boolean;
+    aiTrace?: ImportAITrace;
 };
 
 export type PaymentCycleOption =
@@ -163,6 +176,10 @@ export type ImportOptions = {
     createUnknownSeats?: boolean;
     createUnknownShifts?: boolean;
     createUnknownMultiShifts?: boolean;
+    skipUnknownSeatAllocations?: boolean;
+    skipUnknownShiftAllocations?: boolean;
+    skipUnknownMultiShiftAllocations?: boolean;
+    skipMissingShiftAllocations?: boolean;
 };
 
 export type ImportMappingState = {

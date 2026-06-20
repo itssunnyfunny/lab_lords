@@ -36,7 +36,6 @@ export default function ImportAssistantPage({ params }: { params: Promise<{ bran
             const created = file
                 ? await importSessions.createFromFile(branchId, file)
                 : await importSessions.createFromPastedTable(branchId, pastedTable);
-            await importSessions.analyze(branchId, created.id);
             router.push(`/branch/${branchId}/onboarding/import/${created.id}`);
         } catch (uploadError) {
             setError(uploadError instanceof Error ? uploadError.message : "Import upload failed.");
@@ -116,7 +115,7 @@ export default function ImportAssistantPage({ params }: { params: Promise<{ bran
 
                         <div className="mt-5 flex flex-wrap gap-3">
                             <AppButton variant="primary" icon={UploadCloud} onClick={upload} disabled={!canUpload} isLoading={loading}>
-                                Upload and analyze
+                                Create review workspace
                             </AppButton>
                             <AppButton variant="secondary" icon={FileSpreadsheet} disabled title="Template download placeholder">
                                 Sample template

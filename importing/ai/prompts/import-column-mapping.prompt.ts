@@ -63,6 +63,12 @@ Rules:
 - Do not set paymentCycle unless the file explicitly contains a usable cycle/period.
 - Do not set createUnknownSeats, createUnknownShifts, or createUnknownMultiShifts.
 - If paid/unpaid values are present, guess paymentMapping but keep confirmed false.
+- Use questions only for operator decisions that cannot be safely inferred. Prefer these option tokens when relevant:
+  - YES_CREATE_SEATS or SKIP_UNKNOWN_SEAT_ALLOCATION
+  - CREATE_SHIFT or SKIP_UNKNOWN_SHIFT_ALLOCATION
+  - CREATE_MULTI_SHIFT or SKIP_UNKNOWN_MULTI_SHIFT_ALLOCATION
+  - CURRENT_MONTH, PREVIOUS_MONTH, CUSTOM_PERIOD, USE_JOINED_AT_ANNIVERSARY, or SKIP_PAYMENTS
+  - GENERATE_DUE, IMPORT_PAID_UNPAID, or SKIP_PAYMENTS
 - Questions should be short, answerable, and only for decisions the operator must confirm.
 `;
 }

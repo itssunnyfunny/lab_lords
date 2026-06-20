@@ -1,12 +1,31 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+    callGeminiJson,
     DEFAULT_GEMINI_FLASH_MODEL,
     DEFAULT_GEMINI_PRO_MODEL,
     resolveGeminiModel,
     resolveGeminiProModel,
 } from "@/ai/llm/gemini.client";
 
+const mocks = vi.hoisted(() => ({
+    generateContent: vi.fn(),
+}));
+
+vi.mock("@google/genai", () => ({
+    GoogleGenAI: vi.fn(function GoogleGenAIMock() {
+        return {
+            models: {
+                generateContent: mocks.generateContent,
+            },
+        };
+    }),
+}));
+
 const originalEnv = { ...process.env };
+
+beforeEach(() => {
+    mocks.generateContent.mockReset();
+});
 
 afterEach(() => {
     process.env = { ...originalEnv };
@@ -33,8 +52,55 @@ describe("Gemini model resolution", () => {
 
     it("lets import analysis use a dedicated Pro override", () => {
         process.env.GEMINI_PRO_MODEL = "gemini-pro";
-        process.env.GEMINI_IMPORT_MODEL = "gemini-3.1-pro-preview";
+        process.env.GEMINI_IMPORT_MODEL = "gemini-2.5-pro";
 
-        expect(resolveGeminiProModel()).toBe("gemini-3-pro-preview");
+        expect(resolveGeminiProModel()).toBe("gemini-2.5-pro");
+    });
+});
+
+describe("Gemini structured JSON calls", () => {
+    it("returns a clear failure when the API key is missing", async () => {
+        delete process.env.GEMINI_API_KEY;
+
+        const result = await callGeminiJson<{ value: number }>("Return JSON");
+
+        expect(result.ok).toBe(false);
+        expect(result.rawText).toBeNull();
+        expect(result.error).toContain("no structured response");
+        expect(mocks.generateContent).not.toHaveBeenCalled();
+    });
+
+    it("uses the current structured-output config shape", async () => {
+        process.env.GEMINI_API_KEY = "test-key";
+        const schema = { type: "object", properties: { value: { type: "number" } }, required: ["value"] };
+        mocks.generateContent.mockResolvedValueOnce({ text: "{\"value\":1}" });
+
+        const result = await callGeminiJson<{ value: number }>("Return JSON", {
+            model: "gemini-3.5-flash",
+            responseJsonSchema: schema,
+        });
+
+        expect(result).toEqual({ ok: true, data: { value: 1 }, rawText: "{\"value\":1}" });
+        expect(mocks.generateContent).toHaveBeenCalledWith(expect.objectContaining({
+            model: "gemini-3.5-flash",
+            config: {
+                responseFormat: {
+                    text: {
+                        mimeType: "application/json",
+                        schema,
+                    },
+                },
+            },
+        }));
+    });
+
+    it("returns parse errors with the raw Gemini text", async () => {
+        process.env.GEMINI_API_KEY = "test-key";
+        mocks.generateContent.mockResolvedValueOnce({ text: "not json" });
+
+        const result = await callGeminiJson("Return JSON");
+
+        expect(result.ok).toBe(false);
+        expect(result.rawText).toBe("not json");
     });
 });
