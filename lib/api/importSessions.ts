@@ -1,6 +1,12 @@
 import { apiClient } from "./core";
 import type { CommitMode, ImportColumnMapping, ImportOptions } from "@/importing/contracts/import-session.contract";
 
+type DetailOptions = {
+    rowFilter?: "attention" | "ready" | "all" | "skipped";
+    limit?: number;
+    cursor?: string | number | null;
+};
+
 async function parseResponse(response: Response) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Import request failed");
@@ -25,8 +31,13 @@ export const importSessions = {
         return apiClient.post<unknown, { id: string }>(`/branches/${branchId}/import-sessions`, { pastedTable, fileName: "Pasted table" });
     },
 
-    detail<T = unknown>(branchId: string, sessionId: string): Promise<T> {
-        return apiClient.get<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}`);
+    detail<T = unknown>(branchId: string, sessionId: string, options: DetailOptions = {}): Promise<T> {
+        const params = new URLSearchParams();
+        if (options.rowFilter) params.set("rowFilter", options.rowFilter);
+        if (options.limit) params.set("limit", String(options.limit));
+        if (options.cursor) params.set("cursor", String(options.cursor));
+        const query = params.toString();
+        return apiClient.get<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}${query ? `?${query}` : ""}`);
     },
 
     analyze<T = unknown>(branchId: string, sessionId: string): Promise<T> {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseCsv } from "@/importing/parsers/csv.parser";
 import { parsePastedTable } from "@/importing/parsers/pasted-table.parser";
 import { parsePdf } from "@/importing/parsers/pdf.parser";
@@ -15,17 +15,24 @@ import { applyImportDefaults, parseImportMoney } from "@/importing/utils/row-nor
 import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
 import { validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
 import { validateImportPayment } from "@/importing/validators/import-payment.validator";
+import { validateImportSeat } from "@/importing/validators/import-seat.validator";
 import { validateImportShift } from "@/importing/validators/import-shift.validator";
 import { validateImportStudent } from "@/importing/validators/import-student.validator";
 
 const mocks = vi.hoisted(() => ({
     callGemini: vi.fn(),
+    callGeminiJson: vi.fn(),
 }));
 
 vi.mock("@/ai/llm/gemini.client", () => ({
     callGemini: mocks.callGemini,
-    resolveGeminiProModel: () => "gemini-3-pro-preview",
+    callGeminiJson: mocks.callGeminiJson,
+    resolveGeminiProModel: () => "gemini-3.5-flash",
 }));
+
+beforeEach(() => {
+    vi.clearAllMocks();
+});
 
 describe("import parsers", () => {
     it("parses CSV headers and rows", () => {
@@ -93,7 +100,7 @@ describe("import mapping and validation", () => {
     });
 
     it("falls back when AI mapping fails", async () => {
-        mocks.callGemini.mockResolvedValueOnce(null);
+        mocks.callGeminiJson.mockResolvedValueOnce({ ok: false, rawText: null, error: "Missing API key" });
         const { mapImportColumns } = await import("@/importing/ai/import-column-mapper.ai");
 
         const mapped = await mapImportColumns({
@@ -104,10 +111,15 @@ describe("import mapping and validation", () => {
 
         expect(mapped.usedFallback).toBe(true);
         expect(mapped.columnMappings[0].targetField).toBe("student.name");
+        expect(mapped.aiTrace?.status).toBe("unavailable");
+        expect(mapped.warnings[0]).toBe("Missing API key");
     });
 
     it("keeps AI payment value guesses unconfirmed", async () => {
-        mocks.callGemini.mockResolvedValueOnce(JSON.stringify({
+        mocks.callGeminiJson.mockResolvedValueOnce({
+            ok: true,
+            rawText: "{}",
+            data: {
             entityTypesDetected: ["STUDENT", "PAYMENT"],
             columnMappings: [
                 { sourceColumn: "Name", targetField: "student.name", confidence: 92 },
@@ -124,7 +136,7 @@ describe("import mapping and validation", () => {
                     confirmed: true,
                 },
             },
-        }));
+        }});
         const { mapImportColumns } = await import("@/importing/ai/import-column-mapper.ai");
 
         const mapped = await mapImportColumns({
@@ -135,6 +147,36 @@ describe("import mapping and validation", () => {
 
         expect(mapped.suggestedImportOptions?.paymentMapping?.paidValues).toEqual(["yes"]);
         expect(mapped.suggestedImportOptions?.paymentMapping?.confirmed).toBe(false);
+    });
+
+    it("flags duplicate AI target mappings and keeps all source columns covered", async () => {
+        mocks.callGeminiJson.mockResolvedValueOnce({
+            ok: true,
+            rawText: "{}",
+            data: {
+                entityTypesDetected: ["STUDENT"],
+                columnMappings: [
+                    { sourceColumn: "Name", targetField: "student.name", confidence: 92 },
+                    { sourceColumn: "Full Name", targetField: "student.name", confidence: 91 },
+                    { sourceColumn: "Notes", targetField: "student.notes", confidence: 80 },
+                ],
+                questions: [],
+                warnings: [],
+            },
+        });
+        const { mapImportColumns } = await import("@/importing/ai/import-column-mapper.ai");
+
+        const mapped = await mapImportColumns({
+            branchContext: {},
+            columns: ["Name", "Full Name", "Notes"],
+            sampleRows: [{ Name: "Asha", "Full Name": "Asha Sharma", Notes: "prefers morning" }],
+        });
+
+        expect(mapped.aiTrace?.status).toBe("success");
+        expect(mapped.columnMappings).toHaveLength(3);
+        expect(mapped.columnMappings.find(mapping => mapping.sourceColumn === "Full Name")?.targetField).toBe("ignore");
+        expect(mapped.columnMappings.find(mapping => mapping.sourceColumn === "Notes")?.targetField).toBe("ignore");
+        expect(mapped.warnings.some(warning => warning.includes("more than one column"))).toBe(true);
     });
 
     it("blocks rows missing student name", () => {
@@ -185,6 +227,60 @@ describe("import mapping and validation", () => {
         );
 
         expect(result.warnings.some(warning => warning.code === "AMBIGUOUS_PAYMENT_STATUS")).toBe(true);
+    });
+
+    it("requires valid dates for custom payment periods", () => {
+        const result = validateImportPayment(
+            { student: { name: "Asha" }, payment: { amount: 1200, rawStatus: "paid", status: "PAID" } },
+            {
+                entityTypesDetected: ["PAYMENT"],
+                columnMappings: [],
+                importOptions: {
+                    paymentCycle: "CUSTOM_PERIOD",
+                    paymentAction: "GENERATE_DUE",
+                },
+            }
+        );
+
+        expect(result.warnings.some(warning => warning.code === "PAYMENT_CUSTOM_PERIOD_REQUIRED")).toBe(true);
+    });
+
+    it("accepts complete custom payment periods", () => {
+        const result = validateImportPayment(
+            { student: { name: "Asha" }, payment: { amount: 1200, rawStatus: "paid", status: "PAID" } },
+            {
+                entityTypesDetected: ["PAYMENT"],
+                columnMappings: [],
+                importOptions: {
+                    paymentCycle: "CUSTOM_PERIOD",
+                    customPeriodStart: "2026-01-01",
+                    customPeriodEnd: "2026-01-31",
+                    paymentAction: "GENERATE_DUE",
+                },
+            }
+        );
+
+        expect(result.warnings.some(warning => warning.code === "PAYMENT_CUSTOM_PERIOD_REQUIRED")).toBe(false);
+    });
+
+    it("allows unknown seats to be skipped while importing the student", () => {
+        const result = validateImportSeat(
+            { student: { name: "Asha" }, allocation: { seatLabel: "A404", shiftName: "Morning" } },
+            { seatsByLabel: new Map(), skipUnknownSeatAllocations: true }
+        );
+
+        expect(result.questions).toEqual([]);
+        expect(result.warnings[0]).toMatchObject({ code: "ALLOCATION_SKIPPED_UNKNOWN_SEAT", severity: "info" });
+    });
+
+    it("allows unknown shifts to be skipped while importing the student", () => {
+        const result = validateImportShift(
+            { student: { name: "Asha" }, allocation: { seatLabel: "A1", shiftName: "Night" } },
+            { shiftsByName: new Map(), multiShiftsByName: new Map(), skipUnknownShiftAllocations: true }
+        );
+
+        expect(result.questions).toEqual([]);
+        expect(result.warnings[0]).toMatchObject({ code: "ALLOCATION_SKIPPED_UNKNOWN_SHIFT", severity: "info" });
     });
 
     it("applies operator defaults before validation", () => {

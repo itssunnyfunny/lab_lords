@@ -25,6 +25,20 @@ export function validateImportPayment(
         });
     }
 
+    if (options?.paymentCycle === "CUSTOM_PERIOD") {
+        const start = options.customPeriodStart ? new Date(options.customPeriodStart) : null;
+        const end = options.customPeriodEnd ? new Date(options.customPeriodEnd) : null;
+        const invalidRange = !start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end;
+        if (invalidRange) {
+            result.warnings.push({
+                code: "PAYMENT_CUSTOM_PERIOD_REQUIRED",
+                field: "payment.customPeriod",
+                message: "Choose a valid custom payment period start and end date.",
+                severity: "warning",
+            });
+        }
+    }
+
     if (!options?.paymentAction) {
         result.warnings.push({
             code: "PAYMENT_ACTION_REQUIRED",

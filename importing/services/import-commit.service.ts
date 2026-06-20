@@ -37,10 +37,13 @@ function resolvePaymentPeriod(option: ImportMappingState["importOptions"], joine
         return { periodStart: startOfMonth(previous), periodEnd: endOfMonth(previous), dueDate: endOfMonth(previous) };
     }
     if (cycle === "CUSTOM_PERIOD" && option?.customPeriodStart && option.customPeriodEnd) {
+        const periodStart = startOfDay(new Date(option.customPeriodStart));
+        const periodEnd = startOfDay(new Date(option.customPeriodEnd));
+        if (Number.isNaN(periodStart.getTime()) || Number.isNaN(periodEnd.getTime()) || periodStart > periodEnd) return null;
         return {
-            periodStart: startOfDay(new Date(option.customPeriodStart)),
-            periodEnd: startOfDay(new Date(option.customPeriodEnd)),
-            dueDate: startOfDay(new Date(option.customPeriodEnd)),
+            periodStart,
+            periodEnd,
+            dueDate: periodEnd,
         };
     }
     if (cycle === "USE_JOINED_AT_ANNIVERSARY") {

@@ -44,7 +44,7 @@ const analysis = {
     },
     attention: [],
     pipeline: [],
-    model: "gemini-3-pro-preview",
+    model: "gemini-3.5-flash",
 };
 
 describe("ImportQuestionService", () => {

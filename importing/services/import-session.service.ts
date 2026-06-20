@@ -37,6 +37,14 @@ import { validateImportStudent } from "@/importing/validators/import-student.val
 import type { Prisma } from "@/app/generated/prisma/client";
 import type { ImportRowStatus, ImportSessionStatus } from "@/app/generated/prisma/enums";
 
+export type ImportSessionRowFilter = "attention" | "ready" | "all" | "skipped";
+
+export type ImportSessionDetailOptions = {
+    rowFilter?: ImportSessionRowFilter;
+    limit?: number;
+    cursor?: number;
+};
+
 function asJson(value: unknown): Prisma.InputJsonValue {
     return value as Prisma.InputJsonValue;
 }
@@ -47,6 +55,37 @@ function toStringDate(value: Date) {
 
 function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : "Something went wrong";
+}
+
+function clampRowLimit(value: number | undefined) {
+    if (!value || !Number.isFinite(value)) return undefined;
+    return Math.max(1, Math.min(500, Math.floor(value)));
+}
+
+function columnsFromFileMeta(meta: unknown): string[] | null {
+    if (!meta || typeof meta !== "object" || Array.isArray(meta) || !("columns" in meta)) return null;
+    const columns = (meta as { columns?: unknown }).columns;
+    return Array.isArray(columns) && columns.every(column => typeof column === "string") ? columns : null;
+}
+
+function rowWhereForFilter(
+    importSessionId: string,
+    filter: ImportSessionRowFilter = "all",
+    cursor?: number
+): Prisma.ImportRowWhereInput {
+    const where: Prisma.ImportRowWhereInput = { importSessionId };
+    if (cursor && Number.isFinite(cursor)) where.rowNumber = { gt: cursor };
+
+    if (filter === "ready") where.status = { in: ["READY", "WARNING"] };
+    if (filter === "attention") where.status = { in: ["WARNING", "NEEDS_REVIEW", "BLOCKED", "DUPLICATE", "CONFLICT", "FAILED"] };
+    if (filter === "skipped") {
+        where.OR = [
+            { skipped: true },
+            { status: "SKIPPED" },
+        ];
+    }
+
+    return where;
 }
 
 async function parseImportSource(input: CreateImportSessionInput): Promise<ParsedImportSource> {
@@ -189,6 +228,7 @@ function mappingWithComputedAnalysis(input: {
         rowId?: string | null;
     }>;
     sessionStatus?: string;
+    detectedPaymentValues?: string[];
 }): ImportMappingState {
     const existing = input.mapping.analysis;
     const attention = existing?.attention?.length
@@ -205,6 +245,8 @@ function mappingWithComputedAnalysis(input: {
         sessionStatus: input.sessionStatus,
         model: existing?.model,
         notes: existing?.notes,
+        ai: existing?.ai,
+        detectedPaymentValues: existing?.detectedPaymentValues ?? input.detectedPaymentValues,
     });
 
     return {
@@ -308,33 +350,89 @@ export class ImportSessionService {
         }));
     }
 
-    static async getSessionDetail(userId: string, branchId: string, sessionId: string) {
+    static async getSessionDetail(
+        userId: string,
+        branchId: string,
+        sessionId: string,
+        options: ImportSessionDetailOptions = {}
+    ) {
         await this.authorize(userId, branchId);
         const session = await prisma.importSession.findFirst({
             where: { id: sessionId, branchId },
             include: {
-                rows: { orderBy: { rowNumber: "asc" } },
                 questions: { orderBy: { createdAt: "asc" } },
                 commits: { orderBy: { createdAt: "desc" } },
             },
         });
 
         if (!session) throw new Error("Import session not found");
-        const columns = Object.keys((session.rows[0]?.rawData ?? {}) as Record<string, unknown>);
-        const sourceProfile = sourceProfileFromSession(session, columns);
+        const firstRow = await prisma.importRow.findFirst({
+            where: { importSessionId: sessionId },
+            orderBy: { rowNumber: "asc" },
+            select: { rawData: true },
+        });
+        const columns = columnsFromFileMeta(session.fileMeta)
+            ?? Object.keys((firstRow?.rawData ?? {}) as Record<string, unknown>);
+        const needsSourceProfileFallback = !(
+            session.fileMeta &&
+            typeof session.fileMeta === "object" &&
+            !Array.isArray(session.fileMeta) &&
+            "sourceProfile" in session.fileMeta
+        );
+        const profileRows = needsSourceProfileFallback
+            ? await prisma.importRow.findMany({
+                where: { importSessionId: sessionId },
+                orderBy: { rowNumber: "asc" },
+                select: { rawData: true },
+            })
+            : [];
+        const sourceProfile = sourceProfileFromSession({
+            fileMeta: session.fileMeta,
+            rows: profileRows,
+        }, columns);
+        const summaryRows = await prisma.importRow.findMany({
+            where: { importSessionId: sessionId },
+            orderBy: { rowNumber: "asc" },
+            select: {
+                id: true,
+                rowNumber: true,
+                status: true,
+                skipped: true,
+                normalizedData: true,
+                issues: true,
+                warnings: true,
+                confidence: true,
+            },
+        });
         const openQuestions = session.questions.filter(question => question.status === "OPEN").length;
         const mapping = mappingWithComputedAnalysis({
             mapping: normalizeMapping(session.mapping, columns),
             sourceProfile,
-            rows: session.rows,
+            rows: summaryRows,
             questions: session.questions,
             sessionStatus: session.status,
         });
-        const summary = summarizeRows(session.rows, {
+        const summary = summarizeRows(summaryRows, {
             mapping,
             sourceProfile,
             openQuestions,
         });
+        const filter = options.rowFilter ?? "all";
+        const limit = clampRowLimit(options.limit);
+        const rowsWhere = rowWhereForFilter(sessionId, filter, options.cursor);
+        const pageRows = await prisma.importRow.findMany({
+            where: rowsWhere,
+            orderBy: { rowNumber: "asc" },
+            ...(limit ? { take: limit + 1 } : {}),
+        });
+        const hasMore = Boolean(limit && pageRows.length > limit);
+        const returnedRows = hasMore && limit ? pageRows.slice(0, limit) : pageRows;
+        const filteredRows = options.rowFilter || limit || options.cursor
+            ? await prisma.importRow.count({ where: rowWhereForFilter(sessionId, filter) })
+            : summaryRows.length;
+        const nextCursor = hasMore && returnedRows.length > 0
+            ? String(returnedRows[returnedRows.length - 1].rowNumber)
+            : null;
 
         return {
             ...session,
@@ -342,7 +440,17 @@ export class ImportSessionService {
             updatedAt: toStringDate(session.updatedAt),
             mapping,
             summary,
-            rows: session.rows.map(row => ({
+            rowPage: {
+                filter,
+                limit: limit ?? null,
+                cursor: options.cursor ? String(options.cursor) : null,
+                nextCursor,
+                hasMore,
+                totalRows: summaryRows.length,
+                filteredRows,
+                returnedRows: returnedRows.length,
+            },
+            rows: returnedRows.map(row => ({
                 id: row.id,
                 rowNumber: row.rowNumber,
                 rawData: row.rawData,
@@ -486,6 +594,7 @@ export class ImportSessionService {
                     attention: [],
                     model: aiMapping.model,
                     notes: aiMapping.analysisNotes,
+                    ai: aiMapping.aiTrace,
                 }),
             };
 
@@ -677,7 +786,7 @@ export class ImportSessionService {
             })),
         ];
 
-        for (const item of normalizedRows) {
+        const processedRows = normalizedRows.map(item => {
             const baseIssues = item.normalizationIssues;
             const result = mergeValidatorResults(
                 { issues: baseIssues, warnings: [], questions: [] },
@@ -686,12 +795,16 @@ export class ImportSessionService {
                 validateImportSeat(item.normalizedData, {
                     seatsByLabel: context.seatsByLabel,
                     createUnknownSeats: mapping.importOptions?.createUnknownSeats,
+                    skipUnknownSeatAllocations: mapping.importOptions?.skipUnknownSeatAllocations,
                 }),
                 validateImportShift(item.normalizedData, {
                     shiftsByName: context.shiftsByName,
                     multiShiftsByName: context.multiShiftsByName,
                     createUnknownShifts: mapping.importOptions?.createUnknownShifts,
                     createUnknownMultiShifts: mapping.importOptions?.createUnknownMultiShifts,
+                    skipUnknownShiftAllocations: mapping.importOptions?.skipUnknownShiftAllocations,
+                    skipUnknownMultiShiftAllocations: mapping.importOptions?.skipUnknownMultiShiftAllocations,
+                    skipMissingShiftAllocations: mapping.importOptions?.skipMissingShiftAllocations,
                 }),
                 validateImportAllocation(item.normalizedData, context),
                 validateImportPayment(item.normalizedData, mapping)
@@ -708,19 +821,36 @@ export class ImportSessionService {
                 warnings,
             });
 
-            questionDrafts.push(...result.questions);
+            return {
+                row: item.row,
+                mappedData: item.mappedData,
+                normalizedData: item.normalizedData,
+                issues: result.issues,
+                warnings,
+                confidence: item.confidence,
+                status,
+                questions: result.questions,
+            };
+        });
 
-            await prisma.importRow.update({
-                where: { id: item.row.id },
-                data: {
-                    mappedData: asJson(item.mappedData),
-                    normalizedData: asJson(item.normalizedData),
-                    issues: asJson(result.issues),
-                    warnings: asJson(warnings),
-                    confidence: item.confidence,
-                    status,
-                },
-            });
+        questionDrafts.push(...processedRows.flatMap(row => row.questions));
+
+        const rowUpdateChunkSize = 100;
+        for (let index = 0; index < processedRows.length; index += rowUpdateChunkSize) {
+            const chunk = processedRows.slice(index, index + rowUpdateChunkSize);
+            await Promise.all(chunk.map(item =>
+                prisma.importRow.update({
+                    where: { id: item.row.id },
+                    data: {
+                        mappedData: asJson(item.mappedData),
+                        normalizedData: asJson(item.normalizedData),
+                        issues: asJson(item.issues),
+                        warnings: asJson(item.warnings),
+                        confidence: item.confidence,
+                        status: item.status,
+                    },
+                })
+            ));
         }
 
         await prisma.importQuestion.deleteMany({
@@ -751,6 +881,9 @@ export class ImportSessionService {
             rows.some(row => row.status === "READY" || row.status === "WARNING") ? "READY_TO_COMMIT" :
             "NEEDS_MAPPING";
         const attention = buildImportAttention({ rows, questions, mapping });
+        const detectedPaymentValues = Array.from(new Set(processedRows
+            .map(row => row.normalizedData.payment?.rawStatus)
+            .filter((value): value is string => Boolean(value))));
         const nextMapping: ImportMappingState = {
             ...mapping,
             analysis: buildImportSessionAnalysis({
@@ -760,6 +893,8 @@ export class ImportSessionService {
                 sessionStatus: status,
                 model: mapping.analysis?.model,
                 notes: mapping.analysis?.notes,
+                ai: mapping.analysis?.ai,
+                detectedPaymentValues,
             }),
         };
         const summary = {

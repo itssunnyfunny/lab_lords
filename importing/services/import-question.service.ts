@@ -15,6 +15,15 @@ function answerToOptions(field: string | null, answer: unknown): Partial<ImportO
             ? String((answer as { value: unknown }).value)
             : "";
 
+    if (field === "payment.customPeriod" && answer && typeof answer === "object") {
+        const customPeriodStart = "customPeriodStart" in answer ? String((answer as { customPeriodStart: unknown }).customPeriodStart) : "";
+        const customPeriodEnd = "customPeriodEnd" in answer ? String((answer as { customPeriodEnd: unknown }).customPeriodEnd) : "";
+        return {
+            paymentCycle: "CUSTOM_PERIOD",
+            ...(customPeriodStart ? { customPeriodStart } : {}),
+            ...(customPeriodEnd ? { customPeriodEnd } : {}),
+        };
+    }
     if (field === "payment.period") return { paymentCycle: value as ImportOptions["paymentCycle"] };
     if (field === "payment.status" && ["GENERATE_DUE", "IMPORT_PAID_UNPAID", "SKIP_PAYMENTS"].includes(value)) {
         return { paymentAction: value as ImportOptions["paymentAction"] };
@@ -23,13 +32,17 @@ function answerToOptions(field: string | null, answer: unknown): Partial<ImportO
         return { defaultJoinedAt: value === "USE_TODAY" ? new Date().toISOString() : value };
     }
     if (field === "seat.label" && value === "YES_CREATE_SEATS") return { createUnknownSeats: true };
-    if (field === "seat.label" && value && value !== "NO_SKIP_ALLOCATIONS") return { defaultSeatLabel: value };
+    if (field === "seat.label" && ["SKIP_UNKNOWN_SEAT_ALLOCATION", "NO_SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownSeatAllocations: true };
+    if (field === "seat.label" && value) return { defaultSeatLabel: value };
     if (field === "allocation.shiftName" && value === "CREATE_SHIFT") return { createUnknownShifts: true };
-    if (field === "allocation.shiftName" && value && !["MAP_TO_EXISTING_SHIFT", "SKIP_ALLOCATIONS"].includes(value)) {
+    if (field === "allocation.shiftName" && value === "SKIP_MISSING_SHIFT_ALLOCATION") return { skipMissingShiftAllocations: true };
+    if (field === "allocation.shiftName" && ["SKIP_UNKNOWN_SHIFT_ALLOCATION", "SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownShiftAllocations: true };
+    if (field === "allocation.shiftName" && value && !["MAP_TO_EXISTING_SHIFT"].includes(value)) {
         return { defaultShiftName: value };
     }
     if (field === "allocation.multiShiftName" && value === "CREATE_MULTI_SHIFT") return { createUnknownMultiShifts: true };
-    if (field === "allocation.multiShiftName" && value && !["MAP_TO_EXISTING_MULTI_SHIFT", "SKIP_ALLOCATIONS"].includes(value)) {
+    if (field === "allocation.multiShiftName" && ["SKIP_UNKNOWN_MULTI_SHIFT_ALLOCATION", "SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownMultiShiftAllocations: true };
+    if (field === "allocation.multiShiftName" && value && !["MAP_TO_EXISTING_MULTI_SHIFT"].includes(value)) {
         return { defaultMultiShiftName: value };
     }
     return {};
