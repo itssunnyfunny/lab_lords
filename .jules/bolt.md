@@ -22,3 +22,6 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+## 2024-06-21 - Resolving N+1 DB Bottlenecks in Batch Transactions
+**Learning:** Performing `findMany` database queries inside iterations like `for` loops within a transaction introduces severe N+1 query bottlenecks, drastically reducing performance on bulk operations.
+**Action:** Extract database lookups outside the loop using `findMany` combined with the `in` operator (e.g., `{ studentId: { in: studentIds } }`), and then use array `filter` or a Map structure for O(1) in-memory assignments within the loop.
