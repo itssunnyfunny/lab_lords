@@ -39,7 +39,16 @@ export class ImportPreviewService {
             if (normalized.multiShift?.name && row.warnings.some(warning => warning.code === "WILL_CREATE_MULTI_SHIFT")) createMultiShifts.add(normalized.multiShift.name);
         }
 
-        const paymentRows = importableRows.filter(row => row.normalizedData?.payment);
+        const mapping = detail.mapping as { importOptions?: { paymentAction?: string; paymentCycle?: string } } | null;
+        const generatesMonthlyPayments = Boolean(
+            mapping?.importOptions?.paymentAction &&
+            mapping.importOptions.paymentAction !== "SKIP_PAYMENTS" &&
+            mapping.importOptions.paymentCycle !== "SKIP_PAYMENTS"
+        );
+        const importsPaymentStatuses = mapping?.importOptions?.paymentAction === "IMPORT_PAID_UNPAID";
+        const paymentRows = generatesMonthlyPayments
+            ? importableRows.filter(row => row.normalizedData?.student?.name)
+            : importableRows.filter(row => row.normalizedData?.payment);
         const hasOpenQuestions = detail.questions?.some((question: { status?: string }) => question.status === "OPEN") ?? false;
         return {
             mode,
@@ -54,8 +63,8 @@ export class ImportPreviewService {
                     (row.normalizedData.allocation.shiftName || row.normalizedData.allocation.multiShiftName)
                 ).length,
                 generatePayments: paymentRows.length,
-                markPaid: paymentRows.filter(row => row.normalizedData?.payment?.status === "PAID").length,
-                markWaived: paymentRows.filter(row => row.normalizedData?.payment?.status === "WAIVED").length,
+                markPaid: importsPaymentStatuses ? paymentRows.filter(row => row.normalizedData?.payment?.status === "PAID").length : 0,
+                markWaived: importsPaymentStatuses ? paymentRows.filter(row => row.normalizedData?.payment?.status === "WAIVED").length : 0,
                 skippedRows: rows.filter(row => row.status === "SKIPPED").length,
                 blockedRows: rows.filter(row => ["BLOCKED", "CONFLICT"].includes(row.status)).length,
                 warningRows: rows.filter(row => row.warnings.length > 0).length,

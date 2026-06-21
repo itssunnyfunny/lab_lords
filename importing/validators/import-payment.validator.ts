@@ -7,9 +7,18 @@ export function validateImportPayment(
 ): ImportValidatorResult {
     const result = emptyValidatorResult();
     const payment = normalized.payment;
-    if (!payment?.amount && !payment?.rawStatus && !payment?.status && !payment?.period) return result;
-
     const options = mapping.importOptions;
+    const mappedPaymentColumn = mapping.columnMappings.some(mapping => mapping.targetField.startsWith("payment."));
+    const hasPaymentData = Boolean(payment?.amount || payment?.rawStatus || payment?.status || payment?.period);
+    const intendsPayments = Boolean(
+        hasPaymentData ||
+        mappedPaymentColumn ||
+        mapping.entityTypesDetected.includes("PAYMENT") ||
+        (options?.paymentAction && options.paymentAction !== "SKIP_PAYMENTS") ||
+        (options?.paymentCycle && options.paymentCycle !== "SKIP_PAYMENTS")
+    );
+
+    if (!intendsPayments) return result;
 
     if (!options?.paymentCycle) {
         result.warnings.push({
@@ -25,6 +34,15 @@ export function validateImportPayment(
         });
     }
 
+    if (options?.paymentCycle === "SKIP_PAYMENTS" && options.paymentAction && options.paymentAction !== "SKIP_PAYMENTS") {
+        result.warnings.push({
+            code: "PAYMENT_CYCLE_ACTION_MISMATCH",
+            field: "payment.period",
+            message: "Payment action is enabled, but the payment cycle is set to skip payments.",
+            severity: "warning",
+        });
+    }
+
     if (options?.paymentCycle === "CUSTOM_PERIOD") {
         const start = options.customPeriodStart ? new Date(options.customPeriodStart) : null;
         const end = options.customPeriodEnd ? new Date(options.customPeriodEnd) : null;
@@ -37,6 +55,18 @@ export function validateImportPayment(
                 severity: "warning",
             });
         }
+    }
+
+    if (
+        options?.paymentCycle === "USE_JOINED_AT_ANNIVERSARY" &&
+        normalized.student?.joinedAtSource === "TODAY_DEFAULT"
+    ) {
+        result.warnings.push({
+            code: "PAYMENT_JOINED_AT_REQUIRED",
+            field: "student.joinedAt",
+            message: "Payment cycle uses each student's joined date, but this row is using today's fallback date.",
+            severity: "warning",
+        });
     }
 
     if (!options?.paymentAction) {
@@ -62,11 +92,11 @@ export function validateImportPayment(
         });
     }
 
-    if (options?.paymentAction === "IMPORT_PAID_UNPAID" && payment.status === "UNCLEAR") {
+    if (options?.paymentAction === "IMPORT_PAID_UNPAID" && payment?.status === "UNCLEAR") {
         result.warnings.push({
             code: "AMBIGUOUS_PAYMENT_STATUS",
             field: "payment.status",
-            message: `Payment value "${payment.rawStatus ?? ""}" is unclear.`,
+            message: `Payment value "${payment?.rawStatus ?? ""}" is unclear.`,
             severity: "warning",
         });
     }

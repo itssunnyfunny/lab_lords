@@ -1,6 +1,7 @@
 import type {
     ImportColumnMapping,
     ImportIssue,
+    ImportBranchContext,
     ImportNormalizedRow,
     ImportOptions,
     ParsedImportRow,
@@ -85,7 +86,7 @@ function setNestedValue(row: ImportNormalizedRow, target: string, value: string,
             row.student = { ...row.student, phone: value };
             break;
         case "student.joinedAt":
-            row.student = { ...row.student, joinedAt: parseImportDate(value) ?? value };
+            row.student = { ...row.student, joinedAt: parseImportDate(value) ?? value, joinedAtSource: "UPLOADED" };
             break;
         case "student.monthlyFee": {
             const amount = parseImportMoney(value);
@@ -196,15 +197,66 @@ export function normalizeImportRow(
     };
 }
 
-export function applyImportDefaults(normalized: ImportNormalizedRow, options?: ImportOptions) {
-    if (!options) return normalized;
+type FeeDefaultContext = Partial<Pick<ImportBranchContext, "defaultFee">> & {
+    branchDefaultFee?: number;
+    shiftsByName?: Map<string, { name: string; price: number }>;
+    multiShiftsByName?: Map<string, { name: string; price: number }>;
+};
 
-    if (normalized.student && !normalized.student.joinedAt && options.defaultJoinedAt) {
-        normalized.student = { ...normalized.student, joinedAt: parseImportDate(options.defaultJoinedAt) ?? options.defaultJoinedAt };
+function applyFeeDefault(normalized: ImportNormalizedRow, context: FeeDefaultContext) {
+    const student = normalized.student;
+    if (!student || student.monthlyFee !== undefined) return;
+
+    const multiShiftName = student.feeLinkedMultiShiftName ?? normalized.allocation?.multiShiftName ?? normalized.multiShift?.name;
+    if (multiShiftName) {
+        const multiShift = context.multiShiftsByName?.get(multiShiftName.toLowerCase());
+        if (multiShift) {
+            normalized.student = {
+                ...student,
+                monthlyFee: multiShift.price,
+                feeSource: "MULTI_SHIFT_PRICE",
+                feeLinkedMultiShiftName: multiShift.name,
+                feeLinkedShiftName: undefined,
+            };
+            return;
+        }
+    }
+
+    const shiftName = student.feeLinkedShiftName ?? normalized.allocation?.shiftName ?? normalized.shift?.name;
+    if (shiftName) {
+        const shift = context.shiftsByName?.get(shiftName.toLowerCase());
+        if (shift) {
+            normalized.student = {
+                ...student,
+                monthlyFee: shift.price,
+                feeSource: "SHIFT_PRICE",
+                feeLinkedShiftName: shift.name,
+                feeLinkedMultiShiftName: undefined,
+            };
+            return;
+        }
+    }
+
+    normalized.student = {
+        ...student,
+        monthlyFee: context.defaultFee ?? context.branchDefaultFee ?? 0,
+        feeSource: "BRANCH_DEFAULT",
+    };
+}
+
+export function applyImportDefaults(normalized: ImportNormalizedRow, options?: ImportOptions, context?: FeeDefaultContext) {
+    if (!options && !context) return normalized;
+
+    if (normalized.student && !normalized.student.joinedAt && options?.defaultJoinedAt) {
+        normalized.student = {
+            ...normalized.student,
+            joinedAt: parseImportDate(options.defaultJoinedAt) ?? options.defaultJoinedAt,
+            joinedAtSource: "OPERATOR_DEFAULT",
+        };
     }
 
     const hasSeat = Boolean(normalized.allocation?.seatLabel ?? normalized.seat?.label);
-    if (!hasSeat && options.defaultSeatLabel) {
+    if (!hasSeat && options?.defaultSeatLabel) {
         normalized.seat = { ...normalized.seat, label: options.defaultSeatLabel };
         normalized.allocation = { ...normalized.allocation, seatLabel: options.defaultSeatLabel };
     }
@@ -213,15 +265,17 @@ export function applyImportDefaults(normalized: ImportNormalizedRow, options?: I
     const hasShift = Boolean(normalized.allocation?.shiftName ?? normalized.shift?.name);
     const hasMultiShift = Boolean(normalized.allocation?.multiShiftName ?? normalized.multiShift?.name);
 
-    if (hasAllocationSeat && !hasShift && !hasMultiShift && options.defaultShiftName) {
+    if (hasAllocationSeat && !hasShift && !hasMultiShift && options?.defaultShiftName) {
         normalized.shift = { ...normalized.shift, name: options.defaultShiftName };
         normalized.allocation = { ...normalized.allocation, shiftName: options.defaultShiftName };
     }
 
-    if (hasAllocationSeat && !hasShift && !hasMultiShift && options.defaultMultiShiftName) {
+    if (hasAllocationSeat && !hasShift && !hasMultiShift && options?.defaultMultiShiftName) {
         normalized.multiShift = { ...normalized.multiShift, name: options.defaultMultiShiftName };
         normalized.allocation = { ...normalized.allocation, multiShiftName: options.defaultMultiShiftName };
     }
+
+    if (context) applyFeeDefault(normalized, context);
 
     return normalized;
 }

@@ -38,6 +38,7 @@ export function validateImportStudent(
 
     if (!student.joinedAt) {
         student.joinedAt = new Date().toISOString();
+        student.joinedAtSource = "TODAY_DEFAULT";
         result.warnings.push({
             code: "DEFAULT_JOINED_AT",
             field: "student.joinedAt",

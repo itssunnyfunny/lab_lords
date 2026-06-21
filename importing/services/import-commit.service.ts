@@ -205,6 +205,20 @@ export class ImportCommitService {
                     const seat = seatLabel ? context.seatsByLabel.get(key(seatLabel)) : undefined;
                     const shift = shiftName ? context.shiftsByName.get(key(shiftName)) : undefined;
                     const multiShift = multiShiftName ? context.multiShiftsByName.get(key(multiShiftName)) : undefined;
+                    const feeLinkedShift = normalized.student.feeLinkedShiftName
+                        ? context.shiftsByName.get(key(normalized.student.feeLinkedShiftName))
+                        : shift;
+                    const feeLinkedMultiShift = normalized.student.feeLinkedMultiShiftName
+                        ? context.multiShiftsByName.get(key(normalized.student.feeLinkedMultiShiftName))
+                        : multiShift;
+                    const feeLinkedShiftId = normalized.student.feeSource === "UPLOADED"
+                        ? undefined
+                        : feeLinkedMultiShift
+                            ? undefined
+                            : feeLinkedShift?.id;
+                    const feeLinkedMultiShiftId = normalized.student.feeSource === "UPLOADED"
+                        ? undefined
+                        : feeLinkedMultiShift?.id;
                     const joinedAt = normalized.student.joinedAt ? new Date(normalized.student.joinedAt) : new Date();
                     const student = await StudentService.createImportedStudent(userId, branchId, {
                         name: normalized.student.name,
@@ -212,6 +226,8 @@ export class ImportCommitService {
                         joinedAt,
                         monthlyFee: normalized.student.monthlyFee,
                         admissionFee: 0,
+                        feeLinkedShiftId,
+                        feeLinkedMultiShiftId,
                     });
                     createdEntityIds.studentId = student.id;
                     summary.createdStudents++;

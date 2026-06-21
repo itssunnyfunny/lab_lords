@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
     IMPORT_TARGET_FIELDS,
+    type ImportBranchContext,
     type CommitMode,
     type ImportAttentionBucket,
     type ImportColumnMapping,
@@ -130,6 +131,7 @@ type ImportDetail = {
         filteredRows: number;
         returnedRows: number;
     };
+    branchContext?: ImportBranchContext;
     questions: ImportQuestion[];
     commits?: { status: string; summary: Record<string, number>; errors?: unknown }[];
 };
@@ -255,7 +257,37 @@ function numberFromDraft(value: string) {
     return Number.isFinite(parsed) ? Math.round(parsed) : undefined;
 }
 
-function normalizedFromDraft(row: ImportRow, draft: RowDraft): ImportNormalizedRow {
+function importNameKey(value: string | undefined | null) {
+    return (value ?? "").trim().toLocaleLowerCase("en-IN");
+}
+
+function findShift(context: ImportBranchContext | undefined, name: string) {
+    const target = importNameKey(name);
+    return context?.shifts.find(shift => importNameKey(shift.name) === target);
+}
+
+function findMultiShift(context: ImportBranchContext | undefined, name: string) {
+    const target = importNameKey(name);
+    return context?.multiShifts.find(multiShift => importNameKey(multiShift.name) === target);
+}
+
+function feeLooksAutoFilled(draft: RowDraft, context: ImportBranchContext | undefined) {
+    const fee = numberFromDraft(draft.fee);
+    if (fee === undefined) return true;
+    const shift = findShift(context, draft.shift);
+    const multiShift = findMultiShift(context, draft.multiShift);
+    return fee === shift?.price || fee === multiShift?.price || fee === (context?.defaultFee ?? 0);
+}
+
+function feeFromSelection(draft: RowDraft, context: ImportBranchContext | undefined) {
+    const multiShift = findMultiShift(context, draft.multiShift);
+    if (multiShift) return multiShift.price.toString();
+    const shift = findShift(context, draft.shift);
+    if (shift) return shift.price.toString();
+    return draft.fee;
+}
+
+function normalizedFromDraft(row: ImportRow, draft: RowDraft, context?: ImportBranchContext): ImportNormalizedRow {
     const next: ImportNormalizedRow = JSON.parse(JSON.stringify(row.normalizedData ?? {}));
     const studentName = draft.studentName.trim();
     const phone = draft.phone.trim();
@@ -268,13 +300,28 @@ function normalizedFromDraft(row: ImportRow, draft: RowDraft): ImportNormalizedR
     const paymentStatus = draft.paymentStatus.trim();
     const paymentMethod = draft.paymentMethod.trim();
     const referenceId = draft.referenceId.trim();
+    const shiftContext = findShift(context, shift);
+    const multiShiftContext = findMultiShift(context, multiShift);
+    const feeSource =
+        monthlyFee !== undefined && multiShiftContext && monthlyFee === multiShiftContext.price
+            ? "MULTI_SHIFT_PRICE"
+            : monthlyFee !== undefined && shiftContext && monthlyFee === shiftContext.price
+                ? "SHIFT_PRICE"
+                : monthlyFee !== undefined
+                    ? "UPLOADED"
+                    : undefined;
 
     next.student = {
         ...next.student,
         ...(studentName ? { name: studentName } : { name: undefined }),
         ...(phone ? { phone } : { phone: undefined }),
-        ...(joinedAt ? { joinedAt } : { joinedAt: undefined }),
-        ...(monthlyFee !== undefined ? { monthlyFee, feeSource: "UPLOADED" } : {}),
+        ...(joinedAt ? { joinedAt, joinedAtSource: "UPLOADED" as const } : { joinedAt: undefined }),
+        ...(monthlyFee !== undefined ? {
+            monthlyFee,
+            feeSource,
+            feeLinkedShiftName: feeSource === "SHIFT_PRICE" ? shiftContext?.name ?? shift : undefined,
+            feeLinkedMultiShiftName: feeSource === "MULTI_SHIFT_PRICE" ? multiShiftContext?.name ?? multiShift : undefined,
+        } : {}),
     };
 
     next.seat = { ...next.seat, ...(seat ? { label: seat } : { label: undefined }) };
@@ -359,8 +406,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [commitMode, setCommitMode] = useState<CommitMode>("SAFE_PARTIAL");
     const [preview, setPreview] = useState<ImportPreview | null>(null);
-    const [editingRowId, setEditingRowId] = useState<string | null>(null);
-    const [rowDraft, setRowDraft] = useState<RowDraft | null>(null);
+    const [rowDrafts, setRowDrafts] = useState<Record<string, RowDraft>>({});
     const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({});
     const [paymentDraft, setPaymentDraft] = useState({ paid: "", unpaid: "", waived: "" });
     const analysisStartedRef = useRef(false);
@@ -402,6 +448,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
 
     const mapping = detail?.mapping?.columnMappings ?? [];
     const options = detail?.mapping?.importOptions ?? {};
+    const branchContext = detail?.branchContext;
     const rows = useMemo(() => detail?.rows ?? [], [detail?.rows]);
     const questions = detail?.questions ?? [];
     const openQuestions = questions.filter(question => question.status === "OPEN");
@@ -456,24 +503,77 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
     };
 
     const beginEdit = (row: ImportRow) => {
-        setEditingRowId(row.id);
-        setRowDraft(draftFromRow(row));
+        setRowDrafts(prev => ({ ...prev, [row.id]: draftFromRow(row) }));
+    };
+
+    const cancelEdit = (rowId: string) => {
+        setRowDrafts(prev => {
+            const next = { ...prev };
+            delete next[rowId];
+            return next;
+        });
+    };
+
+    const cancelAllEdits = () => setRowDrafts({});
+
+    const updateRowDraft = (rowId: string, field: keyof RowDraft, value: string) => {
+        setRowDrafts(prev => {
+            const current = prev[rowId];
+            if (!current) return prev;
+            const shouldAutofillFee = (field === "shift" || field === "multiShift") && feeLooksAutoFilled(current, branchContext);
+            const nextDraft = {
+                ...current,
+                [field]: value,
+                ...(field === "shift" ? { multiShift: "" } : {}),
+                ...(field === "multiShift" ? { shift: "" } : {}),
+            };
+
+            return {
+                ...prev,
+                [rowId]: {
+                    ...nextDraft,
+                    ...(shouldAutofillFee ? { fee: feeFromSelection(nextDraft, branchContext) } : {}),
+                },
+            };
+        });
     };
 
     const saveRow = async (row: ImportRow) => {
+        const rowDraft = rowDrafts[row.id];
         if (!rowDraft) return;
         setSaving(true);
         try {
-            const normalizedData = normalizedFromDraft(row, rowDraft);
+            const normalizedData = normalizedFromDraft(row, rowDraft, branchContext);
             const nextDetail = await importSessions.updateRows<ImportDetail>(branchId, sessionId, {
                 edits: [{ rowId: row.id, normalizedData }],
             });
             setDetail(nextDetail);
             setPreview(null);
-            setEditingRowId(null);
-            setRowDraft(null);
+            cancelEdit(row.id);
         } catch (rowError) {
             setError(rowError instanceof Error ? rowError.message : "Failed to save row correction.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const saveAllEditedRows = async () => {
+        const edits = rows
+            .filter(row => rowDrafts[row.id])
+            .map(row => ({
+                rowId: row.id,
+                normalizedData: normalizedFromDraft(row, rowDrafts[row.id], branchContext),
+            }));
+        if (edits.length === 0) return;
+
+        setSaving(true);
+        try {
+            const nextDetail = await importSessions.updateRows<ImportDetail>(branchId, sessionId, { edits });
+            setDetail(nextDetail);
+            setPreview(null);
+            setRowDrafts({});
+        } catch (rowError) {
+            setError(rowError instanceof Error ? rowError.message : "Failed to save row corrections.");
         } finally {
             setSaving(false);
         }
@@ -550,6 +650,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
         if (rowFilter === "skipped") return row.skipped || row.status === "SKIPPED";
         return !["READY", "IMPORTED"].includes(row.status) || row.issues.length > 0 || row.warnings.length > 0;
     });
+    const editedRowCount = Object.keys(rowDrafts).length;
     const readiness = detail?.summary?.readinessScore ?? 0;
     const detectedPaymentValues = useMemo(
         () => detail?.mapping?.analysis?.detectedPaymentValues?.length
@@ -559,10 +660,14 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
     );
     const canCommit = preview?.canCommit ?? (detail?.status === "READY_TO_COMMIT" && openQuestions.length === 0);
     const hasBlockingAttention = attention.some(item => item.severity === "error");
+    const paymentsEnabled = Boolean(options.paymentAction && options.paymentAction !== "SKIP_PAYMENTS" && options.paymentCycle !== "SKIP_PAYMENTS");
+    const plannedPaymentRows = paymentsEnabled
+        ? (detail?.summary?.readyRows ?? 0) + (detail?.summary?.warningRows ?? 0)
+        : detail?.summary?.detectedEntityCounts?.PAYMENT ?? 0;
     const importImpact: Array<[string, number, "success" | "warning" | "danger" | "default" | "cyan"]> = [
         ["Students", preview?.summary.createStudents ?? detail?.summary?.detectedEntityCounts?.STUDENT ?? 0, "success" as const],
         ["Allocations", preview?.summary.createAllocations ?? detail?.summary?.detectedEntityCounts?.ALLOCATION ?? 0, "cyan" as const],
-        ["Payments", preview?.summary.generatePayments ?? detail?.summary?.detectedEntityCounts?.PAYMENT ?? 0, "warning" as const],
+        ["Payments", preview?.summary.generatePayments ?? plannedPaymentRows, "warning" as const],
         ["Create seats", preview?.summary.createSeats ?? 0, "cyan" as const],
         ["Skipped", preview?.summary.skippedRows ?? detail?.summary?.skippedRows ?? 0, "default" as const],
         ["Blocked", preview?.summary.blockedRows ?? ((detail?.summary?.blockedRows ?? 0) + (detail?.summary?.conflictRows ?? 0)), "danger" as const],
@@ -643,6 +748,16 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
 
                 {!loading && detail && (
                     <>
+                        <datalist id="import-seat-options">
+                            {(branchContext?.seats ?? []).map(seat => <option key={seat.id} value={seat.label} />)}
+                        </datalist>
+                        <datalist id="import-shift-options">
+                            {(branchContext?.shifts ?? []).map(shift => <option key={shift.id} value={shift.name} label={`${shift.price}`} />)}
+                        </datalist>
+                        <datalist id="import-multi-shift-options">
+                            {(branchContext?.multiShifts ?? []).map(multiShift => <option key={multiShift.id} value={multiShift.name} label={`${multiShift.price}`} />)}
+                        </datalist>
+
                         {latestCommit && (
                             <AppPanel title="Import result" description="Last commit report.">
                                 <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -717,6 +832,19 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                     </div>
                                 </div>
                             )}
+
+                            <div className="grid gap-2 md:grid-cols-3">
+                                {[
+                                    ["AI maps", "Columns, payment words, and likely seat/shift fields are proposed from the file and branch setup."],
+                                    ["Checks risks", "Missing dates, unclear payment cycles, duplicate students, and allocation conflicts are surfaced before commit."],
+                                    ["You confirm", "Branch records are created only after visible decisions, row edits, and the final preview."],
+                                ].map(([label, detail]) => (
+                                    <div key={label} className={cn("p-3", pageInsetSurfaceClass)}>
+                                        <p className="text-sm font-semibold text-[color:var(--text-primary)]">{label}</p>
+                                        <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p>
+                                    </div>
+                                ))}
+                            </div>
 
                             <div className="grid gap-2 md:grid-cols-5">
                                 {guideSteps.map(step => {
@@ -924,6 +1052,16 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                 description="Edit guessed values, then revalidate the staged row."
                                 action={
                                     <div className="flex flex-wrap gap-2">
+                                        {editedRowCount > 0 && (
+                                            <>
+                                                <AppButton size="sm" variant="primary" icon={Save} onClick={saveAllEditedRows} isLoading={saving}>
+                                                    Save {editedRowCount} edit{editedRowCount === 1 ? "" : "s"}
+                                                </AppButton>
+                                                <AppButton size="sm" variant="quiet" icon={RotateCcw} onClick={cancelAllEdits} disabled={saving}>
+                                                    Cancel edits
+                                                </AppButton>
+                                            </>
+                                        )}
                                         {(["attention", "ready", "skipped", "all"] as RowFilter[]).map(filter => (
                                             <AppButton
                                                 key={filter}
@@ -937,6 +1075,86 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                     </div>
                                 }
                             >
+                                <div className={cn("mb-4 p-4", pageInsetSurfaceClass)}>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">Branch defaults and generated records</p>
+                                            <p className={cn("mt-1 text-xs", pageMutedTextClass)}>
+                                                {(branchContext?.seats.length ?? 0)} seats, {(branchContext?.shifts.length ?? 0)} shifts, and {(branchContext?.multiShifts.length ?? 0)} bundles are available for selection.
+                                            </p>
+                                        </div>
+                                        <Badge variant="cyan">Default fee {branchContext?.defaultFee ?? 0}</Badge>
+                                    </div>
+                                    <div className="mt-4 grid gap-3 lg:grid-cols-4">
+                                        <label className="space-y-2">
+                                            <span className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">Default joined date</span>
+                                            <input
+                                                type="date"
+                                                value={options.defaultJoinedAt?.slice(0, 10) ?? ""}
+                                                onChange={event => updateOption({ defaultJoinedAt: event.target.value })}
+                                                className={cn("w-full", importFieldClass)}
+                                            />
+                                        </label>
+                                        <label className="space-y-2">
+                                            <span className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">Default seat</span>
+                                            <select
+                                                value={options.defaultSeatLabel ?? ""}
+                                                onChange={event => updateOption({ defaultSeatLabel: event.target.value })}
+                                                className={cn("w-full", importSelectClass)}
+                                            >
+                                                <option value="" className={importOptionClass}>Use file seat</option>
+                                                {(branchContext?.seats ?? []).map(seat => <option key={seat.id} value={seat.label} className={importOptionClass}>{seat.label}</option>)}
+                                            </select>
+                                        </label>
+                                        <label className="space-y-2">
+                                            <span className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">Default shift</span>
+                                            <select
+                                                value={options.defaultShiftName ?? ""}
+                                                onChange={event => updateOption({ defaultShiftName: event.target.value, defaultMultiShiftName: "" })}
+                                                className={cn("w-full", importSelectClass)}
+                                            >
+                                                <option value="" className={importOptionClass}>Use file shift</option>
+                                                {(branchContext?.shifts ?? []).map(shift => (
+                                                    <option key={shift.id} value={shift.name} className={importOptionClass}>
+                                                        {shift.name} - {shift.price}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label className="space-y-2">
+                                            <span className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">Default bundle</span>
+                                            <select
+                                                value={options.defaultMultiShiftName ?? ""}
+                                                onChange={event => updateOption({ defaultMultiShiftName: event.target.value, defaultShiftName: "" })}
+                                                className={cn("w-full", importSelectClass)}
+                                            >
+                                                <option value="" className={importOptionClass}>Use file bundle</option>
+                                                {(branchContext?.multiShifts ?? []).map(multiShift => (
+                                                    <option key={multiShift.id} value={multiShift.name} className={importOptionClass}>
+                                                        {multiShift.name} - {multiShift.price}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div className="mt-4 grid gap-2 md:grid-cols-3">
+                                        {[
+                                            ["createUnknownSeats", "Create missing seats"],
+                                            ["createUnknownShifts", "Create missing shifts"],
+                                            ["createUnknownMultiShifts", "Create missing bundles"],
+                                        ].map(([key, label]) => (
+                                            <label key={key} className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(options[key as keyof ImportOptions])}
+                                                    onChange={event => updateOption({ [key]: event.target.checked } as Partial<ImportOptions>)}
+                                                    className="h-4 w-4 rounded border-[color:var(--ui-form-field-border)] bg-[color:var(--ui-form-field-bg)]"
+                                                />
+                                                <span>{label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
                                 {detail.rowPage && (
                                     <div className={cn("mb-3 flex flex-wrap items-center gap-2 text-xs", pageMutedTextClass)}>
                                         <span>Showing {detail.rowPage.returnedRows} of {detail.rowPage.filteredRows} {rowFilterLabels[detail.rowPage.filter].toLowerCase()}.</span>
@@ -944,7 +1162,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                     </div>
                                 )}
                                 <div className={cn("overflow-x-auto", pageTableShellClass)}>
-                                    <table className="w-full min-w-[1180px] text-left text-sm">
+                                    <table className="w-full min-w-[1360px] text-left text-sm">
                                         <thead className={cn("text-xs uppercase text-[color:var(--text-muted)]", pageTableHeadClass)}>
                                             <tr>
                                                 <th className="p-3">Status</th>
@@ -961,10 +1179,11 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                         </thead>
                                         <tbody className={pageTableBodyDividerClass}>
                                             {filteredRows.map(row => {
-                                                const editing = editingRowId === row.id && rowDraft;
+                                                const rowDraft = rowDrafts[row.id];
+                                                const editing = Boolean(rowDraft);
                                                 const issues = [...row.issues, ...row.warnings];
                                                 const updateDraft = (field: keyof RowDraft, value: string) => {
-                                                    setRowDraft(prev => prev ? { ...prev, [field]: value } : prev);
+                                                    updateRowDraft(row.id, field, value);
                                                 };
                                                 return (
                                                     <tr key={row.id} className={pageTableRowClass}>
@@ -974,17 +1193,17 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                                                 {manualRow(row) && <Badge variant="purple">Manual</Badge>}
                                                             </div>
                                                         </td>
-                                                        {editing ? (
+                                                        {editing && rowDraft ? (
                                                             <>
                                                                 <td className="p-3"><input value={rowDraft.studentName} onChange={event => updateDraft("studentName", event.target.value)} className={cn("w-36", importFieldClass)} /></td>
                                                                 <td className="p-3"><input value={rowDraft.phone} onChange={event => updateDraft("phone", event.target.value)} className={cn("w-32", importFieldClass)} /></td>
                                                                 <td className="p-3"><input type="date" value={rowDraft.joinedAt} onChange={event => updateDraft("joinedAt", event.target.value)} className={cn("w-36", importFieldClass)} /></td>
                                                                 <td className="p-3"><input value={rowDraft.fee} onChange={event => updateDraft("fee", event.target.value)} className={cn("w-24", importFieldClass)} /></td>
-                                                                <td className="p-3"><input value={rowDraft.seat} onChange={event => updateDraft("seat", event.target.value)} className={cn("w-24", importFieldClass)} /></td>
+                                                                <td className="p-3"><input list="import-seat-options" value={rowDraft.seat} onChange={event => updateDraft("seat", event.target.value)} className={cn("w-24", importFieldClass)} /></td>
                                                                 <td className="p-3">
                                                                     <div className="flex gap-2">
-                                                                        <input value={rowDraft.shift} onChange={event => updateDraft("shift", event.target.value)} placeholder="Shift" className={cn("w-28", importFieldClass)} />
-                                                                        <input value={rowDraft.multiShift} onChange={event => updateDraft("multiShift", event.target.value)} placeholder="Multi" className={cn("w-28", importFieldClass)} />
+                                                                        <input list="import-shift-options" value={rowDraft.shift} onChange={event => updateDraft("shift", event.target.value)} placeholder="Shift" className={cn("w-32", importFieldClass)} />
+                                                                        <input list="import-multi-shift-options" value={rowDraft.multiShift} onChange={event => updateDraft("multiShift", event.target.value)} placeholder="Bundle" className={cn("w-32", importFieldClass)} />
                                                                     </div>
                                                                 </td>
                                                                 <td className="p-3">
@@ -997,6 +1216,13 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                                                             <option value="WAIVED" className={importOptionClass}>Waived</option>
                                                                             <option value="UNCLEAR" className={importOptionClass}>Unclear</option>
                                                                         </select>
+                                                                        <select value={rowDraft.paymentMethod} onChange={event => updateDraft("paymentMethod", event.target.value)} className={cn("w-24", importSelectClass)}>
+                                                                            <option value="" className={importOptionClass}>Method</option>
+                                                                            <option value="CASH" className={importOptionClass}>Cash</option>
+                                                                            <option value="UPI" className={importOptionClass}>UPI</option>
+                                                                            <option value="BANK_TRANSFER" className={importOptionClass}>Bank</option>
+                                                                        </select>
+                                                                        <input value={rowDraft.referenceId} onChange={event => updateDraft("referenceId", event.target.value)} placeholder="Ref" className={cn("w-24", importFieldClass)} />
                                                                     </div>
                                                                 </td>
                                                             </>
@@ -1008,7 +1234,11 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                                                 <td className="p-3">{fieldValue(row, "fee") || "-"}</td>
                                                                 <td className="p-3">{fieldValue(row, "seat") || "-"}</td>
                                                                 <td className="p-3">{fieldValue(row, "multiShift") || fieldValue(row, "shift") || "-"}</td>
-                                                                <td className="p-3">{fieldValue(row, "paymentStatus") || "-"}</td>
+                                                                <td className="p-3">
+                                                                    {[fieldValue(row, "paymentAmount"), fieldValue(row, "paymentStatus"), fieldValue(row, "paymentMethod")]
+                                                                        .filter(Boolean)
+                                                                        .join(" / ") || "-"}
+                                                                </td>
                                                             </>
                                                         )}
                                                         <td className="max-w-xs p-3">
@@ -1021,7 +1251,7 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
                                                                 {editing ? (
                                                                     <>
                                                                         <AppButton size="sm" variant="primary" icon={Save} onClick={() => saveRow(row)} isLoading={saving}>Save</AppButton>
-                                                                        <AppButton size="sm" variant="quiet" icon={RotateCcw} onClick={() => { setEditingRowId(null); setRowDraft(null); }}>Cancel</AppButton>
+                                                                        <AppButton size="sm" variant="quiet" icon={RotateCcw} onClick={() => cancelEdit(row.id)}>Cancel</AppButton>
                                                                     </>
                                                                 ) : (
                                                                     <>
@@ -1051,6 +1281,16 @@ export default function ImportSessionPage({ params }: { params: Promise<{ branch
 
                         {activeTab === "payments" && (
                             <AppPanel title="Payment decisions" description="Confirm cycle, action, and paid/unpaid meanings.">
+                                <div className={cn("mb-4 p-3 text-sm", pageInsetSurfaceClass)}>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant={paymentsEnabled ? "success" : "warning"}>
+                                            {paymentsEnabled ? "Payments will be generated" : "Payments not enabled"}
+                                        </Badge>
+                                        <span className={pageMutedTextClass}>
+                                            Amount uses the file payment amount first, otherwise the row fee. Shift and bundle selections fill row fees from branch prices and can still be edited.
+                                        </span>
+                                    </div>
+                                </div>
                                 <div className="grid gap-4 lg:grid-cols-3">
                                     <label className="space-y-2">
                                         <span className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">Payment cycle</span>
