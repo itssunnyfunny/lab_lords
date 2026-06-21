@@ -3,6 +3,7 @@ import { StaffService } from "@/services/staff.service";
 import { mapImportColumns } from "@/importing/ai/import-column-mapper.ai";
 import type {
     CreateImportSessionInput,
+    ImportBranchContext,
     ImportColumnMapping,
     ImportIssue,
     ImportMappingState,
@@ -261,6 +262,49 @@ function mappingWithComputedAnalysis(input: {
     };
 }
 
+async function getImportBranchContext(branchId: string): Promise<ImportBranchContext> {
+    const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: {
+            defaultFee: true,
+            defaultAdmissionFee: true,
+            seats: { select: { id: true, label: true }, orderBy: { label: "asc" } },
+            shifts: {
+                where: { status: "ACTIVE" },
+                select: { id: true, name: true, startTime: true, endTime: true, price: true },
+                orderBy: { name: "asc" },
+            },
+            multiShifts: {
+                select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    components: {
+                        include: { shift: { select: { name: true } } },
+                        orderBy: { order: "asc" },
+                    },
+                },
+                orderBy: { name: "asc" },
+            },
+        },
+    });
+
+    if (!branch) throw new Error("Branch not found");
+
+    return {
+        defaultFee: branch.defaultFee ?? 0,
+        defaultAdmissionFee: branch.defaultAdmissionFee ?? 0,
+        seats: branch.seats,
+        shifts: branch.shifts,
+        multiShifts: branch.multiShifts.map(multiShift => ({
+            id: multiShift.id,
+            name: multiShift.name,
+            price: multiShift.price,
+            componentShiftNames: multiShift.components.map(component => component.shift.name),
+        })),
+    };
+}
+
 function statusForValidation(input: {
     skipped: boolean;
     issues: ImportIssue[];
@@ -412,6 +456,7 @@ export class ImportSessionService {
             questions: session.questions,
             sessionStatus: session.status,
         });
+        const branchContext = await getImportBranchContext(branchId);
         const summary = summarizeRows(summaryRows, {
             mapping,
             sourceProfile,
@@ -450,6 +495,7 @@ export class ImportSessionService {
                 filteredRows,
                 returnedRows: returnedRows.length,
             },
+            branchContext,
             rows: returnedRows.map(row => ({
                 id: row.id,
                 rowNumber: row.rowNumber,
@@ -741,10 +787,9 @@ export class ImportSessionService {
                 !Array.isArray(row.normalizedData) &&
                 Object.keys(row.normalizedData as Record<string, unknown>).length > 0
             ) {
-                const normalizedData = promoteKnownMultiShiftAllocation(
-                    applyImportDefaults(row.normalizedData as ImportNormalizedRow, mapping.importOptions),
-                    context
-                );
+                const defaulted = applyImportDefaults(row.normalizedData as ImportNormalizedRow, mapping.importOptions);
+                const promoted = promoteKnownMultiShiftAllocation(defaulted, context);
+                const normalizedData = applyImportDefaults(promoted, mapping.importOptions, context);
                 return {
                     row,
                     mappedData: row.mappedData ?? {},
@@ -759,10 +804,9 @@ export class ImportSessionService {
                 mapping.columnMappings,
                 mapping.importOptions?.paymentMapping
             );
-            const normalizedData = promoteKnownMultiShiftAllocation(
-                applyImportDefaults(normalized.normalizedData, mapping.importOptions),
-                context
-            );
+            const defaulted = applyImportDefaults(normalized.normalizedData, mapping.importOptions);
+            const promoted = promoteKnownMultiShiftAllocation(defaulted, context);
+            const normalizedData = applyImportDefaults(promoted, mapping.importOptions, context);
             return {
                 row,
                 mappedData: normalized.mappedData,

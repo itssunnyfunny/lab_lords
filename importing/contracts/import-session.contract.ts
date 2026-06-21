@@ -182,6 +182,28 @@ export type ImportOptions = {
     skipMissingShiftAllocations?: boolean;
 };
 
+export type ImportBranchContext = {
+    defaultFee: number;
+    defaultAdmissionFee: number;
+    seats: {
+        id: string;
+        label: string;
+    }[];
+    shifts: {
+        id: string;
+        name: string;
+        startTime: string | null;
+        endTime: string | null;
+        price: number;
+    }[];
+    multiShifts: {
+        id: string;
+        name: string;
+        price: number;
+        componentShiftNames: string[];
+    }[];
+};
+
 export type ImportMappingState = {
     entityTypesDetected: ImportEntityType[];
     columnMappings: ImportColumnMapping[];
@@ -204,6 +226,7 @@ export type ImportNormalizedRow = {
         name?: string;
         phone?: string;
         joinedAt?: string;
+        joinedAtSource?: "UPLOADED" | "OPERATOR_DEFAULT" | "TODAY_DEFAULT";
         monthlyFee?: number;
         status?: "ACTIVE" | "INACTIVE";
         feeSource?: "UPLOADED" | "BRANCH_DEFAULT" | "SHIFT_PRICE" | "MULTI_SHIFT_PRICE";
