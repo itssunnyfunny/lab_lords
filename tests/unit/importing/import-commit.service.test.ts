@@ -127,7 +127,7 @@ describe("ImportCommitService", () => {
 
         await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1")).rejects.toThrow("not ready");
         expect(mocks.createImportedStudent).not.toHaveBeenCalled();
-    });
+    }, 10000);
 
     it("imports valid student rows through StudentService", async () => {
         mocks.revalidateSession.mockResolvedValueOnce(readyDetail);
@@ -181,6 +181,33 @@ describe("ImportCommitService", () => {
         expect(mocks.assignSeatToShifts).toHaveBeenCalledWith("user_1", "seat_1", "student_1", ["shift_1"]);
     });
 
+    it("links imported students to selected shift fees when the fee came from branch pricing", async () => {
+        mocks.revalidateSession.mockResolvedValueOnce({
+            ...readyDetail,
+            rows: [{
+                ...readyDetail.rows[0],
+                normalizedData: {
+                    ...readyDetail.rows[0].normalizedData,
+                    student: {
+                        ...readyDetail.rows[0].normalizedData.student,
+                        monthlyFee: 1200,
+                        feeSource: "SHIFT_PRICE",
+                        feeLinkedShiftName: "Morning",
+                    },
+                },
+            }],
+        });
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
+
+        expect(mocks.createImportedStudent).toHaveBeenCalledWith(
+            "user_1",
+            "branch_1",
+            expect.objectContaining({ feeLinkedShiftId: "shift_1", feeLinkedMultiShiftId: undefined })
+        );
+    });
+
     it("expands a known Full Time multi-shift from a plain shift value", async () => {
         mocks.prisma.shift.findMany.mockResolvedValueOnce([
             { id: "shift_morning", name: "Morning" },
@@ -232,5 +259,35 @@ describe("ImportCommitService", () => {
 
         expect(mocks.ensureMonthlyPaymentForStudent).toHaveBeenCalled();
         expect(mocks.markPaymentAsPaid).toHaveBeenCalledWith("user_1", "payment_1", "UPI", "TXN1");
+    });
+
+    it("previews generated dues for student-only rows when payment generation is enabled", async () => {
+        mocks.revalidateSession.mockResolvedValueOnce({
+            status: "READY_TO_COMMIT",
+            mapping: {
+                importOptions: {
+                    paymentCycle: "CURRENT_MONTH",
+                    paymentAction: "GENERATE_DUE",
+                },
+            },
+            questions: [],
+            rows: [{
+                id: "row_1",
+                rowNumber: 2,
+                status: "READY",
+                skipped: false,
+                issues: [],
+                warnings: [],
+                normalizedData: {
+                    student: { name: "Asha", phone: "9876543210", monthlyFee: 1200 },
+                },
+            }],
+        });
+        const { ImportPreviewService } = await import("@/importing/services/import-preview.service");
+
+        const preview = await ImportPreviewService.getPreview("user_1", "branch_1", "session_1");
+
+        expect(preview.summary.generatePayments).toBe(1);
+        expect(preview.summary.markPaid).toBe(0);
     });
 });

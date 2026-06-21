@@ -293,6 +293,38 @@ describe("import mapping and validation", () => {
         expect(normalized.student?.joinedAt).toContain("2026-01-01");
     });
 
+    it("fills missing row fees from selected branch shift prices", () => {
+        const normalized = applyImportDefaults(
+            { student: { name: "Asha" }, allocation: { seatLabel: "A1", shiftName: "Evening" } },
+            {},
+            {
+                defaultFee: 900,
+                shiftsByName: new Map([["evening", { name: "Evening", price: 1500 }]]),
+                multiShiftsByName: new Map(),
+            }
+        );
+
+        expect(normalized.student?.monthlyFee).toBe(1500);
+        expect(normalized.student?.feeSource).toBe("SHIFT_PRICE");
+        expect(normalized.student?.feeLinkedShiftName).toBe("Evening");
+    });
+
+    it("flags anniversary payment cycles when joined dates were defaulted", () => {
+        const result = validateImportPayment(
+            { student: { name: "Asha", joinedAt: "2026-06-21T00:00:00.000Z", joinedAtSource: "TODAY_DEFAULT" } },
+            {
+                entityTypesDetected: ["STUDENT"],
+                columnMappings: [],
+                importOptions: {
+                    paymentCycle: "USE_JOINED_AT_ANNIVERSARY",
+                    paymentAction: "GENERATE_DUE",
+                },
+            }
+        );
+
+        expect(result.warnings.some(warning => warning.code === "PAYMENT_JOINED_AT_REQUIRED")).toBe(true);
+    });
+
     it("promotes known multi-shift names from plain shift columns", () => {
         const normalized = promoteKnownMultiShiftAllocation(
             { student: { name: "Asha" }, allocation: { seatLabel: "A1", shiftName: "Full Time" } },
