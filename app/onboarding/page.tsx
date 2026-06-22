@@ -36,15 +36,24 @@ import {
     validateOptionalText,
     validateRequiredPhone,
     validateRequiredText,
+    validateMultiShiftDrafts,
     validateShiftDrafts,
 } from "@/lib/formValidation";
 import { cn } from "@/lib/utils";
 
 interface OnboardingShiftDraft {
+    clientId: string;
     name: string;
     startTime: string;
     endTime: string;
     price: number | string;
+}
+
+interface OnboardingMultiShiftDraft {
+    clientId: string;
+    name: string;
+    price: number | string;
+    componentShiftIds: string[];
 }
 
 interface OnboardingResponse {
@@ -53,22 +62,40 @@ interface OnboardingResponse {
     };
 }
 
-type FieldKey = "orgName" | "ownerPhone" | "businessType" | "branchName" | "city" | "seatCount" | "shifts";
+type FieldKey = "orgName" | "ownerPhone" | "businessType" | "branchName" | "city" | "seatCount" | "shifts" | "multiShifts";
 type OnboardingStep = 1 | 2 | 3;
 
-const DEFAULT_ONBOARDING_SHIFTS: OnboardingShiftDraft[] = [
-    { name: "Morning", startTime: "06:00", endTime: "09:59", price: 0 },
-    { name: "Afternoon", startTime: "10:00", endTime: "15:59", price: 0 },
-    { name: "Evening", startTime: "16:00", endTime: "21:59", price: 0 },
-];
-
-const DEFAULT_FULL_TIME_MULTI_SHIFT = {
-    name: "Full Time",
-    price: 0,
+const DEFAULT_SHIFT_IDS = {
+    morning: "default-morning",
+    afternoon: "default-afternoon",
+    evening: "default-evening",
 } as const;
 
-function normalizedShiftName(value: string) {
-    return value.trim().toLowerCase();
+const DEFAULT_ONBOARDING_SHIFTS: OnboardingShiftDraft[] = [
+    { clientId: DEFAULT_SHIFT_IDS.morning, name: "Morning", startTime: "06:00", endTime: "09:59", price: 0 },
+    { clientId: DEFAULT_SHIFT_IDS.afternoon, name: "Afternoon", startTime: "10:00", endTime: "15:59", price: 0 },
+    { clientId: DEFAULT_SHIFT_IDS.evening, name: "Evening", startTime: "16:00", endTime: "21:59", price: 0 },
+];
+
+const DEFAULT_ONBOARDING_MULTI_SHIFTS: OnboardingMultiShiftDraft[] = [{
+    clientId: "default-full-time",
+    name: "Full Time",
+    price: 0,
+    componentShiftIds: [DEFAULT_SHIFT_IDS.morning, DEFAULT_SHIFT_IDS.afternoon, DEFAULT_SHIFT_IDS.evening],
+}];
+
+function createDraftId(prefix: string) {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function numericDraftPrice(value: number | string) {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    if (!/^\d+$/.test(value.trim())) return 0;
+    return Number(value);
+}
+
+function formatPrice(value: number) {
+    return `Rs ${value.toLocaleString("en-IN")}`;
 }
 
 const stepItems = [
@@ -110,7 +137,7 @@ export default function OnboardingPage() {
         city: "",
         seatCount: "",
         shifts: DEFAULT_ONBOARDING_SHIFTS,
-        includeFullTimeMultiShift: true,
+        multiShifts: DEFAULT_ONBOARDING_MULTI_SHIFTS,
     });
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -131,25 +158,106 @@ export default function OnboardingPage() {
         markTouched("shifts");
         setFormData(prev => ({
             ...prev,
-            shifts: [...prev.shifts, { name: "", startTime: "", endTime: "", price: 0 }],
+            shifts: [...prev.shifts, { clientId: createDraftId("shift"), name: "", startTime: "", endTime: "", price: 0 }],
         }));
     };
 
     const removeShift = (index: number) => {
         markTouched("shifts");
+        markTouched("multiShifts");
         setFormData(prev => ({
             ...prev,
             shifts: prev.shifts.filter((_, i) => i !== index),
+            multiShifts: prev.multiShifts.map(multiShift => ({
+                ...multiShift,
+                componentShiftIds: multiShift.componentShiftIds.filter(id => id !== prev.shifts[index]?.clientId),
+            })),
         }));
     };
 
-    const removeFullTimeMultiShift = () => {
-        markTouched("shifts");
+    const addMultiShift = () => {
+        markTouched("multiShifts");
+        setFormData(prev => {
+            const componentShiftIds = prev.shifts.slice(0, 2).map(shift => shift.clientId);
+            const suggestedPrice = prev.shifts
+                .filter(shift => componentShiftIds.includes(shift.clientId))
+                .reduce((total, shift) => total + numericDraftPrice(shift.price), 0);
+
+            return {
+                ...prev,
+                multiShifts: [
+                    ...prev.multiShifts,
+                    {
+                        clientId: createDraftId("multi-shift"),
+                        name: "",
+                        price: suggestedPrice,
+                        componentShiftIds,
+                    },
+                ],
+            };
+        });
+    };
+
+    const removeMultiShift = (index: number) => {
+        markTouched("multiShifts");
         setFormData(prev => ({
             ...prev,
-            includeFullTimeMultiShift: false,
+            multiShifts: prev.multiShifts.filter((_, i) => i !== index),
         }));
     };
+
+    const handleMultiShiftChange = (
+        index: number,
+        field: keyof Pick<OnboardingMultiShiftDraft, "name" | "price">,
+        value: string | number
+    ) => {
+        markTouched("multiShifts");
+        const newMultiShifts = [...formData.multiShifts];
+        newMultiShifts[index] = { ...newMultiShifts[index], [field]: value };
+        setFormData(prev => ({ ...prev, multiShifts: newMultiShifts }));
+        setError(null);
+    };
+
+    const toggleMultiShiftComponent = (index: number, shiftId: string) => {
+        markTouched("multiShifts");
+        setFormData(prev => ({
+            ...prev,
+            multiShifts: prev.multiShifts.map((multiShift, i) => {
+                if (i !== index) return multiShift;
+                const selected = multiShift.componentShiftIds.includes(shiftId);
+                return {
+                    ...multiShift,
+                    componentShiftIds: selected
+                        ? multiShift.componentShiftIds.filter(id => id !== shiftId)
+                        : [...multiShift.componentShiftIds, shiftId],
+                };
+            }),
+        }));
+        setError(null);
+    };
+
+    const applySuggestedMultiShiftPrice = (index: number) => {
+        const suggestion = getSuggestedMultiShiftPrice(formData.multiShifts[index]);
+        handleMultiShiftChange(index, "price", suggestion);
+    };
+
+    const shiftById = new Map(formData.shifts.map(shift => [shift.clientId, shift]));
+
+    const getSuggestedMultiShiftPrice = (multiShift: OnboardingMultiShiftDraft | undefined) => {
+        if (!multiShift) return 0;
+        return multiShift.componentShiftIds.reduce((total, shiftId) => {
+            const shift = shiftById.get(shiftId);
+            return total + (shift ? numericDraftPrice(shift.price) : 0);
+        }, 0);
+    };
+
+    const getMultiShiftInputs = () => formData.multiShifts.map(multiShift => ({
+        name: multiShift.name,
+        price: multiShift.price,
+        componentShiftNames: multiShift.componentShiftIds
+            .map(shiftId => shiftById.get(shiftId)?.name ?? "")
+            .filter(Boolean),
+    }));
 
     const validateForm = () => {
         const errors: Partial<Record<FieldKey, string>> = {};
@@ -164,6 +272,9 @@ export default function OnboardingPage() {
             max: FORM_LIMITS.seatsMax,
         });
         const shiftsResult = validateShiftDrafts(formData.shifts);
+        const multiShiftsResult = shiftsResult.ok
+            ? validateMultiShiftDrafts(getMultiShiftInputs(), shiftsResult.value)
+            : { ok: true as const, value: [] };
 
         if (!orgNameResult.ok) errors.orgName = orgNameResult.error;
         if (!ownerPhoneResult.ok) errors.ownerPhone = ownerPhoneResult.error;
@@ -172,6 +283,7 @@ export default function OnboardingPage() {
         if (!cityResult.ok) errors.city = cityResult.error;
         if (!seatCountResult.ok) errors.seatCount = seatCountResult.error;
         if (!shiftsResult.ok) errors.shifts = shiftsResult.error;
+        if (!multiShiftsResult.ok) errors.multiShifts = multiShiftsResult.error;
 
         if (
             !orgNameResult.ok ||
@@ -180,14 +292,15 @@ export default function OnboardingPage() {
             !branchNameResult.ok ||
             !cityResult.ok ||
             !seatCountResult.ok ||
-            !shiftsResult.ok
+            !shiftsResult.ok ||
+            !multiShiftsResult.ok
         ) {
             return { errors, values: null };
         }
 
         return {
             errors,
-            values: { orgNameResult, ownerPhoneResult, businessTypeResult, branchNameResult, cityResult, seatCountResult, shiftsResult },
+            values: { orgNameResult, ownerPhoneResult, businessTypeResult, branchNameResult, cityResult, seatCountResult, shiftsResult, multiShiftsResult },
         };
     };
 
@@ -199,6 +312,7 @@ export default function OnboardingPage() {
     const cityError = visibleError("city", validation.errors);
     const seatCountError = visibleError("seatCount", validation.errors);
     const shiftsError = visibleError("shifts", validation.errors);
+    const multiShiftsError = visibleError("multiShifts", validation.errors);
 
     const handleNext = () => {
         markSubmitted();
@@ -215,7 +329,7 @@ export default function OnboardingPage() {
         const result = validateForm();
         if (Object.values(result.errors).some(Boolean) || !result.values) return;
 
-        const { orgNameResult, ownerPhoneResult, businessTypeResult, branchNameResult, cityResult, seatCountResult, shiftsResult } = result.values;
+        const { orgNameResult, ownerPhoneResult, businessTypeResult, branchNameResult, cityResult, seatCountResult, shiftsResult, multiShiftsResult } = result.values;
         setLoading(true);
 
         try {
@@ -227,7 +341,7 @@ export default function OnboardingPage() {
                 city: cityResult.value,
                 seatCount: seatCountResult.value,
                 shifts: shiftsResult.value,
-                includeFullTimeMultiShift: formData.includeFullTimeMultiShift,
+                multiShifts: multiShiftsResult.value,
             }) as OnboardingResponse;
 
             setCreatedBranchId(res.branch.id);
@@ -252,10 +366,7 @@ export default function OnboardingPage() {
         router.push(`/branch/${createdBranchId}`);
     };
 
-    const defaultShiftNames = new Set(formData.shifts.map(shift => normalizedShiftName(shift.name)));
-    const fullTimeComponentNames = DEFAULT_ONBOARDING_SHIFTS.map(shift => shift.name);
-    const showFullTimeMultiShift = formData.includeFullTimeMultiShift
-        && fullTimeComponentNames.every(name => defaultShiftNames.has(normalizedShiftName(name)));
+    const canAddMultiShift = formData.shifts.length >= 2;
 
     return (
         <div className={cn(entryRootClass, "items-start py-8 sm:items-center")}>
@@ -445,25 +556,21 @@ export default function OnboardingPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <label className={formLabelClass}>Shifts and pricing</label>
-                                        <button
-                                            type="button"
-                                            onClick={addShift}
-                                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
-                                        >
-                                            <Plus size={13} />
-                                            Add shift
-                                        </button>
-                                    </div>
-
+                                <div className="space-y-5">
                                     <div className="space-y-3">
-                                        <p className={cn("text-xs font-semibold uppercase tracking-wide", formHelpTextClass)}>
-                                            Primary shifts
-                                        </p>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <label className={formLabelClass}>Primary shifts</label>
+                                            <button
+                                                type="button"
+                                                onClick={addShift}
+                                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
+                                            >
+                                                <Plus size={13} />
+                                                Add primary
+                                            </button>
+                                        </div>
                                         {formData.shifts.map((shift, idx) => (
-                                            <div key={idx} className={cn("flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:gap-2", formSurfaceClass)}>
+                                            <div key={shift.clientId} className={cn("flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:gap-2", formSurfaceClass)}>
                                                 <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-12 sm:gap-2">
                                                     <div className="sm:col-span-4">
                                                         <input
@@ -517,62 +624,129 @@ export default function OnboardingPage() {
                                                 )}
                                             </div>
                                         ))}
+                                        <FieldError id="onboarding-shifts-error" error={shiftsError} />
                                     </div>
 
-                                    {showFullTimeMultiShift && (
-                                        <div className="space-y-3 pt-1">
-                                            <p className={cn("text-xs font-semibold uppercase tracking-wide", formHelpTextClass)}>
-                                                Multi-shift
-                                            </p>
-                                            <div className={cn("flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:gap-3", formSurfaceClass)}>
-                                                <div className="flex min-w-0 flex-1 items-start gap-3">
-                                                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]">
-                                                        <Layers size={15} />
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                                            <div>
-                                                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                                                                    {DEFAULT_FULL_TIME_MULTI_SHIFT.name}
-                                                                </p>
-                                                                <p className={cn("mt-1 text-xs", formHelpTextClass)}>
-                                                                    Combines all default primary shifts for full-day access.
-                                                                </p>
-                                                            </div>
-                                                            <div className="relative w-full sm:w-24">
-                                                                <span className={cn("absolute left-0 top-1 text-xs", formIconClass)}>Rs.</span>
-                                                                <input
-                                                                    type="number"
-                                                                    value={DEFAULT_FULL_TIME_MULTI_SHIFT.price}
-                                                                    readOnly
-                                                                    aria-label="Full Time multi-shift price"
-                                                                    className={cn(formInlineControlClass, "py-1 pl-6 text-sm")}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        {fullTimeComponentNames.length > 0 && (
-                                                            <div className="mt-3 flex flex-wrap gap-1.5">
-                                                                {fullTimeComponentNames.map((name, index) => (
-                                                                    <span key={`${name}-${index}`} className="rounded border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2 py-1 text-[10px] font-semibold text-[color:var(--ui-form-help)]">
-                                                                        {name}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={removeFullTimeMultiShift}
-                                                    className={cn("self-end transition-colors hover:text-[color:var(--ui-form-error-text)] sm:mt-1", formHelpTextClass)}
-                                                    aria-label="Remove Full Time multi-shift"
-                                                >
-                                                    <X size={14} />
-                                                </button>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <label className={formLabelClass}>Multi-shift bundles</label>
+                                                <p className={cn("mt-1 text-xs", formHelpTextClass)}>
+                                                    Select 2 or more primary shifts and set the bundle price students will pay.
+                                                </p>
                                             </div>
+                                            <button
+                                                type="button"
+                                                onClick={addMultiShift}
+                                                disabled={!canAddMultiShift}
+                                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]"
+                                            >
+                                                <Plus size={13} />
+                                                Add bundle
+                                            </button>
                                         </div>
-                                    )}
-                                    <FieldError id="onboarding-shifts-error" error={shiftsError} />
+
+                                        {formData.multiShifts.length === 0 ? (
+                                            <div className={cn("p-3 text-sm", formSurfaceClass, formHelpTextClass)}>
+                                                No multi-shift bundles yet. Add one when a student should get access to multiple primary shifts together.
+                                            </div>
+                                        ) : (
+                                            formData.multiShifts.map((multiShift, idx) => {
+                                                const suggestedPrice = getSuggestedMultiShiftPrice(multiShift);
+                                                const selectedCount = multiShift.componentShiftIds.length;
+
+                                                return (
+                                                    <div key={multiShift.clientId} className={cn("space-y-3 p-3", formSurfaceClass)}>
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]">
+                                                                <Layers size={15} />
+                                                            </div>
+                                                            <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-12 sm:gap-2">
+                                                                <div className="sm:col-span-5">
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Bundle name"
+                                                                        value={multiShift.name}
+                                                                        onChange={(e) => handleMultiShiftChange(idx, "name", e.target.value)}
+                                                                        className={cn(formInlineControlClass, "py-1 text-sm")}
+                                                                    />
+                                                                </div>
+                                                                <div className="relative sm:col-span-3">
+                                                                    <span className={cn("absolute left-0 top-1 text-xs", formIconClass)}>Rs.</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        placeholder="Price"
+                                                                        value={multiShift.price}
+                                                                        onChange={(e) => handleMultiShiftChange(idx, "price", e.target.value)}
+                                                                        min={0}
+                                                                        max={FORM_LIMITS.moneyMax}
+                                                                        step={1}
+                                                                        inputMode="numeric"
+                                                                        className={cn(formInlineControlClass, "py-1 pl-6 text-sm")}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1 sm:col-span-4 sm:items-end">
+                                                                    <span className={cn("text-xs font-semibold", formHelpTextClass)}>
+                                                                        Selected total {formatPrice(suggestedPrice)}
+                                                                    </span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => applySuggestedMultiShiftPrice(idx)}
+                                                                        className="text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
+                                                                    >
+                                                                        Use total
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeMultiShift(idx)}
+                                                                className={cn("transition-colors hover:text-[color:var(--ui-form-error-text)]", formHelpTextClass)}
+                                                                aria-label={`Remove ${multiShift.name || "multi-shift"}`}
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {formData.shifts.map((shift, shiftIndex) => {
+                                                                const selected = multiShift.componentShiftIds.includes(shift.clientId);
+                                                                return (
+                                                                    <button
+                                                                        key={shift.clientId}
+                                                                        type="button"
+                                                                        onClick={() => toggleMultiShiftComponent(idx, shift.clientId)}
+                                                                        className={cn(
+                                                                            "flex min-w-[9rem] items-center justify-between gap-2 rounded-[var(--ui-radius-control)] border px-2.5 py-2 text-left text-xs transition-colors",
+                                                                            selected
+                                                                                ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
+                                                                                : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--ui-form-help)] hover:border-[color:var(--ui-form-input-border)]"
+                                                                        )}
+                                                                        aria-pressed={selected}
+                                                                    >
+                                                                        <span className="min-w-0">
+                                                                            <span className="block truncate font-semibold">
+                                                                                {shift.name || `Shift ${shiftIndex + 1}`}
+                                                                            </span>
+                                                                            <span className="mt-0.5 block truncate font-mono text-[10px] opacity-75">
+                                                                                {shift.startTime || "--:--"} - {shift.endTime || "--:--"} / {formatPrice(numericDraftPrice(shift.price))}
+                                                                            </span>
+                                                                        </span>
+                                                                        {selected && <CheckCircle2 size={14} className="shrink-0" />}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+
+                                                        <p className={cn("text-xs", selectedCount >= 2 ? formHelpTextClass : "text-[color:var(--ui-form-error-text)]")}>
+                                                            {selectedCount} primary shift{selectedCount === 1 ? "" : "s"} selected.
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        <FieldError id="onboarding-multi-shifts-error" error={multiShiftsError} />
+                                    </div>
                                 </div>
 
                                 <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
