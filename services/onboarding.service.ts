@@ -5,6 +5,7 @@ import {
     validateOptionalText,
     validateRequiredPhone,
     validateRequiredText,
+    validateMultiShiftDrafts,
     validateShiftDrafts,
 } from "@/lib/formValidation";
 import {
@@ -33,6 +34,11 @@ interface CreateNetworkParams {
         endTime: string | null;
         price: number;
     }[];
+    multiShifts?: {
+        name: string;
+        price: number;
+        componentShiftNames: string[];
+    }[];
 }
 
 export class OnboardingService {
@@ -60,6 +66,13 @@ export class OnboardingService {
         if (!seatCountResult.ok) throw new Error(seatCountResult.error);
         const shiftsResult = params.shifts ? validateShiftDrafts(params.shifts, { allowEmpty: false }) : null;
         if (shiftsResult && !shiftsResult.ok) throw new Error(shiftsResult.error);
+        const shiftsToCreate = shiftsResult?.ok && shiftsResult.value.length > 0
+            ? shiftsResult.value
+            : DEFAULT_PRIMARY_SHIFTS;
+        const multiShiftsResult = params.multiShifts
+            ? validateMultiShiftDrafts(params.multiShifts, shiftsToCreate, { allowEmpty: false })
+            : null;
+        if (multiShiftsResult && !multiShiftsResult.ok) throw new Error(multiShiftsResult.error);
 
         // Use interactive transaction for atomicity
         return await prisma.$transaction(async (tx) => {
@@ -94,10 +107,8 @@ export class OnboardingService {
             // For safety in transaction, we'll implement the creation directly here to ensure it uses `tx`.
 
             // 3. Create Custom Shifts (or defaults if not provided, though generic defaults lack price context)
-            const shiftsToCreate = shiftsResult?.ok && shiftsResult.value.length > 0
-                ? shiftsResult.value
-                : DEFAULT_PRIMARY_SHIFTS;
-            const shouldCreateDefaultFullTime = params.includeFullTimeMultiShift !== false
+            const shouldCreateDefaultFullTime = params.multiShifts === undefined
+                && params.includeFullTimeMultiShift !== false
                 && includesDefaultPrimaryShiftNames(shiftsToCreate);
 
             // ⚡ Bolt: Bulk shift creation to prevent N+1 query problem during network setup
@@ -113,7 +124,38 @@ export class OnboardingService {
                     }))
                 });
             }
-            if (shouldCreateDefaultFullTime) {
+            if (multiShiftsResult?.ok && multiShiftsResult.value.length > 0) {
+                const createdShifts = await tx.shift.findMany({
+                    where: {
+                        branchId: branch.id,
+                        status: "ACTIVE",
+                    },
+                    select: { id: true, name: true },
+                });
+                const shiftByName = new Map(createdShifts.map(shift => [shift.name.toLowerCase(), shift]));
+
+                for (const multiShift of multiShiftsResult.value) {
+                    const componentShifts = multiShift.componentShiftNames.map(name => {
+                        const shift = shiftByName.get(name.toLowerCase());
+                        if (!shift) throw new Error(`Primary shift "${name}" was not created.`);
+                        return shift;
+                    });
+
+                    await tx.multiShift.create({
+                        data: {
+                            branchId: branch.id,
+                            name: multiShift.name,
+                            price: multiShift.price,
+                            components: {
+                                create: componentShifts.map((shift, order) => ({
+                                    shiftId: shift.id,
+                                    order,
+                                })),
+                            },
+                        },
+                    });
+                }
+            } else if (shouldCreateDefaultFullTime) {
                 await ensureDefaultFullTimeMultiShift(tx, branch.id);
             }
 
