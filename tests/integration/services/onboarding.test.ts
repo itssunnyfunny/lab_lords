@@ -148,5 +148,38 @@ describe("OnboardingService Integration", () => {
       expect(shifts.map(s => s.name)).toContain("Custom Morning");
       expect(shifts.map(s => s.name)).toContain("Custom Evening");
     });
+
+    it("creates editable multi-shift bundles from selected onboarding primary shifts", async () => {
+      const user = await createUser();
+      const { branch } = await OnboardingService.createNetwork({
+        ...baseParams(user.id),
+        shifts: [
+          { name: "Morning", startTime: "06:00", endTime: "09:59", price: 800 },
+          { name: "Midday", startTime: "10:00", endTime: "13:59", price: 900 },
+          { name: "Afternoon", startTime: "14:00", endTime: "17:59", price: 1000 },
+          { name: "Evening", startTime: "18:00", endTime: "21:59", price: 1100 },
+        ],
+        multiShifts: [
+          { name: "Day Pass", price: 1700, componentShiftNames: ["Morning", "Midday"] },
+          { name: "Full Day", price: 3600, componentShiftNames: ["Morning", "Midday", "Afternoon", "Evening"] },
+        ],
+      });
+
+      const multiShifts = await testPrisma.multiShift.findMany({
+        where: { branchId: branch.id },
+        include: { components: { include: { shift: true }, orderBy: { order: "asc" } } },
+        orderBy: { name: "asc" },
+      });
+
+      expect(multiShifts).toHaveLength(2);
+      expect(multiShifts.map(multiShift => ({
+        name: multiShift.name,
+        price: multiShift.price,
+        components: multiShift.components.map(component => component.shift.name),
+      }))).toEqual([
+        { name: "Day Pass", price: 1700, components: ["Morning", "Midday"] },
+        { name: "Full Day", price: 3600, components: ["Morning", "Midday", "Afternoon", "Evening"] },
+      ]);
+    });
   });
 });
