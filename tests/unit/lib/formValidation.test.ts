@@ -5,6 +5,7 @@ import {
   validatePhone,
   validateRequiredPhone,
   validateSeatLabel,
+  validateMultiShiftDrafts,
   validateShiftDrafts,
 } from "@/lib/formValidation";
 
@@ -83,5 +84,40 @@ describe("formValidation", () => {
       { name: "Morning", startTime: "06:00", endTime: "09:59" },
       { name: "Full Time", startTime: "06:00", endTime: "21:59" },
     ]).ok).toBe(false);
+  });
+
+  it("normalizes multi-shift drafts and rejects invalid combinations", () => {
+    const primaryShifts = [
+      { name: "Morning" },
+      { name: "Afternoon" },
+      { name: "Evening" },
+    ];
+    const valid = validateMultiShiftDrafts([
+      { name: " Full Time ", price: "2500", componentShiftNames: ["morning", "Evening"] },
+    ], primaryShifts);
+
+    expect(valid.ok).toBe(true);
+    if (valid.ok) {
+      expect(valid.value[0]).toEqual({
+        name: "Full Time",
+        price: 2500,
+        componentShiftNames: ["Morning", "Evening"],
+      });
+    }
+
+    expect(validateMultiShiftDrafts([
+      { name: "Half Day", price: 1000, componentShiftNames: ["Morning"] },
+    ], primaryShifts).ok).toBe(false);
+    expect(validateMultiShiftDrafts([
+      { name: "Half Day", price: 1000, componentShiftNames: ["Morning", "Unknown"] },
+    ], primaryShifts).ok).toBe(false);
+    expect(validateMultiShiftDrafts([
+      { name: "Full Time", price: 1000, componentShiftNames: ["Morning", "Afternoon"] },
+      { name: "Full Time", price: 1200, componentShiftNames: ["Morning", "Evening"] },
+    ], primaryShifts).ok).toBe(false);
+    expect(validateMultiShiftDrafts([
+      { name: "Full Time", price: 1000, componentShiftNames: ["Morning", "Afternoon"] },
+      { name: "Long Day", price: 1200, componentShiftNames: ["Afternoon", "Morning"] },
+    ], primaryShifts).ok).toBe(false);
   });
 });

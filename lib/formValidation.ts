@@ -12,6 +12,7 @@ export const FORM_LIMITS = {
     seatsMax: 5000,
     moneyMax: 10000000,
     shiftsMax: 12,
+    multiShiftsMax: 12,
 } as const;
 
 export type ValidationResult<T> =
@@ -30,6 +31,18 @@ export interface NormalizedShiftDraft {
     startTime: string | null;
     endTime: string | null;
     price: number;
+}
+
+export interface MultiShiftDraftInput {
+    name: unknown;
+    price?: unknown;
+    componentShiftNames?: unknown;
+}
+
+export interface NormalizedMultiShiftDraft {
+    name: string;
+    price: number;
+    componentShiftNames: string[];
 }
 
 export function compactText(value: unknown) {
@@ -242,6 +255,106 @@ export function validateShiftDrafts(
                 return { ok: false, error: `"${b.name}" overlaps with "${a.name}".` };
             }
         }
+    }
+
+    return { ok: true, value: normalized };
+}
+
+export function validateMultiShiftDrafts(
+    input: MultiShiftDraftInput[],
+    primaryShifts: ReadonlyArray<{ name: string }>,
+    options: { allowEmpty?: boolean } = {}
+): ValidationResult<NormalizedMultiShiftDraft[]> {
+    const allowEmpty = options.allowEmpty ?? true;
+    const primaryByName = new Map<string, string>();
+
+    for (const shift of primaryShifts) {
+        const name = compactText(shift.name);
+        if (name) primaryByName.set(name.toLowerCase(), name);
+    }
+
+    const activeRows = input
+        .map((multiShift, index) => ({ multiShift, index }))
+        .filter(({ multiShift }) => {
+            if (!allowEmpty) return true;
+            const components = Array.isArray(multiShift.componentShiftNames)
+                ? multiShift.componentShiftNames
+                : [];
+            return (
+                !!compactText(multiShift.name) ||
+                compactText(multiShift.price) !== "" ||
+                components.some(component => !!compactText(component))
+            );
+        });
+
+    if (activeRows.length > FORM_LIMITS.multiShiftsMax) {
+        return { ok: false, error: `Create ${FORM_LIMITS.multiShiftsMax} multi-shifts or fewer at once.` };
+    }
+
+    const seenNames = new Set<string>();
+    const seenCombinations = new Map<string, string>();
+    const normalized: NormalizedMultiShiftDraft[] = [];
+
+    for (const { multiShift, index } of activeRows) {
+        const rowLabel = `Multi-shift ${index + 1}`;
+        const nameResult = validateRequiredText(multiShift.name, `${rowLabel} name`, 50);
+        if (!nameResult.ok) return nameResult;
+
+        const nameKey = nameResult.value.toLowerCase();
+        if (seenNames.has(nameKey)) {
+            return { ok: false, error: `Duplicate multi-shift name: ${nameResult.value}.` };
+        }
+        seenNames.add(nameKey);
+
+        const priceResult = parseIntegerField(multiShift.price, `${rowLabel} price`, {
+            min: 0,
+            max: FORM_LIMITS.moneyMax,
+        });
+        if (!priceResult.ok) return priceResult;
+
+        if (!Array.isArray(multiShift.componentShiftNames)) {
+            return { ok: false, error: `${rowLabel} must select at least 2 primary shifts.` };
+        }
+
+        const componentNames: string[] = [];
+        const componentKeys = new Set<string>();
+
+        for (const rawName of multiShift.componentShiftNames) {
+            const componentName = compactText(rawName);
+            if (!componentName) continue;
+
+            const componentKey = componentName.toLowerCase();
+            const primaryName = primaryByName.get(componentKey);
+            if (!primaryName) {
+                return { ok: false, error: `${rowLabel} includes an unknown primary shift: ${componentName}.` };
+            }
+            if (componentKeys.has(componentKey)) {
+                return { ok: false, error: `${rowLabel} includes the same primary shift more than once.` };
+            }
+
+            componentKeys.add(componentKey);
+            componentNames.push(primaryName);
+        }
+
+        if (componentNames.length < 2) {
+            return { ok: false, error: `${rowLabel} must select at least 2 primary shifts.` };
+        }
+
+        const combinationKey = [...componentKeys].sort().join(",");
+        const duplicateCombinationName = seenCombinations.get(combinationKey);
+        if (duplicateCombinationName) {
+            return {
+                ok: false,
+                error: `${rowLabel} uses the same primary shifts as "${duplicateCombinationName}".`,
+            };
+        }
+        seenCombinations.set(combinationKey, nameResult.value);
+
+        normalized.push({
+            name: nameResult.value,
+            price: priceResult.value ?? 0,
+            componentShiftNames: componentNames,
+        });
     }
 
     return { ok: true, value: normalized };
