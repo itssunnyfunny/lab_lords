@@ -1,0 +1,4 @@
+## 2025-06-24 - Rate Limiting on Branch Endpoints
+**Vulnerability:** Branch-specific endpoints like staff-invites lacked rate limiting, making them vulnerable to brute-force attacks and abuse.
+**Learning:** The project provides rate-limiting utilities `checkRateLimit` and `getRequestRateLimitKey` in `@/lib/rateLimit`. When implementing rate limiting on branch-specific endpoints, incorporate the `branchId` into the rate limit key (e.g., `staff-invite-${branchId}`) to properly scope the limits per user per branch.
+**Prevention:** Perform the `checkRateLimit` check after user authentication (to use `user.id` as the actor key) but before parsing the request body (`req.json()`) to conserve server compute resources on rejected requests. Always return an HTTP 429 status code and include a `Retry-After` header populated with the `retryAfter` property from the rate limiter response.
