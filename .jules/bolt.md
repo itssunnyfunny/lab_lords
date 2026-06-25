@@ -22,3 +22,7 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+
+## 2026-06-25 - [Memory Optimization for Distinct Related Records]
+**Learning:** Found an O(N) memory overhead when using `findMany({ distinct: [...] })` followed by `.length` to count unique students with active seat allocations.
+**Action:** Replaced the `findMany` query with `.count()` on the parent model (`prisma.student.count`) using a relation filter (`seatAllocations: { some: ... }`), moving the distinct count to the database level and reducing memory usage to O(1).
