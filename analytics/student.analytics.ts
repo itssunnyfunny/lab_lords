@@ -66,26 +66,24 @@ export async function getStudentSeatingSnapshot(
     }
   }
 
-  // Active seat allocations as of date
-  const seatedStudentIds = await prisma.seatAllocation.findMany({
+  // ⚡ Bolt: Replaced memory-heavy findMany({ distinct }) + length with database-level relation count
+  // Impact: Reduces application memory overhead from O(N) to O(1) and eliminates payload transfer.
+  const seated = await prisma.student.count({
     where: {
-      student: {
-        branchId,
-        status: "ACTIVE",
+      branchId,
+      status: "ACTIVE",
+      seatAllocations: {
+        some: {
+          startDate: { lte: date },
+          OR: [
+            { endDate: null },
+            { endDate: { gt: date } },
+          ],
+        },
       },
-      startDate: { lte: date },
-      OR: [
-        { endDate: null },
-        { endDate: { gt: date } },
-      ],
-    },
-    distinct: ["studentId"],
-    select: {
-      studentId: true,
     },
   })
 
-  const seated = seatedStudentIds.length
   const notSeated = Math.max(0, activeStudents - seated)
 
   return {
