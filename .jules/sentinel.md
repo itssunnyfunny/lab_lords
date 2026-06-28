@@ -1,0 +1,4 @@
+## 2024-06-28 - Missing Rate Limiting on Branch Endpoints
+**Vulnerability:** The POST endpoint for creating staff invites (`app/api/branches/[branchId]/staff-invites/route.ts`) lacked rate limiting, potentially allowing an attacker to spam invitations, enumerate user limits, or cause a denial of service.
+**Learning:** Branch-specific endpoints often have logic that authenticates the user but misses the secondary protection layer of limiting action frequency. Rate limits must be scoped correctly by incorporating both the branch ID and user ID into the limit key to prevent noisy neighbor problems and accurate tracking.
+**Prevention:** Always implement the `checkRateLimit` utility from `@/lib/rateLimit` on state-mutating (POST/PUT/DELETE) and sensitive branch endpoints. Perform the check immediately after verifying authentication but before executing expensive operations like parsing JSON bodies (`req.json()`) or querying the database.
