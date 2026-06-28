@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { OnboardingService } from "@/services/onboarding.service";
+import { checkRateLimit, getRequestRateLimitKey } from "@/lib/rateLimit";
 import {
     FORM_LIMITS,
     parseIntegerField,
@@ -19,6 +20,16 @@ export async function POST(req: Request) {
         const user = await getSessionUser();
         if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const rateLimitKey = getRequestRateLimitKey(req, "onboarding", user.id);
+        const rateLimit = checkRateLimit(rateLimitKey, { limit: 5, windowMs: 15 * 60 * 1000 });
+
+        if (!rateLimit.allowed) {
+            return NextResponse.json(
+                { error: "Too many requests" },
+                { status: 429, headers: { "Retry-After": rateLimit.retryAfter.toString() } }
+            );
         }
 
         const body = await req.json();
