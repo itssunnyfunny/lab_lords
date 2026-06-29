@@ -1,6 +1,11 @@
 import { ImportSessionService } from "./import-session.service";
-import type { CommitMode, ImportIssue, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
+import type { CommitMode, ImportIssue, ImportMappingState, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 import type { ImportPreview } from "@/importing/contracts/import-preview.contract";
+import { buildImportPlanChecks, createImportPlanVersion, getBlockingImportPlanChecks } from "@/importing/utils/import-plan-checks";
+
+function defersAllocation(warnings: ImportIssue[]) {
+    return warnings.some(warning => warning.code.startsWith("ALLOCATION_SKIPPED_"));
+}
 
 export class ImportPreviewService {
     static async getPreview(
@@ -39,7 +44,8 @@ export class ImportPreviewService {
             if (normalized.multiShift?.name && row.warnings.some(warning => warning.code === "WILL_CREATE_MULTI_SHIFT")) createMultiShifts.add(normalized.multiShift.name);
         }
 
-        const mapping = detail.mapping as { importOptions?: { paymentAction?: string; paymentCycle?: string } } | null;
+        const mappingState = detail.mapping as ImportMappingState;
+        const mapping = mappingState as { importOptions?: { paymentAction?: string; paymentCycle?: string } } | null;
         const generatesMonthlyPayments = Boolean(
             mapping?.importOptions?.paymentAction &&
             mapping.importOptions.paymentAction !== "SKIP_PAYMENTS" &&
@@ -50,15 +56,34 @@ export class ImportPreviewService {
             ? importableRows.filter(row => row.normalizedData?.student?.name)
             : importableRows.filter(row => row.normalizedData?.payment);
         const hasOpenQuestions = detail.questions?.some((question: { status?: string }) => question.status === "OPEN") ?? false;
+        const checks = buildImportPlanChecks({
+            mapping: mappingState,
+            rows,
+            hasOpenQuestions,
+            mode,
+        });
+        const blockers = getBlockingImportPlanChecks(checks);
+
         return {
             mode,
-            canCommit: detail.status === "READY_TO_COMMIT" || (mode === "SAFE_PARTIAL" && !hasOpenQuestions && importableRows.length > 0),
+            canCommit: blockers.length === 0 && (
+                detail.status === "READY_TO_COMMIT" ||
+                (mode === "SAFE_PARTIAL" && !hasOpenQuestions && importableRows.length > 0)
+            ),
+            generatedAt: new Date().toISOString(),
+            planVersion: createImportPlanVersion({
+                sessionId,
+                status: detail.status,
+                mapping: mappingState,
+                rows,
+            }),
             summary: {
                 createStudents: importableRows.filter(row => row.normalizedData?.student?.name).length,
                 createSeats: createSeats.size,
                 createShifts: createShifts.size,
                 createMultiShifts: createMultiShifts.size,
                 createAllocations: importableRows.filter(row =>
+                    !defersAllocation(row.warnings) &&
                     row.normalizedData?.allocation?.seatLabel &&
                     (row.normalizedData.allocation.shiftName || row.normalizedData.allocation.multiShiftName)
                 ).length,
@@ -69,6 +94,7 @@ export class ImportPreviewService {
                 blockedRows: rows.filter(row => ["BLOCKED", "CONFLICT"].includes(row.status)).length,
                 warningRows: rows.filter(row => row.warnings.length > 0).length,
             },
+            checks,
             rows,
             warnings: rows.flatMap(row => row.warnings.map(warning => warning.message)).slice(0, 20),
         };

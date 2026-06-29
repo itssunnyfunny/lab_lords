@@ -31,6 +31,18 @@ function answerToOptions(field: string | null, answer: unknown): Partial<ImportO
     if (field === "student.joinedAt") {
         return { defaultJoinedAt: value === "USE_TODAY" ? new Date().toISOString() : value };
     }
+    if (value === "SKIP_ALLOCATIONS") {
+        return {
+            createUnknownSeats: false,
+            createUnknownShifts: false,
+            createUnknownMultiShifts: false,
+            skipUnknownSeatAllocations: true,
+            skipUnknownShiftAllocations: true,
+            skipUnknownMultiShiftAllocations: true,
+            skipMissingShiftAllocations: true,
+            skipConflictingAllocations: true,
+        };
+    }
     if (field === "seat.label" && value === "YES_CREATE_SEATS") return { createUnknownSeats: true };
     if (field === "seat.label" && ["SKIP_UNKNOWN_SEAT_ALLOCATION", "NO_SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownSeatAllocations: true };
     if (field === "seat.label" && value) return { defaultSeatLabel: value };
