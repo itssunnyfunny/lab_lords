@@ -13,8 +13,12 @@ import {
 } from "@/importing/pipeline/import-extraction.pipeline";
 import { applyImportDefaults, parseImportMoney } from "@/importing/utils/row-normalizer";
 import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
+import { normalizedFromImportDraft } from "@/importing/utils/manual-row-draft";
+import { buildImportPlanChecks, getBlockingImportPlanChecks } from "@/importing/utils/import-plan-checks";
+import { statusForValidation } from "@/importing/services/import-session.service";
 import { validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
 import { validateImportPayment } from "@/importing/validators/import-payment.validator";
+import { validateImportAllocation } from "@/importing/validators/import-allocation.validator";
 import { validateImportSeat } from "@/importing/validators/import-seat.validator";
 import { validateImportShift } from "@/importing/validators/import-shift.validator";
 import { validateImportStudent } from "@/importing/validators/import-student.validator";
@@ -179,6 +183,43 @@ describe("import mapping and validation", () => {
         expect(mapped.warnings.some(warning => warning.includes("more than one column"))).toBe(true);
     });
 
+    it("keeps low-confidence AI mappings for review instead of auto-applying them", async () => {
+        mocks.callGeminiJson.mockResolvedValueOnce({
+            ok: true,
+            rawText: "{}",
+            data: {
+                entityTypesDetected: ["STUDENT", "ALLOCATION"],
+                columnMappings: [
+                    { sourceColumn: "Name", targetField: "student.name", confidence: 94 },
+                    { sourceColumn: "Maybe Seat", targetField: "allocation.seatLabel", confidence: 62 },
+                ],
+                questions: [],
+                warnings: [],
+            },
+        });
+        const { mapImportColumns } = await import("@/importing/ai/import-column-mapper.ai");
+
+        const mapped = await mapImportColumns({
+            branchContext: {},
+            columns: ["Name", "Maybe Seat"],
+            sampleRows: [{ Name: "Asha", "Maybe Seat": "Morning maybe" }],
+        });
+
+        expect(mapped.columnMappings.find(mapping => mapping.sourceColumn === "Name")).toMatchObject({
+            targetField: "student.name",
+            source: "AI",
+            autoApplied: true,
+            needsReview: false,
+        });
+        expect(mapped.columnMappings.find(mapping => mapping.sourceColumn === "Maybe Seat")).toMatchObject({
+            targetField: "ignore",
+            source: "AI",
+            autoApplied: false,
+            needsReview: true,
+        });
+        expect(mapped.warnings.some(warning => warning.includes("unsure"))).toBe(true);
+    });
+
     it("blocks rows missing student name", () => {
         const result = validateRequiredImportFields({ student: { phone: "9876543210" } });
 
@@ -283,6 +324,67 @@ describe("import mapping and validation", () => {
         expect(result.warnings[0]).toMatchObject({ code: "ALLOCATION_SKIPPED_UNKNOWN_SHIFT", severity: "info" });
     });
 
+    it("does not keep rows in review for info-only skipped allocation warnings", () => {
+        const status = statusForValidation({
+            skipped: false,
+            issues: [],
+            warnings: [{
+                code: "ALLOCATION_SKIPPED_UNKNOWN_SEAT",
+                field: "allocation.seatLabel",
+                message: "Student will import without allocation because the seat is unknown.",
+                severity: "info",
+            }],
+        });
+
+        expect(status).toBe("WARNING");
+    });
+
+    it("blocks import allocation conflicts for overlapping shift times", () => {
+        const result = validateImportAllocation(
+            { student: { name: "Asha" }, allocation: { seatLabel: "A1", shiftName: "Late Morning" } },
+            {
+                seatsByLabel: new Map([["a1", { id: "seat_1", label: "A1" }]]),
+                shiftsByName: new Map([["late morning", { id: "shift_late", name: "Late Morning", startTime: "10:00", endTime: "13:00" }]]),
+                multiShiftsByName: new Map(),
+                activeAllocations: [{
+                    seatId: "seat_1",
+                    shiftId: "shift_morning",
+                    seat: { label: "A1" },
+                    shift: { name: "Morning", startTime: "09:00", endTime: "12:00" },
+                }],
+            }
+        );
+
+        expect(result.issues[0]).toMatchObject({ code: "ALLOCATION_CONFLICT", severity: "error" });
+    });
+
+    it("allows allocation conflicts to become manual follow-up warnings", () => {
+        const result = validateImportAllocation(
+            { student: { name: "Asha" }, allocation: { seatLabel: "A1", shiftName: "Late Morning" } },
+            {
+                seatsByLabel: new Map([["a1", { id: "seat_1", label: "A1" }]]),
+                shiftsByName: new Map([["late morning", { id: "shift_late", name: "Late Morning", startTime: "10:00", endTime: "13:00" }]]),
+                multiShiftsByName: new Map(),
+                activeAllocations: [{
+                    seatId: "seat_1",
+                    shiftId: "shift_morning",
+                    seat: { label: "A1" },
+                    shift: { name: "Morning", startTime: "09:00", endTime: "12:00" },
+                }],
+                skipConflictingAllocations: true,
+            }
+        );
+        const status = statusForValidation({
+            skipped: false,
+            issues: result.issues,
+            warnings: result.warnings,
+        });
+
+        expect(result.issues).toEqual([]);
+        expect(result.warnings[0]).toMatchObject({ code: "ALLOCATION_SKIPPED_CONFLICT", severity: "info" });
+        expect(status).toBe("WARNING");
+    });
+
     it("applies operator defaults before validation", () => {
         const normalized = applyImportDefaults(
             { student: { name: "Asha" }, allocation: { seatLabel: "A1" } },
@@ -291,6 +393,70 @@ describe("import mapping and validation", () => {
 
         expect(normalized.allocation?.shiftName).toBe("Morning");
         expect(normalized.student?.joinedAt).toContain("2026-01-01");
+    });
+
+    it("clears stale shift and payment values when a manual row edit blanks them", () => {
+        const normalized = normalizedFromImportDraft(
+            {
+                normalizedData: {
+                    student: { name: "Asha", monthlyFee: 1200 },
+                    seat: { label: "A1" },
+                    shift: { name: "Morning" },
+                    allocation: { seatLabel: "A1", shiftName: "Morning" },
+                    payment: { amount: 1200, status: "PAID", rawStatus: "PAID", method: "UPI", referenceId: "TXN1" },
+                },
+            },
+            {
+                studentName: "Asha",
+                phone: "",
+                joinedAt: "",
+                fee: "",
+                seat: "A2",
+                shift: "",
+                multiShift: "",
+                paymentAmount: "",
+                paymentStatus: "",
+                paymentMethod: "",
+                referenceId: "",
+            }
+        );
+
+        expect(normalized.allocation?.seatLabel).toBe("A2");
+        expect(normalized.allocation?.shiftName).toBeUndefined();
+        expect(normalized.shift).toBeUndefined();
+        expect(normalized.payment).toBeUndefined();
+        expect(normalized.student?.monthlyFee).toBeUndefined();
+    });
+
+    it("keeps manual seat and bundle edits scoped to the edited row", () => {
+        const normalized = normalizedFromImportDraft(
+            { normalizedData: { student: { name: "Asha" }, allocation: { seatLabel: "A1", shiftName: "Morning" } } },
+            {
+                studentName: "Asha",
+                phone: "",
+                joinedAt: "",
+                fee: "2500",
+                seat: "B7",
+                shift: "",
+                multiShift: "Full Time",
+                paymentAmount: "",
+                paymentStatus: "",
+                paymentMethod: "",
+                referenceId: "",
+            },
+            {
+                defaultFee: 1200,
+                defaultAdmissionFee: 0,
+                seats: [{ id: "seat_b7", label: "B7" }],
+                shifts: [{ id: "shift_morning", name: "Morning", startTime: null, endTime: null, price: 1200 }],
+                multiShifts: [{ id: "multi_full", name: "Full Time", price: 2500, componentShiftNames: ["Morning", "Evening"] }],
+            }
+        );
+
+        expect(normalized.allocation).toMatchObject({ seatLabel: "B7", multiShiftName: "Full Time" });
+        expect(normalized.allocation?.shiftName).toBeUndefined();
+        expect(normalized.multiShift?.componentShiftNames).toEqual(["Morning", "Evening"]);
+        expect(normalized.student?.feeSource).toBe("MULTI_SHIFT_PRICE");
     });
 
     it("fills missing row fees from selected branch shift prices", () => {
@@ -323,6 +489,57 @@ describe("import mapping and validation", () => {
         );
 
         expect(result.warnings.some(warning => warning.code === "PAYMENT_JOINED_AT_REQUIRED")).toBe(true);
+    });
+
+    it("blocks import plans where payment action and cycle disagree", () => {
+        const checks = buildImportPlanChecks({
+            hasOpenQuestions: false,
+            mapping: {
+                entityTypesDetected: ["STUDENT", "PAYMENT"],
+                columnMappings: [],
+                importOptions: {
+                    paymentAction: "GENERATE_DUE",
+                    paymentCycle: "SKIP_PAYMENTS",
+                },
+            },
+            rows: [{
+                id: "row_1",
+                status: "READY",
+                skipped: false,
+                normalizedData: { student: { name: "Asha" }, payment: { amount: 1200 } },
+            }],
+        });
+
+        expect(getBlockingImportPlanChecks(checks).map(check => check.code)).toContain("PAYMENT_PLAN");
+    });
+
+    it("does not count deferred allocation rows as seat links in the import plan", () => {
+        const checks = buildImportPlanChecks({
+            hasOpenQuestions: false,
+            mapping: {
+                entityTypesDetected: ["STUDENT", "ALLOCATION"],
+                columnMappings: [],
+                importOptions: { skipConflictingAllocations: true },
+            },
+            rows: [{
+                id: "row_1",
+                status: "WARNING",
+                skipped: false,
+                normalizedData: { student: { name: "Asha" }, allocation: { seatLabel: "A1", shiftName: "Morning" } },
+                warnings: [{
+                    code: "ALLOCATION_SKIPPED_CONFLICT",
+                    field: "allocation.seatLabel",
+                    message: "Student will import without allocation.",
+                    severity: "info",
+                }],
+            }],
+        });
+
+        expect(checks.find(check => check.code === "SEAT_SHIFT_LINKS")).toMatchObject({
+            status: "warning",
+            count: 0,
+        });
+        expect(getBlockingImportPlanChecks(checks)).toEqual([]);
     });
 
     it("promotes known multi-shift names from plain shift columns", () => {

@@ -66,7 +66,7 @@ describe("Gemini structured JSON calls", () => {
 
         expect(result.ok).toBe(false);
         expect(result.rawText).toBeNull();
-        expect(result.error).toContain("no structured response");
+        expect(result.error).toContain("missing API key");
         expect(mocks.generateContent).not.toHaveBeenCalled();
     });
 
@@ -84,13 +84,45 @@ describe("Gemini structured JSON calls", () => {
         expect(mocks.generateContent).toHaveBeenCalledWith(expect.objectContaining({
             model: "gemini-3.5-flash",
             config: {
-                responseFormat: {
-                    text: {
-                        mimeType: "application/json",
-                        schema,
+                responseMimeType: "application/json",
+                responseJsonSchema: schema,
+            },
+        }));
+    });
+
+    it("extracts JSON from Gemini candidate parts", async () => {
+        process.env.GEMINI_API_KEY = "test-key";
+        mocks.generateContent.mockResolvedValueOnce({
+            candidates: [
+                {
+                    content: {
+                        parts: [{ text: "{\"value\":" }, { text: "2}" }],
                     },
                 },
-            },
+            ],
+        });
+
+        const result = await callGeminiJson<{ value: number }>("Return JSON");
+
+        expect(result).toEqual({ ok: true, data: { value: 2 }, rawText: "{\"value\":2}" });
+    });
+
+    it("falls back when the primary Gemini model is temporarily unavailable", async () => {
+        process.env.GEMINI_API_KEY = "test-key";
+        mocks.generateContent
+            .mockRejectedValueOnce(new Error("{\"error\":{\"code\":503,\"status\":\"UNAVAILABLE\"}}"))
+            .mockResolvedValueOnce({ text: "{\"value\":3}" });
+
+        const result = await callGeminiJson<{ value: number }>("Return JSON", {
+            model: "gemini-3.5-flash",
+        });
+
+        expect(result).toEqual({ ok: true, data: { value: 3 }, rawText: "{\"value\":3}" });
+        expect(mocks.generateContent).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            model: "gemini-3.5-flash",
+        }));
+        expect(mocks.generateContent).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            model: "gemini-2.5-flash",
         }));
     });
 
