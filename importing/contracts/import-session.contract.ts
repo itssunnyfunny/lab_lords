@@ -51,6 +51,9 @@ export type ImportColumnMapping = {
     targetField: ImportTargetField;
     confidence: number;
     reason?: string;
+    source?: "AI" | "DETERMINISTIC" | "MANUAL";
+    autoApplied?: boolean;
+    needsReview?: boolean;
 };
 
 export type ImportAIQuestion = {
@@ -180,6 +183,7 @@ export type ImportOptions = {
     skipUnknownShiftAllocations?: boolean;
     skipUnknownMultiShiftAllocations?: boolean;
     skipMissingShiftAllocations?: boolean;
+    skipConflictingAllocations?: boolean;
 };
 
 export type ImportBranchContext = {

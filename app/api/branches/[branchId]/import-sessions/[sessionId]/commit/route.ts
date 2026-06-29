@@ -14,11 +14,15 @@ export async function POST(req: Request, { params }: Params) {
         if (body.confirm !== true) {
             return NextResponse.json({ error: "Final confirmation is required." }, { status: 400 });
         }
+        if (typeof body.planVersion !== "string" || !body.planVersion.trim()) {
+            return NextResponse.json({ error: "Reviewed import plan version is required." }, { status: 400 });
+        }
         const result = await ImportCommitService.commitSession(
             user.id,
             branchId,
             sessionId,
-            (body.mode || "SAFE_PARTIAL") as CommitMode
+            (body.mode || "SAFE_PARTIAL") as CommitMode,
+            body.planVersion
         );
         return NextResponse.json(result);
     } catch (error) {

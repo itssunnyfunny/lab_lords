@@ -26,6 +26,7 @@ import {
 } from "@/importing/pipeline/import-extraction.pipeline";
 import { detectDuplicateImportRows, detectExistingStudentDuplicates } from "@/importing/utils/duplicate-detector";
 import { dedupeImportQuestionDrafts } from "@/importing/utils/import-question-dedupe";
+import { findStagedAllocationConflicts, stagedAllocationConflictWarnings } from "@/importing/utils/staged-allocation-conflicts";
 import { applyImportDefaults, normalizeImportRow } from "@/importing/utils/row-normalizer";
 import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
 import { buildFallbackMappings } from "@/importing/utils/column-normalizer";
@@ -56,6 +57,10 @@ function toStringDate(value: Date) {
 
 function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : "Something went wrong";
+}
+
+function terminalImportSessionStatus(status: string) {
+    return ["COMMITTING", "COMMITTED", "PARTIAL", "FAILED"].includes(status);
 }
 
 function clampRowLimit(value: number | undefined) {
@@ -166,7 +171,7 @@ function summarizeRows(rows: Array<{
     return summary;
 }
 
-function normalizeMapping(mapping: unknown, columns: string[]): ImportMappingState {
+export function normalizeMapping(mapping: unknown, columns: string[]): ImportMappingState {
     if (!mapping || typeof mapping !== "object") {
         return {
             entityTypesDetected: ["STUDENT"],
@@ -305,16 +310,17 @@ async function getImportBranchContext(branchId: string): Promise<ImportBranchCon
     };
 }
 
-function statusForValidation(input: {
+export function statusForValidation(input: {
     skipped: boolean;
     issues: ImportIssue[];
     warnings: ImportIssue[];
 }): ImportRowStatus {
     if (input.skipped) return "SKIPPED";
-    if (input.issues.some(issue => issue.code === "ALLOCATION_CONFLICT")) return "CONFLICT";
+    if (input.issues.some(issue => issue.code === "ALLOCATION_CONFLICT" || issue.code === "STAGED_ALLOCATION_CONFLICT")) return "CONFLICT";
     if (input.issues.length > 0) return "BLOCKED";
-    if (input.warnings.some(warning => warning.code.includes("DUPLICATE"))) return "DUPLICATE";
-    if (input.warnings.some(warning =>
+    const reviewWarnings = input.warnings.filter(warning => warning.severity !== "info");
+    if (reviewWarnings.some(warning => warning.code.includes("DUPLICATE"))) return "DUPLICATE";
+    if (reviewWarnings.some(warning =>
         warning.code.includes("UNKNOWN") ||
         warning.code.includes("REQUIRED") ||
         warning.code.includes("UNCONFIRMED") ||
@@ -567,7 +573,7 @@ export class ImportSessionService {
         if (!branch) throw new Error("Branch not found");
         const activeAllocations = await prisma.seatAllocation.findMany({
             where: { endDate: null, seat: { branchId } },
-            include: { seat: { select: { label: true } }, shift: { select: { name: true } } },
+            include: { seat: { select: { label: true } }, shift: { select: { name: true, startTime: true, endTime: true } } },
         });
 
         return {
@@ -615,6 +621,9 @@ export class ImportSessionService {
             include: { rows: { orderBy: { rowNumber: "asc" } } },
         });
         if (!session) throw new Error("Import session not found");
+        if (terminalImportSessionStatus(session.status)) {
+            return this.getSessionDetail(userId, branchId, sessionId);
+        }
 
         await prisma.importSession.update({
             where: { id: sessionId },
@@ -821,6 +830,13 @@ export class ImportSessionService {
             rowNumber: item.row.rowNumber,
             normalizedData: item.normalizedData,
         })));
+        const stagedRows = normalizedRows.map(item => ({
+            id: item.row.id,
+            rowNumber: item.row.rowNumber,
+            status: item.row.status,
+            skipped: item.row.skipped,
+            normalizedData: item.normalizedData,
+        }));
 
         const questionDrafts: { rowId?: string; field?: string; question: string; options?: unknown }[] = [
             ...(mapping.questions ?? []).map(question => ({
@@ -850,7 +866,10 @@ export class ImportSessionService {
                     skipUnknownMultiShiftAllocations: mapping.importOptions?.skipUnknownMultiShiftAllocations,
                     skipMissingShiftAllocations: mapping.importOptions?.skipMissingShiftAllocations,
                 }),
-                validateImportAllocation(item.normalizedData, context),
+                validateImportAllocation(item.normalizedData, {
+                    ...context,
+                    skipConflictingAllocations: mapping.importOptions?.skipConflictingAllocations,
+                }),
                 validateImportPayment(item.normalizedData, mapping)
             );
 
@@ -858,10 +877,23 @@ export class ImportSessionService {
                 ...(duplicateMap.get(item.row.id) ?? []),
                 ...detectExistingStudentDuplicates(item.normalizedData, context.existingStudents),
             ];
-            const warnings = [...result.warnings, ...duplicateWarnings];
+            const stagedConflicts = findStagedAllocationConflicts({
+                rowId: item.row.id,
+                normalizedData: item.normalizedData,
+                rows: stagedRows,
+                context,
+            });
+            const skippedStagedConflicts = mapping.importOptions?.skipConflictingAllocations
+                ? stagedAllocationConflictWarnings(stagedConflicts)
+                : [];
+            const issues = [
+                ...result.issues,
+                ...(mapping.importOptions?.skipConflictingAllocations ? [] : stagedConflicts),
+            ];
+            const warnings = [...result.warnings, ...skippedStagedConflicts, ...duplicateWarnings];
             const status = statusForValidation({
                 skipped: item.row.skipped,
-                issues: result.issues,
+                issues,
                 warnings,
             });
 
@@ -869,7 +901,7 @@ export class ImportSessionService {
                 row: item.row,
                 mappedData: item.mappedData,
                 normalizedData: item.normalizedData,
-                issues: result.issues,
+                issues,
                 warnings,
                 confidence: item.confidence,
                 status,

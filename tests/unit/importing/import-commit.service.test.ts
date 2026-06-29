@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createImportPlanVersion } from "@/importing/utils/import-plan-checks";
 
 const mocks = vi.hoisted(() => ({
     revalidateSession: vi.fn(),
@@ -7,7 +8,7 @@ const mocks = vi.hoisted(() => ({
         seat: { findMany: vi.fn() },
         shift: { findMany: vi.fn() },
         multiShift: { findMany: vi.fn() },
-        importSession: { update: vi.fn() },
+        importSession: { findFirst: vi.fn(), update: vi.fn() },
         importRow: { update: vi.fn() },
         importCommit: { create: vi.fn() },
     },
@@ -77,6 +78,7 @@ vi.mock("@/services/multiShift.service", () => ({
 
 const readyDetail = {
     status: "READY_TO_COMMIT",
+    updatedAt: "2026-06-24T00:00:00.000Z",
     mapping: {
         importOptions: {
             paymentCycle: "CURRENT_MONTH",
@@ -100,6 +102,26 @@ const readyDetail = {
     ],
 };
 
+function planVersionFor(detail: {
+    status: string;
+    mapping: unknown;
+    rows: Array<{ id?: string; status: string; skipped?: boolean; normalizedData: unknown; issues?: unknown; warnings?: unknown }>;
+}) {
+    return createImportPlanVersion({
+        sessionId: "session_1",
+        status: detail.status,
+        mapping: detail.mapping as never,
+        rows: detail.rows.map(row => ({
+            id: row.id,
+            status: row.status,
+            skipped: row.skipped,
+            normalizedData: row.normalizedData as never,
+            issues: row.issues,
+            warnings: row.warnings,
+        })),
+    });
+}
+
 describe("ImportCommitService", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -107,6 +129,7 @@ describe("ImportCommitService", () => {
         mocks.prisma.seat.findMany.mockResolvedValue([{ id: "seat_1", label: "A1" }]);
         mocks.prisma.shift.findMany.mockResolvedValue([{ id: "shift_1", name: "Morning" }]);
         mocks.prisma.multiShift.findMany.mockResolvedValue([]);
+        mocks.prisma.importSession.findFirst.mockResolvedValue({ status: "READY_TO_COMMIT" });
         mocks.prisma.importSession.update.mockResolvedValue({});
         mocks.prisma.importRow.update.mockResolvedValue({});
         mocks.prisma.importCommit.create.mockResolvedValue({});
@@ -118,38 +141,56 @@ describe("ImportCommitService", () => {
     });
 
     it("does not run when the session is not READY_TO_COMMIT", async () => {
-        mocks.revalidateSession.mockResolvedValueOnce({
+        const detail = {
             ...readyDetail,
             status: "NEEDS_INFO",
             questions: [{ status: "OPEN" }],
-        });
+        };
+        mocks.revalidateSession.mockResolvedValueOnce(detail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
-        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1")).rejects.toThrow("not ready");
+        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(detail))).rejects.toThrow("not ready");
         expect(mocks.createImportedStudent).not.toHaveBeenCalled();
     }, 10000);
+
+    it("requires the reviewed plan version before committing", async () => {
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1")).rejects.toThrow("plan version");
+        expect(mocks.revalidateSession).not.toHaveBeenCalled();
+    });
+
+    it("does not re-open a committed session", async () => {
+        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({ status: "COMMITTED" });
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(readyDetail))).rejects.toThrow("already been committed");
+        expect(mocks.revalidateSession).not.toHaveBeenCalled();
+        expect(mocks.createImportedStudent).not.toHaveBeenCalled();
+    });
 
     it("imports valid student rows through StudentService", async () => {
         mocks.revalidateSession.mockResolvedValueOnce(readyDetail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
-        const result = await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
+        const result = await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(readyDetail));
 
         expect(result.status).toBe("SUCCESS");
         expect(mocks.createImportedStudent).toHaveBeenCalledWith("user_1", "branch_1", expect.objectContaining({ name: "Asha" }));
     });
 
     it("skips blocked rows in SAFE_PARTIAL mode", async () => {
-        mocks.revalidateSession.mockResolvedValueOnce({
+        const detail = {
             ...readyDetail,
             rows: [
                 ...readyDetail.rows,
                 { id: "row_2", rowNumber: 3, status: "BLOCKED", skipped: false, warnings: [], normalizedData: { student: {} } },
             ],
-        });
+        };
+        mocks.revalidateSession.mockResolvedValueOnce(detail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
-        const result = await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL");
+        const result = await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(detail));
 
         expect(result.status).toBe("PARTIAL");
         expect(result.summary.skippedRows).toBe(1);
@@ -160,29 +201,68 @@ describe("ImportCommitService", () => {
     });
 
     it("refuses blocked rows in STRICT_ALL_OR_NOTHING mode", async () => {
-        mocks.revalidateSession.mockResolvedValueOnce({
+        const detail = {
             ...readyDetail,
             rows: [
                 ...readyDetail.rows,
                 { id: "row_2", rowNumber: 3, status: "BLOCKED", skipped: false, warnings: [], normalizedData: { student: {} } },
             ],
-        });
+        };
+        mocks.revalidateSession.mockResolvedValueOnce(detail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
-        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1", "STRICT_ALL_OR_NOTHING")).rejects.toThrow("Strict import refused");
+        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1", "STRICT_ALL_OR_NOTHING", planVersionFor(detail))).rejects.toThrow("Strict import refused");
     });
 
     it("uses SeatAllocationService for allocations", async () => {
         mocks.revalidateSession.mockResolvedValueOnce(readyDetail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
-        await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
+        await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(readyDetail));
 
         expect(mocks.assignSeatToShifts).toHaveBeenCalledWith("user_1", "seat_1", "student_1", ["shift_1"]);
     });
 
+    it("imports the student but skips seat allocation for deferred allocation conflicts", async () => {
+        const detail = {
+            ...readyDetail,
+            mapping: {
+                importOptions: {
+                    paymentCycle: "SKIP_PAYMENTS",
+                    paymentAction: "SKIP_PAYMENTS",
+                    skipConflictingAllocations: true,
+                },
+            },
+            rows: [{
+                ...readyDetail.rows[0],
+                status: "WARNING",
+                warnings: [{
+                    code: "ALLOCATION_SKIPPED_CONFLICT",
+                    field: "allocation.seatLabel",
+                    message: "Student will import without allocation because seat A1 is already occupied.",
+                    severity: "info",
+                }],
+                normalizedData: {
+                    student: { name: "Asha", phone: "9876543210", monthlyFee: 1200 },
+                    allocation: { seatLabel: "A1", shiftName: "Morning" },
+                },
+            }],
+        };
+        mocks.revalidateSession.mockResolvedValueOnce(detail);
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        const result = await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(detail));
+
+        expect(result.status).toBe("SUCCESS");
+        expect(result.summary.createdStudents).toBe(1);
+        expect(result.summary.createdAllocations).toBe(0);
+        expect(mocks.createImportedStudent).toHaveBeenCalledWith("user_1", "branch_1", expect.objectContaining({ name: "Asha" }));
+        expect(mocks.assignSeatToShifts).not.toHaveBeenCalled();
+        expect(mocks.authorize).not.toHaveBeenCalledWith("user_1", "branch_1", "seat_allocation");
+    });
+
     it("links imported students to selected shift fees when the fee came from branch pricing", async () => {
-        mocks.revalidateSession.mockResolvedValueOnce({
+        const detail = {
             ...readyDetail,
             rows: [{
                 ...readyDetail.rows[0],
@@ -196,10 +276,11 @@ describe("ImportCommitService", () => {
                     },
                 },
             }],
-        });
+        };
+        mocks.revalidateSession.mockResolvedValueOnce(detail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
-        await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
+        await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(detail));
 
         expect(mocks.createImportedStudent).toHaveBeenCalledWith(
             "user_1",
@@ -228,7 +309,7 @@ describe("ImportCommitService", () => {
             { id: "allocation_afternoon" },
             { id: "allocation_evening" },
         ]);
-        mocks.revalidateSession.mockResolvedValueOnce({
+        const detail = {
             ...readyDetail,
             rows: [{
                 ...readyDetail.rows[0],
@@ -237,10 +318,11 @@ describe("ImportCommitService", () => {
                     allocation: { seatLabel: "A1", shiftName: "Full Time" },
                 },
             }],
-        });
+        };
+        mocks.revalidateSession.mockResolvedValueOnce(detail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
-        await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
+        await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(detail));
 
         expect(mocks.assignSeatToShifts).toHaveBeenCalledWith(
             "user_1",
@@ -255,10 +337,35 @@ describe("ImportCommitService", () => {
         mocks.revalidateSession.mockResolvedValueOnce(readyDetail);
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
-        await ImportCommitService.commitSession("user_1", "branch_1", "session_1");
+        await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(readyDetail));
 
         expect(mocks.ensureMonthlyPaymentForStudent).toHaveBeenCalled();
         expect(mocks.markPaymentAsPaid).toHaveBeenCalledWith("user_1", "payment_1", "UPI", "TXN1");
+    });
+
+    it("refuses commits when payment action and cycle conflict", async () => {
+        const detail = {
+            ...readyDetail,
+            mapping: {
+                importOptions: {
+                    paymentAction: "GENERATE_DUE",
+                    paymentCycle: "SKIP_PAYMENTS",
+                },
+            },
+        };
+        mocks.revalidateSession.mockResolvedValueOnce(detail);
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(detail))).rejects.toThrow("Payment plan");
+        expect(mocks.createImportedStudent).not.toHaveBeenCalled();
+    });
+
+    it("rejects stale plan versions after revalidation changes the session", async () => {
+        mocks.revalidateSession.mockResolvedValueOnce(readyDetail);
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", "stale-plan")).rejects.toThrow("plan changed");
+        expect(mocks.createImportedStudent).not.toHaveBeenCalled();
     });
 
     it("previews generated dues for student-only rows when payment generation is enabled", async () => {

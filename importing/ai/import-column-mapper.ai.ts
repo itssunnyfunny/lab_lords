@@ -89,6 +89,7 @@ function sanitizeSuggestedImportOptions(value: unknown): Partial<ImportOptions> 
     if (typeof value.skipUnknownShiftAllocations === "boolean") next.skipUnknownShiftAllocations = value.skipUnknownShiftAllocations;
     if (typeof value.skipUnknownMultiShiftAllocations === "boolean") next.skipUnknownMultiShiftAllocations = value.skipUnknownMultiShiftAllocations;
     if (typeof value.skipMissingShiftAllocations === "boolean") next.skipMissingShiftAllocations = value.skipMissingShiftAllocations;
+    if (typeof value.skipConflictingAllocations === "boolean") next.skipConflictingAllocations = value.skipConflictingAllocations;
 
     if (isRecord(value.paymentMapping)) {
         next.paymentMapping = {
@@ -119,14 +120,28 @@ function sanitizeMappingResult(value: unknown, columns: string[], aiTrace?: Impo
             const sourceColumn = item.sourceColumn as string;
             const targetField = item.targetField as ImportTargetField;
             const duplicateColumn = seenColumns.has(sourceColumn);
-            const duplicateTarget = targetField !== "ignore" && seenTargets.has(targetField);
-            seenColumns.add(sourceColumn);
-            if (targetField !== "ignore") seenTargets.add(targetField);
 
             if (duplicateColumn) {
                 warnings.push(`Gemini mapped "${sourceColumn}" more than once; the first mapping was kept.`);
                 return null;
             }
+            seenColumns.add(sourceColumn);
+
+            const confidence = Math.max(0, Math.min(100, Number(item.confidence) || 50));
+            if (targetField !== "ignore" && confidence < 85) {
+                warnings.push(`Gemini was unsure about "${sourceColumn}" -> "${targetField}"; the column was left for review.`);
+                return {
+                    sourceColumn,
+                    targetField: "ignore" as const,
+                    confidence,
+                    reason: `AI mapping to "${targetField}" needs review before it can be applied.`,
+                    source: "AI" as const,
+                    autoApplied: false,
+                    needsReview: true,
+                };
+            }
+
+            const duplicateTarget = targetField !== "ignore" && seenTargets.has(targetField);
 
             if (duplicateTarget) {
                 warnings.push(`Gemini mapped more than one column to "${targetField}"; "${sourceColumn}" was left for review.`);
@@ -135,14 +150,22 @@ function sanitizeMappingResult(value: unknown, columns: string[], aiTrace?: Impo
                     targetField: "ignore" as const,
                     confidence: 40,
                     reason: `Duplicate target "${targetField}" needs manual review.`,
+                    source: "AI" as const,
+                    autoApplied: false,
+                    needsReview: true,
                 };
             }
+
+            if (targetField !== "ignore") seenTargets.add(targetField);
 
             return {
                 sourceColumn,
                 targetField,
-                confidence: Math.max(0, Math.min(100, Number(item.confidence) || 50)),
+                confidence,
                 reason: typeof item.reason === "string" ? item.reason : undefined,
+                source: "AI" as const,
+                autoApplied: targetField !== "ignore",
+                needsReview: false,
             };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -158,6 +181,9 @@ function sanitizeMappingResult(value: unknown, columns: string[], aiTrace?: Impo
                 targetField: "ignore",
                 confidence: 35,
                 reason: "AI did not map this column.",
+                source: "AI",
+                autoApplied: false,
+                needsReview: true,
             });
         }
     }

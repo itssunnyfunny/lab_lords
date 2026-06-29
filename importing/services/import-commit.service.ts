@@ -9,6 +9,7 @@ import { StaffService } from "@/services/staff.service";
 import { StudentService } from "@/services/student.service";
 import type { CommitMode, ImportCommitResult, ImportMappingState, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
+import { buildImportPlanChecks, createImportPlanVersion, getBlockingImportPlanChecks } from "@/importing/utils/import-plan-checks";
 import { ImportSessionService } from "./import-session.service";
 import type { PaymentMethod } from "@/app/generated/prisma/enums";
 import type { Prisma } from "@/app/generated/prisma/client";
@@ -23,6 +24,12 @@ function messageOf(error: unknown) {
 
 function key(value: string | undefined | null) {
     return (value ?? "").trim().toLowerCase();
+}
+
+function defersAllocation(row: { warnings: unknown }) {
+    return Array.isArray(row.warnings) && row.warnings.some((warning: { code?: string }) =>
+        (warning.code ?? "").startsWith("ALLOCATION_SKIPPED_")
+    );
 }
 
 function resolvePaymentPeriod(option: ImportMappingState["importOptions"], joinedAt: Date) {
@@ -88,12 +95,14 @@ export class ImportCommitService {
             )
         );
         const needsAllocation = rows.some(row =>
+            !defersAllocation(row) &&
             row.normalizedData?.allocation?.seatLabel &&
             (row.normalizedData.allocation.shiftName || row.normalizedData.allocation.multiShiftName)
         );
         const needsPayments = mapping.importOptions?.paymentAction && mapping.importOptions.paymentAction !== "SKIP_PAYMENTS";
-        const needsPaid = rows.some(row => row.normalizedData?.payment?.status === "PAID");
-        const needsWaived = rows.some(row => row.normalizedData?.payment?.status === "WAIVED");
+        const importsPaymentStatuses = mapping.importOptions?.paymentAction === "IMPORT_PAID_UNPAID";
+        const needsPaid = importsPaymentStatuses && rows.some(row => row.normalizedData?.payment?.status === "PAID");
+        const needsWaived = importsPaymentStatuses && rows.some(row => row.normalizedData?.payment?.status === "WAIVED");
 
         if (needsManageBranch) await StaffService.authorize(userId, branchId, "manage_branch");
         if (needsAllocation) await StaffService.authorize(userId, branchId, "seat_allocation");
@@ -106,8 +115,23 @@ export class ImportCommitService {
         userId: string,
         branchId: string,
         sessionId: string,
-        mode: CommitMode = "SAFE_PARTIAL"
+        mode: CommitMode = "SAFE_PARTIAL",
+        expectedPlanVersion?: string
     ): Promise<ImportCommitResult> {
+        if (!expectedPlanVersion) {
+            throw new Error("Reviewed import plan version is required before commit.");
+        }
+
+        await StaffService.authorize(userId, branchId, "students");
+        const currentSession = await prisma.importSession.findFirst({
+            where: { id: sessionId, branchId },
+            select: { status: true },
+        });
+        if (!currentSession) throw new Error("Import session not found.");
+        if (["COMMITTING", "COMMITTED", "PARTIAL"].includes(currentSession.status)) {
+            throw new Error("Import session has already been committed.");
+        }
+
         const detail = await ImportSessionService.revalidateSession(userId, branchId, sessionId);
         const rows = detail.rows.map(row => ({
             id: row.id,
@@ -115,6 +139,7 @@ export class ImportCommitService {
             status: row.status,
             skipped: row.skipped,
             normalizedData: row.normalizedData as ImportNormalizedRow | null,
+            issues: row.issues,
             warnings: row.warnings,
         }));
         const importableRows = rows.filter(row => !row.skipped && ["READY", "WARNING"].includes(row.status));
@@ -130,6 +155,27 @@ export class ImportCommitService {
         }
 
         const mapping = detail.mapping as ImportMappingState;
+        const checks = buildImportPlanChecks({
+            mapping,
+            rows,
+            hasOpenQuestions,
+            mode,
+        });
+        const blockers = getBlockingImportPlanChecks(checks);
+        if (blockers.length > 0) {
+            throw new Error(`Resolve import checks before committing: ${blockers.map(check => check.label).join(", ")}.`);
+        }
+
+        const actualPlanVersion = createImportPlanVersion({
+            sessionId,
+            status: detail.status,
+            mapping,
+            rows,
+        });
+        if (actualPlanVersion !== expectedPlanVersion) {
+            throw new Error("Import plan changed after preview. Refresh the final check before committing.");
+        }
+
         await this.ensureCommitPermissions(userId, branchId, importableRows, mapping);
 
         await prisma.importSession.update({
@@ -166,14 +212,16 @@ export class ImportCommitService {
                     const shiftName = normalized.allocation?.shiftName ?? normalized.shift?.name;
                     const multiShiftName = normalized.allocation?.multiShiftName ?? normalized.multiShift?.name;
 
-                    if (seatLabel && !context.seatsByLabel.has(key(seatLabel)) && mapping.importOptions?.createUnknownSeats) {
+                    const allocationDeferred = defersAllocation(row);
+
+                    if (!allocationDeferred && seatLabel && !context.seatsByLabel.has(key(seatLabel)) && mapping.importOptions?.createUnknownSeats) {
                         const seat = await SeatService.createSeat(userId, branchId, seatLabel);
                         context.seatsByLabel.set(key(seat.label), seat);
                         createdEntityIds.seatId = seat.id;
                         summary.createdSeats++;
                     }
 
-                    if (shiftName && !context.shiftsByName.has(key(shiftName)) && mapping.importOptions?.createUnknownShifts) {
+                    if (!allocationDeferred && shiftName && !context.shiftsByName.has(key(shiftName)) && mapping.importOptions?.createUnknownShifts) {
                         const shift = await ShiftService.createShift(userId, branchId, {
                             name: shiftName,
                             startTime: normalized.shift?.startTime,
@@ -185,7 +233,7 @@ export class ImportCommitService {
                         summary.createdShifts++;
                     }
 
-                    if (multiShiftName && !context.multiShiftsByName.has(key(multiShiftName)) && mapping.importOptions?.createUnknownMultiShifts) {
+                    if (!allocationDeferred && multiShiftName && !context.multiShiftsByName.has(key(multiShiftName)) && mapping.importOptions?.createUnknownMultiShifts) {
                         const componentShiftIds = (normalized.multiShift?.componentShiftNames ?? [])
                             .map(name => context.shiftsByName.get(key(name))?.id)
                             .filter((id): id is string => Boolean(id));
@@ -232,12 +280,12 @@ export class ImportCommitService {
                     createdEntityIds.studentId = student.id;
                     summary.createdStudents++;
 
-                    if (seat && multiShift) {
+                    if (!allocationDeferred && seat && multiShift) {
                         const shiftIds = multiShift.components.map(component => component.shiftId);
                         const allocations = await SeatAllocationService.assignSeatToShifts(userId, seat.id, student.id, shiftIds, multiShift.id);
                         createdEntityIds.allocationIds = allocations.map(allocation => allocation.id);
                         summary.createdAllocations += allocations.length;
-                    } else if (seat && shift) {
+                    } else if (!allocationDeferred && seat && shift) {
                         const allocations = await SeatAllocationService.assignSeatToShifts(userId, seat.id, student.id, [shift.id]);
                         createdEntityIds.allocationIds = allocations.map(allocation => allocation.id);
                         summary.createdAllocations += allocations.length;

@@ -244,7 +244,7 @@ export function buildImportAttention(input: {
     }
 
     const lowConfidenceMappings = (input.mapping?.columnMappings ?? []).filter(mapping =>
-        mapping.targetField !== "ignore" && mapping.confidence < 70
+        mapping.needsReview || (mapping.targetField !== "ignore" && mapping.confidence < 85)
     );
     if (lowConfidenceMappings.length > 0) {
         buckets.set("LOW_CONFIDENCE_MAPPING", {

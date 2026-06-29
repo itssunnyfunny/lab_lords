@@ -40,6 +40,9 @@ export function suggestMappingForColumn(column: string): ImportColumnMapping {
             targetField: "ignore",
             confidence: 35,
             reason: "No safe deterministic match.",
+            source: "DETERMINISTIC",
+            autoApplied: false,
+            needsReview: true,
         };
     }
 
@@ -48,6 +51,9 @@ export function suggestMappingForColumn(column: string): ImportColumnMapping {
         targetField: match.target,
         confidence: 82,
         reason: match.reason,
+        source: "DETERMINISTIC",
+        autoApplied: true,
+        needsReview: false,
     };
 }
 
@@ -62,6 +68,9 @@ export function buildFallbackMappings(columns: string[]): ImportColumnMapping[] 
                 targetField: "ignore",
                 confidence: 40,
                 reason: "Another column already maps to this field.",
+                source: "DETERMINISTIC",
+                autoApplied: false,
+                needsReview: true,
             };
         }
         seenTargets.add(mapping.targetField);

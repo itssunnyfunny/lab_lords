@@ -1,5 +1,5 @@
 import { apiClient } from "./core";
-import type { CommitMode, ImportColumnMapping, ImportOptions } from "@/importing/contracts/import-session.contract";
+import type { CommitMode, ImportColumnMapping, ImportNormalizedRow, ImportOptions } from "@/importing/contracts/import-session.contract";
 
 type DetailOptions = {
     rowFilter?: "attention" | "ready" | "all" | "skipped";
@@ -52,6 +52,14 @@ export const importSessions = {
         return apiClient.patch<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}/rows`, data);
     },
 
+    previewRow<T = unknown>(branchId: string, sessionId: string, data: { rowId: string; normalizedData: ImportNormalizedRow }): Promise<T> {
+        return apiClient.post<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}/rows/preview`, data);
+    },
+
+    availability<T = unknown>(branchId: string, sessionId: string, data: { rowId: string; shiftIds?: string[]; multiShiftId?: string | null }): Promise<T> {
+        return apiClient.post<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}/availability`, data);
+    },
+
     answerQuestion<T = unknown>(branchId: string, sessionId: string, data: { questionId: string; answer: unknown; applyToAffectedRows?: boolean }): Promise<T> {
         return apiClient.post<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}/questions`, data);
     },
@@ -60,7 +68,7 @@ export const importSessions = {
         return apiClient.get<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}/preview?mode=${mode}`);
     },
 
-    commit<T = unknown>(branchId: string, sessionId: string, mode: CommitMode = "SAFE_PARTIAL"): Promise<T> {
-        return apiClient.post<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}/commit`, { confirm: true, mode });
+    commit<T = unknown>(branchId: string, sessionId: string, planVersion: string, mode: CommitMode = "SAFE_PARTIAL"): Promise<T> {
+        return apiClient.post<unknown, T>(`/branches/${branchId}/import-sessions/${sessionId}/commit`, { confirm: true, mode, planVersion });
     },
 };
