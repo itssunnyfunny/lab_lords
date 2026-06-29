@@ -34,7 +34,9 @@ function dateToIso(value: string) {
 export function numberFromDraft(value: string) {
     const trimmed = value.trim();
     if (!trimmed) return undefined;
-    const parsed = Number(trimmed.replace(/[^\d.]/g, ""));
+    const numeric = trimmed.replace(/[^\d.]/g, "");
+    if (!numeric || !/^\d+(\.\d+)?$/.test(numeric)) return undefined;
+    const parsed = Number(numeric);
     return Number.isFinite(parsed) ? Math.round(parsed) : undefined;
 }
 

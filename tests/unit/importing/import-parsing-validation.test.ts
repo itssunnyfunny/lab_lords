@@ -11,9 +11,23 @@ import {
     hasManualNormalizedData,
     markManualNormalizedData,
 } from "@/importing/pipeline/import-extraction.pipeline";
-import { applyImportDefaults, parseImportMoney } from "@/importing/utils/row-normalizer";
+import {
+    applyImportDefaults,
+    classifyPaymentStatus,
+    normalizeImportRow,
+    parseImportDate,
+    parseImportMoney,
+    parsePaymentMethod,
+} from "@/importing/utils/row-normalizer";
 import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
-import { normalizedFromImportDraft } from "@/importing/utils/manual-row-draft";
+import {
+    draftFromImportRow,
+    feeFromSelection,
+    feeLooksAutoFilled,
+    importRowFieldValue,
+    normalizedFromImportDraft,
+    numberFromDraft,
+} from "@/importing/utils/manual-row-draft";
 import { buildImportPlanChecks, getBlockingImportPlanChecks } from "@/importing/utils/import-plan-checks";
 import { statusForValidation } from "@/importing/services/import-session.service";
 import { validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
@@ -22,6 +36,7 @@ import { validateImportAllocation } from "@/importing/validators/import-allocati
 import { validateImportSeat } from "@/importing/validators/import-seat.validator";
 import { validateImportShift } from "@/importing/validators/import-shift.validator";
 import { validateImportStudent } from "@/importing/validators/import-student.validator";
+import type { ImportColumnMapping, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 
 const mocks = vi.hoisted(() => ({
     callGemini: vi.fn(),
@@ -568,6 +583,159 @@ describe("import mapping and validation", () => {
 
     it("parses formatted money values", () => {
         expect(parseImportMoney("Rs 1,500")).toBe(1500);
+    });
+
+    it("normalizes richly mapped import rows", () => {
+        const mappings: ImportColumnMapping[] = [
+            { sourceColumn: "Name", targetField: "student.name", confidence: 90 },
+            { sourceColumn: "Phone", targetField: "student.phone", confidence: 90 },
+            { sourceColumn: "Joined", targetField: "student.joinedAt", confidence: 90 },
+            { sourceColumn: "Fee", targetField: "student.monthlyFee", confidence: 90 },
+            { sourceColumn: "Status", targetField: "student.status", confidence: 90 },
+            { sourceColumn: "Fee Source", targetField: "student.feeSource", confidence: 90 },
+            { sourceColumn: "Fee Shift", targetField: "student.feeLinkedShiftName", confidence: 90 },
+            { sourceColumn: "Fee Bundle", targetField: "student.feeLinkedMultiShiftName", confidence: 90 },
+            { sourceColumn: "Seat", targetField: "allocation.seatLabel", confidence: 90 },
+            { sourceColumn: "Shift", targetField: "shift.name", confidence: 90 },
+            { sourceColumn: "Start", targetField: "shift.startTime", confidence: 90 },
+            { sourceColumn: "End", targetField: "shift.endTime", confidence: 90 },
+            { sourceColumn: "Bundle", targetField: "multiShift.name", confidence: 90 },
+            { sourceColumn: "Components", targetField: "multiShift.componentShiftNames", confidence: 90 },
+            { sourceColumn: "Allocation Start", targetField: "allocation.startDate", confidence: 90 },
+            { sourceColumn: "Paid Amount", targetField: "payment.amount", confidence: 90 },
+            { sourceColumn: "Paid", targetField: "payment.status", confidence: 90 },
+            { sourceColumn: "Method", targetField: "payment.method", confidence: 90 },
+            { sourceColumn: "Reference", targetField: "payment.referenceId", confidence: 90 },
+            { sourceColumn: "Period", targetField: "payment.period", confidence: 90 },
+        ];
+
+        const result = normalizeImportRow(
+            {
+                Name: "Asha",
+                Phone: "9876543210",
+                Joined: "02/03/26",
+                Fee: "Rs 1,500",
+                Status: "Inactive",
+                "Fee Source": "uploaded",
+                "Fee Shift": "Morning",
+                "Fee Bundle": "Full Time",
+                Seat: "A1",
+                Shift: "Morning",
+                Start: "09:00",
+                End: "12:00",
+                Bundle: "Full Time",
+                Components: "Morning + Evening",
+                "Allocation Start": "2026-01-01",
+                "Paid Amount": "1500",
+                Paid: "yes",
+                Method: "PhonePe",
+                Reference: "TXN1",
+                Period: "Jan 2026",
+            },
+            mappings,
+            { paidValues: ["yes"], unpaidValues: ["no"], waivedValues: ["free"], confirmed: true }
+        );
+
+        expect(result.confidence).toBe(90);
+        expect(result.issues).toEqual([]);
+        expect(result.normalizedData.student).toMatchObject({
+            name: "Asha",
+            phone: "9876543210",
+            monthlyFee: 1500,
+            status: "INACTIVE",
+            feeSource: "UPLOADED",
+            feeLinkedShiftName: "Morning",
+            feeLinkedMultiShiftName: "Full Time",
+        });
+        expect(result.normalizedData.allocation).toMatchObject({
+            seatLabel: "A1",
+            shiftName: "Morning",
+            multiShiftName: "Full Time",
+        });
+        expect(result.normalizedData.multiShift?.componentShiftNames).toEqual(["Morning", "Evening"]);
+        expect(result.normalizedData.payment).toMatchObject({
+            amount: 1500,
+            status: "PAID",
+            method: "UPI",
+            referenceId: "TXN1",
+            period: "Jan 2026",
+        });
+    });
+
+    it("reports invalid mapped fee and payment amounts", () => {
+        const result = normalizeImportRow(
+            { Fee: "many rupees", Paid: "not sure" },
+            [
+                { sourceColumn: "Fee", targetField: "student.monthlyFee", confidence: 90 },
+                { sourceColumn: "Paid", targetField: "payment.amount", confidence: 90 },
+            ]
+        );
+
+        expect(result.issues.map(issue => issue.code)).toEqual(["INVALID_MONTHLY_FEE", "INVALID_PAYMENT_AMOUNT"]);
+        expect(result.normalizedData.student?.monthlyFee).toBeUndefined();
+        expect(result.normalizedData.payment?.amount).toBeUndefined();
+    });
+
+    it("covers import value parser edge cases", () => {
+        expect(parseImportDate("31/03/26")).toContain("2026-03-31");
+        expect(parseImportDate("not a date")).toBeUndefined();
+        expect(parsePaymentMethod("cash")).toBe("CASH");
+        expect(parsePaymentMethod("bank transfer")).toBe("BANK_TRANSFER");
+        expect(parsePaymentMethod("Paytm")).toBe("UPI");
+        expect(parsePaymentMethod("cheque")).toBeUndefined();
+        expect(classifyPaymentStatus("free")).toBe("WAIVED");
+        expect(classifyPaymentStatus("maybe", { paidValues: ["yes"], unpaidValues: ["no"], waivedValues: [], confirmed: true })).toBe("UNCLEAR");
+        expect(classifyPaymentStatus("")).toBeUndefined();
+    });
+
+    it("applies default seat, multi-shift, and branch fee fallbacks", () => {
+        const normalized = applyImportDefaults(
+            { student: { name: "Asha" } },
+            { defaultSeatLabel: "B2", defaultMultiShiftName: "Full Time" },
+            { branchDefaultFee: 1100, multiShiftsByName: new Map(), shiftsByName: new Map() }
+        );
+
+        expect(normalized.allocation).toMatchObject({ seatLabel: "B2", multiShiftName: "Full Time" });
+        expect(normalized.student?.monthlyFee).toBe(1100);
+        expect(normalized.student?.feeSource).toBe("BRANCH_DEFAULT");
+    });
+
+    it("handles manual row draft field extraction and fee helpers", () => {
+        const branchContext = {
+            defaultFee: 900,
+            defaultAdmissionFee: 0,
+            seats: [{ id: "seat_1", label: "A1" }],
+            shifts: [{ id: "shift_1", name: "Morning", startTime: null, endTime: null, price: 1200 }],
+            multiShifts: [{ id: "multi_1", name: "Full Time", price: 2500, componentShiftNames: ["Morning", "Evening"] }],
+        };
+        const row: { normalizedData: ImportNormalizedRow } = {
+            normalizedData: {
+                student: { name: "Asha", phone: "9876543210", joinedAt: "2026-01-01T00:00:00.000Z", monthlyFee: 1200 },
+                seat: { label: "A1" },
+                shift: { name: "Morning" },
+                payment: { amount: 1200, status: "PAID", method: "CASH", referenceId: "R1" },
+            },
+        };
+
+        expect(draftFromImportRow(row)).toMatchObject({
+            studentName: "Asha",
+            phone: "9876543210",
+            joinedAt: "2026-01-01",
+            fee: "1200",
+            seat: "A1",
+            shift: "Morning",
+            paymentAmount: "1200",
+            paymentStatus: "PAID",
+            paymentMethod: "CASH",
+            referenceId: "R1",
+        });
+        expect(importRowFieldValue({ normalizedData: null }, "studentName")).toBe("");
+        expect(numberFromDraft("Rs 1,299.60")).toBe(1300);
+        expect(numberFromDraft("abc")).toBeUndefined();
+        expect(feeLooksAutoFilled({ ...draftFromImportRow(row), fee: "" }, branchContext)).toBe(true);
+        expect(feeLooksAutoFilled({ ...draftFromImportRow(row), fee: "777" }, branchContext)).toBe(false);
+        expect(feeFromSelection({ ...draftFromImportRow(row), shift: "", multiShift: "Full Time" }, branchContext)).toBe("2500");
+        expect(feeFromSelection({ ...draftFromImportRow(row), shift: "Morning", multiShift: "" }, branchContext)).toBe("1200");
     });
 
     it("detects duplicate phone in the same file", () => {
