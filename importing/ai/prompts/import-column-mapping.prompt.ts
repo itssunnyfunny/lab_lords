@@ -67,6 +67,7 @@ Rules:
   - YES_CREATE_SEATS or SKIP_UNKNOWN_SEAT_ALLOCATION
   - CREATE_SHIFT or SKIP_UNKNOWN_SHIFT_ALLOCATION
   - CREATE_MULTI_SHIFT or SKIP_UNKNOWN_MULTI_SHIFT_ALLOCATION
+  - SKIP_ALLOCATIONS when seat/shift links should be handled manually later
   - CURRENT_MONTH, PREVIOUS_MONTH, CUSTOM_PERIOD, USE_JOINED_AT_ANNIVERSARY, or SKIP_PAYMENTS
   - GENERATE_DUE, IMPORT_PAID_UNPAID, or SKIP_PAYMENTS
 - Questions should be short, answerable, and only for decisions the operator must confirm.
