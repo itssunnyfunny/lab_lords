@@ -22,3 +22,6 @@
 ## 2025-05-24 - [Memory Optimization for Aggregations]
 **Learning:** Found an O(N) memory and bandwidth overhead in `analytics/payment.analytics.ts` where thousands of payment rows were fetched into application memory via `findMany` just to calculate sums.
 **Action:** Replaced `findMany` with Prisma's `aggregate({ _sum: { amount: true } })` to push the computation to the database, resulting in O(1) memory usage and significantly faster execution for large datasets.
+## 2025-02-24 - Bulk Allocation Validation Performance Bottleneck
+**Learning:** Checking for overlaps one student at a time (even inside a transaction) generates N+1 queries (`findMany` per student).
+**Action:** Extract the student IDs array `map(a => a.studentId)`, load all of their active seat allocations using the `in` operator `tx.seatAllocation.findMany({ where: { studentId: { in: studentIds } } })`, and filter these results in memory inside the loop `allStudentActiveAllocs.filter(a => a.studentId === oldAlloc.studentId)`.
