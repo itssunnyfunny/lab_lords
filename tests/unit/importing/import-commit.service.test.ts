@@ -129,7 +129,7 @@ describe("ImportCommitService", () => {
         mocks.prisma.seat.findMany.mockResolvedValue([{ id: "seat_1", label: "A1" }]);
         mocks.prisma.shift.findMany.mockResolvedValue([{ id: "shift_1", name: "Morning" }]);
         mocks.prisma.multiShift.findMany.mockResolvedValue([]);
-        mocks.prisma.importSession.findFirst.mockResolvedValue({ status: "READY_TO_COMMIT" });
+        mocks.prisma.importSession.findFirst.mockResolvedValue({ status: "READY_TO_COMMIT", updatedAt: new Date("2026-06-24T00:00:00.000Z") });
         mocks.prisma.importSession.update.mockResolvedValue({});
         mocks.prisma.importRow.update.mockResolvedValue({});
         mocks.prisma.importCommit.create.mockResolvedValue({});
@@ -161,12 +161,35 @@ describe("ImportCommitService", () => {
     });
 
     it("does not re-open a committed session", async () => {
-        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({ status: "COMMITTED" });
+        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({ status: "COMMITTED", updatedAt: new Date("2026-06-24T00:00:00.000Z") });
         const { ImportCommitService } = await import("@/importing/services/import-commit.service");
 
         await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(readyDetail))).rejects.toThrow("already been committed");
         expect(mocks.revalidateSession).not.toHaveBeenCalled();
         expect(mocks.createImportedStudent).not.toHaveBeenCalled();
+    });
+
+    it("blocks a fresh in-progress commit", async () => {
+        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({ status: "COMMITTING", updatedAt: new Date() });
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        await expect(ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(readyDetail))).rejects.toThrow("already running");
+        expect(mocks.revalidateSession).not.toHaveBeenCalled();
+        expect(mocks.createImportedStudent).not.toHaveBeenCalled();
+    });
+
+    it("allows a stale in-progress commit to retry remaining ready rows", async () => {
+        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({
+            status: "COMMITTING",
+            updatedAt: new Date(Date.now() - 31 * 60 * 1000),
+        });
+        mocks.revalidateSession.mockResolvedValueOnce(readyDetail);
+        const { ImportCommitService } = await import("@/importing/services/import-commit.service");
+
+        const result = await ImportCommitService.commitSession("user_1", "branch_1", "session_1", "SAFE_PARTIAL", planVersionFor(readyDetail));
+
+        expect(result.status).toBe("SUCCESS");
+        expect(mocks.createImportedStudent).toHaveBeenCalledTimes(1);
     });
 
     it("imports valid student rows through StudentService", async () => {
@@ -396,5 +419,36 @@ describe("ImportCommitService", () => {
 
         expect(preview.summary.generatePayments).toBe(1);
         expect(preview.summary.markPaid).toBe(0);
+    });
+
+    it("previews one allocation per component shift for multi-shift rows", async () => {
+        mocks.revalidateSession.mockResolvedValueOnce({
+            status: "READY_TO_COMMIT",
+            mapping: {
+                importOptions: {
+                    paymentCycle: "SKIP_PAYMENTS",
+                    paymentAction: "SKIP_PAYMENTS",
+                },
+            },
+            questions: [],
+            rows: [{
+                id: "row_1",
+                rowNumber: 2,
+                status: "READY",
+                skipped: false,
+                issues: [],
+                warnings: [],
+                normalizedData: {
+                    student: { name: "Asha", phone: "9876543210", monthlyFee: 2400 },
+                    allocation: { seatLabel: "A1", multiShiftName: "Full Time" },
+                    multiShift: { name: "Full Time", componentShiftNames: ["Morning", "Afternoon", "Evening"] },
+                },
+            }],
+        });
+        const { ImportPreviewService } = await import("@/importing/services/import-preview.service");
+
+        const preview = await ImportPreviewService.getPreview("user_1", "branch_1", "session_1");
+
+        expect(preview.summary.createAllocations).toBe(3);
     });
 });

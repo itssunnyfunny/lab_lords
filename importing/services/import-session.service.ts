@@ -47,6 +47,8 @@ export type ImportSessionDetailOptions = {
     cursor?: number;
 };
 
+export const MAX_IMPORT_ROWS = 2000;
+
 function asJson(value: unknown): Prisma.InputJsonValue {
     return value as Prisma.InputJsonValue;
 }
@@ -331,6 +333,12 @@ export function statusForValidation(input: {
     return "READY";
 }
 
+export function assertImportRowLimit(rowCount: number) {
+    if (rowCount > MAX_IMPORT_ROWS) {
+        throw new Error(`This import has ${rowCount.toLocaleString("en-IN")} rows. The current wizard supports up to ${MAX_IMPORT_ROWS.toLocaleString("en-IN")} rows per import.`);
+    }
+}
+
 export class ImportSessionService {
     private static async authorize(userId: string, branchId: string) {
         await StaffService.authorize(userId, branchId, "students");
@@ -339,6 +347,7 @@ export class ImportSessionService {
     static async createSession(userId: string, branchId: string, input: CreateImportSessionInput) {
         await this.authorize(userId, branchId);
         const parsed = await parseImportSource(input);
+        assertImportRowLimit(parsed.rows.length);
         const sourceProfile = buildImportSourceProfile(parsed);
 
         const session = await prisma.$transaction(async tx => {
@@ -754,6 +763,7 @@ export class ImportSessionService {
                         normalizedData: asJson(edit.normalizedData),
                         mappedData: asJson(markManualNormalizedData(existingRow?.mappedData ?? {})),
                         confidence: 100,
+                        skipped: false,
                     } : {}),
                 },
             });
@@ -847,6 +857,19 @@ export class ImportSessionService {
         ];
 
         const processedRows = normalizedRows.map(item => {
+            if (["IMPORTED", "FAILED"].includes(item.row.status)) {
+                return {
+                    row: item.row,
+                    mappedData: item.mappedData,
+                    normalizedData: item.normalizedData,
+                    issues: Array.isArray(item.row.issues) ? item.row.issues as ImportIssue[] : [],
+                    warnings: Array.isArray(item.row.warnings) ? item.row.warnings as ImportIssue[] : [],
+                    confidence: item.confidence,
+                    status: item.row.status,
+                    questions: [],
+                };
+            }
+
             const baseIssues = item.normalizationIssues;
             const result = mergeValidatorResults(
                 { issues: baseIssues, warnings: [], questions: [] },

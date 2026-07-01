@@ -14,6 +14,8 @@ import { ImportSessionService } from "./import-session.service";
 import type { PaymentMethod } from "@/app/generated/prisma/enums";
 import type { Prisma } from "@/app/generated/prisma/client";
 
+const STALE_COMMITTING_AFTER_MS = 30 * 60 * 1000;
+
 function asJson(value: unknown): Prisma.InputJsonValue {
     return value as Prisma.InputJsonValue;
 }
@@ -125,11 +127,17 @@ export class ImportCommitService {
         await StaffService.authorize(userId, branchId, "students");
         const currentSession = await prisma.importSession.findFirst({
             where: { id: sessionId, branchId },
-            select: { status: true },
+            select: { status: true, updatedAt: true },
         });
         if (!currentSession) throw new Error("Import session not found.");
-        if (["COMMITTING", "COMMITTED", "PARTIAL"].includes(currentSession.status)) {
+        if (["COMMITTED", "PARTIAL"].includes(currentSession.status)) {
             throw new Error("Import session has already been committed.");
+        }
+        if (currentSession.status === "COMMITTING") {
+            const stale = Date.now() - currentSession.updatedAt.getTime() > STALE_COMMITTING_AFTER_MS;
+            if (!stale) {
+                throw new Error("Import is already running. Wait for it to finish before retrying.");
+            }
         }
 
         const detail = await ImportSessionService.revalidateSession(userId, branchId, sessionId);

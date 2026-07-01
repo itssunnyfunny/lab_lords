@@ -1,21 +1,32 @@
 import { prisma } from "@/lib/prisma";
 import { ImportSessionService } from "./import-session.service";
 import { StaffService } from "@/services/staff.service";
-import type { ImportMappingState, ImportOptions } from "@/importing/contracts/import-session.contract";
+import type { ImportAIQuestion, ImportMappingState, ImportOptions } from "@/importing/contracts/import-session.contract";
 import type { Prisma } from "@/app/generated/prisma/client";
 
 function asJson(value: unknown): Prisma.InputJsonValue {
     return value as Prisma.InputJsonValue;
 }
 
-function answerToOptions(field: string | null, answer: unknown): Partial<ImportOptions> {
-    const value = typeof answer === "string"
+const paymentCycleAnswers = ["CURRENT_MONTH", "PREVIOUS_MONTH", "CUSTOM_PERIOD", "USE_JOINED_AT_ANNIVERSARY"] as const;
+const paymentActionAnswers = ["GENERATE_DUE", "IMPORT_PAID_UNPAID"] as const;
+
+function answerValue(answer: unknown) {
+    return typeof answer === "string"
         ? answer
         : answer && typeof answer === "object" && "value" in answer
             ? String((answer as { value: unknown }).value)
             : "";
+}
 
-    if (field === "payment.customPeriod" && answer && typeof answer === "object") {
+function sameQuestion(stored: ImportAIQuestion, question: { field: string | null; question: string }) {
+    return (stored.field ?? null) === question.field && stored.question === question.question;
+}
+
+function answerToOptions(question: { field: string | null }, answer: unknown): Partial<ImportOptions> {
+    const value = answerValue(answer);
+
+    if (question.field === "payment.customPeriod" && answer && typeof answer === "object") {
         const customPeriodStart = "customPeriodStart" in answer ? String((answer as { customPeriodStart: unknown }).customPeriodStart) : "";
         const customPeriodEnd = "customPeriodEnd" in answer ? String((answer as { customPeriodEnd: unknown }).customPeriodEnd) : "";
         return {
@@ -24,11 +35,17 @@ function answerToOptions(field: string | null, answer: unknown): Partial<ImportO
             ...(customPeriodEnd ? { customPeriodEnd } : {}),
         };
     }
-    if (field === "payment.period") return { paymentCycle: value as ImportOptions["paymentCycle"] };
-    if (field === "payment.status" && ["GENERATE_DUE", "IMPORT_PAID_UNPAID", "SKIP_PAYMENTS"].includes(value)) {
+
+    if (value === "SKIP_PAYMENTS") {
+        return { paymentCycle: "SKIP_PAYMENTS", paymentAction: "SKIP_PAYMENTS" };
+    }
+    if (paymentActionAnswers.includes(value as typeof paymentActionAnswers[number])) {
         return { paymentAction: value as ImportOptions["paymentAction"] };
     }
-    if (field === "student.joinedAt") {
+    if (paymentCycleAnswers.includes(value as typeof paymentCycleAnswers[number])) {
+        return { paymentCycle: value as ImportOptions["paymentCycle"] };
+    }
+    if (question.field === "student.joinedAt") {
         return { defaultJoinedAt: value === "USE_TODAY" ? new Date().toISOString() : value };
     }
     if (value === "SKIP_ALLOCATIONS") {
@@ -43,18 +60,18 @@ function answerToOptions(field: string | null, answer: unknown): Partial<ImportO
             skipConflictingAllocations: true,
         };
     }
-    if (field === "seat.label" && value === "YES_CREATE_SEATS") return { createUnknownSeats: true };
-    if (field === "seat.label" && ["SKIP_UNKNOWN_SEAT_ALLOCATION", "NO_SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownSeatAllocations: true };
-    if (field === "seat.label" && value) return { defaultSeatLabel: value };
-    if (field === "allocation.shiftName" && value === "CREATE_SHIFT") return { createUnknownShifts: true };
-    if (field === "allocation.shiftName" && value === "SKIP_MISSING_SHIFT_ALLOCATION") return { skipMissingShiftAllocations: true };
-    if (field === "allocation.shiftName" && ["SKIP_UNKNOWN_SHIFT_ALLOCATION", "SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownShiftAllocations: true };
-    if (field === "allocation.shiftName" && value && !["MAP_TO_EXISTING_SHIFT"].includes(value)) {
+    if (question.field === "seat.label" && value === "YES_CREATE_SEATS") return { createUnknownSeats: true };
+    if (question.field === "seat.label" && ["SKIP_UNKNOWN_SEAT_ALLOCATION", "NO_SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownSeatAllocations: true };
+    if (question.field === "seat.label" && value) return { defaultSeatLabel: value };
+    if (question.field === "allocation.shiftName" && value === "CREATE_SHIFT") return { createUnknownShifts: true };
+    if (question.field === "allocation.shiftName" && value === "SKIP_MISSING_SHIFT_ALLOCATION") return { skipMissingShiftAllocations: true };
+    if (question.field === "allocation.shiftName" && ["SKIP_UNKNOWN_SHIFT_ALLOCATION", "SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownShiftAllocations: true };
+    if (question.field === "allocation.shiftName" && value && !["MAP_TO_EXISTING_SHIFT"].includes(value)) {
         return { defaultShiftName: value };
     }
-    if (field === "allocation.multiShiftName" && value === "CREATE_MULTI_SHIFT") return { createUnknownMultiShifts: true };
-    if (field === "allocation.multiShiftName" && ["SKIP_UNKNOWN_MULTI_SHIFT_ALLOCATION", "SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownMultiShiftAllocations: true };
-    if (field === "allocation.multiShiftName" && value && !["MAP_TO_EXISTING_MULTI_SHIFT"].includes(value)) {
+    if (question.field === "allocation.multiShiftName" && value === "CREATE_MULTI_SHIFT") return { createUnknownMultiShifts: true };
+    if (question.field === "allocation.multiShiftName" && ["SKIP_UNKNOWN_MULTI_SHIFT_ALLOCATION", "SKIP_ALLOCATIONS"].includes(value)) return { skipUnknownMultiShiftAllocations: true };
+    if (question.field === "allocation.multiShiftName" && value && !["MAP_TO_EXISTING_MULTI_SHIFT"].includes(value)) {
         return { defaultMultiShiftName: value };
     }
     return {};
@@ -85,11 +102,11 @@ export class ImportQuestionService {
         const nextMapping: ImportMappingState = {
             entityTypesDetected: current?.entityTypesDetected ?? ["STUDENT"],
             columnMappings: current?.columnMappings ?? [],
-            questions: current?.questions ?? [],
+            questions: (current?.questions ?? []).filter(storedQuestion => !sameQuestion(storedQuestion, question)),
             warnings: current?.warnings ?? [],
             importOptions: {
                 ...(current?.importOptions ?? {}),
-                ...answerToOptions(question.field, input.answer),
+                ...answerToOptions(question, input.answer),
             },
             analysis: current?.analysis,
             usedFallback: current?.usedFallback,
