@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { BranchService } from "@/services/branch.service";
 import { OrganizationService } from "@/services/organization.service";
 import { getSessionUser } from "@/lib/auth";
+import { checkRateLimit, getRequestRateLimitKey } from "@/lib/rateLimit";
 import {
     FORM_LIMITS,
     parseIntegerField,
@@ -25,6 +26,12 @@ export async function POST(req: Request) {
         const user = await getSessionUser();
         if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const rateLimitKey = getRequestRateLimitKey(req, "branch-create", user.id);
+        const { allowed, retryAfter } = checkRateLimit(rateLimitKey, { limit: 10, windowMs: 60000 });
+        if (!allowed) {
+            return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": retryAfter.toString() } });
         }
 
         const body = await req.json();
