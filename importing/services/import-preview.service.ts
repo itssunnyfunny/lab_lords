@@ -7,6 +7,23 @@ function defersAllocation(warnings: ImportIssue[]) {
     return warnings.some(warning => warning.code.startsWith("ALLOCATION_SKIPPED_"));
 }
 
+function allocationLinkCount(row: { normalizedData: ImportNormalizedRow | null; warnings: ImportIssue[] }) {
+    const allocation = row.normalizedData?.allocation;
+    if (
+        !allocation?.seatLabel ||
+        (!allocation.shiftName && !allocation.multiShiftName) ||
+        defersAllocation(row.warnings)
+    ) {
+        return 0;
+    }
+
+    if (allocation.multiShiftName) {
+        return Math.max(1, row.normalizedData?.multiShift?.componentShiftNames?.length ?? 0);
+    }
+
+    return 1;
+}
+
 export class ImportPreviewService {
     static async getPreview(
         userId: string,
@@ -82,11 +99,7 @@ export class ImportPreviewService {
                 createSeats: createSeats.size,
                 createShifts: createShifts.size,
                 createMultiShifts: createMultiShifts.size,
-                createAllocations: importableRows.filter(row =>
-                    !defersAllocation(row.warnings) &&
-                    row.normalizedData?.allocation?.seatLabel &&
-                    (row.normalizedData.allocation.shiftName || row.normalizedData.allocation.multiShiftName)
-                ).length,
+                createAllocations: importableRows.reduce((total, row) => total + allocationLinkCount(row), 0),
                 generatePayments: paymentRows.length,
                 markPaid: importsPaymentStatuses ? paymentRows.filter(row => row.normalizedData?.payment?.status === "PAID").length : 0,
                 markWaived: importsPaymentStatuses ? paymentRows.filter(row => row.normalizedData?.payment?.status === "WAIVED").length : 0,

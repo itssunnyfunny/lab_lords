@@ -1,0 +1,324 @@
+import type {
+    CommitMode,
+    ImportAITrace,
+    ImportColumnMapping,
+    ImportNormalizedRow,
+    ImportOptions,
+    ImportSessionSummary,
+} from "@/importing/contracts/import-session.contract";
+import type { ImportPreview } from "@/importing/contracts/import-preview.contract";
+
+export type ImportWizardStepId = "columns" | "rows" | "decisions" | "payments" | "preview" | "result";
+export type ImportWizardStepState = "completed" | "needs_attention" | "pending";
+export type ImportWizardTone = "success" | "warning" | "danger" | "default" | "cyan" | "purple";
+
+export type ImportWizardStep = {
+    id: ImportWizardStepId;
+    label: string;
+    state: ImportWizardStepState;
+    count?: number;
+    detail: string;
+};
+
+export type ImportWizardDetailLike = {
+    status?: string;
+    mapping?: {
+        columnMappings?: ImportColumnMapping[];
+        importOptions?: ImportOptions;
+        usedFallback?: boolean;
+        analysis?: {
+            ai?: ImportAITrace;
+            detectedPaymentValues?: string[];
+        };
+    } | null;
+    summary?: Pick<
+        ImportSessionSummary,
+        | "readyRows"
+        | "warningRows"
+        | "needsReviewRows"
+        | "blockedRows"
+        | "duplicateRows"
+        | "conflictRows"
+        | "skippedRows"
+        | "detectedEntityCounts"
+    > | null;
+    questions?: { status: string }[];
+    commits?: unknown[];
+};
+
+export const IMPORT_WIZARD_STEPS: Array<{ id: ImportWizardStepId; label: string }> = [
+    { id: "columns", label: "Columns" },
+    { id: "decisions", label: "Decisions" },
+    { id: "rows", label: "Rows" },
+    { id: "payments", label: "Payments" },
+    { id: "preview", label: "Preview" },
+    { id: "result", label: "Result" },
+];
+
+export const importStatusLabels: Record<string, string> = {
+    UPLOADED: "Uploaded",
+    ANALYZING: "Analyzing",
+    NEEDS_MAPPING: "Needs mapping",
+    NEEDS_INFO: "Needs info",
+    VALIDATED: "Validated",
+    READY_TO_COMMIT: "Ready",
+    COMMITTING: "Importing",
+    COMMITTED: "Committed",
+    PARTIAL: "Partial",
+    FAILED: "Failed",
+    CANCELLED: "Cancelled",
+    READY: "Ready",
+    NEEDS_REVIEW: "Needs review",
+    WARNING: "Warning",
+    BLOCKED: "Blocked",
+    DUPLICATE: "Possible duplicate",
+    CONFLICT: "Conflict",
+    SKIPPED: "Skipped",
+    IMPORTED: "Imported",
+};
+
+export const importOptionLabels: Record<string, string> = {
+    CURRENT_MONTH: "Current month",
+    PREVIOUS_MONTH: "Previous month",
+    CUSTOM_PERIOD: "Custom period",
+    USE_JOINED_AT_ANNIVERSARY: "Joined date cycle",
+    SKIP_PAYMENTS: "Skip payments",
+    GENERATE_DUE: "Generate due payments",
+    IMPORT_PAID_UNPAID: "Import paid/unpaid",
+    CASH: "Cash",
+    UPI: "UPI",
+    BANK_TRANSFER: "Bank transfer",
+    YES_CREATE_SEATS: "Create missing seats",
+    SKIP_UNKNOWN_SEAT_ALLOCATION: "Skip unknown seat link",
+    CREATE_SHIFT: "Create missing shift",
+    SKIP_UNKNOWN_SHIFT_ALLOCATION: "Skip unknown shift link",
+    CREATE_MULTI_SHIFT: "Create missing bundle",
+    SKIP_UNKNOWN_MULTI_SHIFT_ALLOCATION: "Skip unknown bundle link",
+    SKIP_ALLOCATIONS: "Skip allocation links",
+    SKIP_MISSING_SHIFT_ALLOCATION: "Skip missing shift link",
+};
+
+export function labelImportStatus(status: string | undefined | null) {
+    if (!status) return "Unknown";
+    return importStatusLabels[status] ?? status.replace(/_/g, " ").toLowerCase();
+}
+
+export function labelImportOption(value: string) {
+    return importOptionLabels[value] ?? value.replace(/_/g, " ").toLowerCase();
+}
+
+export function statusTone(status: string | undefined | null): ImportWizardTone {
+    if (!status) return "default";
+    if (["READY", "READY_TO_COMMIT", "IMPORTED", "COMMITTED", "SUCCESS"].includes(status)) return "success";
+    if (["WARNING", "NEEDS_REVIEW", "DUPLICATE", "VALIDATED", "NEEDS_INFO", "PARTIAL"].includes(status)) return "warning";
+    if (["BLOCKED", "CONFLICT", "FAILED"].includes(status)) return "danger";
+    if (status === "SKIPPED") return "default";
+    return "cyan";
+}
+
+export function planCheckTone(status: string): ImportWizardTone {
+    if (status === "pass") return "success";
+    if (status === "warning") return "warning";
+    if (status === "block") return "danger";
+    return "default";
+}
+
+export function splitImportValues(value: string) {
+    return value
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+export function joinImportValues(values: string[] | undefined | null) {
+    return (values ?? []).join(", ");
+}
+
+export function paymentSkipOptions(): Partial<ImportOptions> {
+    return {
+        paymentCycle: "SKIP_PAYMENTS",
+        paymentAction: "SKIP_PAYMENTS",
+    };
+}
+
+export function paymentCycleChangeOptions(
+    current: ImportOptions | undefined | null,
+    paymentCycle: ImportOptions["paymentCycle"] | ""
+): Partial<ImportOptions> {
+    if (paymentCycle === "SKIP_PAYMENTS") return paymentSkipOptions();
+    return {
+        paymentCycle: paymentCycle || undefined,
+        ...(current?.paymentAction === "SKIP_PAYMENTS" && paymentCycle ? { paymentAction: "GENERATE_DUE" as const } : {}),
+    };
+}
+
+export function paymentActionChangeOptions(
+    current: ImportOptions | undefined | null,
+    paymentAction: ImportOptions["paymentAction"] | ""
+): Partial<ImportOptions> {
+    if (paymentAction === "SKIP_PAYMENTS") return paymentSkipOptions();
+    return {
+        paymentAction: paymentAction || undefined,
+        ...(current?.paymentCycle === "SKIP_PAYMENTS" && paymentAction ? { paymentCycle: "CURRENT_MONTH" as const } : {}),
+    };
+}
+
+export function deferAllocationOptions(): Partial<ImportOptions> {
+    return {
+        skipUnknownSeatAllocations: true,
+        skipUnknownShiftAllocations: true,
+        skipUnknownMultiShiftAllocations: true,
+        skipMissingShiftAllocations: true,
+        skipConflictingAllocations: true,
+    };
+}
+
+export function studentsOnlyImportOptions(): Partial<ImportOptions> {
+    return {
+        ...deferAllocationOptions(),
+        ...paymentSkipOptions(),
+    };
+}
+
+export function studentOnlyNormalizedData(row: ImportNormalizedRow | null | undefined): ImportNormalizedRow {
+    return row?.student ? { student: { ...row.student } } : {};
+}
+
+export function isPaymentSkipped(options: ImportOptions | undefined | null) {
+    return options?.paymentCycle === "SKIP_PAYMENTS" && options.paymentAction === "SKIP_PAYMENTS";
+}
+
+export function isPaymentExplicitlyReady(options: ImportOptions | undefined | null) {
+    if (isPaymentSkipped(options)) return true;
+    if (!options?.paymentCycle || !options.paymentAction) return false;
+    if (options.paymentCycle === "CUSTOM_PERIOD" && (!options.customPeriodStart || !options.customPeriodEnd)) return false;
+    if (options.paymentAction === "IMPORT_PAID_UNPAID") return Boolean(options.paymentMapping?.confirmed);
+    return options.paymentAction === "GENERATE_DUE";
+}
+
+export function isPreviewFresh(preview: Pick<ImportPreview, "mode" | "planVersion"> | null | undefined, mode: CommitMode) {
+    return Boolean(preview?.planVersion && preview.mode === mode);
+}
+
+export function aiAssistanceState(input: {
+    ai?: ImportAITrace;
+    usedFallback?: boolean;
+    mappingNeedsReview?: boolean;
+}) {
+    const status = input.ai?.status;
+    const fallbackReason = input.ai?.fallbackReason ?? input.ai?.error;
+    if (!status && !input.usedFallback) {
+        return {
+            tone: "cyan" as const,
+            title: "Manual review ready",
+            message: "Column meanings can be reviewed manually before any import runs.",
+            needsMappingReview: Boolean(input.mappingNeedsReview),
+        };
+    }
+
+    if (status === "success" && !input.usedFallback) {
+        return {
+            tone: input.mappingNeedsReview ? "warning" as const : "success" as const,
+            title: input.mappingNeedsReview ? "AI suggestions need review" : "AI suggestions available",
+            message: input.mappingNeedsReview
+                ? "Some suggested column meanings were left for manual confirmation."
+                : "AI suggested column meanings, and deterministic checks will still decide what is importable.",
+            needsMappingReview: Boolean(input.mappingNeedsReview),
+        };
+    }
+
+    return {
+        tone: "warning" as const,
+        title: "AI unavailable, import can continue",
+        message: fallbackReason
+            ? `${fallbackReason} Deterministic matching is in use.`
+            : "Deterministic matching is in use, and manual review remains available.",
+        needsMappingReview: true,
+    };
+}
+
+function readyRowCount(summary: ImportWizardDetailLike["summary"]) {
+    return (summary?.readyRows ?? 0) + (summary?.warningRows ?? 0);
+}
+
+function attentionRowCount(summary: ImportWizardDetailLike["summary"]) {
+    return (
+        (summary?.needsReviewRows ?? 0) +
+        (summary?.blockedRows ?? 0) +
+        (summary?.duplicateRows ?? 0) +
+        (summary?.conflictRows ?? 0)
+    );
+}
+
+function detectedPaymentCount(detail: ImportWizardDetailLike) {
+    return (
+        detail.mapping?.analysis?.detectedPaymentValues?.length ??
+        detail.summary?.detectedEntityCounts?.PAYMENT ??
+        0
+    );
+}
+
+export function buildImportWizardSteps(input: {
+    detail: ImportWizardDetailLike | null;
+    preview?: Pick<ImportPreview, "canCommit" | "mode" | "planVersion"> | null;
+    commitMode: CommitMode;
+}): ImportWizardStep[] {
+    const detail = input.detail;
+    const mapping = detail?.mapping?.columnMappings ?? [];
+    const mappingNeedsReview = mapping.some(item => item.needsReview || item.targetField === "ignore");
+    const aiState = aiAssistanceState({
+        ai: detail?.mapping?.analysis?.ai,
+        usedFallback: detail?.mapping?.usedFallback,
+        mappingNeedsReview,
+    });
+    const openQuestions = detail?.questions?.filter(question => question.status === "OPEN").length ?? 0;
+    const readyRows = readyRowCount(detail?.summary);
+    const attentionRows = attentionRowCount(detail?.summary);
+    const paymentCount = detail ? detectedPaymentCount(detail) : 0;
+    const paymentReady = paymentCount === 0 || isPaymentExplicitlyReady(detail?.mapping?.importOptions);
+    const previewFresh = isPreviewFresh(input.preview, input.commitMode);
+    const hasCommit = Boolean(detail?.commits?.length || ["COMMITTED", "PARTIAL"].includes(detail?.status ?? ""));
+
+    return [
+        {
+            id: "columns",
+            label: "Columns",
+            state: mapping.length === 0 || aiState.needsMappingReview ? "needs_attention" : "completed",
+            count: mapping.length,
+            detail: mapping.length === 0 ? "Map source columns" : aiState.title,
+        },
+        {
+            id: "decisions",
+            label: "Decisions",
+            state: openQuestions > 0 ? "needs_attention" : "completed",
+            count: openQuestions,
+            detail: openQuestions > 0 ? `${openQuestions} open` : "No open decisions",
+        },
+        {
+            id: "rows",
+            label: "Rows",
+            state: readyRows > 0 && attentionRows === 0 ? "completed" : attentionRows > 0 ? "needs_attention" : "pending",
+            count: attentionRows || readyRows,
+            detail: attentionRows > 0 ? `${attentionRows} row${attentionRows === 1 ? "" : "s"} need attention` : `${readyRows} ready`,
+        },
+        {
+            id: "payments",
+            label: "Payments",
+            state: paymentReady ? "completed" : "needs_attention",
+            count: paymentCount,
+            detail: paymentReady ? (isPaymentSkipped(detail?.mapping?.importOptions) ? "Skipped for now" : "Payment plan ready") : "Choose or skip payment import",
+        },
+        {
+            id: "preview",
+            label: "Preview",
+            state: input.preview?.canCommit && previewFresh ? "completed" : "pending",
+            detail: previewFresh ? "Reviewed plan is fresh" : "Refresh final plan",
+        },
+        {
+            id: "result",
+            label: "Result",
+            state: hasCommit ? "completed" : "pending",
+            detail: hasCommit ? "Import report ready" : "No commit yet",
+        },
+    ];
+}
