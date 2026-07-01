@@ -29,7 +29,7 @@ import {
     numberFromDraft,
 } from "@/importing/utils/manual-row-draft";
 import { buildImportPlanChecks, getBlockingImportPlanChecks } from "@/importing/utils/import-plan-checks";
-import { statusForValidation } from "@/importing/services/import-session.service";
+import { assertImportRowLimit, MAX_IMPORT_ROWS, statusForValidation } from "@/importing/services/import-session.service";
 import { validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
 import { validateImportPayment } from "@/importing/validators/import-payment.validator";
 import { validateImportAllocation } from "@/importing/validators/import-allocation.validator";
@@ -98,6 +98,11 @@ describe("import parsers", () => {
         expect(profile.columns.find(column => column.column === "Fee")?.fillRate).toBe(100);
     });
 
+    it("guards the current wizard row limit", () => {
+        expect(() => assertImportRowLimit(MAX_IMPORT_ROWS)).not.toThrow();
+        expect(() => assertImportRowLimit(MAX_IMPORT_ROWS + 1)).toThrow("supports up to");
+    });
+
     it("returns a graceful PDF parser error", async () => {
         await expect(parsePdf(Buffer.from("not a pdf"))).rejects.toThrow("Could not read this PDF");
     }, 10000);
@@ -132,6 +137,21 @@ describe("import mapping and validation", () => {
         expect(mapped.columnMappings[0].targetField).toBe("student.name");
         expect(mapped.aiTrace?.status).toBe("unavailable");
         expect(mapped.warnings[0]).toBe("Missing API key");
+    });
+
+    it("falls back when AI returns invalid JSON", async () => {
+        mocks.callGeminiJson.mockResolvedValueOnce({ ok: false, rawText: "not-json", error: "Unexpected token" });
+        const { mapImportColumns } = await import("@/importing/ai/import-column-mapper.ai");
+
+        const mapped = await mapImportColumns({
+            branchContext: {},
+            columns: ["Name", "Paid"],
+            sampleRows: [{ Name: "Asha", Paid: "yes" }],
+        });
+
+        expect(mapped.usedFallback).toBe(true);
+        expect(mapped.aiTrace?.status).toBe("invalid_response");
+        expect(mapped.columnMappings.map(mapping => mapping.targetField)).toEqual(["student.name", "payment.status"]);
     });
 
     it("keeps AI payment value guesses unconfirmed", async () => {

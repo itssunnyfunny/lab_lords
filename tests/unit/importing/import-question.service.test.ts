@@ -94,4 +94,64 @@ describe("ImportQuestionService", () => {
         expect(updateInput.data.mapping.analysis).toEqual(analysis);
         expect(updateInput.data.mapping.importOptions.paymentAction).toBe("IMPORT_PAID_UNPAID");
     });
+
+    it("removes answered AI questions so revalidation does not recreate them", async () => {
+        const sourceQuestion = {
+            field: "payment.period",
+            question: "How would you like to process cumulative historical values ('Total Paid', 'Total Due')?",
+            options: ["IMPORT_PAID_UNPAID", "GENERATE_DUE", "SKIP_PAYMENTS"],
+        };
+        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({
+            id: "session_1",
+            mapping: {
+                entityTypesDetected: ["STUDENT", "PAYMENT"],
+                columnMappings: [{ sourceColumn: "Name", targetField: "student.name", confidence: 95 }],
+                questions: [sourceQuestion],
+                warnings: [],
+                importOptions: {},
+                analysis,
+            },
+            questions: [{ id: "question_1", ...sourceQuestion }],
+            rows: [{ rawData: { Name: "Asha", "Total Paid": "1200" } }],
+        });
+        const { ImportQuestionService } = await import("@/importing/services/import-question.service");
+
+        await ImportQuestionService.answerQuestion("user_1", "branch_1", "session_1", {
+            questionId: "question_1",
+            answer: "IMPORT_PAID_UNPAID",
+        });
+
+        const updateInput = mocks.prisma.importSession.update.mock.calls[0][0];
+        expect(updateInput.data.mapping.questions).toEqual([]);
+        expect(updateInput.data.mapping.importOptions.paymentAction).toBe("IMPORT_PAID_UNPAID");
+        expect(updateInput.data.mapping.importOptions.paymentCycle).toBeUndefined();
+    });
+
+    it("treats skip payments as both cycle and action so payment prompts stop", async () => {
+        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({
+            id: "session_1",
+            mapping: {
+                entityTypesDetected: ["STUDENT", "PAYMENT"],
+                columnMappings: [{ sourceColumn: "Name", targetField: "student.name", confidence: 95 }],
+                questions: [],
+                warnings: [],
+                importOptions: {},
+                analysis,
+            },
+            questions: [{ id: "question_1", field: "payment.period", question: "Skip payments?" }],
+            rows: [{ rawData: { Name: "Asha" } }],
+        });
+        const { ImportQuestionService } = await import("@/importing/services/import-question.service");
+
+        await ImportQuestionService.answerQuestion("user_1", "branch_1", "session_1", {
+            questionId: "question_1",
+            answer: "SKIP_PAYMENTS",
+        });
+
+        const updateInput = mocks.prisma.importSession.update.mock.calls[0][0];
+        expect(updateInput.data.mapping.importOptions).toMatchObject({
+            paymentCycle: "SKIP_PAYMENTS",
+            paymentAction: "SKIP_PAYMENTS",
+        });
+    });
 });
