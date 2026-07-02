@@ -95,6 +95,77 @@ describe("ImportQuestionService", () => {
         expect(updateInput.data.mapping.importOptions.paymentAction).toBe("IMPORT_PAID_UNPAID");
     });
 
+    it("auto-confirms canonical paid due waived words when importing payment status", async () => {
+        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({
+            id: "session_1",
+            mapping: {
+                entityTypesDetected: ["STUDENT", "PAYMENT"],
+                columnMappings: [
+                    { sourceColumn: "Name", targetField: "student.name", confidence: 95 },
+                    { sourceColumn: "Payment Status", targetField: "payment.status", confidence: 95 },
+                ],
+                questions: [],
+                warnings: [],
+                importOptions: { paymentCycle: "CURRENT_MONTH" },
+                analysis,
+            },
+            questions: [{ id: "question_1", field: "payment.status" }],
+            rows: [
+                { rawData: { Name: "Asha", "Payment Status": "PAID" } },
+                { rawData: { Name: "Ravi", "Payment Status": "DUE" } },
+                { rawData: { Name: "Meera", "Payment Status": "WAIVED" } },
+            ],
+        });
+        const { ImportQuestionService } = await import("@/importing/services/import-question.service");
+
+        await ImportQuestionService.answerQuestion("user_1", "branch_1", "session_1", {
+            questionId: "question_1",
+            answer: "IMPORT_PAID_UNPAID",
+        });
+
+        const updateInput = mocks.prisma.importSession.update.mock.calls[0][0];
+        expect(updateInput.data.mapping.importOptions.paymentAction).toBe("IMPORT_PAID_UNPAID");
+        expect(updateInput.data.mapping.importOptions.paymentMapping).toMatchObject({
+            paidValues: ["PAID"],
+            unpaidValues: ["DUE"],
+            waivedValues: ["WAIVED"],
+            unclearValues: [],
+            confirmed: true,
+        });
+    });
+
+    it("keeps payment words unconfirmed when an answered payment import has unclear values", async () => {
+        mocks.prisma.importSession.findFirst.mockResolvedValueOnce({
+            id: "session_1",
+            mapping: {
+                entityTypesDetected: ["STUDENT", "PAYMENT"],
+                columnMappings: [
+                    { sourceColumn: "Name", targetField: "student.name", confidence: 95 },
+                    { sourceColumn: "Payment Status", targetField: "payment.status", confidence: 95 },
+                ],
+                questions: [],
+                warnings: [],
+                importOptions: { paymentCycle: "CURRENT_MONTH" },
+                analysis,
+            },
+            questions: [{ id: "question_1", field: "payment.status" }],
+            rows: [
+                { rawData: { Name: "Asha", "Payment Status": "PAID" } },
+                { rawData: { Name: "Ravi", "Payment Status": "PARTIAL" } },
+            ],
+        });
+        const { ImportQuestionService } = await import("@/importing/services/import-question.service");
+
+        await ImportQuestionService.answerQuestion("user_1", "branch_1", "session_1", {
+            questionId: "question_1",
+            answer: "IMPORT_PAID_UNPAID",
+        });
+
+        const updateInput = mocks.prisma.importSession.update.mock.calls[0][0];
+        expect(updateInput.data.mapping.importOptions.paymentAction).toBe("IMPORT_PAID_UNPAID");
+        expect(updateInput.data.mapping.importOptions.paymentMapping?.confirmed).not.toBe(true);
+    });
+
     it("removes answered AI questions so revalidation does not recreate them", async () => {
         const sourceQuestion = {
             field: "payment.period",

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ImportSessionService } from "./import-session.service";
 import { StaffService } from "@/services/staff.service";
+import { inferConfirmedPaymentMapping } from "@/importing/utils/payment-mapping-inference";
 import type { ImportAIQuestion, ImportMappingState, ImportOptions } from "@/importing/contracts/import-session.contract";
 import type { Prisma } from "@/app/generated/prisma/client";
 
@@ -91,7 +92,7 @@ export class ImportQuestionService {
         await StaffService.authorize(userId, branchId, "students");
         const session = await prisma.importSession.findFirst({
             where: { id: sessionId, branchId },
-            include: { questions: { where: { id: input.questionId } }, rows: { take: 1 } },
+            include: { questions: { where: { id: input.questionId } }, rows: { select: { rawData: true } } },
         });
         if (!session) throw new Error("Import session not found");
         const question = session.questions[0];
@@ -99,15 +100,17 @@ export class ImportQuestionService {
 
         const columns = Object.keys((session.rows[0]?.rawData ?? {}) as Record<string, unknown>);
         const current = session.mapping as ImportMappingState | null;
+        const answeredOptions = answerToOptions(question, input.answer);
+        const nextImportOptions = {
+            ...(current?.importOptions ?? {}),
+            ...answeredOptions,
+        };
         const nextMapping: ImportMappingState = {
             entityTypesDetected: current?.entityTypesDetected ?? ["STUDENT"],
             columnMappings: current?.columnMappings ?? [],
             questions: (current?.questions ?? []).filter(storedQuestion => !sameQuestion(storedQuestion, question)),
             warnings: current?.warnings ?? [],
-            importOptions: {
-                ...(current?.importOptions ?? {}),
-                ...answerToOptions(question, input.answer),
-            },
+            importOptions: nextImportOptions,
             analysis: current?.analysis,
             usedFallback: current?.usedFallback,
         };
@@ -115,6 +118,23 @@ export class ImportQuestionService {
         if (nextMapping.columnMappings.length === 0 && columns.length > 0) {
             const { buildFallbackMappings } = await import("@/importing/utils/column-normalizer");
             nextMapping.columnMappings = buildFallbackMappings(columns);
+        }
+
+        if (
+            nextMapping.importOptions?.paymentAction === "IMPORT_PAID_UNPAID" &&
+            !nextMapping.importOptions.paymentMapping?.confirmed
+        ) {
+            const inferredPaymentMapping = inferConfirmedPaymentMapping({
+                current: nextMapping.importOptions.paymentMapping,
+                columnMappings: nextMapping.columnMappings,
+                rows: session.rows,
+            });
+            if (inferredPaymentMapping) {
+                nextMapping.importOptions = {
+                    ...nextMapping.importOptions,
+                    paymentMapping: inferredPaymentMapping,
+                };
+            }
         }
 
         await prisma.importQuestion.update({
