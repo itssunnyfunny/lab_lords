@@ -36,6 +36,7 @@ import { validateImportPayment } from "@/importing/validators/import-payment.val
 import { validateImportSeat } from "@/importing/validators/import-seat.validator";
 import { validateImportShift } from "@/importing/validators/import-shift.validator";
 import { validateImportStudent } from "@/importing/validators/import-student.validator";
+import { inferConfirmedPaymentMapping } from "@/importing/utils/payment-mapping-inference";
 import type { Prisma } from "@/app/generated/prisma/client";
 import type { ImportRowStatus, ImportSessionStatus } from "@/app/generated/prisma/enums";
 
@@ -692,7 +693,7 @@ export class ImportSessionService {
         await this.authorize(userId, branchId);
         const session = await prisma.importSession.findFirst({
             where: { id: sessionId, branchId },
-            include: { rows: { take: 1 } },
+            include: { rows: { orderBy: { rowNumber: "asc" }, select: { rawData: true } } },
         });
         if (!session) throw new Error("Import session not found");
 
@@ -716,6 +717,20 @@ export class ImportSessionService {
                 },
             },
         };
+
+        if (next.importOptions?.paymentAction === "IMPORT_PAID_UNPAID" && !next.importOptions.paymentMapping?.confirmed) {
+            const inferredPaymentMapping = inferConfirmedPaymentMapping({
+                current: next.importOptions.paymentMapping,
+                columnMappings: next.columnMappings,
+                rows: session.rows,
+            });
+            if (inferredPaymentMapping) {
+                next.importOptions = {
+                    ...next.importOptions,
+                    paymentMapping: inferredPaymentMapping,
+                };
+            }
+        }
 
         await prisma.importSession.update({
             where: { id: sessionId },

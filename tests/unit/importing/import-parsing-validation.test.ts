@@ -29,6 +29,7 @@ import {
     numberFromDraft,
 } from "@/importing/utils/manual-row-draft";
 import { buildImportPlanChecks, getBlockingImportPlanChecks } from "@/importing/utils/import-plan-checks";
+import { inferConfirmedPaymentMapping } from "@/importing/utils/payment-mapping-inference";
 import { assertImportRowLimit, MAX_IMPORT_ROWS, statusForValidation } from "@/importing/services/import-session.service";
 import { validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
 import { validateImportPayment } from "@/importing/validators/import-payment.validator";
@@ -186,6 +187,34 @@ describe("import mapping and validation", () => {
 
         expect(mapped.suggestedImportOptions?.paymentMapping?.paidValues).toEqual(["yes"]);
         expect(mapped.suggestedImportOptions?.paymentMapping?.confirmed).toBe(false);
+    });
+
+    it("auto-confirms only deterministic payment status words", () => {
+        const columnMappings: ImportColumnMapping[] = [
+            { sourceColumn: "Payment Status", targetField: "payment.status", confidence: 95 },
+        ];
+
+        expect(inferConfirmedPaymentMapping({
+            columnMappings,
+            rows: [
+                { rawData: { "Payment Status": "PAID" } },
+                { rawData: { "Payment Status": "DUE" } },
+                { rawData: { "Payment Status": "WAIVED" } },
+            ],
+        })).toMatchObject({
+            paidValues: ["PAID"],
+            unpaidValues: ["DUE"],
+            waivedValues: ["WAIVED"],
+            unclearValues: [],
+            confirmed: true,
+        });
+        expect(inferConfirmedPaymentMapping({
+            columnMappings,
+            rows: [
+                { rawData: { "Payment Status": "PAID" } },
+                { rawData: { "Payment Status": "PARTIAL" } },
+            ],
+        })).toBeUndefined();
     });
 
     it("flags duplicate AI target mappings and keeps all source columns covered", async () => {
