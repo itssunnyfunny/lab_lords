@@ -9,6 +9,7 @@ datasource db {
 }
 
 model User {
+  renewalFollowUps              RenewalFollowUp[]
   id                            String                        @id @default(cuid())
   clerkId                       String?                       @unique
   email                         String                        @unique
@@ -98,6 +99,7 @@ model Organization {
 }
 
 model Branch {
+  renewalFollowUps              RenewalFollowUp[]
   id                           String                        @id @default(cuid())
   organizationId               String
   name                         String
@@ -150,6 +152,7 @@ model Branch {
 }
 
 model Student {
+  renewalFollowUps       RenewalFollowUp[]
   id                    String                     @id @default(cuid())
   branchId              String
   name                  String
@@ -266,6 +269,35 @@ model SeatAllocation {
   @@index([multiShiftId])
   importTargets ImportTargetReference[]
   @@unique([id, branchId])
+}
+
+model RenewalFollowUp {
+  id             String   @id @default(cuid())
+  branchId       String
+  studentId      String
+  type           PaymentType
+  periodStart    DateTime
+  note           String   @default("")
+  outcome        RenewalFollowUpOutcome @default(NOT_CONTACTED)
+  nextFollowUpAt  DateTime?
+  authorId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  branch         Branch  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  student        Student @relation(fields: [studentId, branchId], references: [id, branchId], onDelete: Restrict)
+  author         User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, type, periodStart])
+  @@index([branchId, nextFollowUpAt])
+}
+
+enum RenewalFollowUpOutcome {
+  NOT_CONTACTED
+  ATTEMPTED
+  NO_ANSWER
+  CONTACTED
+  PROMISED_PAYMENT
+  CALL_BACK
 }
 
 model Payment {

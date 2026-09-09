@@ -947,3 +947,27 @@ inventory is still unavailable. Migrate-existing is the conditional recommendati
 after clean preflights and proven drain; no fresh-cutover preservation evidence
 or Production execution approval has been established. The two stale public
 visual baselines need owner disposition; actual fonts load successfully.
+
+## Renewals & dues — 2026-09-08
+
+The branch navigation exposes `/branch/[branchId]/renewals`, backed by
+`RenewalsService` and authenticated GET/PUT routes under `/api/branches/[branchId]/renewals`.
+The service streams 250-row batches in a repeatable-read snapshot and retains at
+most one requested page plus a cursor sentinel. Exact counts reflect name/phone
+search across all matching periods. Queries do not generate payments. Expected
+anniversary fees cover today and the next three/seven days; recorded earlier
+unpaid periods remain independently visible. Outstanding totals exclude future
+records and projections; overdue retains the existing greater-than-seven-day rule.
+
+`RenewalFollowUp` is a small latest-state record keyed by student/type/period,
+with a branch-scoped student foreign key and author reference. It follows an
+expected cycle into a generated payment without coupling contact dates to fee
+dates. View access reuses `view_payments`; editing reuses `paymentsRecord`.
+The page reuses the extracted `MarkPaidDialog`, payment API, approved WhatsApp
+reminder review, and shared manual reminder text. Collection refreshes the queue
+and totals; saving a follow-up updates the displayed row immediately. Copying a
+reminder is explicitly unconfirmed delivery and creates no delivery evidence.
+
+This is local implementation status, not deployment evidence. Apply the additive
+renewal-follow-up migration before releasing the new application; see the
+production runbook's renewal handoff. No environment or cron changes are needed.

@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import type { CapabilityDecision } from "@/types";
 import { payments as paymentApi } from "@/lib/api/payments";
 import { ApprovedPaymentReminderReview } from "@/components/whatsapp/ApprovedPaymentReminderReview";
+import { paymentReminderDraft } from "@/lib/paymentReminderDraft";
 
 interface OverduePayment extends OverdueQueuePayment {
     studentName: string;
@@ -263,9 +264,7 @@ function OverdueContent({
             const nextDrafts = selectedPayments.map((payment) => {
                 const amount = formatMoney(payment.amount);
                 const date = formatDate(payment.dueDate);
-                const message = language === "EN"
-                    ? `Hi ${payment.studentName}, your ${amount} payment due on ${date} is pending. Please clear it at the earliest. Thank you.`
-                    : `नमस्ते ${payment.studentName}, ${date} को देय ${amount} भुगतान अभी बाकी है। कृपया इसे जल्द जमा करें। धन्यवाद।`;
+                const message = paymentReminderDraft({ studentName: payment.studentName, amount, date, language });
 
                 return {
                     paymentId: payment.paymentId,
