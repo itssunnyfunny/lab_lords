@@ -113,6 +113,15 @@ operator workstation or CI runner that can access credentials.
 - Permission-shaped responses must not expose unrelated counts, settings,
   students, seats, payments, staff, or other branch data.
 - User-initiated mutations must enforce entitlement and writable state.
+- Renewal queue and follow-up reads require `view_payments` in the resolved
+  branch. Follow-up writes require the existing `paymentsRecord` capability
+  and re-resolve the student and cycle in that branch. Notes are private
+  tenant data; return only the latest author's display name, never unrelated
+  staff/contact data. Seat/shift enrichment additionally requires student or
+  allocation access. Expected fees and contact outcomes are advisory and cannot
+  create/resolve payments or establish message delivery. Approved reminders keep
+  the existing consent, entitlement, sender, template and delivery boundaries;
+  the existing manual copy path remains local and does not enqueue delivery.
 - New organizations must be created through canonical V2 onboarding, with
   explicit commercial state and the existing once-per-owner trial contract.
   A disabled release flag must not select legacy writable access for new records.

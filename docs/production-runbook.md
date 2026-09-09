@@ -2621,3 +2621,25 @@ pass. A fresh target is not approved merely because empty bootstrap succeeds.
 Actual pre/post Production counts must be filled by the authorized operator;
 they were **not measured** in this release pass. Failure to obtain them is a
 release gate, not a reason to recommend discarding the database.
+
+### Renewals & dues additive migration — 2026-09-08
+
+The renewal follow-up migration adds `RenewalFollowUpOutcome` and
+`RenewalFollowUp`, a unique student/type/period key, a branch/next-follow-up index,
+and foreign keys to the branch, same-branch student and nullable author. It has
+no backfill, payment mutations, seed, environment variables or new release flag.
+Old application code is compatible with the additive table.
+
+Use the normal reviewed PR/CI, isolated Preview migration and protected
+**Production Prisma Migration** workflow described above. Apply this migration
+before deploying the application that reads follow-ups. Verify exact migration
+status and release the same reviewed commit through the existing Vercel path.
+Smoke-check owner and restricted-staff queue access, one follow-up save/clear,
+and a normal collection with refreshed totals. Verify manual copying is shown
+as unconfirmed delivery and approved reminders retain their existing controls.
+
+For application rollback, retain the additive table and its follow-up data;
+redeploy the previous application. Do not drop the table or reset payments.
+The existing production safety and backup procedure applies without additional
+feature-specific release gates. Local code or test success does not establish
+that the protected migration workflow or Vercel deployment has run.

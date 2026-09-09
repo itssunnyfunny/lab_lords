@@ -77,6 +77,7 @@ export function BranchSidebar() {
         { icon: CalendarClock, label: "Shifts", href: `${basePath}/shifts`, permission: "seat_allocation", active: current => current === `${basePath}/shifts` },
         { icon: CalendarCheck, label: "Allocations", href: `${basePath}/allocations`, permission: "seat_allocation", active: current => current?.startsWith(`${basePath}/allocations`) ?? false },
         { icon: CreditCard, label: "Payments", href: `${basePath}/payments`, permission: "view_payments", active: current => current === `${basePath}/payments` },
+        { icon: CalendarClock, label: "Renewals & dues", href: `${basePath}/renewals`, permission: "view_payments", active: current => current === `${basePath}/renewals` },
         { icon: TriangleAlert, label: "Overdue", href: `${basePath}/overdue`, permission: "view_payments", active: current => current === `${basePath}/overdue` },
         { icon: UserCircle, label: "Staff", href: `${basePath}/staff`, permission: "manage_branch", feature: "STAFF_CONTROLS", active: current => current === `${basePath}/staff` },
     ];

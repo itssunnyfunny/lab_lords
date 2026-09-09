@@ -247,6 +247,24 @@ Every statement uses one of these labels:
 
 ## Member payments and billing cycles
 
+- **Must preserve—enforced:** Renewals & dues is a read-only projection of
+  recorded DUE periods plus eligible anniversary fees from today through the
+  next three/seven days. Expected fees are not confirmed debt. Existing typed
+  monthly identities (including PAID/WAIVED) suppress projections; the legacy
+  same-due-date generation guard also suppresses a second expected entry.
+  Inactive students retain recorded debts but have no projections. Follow-up
+  dates never change fee dates, billing anchors, student status or allocations.
+  (`services/renewals.service.ts`, renewal integration and date tests)
+- **Service-layer contract—not DB-enforced:** Renewal follow-ups store the latest
+  note, contact outcome, next contact date and author per student/type/period.
+  Reads require `view_payments`; writes reuse `paymentsRecord` (view and mark-paid
+  permissions plus writable entitlement). Each write re-resolves the student in
+  the authorized branch and an unresolved payment or eligible projected cycle.
+  The student/branch composite foreign key protects storage integrity, not actor
+  authorization. Follow-ups survive conversion from projection to payment;
+  collections and waivers remove the resolved period from this queue without
+  deleting its follow-up. Manual copy is never recorded as delivery.
+
 - **Must preserve—enforced:** Monthly periods are anchored to the student's
   joined calendar date. For cycle `N`, the period starts at joined date plus
   `N` months and its end/due date is joined date plus `N + 1` months. Generation

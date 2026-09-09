@@ -22,6 +22,7 @@ export const BRANCH_PAGE_ACCESS = {
     seats: "seat_allocation",
     payments: "view_payments",
     overdue: "view_payments",
+    renewals: "view_payments",
     students: "students",
     importAssistant: "students",
     allocations: "seat_allocation",
