@@ -22,6 +22,9 @@ Global User references record actors/owners and do not assert current membership
 | SeatAllocation.shift (shiftId, branchId) | Shift (id, branchId) | Composite branchId | No |
 | SeatAllocation.student (studentId, branchId) | Student (id, branchId) | Composite branchId | No |
 | SeatAllocation.multiShift (multiShiftId, branchId) | MultiShift (id, branchId) | Composite branchId | Yes; deletion semantics in SQL |
+| RenewalFollowUp.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| RenewalFollowUp.student (studentId, branchId) | Student (id, branchId) | Composite branchId | No |
+| RenewalFollowUp.author (authorId) | User (id) | Global identity/configuration; policy checks remain | Yes; deletion semantics in SQL |
 | Payment.branch (branchId) | Branch (id) | Single scoped parent chain | No |
 | Payment.student (studentId, branchId) | Student (id, branchId) | Composite branchId | No |
 | PaymentResolutionEvent.payment (paymentId, branchId) | Payment (id, branchId) | Composite branchId | No |
@@ -175,6 +178,6 @@ Global User references record actors/owners and do not assert current membership
 | BillingProviderAction.organization (organizationId) | Organization (id) | Organization ownership chain | No |
 | BillingProviderAction.change (changeId, organizationId) | OrganizationBillingChange (id, organizationId) | Composite organizationId | Yes; deletion semantics in SQL |
 
-Frozen migration-specific details: [billing/WhatsApp](../../prisma/tenant-relationship-contracts.json), [import](../../prisma/import-relationship-contracts.json). The full [machine-readable inventory](../../prisma/relationship-coverage.json) includes 166 owning relationships. No new tenant columns were added to single-parent or global identity chains.
+Frozen migration-specific details: [billing/WhatsApp](../../prisma/tenant-relationship-contracts.json), [import](../../prisma/import-relationship-contracts.json). The full [machine-readable inventory](../../prisma/relationship-coverage.json) includes 169 owning relationships. No new tenant columns were added to single-parent or global identity chains.
 
 Retained retry-plan `snapshot.items[].payload.studentId` is also maintained in the typed ledger by migration 48; runtime foreign/missing targets reject, historical missing targets detach, and foreign history blocks atomically. Other plan JSON is reviewed staging/description, not a second executable target map.

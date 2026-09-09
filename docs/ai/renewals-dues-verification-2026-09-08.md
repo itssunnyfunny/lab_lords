@@ -119,6 +119,15 @@ authenticated Preview smoke check on September 9. No Production payment or
 follow-up writes substitute for that check. The earlier browser results remain
 component-preview evidence only.
 
+Initial PR CI run 34310664195 passed 2,020 tests but failed the complete
+relationship-catalog check: the feature's three foreign keys were missing from
+`prisma/relationship-coverage.json`. The inventory and its canonical companion
+`docs/ai/tenant-relationship-coverage.md` now include all 169 owning relations.
+`pnpm test tests/integration/services/relationship-catalog.test.ts tests/integration/services/renewals.test.ts`
+passed all 17 tests in two files on the disposable local database. No runtime
+or migration changes were needed for this inventory correction. Hosted CI is
+rerun on the updated PR head; its final result is recorded on PR #275.
+
 ## Release status and boundaries
 
 The migration has been applied and verified **locally only**. The September 8

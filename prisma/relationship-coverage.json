@@ -184,6 +184,44 @@
     "nullable": true
   },
   {
+    "model": "RenewalFollowUp",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "RenewalFollowUp",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "RenewalFollowUp",
+    "field": "author",
+    "parent": "User",
+    "fields": [
+      "authorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": true
+  },
+  {
     "model": "Payment",
     "field": "branch",
     "parent": "Branch",
