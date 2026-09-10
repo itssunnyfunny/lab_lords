@@ -2643,3 +2643,42 @@ redeploy the previous application. Do not drop the table or reset payments.
 The existing production safety and backup procedure applies without additional
 feature-specific release gates. Local code or test success does not establish
 that the protected migration workflow or Vercel deployment has run.
+
+### Student collections and receipts — 2026-09-10
+
+Migration `20260910120000_fee_collections` adds two tables (`FeeCollection` and
+`FeeCollectionAllocation`), collected/waived counters and a ledger marker on
+Payment, audit action values, composite ownership keys, positive/balance checks,
+immutable receipt/allocation evidence and deferred allocation/balance checks.
+No historical amount, status, collection date or resolution event is backfilled.
+Existing Payment rows receive only false/zero defaults. New tables start empty.
+
+Use the existing reviewed CI, protected Production Prisma Migration workflow and
+Vercel release process. This feature requires no new environment, flags, service,
+cron schedule or Preview requirement. Before an authorized migration, run
+`prisma/preflight/fee-collections.sql` read-only and retain aggregate inventory.
+Record exact database identity, payment counts/original totals by status and
+resolution-event counts by source/transition; investigate ownership blockers.
+Production inventory is not authorized by this implementation request.
+
+Apply the additive migration before dependent application code. Recompare all
+original fee/status/date and resolution-event inventory, verify zero initial
+collection/allocation rows and zero/non-ledger defaults, migration checksum and
+validated constraints. Smoke-test a full and two-instalment collection on an
+approved synthetic target, receipt recovery, remaining dues, owner void and
+waiver preservation. The isolated implementation rehearsal applied all 50
+migrations to a new local PostgreSQL container before testing; it does not prove
+Production migration/deployment.
+
+Rollback compatibility: retaining the new tables is insufficient once any
+partial collection exists. Old writers can pay the original amount again and
+old readers/reminders overstate outstanding debt. After use, prefer a compatible
+forward repair; if containment is needed, stop interactive payment writers and
+affected reminder planning/dispatch through existing operational controls. Do
+not promote a pre-collection application that lacks balance-aware writers and
+readers, remove ledger fields or delete receipts/allocations. No automatic down
+migration or cash/provider refund is provided. No historical backfill is needed.
+
+See `docs/ai/fee-collections.md` for manual exercise/recovery steps. The completion
+report records actual checks and deployment status; no commit, PR, Production
+migration or deployment is implied by source presence.

@@ -1,3 +1,4 @@
+import { remainingFee } from "@/lib/feeBalance";
 // analytics/payment.analytics.ts
 
 import { prisma } from "@/lib/prisma"
@@ -47,7 +48,7 @@ export async function getOpenPaymentLedger(
     select: {
       id: true,
       studentId: true,
-      amount: true,
+      amount: true, collectedAmount: true, waivedAmount: true,
       dueDate: true,
       type: true,
       student: {
@@ -74,7 +75,7 @@ export async function getOpenPaymentLedger(
       studentName: payment.student.name,
       phone: payment.student.phone,
       dueDate: payment.dueDate,
-      amount: payment.amount,
+      amount: remainingFee(payment),
       type: payment.type,
       daysPastDue: paymentDaysPastDue,
       daysOverdue: paymentDaysPastDue,
@@ -116,7 +117,7 @@ export async function getPaymentPeriodStats(
     prisma.payment.aggregate({
       where: {
         branchId,
-        status: { not: "WAIVED" },
+        OR: [{ status: { not: "WAIVED" } }, { ledgerBacked: true }],
         dueDate: selectedPeriod === "month"
           ? { gte: periodStart, lte: periodEnd }
           : { lte: periodEnd },
@@ -126,15 +127,16 @@ export async function getPaymentPeriodStats(
     prisma.payment.aggregate({
       where: {
         branchId,
-        status: "PAID",
+        status: "PAID", ledgerBacked: false,
+        resolutionEvents: { none: { source: "IMPORT_EXECUTION" } },
         OR: selectedPeriod === "month"
           ? [
               { paidAt: { gte: periodStart, lte: periodEnd } },
-              { paidAt: null, dueDate: { gte: periodStart, lte: periodEnd } },
+
             ]
           : [
               { paidAt: { lte: periodEnd } },
-              { paidAt: null, dueDate: { lte: periodEnd } },
+
             ],
       },
       _sum: { amount: true },
@@ -143,7 +145,8 @@ export async function getPaymentPeriodStats(
   ])
 
   const revenueAmount = revenueAgg._sum.amount ?? 0
-  const paidAmount = collectedAgg._sum.amount ?? 0
+  const actual = await prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: { gte: periodStart, lte: periodEnd } }, _sum: { amount: true } })
+  const paidAmount = (collectedAgg._sum.amount ?? 0) + (actual._sum.amount ?? 0)
   const dueAmount = openLedger.dueAmount
 
   return {
@@ -172,10 +175,11 @@ export async function getPaymentStats(
     prisma.payment.aggregate({
       where: {
         branchId,
-        status: "PAID",
+        status: "PAID", ledgerBacked: false,
+        resolutionEvents: { none: { source: "IMPORT_EXECUTION" } },
         OR: [
           { paidAt: { lte: dateEnd } },
-          { paidAt: null, dueDate: { lte: dateEnd } },
+
         ],
       },
       _sum: { amount: true },
@@ -183,11 +187,16 @@ export async function getPaymentStats(
     }),
   ])
 
-  const paidAmount = paidAgg._sum.amount ?? 0
+  const actual = await prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: { lte: dateEnd } }, _sum: { amount: true } })
+  const paidAmount = (paidAgg._sum.amount ?? 0) + (actual._sum.amount ?? 0)
+  // A historical PAID status can count as a resolved fee without inventing income or its date.
+  const paidFeeCount = await prisma.payment.count({ where: { branchId, status: "PAID", OR: [
+    { paidAt: { lte: dateEnd } }, { paidAt: null, dueDate: { lte: dateEnd } },
+  ] } })
 
   return {
     dueCount: openLedger.dueCount,
-    paidCount: paidAgg._count._all,
+    paidCount: paidFeeCount,
     overdueCount: openLedger.overdueCount,
     dueAmount: openLedger.dueAmount,
     paidAmount,
@@ -208,7 +217,7 @@ export async function getDueStudents(
   return ledger.duePayments.map((payment) => ({
     studentId: payment.studentId,
     dueDate: payment.dueDate,
-    amount: payment.amount,
+    amount: remainingFee(payment),
     daysOverdue: payment.daysPastDue,
     isOverdue: payment.isOverdue,
   }))
@@ -276,7 +285,7 @@ export async function getOverduePaymentsPage(
         id: true,
         studentId: true,
         dueDate: true,
-        amount: true,
+        amount: true, collectedAmount: true, waivedAmount: true,
         student: {
           select: {
             name: true,
@@ -305,7 +314,7 @@ export async function getOverduePaymentsPage(
       studentName: payment.student.name,
       phone: payment.student.phone,
       dueDate: payment.dueDate,
-      amount: payment.amount,
+      amount: remainingFee(payment),
       daysOverdue: daysPastDue(payment.dueDate, date),
     })),
   }

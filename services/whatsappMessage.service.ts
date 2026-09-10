@@ -1,3 +1,4 @@
+import { remainingFee } from "@/lib/feeBalance";
 import { createHash } from "node:crypto";
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -172,6 +173,8 @@ function collectionTemplateKey(input: {
 type ManualCollectionPaymentFact = Readonly<{
   id: string;
   amount: number;
+  collectedAmount?: number;
+  waivedAmount?: number;
   dueDate: Date;
   student: Readonly<{ id: string; name: string }>;
 }>;
@@ -206,7 +209,7 @@ export function deriveWhatsAppManualCollectionContent(input: {
   if (input.payments.length < 1) throw new WhatsAppValidationError();
   const paymentIds = input.payments.map(payment => payment.id).sort();
   const studentIds = [...new Set(input.payments.map(payment => payment.student.id))].sort();
-  const totalAmount = input.payments.reduce((total, payment) => total + payment.amount, 0);
+  const totalAmount = input.payments.reduce((total, payment) => total + remainingFee(payment), 0);
   if (!Number.isSafeInteger(totalAmount) || totalAmount <= 0) {
     throw new WhatsAppValidationError();
   }
@@ -480,7 +483,7 @@ export async function deriveWhatsAppManualCollectionMessageRefresh(input: {
         paymentFacts: validSources.map(source => ({
           id: source.payment.id,
           status: source.payment.status,
-          amount: source.payment.amount,
+          amount: remainingFee(source.payment),
           dueDate: source.payment.dueDate,
           studentId: source.payment.studentId,
           studentName: source.payment.student.name,
@@ -714,7 +717,7 @@ async function buildManualPaymentPreview(input: {
         paymentFacts: group.payments.map(item => ({
           id: item.payment.id,
           status: item.payment.status,
-          amount: item.payment.amount,
+          amount: remainingFee(item.payment),
           dueDate: item.payment.dueDate,
           studentId: item.payment.student.id,
           studentName: item.payment.student.name,
@@ -1059,7 +1062,7 @@ export class WhatsAppMessageService {
               }
             : false,
           paymentSources: canViewPayments
-            ? { select: { payment: { select: { id: true, status: true, amount: true, dueDate: true } } } }
+            ? { select: { payment: { select: { id: true, status: true, amount: true, collectedAmount: true, waivedAmount: true, dueDate: true } } } }
             : false,
         },
       }),

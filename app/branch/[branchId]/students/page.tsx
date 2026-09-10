@@ -1,4 +1,7 @@
 "use client";
+import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
+import { CollectionHistory } from "@/components/payments/CollectionHistory";
+import { remainingFee } from "@/lib/feeBalance";
 
 import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
@@ -213,14 +216,14 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
     });
     const [resolution, setResolution] = useState<DueResolution>("WAIVED");
 
-    const totalDue = duePayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalDue = duePayments.reduce((sum, p) => sum + remainingFee(p), 0);
     const hasDues = duePayments.length > 0;
 
     const resolutionOptions: { value: DueResolution; label: string; sublabel: string; icon: React.ElementType; color: string }[] = [
         {
             value: "PAID",
-            label: "Mark as Paid",
-            sublabel: "Student paid before leaving. Record it.",
+            label: "Collect remaining fees in Cash",
+            sublabel: "Records a cash collection per due. Use Collect fee first for UPI, bank transfer or partial amounts.",
             icon: CheckCircle2,
             color: "text-green-400",
         },
@@ -338,6 +341,8 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
                 <StudentsContent
                     branchId={branchId}
                     canViewPayments={access.permissions.view_payments}
+                    canRecordFees={getBranchCapabilityDecision(access, "paymentsRecord").allowed}
+                    owner={access.isOwner}
                     canViewAllocations={access.permissions.seat_allocation}
                     manageDecision={getBranchCapabilityDecision(access, "studentsManage")}
                     allocationDecision={getBranchCapabilityDecision(access, "allocationsManage")}
@@ -352,6 +357,8 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
 function StudentsContent({
     branchId,
     canViewPayments,
+    canRecordFees,
+    owner,
     canViewAllocations,
     manageDecision,
     allocationDecision,
@@ -360,6 +367,8 @@ function StudentsContent({
 }: {
     branchId: string;
     canViewPayments: boolean;
+    canRecordFees: boolean;
+    owner: boolean;
     canViewAllocations: boolean;
     manageDecision: CapabilityDecision;
     allocationDecision: CapabilityDecision;
@@ -533,6 +542,12 @@ function StudentsContent({
 
     useEffect(() => { void loadStudentPage(); }, [loadStudentPage]);
     useEffect(() => { void loadAuxiliaryData(); }, [loadAuxiliaryData]);
+    useEffect(() => {
+        const refresh = () => void loadAuxiliaryData();
+        window.addEventListener("fee-collection-changed", refresh);
+        window.addEventListener("focus", refresh);
+        return () => { window.removeEventListener("fee-collection-changed", refresh); window.removeEventListener("focus", refresh); };
+    }, [loadAuxiliaryData]);
 
     useEffect(() => {
         if (!shiftOptionsLoaded || shiftScope.kind !== "multi") return;
@@ -570,9 +585,9 @@ function StudentsContent({
             };
                 // WAIVED excluded from totalDue — it's resolved
             current.payments.push(payment);
-            if (payment.status === "DUE") current.totalDue += payment.amount;
-            if (payment.status === "PAID") current.totalPaid += payment.amount;
-            if (payment.status === "WAIVED") current.totalWaived += payment.amount;
+            if (payment.status === "DUE") current.totalDue += remainingFee(payment);
+            current.totalPaid += payment.ledgerBacked ? payment.collectedAmount : payment.status === "PAID" ? payment.amount : 0;
+            current.totalWaived += payment.ledgerBacked ? payment.waivedAmount : payment.status === "WAIVED" ? payment.amount : 0;
             if (payment.type === "ADMISSION" && payment.status === "PAID") current.admissionPaid = true;
             map.set(payment.studentId, current);
         });
@@ -1087,6 +1102,7 @@ function StudentsContent({
 
             {/* Fee drawer */}
             <FeeDetailsDrawer
+                branchId={branchId} canRecordFees={canRecordFees} owner={owner}
                 isOpen={isDrawerOpen}
                 onClose={() => setIsDrawerOpen(false)}
                 student={selectedStudent}
@@ -1099,13 +1115,15 @@ function StudentsContent({
 // ─── Fee Drawer ───────────────────────────────────────────────────────────────
 
 interface FeeDetailsDrawerProps {
+    branchId: string; canRecordFees: boolean; owner: boolean;
     isOpen: boolean;
     onClose: () => void;
     student: Student | null;
     financials?: { totalDue: number; totalPaid: number; totalWaived: number; admissionPaid: boolean; payments: Payment[] };
 }
 
-function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDrawerProps) {
+function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canRecordFees, owner }: FeeDetailsDrawerProps) {
+    const [collecting, setCollecting] = useState(false);
     const { formatDate, formatNumber } = useUserPreferences();
     const formatCurrency = (amount: number) => formatNumber(amount, {
         style: "currency",
@@ -1137,6 +1155,10 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                         {student ? <Badge className="mt-2" variant={student.status === "ACTIVE" ? "success" : "default"}>{student.status}</Badge> : null}
                     </div>
 
+                    {student && <><AppButton variant="primary" disabled={!canRecordFees} onClick={() => setCollecting(true)}>Collect fee</AppButton>
+                        <CollectionHistory branchId={branchId} studentId={student.id} owner={owner} />
+                        {collecting && <CollectFeeDialog key={student.id} branchId={branchId} studentId={student.id} onClose={() => setCollecting(false)} onSaved={() => {}} />}
+                    </>}
                     <div className="space-y-4">
                         <h3 className="border-b border-[color:var(--ui-form-section-divider)] pb-2 text-sm font-semibold uppercase tracking-wider text-textMuted">Payment history</h3>
 
@@ -1178,6 +1200,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials }: FeeDetailsDr
                                         <div className="text-right">
                                             <div className="text-sm font-bold text-[color:var(--text-primary)]">{formatCurrency(p.amount)}</div>
                                             {paymentBadge(p.status)}
+                                            {p.ledgerBacked ? <p className="text-xs">Collected ₹{p.collectedAmount} · Waived ₹{p.waivedAmount} · Remaining ₹{remainingFee(p)}{p.status === "DUE" && p.collectedAmount > 0 ? " · Partially paid" : ""}</p> : p.status !== "DUE" ? <p className="text-xs">Historical record · no generated receipt</p> : null}
                                         </div>
                                     </div>
                                 ))}

@@ -1,3 +1,4 @@
+import { remainingFee } from "@/lib/feeBalance";
 import { addDays, endOfDay, parseISO, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/app/generated/prisma/client";
@@ -60,7 +61,7 @@ export class RenewalsService {
                 const payments = await tx.payment.findMany({
                     where: { branchId, status: "DUE", dueDate: { lte: through }, student: { branchId, ...search } },
                     select: { id: true, studentId: true, type: true, periodStart: true, periodEnd: true,
-                        dueDate: true, amount: true, student: { select: studentSelect } },
+                        dueDate: true, amount: true, collectedAmount: true, waivedAmount: true, student: { select: studentSelect } },
                     orderBy: { id: "asc" }, take: BATCH,
                     ...(paymentCursor ? { cursor: { id: paymentCursor }, skip: 1 } : {}),
                 });
@@ -69,7 +70,7 @@ export class RenewalsService {
                     studentId: payment.studentId, studentName: payment.student.name, phone: payment.student.phone,
                     studentStatus: payment.student.status, paymentId: payment.id, type: payment.type,
                     periodStart: payment.periodStart.toISOString(), periodEnd: payment.periodEnd.toISOString(),
-                    dueDate: payment.dueDate.toISOString(), amount: payment.amount, expected: false,
+                    dueDate: payment.dueDate.toISOString(), amount: remainingFee(payment), expected: false,
                     allocations: [], followUp: null,
                 });
                 if (payments.length < BATCH) break;

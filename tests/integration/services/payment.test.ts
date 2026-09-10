@@ -462,7 +462,7 @@ describe("PaymentService Integration", () => {
         paymentType: "ADMISSION",
         paymentMethod: "UPI",
         referenceId: "UPI-REF-123",
-        details: null,
+        details: { collectionId: expect.any(String), actualReceived: 2750 },
       });
       expect(event.periodStart).toEqual(BASE);
       expect(event.dueDate).toEqual(dueDate);
@@ -527,7 +527,7 @@ describe("PaymentService Integration", () => {
       ).toBe(1);
     });
 
-    it("appends DUE to PAID to WAIVED to PAID in order without rewriting earlier metadata", async () => {
+    it("preserves a fully collected fee and receipt when a waiver has no remaining debt", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       freezeTime(BASE);
       const { user, branch } = await createTestWorld();
@@ -559,13 +559,9 @@ describe("PaymentService Integration", () => {
 
       expect(events.map(event => [event.fromStatus, event.toStatus])).toEqual([
         ["DUE", "PAID"],
-        ["PAID", "WAIVED"],
-        ["WAIVED", "PAID"],
       ]);
-      expect(new Set(events.map(event => event.id)).size).toBe(3);
+      expect(new Set(events.map(event => event.id)).size).toBe(1);
       expect(events.map(event => event.source)).toEqual([
-        "PAYMENT_ACTION",
-        "PAYMENT_ACTION",
         "PAYMENT_ACTION",
       ]);
       expect(events[0]).toMatchObject({
@@ -574,24 +570,14 @@ describe("PaymentService Integration", () => {
         paymentMethod: "UPI",
         referenceId: "ORIGINAL-REF",
       });
-      expect(events[1]).toMatchObject({
-        paidAt: originalPaidEvent.paidAt,
-        paymentMethod: "UPI",
-        referenceId: "ORIGINAL-REF",
-      });
-      expect(events[2]).toMatchObject({
-        paidAt: finalPayment.paidAt,
-        paymentMethod: "UPI",
-        referenceId: "ORIGINAL-REF",
-      });
-      expect(events[0].occurredAt.getTime()).toBeLessThan(events[1].occurredAt.getTime());
-      expect(events[1].occurredAt.getTime()).toBeLessThan(events[2].occurredAt.getTime());
+      expect(finalPayment).toMatchObject({ status: "PAID", collectedAmount: 3100, waivedAmount: 0, paidAt: originalPaidEvent.paidAt });
+      expect(await testPrisma.feeCollection.count({ where: { studentId: student.id } })).toBe(1);
       expect(finalPayment).toMatchObject({
         status: "PAID",
         paymentMethod: "UPI",
         referenceId: "ORIGINAL-REF",
       });
-      expect(await testPrisma.auditLog.count({ where: { paymentId: payment.id } })).toBe(3);
+      expect(await testPrisma.auditLog.count({ where: { paymentId: payment.id } })).toBe(1);
     });
 
     it("creates no payment, audit, or event changes for an unauthorized actor", async () => {
@@ -875,7 +861,7 @@ describe("PaymentService Integration", () => {
       expect(updated?.referenceId).toBe("TXN123ABC");
     });
 
-    it("backward-compat — omitting method leaves paymentMethod null", async () => {
+    it("legacy full-payment callers default to a Cash collection when method is omitted", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       const { user, branch } = await createTestWorld();
       const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
@@ -890,7 +876,7 @@ describe("PaymentService Integration", () => {
       await PaymentService.markPaymentAsPaid(user.id, payment.id);
 
       const updated = await testPrisma.payment.findUnique({ where: { id: payment.id } });
-      expect(updated?.paymentMethod).toBeNull();
+      expect(updated?.paymentMethod).toBe("CASH");
       expect(updated?.referenceId).toBeNull();
     });
 

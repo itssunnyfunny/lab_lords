@@ -1,3 +1,4 @@
+import { remainingFee } from "@/lib/feeBalance";
 import { createHash, randomUUID } from "node:crypto";
 import {
   Prisma,
@@ -1029,7 +1030,7 @@ async function prepareSubmission(input: {
           paymentFacts: message.paymentSources.map(source => ({
             id: source.payment.id,
             status: source.payment.status,
-            amount: source.payment.amount,
+            amount: remainingFee(source.payment),
             dueDate: source.payment.dueDate,
             studentId: source.payment.studentId,
             studentName: source.payment.student.name,

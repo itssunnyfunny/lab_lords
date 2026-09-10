@@ -20,12 +20,14 @@ export type PaymentListParams = {
 
 export type AuditLogEntry = {
     id: string;
-    action: "PAYMENT_MARKED_PAID" | "PAYMENT_WAIVED";
+    action: "PAYMENT_MARKED_PAID" | "PAYMENT_WAIVED" | "FEE_COLLECTED" | "FEE_COLLECTION_VOIDED";
     paymentId: string;
     details: {
         from: string;
         to: string;
         amount: number;
+        reason?: string;
+        collectionId?: string;
         method?: "CASH" | "UPI" | "BANK_TRANSFER" | null;
         referenceId?: string | null;
     };

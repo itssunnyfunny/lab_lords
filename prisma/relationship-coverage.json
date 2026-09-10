@@ -372,6 +372,88 @@
     "nullable": true
   },
   {
+    "model": "FeeCollection",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "FeeCollection",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "FeeCollection",
+    "field": "actor",
+    "parent": "User",
+    "fields": [
+      "actorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "FeeCollection",
+    "field": "voidedBy",
+    "parent": "User",
+    "fields": [
+      "voidedById"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": true
+  },
+  {
+    "model": "FeeCollectionAllocation",
+    "field": "collection",
+    "parent": "FeeCollection",
+    "fields": [
+      "collectionId",
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "studentId",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "FeeCollectionAllocation",
+    "field": "payment",
+    "parent": "Payment",
+    "fields": [
+      "paymentId",
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "studentId",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
     "model": "BranchGenerationLease",
     "field": "branch",
     "parent": "Branch",

@@ -132,6 +132,14 @@ operator workstation or CI runner that can access credentials.
 - Allocation student, seat, shift, and optional MultiShift relationships must
   satisfy database-enforced branch-scoped foreign keys in addition to service
   authorization. A migration must stop on inconsistent historical relationships.
+- New student fee collections require `paymentsRecord` and branch
+  writability, transaction-time same-student/branch allocation checks and a
+  request-bound idempotency key. Receipts require `view_payments` and remain
+  private. Snapshot content is untrusted text when rendered; it is not public
+  authorization. Owner-only voids require a reason, retain original evidence and
+  reverse balance effects once without provider/refund calls. Financial writes,
+  receipt facts and audit records commit together; PDF/share failures cannot
+  turn into a second collection. See `docs/ai/fee-collections.md`.
 - Payment-resolution events are append-only domain evidence. They must be
   created only inside the authorized payment transaction, derive `branchId`
   and snapshot fields from the payment being changed, and must not be exposed

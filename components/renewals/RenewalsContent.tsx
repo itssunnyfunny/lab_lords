@@ -8,12 +8,11 @@ import { AppButton, AppPanel, AppSelect, Dialog, PageShell } from "@/components/
 import { Badge } from "@/components/ui/Badge";
 import { formControlClass } from "@/components/ui/formSurface";
 import { pageDescriptionClass, pageTitleClass } from "@/components/ui/pageSurface";
-import { MarkPaidDialog, type PayMethod } from "@/components/payments/MarkPaidDialog";
+import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { ApprovedPaymentReminderReview } from "@/components/whatsapp/ApprovedPaymentReminderReview";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
 import { getOverdueStudentHref } from "@/lib/overdueQueue";
 import { MANUAL_REMINDER_COPIED, paymentReminderDraft } from "@/lib/paymentReminderDraft";
-import { payments } from "@/lib/api/payments";
 import { renewals } from "@/lib/api/renewals";
 import { followUpOutcomes, renewalFilters, type FollowUpOutcome, type RenewalFilter,
     type RenewalPage, type RenewalRow } from "@/lib/renewals";
@@ -34,10 +33,6 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
     const [notice, setNotice] = useState<string | null>(null);
     const requestId = useRef(0);
     const [collect, setCollect] = useState<RenewalRow | null>(null);
-    const [method, setMethod] = useState<PayMethod>("CASH");
-    const [reference, setReference] = useState("");
-    const [collecting, setCollecting] = useState(false);
-    const [collectionError, setCollectionError] = useState<string | null>(null);
     const mutationBusy = useRef(false);
     const [editing, setEditing] = useState<RenewalRow | null>(null);
     const [reminder, setReminder] = useState<RenewalRow | null>(null);
@@ -72,22 +67,6 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
         window.addEventListener("pageshow", refresh);
         return () => { window.removeEventListener("focus", refresh); window.removeEventListener("pageshow", refresh); };
     }, [load]);
-
-    async function confirmCollection() {
-        if (!collect?.paymentId || !record.allowed || mutationBusy.current) return;
-        mutationBusy.current = true;
-        setCollecting(true);
-        setCollectionError(null);
-        try {
-            await payments.markAsPaid(collect.paymentId, method, method === "CASH" ? undefined : reference.trim() || undefined);
-            setCollect(null);
-            setReminder(null);
-            setPage(null);
-            setNotice("Payment recorded.");
-            await load();
-        } catch (err) { setCollectionError(err instanceof Error ? err.message : "Unable to record payment."); }
-        finally { mutationBusy.current = false; setCollecting(false); }
-    }
 
     return <PageShell>
         <div className="space-y-6">
@@ -140,7 +119,7 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
                         <div className="flex flex-wrap gap-2">
                             {access.permissions.students && <Link className="inline-flex min-h-11 items-center px-3 text-sm underline" href={getOverdueStudentHref(branchId, row.studentId)}>Open student profile</Link>}
                             {row.paymentId && <AppButton variant="primary" disabled={!record.allowed} title={record.reason ?? undefined}
-                                onClick={() => { setCollect(row); setMethod("CASH"); setReference(""); setCollectionError(null); }}>Record collection</AppButton>}
+                                onClick={() => { setCollect(row); }}>Collect fee</AppButton>}
                             <AppButton variant="secondary" disabled={!record.allowed} title={record.reason ?? undefined} onClick={() => setEditing(row)}>Update follow-up</AppButton>
                             <AppButton variant="secondary" onClick={() => setReminder(row)}>Reminder options</AppButton>
                         </div>
@@ -153,9 +132,8 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
                     <AppButton variant="secondary" disabled={!page.nextCursor} onClick={() => void load(page.nextCursor ?? undefined)}>Next page</AppButton></div>
             </div>}
         </div>
-        <MarkPaidDialog isOpen={!!collect} onClose={() => setCollect(null)} onConfirm={() => void confirmCollection()}
-            error={collectionError} summary={collect ? `${collect.studentName} · ${money(collect.amount)} · ${formatDate(collect.periodStart)} – ${formatDate(collect.periodEnd)}` : undefined}
-            loading={collecting} method={method} onMethodChange={setMethod} referenceId={reference} onReferenceIdChange={setReference} />
+        {collect?.paymentId && <CollectFeeDialog key={collect.paymentId} branchId={branchId} studentId={collect.studentId}
+            paymentId={collect.paymentId} onClose={() => setCollect(null)} onSaved={() => { setReminder(null); void load(); }} />}
         {editing && <FollowUpDialog key={editing.key} row={editing} branchId={branchId} onClose={() => setEditing(null)} onSaved={followUp => {
             requestId.current++;
             setLoading(false);

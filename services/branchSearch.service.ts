@@ -103,6 +103,8 @@ export class BranchSearchService {
                         id: true,
                         studentId: true,
                         amount: true,
+                        collectedAmount: true,
+                        waivedAmount: true,
                         status: true,
                         type: true,
                         dueDate: true,

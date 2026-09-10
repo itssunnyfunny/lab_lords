@@ -1,4 +1,6 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
+import { FeeCollectionService, lockFeeStudent } from "@/services/feeCollection.service";
+import { remainingFee } from "@/lib/feeBalance";
 import { prisma } from "@/lib/prisma";
 import { MESSAGE_DRAFT_ACTION_PREFIX } from "@/lib/messageDrafts";
 import { StaffService } from "@/services/staff.service";
@@ -110,6 +112,8 @@ export class PaymentService {
             tx
         );
         await EntitlementService.assertBranchWritable(initiallyResolved.branchId, tx);
+
+        await lockFeeStudent(tx, initiallyResolved.studentId, initiallyResolved.branchId);
 
         await tx.$queryRaw<Array<{ id: string }>>`
             SELECT "id" FROM "Payment" WHERE "id" = ${paymentId} FOR UPDATE
@@ -370,6 +374,7 @@ export class PaymentService {
         });
 
         if (existing && data.strictExisting) {
+            if (existing.ledgerBacked) throw new Error("Import plan is stale because this fee has collection history");
             const expectedAmount = data.amount ?? student.monthlyFee;
             const allowedStatuses: PaymentStatus[] = data.strictExisting.targetStatus === PaymentStatus.DUE
                 ? [PaymentStatus.DUE]
@@ -581,13 +586,27 @@ export class PaymentService {
             tx
         );
         if (payment.status === PaymentStatus.PAID) return payment;
+        if (resolutionContext.source !== PaymentResolutionEventSource.IMPORT_EXECUTION) {
+            if (payment.status !== PaymentStatus.DUE) throw new Error("A waived fee has no collectible balance");
+            const collection = await FeeCollectionService.collectInTransaction(userId, payment.branchId, {
+                studentId: payment.studentId, paymentIds: [payment.id], amount: remainingFee(payment),
+                method: method ?? PaymentMethod.CASH, reference: referenceId ?? "", note: "",
+                idempotencyKey: `full-payment:${payment.id}`,
+            }, tx, resolutionContext.source === "STUDENT_INACTIVATION" ? "STUDENT_INACTIVATION" : "PAYMENT_ACTION", true);
+            if (collection.voidedAt) {
+                throw new Error("The previous collection was voided. Use Collect fee to record a new collection.");
+            }
+            return tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
+        }
+        if (payment.ledgerBacked) throw new Error("Import plan is stale because this fee has collection history");
         const transitionAt = new Date();
 
         const updatedPayment = await tx.payment.update({
             where: { id: paymentId },
             data: {
                 status: PaymentStatus.PAID,
-                paidAt: transitionAt,
+                // Import time is not evidence of when money was received.
+                paidAt: null,
                 ...(method ? { paymentMethod: method } : {}),
                 ...(referenceId ? { referenceId } : {}),
             },
@@ -678,12 +697,17 @@ export class PaymentService {
             tx
         );
         if (payment.status === PaymentStatus.WAIVED) return payment;
+        if (payment.ledgerBacked && remainingFee(payment) === 0) return payment;
         const transitionAt = new Date();
+
+        await tx.messageDraft.deleteMany({ where: { branchId: payment.branchId, studentId: payment.studentId,
+            action: { startsWith: MESSAGE_DRAFT_ACTION_PREFIX } } });
 
         const updatedPayment = await tx.payment.update({
             where: { id: paymentId },
             data: {
                 status: PaymentStatus.WAIVED,
+                ...(payment.ledgerBacked ? { waivedAmount: { increment: remainingFee(payment) } } : {}),
             },
         });
 
@@ -701,7 +725,7 @@ export class PaymentService {
                 details: {
                     from: payment.status,
                     to: "WAIVED",
-                    amount: payment.amount,
+                    amount: payment.ledgerBacked ? remainingFee(payment) : payment.amount,
                 },
             },
         });

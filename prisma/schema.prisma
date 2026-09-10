@@ -9,6 +9,8 @@ datasource db {
 }
 
 model User {
+  feeCollections FeeCollection[] @relation("FeeCollectionActor")
+  voidedFeeCollections FeeCollection[] @relation("FeeCollectionVoidActor")
   renewalFollowUps              RenewalFollowUp[]
   id                            String                        @id @default(cuid())
   clerkId                       String?                       @unique
@@ -99,6 +101,7 @@ model Organization {
 }
 
 model Branch {
+  feeCollections FeeCollection[]
   renewalFollowUps              RenewalFollowUp[]
   id                           String                        @id @default(cuid())
   organizationId               String
@@ -152,6 +155,7 @@ model Branch {
 }
 
 model Student {
+  feeCollections FeeCollection[]
   renewalFollowUps       RenewalFollowUp[]
   id                    String                     @id @default(cuid())
   branchId              String
@@ -301,6 +305,10 @@ enum RenewalFollowUpOutcome {
 }
 
 model Payment {
+  ledgerBacked Boolean @default(false)
+  collectedAmount Int @default(0)
+  waivedAmount Int @default(0)
+  collectionAllocations FeeCollectionAllocation[]
   id                     String                   @id @default(cuid())
   branchId               String
   studentId              String
@@ -323,6 +331,7 @@ model Payment {
 
   @@unique([studentId, type, periodStart], map: "Payment_studentId_type_periodStart_key")
   @@unique([id, branchId])
+  @@unique([id, studentId, branchId])
   @@index([branchId, dueDate])
   importTargets ImportTargetReference[]
 }
@@ -420,6 +429,47 @@ model MessageDraft {
 
   @@index([branchId, studentId])
   @@unique([branchId, studentId, action, language])
+}
+
+model FeeCollection {
+  id String @id @default(cuid())
+  branchId String
+  studentId String
+  actorId String
+  amount Int
+  method PaymentMethod
+  reference String?
+  note String?
+  idempotencyKey String
+  requestHash String
+  receiptNumber String
+  snapshot Json
+  collectedAt DateTime @default(now())
+  voidedAt DateTime?
+  voidedById String?
+  voidReason String?
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [studentId, branchId], references: [id, branchId], onDelete: Restrict)
+  actor User @relation("FeeCollectionActor", fields: [actorId], references: [id], onDelete: Restrict)
+  voidedBy User? @relation("FeeCollectionVoidActor", fields: [voidedById], references: [id], onDelete: Restrict)
+  allocations FeeCollectionAllocation[]
+  @@unique([branchId, idempotencyKey])
+  @@unique([branchId, receiptNumber])
+  @@unique([id, studentId, branchId])
+  @@index([branchId, collectedAt, id])
+  @@index([studentId, branchId, collectedAt])
+}
+
+model FeeCollectionAllocation {
+  collectionId String
+  paymentId String
+  studentId String
+  branchId String
+  amount Int
+  collection FeeCollection @relation(fields: [collectionId, studentId, branchId], references: [id, studentId, branchId], onDelete: Restrict)
+  payment Payment @relation(fields: [paymentId, studentId, branchId], references: [id, studentId, branchId], onDelete: Restrict)
+  @@id([collectionId, paymentId])
+  @@index([paymentId, branchId])
 }
 
 model BranchGenerationLease {
@@ -2409,6 +2459,8 @@ model RazorpayWebhookEvent {
 }
 
 enum AuditAction {
+  FEE_COLLECTED
+  FEE_COLLECTION_VOIDED
   PAYMENT_MARKED_PAID
   PAYMENT_WAIVED
 }
