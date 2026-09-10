@@ -8,6 +8,7 @@ const mocks = {
   branches: vi.fn(),
   paymentResolutionEvents: vi.fn(),
   paymentAggregate: vi.fn(),
+  collectionAggregate: vi.fn(),
   studentCount: vi.fn(),
   allocationGroupBy: vi.fn(),
   messageCount: vi.fn(),
@@ -19,6 +20,7 @@ function transaction() {
     branch: { findMany: mocks.branches },
     paymentResolutionEvent: { findMany: mocks.paymentResolutionEvents },
     payment: { aggregate: mocks.paymentAggregate },
+    feeCollection: { aggregate: mocks.collectionAggregate },
     student: { count: mocks.studentCount },
     seatAllocation: { groupBy: mocks.allocationGroupBy },
     whatsAppMessage: { count: mocks.messageCount },
@@ -40,6 +42,7 @@ describe("WhatsApp daily-report analytics", () => {
       shifts: [{ id: "shift_1" }, { id: "shift_2" }],
     }]);
     mocks.paymentResolutionEvents.mockResolvedValue([]);
+    mocks.collectionAggregate.mockResolvedValue({ _count: { _all: 0 }, _sum: { amount: 0 } });
     mocks.paymentAggregate
       .mockResolvedValueOnce({ _count: { _all: 3 }, _sum: { amount: 12_000 } })
       .mockResolvedValueOnce({ _count: { _all: 5 }, _sum: { amount: 7_500 } })
@@ -224,6 +227,8 @@ describe("WhatsApp daily-report analytics", () => {
     expect(mocks.paymentResolutionEvents).toHaveBeenCalledWith({
       where: {
         branchId: { in: ["branch_1"] },
+        payment: { ledgerBacked: false },
+        source: { not: "IMPORT_EXECUTION" },
         occurredAt: {
           gte: new Date("2026-08-22T18:30:00.000Z"),
           lte: metricsAsOfAt,

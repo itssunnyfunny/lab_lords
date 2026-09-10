@@ -25,7 +25,9 @@ import {
     pageSubtleTextClass,
     pageTitleClass,
 } from "@/components/ui/pageSurface";
-import { MarkPaidDialog } from "@/components/payments/MarkPaidDialog";
+import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
+import { CollectionHistory } from "@/components/payments/CollectionHistory";
+import { remainingFee } from "@/lib/feeBalance";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal } from "lucide-react";
@@ -58,6 +60,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                 return (
                     <PaymentsContent
                         branchId={branchId}
+                        owner={access.isOwner}
                         recordDecision={recordDecision}
                         waiveDecision={waiveDecision}
                         generateDecision={generateDecision}
@@ -71,10 +74,12 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
 function PaymentsContent({
     branchId,
     recordDecision,
+    owner,
     waiveDecision,
     generateDecision,
 }: {
     branchId: string;
+    owner: boolean;
     recordDecision: CapabilityDecision;
     waiveDecision: CapabilityDecision;
     generateDecision: CapabilityDecision;
@@ -118,9 +123,7 @@ function PaymentsContent({
     const [error, setError] = useState<string | null>(null);
 
     const [paymentToMark, setPaymentToMark] = useState<string | null>(null);
-    const [marking, setMarking] = useState(false);
-    const [markMethod, setMarkMethod] = useState<"CASH" | "UPI" | "BANK_TRANSFER">("CASH");
-    const [markReferenceId, setMarkReferenceId] = useState("");
+    const [collectStudentId, setCollectStudentId] = useState<string | null>(null);
 
     const [paymentToWaive, setPaymentToWaive] = useState<string | null>(null);
     const [waiving, setWaiving] = useState(false);
@@ -223,6 +226,13 @@ function PaymentsContent({
         return () => window.cancelAnimationFrame(focusFrame);
     }, [activeTab, data, loading, targetPaymentId]);
 
+    useEffect(() => {
+        const refresh = () => void loadPayments();
+        window.addEventListener("fee-collection-changed", refresh);
+        window.addEventListener("focus", refresh);
+        return () => { window.removeEventListener("fee-collection-changed", refresh); window.removeEventListener("focus", refresh); };
+    }, [loadPayments]);
+
     const generateMissingPayments = async () => {
         setGenerating(true);
         setGenerationMessage(null);
@@ -256,33 +266,8 @@ function PaymentsContent({
     };
 
     const handleMarkPaid = (id: string) => {
-        setMarkMethod("CASH");
-        setMarkReferenceId("");
+        setCollectStudentId(data.find(p => p.id === id)?.studentId ?? null);
         setPaymentToMark(id);
-    };
-
-    const confirmMarkPaid = async () => {
-        if (!paymentToMark) return;
-        setMarking(true);
-        try {
-            await payments.markAsPaid(
-                paymentToMark,
-                markMethod,
-                markReferenceId.trim() || undefined,
-            );
-            await loadPayments();
-            setPaymentToMark(null);
-            toast.show({ title: "Payment recorded", tone: "success" });
-        } catch (error) {
-            toast.show({
-                title: "Payment was not recorded",
-                description: error instanceof Error ? error.message : "Try again. No payment state was changed.",
-                tone: "error",
-                persistent: true,
-            });
-        } finally {
-            setMarking(false);
-        }
     };
 
     const confirmWaive = async () => {
@@ -326,6 +311,7 @@ function PaymentsContent({
 
         return (
             <div className="flex flex-wrap items-center gap-2">
+                {item.collectedAmount > 0 && item.status === "DUE" && <Badge variant="warning">Partially paid</Badge>}
                 <span className={cn(overdue ? "text-red-400 font-medium" : "text-textSecondary")}>
                     {formatDate(item.dueDate)}
                 </span>
@@ -347,6 +333,13 @@ function PaymentsContent({
             {item.status}
         </Badge>
     );
+
+    const renderFeeAmounts = (item: PaymentRow) => <div className="space-y-1">
+        <span className="font-semibold">{formatPaymentAmount(item.status === "DUE" ? remainingFee(item) : item.amount)}</span>
+        {item.ledgerBacked ? <p className={cn("text-xs", pageMutedTextClass)}>
+            Fee ₹{item.amount} · Collected ₹{item.collectedAmount} · Waived ₹{item.waivedAmount} · Remaining ₹{remainingFee(item)}
+        </p> : item.status !== "DUE" ? <p className={cn("text-xs", pageMutedTextClass)}>Historical record · no generated receipt</p> : null}
+    </div>;
 
     const renderPaymentMethod = (item: PaymentRow) => {
         const m = item.paymentMethod ?? null;
@@ -397,7 +390,7 @@ function PaymentsContent({
                             title={recordDecision.allowed ? undefined : recordDecision.reason}
                             onClick={() => handleMarkPaid(item.id)}
                         >
-                            Mark paid
+                            Collect fee
                         </AppButton>
                     )}
 
@@ -553,7 +546,7 @@ function PaymentsContent({
                             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                                 <div className={pageInsetMetricClass}>
                                     <div className={cn("text-xs", pageSubtleTextClass)}>Amount</div>
-                                    <div className="mt-1 truncate font-semibold text-[color:var(--text-primary)]">{formatPaymentAmount(item.amount)}</div>
+                                    <div className="mt-1 text-[color:var(--text-primary)]">{renderFeeAmounts(item)}</div>
                                 </div>
                                 <div className={pageInsetMetricClass}>
                                     <div className={cn("text-xs", pageSubtleTextClass)}>Method</div>
@@ -588,11 +581,7 @@ function PaymentsContent({
                         },
                         {
                             header: "Amount",
-                            accessor: (item) => (
-                                <span className="font-semibold text-[color:var(--text-primary)]">
-                                    {formatPaymentAmount(item.amount)}
-                                </span>
-                            )
+                            accessor: renderFeeAmounts
                         },
                         {
                             header: "Status",
@@ -639,23 +628,17 @@ function PaymentsContent({
                 </div>
             ) : null}
 
-            <MarkPaidDialog
-                isOpen={!!paymentToMark}
-                onClose={() => setPaymentToMark(null)}
-                onConfirm={confirmMarkPaid}
-                loading={marking}
-                method={markMethod}
-                onMethodChange={setMarkMethod}
-                referenceId={markReferenceId}
-                onReferenceIdChange={setMarkReferenceId}
-            />
+            {paymentToMark && collectStudentId && <CollectFeeDialog
+                key={paymentToMark} branchId={branchId} studentId={collectStudentId}
+                paymentId={paymentToMark} onClose={() => setPaymentToMark(null)} onSaved={() => { void loadPayments(); }} />}
+            <CollectionHistory branchId={branchId} owner={owner} />
 
             <ConfirmDialog
                 isOpen={!!paymentToWaive}
                 onClose={() => setPaymentToWaive(null)}
                 onConfirm={confirmWaive}
                 title="Waive Payment"
-                description="This will mark the payment as WAIVED. The debt will be written off and excluded from analytics. This cannot be undone."
+                description="Forgive the remaining debt. Existing collections and receipts remain in history. A fully collected fee has no remaining debt to waive."
                 confirmText="Yes, Waive"
                 loading={waiving}
                 variant="warning"
@@ -691,7 +674,7 @@ function RowDropdown({ onWaive, disabled, reason }: { onWaive: () => void; disab
     );
 }
 
-// ─── Mark Paid Dialog ─────────────────────────────────────────────────────────
+// ─── Collect fee Dialog ─────────────────────────────────────────────────────────
 
 function PaymentTabButton({
     label,

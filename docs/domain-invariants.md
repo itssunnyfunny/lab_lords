@@ -247,6 +247,25 @@ Every statement uses one of these labels:
 
 ## Member payments and billing cycles
 
+- **Must preserve—enforced:** New collections retain the original whole-rupee
+  fee, one student/branch/method per collection, immutable allocations and one
+  branch-unique receipt snapshot. Composite foreign keys enforce allocation
+  student/branch ownership; deferred checks reconcile stored balances with
+  nonvoid allocations. DUE means a collectible balance remains. Receipt/PDF
+  actions run after financial commit and cannot record another collection.
+- **Service-layer contract—not DB-enforced:** Collection writes require
+  `paymentsRecord`, writable entitlement and transaction-time ownership/balance
+  checks. All competing fee writers take the student lock first. A stable
+  branch/request key is bound to canonical input; changed-payload reuse fails.
+  Voids are owner-only, require a reason, reverse allocations once and preserve
+  separate waived rupees. They never initiate a refund.
+- **Must preserve—enforced:** For ledger-backed fees, waivers forgive only the
+  remainder and never erase collected money. Fully collected fees have no debt
+  to waive. Historical records receive no invented receipt or collection date;
+  imports cannot overwrite ledger-backed fees. The historical transition entry
+  below describes legacy records, not new collection correction semantics.
+  See [collection contract](ai/fee-collections.md).
+
 - **Must preserve—enforced:** Renewals & dues is a read-only projection of
   recorded DUE periods plus eligible anniversary fees from today through the
   next three/seven days. Expected fees are not confirmed debt. Existing typed
@@ -279,8 +298,10 @@ Every statement uses one of these labels:
   generation and catch-up remain retry-safe through this typed key plus
   duplicate skipping. (`prisma/schema.prisma`, payment integration tests)
 - **Must preserve—enforced:** Payment states are `DUE`, `PAID`, and `WAIVED`.
-  Effective transitions are `DUE -> PAID`, `DUE -> WAIVED`, `PAID -> WAIVED`,
-  and `WAIVED -> PAID`; repeating a mutation to its current target state is an
+  For historical non-ledger records, previously recorded `DUE -> PAID`,
+  `DUE -> WAIVED`, `PAID -> WAIVED`,
+  and `WAIVED -> PAID` transitions remain readable. New interactive collection
+  cannot collect a waived balance; repeating a mutation to its current target state is an
   idempotent no-op. A waiver after payment retains the existing `paidAt`,
   method, and reference metadata. Marking paid also removes follow-up message
   drafts. (`services/payment.service.ts`, payment integration tests)
@@ -288,9 +309,11 @@ Every statement uses one of these labels:
   through a supported payment, student-inactivation, or import path appends one
   immutable `PaymentResolutionEvent` in the same transaction as the payment
   mutation and existing `AuditLog`. The event derives branch ownership and its
-  payment snapshot from trusted before/after payment rows. Corrections append a
+  payment snapshot from trusted before/after payment rows. Historical resolution corrections append a
   new event without rewriting prior events, while a target-status no-op creates
-  neither an audit nor an event. The restrictive payment and branch relations
+  neither an audit nor an event. New collection voids retain their own correction
+  evidence and payment audit rather than fabricating a PAID/WAIVED transition.
+  The restrictive payment and branch relations
   prevent deleting domain history through those parents. Historical resolutions
   from before the event-ledger migration are deliberately not backfilled as if
   their original transition facts were known.

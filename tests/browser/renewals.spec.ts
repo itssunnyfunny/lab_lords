@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { mockFeeCollections } from "./helpers/fee-collection";
+import { refreshDevelopmentSession } from "./helpers/development-session";
 import type { RenewalPage, RenewalRow } from "@/lib/renewals";
 
 const statePath = process.env.PLAYWRIGHT_OWNER_AUTH_STATE;
@@ -28,12 +30,10 @@ async function mockQueue(page: Page) {
             outstandingAmount: state.paid ? 0 : 900, expectedAmount: 1000, nextCursor: null, asOf: "2026-09-08T00:00:00.000Z" };
         return route.fulfill({ json: response });
     });
-    await page.route("**/api/payments/payment/pay", route => {
-        state.collectionAttempts++;
-        expect(route.request().method()).toBe("PATCH");
-        if (state.rejectCollection) return route.fulfill({ status: 403, json: { error: "Collection unavailable" } });
-        state.paid = true;
-        return route.fulfill({ json: { id: "payment", status: "PAID" } });
+    const collection = await mockFeeCollections(page, branchId, { amount: 900, onCollected: () => { state.paid = true; } });
+    Object.defineProperties(state, {
+        collectionAttempts: { get: () => collection.attempts.length },
+        rejectCollection: { get: () => collection.reject, set: value => { collection.reject = value; } },
     });
     await page.route(`**/api/branches/${branchId}/renewals/follow-up`, route => {
         state.followUpWrites++;
@@ -42,9 +42,10 @@ async function mockQueue(page: Page) {
             updatedAt: "2026-09-08T10:00:00.000Z", author: { name: "Sample Collector" } };
         return route.fulfill({ json: actual.followUp });
     });
+    await refreshDevelopmentSession(page);
     await page.goto(`/branch/${branchId}/renewals`);
     await expect(page.getByRole("heading", { name: "Renewals & dues", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Record collection", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Collect fee", exact: true })).toBeVisible();
     return state;
 }
 
@@ -52,13 +53,13 @@ test("collection refreshes the affected entry and totals; failure stays in the d
     const state = await mockQueue(page);
     expect(state.collectionAttempts).toBe(0);
     state.rejectCollection = true;
-    await page.getByRole("button", { name: "Record collection", exact: true }).click();
-    await page.getByRole("button", { name: "Confirm payment", exact: true }).click();
+    await page.getByRole("button", { name: "Collect fee", exact: true }).click();
+    await page.getByRole("button", { name: "Confirm collection", exact: true }).click();
     await expect(page.getByRole("dialog").getByRole("alert")).toHaveText("Collection unavailable");
     state.rejectCollection = false;
     const reads = state.reads;
-    await page.getByRole("button", { name: "Confirm payment", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Record collection", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Confirm collection", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Collect fee", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Outstanding dues (0)", exact: true })).toBeVisible();
     await expect(page.getByText("Expected fee", { exact: true })).toBeVisible();
     expect(state.reads).toBeGreaterThan(reads);

@@ -971,3 +971,21 @@ reminder is explicitly unconfirmed delivery and creates no delivery evidence.
 This is local implementation status, not deployment evidence. Apply the additive
 renewal-follow-up migration before releasing the new application; see the
 production runbook's renewal handoff. No environment or cron changes are needed.
+
+## Collection and receipt flow — 2026-09-10
+
+The current application adds `FeeCollection` and immutable same-student/branch
+allocations, with whole-rupee collected/waived counters on existing Payment rows.
+Payments, Renewals and the student fee drawer share Collect fee and retrievable
+receipt history. Partial fees stay DUE. Actual collections and original fee
+amounts remain distinct; receipt snapshot facts are retained across later edits.
+Owner voids retain evidence and reverse only collection effects, preserving
+separate waiver decisions. Imports do not create receipts or infer collection
+dates and cannot overwrite ledger-backed fees. Reminder/outbox reconciliation
+uses remaining balances and rejects voided acknowledgement evidence.
+
+See [the collection contract](fee-collections.md) for precise historical,
+waiver, acknowledgement and retry semantics. Apply the additive collection
+migration before application code. No new product flags, provider services or
+environment variables are introduced. Implementation status is not deployment
+approval or evidence.

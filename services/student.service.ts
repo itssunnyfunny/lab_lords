@@ -13,7 +13,7 @@ import { StaffService } from "@/services/staff.service";
 import { startOfDay } from "date-fns";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { EntitlementService } from "@/services/entitlement.service";
-import { recordPaymentResolutionEvents } from "@/services/paymentResolutionEvent.service";
+import { PaymentService } from "@/services/payment.service";
 import { WhatsAppRecipientService } from "@/services/whatsappRecipient.service";
 import {
     isWhatsAppDeliverySchemaAccessEnabled,
@@ -743,66 +743,22 @@ export class StudentService {
                         },
                     });
 
-                // 3. Resolve DUE payments based on the validated choice
-                const resolvedPayments = paymentResolution && paymentsToResolve.length > 0
-                    ? await tx.payment.updateManyAndReturn({
-                        where: {
-                            id: { in: paymentsToResolve.map(payment => payment.id) },
-                            branchId: verifiedStudent.branchId,
-                            status: PaymentStatus.DUE,
-                        },
-                        data: paymentResolution.data,
-                    })
-                    : [];
-                // KEEP: do nothing, DUE payments stay as-is
-
-                if (resolvedPayments.length > 0 && paymentResolution) {
-                    const paymentsBeforeById = new Map(
-                        paymentsToResolve.map(payment => [payment.id, payment])
-                    );
-                    const resolutionPairs = resolvedPayments.map(payment => {
-                        const before = paymentsBeforeById.get(payment.id);
-                        if (!before) {
-                            throw new Error("Payment resolution snapshot is missing");
-                        }
-                        return { before, after: payment };
-                    });
-                    await tx.auditLog.createMany({
-                        data: resolutionPairs.map(({ before, after }) => ({
-                            branchId: after.branchId,
-                            userId,
-                            action: paymentResolution.action,
-                            paymentId: after.id,
-                            details: {
-                                from: before.status,
-                                to: paymentResolution.status,
-                                amount: after.amount,
-                                ...(paymentResolution.status === PaymentStatus.PAID
-                                    ? { method: null, referenceId: null }
-                                    : {}),
-                            },
-                        })),
-                    });
-
-                    await recordPaymentResolutionEvents(
-                        tx,
-                        resolutionPairs.map(({ before, after }) => ({
-                                before,
-                                after,
-                                actorUserId: userId,
-                                source: PaymentResolutionEventSource.STUDENT_INACTIVATION,
-                                occurredAt: now,
-                            }))
-                    );
+                // Use the same locked fee writer as the Payments flow.
+                for (const payment of paymentsToResolve) {
+                    if (paymentResolution?.status === PaymentStatus.PAID) {
+                        await PaymentService.markPaymentAsPaidInTransaction(userId, payment.id, undefined, undefined, tx,
+                            { source: PaymentResolutionEventSource.STUDENT_INACTIVATION });
+                    } else if (paymentResolution?.status === PaymentStatus.WAIVED) {
+                        await PaymentService.markPaymentAsWaivedInTransaction(userId, payment.id, tx,
+                            { source: PaymentResolutionEventSource.STUDENT_INACTIVATION });
+                    }
                 }
             }
 
-            // 4. Update Branch lastDataChange
             await tx.branch.update({
                 where: { id: verifiedStudent.branch.id },
                 data: { lastDataChange: now },
             });
-
             return student;
         });
     }

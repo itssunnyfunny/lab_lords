@@ -122,11 +122,12 @@ describe("Analytics corrections", () => {
       const allTime = await getPaymentPeriodStats(branch.id, asOf, "all");
 
       expect(monthly.revenueAmount).toBe(700);
-      expect(monthly.paidAmount).toBe(900);
+      // The other historical PAID row has no collection-date evidence.
+      expect(monthly.paidAmount).toBe(400);
       expect(monthly.dueAmount).toBe(300);
 
       expect(allTime.revenueAmount).toBe(1200);
-      expect(allTime.paidAmount).toBe(900);
+      expect(allTime.paidAmount).toBe(400);
       expect(allTime.dueAmount).toBe(monthly.dueAmount);
     });
   });

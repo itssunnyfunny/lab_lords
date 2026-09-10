@@ -1,4 +1,5 @@
 import type { StaffAction } from "@/types";
+import { remainingFee } from "@/lib/feeBalance";
 
 export type TopSearchResultType =
     | "action"
@@ -48,6 +49,8 @@ export type PaymentSearchRecord = {
     id: string;
     studentId?: string | null;
     amount?: number | null;
+    collectedAmount?: number;
+    waivedAmount?: number;
     status?: string | null;
     type?: string | null;
     dueDate?: Date | string | null;
@@ -354,6 +357,8 @@ export function buildTopSearchResults(input: BuildTopSearchResultsInput): TopSea
         groups.payments = (input.payments ?? []).flatMap(payment => {
             const studentName = payment.student?.name?.trim() || "Unknown student";
             const paymentStatus = payment.status?.toUpperCase();
+            const displayedAmount = paymentStatus === "DUE" ? remainingFee({ amount: payment.amount ?? 0,
+                collectedAmount: payment.collectedAmount, waivedAmount: payment.waivedAmount }) : payment.amount;
             const fields = [
                 studentName,
                 payment.student?.phone,
@@ -373,7 +378,7 @@ export function buildTopSearchResults(input: BuildTopSearchResultsInput): TopSea
                 subtitle: compact([
                     payment.status,
                     payment.type,
-                    formatMoney(payment.amount),
+                    formatMoney(displayedAmount),
                     `Due ${formatDate(payment.dueDate)}`,
                 ]).join(" - "),
                 href: hrefWithQuery(input.branchId, "payments", {

@@ -8,6 +8,12 @@ Global User references record actors/owners and do not assert current membership
 
 | Relationship | PostgreSQL parent key | Tenant proof | Nullable reference |
 | --- | --- | --- | --- |
+| FeeCollection.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| FeeCollection.student (studentId, branchId) | Student (id, branchId) | Composite branchId | No |
+| FeeCollection.actor (actorId) | User (id) | Historical recording actor; current access is rechecked | No |
+| FeeCollection.voidedBy (voidedById) | User (id) | Historical correction actor; owner policy is rechecked | Yes |
+| FeeCollectionAllocation.collection (collectionId, studentId, branchId) | FeeCollection (id, studentId, branchId) | Composite student and branch | No |
+| FeeCollectionAllocation.payment (paymentId, studentId, branchId) | Payment (id, studentId, branchId) | Composite student and branch | No |
 | Organization.owner (ownerId) | User (id) | Global identity/configuration; policy checks remain | No |
 | Branch.organization (organizationId) | Organization (id) | Organization ownership chain | No |
 | Student.branch (branchId) | Branch (id) | Single scoped parent chain | No |

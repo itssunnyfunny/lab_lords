@@ -1,3 +1,5 @@
+import { remainingFee } from "@/lib/feeBalance";
+import { collectionAcknowledgementIsCurrent } from "@/services/collectionAcknowledgement.service";
 import { createHash, randomUUID } from "node:crypto";
 
 import {
@@ -819,7 +821,7 @@ export async function loadPlannerCollectionSourcePage(input: {
         select: {
           id: true,
           studentId: true,
-          amount: true,
+          amount: true, collectedAmount: true, waivedAmount: true,
           dueDate: true,
           periodStart: true,
         },
@@ -844,6 +846,8 @@ export function buildCollectionCandidates(input: {
     id: string;
     studentId: string;
     amount: number;
+    collectedAmount?: number;
+    waivedAmount?: number;
     dueDate: Date;
     periodStart: Date;
   }>;
@@ -860,7 +864,7 @@ export function buildCollectionCandidates(input: {
   const paymentsByStudent = new Map<string, typeof input.payments>();
   for (const payment of input.payments) {
     const rows = paymentsByStudent.get(payment.studentId) ?? [];
-    rows.push(payment);
+    rows.push({ ...payment, amount: remainingFee(payment) });
     paymentsByStudent.set(payment.studentId, rows);
   }
   const candidates: PlannerCandidate[] = [];
@@ -1298,6 +1302,7 @@ async function paymentEventCandidates(input: {
 
   if (input.enabledStages.has("PAYMENT_CONFIRMATION")) {
     for (const event of paidPage.events) {
+      if (!await collectionAcknowledgementIsCurrent(input.tx, event)) continue;
       const recipient = recipientsByStudent.get(event.payment.studentId);
       if (!recipient) continue;
       const scheduledFor = nextWhatsAppSendAt({
@@ -1739,7 +1744,7 @@ export async function deriveWhatsAppAutomaticCollectionMessageRefresh(input: {
     select: {
       id: true,
       studentId: true,
-      amount: true,
+      amount: true, collectedAmount: true, waivedAmount: true,
       dueDate: true,
       periodStart: true,
     },
@@ -1975,7 +1980,7 @@ export async function verifyAutomaticMessageSource(input: {
           select: {
             id: true,
             studentId: true,
-            amount: true,
+            amount: true, collectedAmount: true, waivedAmount: true,
             dueDate: true,
             periodStart: true,
           },
@@ -2076,6 +2081,7 @@ export async function verifyAutomaticMessageSource(input: {
     const recipient = byStudent.get(event.payment.studentId);
     if (!recipient) return invalidAutomaticSource("RECIPIENT_ASSOCIATION_STALE");
     if (message.automationStage === "PAYMENT_CONFIRMATION") {
+      if (!await collectionAcknowledgementIsCurrent(input.tx, event)) return invalidAutomaticSource("PAYMENT_RESOLVED");
       if (
         event.source !== "PAYMENT_ACTION"
         || event.toStatus !== "PAID"

@@ -16,11 +16,15 @@ import { cn } from "@/lib/utils";
 const ACTION_LABEL: Record<AuditLogEntry["action"], string> = {
     PAYMENT_MARKED_PAID: "Marked as Paid",
     PAYMENT_WAIVED: "Waived",
+    FEE_COLLECTED: "Fee collected",
+    FEE_COLLECTION_VOIDED: "Collection voided",
 };
 
 const ACTION_COLOR: Record<AuditLogEntry["action"], string> = {
     PAYMENT_MARKED_PAID: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
     PAYMENT_WAIVED: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    FEE_COLLECTED: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    FEE_COLLECTION_VOIDED: "text-red-400 bg-red-500/10 border-red-500/20",
 };
 
 interface PaymentAuditLogProps {
@@ -148,6 +152,7 @@ export function PaymentAuditLog({
                                 </div>
                                 <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-[color:var(--ui-table-subtle)]">
                                     <span>{log.details.from} → {log.details.to}</span>
+                                    {log.details.reason && <span>Reason: {log.details.reason}</span>}
                                     {log.details.referenceId && (
                                         <span className={cn("font-mono", formHelpTextClass)}>
                                             Ref: {log.details.referenceId}

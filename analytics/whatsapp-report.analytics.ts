@@ -124,6 +124,8 @@ async function getPaymentsRecordedThroughAsOf(
       : tx.paymentResolutionEvent.findMany({
           where: {
             branchId: { in: [...input.branchIds] },
+            payment: { ledgerBacked: false },
+            source: { not: "IMPORT_EXECUTION" },
             // A payment's first PAID transition uses the same instant for
             // occurredAt and paidAt, and every correction follows it. Bound
             // both timestamps to the single report metrics instant.
@@ -148,7 +150,7 @@ async function getPaymentsRecordedThroughAsOf(
     tx.payment.aggregate({
       where: {
         branchId: { in: [...input.branchIds] },
-        status: "PAID",
+        status: "PAID", ledgerBacked: false,
         createdAt: { lte: input.metricsAsOfAt },
         paidAt: { gte: input.dayStart, lte: input.metricsAsOfAt },
         // Historical resolutions predate the append-only ledger. They remain
@@ -156,7 +158,7 @@ async function getPaymentsRecordedThroughAsOf(
         resolutionEvents: { none: {} },
       },
       _count: { _all: true },
-      _sum: { amount: true },
+      _sum: { amount: true, collectedAmount: true, waivedAmount: true },
     }),
   ]);
   const ledgerTotals = paidResolutionTotalsAtAsOf(
@@ -164,9 +166,13 @@ async function getPaymentsRecordedThroughAsOf(
     input.dayStart,
     input.metricsAsOfAt
   );
+  const collections = await tx.feeCollection.aggregate({ where: {
+    branchId: { in: [...input.branchIds] }, collectedAt: { gte: input.dayStart, lte: input.metricsAsOfAt },
+    OR: [{ voidedAt: null }, { voidedAt: { gt: input.metricsAsOfAt } }],
+  }, _sum: { amount: true }, _count: { _all: true } });
   return {
-    count: ledgerTotals.count + legacyPayments._count._all,
-    amount: ledgerTotals.amount + (legacyPayments._sum.amount ?? 0),
+    count: collections._count._all + ledgerTotals.count + legacyPayments._count._all,
+    amount: (collections._sum.amount ?? 0) + ledgerTotals.amount + (legacyPayments._sum.amount ?? 0),
   };
 }
 
@@ -274,7 +280,7 @@ export async function getWhatsAppDailyReportMetrics(
         dueDate: { lte: dayEnd },
       },
       _count: { _all: true },
-      _sum: { amount: true },
+      _sum: { amount: true, collectedAmount: true, waivedAmount: true },
     }),
     tx.payment.aggregate({
       where: {
@@ -284,7 +290,7 @@ export async function getWhatsAppDailyReportMetrics(
         dueDate: { lt: overdueBefore },
       },
       _count: { _all: true },
-      _sum: { amount: true },
+      _sum: { amount: true, collectedAmount: true, waivedAmount: true },
     }),
     branchIds.length === 0
       ? Promise.resolve([])
@@ -362,9 +368,9 @@ export async function getWhatsAppDailyReportMetrics(
     usedShiftSlots,
     totalShiftCapacity,
     openDueCount: openDues._count._all,
-    openDueAmount: openDues._sum.amount ?? 0,
+    openDueAmount: (openDues._sum.amount ?? 0) - (openDues._sum.collectedAmount ?? 0) - (openDues._sum.waivedAmount ?? 0),
     overdueCount: overdue._count._all,
-    overdueAmount: overdue._sum.amount ?? 0,
+    overdueAmount: (overdue._sum.amount ?? 0) - (overdue._sum.collectedAmount ?? 0) - (overdue._sum.waivedAmount ?? 0),
     whatsAppAcceptedToday,
     whatsAppDeliveredToday,
     whatsAppFailedToday,

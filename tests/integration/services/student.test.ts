@@ -309,7 +309,7 @@ describe("StudentService Integration", () => {
         from: "DUE",
         to: "PAID",
         amount: 1000,
-        method: null,
+        method: "CASH",
         referenceId: null,
       });
       expect(event).toMatchObject({
@@ -324,9 +324,9 @@ describe("StudentService Integration", () => {
         periodStart,
         dueDate,
         paidAt: payment?.paidAt,
-        paymentMethod: null,
+        paymentMethod: "CASH",
         referenceId: null,
-        details: null,
+        details: { collectionId: expect.any(String), actualReceived: 1000 },
       });
       expect(event?.paidAt).not.toBeNull();
       expect(event?.occurredAt.getTime()).toBe(event?.paidAt?.getTime());
