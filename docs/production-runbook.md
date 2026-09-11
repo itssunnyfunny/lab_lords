@@ -2682,3 +2682,44 @@ migration or cash/provider refund is provided. No historical backfill is needed.
 See `docs/ai/fee-collections.md` for manual exercise/recovery steps. The completion
 report records actual checks and deployment status; no commit, PR, Production
 migration or deployment is implied by source presence.
+
+### Basic attendance additive migration — 2026-09-11
+
+`20260911120000_basic_attendance` adds AttendanceMark, AttendanceVisit,
+AttendanceCredential and AttendanceCommand; same-branch student FKs; daily
+uniqueness; partial one-open-visit uniqueness; ordered-time/version checks; and
+immutable attendance command/audit evidence. AuditLog gains a nullable student
+target and nullable paymentId, with a check that continues to require paymentId
+for payment audit actions. Existing business rows are not backfilled or changed.
+The four attendance tables start empty. There are no new environment variables,
+feature flags, services, cron schedules or Preview database requirements.
+
+Use the existing reviewed PR/CI, protected Production Prisma Migration workflow
+and Vercel release path. Before migration on the approved target, run
+`prisma/preflight/basic-attendance.sql` read-only, privately bind exact database
+identity and save its exact table counts, migration ledger, student status,
+original/collected/waived fee totals, allocation and audit inventory. Existing
+Production restrictions and authorizations apply; the implementation itself does
+not authorize Production access. No production reset is part of attendance.
+
+Apply the additive schema before dependent application code can receive traffic.
+Because main can deploy automatically, keep the dependent release from serving
+until the protected migration has completed using the existing release controls.
+Do not merge/deploy first and wait for schema-related failures. Compare the same
+read-only inventory afterward: retained table counts/totals/statuses unchanged,
+four new tables empty, existing audit rows preserved, one additional completed
+migration, expected indexes/FKs/checks/triggers present and validated. Keep the
+matching generated client with the reviewed application release.
+
+On an approved synthetic smoke target, mark one student Present without visit
+times, check in/out, retry the same operation, inspect history, correct a missed
+checkout and verify counts. Exercise QR print/download and staff scanning, a
+foreign QR, restricted staff and a read-only branch. Record actual device-camera
+verification separately from mocked browser/media tests.
+
+Rollback may retain the additive attendance schema and evidence and redeploy the
+previous **collection-compatible** application; attendance UI becomes unavailable
+until forward repair. Never drop attendance/audit/receipt evidence or revert to
+pre-collection payment writers. No down migration, historical backfill, provider
+action or new approval stage is required. Actual local/remote migration and
+deployment status is in `docs/ai/basic-attendance-verification-2026-09-11.md`.

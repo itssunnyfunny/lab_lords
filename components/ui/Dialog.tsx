@@ -146,7 +146,9 @@ export function Dialog({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const dialog = dialogRef.current;
-      if (!dialog || event.defaultPrevented) return;
+      // A nested dialog makes this overlay inert. Only the active modal may
+      // handle Escape/Tab; otherwise a parent drawer can discard a pending action.
+      if (!dialog || overlayRef.current?.inert || event.defaultPrevented) return;
 
       if (event.key === "Escape" && dismissOnEscape && !closeDisabled) {
         event.preventDefault();

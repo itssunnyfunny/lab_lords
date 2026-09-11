@@ -163,6 +163,33 @@ token and its POST requires Meta's HMAC over the untouched raw bytes before any
 JSON parsing or durable processing. These are deliberate non-user
 authentication boundaries, not open application routes.
 
+### Attendance
+
+- Attendance reads and normal current-day operations reuse students permission;
+  corrections, historical marks and voids also require manage_branch. Every
+  mutation checks branch writability and rechecks scope and policy inside its
+  transaction. No payment or analytics entitlement is required. Attendance
+  projections contain no fee/payment fields; current allocations additionally
+  require seat_allocation. Only actor display names are exposed in history.
+- QR values are random opaque attendance identifiers, never credentials or
+  public lookup links. Lookup is signed-in and branch-scoped. Invalid, missing
+  and foreign identifiers receive the same not-found response. Camera access
+  is requested only on opening the scanner, allowed only for same-origin
+  Attendance, and all tracks are stopped on scan completion/closure/switch.
+  Navigation into or out of Attendance loads a new document so client routing
+  cannot retain another route's Permissions-Policy.
+- Per-student locking, serializable retry, database open-visit uniqueness,
+  actor/input-bound immutable command receipts, optimistic record versions and
+  atomic immutable AuditLog evidence protect concurrency, replay and correction
+  integrity. Checkout must target a particular visit. Original before/after
+  evidence survives edits and voids; a new attendance cannot overwrite an
+  uncertain operation. No QR, raw camera frame or image is sent to a hosted
+  QR service. The workflow does not claim to prevent proxy attendance.
+- Existing payment AuditLog rows still require paymentId. Attendance rows use
+  a same-branch student target instead; a check constraint enforces the target
+  for each domain. Attendance does not invoke payment, allocation or membership
+  writers. See [attendance contract](docs/ai/basic-attendance.md).
+
 ### Billing and provider trust
 
 - Organization billing APIs are owner-only.

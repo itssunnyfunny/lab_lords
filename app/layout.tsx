@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+import { AttendanceCameraBoundary } from "@/components/attendance/AttendanceCameraBoundary";
 import { getGoogleAnalyticsBootstrapScript } from "@/lib/tracking";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 import { clerkRouting } from "@/lib/clerkRouting";
@@ -118,7 +119,7 @@ export default function RootLayout({
           signUpFallbackRedirectUrl="/app"
           afterSignOutUrl="/"
         >
-          {children}
+          <AttendanceCameraBoundary>{children}</AttendanceCameraBoundary>
         </ClerkProvider>
         {measurementId && (
           <Script

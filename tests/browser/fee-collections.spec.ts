@@ -48,4 +48,36 @@ test("partial collection, lost-response recovery and PDF failure never double-re
     await page.getByRole("button", { name: "Confirm collection", exact: true }).click();
     await expect(page.getByText("Receipt: LL-TEST-2", { exact: true })).toBeVisible();
     expect(state.received).toBe(1200);
+
+    // The attendance change to the shared Dialog must preserve collection
+    // receipt/correction dismissal and the pending-void Escape guard.
+    await page.getByRole("button", { name: "Close dialog" }).click();
+    await page.route(`**/api/branches/${branchId}/payments?**`, route => route.fulfill({ json: { items: [], total: 0, nextCursor: null } }));
+    let releaseVoid: (() => void) | undefined;
+    const voidPending = new Promise<void>(resolve => { releaseVoid = resolve; });
+    await page.route(`**/api/branches/${branchId}/collections/collection-1`, async route => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        expect(route.request().postDataJSON()).toEqual({ reason: "Verified duplicate entry" });
+        await voidPending;
+        const record = [...state.records.values()][0];
+        record.voidedAt = "2026-09-11T06:00:00Z"; record.voidReason = "Verified duplicate entry";
+        await route.fulfill({ json: record });
+    });
+    await page.goto(`/branch/${branchId}/payments`);
+    await page.getByRole("button", { name: "View receipt", exact: true }).first().click();
+    await expect(page.getByRole("dialog", { name: "Fee payment receipt" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: "Correct / void", exact: true }).first().click();
+    await expect(page.getByRole("button", { name: "Void collection", exact: true })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: "Correct / void", exact: true }).first().click();
+    await page.getByLabel("Required reason").fill("Verified duplicate entry");
+    await page.getByRole("button", { name: "Void collection", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Void mistaken collection" })).toBeVisible();
+    releaseVoid!();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByText(/Sample Student · ₹700 · CASH · VOID/)).toBeVisible();
 });

@@ -241,9 +241,35 @@ Every statement uses one of these labels:
 
 ## Attendance
 
-- **Known discrepancy—do not rely on:** Attendance is not implemented in the
-  current repository: there is no attendance model, service, route, or test.
-  Do not infer attendance records, rules, or analytics from allocation data.
+- **Must preserve—enforced:** Attendance marks and visits have same-branch
+  student foreign keys, unique student/day marks and a partial unique index for
+  one nonvoid open visit per branch/student. Timestamps are UTC instants;
+  attendance dates use the organization's timezone (Asia/Kolkata fallback).
+  Existing visits retain their attribution timezone through corrections.
+- **Service-layer contract—not DB-enforced:** PRESENT means an explicit mark
+  or valid visit; ABSENT is explicit; NOT_MARKED has neither. Manual marks never
+  invent visit times. Attendance does not modify fees, membership or allocations.
+  Today's roster includes unseated active students once, even with MultiShift;
+  historical views show recorded facts, never a reconstructed active roster.
+- **Must preserve—enforced:** Attendance writes use serializable transactions,
+  sorted student locks, transaction-time AccessPolicy checks, request-bound
+  durable receipts and atomic AuditLog before/after evidence. Attendance audit
+  and command evidence cannot be updated/deleted. Version checks reject stale
+  marks/corrections; checkout names the specific visit, including on retry.
+- **Service-layer contract—not DB-enforced:** Normal attendance requires students
+  permission and writable branch access; historical marks, edits and voids also
+  require manage_branch and a reason. Inactive students cannot check in but
+  retain history and can check out. Visits cannot overlap or precede joining;
+  future/impossible times and visit/ABSENT conflicts are rejected. Resolve the
+  conflicting mark explicitly before check-in or moving a visit to that day.
+  Overnight visits remain open on their original attendance date. No synthetic
+  departure, midnight closure or historical backfill is created.
+- **Service-layer contract—not DB-enforced:** Stable student QR identifiers are
+  opaque, contain no personal/financial data and grant no authorization. Every
+  lookup/write requires signed-in branch access. Scanning is supervised, uses
+  explicit check-in/check-out confirmation, and is not proof of identity.
+  Reads are paginated, ranges are at most 93 days, bulk is at most 50 selected
+  students, and new visits are limited to 100 per student/local day.
 
 ## Member payments and billing cycles
 

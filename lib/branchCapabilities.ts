@@ -10,6 +10,9 @@ type CapabilityRequirement = {
 export const BRANCH_CAPABILITIES = {
     dashboard: {},
     studentsView: { permissions: ["students"] },
+    attendanceView: { permissions: ["students"] },
+    attendanceRecord: { permissions: ["students"], mutation: true },
+    attendanceCorrect: { permissions: ["students", "manage_branch"], mutation: true },
     studentsManage: { permissions: ["students"], mutation: true },
     importStudents: { permissions: ["students"], mutation: true },
     allocationsView: { permissions: ["seat_allocation"] },
