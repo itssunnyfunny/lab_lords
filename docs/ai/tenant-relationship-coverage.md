@@ -148,7 +148,18 @@ Global User references record actors/owners and do not assert current membership
 | ImportRecipe.createdBy (createdByUserId) | User (id) | Global identity/configuration; policy checks remain | No |
 | AuditLog.branch (branchId) | Branch (id) | Single scoped parent chain | No |
 | AuditLog.user (userId) | User (id) | Global identity/configuration; policy checks remain | No |
-| AuditLog.payment (paymentId, branchId) | Payment (id, branchId) | Composite branchId | No |
+| AuditLog.payment (paymentId, branchId) | Payment (id, branchId) | Composite branchId; domain-target CHECK requires payment for payment actions | Yes; required for payment actions |
+| AuditLog.student (studentId, branchId) | Student (id, branchId) | Composite branchId; domain-target CHECK requires student for attendance | Yes; required for attendance |
+| AttendanceMark.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| AttendanceMark.student (studentId, branchId) | Student (id, branchId) | Composite branchId | No |
+| AttendanceMark.actor (actorId) | User (id) | Recording actor; current permissions rechecked | No |
+| AttendanceVisit.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| AttendanceVisit.student (studentId, branchId) | Student (id, branchId) | Composite branchId; partial unique open visit | No |
+| AttendanceVisit.actor (actorId) | User (id) | Original recording actor; corrections retained in AuditLog | No |
+| AttendanceCredential.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| AttendanceCredential.student (studentId, branchId) | Student (id, branchId) | Composite branchId; unique stable identifier per student | No |
+| AttendanceCommand.branch (branchId) | Branch (id) | Single scoped parent chain; branch/request identity | No |
+| AttendanceCommand.actor (actorId) | User (id) | Immutable authenticated request actor; no access grant | No |
 | OwnerTrialGrant.owner (ownerId) | User (id) | Global identity/configuration; policy checks remain | No |
 | OwnerTrialGrant.organization (organizationId) | Organization (id) | Organization ownership chain | Yes; deletion semantics in SQL |
 | OrganizationOfferGrant.organization (organizationId) | Organization (id) | Organization ownership chain | No |

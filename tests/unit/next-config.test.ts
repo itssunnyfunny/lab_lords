@@ -5,7 +5,7 @@ describe("Next.js response headers", () => {
   it("marks private, auth, and API route families as noindex", async () => {
     const headers = await nextConfig.headers?.();
     const privateRouteHeaders = headers?.filter(
-      entry => entry.source !== "/(.*)",
+      entry => entry.headers.some(header => header.key === "X-Robots-Tag"),
     );
 
     expect(privateRouteHeaders).toHaveLength(9);
@@ -23,5 +23,10 @@ describe("Next.js response headers", () => {
         value: "noindex, nofollow",
       });
     }
+  });
+  it("allows only same-origin attendance camera use and keeps other device policies denied", async () => {
+    const headers = await nextConfig.headers?.();
+    expect(headers?.find(h => h.source === "/branch/:branchId/attendance")?.headers).toContainEqual({ key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" });
+    expect(headers?.find(h => h.source === "/(.*)")?.headers).toContainEqual({ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" });
   });
 });

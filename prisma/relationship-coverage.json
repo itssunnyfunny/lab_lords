@@ -1837,7 +1837,21 @@
       "id",
       "branchId"
     ],
-    "nullable": false
+    "nullable": true
+  },
+  {
+    "model": "AuditLog",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": true
   },
   {
     "model": "OwnerTrialGrant",
@@ -2134,6 +2148,132 @@
       "organizationId"
     ],
     "nullable": true
+  },
+  {
+    "model": "AttendanceMark",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceMark",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceMark",
+    "field": "actor",
+    "parent": "User",
+    "fields": [
+      "actorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceVisit",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceVisit",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceVisit",
+    "field": "actor",
+    "parent": "User",
+    "fields": [
+      "actorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceCredential",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceCredential",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceCommand",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceCommand",
+    "field": "actor",
+    "parent": "User",
+    "fields": [
+      "actorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
   },
   {
     "model": "ImportTargetReference",

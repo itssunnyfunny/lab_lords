@@ -24,6 +24,7 @@ export const BRANCH_PAGE_ACCESS = {
     overdue: "view_payments",
     renewals: "view_payments",
     students: "students",
+    attendance: "students",
     importAssistant: "students",
     allocations: "seat_allocation",
     aiReports: ["analytics", "view_payments"],

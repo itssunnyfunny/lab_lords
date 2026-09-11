@@ -35,6 +35,19 @@ has 41 migrations; the new draft uniqueness preflight blocks historical
 duplicates without deleting them. See the runbook for required writer drain and
 rollout/rollback compatibility.
 
+## Basic attendance — working-tree implementation, 2026-09-11
+
+The branch Attendance page and Students Attendance & QR drawer now provide
+daily marks, visits, overnight open-visit review, date-range history, reasoned
+versioned corrections/voids and supervised staff QR scanning. Storage is four
+additive attendance tables plus a student target in the existing AuditLog;
+fees, allocations, membership, Renewals and Collections remain independent.
+Normal operations use students permission; corrections also use manage_branch.
+See the [feature contract](basic-attendance.md),
+[verification record](basic-attendance-verification-2026-09-11.md) and
+[runbook](../production-runbook.md). No Production migration/deployment is
+implied by these implementation notes.
+
 ## Refresh contract
 
 Architecture consolidation continues from `6ee00d0`. The next additive migration
@@ -837,7 +850,9 @@ Production migrations have a separate manually dispatched workflow requiring the
   Proposed ADR's approval, benchmark, cap, SLO, monitoring, and rollback gates
   are satisfied.
 - Trend analytics recompute from mutable current tables rather than immutable historical snapshots; some current status, shift, and archived-branch state affects past-looking results.
-- Attendance is absent: there is no attendance model, service, route, or test.
+- Basic attendance is implemented in the working tree; see the
+  [attendance contract](basic-attendance.md) for storage, permissions and
+  verification/deployment status. Allocation data is not attendance evidence.
 - Soft-deleting a Shift does not repair existing MultiShift components or
   MultiShift-linked student fees, so a bundle can retain an inactive component.
 - User and organization timezone fields default to `Asia/Kolkata`, but billing

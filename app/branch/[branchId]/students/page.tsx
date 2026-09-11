@@ -1,6 +1,8 @@
 "use client";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { CollectionHistory } from "@/components/payments/CollectionHistory";
+import { StudentAttendance } from "@/components/attendance/StudentAttendance";
+import type { BranchAccess } from "@/types";
 import { remainingFee } from "@/lib/feeBalance";
 
 import { DataTable } from "@/components/tables/DataTable";
@@ -339,6 +341,7 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
         <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.students}>
             {access => (
                 <StudentsContent
+                    access={access}
                     branchId={branchId}
                     canViewPayments={access.permissions.view_payments}
                     canRecordFees={getBranchCapabilityDecision(access, "paymentsRecord").allowed}
@@ -355,6 +358,7 @@ export default function StudentsPage({ params }: { params: Promise<{ branchId: s
 }
 
 function StudentsContent({
+    access,
     branchId,
     canViewPayments,
     canRecordFees,
@@ -365,6 +369,7 @@ function StudentsContent({
     canViewWhatsApp,
     canManageWhatsApp,
 }: {
+    access: BranchAccess;
     branchId: string;
     canViewPayments: boolean;
     canRecordFees: boolean;
@@ -421,6 +426,7 @@ function StudentsContent({
 
     // Fee drawer
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+    const [attendanceStudent, setAttendanceStudent] = useState<Student | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
     // Inactivate dialog
@@ -680,6 +686,7 @@ function StudentsContent({
     const renderStudentActions = (item: Student) => (
         <RowActions
             actions={[
+                { label: "Attendance & QR", icon: Clock, onClick: () => setAttendanceStudent(item) },
                 ...(canViewPayments ? [{
                     label: "View Fees",
                     icon: Eye,
@@ -1101,6 +1108,9 @@ function StudentsContent({
             />
 
             {/* Fee drawer */}
+            <Drawer open={!!attendanceStudent} title={attendanceStudent?.name ?? "Attendance"} onClose={() => setAttendanceStudent(null)}>
+                {attendanceStudent && <StudentAttendance key={attendanceStudent.id} branchId={branchId} studentId={attendanceStudent.id} access={access} />}
+            </Drawer>
             <FeeDetailsDrawer
                 branchId={branchId} canRecordFees={canRecordFees} owner={owner}
                 isOpen={isDrawerOpen}
