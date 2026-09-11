@@ -3,7 +3,7 @@
 export function startAttendanceCamera(video: HTMLVideoElement, deviceId: string, onCode: (code: string) => void,
     onDevices: (devices: MediaDeviceInfo[]) => void, onError: () => void) {
     let stopped = false, delivered = false, stream: MediaStream | undefined, controls: { stop: () => void } | undefined;
-    const release = () => { controls?.stop(); stream?.getTracks().forEach(track => track.stop()); video.srcObject = null; };
+    const release = () => { controls?.stop(); stream?.getTracks().forEach(track => track.stop()); if (video.srcObject === stream) video.srcObject = null; };
     const stop = () => { stopped = true; release(); };
     const ready = (async () => {
         try {

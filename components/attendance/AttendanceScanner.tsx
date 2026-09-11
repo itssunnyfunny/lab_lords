@@ -40,7 +40,7 @@ export function AttendanceScanner({ branchId, onClose, onSaved }: { branchId: st
         <div className="space-y-4">
             <p className="text-sm">Confirm the student&apos;s identity before recording attendance. Scanning is supervised and does not prove identity.</p>
             <div className="flex gap-2">{(["CHECK_IN", "CHECK_OUT"] as const).map(value => <AppButton key={value} variant={mode === value ? "primary" : "secondary"} aria-pressed={mode === value} disabled={!!identity || loading || !!command} onClick={() => setMode(value)}>{value === "CHECK_IN" ? "Check in" : "Check out"}</AppButton>)}</div>
-            <video ref={video} muted playsInline className="aspect-video w-full rounded-lg bg-black" aria-label="QR camera preview" />
+            <video key={`${camera}:${scan}`} ref={video} muted playsInline className="aspect-video w-full rounded-lg bg-black" aria-label="QR camera preview" />
             {devices.length > 1 && <label className="block text-sm">Camera<select className={`${formControlClass} w-full p-2`} value={camera} disabled={!!identity || loading || !!command} onChange={e => setCamera(e.target.value)}><option value="">Rear camera preferred</option>{devices.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>)}</select></label>}
             {loading && <p role="status">Looking up student…</p>}{error && <p role="alert">{error}</p>}{result && <p role="status">{result}</p>}
             {identity && <div className="space-y-2"><h3 className="font-semibold">{identity.student.name}</h3><p>{identity.student.status.toLowerCase()} · {identity.openVisit ? "Open visit recorded" : "No open visit"}</p>

@@ -142,7 +142,7 @@ browser run); the reviewed layouts fit their viewports.
 The release review verified local and remote `main` at
 `468f67b2c9682ba0440cf52eedeb6fad6f964a60`, then created
 `codex/basic-attendance-release` under the owner's release authorization.
-Only attendance and necessary shared changes are staged; unrelated reset files,
+Only attendance and necessary shared changes are committed; unrelated reset files,
 `debug.log` and 94 lines of reset documentation are excluded.
 
 Review covered transaction-time permissions and branch writability, composite
@@ -158,6 +158,24 @@ destination controls during a programmatic route transition until the document
 reloads. Header scope remains Attendance-only. The final navigation/Back/Forward
 regression passed on desktop and mobile (**2 tests**). This follows the
 [document-scoped camera policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Permissions-Policy/camera).
+
+A subsequent camera-lifecycle review found that a delayed old session could
+clear a newer session's shared video element after rapid camera switching.
+Scanner camera/rearm changes now mount a separate video element per session;
+cleanup also detaches only its own stream. This keeps delayed SDK cleanup on
+the old element and still stops all old tracks. The added browser regression
+delays the middle camera request, starts a third camera, releases the old request
+and checks that the current preview remains live before closing all tracks.
+
+After this fix, `pnpm exec playwright test tests/browser/attendance.spec.ts
+tests/browser/fee-collections.spec.ts --workers=1` passed all **14 tests** in
+2.5 minutes on desktop and mobile emulation. This includes document camera-policy
+navigation/history, rapid switching, actual software QR decoding, manual retry,
+QR download, corrections and existing collection/receipt/void dialogs. Earlier
+attempts had a new test locator error and one development-server navigation
+timeout; the final run passed without changing timeouts or application behavior
+to accommodate those failures. The camera/QR unit suite also passed **5 tests**
+after the camera fix.
 
 The existing attendance browser cases and expanded collection receipt/void
 dialog case passed on both viewports (**10 tests**). Collection tests now cover

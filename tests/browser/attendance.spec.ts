@@ -41,6 +41,36 @@ test("navigation and browser history replace the document camera policy", async 
 });
 test.beforeEach(() => test.skip(!available, "Existing signed-in development state is required; no auth bypass is used."));
 
+test("late camera permission after rapid switching cannot clear the current preview", async ({ page }) => {
+    await page.addInitScript(() => {
+        const streams: MediaStream[] = [];
+        let calls = 0;
+        const state = window as unknown as { releaseOldCamera: () => void; switchedStreams: MediaStream[] };
+        state.switchedStreams = streams;
+        Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: {
+            enumerateDevices: async () => [{ kind: "videoinput", deviceId: "rear", label: "Rear" }, { kind: "videoinput", deviceId: "front", label: "Front" }],
+            getUserMedia: async () => {
+                const canvas = document.createElement("canvas"); canvas.width = 100; canvas.height = 100;
+                canvas.getContext("2d")!.fillRect(0, 0, 100, 100);
+                const stream = canvas.captureStream(5); streams.push(stream);
+                if (++calls === 2) await new Promise<void>(resolve => { state.releaseOldCamera = resolve; });
+                return stream;
+            },
+        } });
+    });
+    await fixture(page);
+    await page.getByRole("button", { name: "Open QR scanner" }).click();
+    await page.getByRole("combobox", { name: "Camera", exact: true }).selectOption("front");
+    await expect.poll(() => page.evaluate(() => (window as unknown as { switchedStreams: MediaStream[] }).switchedStreams.length)).toBe(2);
+    await page.getByRole("combobox", { name: "Camera", exact: true }).selectOption("rear");
+    await expect.poll(() => page.evaluate(() => (document.querySelector("video")?.srcObject as MediaStream | null)?.getTracks()[0]?.readyState)).toBe("live");
+    await page.evaluate(() => (window as unknown as { releaseOldCamera: () => void }).releaseOldCamera());
+    await expect.poll(() => page.evaluate(() => (window as unknown as { switchedStreams: MediaStream[] }).switchedStreams[1].getTracks()[0].readyState)).toBe("ended");
+    expect(await page.evaluate(() => (document.querySelector("video")?.srcObject as MediaStream | null)?.getTracks()[0]?.readyState)).toBe("live");
+    await page.getByRole("button", { name: "Close and use manual search" }).click();
+    expect(await page.evaluate(() => (window as unknown as { switchedStreams: MediaStream[] }).switchedStreams.every(s => s.getTracks().every(t => t.readyState === "ended")))).toBe(true);
+});
+
 async function fixture(page: Page) {
     const day = "2026-09-11", attempts: AttendanceCommand[] = [], results = new Map<string, object>();
     const rows: AttendancePage = { date: day, today: day, timezone: "Asia/Kolkata", total: 2, nextCursor: null, shifts: [],
