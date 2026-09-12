@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, History, ShieldAlert } from "lucide-react";
@@ -159,8 +161,9 @@ export function WhatsAppUnknownOutcomeList({
 }: {
   items: readonly WhatsAppUnknownOutcomeView[];
 }) {
+    const t = useTranslation();
   if (items.length === 0) {
-    return <p className="text-sm text-[color:var(--text-muted)]">No ambiguous delivery outcomes require review.</p>;
+    return <p className="text-sm text-[color:var(--text-muted)]">{t("No ambiguous delivery outcomes require review.")}</p>;
   }
 
   return (
@@ -169,22 +172,22 @@ export function WhatsAppUnknownOutcomeList({
         <li key={item.id} className={cn("space-y-3 p-4", formWarningBannerClass)}>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="font-semibold">{PURPOSE_LABELS[item.purpose]}</p>
+              <p className="font-semibold"><OwnedLabel text={PURPOSE_LABELS[item.purpose]} /></p>
               <p className="mt-1 text-xs">{item.scopeLabel} · {item.maskedPhone} · {item.senderLabel || "Sender unavailable"}</p>
             </div>
-            <Badge variant="danger">Unknown</Badge>
+            <Badge variant="danger">{t("Unknown")}</Badge>
           </div>
           <dl className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-            <div><dt className="text-[color:var(--text-muted)]">Submission began</dt><dd className="mt-1 font-medium">{formatDateTime(item.submissionStartedAt)}</dd></div>
-            <div><dt className="text-[color:var(--text-muted)]">Scheduled</dt><dd className="mt-1 font-medium">{formatDateTime(item.scheduledFor)}</dd></div>
-            <div><dt className="text-[color:var(--text-muted)]">Safe code</dt><dd className="mt-1 font-medium">{item.safeFailureCode}</dd></div>
-            <div><dt className="text-[color:var(--text-muted)]">Estimated Meta usage</dt><dd className="mt-1 font-medium">{estimatedInr(item.estimatedCostMicros)}</dd></div>
+            <div><dt className="text-[color:var(--text-muted)]">{t("Submission began")}</dt><dd className="mt-1 font-medium">{formatDateTime(item.submissionStartedAt)}</dd></div>
+            <div><dt className="text-[color:var(--text-muted)]">{t("Scheduled")}</dt><dd className="mt-1 font-medium">{formatDateTime(item.scheduledFor)}</dd></div>
+            <div><dt className="text-[color:var(--text-muted)]">{t("Safe code")}</dt><dd className="mt-1 font-medium">{item.safeFailureCode}</dd></div>
+            <div><dt className="text-[color:var(--text-muted)]">{t("Estimated Meta usage")}</dt><dd className="mt-1 font-medium">{estimatedInr(item.estimatedCostMicros)}</dd></div>
           </dl>
           <p className="flex items-start gap-2 text-sm font-medium">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>Do not retry. The provider may already have accepted this message, so retrying could send a duplicate. Wait for trusted webhook or reconciliation evidence.</span>
+            <span>{t("Do not retry. The provider may already have accepted this message, so retrying could send a duplicate. Wait for trusted webhook or reconciliation evidence.")}</span>
           </p>
-          {item.laterTrustedStatusAt ? <p className="text-xs">Later trusted provider status received {formatDateTime(item.laterTrustedStatusAt)}.</p> : null}
+          {item.laterTrustedStatusAt ? <p className="text-xs">{t("Later trusted provider status received")} {formatDateTime(item.laterTrustedStatusAt)}.</p> : null}
         </li>
       ))}
     </ul>
@@ -201,6 +204,7 @@ export function WhatsAppIncidents({
   onAcknowledge,
   onLoadMore,
 }: WhatsAppIncidentsProps) {
+    const t = useTranslation();
   const [busyIncidentId, setBusyIncidentId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: "status" | "error"; text: string } | null>(null);
   const operationRef = useRef(false);
@@ -237,40 +241,40 @@ export function WhatsAppIncidents({
   return (
     <div className="space-y-4">
       <AppPanel
-        title="Operational incidents"
-        description="Tenant-scoped, bounded operational evidence. Details intentionally exclude phone numbers, names, message bodies, provider payloads, and secrets."
-        action={<Badge variant={incidents.some(item => item.status === "OPEN") ? "warning" : "success"}>{incidents.filter(item => item.status === "OPEN").length} open</Badge>}
+        title={t("Operational incidents")}
+        description={t("Tenant-scoped, bounded operational evidence. Details intentionally exclude phone numbers, names, message bodies, provider payloads, and secrets.")}
+        action={<Badge variant={incidents.some(item => item.status === "OPEN") ? "warning" : "success"}>{t("{count} open", { count: incidents.filter(item => item.status === "OPEN").length })}</Badge>}
         contentClassName="space-y-4"
       >
         {!canAcknowledge && blockedReason ? <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">{blockedReason}</div> : null}
-        {notice ? <p className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"}>{notice.text}</p> : null}
+        {notice ? <p className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"}>{notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}</p> : null}
 
-        {incidents.length === 0 ? <p className="text-sm text-[color:var(--text-muted)]">No operational incidents in this scope.</p> : (
+        {incidents.length === 0 ? <p className="text-sm text-[color:var(--text-muted)]">{t("No operational incidents in this scope.")}</p> : (
           <ul className="grid gap-3">
             {incidents.map(item => (
               <li key={item.id} className={cn("space-y-3 p-4", pageInsetSurfaceClass)}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-[color:var(--ui-form-warning-text)]" aria-hidden="true" />
-                    <div><p className="font-semibold">{TYPE_LABELS[item.type]}</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">{item.scopeLabel} · {item.senderLabel || "Sender unavailable"} · safe code {item.safeCode}</p></div>
+                    <div><p className="font-semibold"><OwnedLabel text={TYPE_LABELS[item.type]} /></p><p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("{scopeLabel} · {value} · safe code {safeCode}", { scopeLabel: item.scopeLabel, value: item.senderLabel || "Sender unavailable", safeCode: item.safeCode })}</p></div>
                   </div>
                   <div className="flex flex-wrap gap-2"><Badge variant={severityVariant(item.severity)}>{item.severity}</Badge><Badge variant={statusVariant(item.status)}>{item.status}</Badge></div>
                 </div>
                 <dl className="grid gap-2 text-xs sm:grid-cols-3">
-                  <div><dt className="text-[color:var(--text-muted)]">First seen</dt><dd className="mt-1 font-medium">{formatDateTime(item.firstSeenAt)}</dd></div>
-                  <div><dt className="text-[color:var(--text-muted)]">Last seen</dt><dd className="mt-1 font-medium">{formatDateTime(item.lastSeenAt)}</dd></div>
-                  <div><dt className="text-[color:var(--text-muted)]">Occurrences</dt><dd className="mt-1 font-medium">{item.occurrenceCount}</dd></div>
+                  <div><dt className="text-[color:var(--text-muted)]">{t("First seen")}</dt><dd className="mt-1 font-medium">{formatDateTime(item.firstSeenAt)}</dd></div>
+                  <div><dt className="text-[color:var(--text-muted)]">{t("Last seen")}</dt><dd className="mt-1 font-medium">{formatDateTime(item.lastSeenAt)}</dd></div>
+                  <div><dt className="text-[color:var(--text-muted)]">{t("Occurrences")}</dt><dd className="mt-1 font-medium">{item.occurrenceCount}</dd></div>
                 </dl>
-                {item.status === "OPEN" && canAcknowledge ? <div className="flex justify-end"><AppButton variant="secondary" size="sm" icon={CheckCircle2} onClick={() => void acknowledge(item.id)} disabled={busyIncidentId !== null} isLoading={busyIncidentId === item.id}>Acknowledge incident</AppButton></div> : null}
+                {item.status === "OPEN" && canAcknowledge ? <div className="flex justify-end"><AppButton variant="secondary" size="sm" icon={CheckCircle2} onClick={() => void acknowledge(item.id)} disabled={busyIncidentId !== null} isLoading={busyIncidentId === item.id}>{t("Acknowledge incident")}</AppButton></div> : null}
               </li>
             ))}
           </ul>
         )}
 
-        {nextCursor && onLoadMore ? <div className="flex justify-center"><AppButton variant="quiet" size="sm" icon={History} onClick={() => void loadMore()} disabled={loadingMore || operationRef.current} isLoading={loadingMore}>Load older incidents</AppButton></div> : null}
+        {nextCursor && onLoadMore ? <div className="flex justify-center"><AppButton variant="quiet" size="sm" icon={History} onClick={() => void loadMore()} disabled={loadingMore || operationRef.current} isLoading={loadingMore}>{t("Load older incidents")}</AppButton></div> : null}
       </AppPanel>
 
-      <AppPanel title="Unknown delivery outcomes" description="These terminal ambiguous outcomes require evidence, not a blind resend. There is deliberately no retry action." action={<Badge variant={unknownOutcomes.length > 0 ? "danger" : "success"}>{unknownOutcomes.length} unknown</Badge>} contentClassName="space-y-4">
+      <AppPanel title={t("Unknown delivery outcomes")} description={t("These terminal ambiguous outcomes require evidence, not a blind resend. There is deliberately no retry action.")} action={<Badge variant={unknownOutcomes.length > 0 ? "danger" : "success"}>{t("{count} unknown", { count: unknownOutcomes.length })}</Badge>} contentClassName="space-y-4">
         <WhatsAppUnknownOutcomeList items={unknownOutcomes} />
       </AppPanel>
     </div>

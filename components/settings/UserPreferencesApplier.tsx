@@ -9,8 +9,11 @@ import {
     useState,
     type ReactNode,
 } from "react";
+import { LANGUAGE_TAGS, normalizeLanguage, type InterfaceLanguage } from "@/lib/i18n/language";
 
 export type UserDisplayPreferences = {
+    interfaceLanguage: InterfaceLanguage;
+    documentLanguage: InterfaceLanguage;
     densityPreference: "comfortable" | "compact";
     locale: string;
     timezone: string;
@@ -18,6 +21,8 @@ export type UserDisplayPreferences = {
 };
 
 const DEFAULT_PREFERENCES: UserDisplayPreferences = {
+    interfaceLanguage: "en",
+    documentLanguage: "en",
     densityPreference: "comfortable",
     locale: "en-IN",
     timezone: "Asia/Kolkata",
@@ -27,6 +32,7 @@ const DEFAULT_PREFERENCES: UserDisplayPreferences = {
 const PREFERENCE_EVENT = "lablords:preferences-updated";
 
 type UserPreferencesContextValue = UserDisplayPreferences & {
+    ownerKey: string;
     profileName: string | null;
     formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
     formatDateTime: (value: Date | string | number) => string;
@@ -37,6 +43,8 @@ const UserPreferencesContext = createContext<UserPreferencesContextValue | null>
 
 function normalizePreferences(value: Partial<UserDisplayPreferences> | null | undefined): UserDisplayPreferences {
     return {
+        interfaceLanguage: normalizeLanguage(value?.interfaceLanguage),
+        documentLanguage: normalizeLanguage(value?.documentLanguage),
         densityPreference: value?.densityPreference === "compact" ? "compact" : "comfortable",
         locale: value?.locale || DEFAULT_PREFERENCES.locale,
         timezone: value?.timezone || DEFAULT_PREFERENCES.timezone,
@@ -65,26 +73,29 @@ function formatIsoDate(date: Date, locale: string, timezone: string) {
 }
 
 export function notifyUserPreferencesChanged(
-    preferences: Partial<UserDisplayPreferences> & { name?: string | null }
+    preferences: Partial<UserDisplayPreferences> & { name?: string | null },
+    ownerKey: string
 ) {
-    window.dispatchEvent(new CustomEvent(PREFERENCE_EVENT, { detail: preferences }));
+    window.dispatchEvent(new CustomEvent(PREFERENCE_EVENT, { detail: { ...preferences, ownerKey } }));
 }
 
-export function UserPreferencesProvider({ children }: { children: ReactNode }) {
+export function UserPreferencesProvider({ children, signedIn = true, ownerKey = "test" }: { children: ReactNode; signedIn?: boolean; ownerKey?: string }) {
     const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
     const [profileName, setProfileName] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
+        let updatesDuringLoad: Partial<UserDisplayPreferences> & { name?: string | null } = {};
 
-        fetch("/api/users/me", { cache: "no-store" })
+        if (signedIn) fetch("/api/users/me", { cache: "no-store" })
             .then(response => response.ok
                 ? response.json() as Promise<Partial<UserDisplayPreferences> & { name?: string | null }>
                 : null)
             .then(value => {
                 if (!cancelled && value) {
-                    setPreferences(normalizePreferences(value));
-                    setProfileName(value.name?.trim() || null);
+                    const merged = { ...value, ...updatesDuringLoad };
+                    setPreferences(normalizePreferences(merged));
+                    setProfileName(merged.name?.trim() || null);
                 }
             })
             .catch(() => {
@@ -92,7 +103,9 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
             });
 
         const handlePreferenceUpdate = (event: Event) => {
-            const detail = (event as CustomEvent<Partial<UserDisplayPreferences> & { name?: string | null }>).detail;
+            const detail = (event as CustomEvent<Partial<UserDisplayPreferences> & { name?: string | null; ownerKey: string }>).detail;
+            if (detail.ownerKey !== ownerKey) return;
+            updatesDuringLoad = { ...updatesDuringLoad, ...detail };
             setPreferences(current => normalizePreferences({ ...current, ...detail }));
             if ("name" in detail) setProfileName(detail.name?.trim() || null);
         };
@@ -102,7 +115,7 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
             cancelled = true;
             window.removeEventListener(PREFERENCE_EVENT, handlePreferenceUpdate);
         };
-    }, []);
+    }, [signedIn, ownerKey]);
 
     useEffect(() => {
         const root = document.documentElement;
@@ -110,7 +123,8 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
         root.dataset.locale = preferences.locale;
         root.dataset.timezone = preferences.timezone;
         root.dataset.dateFormat = preferences.dateFormat;
-        root.lang = preferences.locale.split("-")[0];
+        root.lang = LANGUAGE_TAGS[preferences.interfaceLanguage];
+        return () => { root.lang = "en"; };
     }, [preferences]);
 
     const formatDate = useCallback((value: Date | string | number, options?: Intl.DateTimeFormatOptions) => {
@@ -142,11 +156,12 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
 
     const value = useMemo<UserPreferencesContextValue>(() => ({
         ...preferences,
+        ownerKey,
         profileName,
         formatDate,
         formatDateTime,
         formatNumber,
-    }), [formatDate, formatDateTime, formatNumber, preferences, profileName]);
+    }), [formatDate, formatDateTime, formatNumber, preferences, profileName, ownerKey]);
 
     return <UserPreferencesContext.Provider value={value}>{children}</UserPreferencesContext.Provider>;
 }
@@ -162,6 +177,7 @@ export function useUserPreferences(): UserPreferencesContextValue {
     if (!value) {
         return {
             ...DEFAULT_PREFERENCES,
+            ownerKey: "signed-out",
             profileName: null,
             formatDate: input => new Intl.DateTimeFormat(DEFAULT_PREFERENCES.locale, defaultDateOptions(DEFAULT_PREFERENCES.dateFormat)).format(new Date(input)),
             formatDateTime: input => new Intl.DateTimeFormat(DEFAULT_PREFERENCES.locale, { ...defaultDateOptions(DEFAULT_PREFERENCES.dateFormat), hour: "2-digit", minute: "2-digit" }).format(new Date(input)),

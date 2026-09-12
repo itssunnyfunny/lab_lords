@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import Link from "next/link";
 import { LockKeyhole, Sparkles } from "lucide-react";
@@ -17,6 +18,7 @@ export function FeatureUpgradeGate({
   experience: BillingExperienceView | null | undefined;
   children: ReactNode;
 }) {
+    const t = useTranslation();
   const pathname = usePathname();
   if (!experience || hasFeatureEntitlement(experience.entitlements, feature)) return <>{children}</>;
   const policy = BILLING_FEATURE_POLICIES[feature];
@@ -30,17 +32,17 @@ export function FeatureUpgradeGate({
         {owner ? <Sparkles className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
       </div>
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-amber-600">Standard feature</p>
-        <h1 className="mt-2 text-xl font-bold text-[color:var(--ui-text)]">{policy.label}</h1>
-        <p className="mt-2 text-sm text-[color:var(--ui-text-muted)]">{owner ? policy.benefit : "Your role allows this feature, but the organization owner needs to enable the Standard plan."}</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-amber-600">{t("Standard feature")}</p>
+        <h1 className="mt-2 text-xl font-bold text-[color:var(--ui-text)]">{t.owned(policy.label)}</h1>
+        <p className="mt-2 text-sm text-[color:var(--ui-text-muted)]">{owner ? policy.benefit : t("Your role allows this feature, but the organization owner needs to enable the Standard plan.")}</p>
       </div>
       {owner && isFullBillingExperience(experience) ? (
         <div className="space-y-3">
-          <p className="text-sm text-[color:var(--ui-text-muted)]">Standard: ₹499 × {experience.confirmedQuantity} branch{experience.confirmedQuantity === 1 ? "" : "es"} = ₹{experience.confirmedQuantity * 499}/month. Immediate upgrades may include a prorated charge.</p>
-          <Link className="inline-flex h-10 items-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-button-primary-bg)] px-4 text-sm font-semibold text-[color:var(--ui-button-primary-text)]" href={upgradeHref}>Upgrade to Standard</Link>
+          <p className="text-sm text-[color:var(--ui-text-muted)]">{t("Standard: ₹499 × {confirmedQuantity} branch(s) = ₹{value}/month. Immediate upgrades may include a prorated charge.", { confirmedQuantity: experience.confirmedQuantity, value: experience.confirmedQuantity * 499 })}</p>
+          <Link className="inline-flex h-10 items-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-button-primary-bg)] px-4 text-sm font-semibold text-[color:var(--ui-button-primary-text)]" href={upgradeHref}>{t("Upgrade to Standard")}</Link>
         </div>
       ) : (
-        <p className="text-sm font-semibold text-[color:var(--ui-text)]">Ask your organization owner to upgrade.</p>
+        <p className="text-sm font-semibold text-[color:var(--ui-text)]">{t("Ask your organization owner to upgrade.")}</p>
       )}
     </div>
   );

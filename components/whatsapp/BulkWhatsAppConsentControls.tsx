@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useMemo, useRef, useState } from "react";
 import { CheckCheck, ShieldCheck } from "lucide-react";
@@ -48,6 +50,7 @@ export function BulkWhatsAppConsentControls({
   students,
   canManage,
 }: BulkWhatsAppConsentControlsProps) {
+    const t = useTranslation();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [relationship, setRelationship] = useState<WhatsAppRecipientRelationship>("GUARDIAN");
   const [attested, setAttested] = useState(false);
@@ -144,12 +147,8 @@ export function BulkWhatsAppConsentControls({
   return (
     <div className="space-y-4">
       <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3 text-sm">
-        <p className="font-medium text-[color:var(--text-primary)]">
-          Select from {students.length} currently loaded branch student{students.length === 1 ? "" : "s"}
-        </p>
-        <p className={cn("mt-1 text-xs", formHelpTextClass)}>
-          A single request is capped at {MAX_WHATSAPP_RECIPIENT_BULK_SIZE}. The server resolves each current student phone; this workflow has no phone-number field.
-        </p>
+        <p className="font-medium text-[color:var(--text-primary)]">{t("Select from {count} currently loaded branch student(s)", { count: students.length })}</p>
+        <p className={cn("mt-1 text-xs", formHelpTextClass)}>{t("A single request is capped at {MAX_WHATSAPP_RECIPIENT_BULK_SIZE}. The server resolves each current student phone; this workflow has no phone-number field.", { MAX_WHATSAPP_RECIPIENT_BULK_SIZE: MAX_WHATSAPP_RECIPIENT_BULK_SIZE })}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <AppButton
             variant="secondary"
@@ -157,8 +156,7 @@ export function BulkWhatsAppConsentControls({
             onClick={selectLoadedStudents}
             disabled={busy || !canManage || students.length === 0}
           >
-            Select loaded students
-          </AppButton>
+            {t("Select loaded students")}</AppButton>
           <AppButton
             variant="secondary"
             size="sm"
@@ -168,15 +166,12 @@ export function BulkWhatsAppConsentControls({
             }}
             disabled={busy || selectedStudents.length === 0}
           >
-            Clear selection
-          </AppButton>
+            {t("Clear selection")}</AppButton>
         </div>
       </div>
 
       <fieldset disabled={busy || !canManage}>
-        <legend className="text-sm font-medium text-[color:var(--ui-form-label)]">
-          Loaded students ({selectedStudents.length}/{MAX_WHATSAPP_RECIPIENT_BULK_SIZE} selected)
-        </legend>
+        <legend className="text-sm font-medium text-[color:var(--ui-form-label)]">{t("Loaded students ({count}/{MAX_WHATSAPP_RECIPIENT_BULK_SIZE} selected)", { count: selectedStudents.length, MAX_WHATSAPP_RECIPIENT_BULK_SIZE: MAX_WHATSAPP_RECIPIENT_BULK_SIZE })}</legend>
         <div className="mt-2 max-h-64 space-y-2 overflow-y-auto rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] p-2">
           {students.map(student => {
             const checked = selectedIds.has(student.id);
@@ -194,7 +189,7 @@ export function BulkWhatsAppConsentControls({
                 <span className="min-w-0">
                   <span className="block truncate font-medium text-[color:var(--text-primary)]">{student.name}</span>
                   <span className={cn("block text-xs", formHelpTextClass)}>
-                    {student.status.toLowerCase()} · {student.phone ? "Current phone on file" : "No current phone"}
+                    {t.owned(student.status)} · {student.phone ? t("Current phone on file") : t("No current phone")}
                   </span>
                 </span>
               </label>
@@ -202,15 +197,14 @@ export function BulkWhatsAppConsentControls({
           })}
           {students.length === 0 ? (
             <p className={cn("px-2 py-4 text-center text-sm", formHelpTextClass)}>
-              No students are loaded in this roster view.
-            </p>
+              {t("No students are loaded in this roster view.")}</p>
           ) : null}
         </div>
       </fieldset>
 
       <AppSelect
         id="bulk-whatsapp-relationship"
-        label="Relationship for every selected student"
+        label={t("Relationship for every selected student")}
         value={relationship}
         options={RELATIONSHIP_OPTIONS}
         onValueChange={value => setRelationship(value as WhatsAppRecipientRelationship)}
@@ -226,29 +220,28 @@ export function BulkWhatsAppConsentControls({
           className="mt-0.5 h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
         />
         <span>
-          <span className="font-medium">I attest for every selected student to policy {WHATSAPP_OPERATIONAL_CONSENT_POLICY_VERSION}:</span>{" "}
-          {WHATSAPP_OPERATIONAL_CONSENT_STATEMENT}
+          <span className="font-medium">{t("I attest for every selected student to policy {policy}:", { policy: WHATSAPP_OPERATIONAL_CONSENT_POLICY_VERSION })}</span>{" "}
+          {t.owned(WHATSAPP_OPERATIONAL_CONSENT_STATEMENT)}
           <span className={cn("mt-1 block text-xs", formHelpTextClass)}>
-            This records operational consent only. It does not send messages or permit promotional messaging.
-          </span>
+            {t("This records operational consent only. It does not send messages or permit promotional messaging.")}</span>
         </span>
       </label>
 
       {!canManage ? (
-        <p className={formHelpTextClass}>You need WhatsApp management permission to record bulk consent.</p>
+        <p className={formHelpTextClass}>{t("You need WhatsApp management permission to record bulk consent.")}</p>
       ) : null}
 
       {result ? (
         <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] p-3 text-sm" role="status">
           <p className="flex items-center gap-2 font-medium">
             <CheckCheck className="h-4 w-4" aria-hidden="true" />
-            {result.associatedCount} associated · {result.unchangedCount} unchanged · {result.skipped.length} skipped
+            {t("{associated} associated · {unchanged} unchanged · {skipped} skipped", { associated: result.associatedCount, unchanged: result.unchangedCount, skipped: result.skipped.length })}
           </p>
           {result.skipped.length > 0 ? (
             <ul className="mt-2 space-y-1 text-xs">
               {result.skipped.map(item => (
                 <li key={item.studentId}>
-                  {loadedStudentsById.get(item.studentId)?.name ?? "Selected student"}: {SKIP_REASON_LABELS[item.reason]}
+                  {loadedStudentsById.get(item.studentId)?.name ?? t("Selected student")}: <OwnedLabel text={SKIP_REASON_LABELS[item.reason]} />
                 </li>
               ))}
             </ul>
@@ -264,7 +257,7 @@ export function BulkWhatsAppConsentControls({
             ? cn("px-3 py-2 text-sm", formWarningBannerClass)
             : "text-sm text-[color:var(--text-secondary)]"}
         >
-          {notice.text}
+          {notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}
         </p>
       ) : null}
 
@@ -275,9 +268,7 @@ export function BulkWhatsAppConsentControls({
           onClick={() => void submit()}
           disabled={busy || !canManage || !attested || selectedStudents.length === 0}
           isLoading={busy}
-        >
-          Record consent for {selectedStudents.length} selected
-        </AppButton>
+        >{t("Record consent for {count} selected", { count: selectedStudents.length })}</AppButton>
       </div>
     </div>
   );

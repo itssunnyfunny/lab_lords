@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useRef, useState } from "react";
 import { AppButton, AppPanel } from "@/components/ui";
@@ -37,6 +38,7 @@ export function BranchWhatsAppReports({
   onPreview,
   onQueue,
 }: BranchWhatsAppReportsProps) {
+    const t = useTranslation();
   const [changing, setChanging] = useState(false);
   const [notice, setNotice] = useState<{ tone: "status" | "error"; text: string } | null>(null);
   const operationRef = useRef(false);
@@ -65,19 +67,19 @@ export function BranchWhatsAppReports({
   return (
     <div className="space-y-4">
       <AppPanel
-        title="Branch report setup"
-        description="Permission-bound branch reports use deterministic aggregate metrics, shift-slot occupancy, and the existing branch WhatsApp budget."
-        action={<Badge variant={settings.enabled ? "success" : "default"}>{settings.enabled ? "Enabled" : "Disabled"}</Badge>}
+        title={t("Branch report setup")}
+        description={t("Permission-bound branch reports use deterministic aggregate metrics, shift-slot occupancy, and the existing branch WhatsApp budget.")}
+        action={<Badge variant={settings.enabled ? "success" : "default"}>{settings.enabled ? t("Enabled") : t("Disabled")}</Badge>}
         contentClassName="space-y-4"
       >
         <dl className="grid gap-3 sm:grid-cols-2">
           <div className={pageInsetMetricClass}>
-            <dt className="text-xs text-[color:var(--text-muted)]">Connected sender</dt>
+            <dt className="text-xs text-[color:var(--text-muted)]">{t("Connected sender")}</dt>
             <dd className="mt-1 font-medium">{settings.senderLabel || "Not assigned"}</dd>
           </div>
           <div className={pageInsetMetricClass}>
-            <dt className="text-xs text-[color:var(--text-muted)]">Budget source</dt>
-            <dd className="mt-1 font-medium">Existing branch WhatsApp budget</dd>
+            <dt className="text-xs text-[color:var(--text-muted)]">{t("Budget source")}</dt>
+            <dd className="mt-1 font-medium">{t("Existing branch WhatsApp budget")}</dd>
           </div>
         </dl>
         {notice ? (
@@ -86,7 +88,7 @@ export function BranchWhatsAppReports({
             role={notice.tone === "error" ? "alert" : "status"}
             aria-live={notice.tone === "error" ? "assertive" : "polite"}
           >
-            {notice.text}
+            {notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}
           </p>
         ) : null}
         <div className="flex justify-end">
@@ -97,7 +99,7 @@ export function BranchWhatsAppReports({
             disabled={!canConfigure || changing}
             isLoading={changing}
           >
-            {settings.enabled ? "Disable scheduled reports" : "Enable scheduled reports"}
+            {settings.enabled ? t("Disable scheduled reports") : t("Enable scheduled reports")}
           </AppButton>
         </div>
       </AppPanel>

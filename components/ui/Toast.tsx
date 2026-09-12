@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { cn } from "@/lib/utils";
 import { AlertCircle, CheckCircle2, Info, Loader2, X } from "lucide-react";
@@ -46,6 +47,7 @@ const toneIcons = {
 } as const;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+    const t = useTranslation();
     const [items, setItems] = useState<ToastItem[]>([]);
     const nextId = useRef(1);
 
@@ -66,7 +68,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {children}
             <div
                 className="pointer-events-none fixed inset-x-4 bottom-4 z-[160] flex flex-col items-end gap-2 sm:left-auto sm:w-[380px]"
-                aria-label="Notifications"
+                aria-label={t("Notifications")}
             >
                 {items.map(item => (
                     <ToastCard key={item.id} toast={item} onDismiss={() => dismiss(item.id)} />
@@ -77,6 +79,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {
+    const t = useTranslation();
     const tone = toast.tone ?? "info";
     const Icon = toneIcons[tone];
 
@@ -102,9 +105,9 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
                     aria-hidden="true"
                 />
                 <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{toast.title}</p>
+                    <p className="text-sm font-semibold">{t.owned(toast.title)}</p>
                     {toast.description ? (
-                        <p className="mt-1 text-sm leading-5 text-slate-300">{toast.description}</p>
+                        <p className="mt-1 text-sm leading-5 text-slate-300">{tone === "error" ? t.error(toast.description) : t.owned(toast.description)}</p>
                     ) : null}
                     {toast.action ? (
                         <button
@@ -115,7 +118,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
                                 onDismiss();
                             }}
                         >
-                            {toast.action.label}
+                            {t.owned(toast.action.label)}
                         </button>
                     ) : null}
                 </div>
@@ -123,7 +126,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
                     type="button"
                     className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-slate-300 hover:bg-white/10 hover:text-white"
                     onClick={onDismiss}
-                    aria-label={`Dismiss ${toast.title}`}
+                    aria-label={t("Close")}
                 >
                     <X className="h-4 w-4" aria-hidden="true" />
                 </button>

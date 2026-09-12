@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { AppLogo } from "@/components/brand/AppLogo";
@@ -27,6 +29,7 @@ import {
 } from "@/components/ui/pageSurface";
 
 export default function OrgSelectionPage() {
+    const t = useTranslation();
     const router = useRouter();
     const [orgs, setOrgs] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(true);
@@ -62,21 +65,20 @@ export default function OrgSelectionPage() {
 
             <div className={cn(entryContentClass, "max-w-4xl")}>
                 <div className="mb-8 text-center sm:mb-12">
-                    <AppLogo className="mb-5 justify-center" subtitle="Workspace" />
-                    <h1 className={cn(entryTitleClass, "mb-2")}>Select workspace</h1>
-                    <p className={entrySubtitleClass}>Choose the organization you want to work in.</p>
+                    <AppLogo className="mb-5 justify-center" subtitle={t("Workspace")} />
+                    <h1 className={cn(entryTitleClass, "mb-2")}>{t("Select workspace")}</h1>
+                    <p className={entrySubtitleClass}>{t("Choose the organization you want to work in.")}</p>
                 </div>
 
                 {loading ? (
-                    <EntryLoadingSkeleton label="Loading workspaces" />
+                    <EntryLoadingSkeleton label={t("Loading workspaces")} />
                 ) : error ? (
                     <div className={cn("p-4 text-center text-sm", formErrorBannerClass)}>
-                        {error}
+                        <LocalizedError error={error} />
                     </div>
                 ) : orgs.length === 0 ? (
                     <div className={pageEmptyStateClass}>
-                        No organizations found. Please check your data.
-                    </div>
+                        {t("No organizations found. Please check your data.")}</div>
                 ) : (
                     <div className="grid gap-4 sm:gap-6 md:grid-cols-2 md:gap-8">
                         {orgs.map(org => (
@@ -86,11 +88,11 @@ export default function OrgSelectionPage() {
                                         <div className={cn(entryIconFrameClass, "h-14 w-14 transition-colors group-hover:border-[color:var(--ui-form-input-border)] sm:h-16 sm:w-16")}>
                                             <Building2 size={32} />
                                         </div>
-                                        <Badge variant="cyan">Active</Badge>
+                                        <Badge variant="cyan">{t("Active")}</Badge>
                                     </div>
                                     <h3 className="mb-2 text-xl font-semibold text-[color:var(--text-primary)] transition-colors sm:text-2xl">{org.name}</h3>
                                     <div className={cn("flex min-w-0 items-center gap-2 text-sm", pageMutedTextClass)}>
-                                        <span className="shrink-0">ID:</span>
+                                        <span className="shrink-0">{t("ID:")}</span>
                                         <span className={cn(entryInlineInfoClass, "truncate px-2 py-0.5 font-medium text-[color:var(--text-primary)]")}>{org.id}</span>
                                     </div>
                                 </div>

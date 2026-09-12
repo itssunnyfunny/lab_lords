@@ -1,4 +1,5 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
 
 import { cn } from "@/lib/utils";
 import {
@@ -67,12 +68,12 @@ export function FormField({
     return (
         <div className={cn("space-y-1.5", className)}>
             <label htmlFor={controlId} className={formLabelClass}>
-                {label}
+                {typeof label === "string" ? <OwnedLabel text={label} /> : label}
                 {required ? <span aria-hidden="true" className="ml-1 text-red-300">*</span> : null}
             </label>
             {description ? (
                 <p id={descriptionId} className={cn("text-xs leading-5", formHelpTextClass)}>
-                    {description}
+                    {typeof description === "string" ? <OwnedLabel text={description} /> : description}
                 </p>
             ) : null}
             {control}

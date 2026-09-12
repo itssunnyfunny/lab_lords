@@ -1,5 +1,7 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
+import { LanguageControls } from "@/components/settings/LanguageControls";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -36,6 +38,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { focusFirstInvalidField } from "@/components/ui/FormField";
 import {
     notifyUserPreferencesChanged,
+    useUserPreferences,
     type UserDisplayPreferences,
 } from "@/components/settings/UserPreferencesApplier";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
@@ -108,6 +111,8 @@ function toForm(profile: UserProfile): AccountForm {
 }
 
 export default function AccountPage() {
+    const { ownerKey } = useUserPreferences();
+    const t = useTranslation();
     const router = useRouter();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [form, setForm] = useState<AccountForm | null>(null);
@@ -236,7 +241,7 @@ export default function AccountPage() {
                 locale: nextProfile.locale,
                 timezone: nextProfile.timezone,
                 dateFormat: nextProfile.dateFormat as UserDisplayPreferences["dateFormat"],
-            });
+            }, ownerKey);
             resetFieldErrors();
             setSaveStatus("success");
             setIsEditing(false);
@@ -250,15 +255,15 @@ export default function AccountPage() {
     };
 
     if (loading) {
-        return <PageLoadingSkeleton label="Loading account settings" variant="settings" maxWidth="content" />;
+        return <PageLoadingSkeleton label={t("Loading account settings")} variant="settings" maxWidth="content" />;
     }
 
     if (fetchError || !profile || !form) {
         return (
             <div className={pageErrorStateClass}>
                 <AlertCircle className={pageErrorIconClass} />
-                <p className={pageMutedTextClass}>{fetchError || "Account not found."}</p>
-                <AppButton variant="secondary" onClick={() => router.back()}>Go back</AppButton>
+                <p className={pageMutedTextClass}>{t.error(fetchError || "Account not found.")}</p>
+                <AppButton variant="secondary" onClick={() => router.back()}>{t("Go back")}</AppButton>
             </div>
         );
     }
@@ -268,42 +273,40 @@ export default function AccountPage() {
     return (
         <>
             <SettingsWorkspace
-                title="Account Settings"
-                subtitle="Manage your profile, preferences, and workspace defaults."
+                title={t("Account Settings")}
+                subtitle={t("Manage your profile, preferences, and workspace defaults.")}
                 sections={SECTIONS}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 actions={!isEditing ? (
                     <AppButton variant="primary" size="sm" onClick={beginEditing} className="min-h-11 lg:min-h-9">
-                        Edit settings
-                    </AppButton>
+                        {t("Edit settings")}</AppButton>
                 ) : null}
             >
-                <SettingsPanel id="profile" title="Profile" description="These details identify you across the workspace." icon={User}>
+                <SettingsPanel id="profile" title={t("Profile")} description={t("These details identify you across the workspace.")} icon={User}>
                     <div className="mb-2 flex items-center gap-4 rounded-[var(--ui-radius-control)] border border-cyan-300/15 bg-gradient-to-r from-cyan-400/[0.08] to-violet-400/[0.05] p-4">
                         <Avatar name={profile.name || profile.email} size="xl" />
                         <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-300">Workspace identity</p>
-                            <p className="mt-1 truncate font-semibold text-[color:var(--text-primary)]">{profile.name || "Add your display name"}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-300">{t("Workspace identity")}</p>
+                            <p className="mt-1 truncate font-semibold text-[color:var(--text-primary)]">{profile.name || t.owned("Add your display name")}</p>
                             <p className="truncate text-xs text-[color:var(--text-secondary)]">{profile.email}</p>
                         </div>
                         <span className="hidden rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-200 sm:inline-flex">
-                            Active
-                        </span>
+                            {t("Active")}</span>
                     </div>
                     {isEditing ? (
                         <>
-                            <SettingsField label="Display name" description="Shown in account menus and staff lists." error={nameError} errorId="account-name-error">
+                            <SettingsField label={t("Display name")} description={t("Shown in account menus and staff lists.")} error={nameError} errorId="account-name-error">
                                 <SettingsInput
                                     value={form.name ?? ""}
                                     onChange={e => updateForm("name", e.target.value)}
                                     onBlur={() => markTouched("name")}
-                                    placeholder="Your name"
+                                    placeholder={t("Your name")}
                                     error={nameError}
                                     errorId="account-name-error"
                                 />
                             </SettingsField>
-                            <SettingsField label="Phone" description="Required contact number for account operations." error={phoneError} errorId="account-phone-error">
+                            <SettingsField label={t("Phone")} description={t("Required contact number for account operations.")} error={phoneError} errorId="account-phone-error">
                                 <SettingsInput
                                     value={form.phone ?? ""}
                                     onChange={e => updateForm("phone", e.target.value)}
@@ -316,17 +319,18 @@ export default function AccountPage() {
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Display name" value={profile.name || "Not set"} />
-                            <ReadOnlyRow label="Phone" value={profile.phone || "Not set"} />
+                            <ReadOnlyRow label={t("Display name")} value={profile.name || "Not set"} />
+                            <ReadOnlyRow label={t("Phone")} value={profile.phone || "Not set"} />
                         </>
                     )}
-                    <ReadOnlyRow label="Email" value={<span className="inline-flex items-center gap-2"><Mail size={14} />{profile.email}</span>} />
+                    <ReadOnlyRow label={t("Email")} value={<span className="inline-flex items-center gap-2"><Mail size={14} />{profile.email}</span>} />
                 </SettingsPanel>
 
-                <SettingsPanel id="preferences" title="Preferences" description="Persisted personal defaults for this account." icon={SlidersHorizontal}>
+                <SettingsPanel id="preferences" title={t("Preferences")} description={t("Persisted personal defaults for this account.")} icon={SlidersHorizontal}>
+                    <LanguageControls />
                     {isEditing ? (
                         <>
-                            <SettingsField label="Timezone">
+                            <SettingsField label={t("Timezone")}>
                                 <SettingsSelect
                                     value={form.timezone}
                                     onValueChange={value => updateForm("timezone", value)}
@@ -336,17 +340,17 @@ export default function AccountPage() {
                                     ]}
                                 />
                             </SettingsField>
-                            <SettingsField label="Locale">
+                            <SettingsField label={t("Locale")}>
                                 <SettingsSelect
                                     value={form.locale}
                                     onValueChange={value => updateForm("locale", value)}
                                     options={[
-                                        { value: "en-IN", label: "English India" },
-                                        { value: "en-US", label: "English US" },
+                                        { value: "en-IN", label: t("English India") },
+                                        { value: "en-US", label: t("English US") },
                                     ]}
                                 />
                             </SettingsField>
-                            <SettingsField label="Date format">
+                            <SettingsField label={t("Date format")}>
                                 <SettingsSelect
                                     value={form.dateFormat}
                                     onValueChange={value => updateForm("dateFormat", value)}
@@ -357,63 +361,63 @@ export default function AccountPage() {
                                     ]}
                                 />
                             </SettingsField>
-                            <SettingsField label="Density">
+                            <SettingsField label={t("Density")}>
                                 <SegmentedControl
                                     value={form.densityPreference}
                                     onChange={value => updateForm("densityPreference", value)}
                                     options={[
-                                        { value: "comfortable", label: "Comfortable" },
-                                        { value: "compact", label: "Compact" },
+                                        { value: "comfortable", label: t("Comfortable") },
+                                        { value: "compact", label: t("Compact") },
                                     ]}
                                 />
                             </SettingsField>
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Timezone" value={profile.timezone} />
-                            <ReadOnlyRow label="Locale" value={profile.locale === "en-US" ? "English US" : "English India"} />
-                            <ReadOnlyRow label="Date format" value={profile.dateFormat} />
-                            <ReadOnlyRow label="Density" value={profile.densityPreference === "compact" ? "Compact" : "Comfortable"} />
+                            <ReadOnlyRow label={t("Timezone")} value={profile.timezone} />
+                            <ReadOnlyRow label={t("Locale")} value={profile.locale === "en-US" ? "English US" : "English India"} />
+                            <ReadOnlyRow label={t("Date format")} value={profile.dateFormat} />
+                            <ReadOnlyRow label={t("Density")} value={profile.densityPreference === "compact" ? "Compact" : "Comfortable"} />
                         </>
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="workspace" title="Workspace Defaults" description="Defaults used by message and navigation experiences." icon={LayoutDashboard}>
+                <SettingsPanel id="workspace" title={t("Workspace Defaults")} description={t("Defaults used by message and navigation experiences.")} icon={LayoutDashboard}>
                     {isEditing ? (
                         <>
-                            <SettingsField label="Message language">
+                            <SettingsField label={t("Message language")} description={t("Manual reminders use Hindi script; existing AI drafting uses Roman Hindi. This does not change screen or document language.")}>
                                 <SegmentedControl
                                     value={form.defaultMessageLanguage}
                                     onChange={value => updateForm("defaultMessageLanguage", value)}
                                     options={[
                                         { value: "en", label: "English" },
-                                        { value: "hi", label: "Hindi" },
+                                        { value: "hi", label: t("Hindi / Hinglish") },
                                     ]}
                                 />
                             </SettingsField>
-                            <SettingsField label="Landing page">
+                            <SettingsField label={t("Landing page")}>
                                 <SegmentedControl
                                     value={form.defaultLandingPage}
                                     onChange={value => updateForm("defaultLandingPage", value)}
                                     options={[
-                                        { value: "org", label: "Last workspace" },
-                                        { value: "account", label: "Account" },
+                                        { value: "org", label: t("Last workspace") },
+                                        { value: "account", label: t("Account") },
                                     ]}
                                 />
                             </SettingsField>
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Message language" value={profile.defaultMessageLanguage === "hi" ? "Hindi" : "English"} />
-                            <ReadOnlyRow label="Landing page" value={profile.defaultLandingPage === "account" ? "Account" : "Last workspace"} />
+                            <ReadOnlyRow label={t("Message language")} value={profile.defaultMessageLanguage === "hi" ? t("Hindi / Hinglish") : "English"} />
+                            <ReadOnlyRow label={t("Landing page")} value={profile.defaultLandingPage === "account" ? "Account" : "Last workspace"} />
                         </>
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="access" title="Access" description="Read-only membership and role summary." icon={Shield}>
-                    <ReadOnlyRow label="Organizations" value={profile.organizations.length} />
-                    <ReadOnlyRow label="Branches" value={totalBranches} />
-                    <ReadOnlyRow label="Branch roles" value={profile.staff.length} />
+                <SettingsPanel id="access" title={t("Access")} description={t("Read-only membership and role summary.")} icon={Shield}>
+                    <ReadOnlyRow label={t("Organizations")} value={profile.organizations.length} />
+                    <ReadOnlyRow label={t("Branches")} value={totalBranches} />
+                    <ReadOnlyRow label={t("Branch roles")} value={profile.staff.length} />
                     <div className="px-5 py-4">
                         <div className="grid gap-2 md:grid-cols-2">
                             {profile.organizations.map(org => (
@@ -423,7 +427,7 @@ export default function AccountPage() {
                                             <Building2 size={14} className="text-[color:var(--ui-form-accent)]" />
                                             {org.name}
                                         </div>
-                                        <SettingsSubtleText className="mt-1">{org.businessType || "Education Business"} / {org.branches.length} branches</SettingsSubtleText>
+                                        <SettingsSubtleText className="mt-1">{t("{value} / {count} branches", { value: org.businessType || "Education Business", count: org.branches.length })}</SettingsSubtleText>
                                     </SettingsCard>
                                 </Link>
                             ))}
@@ -439,16 +443,16 @@ export default function AccountPage() {
                                 </Link>
                             ))}
                             {profile.organizations.length === 0 && profile.staff.length === 0 && (
-                                <SettingsEmptyState>No workspace access found.</SettingsEmptyState>
+                                <SettingsEmptyState>{t("No workspace access found.")}</SettingsEmptyState>
                             )}
                         </div>
                     </div>
                 </SettingsPanel>
 
-                <SettingsPanel id="system" title="System Info" description="Identifiers are read-only." icon={Monitor}>
-                    <ReadOnlyRow label="User ID" value={<span className="font-mono">{profile.id}</span>} />
-                    <ReadOnlyRow label="Member since" value={<span className="inline-flex items-center gap-2"><Calendar size={14} />{format(new Date(profile.createdAt), "PPP")}</span>} />
-                    <ReadOnlyRow label="Account email" value={profile.email} />
+                <SettingsPanel id="system" title={t("System Info")} description={t("Identifiers are read-only.")} icon={Monitor}>
+                    <ReadOnlyRow label={t("User ID")} value={<span className="font-mono">{profile.id}</span>} />
+                    <ReadOnlyRow label={t("Member since")} value={<span className="inline-flex items-center gap-2"><Calendar size={14} />{format(new Date(profile.createdAt), "PPP")}</span>} />
+                    <ReadOnlyRow label={t("Account email")} value={profile.email} />
                 </SettingsPanel>
             </SettingsWorkspace>
 
@@ -466,8 +470,8 @@ export default function AccountPage() {
                 onClose={() => setDiscardDialogOpen(false)}
                 onConfirm={discardChanges}
                 variant="warning"
-                title="Discard account changes?"
-                description="Your unsaved account settings will be restored to their last saved values."
+                title={t("Discard account changes?")}
+                description={t("Your unsaved account settings will be restored to their last saved values.")}
                 confirmText="Discard changes"
                 cancelText="Keep editing"
             />

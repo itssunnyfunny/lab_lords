@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AppPanel } from "@/components/ui";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -65,6 +66,7 @@ export function KpiRow({
     branchId?: string;
     period?: AnalyticsPeriod;
 }) {
+    const t = useTranslation();
     const [seatTrend, setSeatTrend] = useState<number[] | undefined>();
     const [paymentTrend, setPaymentTrend] = useState<number[] | undefined>();
     const [dueTrend, setDueTrend] = useState<number[] | undefined>();
@@ -100,10 +102,10 @@ export function KpiRow({
     if (!snapshot) {
         return (
             <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <KpiCard title="Collected Revenue" value="-" />
-                <KpiCard title="Active Students" value="-" />
-                <KpiCard title="Due Payments" value="-" />
-                <KpiCard title="Total Utilization" value="-" />
+                <KpiCard title={t("Collected Revenue")} value="-" />
+                <KpiCard title={t("Active Students")} value="-" />
+                <KpiCard title={t("Due Payments")} value="-" />
+                <KpiCard title={t("Total Utilization")} value="-" />
             </div>
         );
     }
@@ -111,25 +113,25 @@ export function KpiRow({
     return (
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <KpiCard
-                title="Collected Revenue"
+                title={t("Collected Revenue")}
                 value={formatMoney(snapshot.paidAmount)}
                 trend={period === "month" ? "Collected this month" : "Collected all time"}
                 data={paymentTrend}
             />
             <KpiCard
-                title="Active Students"
+                title={t("Active Students")}
                 value={formatNumber(snapshot.activeStudents)}
                 trend="Current active count"
             />
             <KpiCard
-                title="Due Payments"
+                title={t("Due Payments")}
                 value={formatMoney(snapshot.dueAmount)}
                 trend="All due payments"
                 trendUp={false}
                 data={dueTrend}
             />
             <KpiCard
-                title="Total Utilization"
+                title={t("Total Utilization")}
                 value={formatNumber(snapshot.occupancyRate / 100, {
                     style: "percent",
                     maximumFractionDigits: 2,

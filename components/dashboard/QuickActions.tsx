@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AppPanel } from "@/components/ui";
 import {
@@ -82,6 +83,7 @@ const actions: Action[] = [
 ];
 
 export function QuickActions({ branchId }: { branchId: string }) {
+    const t = useTranslation();
     const { access, loading, decide } = useBranchAccess(branchId);
     const evaluatedActions = access
         ? actions.map(action => ({ action, decision: decide(action.capability) }))
@@ -93,8 +95,8 @@ export function QuickActions({ branchId }: { branchId: string }) {
 
     return (
         <AppPanel
-            title="Next actions"
-            description="Shortcuts for common branch operations."
+            title={t("Next actions")}
+            description={t("Shortcuts for common branch operations.")}
             contentClassName="p-2"
             className="h-full"
         >
@@ -107,7 +109,7 @@ export function QuickActions({ branchId }: { branchId: string }) {
             )}
 
             {!loading && visibleActions.length === 0 && unavailableActions.length === 0 && (
-                <p className={cn("px-3 py-4 text-sm", pageSubtleTextClass)}>No quick actions available for your access.</p>
+                <p className={cn("px-3 py-4 text-sm", pageSubtleTextClass)}>{t("No quick actions available for your access.")}</p>
             )}
 
             {!loading && (
@@ -122,8 +124,8 @@ export function QuickActions({ branchId }: { branchId: string }) {
                                 <action.icon size={16} />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{action.label}</p>
-                                <p className={cn("truncate text-xs", pageSubtleTextClass)}>{action.description}</p>
+                                <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{t.owned(action.label)}</p>
+                                <p className={cn("text-xs leading-5", pageSubtleTextClass)}>{t.owned(action.description)}</p>
                             </div>
                             <ArrowRight size={14} className="shrink-0 text-[color:var(--text-muted)] transition-colors group-hover:text-[color:var(--text-secondary)]" />
                         </Link>
@@ -142,8 +144,8 @@ export function QuickActions({ branchId }: { branchId: string }) {
                                     <action.icon size={16} />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className={cn("truncate text-sm font-medium", pageMutedTextClass)}>{action.label}</p>
-                                    <p className={cn("truncate text-xs", pageSubtleTextClass)}>{helpText}</p>
+                                    <p className={cn("truncate text-sm font-medium", pageMutedTextClass)}>{t.owned(action.label)}</p>
+                                    <p className={cn("text-xs leading-5", pageSubtleTextClass)}>{helpText}</p>
                                 </div>
                                 <LockKeyhole size={14} className="shrink-0 text-[color:var(--text-muted)]" />
                                 {!decision.allowed && decision.recoveryHref && (
@@ -151,8 +153,7 @@ export function QuickActions({ branchId }: { branchId: string }) {
                                         href={decision.recoveryHref}
                                         className="shrink-0 text-xs font-semibold text-cyan-300 underline-offset-4 hover:underline"
                                     >
-                                        Restore
-                                    </Link>
+                                        {t("Restore")}</Link>
                                 )}
                             </div>
                         );

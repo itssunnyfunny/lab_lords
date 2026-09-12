@@ -1,0 +1,18 @@
+export const documentMessages = {
+    "Fee payment receipt": ["फीस की रसीद", "Fee payment receipt"],
+    "Receipt: {number}": ["रसीद: {number}", "Receipt: {number}"],
+    "Student: {name} ({id})": ["छात्र: {name} ({id})", "Student: {name} ({id})"],
+    "Received: ₹{amount} · {method}": ["मिले पैसे: ₹{amount} · {method}", "Mile paise: ₹{amount} · {method}"],
+    "Reference: {reference}": ["रेफरेंस: {reference}", "Reference: {reference}"],
+    "{type}: {start} – {end} | Applied ₹{amount} | Remaining ₹{remaining}": ["{type}: {start} – {end} | जमा ₹{amount} | बाकी ₹{remaining}", "{type}: {start} – {end} | Jama ₹{amount} | Baaki ₹{remaining}"],
+    "Student balance immediately after collection: ₹{amount}": ["यह पेमेंट दर्ज होते ही छात्र की बाकी फीस: ₹{amount}", "Yeh payment record hote hi student ki baaki fee: ₹{amount}"],
+    "Recorded by: {name}": ["दर्ज किया: {name}", "Record kiya: {name}"],
+    "Note: {note}": ["नोट: {note}", "Note: {note}"],
+    "VOID — {reason}": ["रद्द (VOID) — {reason}", "Radd (VOID) — {reason}"],
+    "Receipt summary copied. Delivery is not confirmed.": ["रसीद का सार कॉपी हो गया। पहुँचना पक्का नहीं है।", "Receipt summary copy ho gayi. Delivery confirm nahi hai."],
+    "Share action completed. Message delivery is not confirmed.": ["शेयर की कार्रवाई पूरी हुई। मैसेज पहुँचना पक्का नहीं है।", "Share action poora hua. Message delivery confirm nahi hai."],
+    "Receipt opened for printing. Use your PDF viewer’s Print action.": ["रसीद प्रिंट के लिए खुल गई। PDF व्यूअर में प्रिंट दबाएँ।", "Receipt printing ke liye khul gayi. PDF viewer mein Print dabayein."],
+    "File sharing is unavailable. PDF downloaded; you can also copy the summary.": ["फाइल शेयर नहीं हो सकती। PDF डाउनलोड हो गई है; आप सार भी कॉपी कर सकते हैं।", "File sharing available nahi hai. PDF download ho gayi; summary bhi copy kar sakte hain."],
+    "PDF downloaded.": ["PDF डाउनलोड हो गई।", "PDF download ho gayi."],
+    "Receipt action could not be completed. Your collection remains recorded. Retry the receipt action below.": ["रसीद की कार्रवाई पूरी नहीं हुई। आपका पेमेंट दर्ज है। नीचे रसीद की कार्रवाई फिर करें।", "Receipt action poora nahi hua. Aapka payment recorded hai. Neeche receipt action dobara karein."],
+} as const;

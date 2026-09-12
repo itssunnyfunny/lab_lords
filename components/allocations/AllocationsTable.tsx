@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
@@ -73,6 +74,7 @@ export function AllocationsTable({
     actionsEnabled = true,
     actionsDisabledReason,
 }: AllocationsTableProps) {
+    const t = useTranslation();
     const { formatDate } = useUserPreferences();
     const [endingIds, setEndingIds] = useState<string[] | null>(null);
     const [confirmIds, setConfirmIds] = useState<string[] | null>(null);
@@ -157,8 +159,7 @@ export function AllocationsTable({
                 <div className="flex flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/20 bg-orange-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-orange-300">
-                            <Layers size={9} /> MULTI-SHIFT
-                        </span>
+                            <Layers size={9} />  {t("MULTI-SHIFT")}</span>
                         <span className="text-sm font-semibold text-[color:var(--ui-table-text)]">{alloc.multiShiftName}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -178,8 +179,7 @@ export function AllocationsTable({
         return (
             <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/20 bg-yellow-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-yellow-300">
-                    PRIMARY
-                </span>
+                    {t("PRIMARY")}</span>
                 <span className="text-sm font-medium text-[color:var(--ui-table-text)]">{alloc.shiftName}</span>
             </div>
         );
@@ -187,10 +187,10 @@ export function AllocationsTable({
 
     const renderAllocationStatus = (alloc: GroupedAllocation) => (
         !alloc.endDate ? (
-            <Badge variant="success">Active</Badge>
+            <Badge variant="success">{t("Active")}</Badge>
         ) : (
             <div className="flex flex-col items-start gap-1">
-                <Badge variant="default">Ended</Badge>
+                <Badge variant="default">{t("Ended")}</Badge>
                 <span className={cn("text-[10px]", pageSubtleTextClass)}>{formatDate(alloc.endDate)}</span>
             </div>
         )
@@ -208,10 +208,9 @@ export function AllocationsTable({
                         icon={Pencil}
                         disabled={!actionsEnabled}
                         onClick={() => onUpdateAllocation(alloc.ids, alloc.studentId, alloc.student.name, alloc.seat.id, alloc.student.monthlyFee ?? null, alloc.shiftIds, alloc.multiShiftId ?? null)}
-                        title={actionsEnabled ? "Change seat / shift" : actionsDisabledReason}
+                        title={actionsEnabled ? t("Change seat / shift") : actionsDisabledReason}
                     >
-                        Change
-                    </AppButton>
+                        {t("Change")}</AppButton>
                 )}
                 <AppButton
                     variant="danger"
@@ -221,8 +220,7 @@ export function AllocationsTable({
                     disabled={!actionsEnabled}
                     title={actionsEnabled ? undefined : actionsDisabledReason}
                 >
-                    End
-                </AppButton>
+                    {t("End")}</AppButton>
             </div>
         );
     };
@@ -248,24 +246,24 @@ export function AllocationsTable({
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="truncate font-medium text-[color:var(--ui-table-text)]">{alloc.student.name}</p>
-                                <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{alloc.isMulti ? "Multi-shift assignment" : "Primary assignment"}</p>
+                                <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{alloc.isMulti ? t("Multi-shift assignment") : t("Primary assignment")}</p>
                             </div>
                             <div className="flex-shrink-0">{renderAllocationStatus(alloc)}</div>
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                             <div className={pageInsetMetricClass}>
-                                <div className={cn("text-xs", pageSubtleTextClass)}>Seat</div>
+                                <div className={cn("text-xs", pageSubtleTextClass)}>{t("Seat")}</div>
                                 <div className="mt-1 truncate font-semibold text-[color:var(--ui-table-text)]">{alloc.seat.label}</div>
                             </div>
                             <div className={pageInsetMetricClass}>
-                                <div className={cn("text-xs", pageSubtleTextClass)}>Started</div>
+                                <div className={cn("text-xs", pageSubtleTextClass)}>{t("Started")}</div>
                                 <div className={cn("mt-1 truncate", pageMutedTextClass)}>{formatDate(alloc.startDate)}</div>
                             </div>
                         </div>
 
                         <div className={cn("mt-3", pageInsetMetricClass)}>
-                            <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>Shift</div>
+                            <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{t("Shift")}</div>
                             {renderShiftSummary(alloc)}
                         </div>
 
@@ -280,8 +278,7 @@ export function AllocationsTable({
 
             {sorted.length === 0 && (
                 <div className="col-span-full rounded-[var(--ui-table-radius)] border border-dashed border-[color:var(--ui-table-empty-border)] py-12 text-center text-[color:var(--ui-table-subtle)]">
-                    No allocations found.
-                </div>
+                    {t("No allocations found.")}</div>
             )}
         </div>
     );
@@ -291,8 +288,8 @@ export function AllocationsTable({
             isOpen={!!confirmIds}
             onClose={() => setConfirmIds(null)}
             onConfirm={confirmEnd}
-            title="End Seat Allocation"
-            description={confirmIds && confirmIds.length > 1 ? "Are you sure you want to end this multi-shift allocation? All attached shifts will be freed." : "Are you sure you want to end this seat allocation? This will free the seat for future use."}
+            title={t("End Seat Allocation")}
+            description={confirmIds && confirmIds.length > 1 ? t("Are you sure you want to end this multi-shift allocation? All attached shifts will be freed.") : t("Are you sure you want to end this seat allocation? This will free the seat for future use.")}
             confirmText="End Allocation"
             variant="danger"
             loading={!!endingIds}
@@ -315,19 +312,19 @@ export function AllocationsTable({
             <div
                 className="w-full overflow-x-auto"
                 role="region"
-                aria-label="Loaded seat allocations"
+                aria-label={t("Loaded seat allocations")}
                 tabIndex={0}
             >
             <table className="w-full min-w-[58rem] text-left text-sm">
-                <caption className="sr-only">Loaded seat allocations</caption>
+                <caption className="sr-only">{t("Loaded seat allocations")}</caption>
                 <thead className={pageTableHeadClass}>
                     <tr className="text-[color:var(--ui-table-muted)]">
-                        <th scope="col" className="px-6 py-4 font-medium">Student</th>
-                        <th scope="col" className="px-6 py-4 font-medium">Seat</th>
-                        <th scope="col" className="px-6 py-4 font-medium">Shift</th>
-                        <th scope="col" className="px-6 py-4 font-medium">Start Date</th>
-                        <th scope="col" className="px-6 py-4 font-medium">Status</th>
-                        {!isEndedTab && showActions && <th scope="col" className="px-6 py-4 font-medium">Actions</th>}
+                        <th scope="col" className="px-6 py-4 font-medium">{t("Student")}</th>
+                        <th scope="col" className="px-6 py-4 font-medium">{t("Seat")}</th>
+                        <th scope="col" className="px-6 py-4 font-medium">{t("Shift")}</th>
+                        <th scope="col" className="px-6 py-4 font-medium">{t("Start Date")}</th>
+                        <th scope="col" className="px-6 py-4 font-medium">{t("Status")}</th>
+                        {!isEndedTab && showActions && <th scope="col" className="px-6 py-4 font-medium">{t("Actions")}</th>}
                     </tr>
                 </thead>
                 <tbody className={pageTableBodyDividerClass}>
@@ -358,8 +355,7 @@ export function AllocationsTable({
                                         <div className="flex flex-col gap-2">
                                             <div className="flex items-center gap-2">
                                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/20">
-                                                    <Layers size={9} /> MULTI-SHIFT
-                                                </span>
+                                                    <Layers size={9} />  {t("MULTI-SHIFT")}</span>
                                                 <span className="text-sm font-semibold text-[color:var(--ui-table-text)]">{alloc.multiShiftName}</span>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-1.5">
@@ -376,8 +372,7 @@ export function AllocationsTable({
                                     ) : (
                                         <div className="flex items-center gap-2">
                                             <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20">
-                                                PRIMARY
-                                            </span>
+                                                {t("PRIMARY")}</span>
                                             <span className="text-sm font-medium text-[color:var(--ui-table-text)]">{alloc.shiftName}</span>
                                         </div>
                                     )}
@@ -387,10 +382,10 @@ export function AllocationsTable({
                                 </td>
                                 <td className="px-6 py-4">
                                     {isActive ? (
-                                        <Badge variant="success">Active</Badge>
+                                        <Badge variant="success">{t("Active")}</Badge>
                                     ) : (
                                         <div className="flex flex-col gap-1">
-                                            <Badge variant="default">Ended</Badge>
+                                            <Badge variant="default">{t("Ended")}</Badge>
                                             <span className="text-[10px] text-[color:var(--ui-table-subtle)]">{alloc.endDate ? formatDate(alloc.endDate) : ""}</span>
                                         </div>
                                     )}
@@ -406,10 +401,9 @@ export function AllocationsTable({
                                                         icon={Pencil}
                                                         disabled={!actionsEnabled}
                                                         onClick={() => onUpdateAllocation(alloc.ids, alloc.studentId, alloc.student.name, alloc.seat.id, alloc.student.monthlyFee ?? null, alloc.shiftIds, alloc.multiShiftId ?? null)}
-                                                        title={actionsEnabled ? "Change seat / shift" : actionsDisabledReason}
+                                                        title={actionsEnabled ? t("Change seat / shift") : actionsDisabledReason}
                                                     >
-                                                        Change
-                                                    </AppButton>
+                                                        {t("Change")}</AppButton>
                                                 )}
                                                 <AppButton
                                                     variant="danger"
@@ -419,8 +413,7 @@ export function AllocationsTable({
                                                     disabled={!actionsEnabled}
                                                     title={actionsEnabled ? undefined : actionsDisabledReason}
                                                 >
-                                                    End
-                                                </AppButton>
+                                                    {t("End")}</AppButton>
                                             </div>
                                         )}
                                     </td>
@@ -431,8 +424,7 @@ export function AllocationsTable({
                     {sorted.length === 0 && (
                         <tr>
                             <td colSpan={isEndedTab || !showActions ? 5 : 6} className="px-6 py-8 text-center text-[color:var(--ui-table-subtle)]">
-                                No allocations found.
-                            </td>
+                                {t("No allocations found.")}</td>
                         </tr>
                     )}
                 </tbody>

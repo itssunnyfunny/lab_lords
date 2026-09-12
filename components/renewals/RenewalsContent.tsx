@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -19,6 +20,7 @@ import { followUpOutcomes, renewalFilters, type FollowUpOutcome, type RenewalFil
 import type { BranchAccess } from "@/types";
 
 export function RenewalsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
+    const t = useTranslation();
     const { formatDate, formatDateTime, formatNumber } = useUserPreferences();
     const money = (amount: number) => formatNumber(amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 });
     const record = getBranchCapabilityDecision(access, "paymentsRecord");
@@ -37,7 +39,7 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
     const [editing, setEditing] = useState<RenewalRow | null>(null);
     const [reminder, setReminder] = useState<RenewalRow | null>(null);
     const labels: Record<RenewalFilter, string> = { ALL: "All fees", TODAY: "Due today",
-        UPCOMING: `Next ${days} days`, OUTSTANDING: "Outstanding dues", OVERDUE: "Overdue" };
+        UPCOMING: t("Next {days} days", { days }), OUTSTANDING: "Outstanding dues", OVERDUE: "Overdue" };
 
     useEffect(() => {
         const timer = setTimeout(() => setQuerySearch(search.trim()), 300);
@@ -71,65 +73,64 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
     return <PageShell>
         <div className="space-y-6">
             <header className="flex flex-wrap items-start justify-between gap-4">
-                <div><h1 className={pageTitleClass}>Renewals &amp; dues</h1>
-                    <p className={pageDescriptionClass}>Upcoming fees, unpaid periods and your latest follow-ups.</p></div>
-                <AppButton variant="secondary" onClick={() => void load()} disabled={loading}>Refresh</AppButton>
+                <div><h1 className={pageTitleClass}>{t("Renewals & dues")}</h1>
+                    <p className={pageDescriptionClass}>{t("Upcoming fees, unpaid periods and your latest follow-ups.")}</p></div>
+                <AppButton variant="secondary" onClick={() => void load()} disabled={loading}>{t("Refresh")}</AppButton>
             </header>
-            <p className="text-sm text-[color:var(--text-muted)]">Expected fees are estimates, not confirmed debt. Fee dates do not indicate membership expiry.</p>
+            <p className="text-sm text-[color:var(--text-muted)]">{t("Expected fees are estimates, not confirmed debt. Fee dates do not indicate membership expiry.")}</p>
             <div className="grid gap-3 sm:grid-cols-2">
-                <AppPanel title="Outstanding recorded dues"><p className="text-2xl font-semibold">{page ? money(page.outstandingAmount) : "—"}</p></AppPanel>
-                <AppPanel title={`Expected fees · today through next ${days} days`}><p className="text-2xl font-semibold">{page ? money(page.expectedAmount) : "—"}</p></AppPanel>
+                <AppPanel title={t("Outstanding recorded dues")}><p className="text-2xl font-semibold">{page ? money(page.outstandingAmount) : "—"}</p></AppPanel>
+                <AppPanel title={t("Expected fees · today through next {days} days", { days })}><p className="text-2xl font-semibold">{page ? money(page.expectedAmount) : "—"}</p></AppPanel>
             </div>
-            <div className="flex flex-wrap gap-2" aria-label="Fee filters">
+            <div className="flex flex-wrap gap-2" aria-label={t("Fee filters")}>
                 {renewalFilters.map(value => <AppButton key={value} variant={filter === value ? "primary" : "secondary"}
                     aria-pressed={filter === value} onClick={() => setFilter(value)}>
-                    {labels[value]}{page ? ` (${page.counts[value]})` : ""}
+                    {t.owned(labels[value])}{page ? ` (${page.counts[value]})` : ""}
                 </AppButton>)}
             </div>
             <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
-                <label className="space-y-1 text-sm">Search by name or phone
-                    <input className={`${formControlClass} min-h-11 px-3 py-2`} type="search" maxLength={100} value={search}
-                        onChange={event => setSearch(event.target.value)} placeholder="Student name or phone" /></label>
-                <AppSelect label="Upcoming window" value={String(days)} onValueChange={value => setDays(value === "3" ? 3 : 7)}
-                    options={[{ value: "3", label: "Next 3 days" }, { value: "7", label: "Next 7 days" }]} />
+                <label className="space-y-1 text-sm">{t("Search by name or phone")}<input className={`${formControlClass} min-h-11 px-3 py-2`} type="search" maxLength={100} value={search}
+                        onChange={event => setSearch(event.target.value)} placeholder={t("Student name or phone")} /></label>
+                <AppSelect label={t("Upcoming window")} value={String(days)} onValueChange={value => setDays(value === "3" ? 3 : 7)}
+                    options={[{ value: "3", label: t("Next 3 days") }, { value: "7", label: t("Next 7 days") }]} />
             </div>
-            <p className="text-xs text-[color:var(--text-muted)]">Oldest fee date first. Counts reflect your search; overdue means more than 7 days late. Each period appears separately.</p>
-            {notice && <p role="status" className="text-sm">{notice}</p>}
-            {error && <div role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{error} <AppButton variant="secondary" onClick={() => void load()}>Retry</AppButton></div>}
-            {loading ? <p role="status" className="py-10 text-center">Loading renewals &amp; dues…</p>
-                : !error && page?.items.length === 0 ? <AppPanel title="No fees in this view"><p>Try another filter or search.</p></AppPanel>
+            <p className="text-xs text-[color:var(--text-muted)]">{t("Oldest fee date first. Counts reflect your search; overdue means more than 7 days late. Each period appears separately.")}</p>
+            {notice && <p role="status" className="text-sm">{t.owned(notice)}</p>}
+            {error && <div role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{t.error(error)} <AppButton variant="secondary" onClick={() => void load()}>{t("Retry")}</AppButton></div>}
+            {loading ? <p role="status" className="py-10 text-center">{t("Loading renewals & dues…")}</p>
+                : !error && page?.items.length === 0 ? <AppPanel title={t("No fees in this view")}><p>{t("Try another filter or search.")}</p></AppPanel>
                 : !error && page?.items.map(row => <AppPanel key={row.key} title={row.studentName}
-                    action={<Badge variant={row.expected ? "warning" : "cyan"}>{row.expected ? "Expected fee" : "Recorded due"}</Badge>}>
+                    action={<Badge variant={row.expected ? "warning" : "cyan"}>{row.expected ? t("Expected fee") : t("Recorded due")}</Badge>}>
                     <div className="space-y-4">
                         <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                            <div><p className="text-[color:var(--text-muted)]">Contact</p><p>{row.phone || "No phone recorded"}</p>
-                                {row.studentStatus !== "ACTIVE" && <p>Inactive · existing debt</p>}</div>
-                            <div><p className="text-[color:var(--text-muted)]">{row.type === "ADMISSION" ? "Admission period" : "Billing period"}</p>
+                            <div><p className="text-[color:var(--text-muted)]">{t("Contact")}</p><p>{row.phone || t.owned("No phone recorded")}</p>
+                                {row.studentStatus !== "ACTIVE" && <p>{t("Inactive · existing debt")}</p>}</div>
+                            <div><p className="text-[color:var(--text-muted)]">{row.type === "ADMISSION" ? t("Admission period") : t("Billing period")}</p>
                                 <p>{formatDate(row.periodStart)} – {formatDate(row.periodEnd)}</p></div>
-                            <div><p className="text-[color:var(--text-muted)]">Fee date</p><p>{formatDate(row.dueDate)}</p></div>
-                            <div><p className="text-[color:var(--text-muted)]">{row.expected ? "Expected amount" : "Amount due"}</p><p className="text-lg font-semibold">{money(row.amount)}</p></div>
+                            <div><p className="text-[color:var(--text-muted)]">{t("Fee date")}</p><p>{formatDate(row.dueDate)}</p></div>
+                            <div><p className="text-[color:var(--text-muted)]">{row.expected ? t("Expected amount") : t("Amount due")}</p><p className="text-lg font-semibold">{money(row.amount)}</p></div>
                         </div>
-                        {row.allocations.length > 0 && <p className="text-sm">Seat / shift: {row.allocations.map(a => `${a.seat} · ${a.shift}`).join(", ")}</p>}
+                        {row.allocations.length > 0 && <p className="text-sm">{t("Seat / shift: {allocations}", { allocations: row.allocations.map(a => `${a.seat} · ${a.shift}`).join(", ") })}</p>}
                         <div className="rounded-lg border border-[color:var(--ui-form-surface-border)] p-3 text-sm">
-                            <p className="font-medium">{followUpOutcomes[row.followUp?.outcome ?? "NOT_CONTACTED"]}</p>
+                            <p className="font-medium">{t.owned(followUpOutcomes[row.followUp?.outcome ?? "NOT_CONTACTED"])}</p>
                             {row.followUp && <><p className="whitespace-pre-wrap break-words">{row.followUp.note || "No note"}</p>
-                                <p className="mt-2 text-[color:var(--text-muted)]">Latest: {row.followUp.author?.name || "Team member"} · {formatDateTime(row.followUp.updatedAt)}</p></>}
-                            <p className="mt-1">Next follow-up: {row.followUp?.nextFollowUpAt ? formatDate(row.followUp.nextFollowUpAt) : "Not scheduled"}</p>
+                                <p className="mt-2 text-[color:var(--text-muted)]">{t("Latest: {name} · {date}", { name: row.followUp.author?.name || t("Team member"), date: formatDateTime(row.followUp.updatedAt) })}</p></>}
+                            <p className="mt-1">{t("Next follow-up: {date}", { date: row.followUp?.nextFollowUpAt ? formatDate(row.followUp.nextFollowUpAt) : t("Not scheduled") })}</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {access.permissions.students && <Link className="inline-flex min-h-11 items-center px-3 text-sm underline" href={getOverdueStudentHref(branchId, row.studentId)}>Open student profile</Link>}
-                            {row.paymentId && <AppButton variant="primary" disabled={!record.allowed} title={record.reason ?? undefined}
-                                onClick={() => { setCollect(row); }}>Collect fee</AppButton>}
-                            <AppButton variant="secondary" disabled={!record.allowed} title={record.reason ?? undefined} onClick={() => setEditing(row)}>Update follow-up</AppButton>
-                            <AppButton variant="secondary" onClick={() => setReminder(row)}>Reminder options</AppButton>
+                            {access.permissions.students && <Link className="inline-flex min-h-11 items-center px-3 text-sm underline" href={getOverdueStudentHref(branchId, row.studentId)}>{t("Open student profile")}</Link>}
+                            {row.paymentId && <AppButton variant="primary" disabled={!record.allowed} title={record.reason ? t.error(record.reason) : undefined}
+                                onClick={() => { setCollect(row); }}>{t("Collect fee")}</AppButton>}
+                            <AppButton variant="secondary" disabled={!record.allowed} title={record.reason ? t.error(record.reason) : undefined} onClick={() => setEditing(row)}>{t("Update follow-up")}</AppButton>
+                            <AppButton variant="secondary" onClick={() => setReminder(row)}>{t("Reminder options")}</AppButton>
                         </div>
-                        {!record.allowed && <p className="text-xs text-[color:var(--text-muted)]">{record.reason}</p>}
+                        {!record.allowed && <p className="text-xs text-[color:var(--text-muted)]">{t.error(record.reason)}</p>}
                     </div>
                 </AppPanel>)}
             {page && !loading && !error && <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm">Showing {page.items.length} of {page.counts[filter]} periods</p>
-                <div className="flex gap-2"><AppButton variant="secondary" onClick={() => void load()}>First page</AppButton>
-                    <AppButton variant="secondary" disabled={!page.nextCursor} onClick={() => void load(page.nextCursor ?? undefined)}>Next page</AppButton></div>
+                <p className="text-sm">{t("Showing {shown} of {total} periods", { shown: page.items.length, total: page.counts[filter] })}</p>
+                <div className="flex gap-2"><AppButton variant="secondary" onClick={() => void load()}>{t("First page")}</AppButton>
+                    <AppButton variant="secondary" disabled={!page.nextCursor} onClick={() => void load(page.nextCursor ?? undefined)}>{t("Next page")}</AppButton></div>
             </div>}
         </div>
         {collect?.paymentId && <CollectFeeDialog key={collect.paymentId} branchId={branchId} studentId={collect.studentId}
@@ -148,6 +149,7 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
 function FollowUpDialog({ row, branchId, onClose, onSaved }: {
     row: RenewalRow; branchId: string; onClose: () => void; onSaved: (followUp: NonNullable<RenewalRow["followUp"]>) => void;
 }) {
+    const t = useTranslation();
     const [note, setNote] = useState(row.followUp?.note ?? "");
     const [outcome, setOutcome] = useState<FollowUpOutcome>(row.followUp?.outcome ?? "NOT_CONTACTED");
     const [nextDate, setNextDate] = useState(row.followUp?.nextFollowUpAt ? format(new Date(row.followUp.nextFollowUpAt), "yyyy-MM-dd") : "");
@@ -162,18 +164,18 @@ function FollowUpDialog({ row, branchId, onClose, onSaved }: {
         catch (err) { setError(err instanceof Error ? err.message : "Unable to save follow-up."); }
         finally { saving.current = false; setBusy(false); }
     }
-    return <Dialog open onClose={onClose} closeDisabled={busy} title={`Follow-up · ${row.studentName}`}
-        description="Record the latest contact outcome. Scheduling a follow-up does not change the fee date."
-        footer={<><AppButton variant="quiet" onClick={onClose} disabled={busy}>Cancel</AppButton><AppButton onClick={() => void save()} isLoading={busy}>Save follow-up</AppButton></>}>
+    return <Dialog open onClose={onClose} closeDisabled={busy} title={t("Follow-up · {name}", { name: row.studentName })}
+        description={t("Record the latest contact outcome. Scheduling a follow-up does not change the fee date.")}
+        footer={<><AppButton variant="quiet" onClick={onClose} disabled={busy}>{t("Cancel")}</AppButton><AppButton onClick={() => void save()} isLoading={busy}>{t("Save follow-up")}</AppButton></>}>
         <div className="space-y-4">
-            {error && <p role="alert">{error}</p>}
-            <AppSelect label="Contact outcome" value={outcome} disabled={busy} onValueChange={value => setOutcome(value as FollowUpOutcome)}
-                options={Object.entries(followUpOutcomes).map(([value, label]) => ({ value, label }))} />
-            <label className="block space-y-1 text-sm">Follow-up note<textarea className={`${formControlClass} px-3 py-2`} rows={4} maxLength={2000} value={note}
+            {error && <p role="alert">{t.error(error)}</p>}
+            <AppSelect label={t("Contact outcome")} value={outcome} disabled={busy} onValueChange={value => setOutcome(value as FollowUpOutcome)}
+                options={Object.entries(followUpOutcomes).map(([value, label]) => ({ value, label: t.owned(label) }))} />
+            <label className="block space-y-1 text-sm">{t("Follow-up note")}<textarea className={`${formControlClass} px-3 py-2`} rows={4} maxLength={2000} value={note}
                 disabled={busy} onChange={event => setNote(event.target.value)} /></label>
-            <label className="block space-y-1 text-sm">Next follow-up date<input className={`${formControlClass} min-h-11 px-3 py-2`} type="date" value={nextDate}
+            <label className="block space-y-1 text-sm">{t("Next follow-up date")}<input className={`${formControlClass} min-h-11 px-3 py-2`} type="date" value={nextDate}
                 disabled={busy} onChange={event => setNextDate(event.target.value)} /></label>
-            <AppButton variant="quiet" onClick={() => setNextDate("")} disabled={busy || !nextDate}>Clear follow-up date</AppButton>
+            <AppButton variant="quiet" onClick={() => setNextDate("")} disabled={busy || !nextDate}>{t("Clear follow-up date")}</AppButton>
         </div>
     </Dialog>;
 }
@@ -181,6 +183,7 @@ function FollowUpDialog({ row, branchId, onClose, onSaved }: {
 function ReminderDialog({ row, branchId, canSend, blockedReason, onClose }: {
     row: RenewalRow; branchId: string; canSend: boolean; blockedReason?: string; onClose: () => void;
 }) {
+    const t = useTranslation();
     const { formatDate, formatNumber } = useUserPreferences();
     const [language, setLanguage] = useState<"EN" | "HI">("EN");
     const [notice, setNotice] = useState<string | null>(null);
@@ -190,17 +193,17 @@ function ReminderDialog({ row, branchId, canSend, blockedReason, onClose }: {
         try { await navigator.clipboard.writeText(text); setNotice(MANUAL_REMINDER_COPIED); }
         catch { setNotice("Copy failed. Select the message text and copy it manually."); }
     }
-    return <Dialog open onClose={onClose} title={`Reminder · ${row.studentName}`} className="max-w-3xl">
+    return <Dialog open onClose={onClose} title={t("Reminder · {name}", { name: row.studentName })} className="max-w-3xl">
         <div className="space-y-5">
             {row.paymentId && <ApprovedPaymentReminderReview branchId={branchId} paymentIds={[row.paymentId]} canSend={canSend} blockedReason={blockedReason} />}
-            <AppPanel title="Manual reminder" description="When automated delivery is unavailable, review and copy for your normal contact channel. Copying does not send a message.">
+            <AppPanel title={t("Manual reminder")} description={t("When automated delivery is unavailable, review and copy for your normal contact channel. Copying does not send a message.")}>
                 <div className="space-y-3">
-                    {row.expected && <p className="text-sm">This fee is expected. Automated payment reminders require an actual payment record.</p>}
-                    <AppSelect label="Message language" value={language} onValueChange={value => { setLanguage(value === "HI" ? "HI" : "EN"); setNotice(null); }}
-                        options={[{ value: "EN", label: "English" }, { value: "HI", label: "Hindi" }]} />
+                    {row.expected && <p className="text-sm">{t("This fee is expected. Automated payment reminders require an actual payment record.")}</p>}
+                    <AppSelect label={t("Message language")} value={language} onValueChange={value => { setLanguage(value === "HI" ? "HI" : "EN"); setNotice(null); }}
+                        options={[{ value: "EN", label: "English" }, { value: "HI", label: t("Hindi") }]} />
                     <p className="whitespace-pre-wrap rounded-lg border border-[color:var(--ui-form-surface-border)] p-3 text-sm">{text}</p>
-                    <AppButton variant="secondary" onClick={() => void copy()}>Copy reminder</AppButton>
-                    {notice && <p role="status" className="text-sm">{notice}</p>}
+                    <AppButton variant="secondary" onClick={() => void copy()}>{t("Copy reminder")}</AppButton>
+                    {notice && <p role="status" className="text-sm">{t.owned(notice)}</p>}
                 </div>
             </AppPanel>
         </div>

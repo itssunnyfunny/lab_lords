@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { INTERFACE_LANGUAGES } from "@/lib/i18n/language";
 import {
     assertKnownFields,
     assertPlainObject,
@@ -18,6 +19,8 @@ import { StaffService } from "@/services/staff.service";
 import { resolveWorkspacePath } from "@/lib/workspaceRouting";
 
 const USER_SETTINGS_FIELDS = [
+    "interfaceLanguage",
+    "documentLanguage",
     "name",
     "phone",
     "timezone",
@@ -204,6 +207,10 @@ export class UserService {
         assertKnownFields(body, USER_SETTINGS_FIELDS);
 
         const settings: UpdateUserSettingsDto = {};
+        const interfaceLanguage = optionalChoice(body.interfaceLanguage, "Interface language", INTERFACE_LANGUAGES);
+        const documentLanguage = optionalChoice(body.documentLanguage, "Document language", INTERFACE_LANGUAGES);
+        if (interfaceLanguage !== undefined) settings.interfaceLanguage = interfaceLanguage;
+        if (documentLanguage !== undefined) settings.documentLanguage = documentLanguage;
         const name = optionalText(body.name, "Name", { required: true, max: 120 });
         const phone = requiredPhone(body.phone, "Phone");
         const timezone = optionalText(body.timezone, "Timezone", { required: true, max: 80 });

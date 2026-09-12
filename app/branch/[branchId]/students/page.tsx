@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { CollectionHistory } from "@/components/payments/CollectionHistory";
 import { StudentAttendance } from "@/components/attendance/StudentAttendance";
@@ -129,14 +131,14 @@ function getSeatShiftLabels(student: StudentListItem) {
 }
 
 function StudentSeatShiftSummary({ student }: { student: StudentListItem }) {
+    const t = useTranslation();
     const { seatText, shiftText, hasAllocation } = getSeatShiftLabels(student);
 
     if (!hasAllocation) {
         return (
             <span className={cn("inline-flex items-center gap-1.5 border-dashed px-2.5 py-1.5 text-xs text-textMuted", pageInsetSurfaceClass)}>
                 <Armchair size={13} />
-                No seat assigned
-            </span>
+                {t("No seat assigned")}</span>
         );
     }
 
@@ -173,6 +175,7 @@ function StudentTabButton({
     count: number;
     onClick: () => void;
 }) {
+    const t = useTranslation();
     const activeClassName = tab === "ACTIVE"
         ? "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]"
         : "border-[color:var(--ui-badge-default-border)] bg-[color:var(--ui-badge-default-bg)] text-[color:var(--ui-badge-default-text)]";
@@ -193,7 +196,7 @@ function StudentTabButton({
             )}
         >
             {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
-            {tab === "ACTIVE" ? "Active" : "Inactive"}
+            {tab === "ACTIVE" ? t("Active") : t("Inactive")}
             <span className={pageCountBadgeClass}>{count}</span>
         </button>
     );
@@ -210,6 +213,7 @@ interface InactivateDialogProps {
 }
 
 function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }: InactivateDialogProps) {
+    const t = useTranslation();
     const { formatNumber } = useUserPreferences();
     const formatCurrency = (amount: number) => formatNumber(amount, {
         style: "currency",
@@ -250,7 +254,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
             open={Boolean(student)}
             onClose={onCancel}
             title={`Deactivate ${student?.name ?? "student"}?`}
-            description="Their active seat allocation will be ended immediately."
+            description={t("Their active seat allocation will be ended immediately.")}
             icon={<span className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--ui-dialog-icon-danger-bg)] text-[color:var(--ui-dialog-icon-danger-text)]"><AlertTriangle size={18} /></span>}
             role="alertdialog"
             closeDisabled={loading}
@@ -258,8 +262,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
             footer={(
                 <>
                     <Button variant="outline" onClick={onCancel} disabled={loading} data-dialog-initial-focus>
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button
                         variant="danger"
                         onClick={() => onConfirm(hasDues ? resolution : "KEEP")}
@@ -267,8 +270,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                         isLoading={loading}
                         icon={PowerOff}
                     >
-                        Confirm deactivate
-                    </Button>
+                        {t("Confirm deactivate")}</Button>
                 </>
             )}
         >
@@ -276,10 +278,8 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                 {/* Due payments summary */}
                 {hasDues ? (
                     <div className={cn("mb-5 p-4", formWarningBannerClass)}>
-                        <p className="text-amber-300 text-sm font-medium mb-1">
-                            {duePayments.length} unpaid billing cycle{duePayments.length > 1 ? "s" : ""} - {formatCurrency(totalDue)} total
-                        </p>
-                        <p className="text-amber-200/60 text-xs">How should these be resolved?</p>
+                        <p className="text-amber-300 text-sm font-medium mb-1">{t("{count} unpaid billing cycle(s) - {formatCurrency} total", { count: duePayments.length, formatCurrency: formatCurrency(totalDue) })}</p>
+                        <p className="text-amber-200/60 text-xs">{t("How should these be resolved?")}</p>
 
                         <div className="mt-3 space-y-2">
                             {resolutionOptions.map(opt => {
@@ -306,7 +306,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                                         <div className="flex-1 min-w-0">
                                             <div className={cn("text-sm font-medium flex items-center gap-1.5", opt.color)}>
                                                 <Icon size={13} />
-                                                {opt.label}
+                                                {t.owned(opt.label)}
                                             </div>
                                             <div className={cn("mt-0.5 text-xs", formHelpTextClass)}>{opt.sublabel}</div>
                                         </div>
@@ -317,15 +317,14 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                     </div>
                 ) : (
                     <div className={cn("mb-5 p-4", formSuccessBannerClass)}>
-                        <p className="text-green-400 text-sm font-medium">No outstanding payments</p>
-                        <p className={cn("mt-0.5 text-xs", pageSubtleTextClass)}>This student has a clean financial record.</p>
+                        <p className="text-green-400 text-sm font-medium">{t("No outstanding payments")}</p>
+                        <p className={cn("mt-0.5 text-xs", pageSubtleTextClass)}>{t("This student has a clean financial record.")}</p>
                     </div>
                 )}
 
                 {/* Billing note */}
                 <p className={cn("mb-5 border-l-2 border-[color:var(--ui-form-section-divider)] pl-3 text-xs", formHelpTextClass)}>
-                    No future billing cycles will be generated after deactivation.
-                </p>
+                    {t("No future billing cycles will be generated after deactivation.")}</p>
 
             </div>
         </Dialog>
@@ -380,6 +379,7 @@ function StudentsContent({
     canViewWhatsApp: boolean;
     canManageWhatsApp: boolean;
 }) {
+    const t = useTranslation();
     const router = useRouter();
     const toast = useToast();
     const { formatDate, formatNumber } = useUserPreferences();
@@ -665,19 +665,17 @@ function StudentsContent({
 
     const renderFeeSummary = (item: Student) => {
         if (!canViewPayments) {
-            return <span className="text-xs text-textMuted" title={paymentHelpText}>No payment access</span>;
+            return <span className="text-xs text-textMuted" title={paymentHelpText}>{t("No payment access")}</span>;
         }
 
         const fin = studentFinancials.get(item.id) || { totalDue: 0, totalPaid: 0, totalWaived: 0 };
 
         return (
             <div className="text-xs space-y-0.5">
-                <div className={cn("font-medium", fin.totalDue > 0 ? "text-red-400" : "text-textMuted")}>
-                    Due: {formatCurrency(fin.totalDue)}
-                </div>
-                <div className="text-textSecondary">Paid: {formatCurrency(fin.totalPaid)}</div>
+                <div className={cn("font-medium", fin.totalDue > 0 ? "text-red-400" : "text-textMuted")}>{t("Due: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalDue) })}</div>
+                <div className="text-textSecondary">{t("Paid: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalPaid) })}</div>
                 {fin.totalWaived > 0 && (
-                    <div className="text-amber-500/70">Waived: {formatCurrency(fin.totalWaived)}</div>
+                    <div className="text-amber-500/70">{t("Waived: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalWaived) })}</div>
                 )}
             </div>
         );
@@ -809,17 +807,16 @@ function StudentsContent({
         }
     };
 
-    if (loading) return <PageLoadingSkeleton label="Loading students" variant="table" rows={7} />;
+    if (loading) return <PageLoadingSkeleton label={t("Loading students")} variant="table" rows={7} />;
 
     if (error) {
         return (
             <div className={pageErrorStateClass}>
                 <AlertCircle className={pageErrorIconClass} />
-                <h2 className="text-xl font-semibold">Something went wrong</h2>
-                <p className={pageMutedTextClass}>{error}</p>
+                <h2 className="text-xl font-semibold">{t("Something went wrong")}</h2>
+                <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
                 <AppButton variant="secondary" icon={ArrowLeft} onClick={() => router.push("/org")}>
-                    Back to workspace
-                </AppButton>
+                    {t("Back to workspace")}</AppButton>
             </div>
         );
     }
@@ -828,11 +825,10 @@ function StudentsContent({
         <PageShell>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>Student roster</p>
-                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>Students</h1>
+                    <p className={pageEyebrowClass}>{t("Student roster")}</p>
+                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Students")}</h1>
                     <p className={pageDescriptionClass}>
-                        Keep profiles, allocation context, and fee signals easy to scan without crowding the roster.
-                    </p>
+                        {t("Keep profiles, allocation context, and fee signals easy to scan without crowding the roster.")}</p>
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
@@ -842,24 +838,22 @@ function StudentsContent({
                             type="text"
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Search name or phone..."
-                            aria-label="Search students by name or phone"
+                            placeholder={t("Search name or phone...")}
+                            aria-label={t("Search students by name or phone")}
                             className={cn(formControlClass, "h-11 pl-9 pr-3 text-base sm:text-sm")}
                         />
                     </div>
                     <AppButton variant="secondary" icon={Download} onClick={() => void handleExportStudents()} isLoading={exporting}>
-                        Export
-                    </AppButton>
+                        {t("Export")}</AppButton>
                     {canViewWhatsApp ? (
                         <AppButton
                             variant="secondary"
                             icon={Users}
                             onClick={() => setWhatsAppBulkOpen(true)}
                             disabled={!canManageWhatsApp}
-                            title={canManageWhatsApp ? undefined : "You need WhatsApp management permission to record bulk consent."}
+                            title={canManageWhatsApp ? undefined : t("You need WhatsApp management permission to record bulk consent.")}
                         >
-                            Bulk WhatsApp consent
-                        </AppButton>
+                            {t("Bulk WhatsApp consent")}</AppButton>
                     ) : null}
                     <AppButton
                         variant="primary"
@@ -868,18 +862,16 @@ function StudentsContent({
                         disabled={!manageDecision.allowed}
                         title={manageDecision.allowed ? undefined : manageDecision.reason}
                     >
-                        Add student
-                    </AppButton>
+                        {t("Add student")}</AppButton>
                 </div>
             </header>
 
             {!manageDecision.allowed && manageDecision.blocker !== "permission" && (
                 <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">
-                    Student changes are disabled. {manageDecision.reason}{" "}
+                    {t("Student changes are disabled.")} {manageDecision.reason}{" "}
                     {manageDecision.recoveryHref ? (
                         <Link className="font-semibold underline underline-offset-4" href={manageDecision.recoveryHref}>
-                            Resolve access
-                        </Link>
+                            {t("Resolve access")}</Link>
                     ) : null}
                 </div>
             )}
@@ -888,12 +880,12 @@ function StudentsContent({
                 <div className="grid gap-2 md:grid-cols-2">
                     {!canViewPayments && (
                         <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
-                            Fee details are hidden. {paymentHelpText}
+                            {t("Fee details are hidden.")} {paymentHelpText}
                         </div>
                     )}
                     {!canViewAllocations && (
                         <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
-                            Seat assignment actions are disabled. {allocationHelpText}
+                            {t("Seat assignment actions are disabled.")} {allocationHelpText}
                         </div>
                     )}
                 </div>
@@ -901,10 +893,10 @@ function StudentsContent({
 
             <div className={cn("flex flex-col gap-4 border-b pb-4 md:flex-row md:items-center md:justify-between", pageSectionDividerClass)}>
                 <div className={cn("flex items-center gap-3 px-3 py-2", pageFilterShellClass)}>
-                    <label htmlFor="student-shift-filter" className={cn("text-sm", pageSubtleTextClass)}>Shift</label>
+                    <label htmlFor="student-shift-filter" className={cn("text-sm", pageSubtleTextClass)}>{t("Shift")}</label>
                     <AppSelect
                         id="student-shift-filter"
-                        aria-label="Filter students by shift"
+                        aria-label={t("Filter students by shift")}
                         containerClassName="min-w-48"
                         value={shiftScopeValue(shiftScope)}
                         options={shiftFilterOptions}
@@ -941,7 +933,7 @@ function StudentsContent({
                         : undefined,
                 })}
                 viewMode={viewMode}
-                emptyMessage="No students found for this view."
+                emptyMessage={t("No students found for this view.")}
                 renderGridCard={(item, actions) => (
                     <div className={cn("relative flex min-h-[230px] flex-col", pageGridCardClass, pageGridCardHoverClass)}>
                         <div className="flex items-start justify-between gap-3">
@@ -960,24 +952,24 @@ function StudentsContent({
 
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                             <div className={pageInsetMetricClass}>
-                                <div className={cn("text-xs", pageSubtleTextClass)}>Joined</div>
+                                <div className={cn("text-xs", pageSubtleTextClass)}>{t("Joined")}</div>
                                 <div className={cn("mt-1 truncate", pageMutedTextClass)}>{formatDate(item.joinedAt)}</div>
                             </div>
                             <div className={pageInsetMetricClass}>
-                                <div className={cn("text-xs", pageSubtleTextClass)}>Monthly fee</div>
+                                <div className={cn("text-xs", pageSubtleTextClass)}>{t("Monthly fee")}</div>
                                 <div className="mt-1 truncate font-semibold text-[color:var(--text-primary)]">
-                                    {typeof item.monthlyFee === "number" ? formatCurrency(item.monthlyFee) : "Not set"}
+                                    {typeof item.monthlyFee === "number" ? formatCurrency(item.monthlyFee) : t("Not set")}
                                 </div>
                             </div>
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-3">
                             <div className={cn("min-w-0", pageInsetMetricClass)}>
-                                <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>Seat & shift</div>
+                                <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{t("Seat & shift")}</div>
                                 <StudentSeatShiftSummary student={item} />
                             </div>
                             <div className={cn("min-w-0", pageInsetMetricClass)}>
-                                <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>Fee summary</div>
+                                <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{t("Fee summary")}</div>
                                 {renderFeeSummary(item)}
                             </div>
                         </div>
@@ -1019,9 +1011,7 @@ function StudentsContent({
             />
 
             <div className="flex flex-col items-center gap-2" aria-live="polite">
-                <p className={cn("text-sm", pageMutedTextClass)}>
-                    Showing {allStudents.length} of {studentTotals[activeTab]} {activeTab.toLowerCase()} students
-                </p>
+                <p className={cn("text-sm", pageMutedTextClass)}>{t("Showing {count} of {value} {toLowerCase} students", { count: allStudents.length, value: studentTotals[activeTab], toLowerCase: activeTab.toLowerCase() })}</p>
                 {nextStudentCursor ? (
                     <AppButton
                         variant="secondary"
@@ -1029,8 +1019,7 @@ function StudentsContent({
                         aria-label={`Load more ${activeTab.toLowerCase()} students; ${allStudents.length} of ${studentTotals[activeTab]} shown`}
                         onClick={() => void loadStudentPage(nextStudentCursor, true)}
                     >
-                        Load more students
-                    </AppButton>
+                        {t("Load more students")}</AppButton>
                 ) : null}
             </div>
 
@@ -1058,8 +1047,8 @@ function StudentsContent({
             <Dialog
                 open={Boolean(whatsAppTarget)}
                 onClose={() => setWhatsAppTarget(null)}
-                title="WhatsApp recipient and consent"
-                description="Review or record explicit operational consent for the assigned branch sender."
+                title={t("WhatsApp recipient and consent")}
+                description={t("Review or record explicit operational consent for the assigned branch sender.")}
             >
                 {whatsAppTarget ? (
                     <StudentWhatsAppConsentControls
@@ -1073,8 +1062,8 @@ function StudentsContent({
             <Dialog
                 open={whatsAppBulkOpen}
                 onClose={() => setWhatsAppBulkOpen(false)}
-                title="Bulk WhatsApp operational consent"
-                description="Select only students currently loaded in this roster view. Each request is capped at 100 students."
+                title={t("Bulk WhatsApp operational consent")}
+                description={t("Select only students currently loaded in this roster view. Each request is capped at 100 students.")}
                 className="max-w-2xl"
             >
                 <BulkWhatsAppConsentControls
@@ -1101,7 +1090,7 @@ function StudentsContent({
                 isOpen={!!activateTarget}
                 onClose={() => setActivateTarget(null)}
                 onConfirm={confirmActivate}
-                title="Reactivate Student"
+                title={t("Reactivate Student")}
                 description={`Are you sure you want to reactivate ${activateTarget?.name}? They will be able to be allocated a seat again.`}
                 confirmText="Reactivate"
                 loading={activateLoading}
@@ -1133,6 +1122,7 @@ interface FeeDetailsDrawerProps {
 }
 
 function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canRecordFees, owner }: FeeDetailsDrawerProps) {
+    const t = useTranslation();
     const [collecting, setCollecting] = useState(false);
     const { formatDate, formatNumber } = useUserPreferences();
     const formatCurrency = (amount: number) => formatNumber(amount, {
@@ -1141,12 +1131,11 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
         maximumFractionDigits: 0,
     });
     const paymentBadge = (status: string) => {
-        if (status === "PAID") return <Badge variant="success" className="text-[10px] h-5 px-1.5">PAID</Badge>;
-        if (status === "DUE") return <Badge variant="warning" className="text-[10px] h-5 px-1.5">DUE</Badge>;
+        if (status === "PAID") return <Badge variant="success" className="text-[10px] h-5 px-1.5">{t("PAID")}</Badge>;
+        if (status === "DUE") return <Badge variant="warning" className="text-[10px] h-5 px-1.5">{t("DUE")}</Badge>;
         if (status === "WAIVED") return (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                WAIVED
-            </span>
+                {t("WAIVED")}</span>
         );
         return <Badge className="text-[10px] h-5 px-1.5">{status}</Badge>;
     };
@@ -1161,24 +1150,24 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
         >
                 <div className="space-y-6">
                     <div>
-                        {student ? <div className="text-sm text-textMuted">Joined {formatDate(student.joinedAt)}</div> : null}
+                        {student ? <div className="text-sm text-textMuted">{t("Joined")} {formatDate(student.joinedAt)}</div> : null}
                         {student ? <Badge className="mt-2" variant={student.status === "ACTIVE" ? "success" : "default"}>{student.status}</Badge> : null}
                     </div>
 
-                    {student && <><AppButton variant="primary" disabled={!canRecordFees} onClick={() => setCollecting(true)}>Collect fee</AppButton>
+                    {student && <><AppButton variant="primary" disabled={!canRecordFees} onClick={() => setCollecting(true)}>{t("Collect fee")}</AppButton>
                         <CollectionHistory branchId={branchId} studentId={student.id} owner={owner} />
                         {collecting && <CollectFeeDialog key={student.id} branchId={branchId} studentId={student.id} onClose={() => setCollecting(false)} onSaved={() => {}} />}
                     </>}
                     <div className="space-y-4">
-                        <h3 className="border-b border-[color:var(--ui-form-section-divider)] pb-2 text-sm font-semibold uppercase tracking-wider text-textMuted">Payment history</h3>
+                        <h3 className="border-b border-[color:var(--ui-form-section-divider)] pb-2 text-sm font-semibold uppercase tracking-wider text-textMuted">{t("Payment history")}</h3>
 
                         <div className="grid grid-cols-2 gap-3 mb-1">
                             <div className={cn("p-3 text-center", formSurfaceClass)}>
-                                <div className="text-xs text-textSecondary">Total Paid</div>
+                                <div className="text-xs text-textSecondary">{t("Total Paid")}</div>
                                 <div className="text-lg font-bold text-green-400">{formatCurrency(financials?.totalPaid || 0)}</div>
                             </div>
                             <div className={cn("p-3 text-center", formSurfaceClass)}>
-                                <div className="text-xs text-textSecondary">Total Due</div>
+                                <div className="text-xs text-textSecondary">{t("Total Due")}</div>
                                 <div className="text-lg font-bold text-red-400">{formatCurrency(financials?.totalDue || 0)}</div>
                             </div>
                         </div>
@@ -1186,7 +1175,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
                         {/* Waived summary only shows if there is a resolved amount. */}
                         {(financials?.totalWaived || 0) > 0 && (
                             <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-3 text-center">
-                                <div className="text-xs text-amber-400/70">Waived (resolved, not pursued)</div>
+                                <div className="text-xs text-amber-400/70">{t("Waived (resolved, not pursued)")}</div>
                                 <div className="text-base font-bold text-amber-400">{formatCurrency(financials?.totalWaived || 0)}</div>
                             </div>
                         )}
@@ -1203,19 +1192,19 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
                                     )}>
                                         <div>
                                             <div className="text-sm font-medium text-[color:var(--text-primary)]">
-                                                {p.type === "ADMISSION" ? "Admission Fee" : "Monthly Fee"}
+                                                {p.type === "ADMISSION" ? t("Admission Fee") : t("Monthly Fee")}
                                             </div>
-                                            <div className="text-xs text-textSecondary">Due: {formatDate(p.dueDate)}</div>
+                                            <div className="text-xs text-textSecondary">{t("Due: {formatDate}", { formatDate: formatDate(p.dueDate) })}</div>
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm font-bold text-[color:var(--text-primary)]">{formatCurrency(p.amount)}</div>
                                             {paymentBadge(p.status)}
-                                            {p.ledgerBacked ? <p className="text-xs">Collected ₹{p.collectedAmount} · Waived ₹{p.waivedAmount} · Remaining ₹{remainingFee(p)}{p.status === "DUE" && p.collectedAmount > 0 ? " · Partially paid" : ""}</p> : p.status !== "DUE" ? <p className="text-xs">Historical record · no generated receipt</p> : null}
+                                            {p.ledgerBacked ? <p className="text-xs">{t("Collected ₹{collected} · Waived ₹{waived} · Remaining ₹{remaining}", { collected: p.collectedAmount, waived: p.waivedAmount, remaining: remainingFee(p) })}{p.status === "DUE" && p.collectedAmount > 0 ? t(" · Partially paid") : ""}</p> : p.status !== "DUE" ? <p className="text-xs">{t("Historical record · no generated receipt")}</p> : null}
                                         </div>
                                     </div>
                                 ))}
                             {(!financials?.payments || financials.payments.length === 0) && (
-                                <p className="text-sm text-textMuted italic text-center py-4">No payment history found.</p>
+                                <p className="text-sm text-textMuted italic text-center py-4">{t("No payment history found.")}</p>
                             )}
                         </div>
                     </div>

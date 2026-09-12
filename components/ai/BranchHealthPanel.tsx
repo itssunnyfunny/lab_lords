@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import {
@@ -146,6 +147,7 @@ export function BranchHealthPanel({
     nextAllowedCallAt,
     onRefresh,
 }: BranchHealthPanelProps) {
+    const t = useTranslation();
     const { formatDateTime, formatNumber } = useUserPreferences();
     const [timeLeft, setTimeLeft] = useState("");
 
@@ -170,7 +172,7 @@ export function BranchHealthPanel({
 
     if (isLoading) {
         return (
-            <AppPanel title="Executive report">
+            <AppPanel title={t("Executive report")}>
                 <div className="grid gap-3 md:grid-cols-3">
                     {Array.from({ length: 3 }, (_, index) => (
                         <div key={index} className="space-y-3 rounded-[var(--ui-card-radius)] border border-[color:var(--ui-card-border)] bg-[color:var(--ui-card-bg)] p-4">
@@ -186,8 +188,8 @@ export function BranchHealthPanel({
 
     if (!report) {
         return (
-            <AppPanel title="Executive report">
-                <div className={pageEmptyStateClass}>No health report generated.</div>
+            <AppPanel title={t("Executive report")}>
+                <div className={pageEmptyStateClass}>{t("No health report generated.")}</div>
             </AppPanel>
         );
     }
@@ -218,7 +220,7 @@ export function BranchHealthPanel({
         <div className="flex flex-col items-start gap-2 sm:items-end">
             <span className={cn("flex items-center gap-2 px-3 py-1.5 text-xs", pageInsetSurfaceClass, readableTextClass)}>
                 <CalendarClock className="h-3.5 w-3.5 text-[color:var(--ui-tone-info-text)]" />
-                Generated {formatDateTime(report.generatedAt)}
+                {t("Generated")} {formatDateTime(report.generatedAt)}
             </span>
             {getHealthBadge(report.healthScore)}
         </div>
@@ -231,15 +233,13 @@ export function BranchHealthPanel({
                     <div className="flex items-center gap-3">
                         <span className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--ui-tone-warning-progress)]" />
                         <div>
-                            <p className="text-sm font-medium">New data detected</p>
-                            <p className="text-xs opacity-80">Insights are based on older data.</p>
+                            <p className="text-sm font-medium">{t("New data detected")}</p>
+                            <p className="text-xs opacity-80">{t("Insights are based on older data.")}</p>
                         </div>
                     </div>
 
                     {timeLeft ? (
-                        <span className={cn("w-fit px-3 py-1.5 text-xs font-mono", pageInsetSurfaceClass)}>
-                            Next refresh: {timeLeft}
-                        </span>
+                        <span className={cn("w-fit px-3 py-1.5 text-xs font-mono", pageInsetSurfaceClass)}>{t("Next refresh: {timeLeft}", { timeLeft: timeLeft })}</span>
                     ) : (
                         <AppButton
                             variant="quiet"
@@ -248,15 +248,14 @@ export function BranchHealthPanel({
                             disabled={!onRefresh}
                             className={formWarningActionClass}
                         >
-                            Refresh now
-                        </AppButton>
+                            {t("Refresh now")}</AppButton>
                     )}
                 </div>
             )}
 
             <AppPanel
-                title="Executive report"
-                description="A one-page read of the branch condition, priority focus, and strongest operating signals."
+                title={t("Executive report")}
+                description={t("A one-page read of the branch condition, priority focus, and strongest operating signals.")}
                 action={generatedTag}
             >
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
@@ -264,8 +263,7 @@ export function BranchHealthPanel({
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="text-xs font-medium uppercase text-[color:var(--text-muted)]">
-                                    Overall health
-                                </p>
+                                    {t("Overall health")}</p>
                                 <h3 className="mt-1 text-2xl font-semibold text-[color:var(--text-primary)]">
                                     {formatHealthScore(report.healthScore)}
                                 </h3>
@@ -281,8 +279,7 @@ export function BranchHealthPanel({
                             <Target className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ui-tone-warning-text)]" />
                             <div className="min-w-0">
                                 <p className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">
-                                    Priority focus
-                                </p>
+                                    {t("Priority focus")}</p>
                                 <p className="mt-1 text-sm leading-5 text-[color:var(--text-primary)]">
                                     {buildPriority(report, snapshot)}
                                 </p>
@@ -293,7 +290,7 @@ export function BranchHealthPanel({
                     <article className={cn(pageGridCardClass, "space-y-3")}>
                         <div className="flex items-center gap-2">
                             <ClipboardList className="h-4 w-4 text-[color:var(--ui-tone-info-text)]" />
-                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">Key findings</p>
+                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Key findings")}</p>
                         </div>
                         <ul className="space-y-2">
                             {findings.map((finding, index) => (
@@ -315,7 +312,7 @@ export function BranchHealthPanel({
                                 <div className="mb-3 flex items-start justify-between gap-3">
                                     <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]">
                                         <Icon className="h-4 w-4 shrink-0 text-[color:var(--ui-tone-info-text)]" />
-                                        <span className="truncate">{signal.label}</span>
+                                        <span>{t.owned(signal.label)}</span>
                                     </div>
                                     <Badge variant={riskBadgeVariant[signal.riskLevel] ?? "default"}>
                                         {signal.riskLevel}
@@ -325,7 +322,7 @@ export function BranchHealthPanel({
                                     {signal.observation}
                                 </p>
                                 <p className={cn("mt-3 text-xs font-semibold", riskTextClass[signal.riskLevel] ?? pageSubtleTextClass)}>
-                                    {signal.riskLevel === "LOW" ? "Stable signal" : "Needs attention"}
+                                    {signal.riskLevel === "LOW" ? t("Stable signal") : t("Needs attention")}
                                 </p>
                             </article>
                         );

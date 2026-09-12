@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, Layers, Loader2, Lock } from "lucide-react";
@@ -70,6 +72,7 @@ export function CompactImportAllocationPicker({
     onDraftChange,
     onFeeLinkChange,
 }: CompactImportAllocationPickerProps) {
+    const t = useTranslation();
     const [availabilityState, setAvailabilityState] = useState<AvailabilityState>({
         key: "",
         data: null,
@@ -161,8 +164,8 @@ export function CompactImportAllocationPicker({
                 <div className="pr-8">
                     <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold text-[color:var(--text-primary)]">{shift.name}</p>
-                        {shift.type === "MULTISHIFT" && <Badge variant="purple">bundle</Badge>}
-                        {shift.isFull && <Badge variant="danger">full</Badge>}
+                        {shift.type === "MULTISHIFT" && <Badge variant="purple">{t("bundle")}</Badge>}
+                        {shift.isFull && <Badge variant="danger">{t("full")}</Badge>}
                     </div>
                     <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{timeRange(shift)} / {formatAmount(shift.price)}</p>
                     {shift.componentShiftNames?.length ? (
@@ -173,9 +176,7 @@ export function CompactImportAllocationPicker({
                     <div className={pickerProgressTrackClass}>
                         <div className={cn("h-full rounded-full", capacityBarColor(shift))} style={{ width: `${Math.max(0, Math.min(100, shift.occupancyPercent))}%` }} />
                     </div>
-                    <p className={cn("mt-1 text-[10px]", pageMutedTextClass)}>
-                        {shift.available} free, {shift.stagedUsed} staged in this import
-                    </p>
+                    <p className={cn("mt-1 text-[10px]", pageMutedTextClass)}>{t("{available} free, {stagedUsed} staged in this import", { available: shift.available, stagedUsed: shift.stagedUsed })}</p>
                 </div>
             </button>
         );
@@ -185,8 +186,8 @@ export function CompactImportAllocationPicker({
         <div className={cn("space-y-4 p-4", pageInsetSurfaceClass)}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p className={pickerSectionLabelClass}>Seat and shift</p>
-                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>Choose shift or bundle first, then pick an available seat.</p>
+                    <p className={pickerSectionLabelClass}>{t("Seat and shift")}</p>
+                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Choose shift or bundle first, then pick an available seat.")}</p>
                 </div>
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                     <input
@@ -195,18 +196,17 @@ export function CompactImportAllocationPicker({
                         onChange={event => toggleFeeLink(event.target.checked)}
                         className="h-4 w-4 rounded border-[color:var(--ui-form-field-border)] bg-[color:var(--ui-form-field-bg)]"
                     />
-                    <span>Link fee to selected price</span>
+                    <span>{t("Link fee to selected price")}</span>
                 </label>
             </div>
 
             {loading && (
                 <div className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading availability...
-                </div>
+                    {t("Loading availability...")}</div>
             )}
 
-            {error && <div className={pickerWarningHintClass}>{error}</div>}
+            {error && <div className={pickerWarningHintClass}><LocalizedError error={error} /></div>}
 
             {!loading && !error && (
                 <>
@@ -215,8 +215,7 @@ export function CompactImportAllocationPicker({
                             <div className="space-y-2">
                                 <p className={pickerGroupLabelClass}>
                                     <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ui-badge-cyan-text)]" />
-                                    Shifts
-                                </p>
+                                    {t("Shifts")}</p>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     {primaryShifts.map(renderShiftCard)}
                                 </div>
@@ -226,8 +225,7 @@ export function CompactImportAllocationPicker({
                             <div className="space-y-2">
                                 <p className={pickerGroupLabelClass}>
                                     <Layers className="h-3 w-3" />
-                                    Bundles
-                                </p>
+                                    {t("Bundles")}</p>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     {multiShifts.map(renderShiftCard)}
                                 </div>
@@ -236,18 +234,16 @@ export function CompactImportAllocationPicker({
                     </div>
 
                     {!availability?.seatMap && (
-                        <p className={pickerHintClass}>Select a shift or bundle to see seats.</p>
+                        <p className={pickerHintClass}>{t("Select a shift or bundle to see seats.")}</p>
                     )}
 
                     {availability?.seatMap && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between gap-3">
-                                <p className={pickerSectionLabelClass}>Seats</p>
+                                <p className={pickerSectionLabelClass}>{t("Seats")}</p>
                                 <p className="text-[10px] text-[color:var(--text-muted)]">
-                                    <span className="font-semibold text-[color:var(--ui-tone-success-text)]">{availability.seatMap.availableCount}</span> free
-                                    <span className="mx-1">/</span>
-                                    <span className="font-semibold text-[color:var(--ui-tone-danger-text)]">{availability.seatMap.occupiedCount}</span> taken
-                                </p>
+                                    <span className="font-semibold text-[color:var(--ui-tone-success-text)]">{availability.seatMap.availableCount}</span>  {t("free")}<span className="mx-1">/</span>
+                                    <span className="font-semibold text-[color:var(--ui-tone-danger-text)]">{availability.seatMap.occupiedCount}</span>  {t("taken")}</p>
                             </div>
                             <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10">
                                 {availability.seatMap.seats.map(seat => {

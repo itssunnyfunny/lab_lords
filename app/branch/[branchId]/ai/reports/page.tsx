@@ -1,4 +1,9 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { LanguageControls } from "@/components/settings/LanguageControls";
+import { translateOwnedText } from "@/lib/i18n";
+import { LANGUAGE_TAGS, type InterfaceLanguage } from "@/lib/i18n/language";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -95,6 +100,7 @@ function slugify(value: string) {
 }
 
 function buildDownloadReportHtml({
+    language,
     branchName,
     report,
     snapshot,
@@ -103,6 +109,7 @@ function buildDownloadReportHtml({
     formatCurrency,
     formatDate,
 }: {
+    language: InterfaceLanguage;
     branchName: string;
     report: AIStructuredBranchReport;
     snapshot: AIBranchReportSnapshot | null;
@@ -111,16 +118,17 @@ function buildDownloadReportHtml({
     formatCurrency: (value: number) => string;
     formatDate: (value?: string) => string;
 }) {
+    const t = (text: string) => escapeHtml(translateOwnedText(language, text));
     const findings = report.keyFindings?.filter(Boolean).slice(0, 3) ?? [];
     const metricCards = snapshot
         ? `
             <section class="section">
-                <h2>Operating Snapshot</h2>
+                <h2>${t("Operating Snapshot")}</h2>
                 <div class="metrics">
-                    <div class="metric"><span>Utilization</span><strong>${escapeHtml(snapshot.seats.utilizationPercent.toFixed(1))}%</strong>${escapeHtml(snapshot.seats.occupied)}/${escapeHtml(snapshot.seats.total)} shift slots</div>
-                    <div class="metric"><span>Active students</span><strong>${escapeHtml(snapshot.students.active)}</strong>${escapeHtml(snapshot.students.total)} total students</div>
-                    <div class="metric"><span>Overdue payments</span><strong>${escapeHtml(snapshot.payments.overdueCount)}</strong>${escapeHtml(formatCurrency(snapshot.payments.overdueAmount))}</div>
-                    <div class="metric"><span>Available slots</span><strong>${escapeHtml(snapshot.seats.available)}</strong>shift slots open</div>
+                    <div class="metric"><span>${t("Utilization")}</span><strong>${escapeHtml(snapshot.seats.utilizationPercent.toFixed(1))}%</strong>${escapeHtml(snapshot.seats.occupied)}/${escapeHtml(snapshot.seats.total)} ${t("Shift slots used")}</div>
+                    <div class="metric"><span>${t("Active students")}</span><strong>${escapeHtml(snapshot.students.active)}</strong>${escapeHtml(snapshot.students.total)} ${t("Students")}</div>
+                    <div class="metric"><span>${t("Overdue payments")}</span><strong>${escapeHtml(snapshot.payments.overdueCount)}</strong>${escapeHtml(formatCurrency(snapshot.payments.overdueAmount))}</div>
+                    <div class="metric"><span>${t("Available slots")}</span><strong>${escapeHtml(snapshot.seats.available)}</strong>${t("shift slots open")}</div>
                 </div>
             </section>
         `
@@ -129,15 +137,15 @@ function buildDownloadReportHtml({
     const riskTable = riskDrivers.length > 0
         ? `
             <section class="section">
-                <h2>Score Drivers</h2>
+                <h2>${t("Score Drivers")}</h2>
                 <table>
-                    <caption>Risk drivers used in this report</caption>
-                    <thead><tr><th scope="col">Driver</th><th scope="col">Severity</th><th scope="col">Explanation</th></tr></thead>
+                    <caption>${t("Risk drivers used in this report")}</caption>
+                    <thead><tr><th scope="col">${t("Driver")}</th><th scope="col">${t("Severity")}</th><th scope="col">${t("Explanation")}</th></tr></thead>
                     <tbody>
                         ${riskDrivers.map((risk) => `
                             <tr>
-                                <th scope="row">${escapeHtml(formatLabel(risk.type))}</th>
-                                <td>${escapeHtml(risk.severity)}</td>
+                                <th scope="row">${t(formatLabel(risk.type))}</th>
+                                <td>${t(risk.severity)}</td>
                                 <td>${escapeHtml(risk.explanation)}</td>
                             </tr>
                         `).join("")}
@@ -148,18 +156,18 @@ function buildDownloadReportHtml({
         : "";
 
     return `<!doctype html>
-<html lang="en">
+<html lang="${LANGUAGE_TAGS[language]}">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(branchName)} AI Report</title>
     <style>
-        :root { color: #111827; background: #f8fafc; font-family: Arial, sans-serif; }
+        :root { color: #111827; background: #f8fafc; font-family: "Nirmala UI", "Noto Sans Devanagari", Arial, sans-serif; line-height: 1.6; }
         body { margin: 0; padding: 32px; }
         main { max-width: 960px; margin: 0 auto; background: #ffffff; border: 1px solid #d1d5db; padding: 32px; }
         header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 16px; }
         .kicker, .metric span, th { color: #4b5563; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-        h1 { margin: 4px 0 0; font-size: 30px; line-height: 1.1; }
+        h1 { margin: 4px 0 0; font-size: 30px; line-height: 1.5; }
         h2 { border-bottom: 1px solid #d1d5db; font-size: 16px; margin: 0 0 10px; padding-bottom: 5px; }
         p, li, td { color: #1f2937; }
         .score { border: 1px solid #111827; min-width: 170px; padding: 10px 12px; text-align: right; }
@@ -184,34 +192,34 @@ function buildDownloadReportHtml({
     <main>
         <header>
             <div>
-                <p class="kicker">AI Branch Report</p>
+                <p class="kicker">${t("AI Branch Report")}</p>
                 <h1>${escapeHtml(branchName)}</h1>
-                <p>Generated ${escapeHtml(formatDate(report.generatedAt))}</p>
+                <p>${escapeHtml(translateOwnedText(language, "Generated {date}", { date: formatDate(report.generatedAt) }))}</p>
             </div>
             <div class="score">
-                Health score
+                ${t("Health score")}
                 <strong>${escapeHtml(formatLabel(report.healthScore))}</strong>
             </div>
         </header>
 
         <section class="section summary">
-            <p>${escapeHtml(report.executiveSummary ?? "This report summarizes the branch health signals and recommended actions.")}</p>
-            <p><strong>Priority focus:</strong> ${escapeHtml(report.priorityFocus ?? "Review the highest-risk signal first.")}</p>
+            <p>${report.executiveSummary ? escapeHtml(report.executiveSummary) : t("This report summarizes the branch health signals and recommended actions.")}</p>
+            <p><strong>${t("Priority focus")}:</strong> ${report.priorityFocus ? escapeHtml(report.priorityFocus) : t("Review the highest-risk signal first.")}</p>
             ${findings.length > 0 ? `<ul>${findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}</ul>` : ""}
         </section>
 
         ${metricCards}
 
         <section class="section">
-            <h2>Signal Breakdown</h2>
+            <h2>${t("Signal Breakdown")}</h2>
             <table>
-                <caption>Branch health signals and observations</caption>
-                <thead><tr><th scope="col">Signal</th><th scope="col">Risk</th><th scope="col">Observation</th></tr></thead>
+                <caption>${t("Branch health signals and observations")}</caption>
+                <thead><tr><th scope="col">${t("Signal")}</th><th scope="col">${t("Risk")}</th><th scope="col">${t("Observation")}</th></tr></thead>
                 <tbody>
                     ${signals.map((signal) => `
                         <tr>
-                            <th scope="row">${escapeHtml(signal.label)}</th>
-                            <td>${escapeHtml(signal.riskLevel)}</td>
+                            <th scope="row">${t(signal.label)}</th>
+                            <td>${t(signal.riskLevel)}</td>
                             <td>${escapeHtml(signal.observation)}</td>
                         </tr>
                     `).join("")}
@@ -220,16 +228,16 @@ function buildDownloadReportHtml({
         </section>
 
         <section class="section">
-            <h2>Recommended Actions</h2>
+            <h2>${t("Recommended Actions")}</h2>
             ${report.suggestedActions.length === 0
-                ? "<p>No actions required at this time.</p>"
+                ? `<p>${t("No actions required at this time.")}</p>`
                 : `<ol>${report.suggestedActions.map((actionItem) => `<li><strong>${escapeHtml(formatLabel(actionItem.action))}:</strong> ${escapeHtml(actionItem.reason)}</li>`).join("")}</ol>`
             }
         </section>
 
         ${riskTable}
 
-        <footer>Report downloaded from Lab Lords AI reports. Data as of ${escapeHtml(formatDate(snapshot?.asOf ?? report.generatedAt))}.</footer>
+        <footer>${escapeHtml(translateOwnedText(language, "Report downloaded from Lab Lords AI reports. Data as of {date}.", { date: formatDate(snapshot?.asOf ?? report.generatedAt) }))}</footer>
     </main>
 </body>
 </html>`;
@@ -270,6 +278,7 @@ function getReportSignals(report: AIStructuredBranchReport | null): ReportSignal
 }
 
 export default function AIReportsPage() {
+    const t = useTranslation();
     const params = useParams();
     const branchId = params.branchId as string;
 
@@ -281,13 +290,12 @@ export default function AIReportsPage() {
                     <AIReportsContent branchId={branchId} />
                 ) : (
                     <ErrorState
-                        title="Report generation unavailable"
+                        title={t("Report generation unavailable")}
                         description={decision.reason}
                         restricted
                         action={decision.recoveryHref ? (
                             <a href={decision.recoveryHref} className="inline-flex min-h-11 items-center font-semibold text-cyan-200 underline underline-offset-4">
-                                Review billing
-                            </a>
+                                {t("Review billing")}</a>
                         ) : undefined}
                     />
                 );
@@ -297,7 +305,8 @@ export default function AIReportsPage() {
 }
 
 function AIReportsContent({ branchId }: { branchId: string }) {
-    const { formatDateTime, formatNumber } = useUserPreferences();
+    const t = useTranslation();
+    const { formatDateTime, formatNumber, documentLanguage } = useUserPreferences();
     const formatCurrency = useCallback((value: number) => formatNumber(value, {
         style: "currency",
         currency: "INR",
@@ -360,6 +369,7 @@ function AIReportsContent({ branchId }: { branchId: string }) {
         downloadHtmlReport(
             `ai-report-${slugify(branchName)}-${new Date(report.generatedAt).toISOString().slice(0, 10)}.html`,
             buildDownloadReportHtml({
+                language: documentLanguage,
                 branchName,
                 report,
                 snapshot,
@@ -369,38 +379,37 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                 formatDate,
             })
         );
-    }, [branchName, formatCurrency, formatDate, report, reportSignals, riskDrivers, snapshot]);
+    }, [branchName, documentLanguage, formatCurrency, formatDate, report, reportSignals, riskDrivers, snapshot]);
 
     if (loading) {
-        return <PageLoadingSkeleton label="Loading AI branch report" variant="ai" maxWidth="content" />;
+        return <PageLoadingSkeleton label={t("Loading AI branch report")} variant="ai" maxWidth="content" />;
     }
 
     return (
         <>
             <div className="ai-report-screen">
+                <LanguageControls documentOnly />
                 <PageShell maxWidth="content">
                     <PageHeader
-                        title="AI Branch Report"
-                        subtitle="A clearer one-page read of health, risks, numbers, and next actions."
+                        title={t("AI Branch Report")}
+                        subtitle={t("A clearer one-page read of health, risks, numbers, and next actions.")}
                         onExport={report ? handleDownloadReport : undefined}
                         exportLabel="Download report"
                         exportAriaLabel="Download AI report file"
                         extraActions={
                             report ? (
                                 <AppButton variant="secondary" icon={Printer} onClick={handlePrintReport}>
-                                    Print report
-                                </AppButton>
+                                    {t("Print report")}</AppButton>
                             ) : undefined
                         }
                     />
 
                     {error && (
-                        <AppPanel title="Report unavailable" description="The AI report could not be loaded right now.">
+                        <AppPanel title={t("Report unavailable")} description={t("The AI report could not be loaded right now.")}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className={cn("text-sm leading-6", pageMutedTextClass)}>{error}</p>
+                                <p className={cn("text-sm leading-6", pageMutedTextClass)}><LocalizedError error={error} /></p>
                                 <AppButton variant="secondary" icon={RefreshCw} onClick={fetchData}>
-                                    Try again
-                                </AppButton>
+                                    {t("Try again")}</AppButton>
                             </div>
                         </AppPanel>
                     )}
@@ -417,14 +426,13 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                     {report && (
                         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]">
                             <AppPanel
-                                title="Action plan"
-                                description="The next steps the owner can act on immediately."
+                                title={t("Action plan")}
+                                description={t("The next steps the owner can act on immediately.")}
                                 contentClassName="space-y-3"
                             >
                                 {report.suggestedActions.length === 0 ? (
                                     <div className={cn("p-4 text-sm", pageInsetSurfaceClass, pageSubtleTextClass)}>
-                                        No actions required at this time.
-                                    </div>
+                                        {t("No actions required at this time.")}</div>
                                 ) : (
                                     report.suggestedActions.map((actionItem, index) => (
                                         <article key={`${actionItem.action}-${index}`} className={cn(pageGridCardClass, "border-l-4 border-l-[color:var(--ui-tone-success-progress)]")}>
@@ -448,14 +456,14 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                             </AppPanel>
 
                             <AppPanel
-                                title="Score drivers"
-                                description="The deterministic signals behind the AI narrative."
+                                title={t("Score drivers")}
+                                description={t("The deterministic signals behind the AI narrative.")}
                                 contentClassName="space-y-3"
                             >
                                 {riskDrivers.length === 0 ? (
                                     <div className={cn("flex items-start gap-3 p-4 text-sm", pageInsetSurfaceClass)}>
                                         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ui-tone-success-text)]" />
-                                        <p className={readableTextClass}>No major risk driver was detected in this run.</p>
+                                        <p className={readableTextClass}>{t("No major risk driver was detected in this run.")}</p>
                                     </div>
                                 ) : (
                                     riskDrivers.map((risk, index) => (
@@ -518,6 +526,8 @@ function PrintableAIReport({
     formatCurrency: (value: number) => string;
     formatDate: (value?: string) => string;
 }) {
+    const t = useTranslation("document");
+    const { documentLanguage } = useUserPreferences();
     if (!report) return null;
 
     const findings = report.keyFindings?.filter(Boolean).slice(0, 3) ?? [];
@@ -648,23 +658,22 @@ function PrintableAIReport({
                 }
             `}</style>
 
-            <section className="ai-report-print-root" aria-hidden="true">
+            <section className="ai-report-print-root" lang={LANGUAGE_TAGS[documentLanguage]} aria-hidden="true">
                 <div className="ai-report-print-page">
                     <header className="ai-report-print-header">
                         <div>
-                            <p className="ai-report-print-kicker">AI Branch Report</p>
+                            <p className="ai-report-print-kicker">{t("AI Branch Report")}</p>
                             <h1 className="ai-report-print-title">{branchName}</h1>
-                            <p>Generated {formatDate(report.generatedAt)}</p>
+                            <p>{t("Generated")} {formatDate(report.generatedAt)}</p>
                         </div>
                         <div className="ai-report-print-score">
-                            Health score
-                            <strong>{formatLabel(report.healthScore)}</strong>
+                            {t("Health score")}<strong>{formatLabel(report.healthScore)}</strong>
                         </div>
                     </header>
 
                     <section className="ai-report-print-section ai-report-print-summary">
-                        <p>{report.executiveSummary ?? "This report summarizes the branch health signals and recommended actions."}</p>
-                        <p><strong>Priority focus:</strong> {report.priorityFocus ?? "Review the highest-risk signal first."}</p>
+                        <p>{report.executiveSummary ?? t("This report summarizes the branch health signals and recommended actions.")}</p>
+                        <p><strong>{t("Priority focus:")}</strong> {report.priorityFocus ?? "Review the highest-risk signal first."}</p>
                         {findings.length > 0 && (
                             <ul>
                                 {findings.map((finding, index) => (
@@ -676,48 +685,45 @@ function PrintableAIReport({
 
                     {snapshot && (
                         <section className="ai-report-print-section">
-                            <h2>Operating Snapshot</h2>
+                            <h2>{t("Operating Snapshot")}</h2>
                             <div className="ai-report-print-metrics">
                                 <div className="ai-report-print-metric">
-                                    <span>Utilization</span>
+                                    <span>{t("Utilization")}</span>
                                     <strong>{snapshot.seats.utilizationPercent.toFixed(1)}%</strong>
-                                    {snapshot.seats.occupied}/{snapshot.seats.total} shift slots
-                                </div>
+                                    {snapshot.seats.occupied}/{snapshot.seats.total}  {t("shift slots")}</div>
                                 <div className="ai-report-print-metric">
-                                    <span>Active students</span>
+                                    <span>{t("Active students")}</span>
                                     <strong>{snapshot.students.active}</strong>
-                                    {snapshot.students.total} total students
-                                </div>
+                                    {snapshot.students.total}  {t("total students")}</div>
                                 <div className="ai-report-print-metric">
-                                    <span>Overdue payments</span>
+                                    <span>{t("Overdue payments")}</span>
                                     <strong>{snapshot.payments.overdueCount}</strong>
                                     {formatCurrency(snapshot.payments.overdueAmount)}
                                 </div>
                                 <div className="ai-report-print-metric">
-                                    <span>Available slots</span>
+                                    <span>{t("Available slots")}</span>
                                     <strong>{snapshot.seats.available}</strong>
-                                    shift slots open
-                                </div>
+                                    {t("shift slots open")}</div>
                             </div>
                         </section>
                     )}
 
                     <section className="ai-report-print-section">
-                        <h2>Signal Breakdown</h2>
+                        <h2>{t("Signal Breakdown")}</h2>
                         <table className="ai-report-print-table">
-                            <caption className="sr-only">Branch health signals and observations</caption>
+                            <caption className="sr-only">{t("Branch health signals and observations")}</caption>
                             <thead>
                                 <tr>
-                                    <th scope="col">Signal</th>
-                                    <th scope="col">Risk</th>
-                                    <th scope="col">Observation</th>
+                                    <th scope="col">{t("Signal")}</th>
+                                    <th scope="col">{t("Risk")}</th>
+                                    <th scope="col">{t("Observation")}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {signals.map((signal) => (
                                     <tr key={signal.label}>
-                                        <th scope="row">{signal.label}</th>
-                                        <td>{signal.riskLevel}</td>
+                                        <th scope="row">{t.owned(signal.label)}</th>
+                                        <td>{t.owned(signal.riskLevel)}</td>
                                         <td>{signal.observation}</td>
                                     </tr>
                                 ))}
@@ -726,9 +732,9 @@ function PrintableAIReport({
                     </section>
 
                     <section className="ai-report-print-section">
-                        <h2>Recommended Actions</h2>
+                        <h2>{t("Recommended Actions")}</h2>
                         {report.suggestedActions.length === 0 ? (
-                            <p>No actions required at this time.</p>
+                            <p>{t("No actions required at this time.")}</p>
                         ) : (
                             <ol className="ai-report-print-actions">
                                 {report.suggestedActions.map((actionItem, index) => (
@@ -742,21 +748,21 @@ function PrintableAIReport({
 
                     {riskDrivers.length > 0 && (
                         <section className="ai-report-print-section">
-                            <h2>Score Drivers</h2>
+                            <h2>{t("Score Drivers")}</h2>
                             <table className="ai-report-print-table">
-                                <caption className="sr-only">Risk drivers used in this report</caption>
+                                <caption className="sr-only">{t("Risk drivers used in this report")}</caption>
                                 <thead>
                                     <tr>
-                                        <th scope="col">Driver</th>
-                                        <th scope="col">Severity</th>
-                                        <th scope="col">Explanation</th>
+                                        <th scope="col">{t("Driver")}</th>
+                                        <th scope="col">{t("Severity")}</th>
+                                        <th scope="col">{t("Explanation")}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {riskDrivers.map((risk, index) => (
                                         <tr key={`${risk.type}-${index}`}>
                                             <th scope="row">{formatLabel(risk.type)}</th>
-                                            <td>{risk.severity}</td>
+                                            <td>{t.owned(risk.severity)}</td>
                                             <td>{risk.explanation}</td>
                                         </tr>
                                     ))}
@@ -766,7 +772,7 @@ function PrintableAIReport({
                     )}
 
                     <footer className="ai-report-print-footer">
-                        Paper view generated from Lab Lords AI reports. Data as of {formatDate(snapshot?.asOf ?? report.generatedAt)}.
+                        {t("Paper view generated from Lab Lords AI reports. Data as of {date}.", { date: formatDate(snapshot?.asOf ?? report.generatedAt) })}
                     </footer>
                 </div>
             </section>

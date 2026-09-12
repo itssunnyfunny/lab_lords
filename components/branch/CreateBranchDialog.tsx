@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -84,6 +86,7 @@ export function CreateBranchDialog({
     organizationId,
     onSuccess,
 }: CreateBranchDialogProps) {
+    const t = useTranslation();
     const router = useRouter();
     const [formData, setFormData] = useState({
         name: "",
@@ -319,25 +322,24 @@ export function CreateBranchDialog({
             <Dialog
                 open={isOpen}
                 onClose={handleClose}
-                title="Create new branch"
-                description="Set up a new location under this organization."
-                closeLabel="Close create branch dialog"
+                title={t("Create new branch")}
+                description={t("Set up a new location under this organization.")}
+                closeLabel={t("Close create branch dialog")}
                 closeDisabled={loading}
                 className="max-w-lg"
                 footer={(
                     <>
                         <Button variant="ghost" onClick={handleClose} disabled={loading}>
-                            Cancel
-                        </Button>
+                            {t("Cancel")}</Button>
                         <Button
                             onClick={handleSubmit}
                             disabled={loading}
                             className="min-w-[130px] justify-center"
                         >
                             {loading ? (
-                                <><Loader2 size={14} className="mr-2 animate-spin" aria-hidden="true" /> Creating...</>
+                                <><Loader2 size={14} className="mr-2 animate-spin" aria-hidden="true" />  {t("Creating...")}</>
                             ) : (
-                                "Create Branch"
+                                t("Create Branch")
                             )}
                         </Button>
                     </>
@@ -347,7 +349,7 @@ export function CreateBranchDialog({
                     {/* Branch Name */}
                     <div className="space-y-1.5">
                         <label htmlFor="create-branch-name" className={formLabelClass}>
-                            Branch Name <span className={formRequiredClass}>*</span>
+                            {t("Branch Name")} <span className={formRequiredClass}>*</span>
                         </label>
                         <div className="relative">
                             <MapPin className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={16} aria-hidden="true" />
@@ -358,7 +360,7 @@ export function CreateBranchDialog({
                                 value={formData.name}
                                 onChange={handleChange}
                                 onBlur={() => markTouched("name")}
-                                placeholder="e.g. Main Branch, Downtown"
+                                placeholder={t("e.g. Main Branch, Downtown")}
                                 data-dialog-initial-focus
                                 maxLength={120}
                                 className={cn(formControlClass, "py-2.5 pl-9 pr-4 text-sm", fieldErrorClass(nameError))}
@@ -370,7 +372,7 @@ export function CreateBranchDialog({
 
                     <div className="space-y-1.5">
                         <label htmlFor="create-branch-contact-phone" className={formLabelClass}>
-                            Contact Phone <span className={formRequiredClass}>*</span>
+                            {t("Contact Phone")} <span className={formRequiredClass}>*</span>
                         </label>
                         <div className="relative">
                             <Phone className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={16} aria-hidden="true" />
@@ -393,7 +395,7 @@ export function CreateBranchDialog({
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
                             <label htmlFor="create-branch-city" className={formLabelClass}>
-                                City / Area <span className={formHelpTextClass}>(Optional)</span>
+                                {t("City / Area")} <span className={formHelpTextClass}>{t("(Optional)")}</span>
                             </label>
                             <input
                                 id="create-branch-city"
@@ -402,7 +404,7 @@ export function CreateBranchDialog({
                                 value={formData.city}
                                 onChange={handleChange}
                                 onBlur={() => markTouched("city")}
-                                placeholder="e.g. Mumbai"
+                                placeholder={t("e.g. Mumbai")}
                                 maxLength={FORM_LIMITS.cityMax}
                                 className={cn(formControlClass, "px-4 py-2.5 text-sm", fieldErrorClass(cityError))}
                                 {...fieldErrorProps("create-branch-city-error", cityError)}
@@ -411,7 +413,7 @@ export function CreateBranchDialog({
                         </div>
                         <div className="space-y-1.5">
                             <label htmlFor="create-branch-seat-count" className={formLabelClass}>
-                                Total Seats <span className={formRequiredClass}>*</span>
+                                {t("Total Seats")} <span className={formRequiredClass}>*</span>
                             </label>
                             <input
                                 id="create-branch-seat-count"
@@ -438,7 +440,7 @@ export function CreateBranchDialog({
                         aria-labelledby="create-branch-seat-numbering-label"
                         aria-describedby={seatNumberingError ? "create-branch-seat-numbering-error" : undefined}
                     >
-                        <p id="create-branch-seat-numbering-label" className={formLabelClass}>Seat numbering</p>
+                        <p id="create-branch-seat-numbering-label" className={formLabelClass}>{t("Seat numbering")}</p>
                         <SeatNumberingBuilder
                             value={formData.seatNumbering as SeatNumberingConfig}
                             expectedCount={seatCountPreview}
@@ -454,7 +456,7 @@ export function CreateBranchDialog({
                     {/* Default Monthly Fee */}
                     <div className="space-y-1.5">
                         <label htmlFor="create-branch-default-fee" className={formLabelClass}>
-                            Default Monthly Fee <span className={formHelpTextClass}>(Optional)</span>
+                            {t("Default Monthly Fee")} <span className={formHelpTextClass}>{t("(Optional)")}</span>
                         </label>
                         <div className="relative">
                             <span className={cn("absolute left-3 top-1/2 -translate-y-1/2 text-sm", formIconClass)}>₹</span>
@@ -485,14 +487,13 @@ export function CreateBranchDialog({
                         aria-describedby={shiftsError ? "create-branch-shifts-error" : undefined}
                     >
                         <div className="flex items-center justify-between">
-                            <p id="create-branch-shifts-label" className={formLabelClass}>Shifts & Pricing</p>
+                            <p id="create-branch-shifts-label" className={formLabelClass}>{t("Shifts & Pricing")}</p>
                             <button
                                 type="button"
                                 onClick={addShift}
                                 className="flex items-center gap-1 text-xs text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
                             >
-                                <Plus size={12} aria-hidden="true" /> Add Shift
-                            </button>
+                                <Plus size={12} aria-hidden="true" />  {t("Add Shift")}</button>
                         </div>
 
                         <div className="space-y-3">
@@ -504,7 +505,7 @@ export function CreateBranchDialog({
                                             <input
                                                 type="text"
                                                 aria-label={`Shift ${idx + 1} name`}
-                                                placeholder="Name"
+                                                placeholder={t("Name")}
                                                 value={shift.name}
                                                 onChange={(e) => handleShiftChange(idx, "name", e.target.value)}
                                                 className={cn(formInlineControlClass, "py-1 text-xs")}
@@ -581,7 +582,7 @@ export function CreateBranchDialog({
                     {error && (
                         <div id="create-branch-submit-error" role="alert" className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                             <AlertCircle size={14} aria-hidden="true" />
-                            {error}
+                            <LocalizedError error={error} />
                         </div>
                     )}
                 </div>

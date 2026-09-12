@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import { Hash, Loader2, Plus } from "lucide-react";
@@ -37,6 +39,7 @@ function getErrorMessage(err: unknown) {
 }
 
 export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatDialogProps) {
+    const t = useTranslation();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [label, setLabel] = useState("");
@@ -108,21 +111,20 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="Add seats"
-            description="Create one seat or generate a numbered set."
-            closeLabel="Close add seats dialog"
+            title={t("Add seats")}
+            description={t("Create one seat or generate a numbered set.")}
+            closeLabel={t("Close add seats dialog")}
             closeDisabled={isLoading}
             className="max-w-md"
             footer={(
                 <>
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button type="submit" form="add-seat-form" disabled={isLoading} className="min-w-[120px]">
                         {isLoading ? (
-                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> Saving...</>
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />  {t("Saving...")}</>
                         ) : (
-                            mode === "single" ? "Create Seat" : "Generate Seats"
+                            mode === "single" ? t("Create Seat") : t("Generate Seats")
                         )}
                     </Button>
                 </>
@@ -137,11 +139,11 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                     >
                         {error && (
                             <div id="add-seat-submit-error" role="alert" className={cn("p-3 text-sm", formErrorBannerClass)}>
-                                {error}
+                                <LocalizedError error={error} />
                             </div>
                         )}
 
-                        <div className="flex flex-wrap gap-2" role="group" aria-label="Seat creation mode">
+                        <div className="flex flex-wrap gap-2" role="group" aria-label={t("Seat creation mode")}>
                             <button
                                 type="button"
                                 disabled={isLoading}
@@ -155,8 +157,7 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                                 aria-pressed={mode === "single"}
                             >
                                 <Plus size={15} aria-hidden="true" />
-                                Single seat
-                            </button>
+                                {t("Single seat")}</button>
                             <button
                                 type="button"
                                 disabled={isLoading}
@@ -170,14 +171,13 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                                 aria-pressed={mode === "generate"}
                             >
                                 <Hash size={15} aria-hidden="true" />
-                                Generate seats
-                            </button>
+                                {t("Generate seats")}</button>
                         </div>
 
                         {mode === "single" ? (
                             <div className="space-y-2">
                                 <label htmlFor="add-seat-label" className={formLabelClass}>
-                                    Seat Label <span className={formRequiredClass}>*</span>
+                                    {t("Seat Label")} <span className={formRequiredClass}>*</span>
                                 </label>
                                 <input
                                     id="add-seat-label"
@@ -187,15 +187,14 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                                     onChange={(e) => { setLabel(e.target.value); setError(null); }}
                                     onBlur={() => markTouched("label")}
                                     className={cn(formControlClass, "px-3 py-2", fieldErrorClass(labelError))}
-                                    placeholder="e.g. S-01, Row A - 12"
+                                    placeholder={t("e.g. S-01, Row A - 12")}
                                     data-dialog-initial-focus
                                     maxLength={FORM_LIMITS.seatLabelMax}
                                     {...fieldErrorProps("add-seat-label-error", labelError)}
                                 />
                                 <FieldError id="add-seat-label-error" error={labelError} />
                                 <p className={cn("text-xs", formHelpTextClass)}>
-                                    Provide a unique identifier for this seat to distinguish it in the study hall.
-                                </p>
+                                    {t("Provide a unique identifier for this seat to distinguish it in the study hall.")}</p>
                             </div>
                         ) : (
                             <div className="space-y-2">
@@ -205,7 +204,7 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                                     aria-describedby={seatNumberingError ? "generate-seat-numbering-error" : undefined}
                                 >
                                 <p id="generate-seat-numbering-label" className={formLabelClass}>
-                                    Seat numbering <span className={formRequiredClass}>*</span>
+                                    {t("Seat numbering")} <span className={formRequiredClass}>*</span>
                                 </p>
                                 <SeatNumberingBuilder
                                     value={seatNumbering}

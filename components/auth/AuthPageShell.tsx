@@ -1,3 +1,5 @@
+"use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -27,6 +29,7 @@ const signInValuePoints = [
 ] as const;
 
 export function AuthPageShell({ children, mode, legal }: AuthPageShellProps) {
+    const t = useTranslation();
     const isSignUp = mode === "sign-up";
     const valuePoints = isSignUp ? signUpValuePoints : signInValuePoints;
 
@@ -41,7 +44,7 @@ export function AuthPageShell({ children, mode, legal }: AuthPageShellProps) {
                     <div className="relative z-10">
                         <Link
                             href="/"
-                            aria-label="Lab Lords home"
+                            aria-label={t("Lab Lords home")}
                             className="inline-flex rounded-[var(--ui-radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
                         >
                             <AppLogo subtitle="Branch OS" markClassName="h-10 w-10" />
@@ -50,15 +53,15 @@ export function AuthPageShell({ children, mode, legal }: AuthPageShellProps) {
 
                     <div className="relative z-10 my-auto max-w-lg py-16">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--ui-form-accent)]">
-                            {isSignUp ? "Create your workspace" : "Welcome back"}
+                            {isSignUp ? t("Create your workspace") : t("Welcome back")}
                         </p>
                         <h1 className="mt-4 text-4xl font-semibold tracking-[-0.03em] text-[color:var(--text-primary)] xl:text-5xl xl:leading-[1.08]">
                             {isSignUp
-                                ? "Start with one branch. Grow from there."
-                                : "Continue running your branches with clarity."}
+                                ? t("Start with one branch. Grow from there.")
+                                : t("Continue running your branches with clarity.")}
                         </h1>
                         <p className="mt-5 max-w-md text-base leading-7 text-[color:var(--text-secondary)]">
-                            A focused workspace for the daily operations that keep your branch moving.
+                            {t("A focused workspace for the daily operations that keep your branch moving.")}
                         </p>
 
                         <ul className="mt-9 space-y-4">
@@ -69,7 +72,7 @@ export function AuthPageShell({ children, mode, legal }: AuthPageShellProps) {
                                         className="mt-0.5 shrink-0 text-[color:var(--ui-tone-success-text)]"
                                         aria-hidden="true"
                                     />
-                                    <span>{point}</span>
+                                    <span>{t(point)}</span>
                                 </li>
                             ))}
                         </ul>
@@ -80,7 +83,7 @@ export function AuthPageShell({ children, mode, legal }: AuthPageShellProps) {
                     <header className="mx-auto flex w-full max-w-[460px] items-center justify-between gap-4 lg:justify-end">
                         <Link
                             href="/"
-                            aria-label="Lab Lords home"
+                            aria-label={t("Lab Lords home")}
                             className="rounded-[var(--ui-radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] lg:hidden"
                         >
                             <AppLogo subtitle="Branch OS" markClassName="h-9 w-9" />
@@ -90,8 +93,8 @@ export function AuthPageShell({ children, mode, legal }: AuthPageShellProps) {
                             className="inline-flex min-h-10 items-center gap-2 rounded-[var(--ui-radius-control)] px-2 text-sm font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--ui-button-quiet-hover-bg)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
                         >
                             <ArrowLeft size={15} />
-                            <span className="hidden sm:inline">Back to home</span>
-                            <span className="sm:hidden">Back</span>
+                            <span className="hidden sm:inline">{t.owned("Back to home")}</span>
+                            <span className="sm:hidden">{t("Back")}</span>
                         </Link>
                     </header>
 
@@ -99,8 +102,8 @@ export function AuthPageShell({ children, mode, legal }: AuthPageShellProps) {
                         <div className="mb-5 lg:hidden">
                             <p className="text-sm leading-6 text-[color:var(--text-secondary)]">
                                 {isSignUp
-                                    ? "Create your account. We will guide you through your first branch next."
-                                    : "Sign in to continue to your workspace."}
+                                    ? t("Create your account. We will guide you through your first branch next.")
+                                    : t("Sign in to continue to your workspace.")}
                             </p>
                         </div>
 
@@ -114,7 +117,7 @@ export function AuthPageShell({ children, mode, legal }: AuthPageShellProps) {
 
                         <div className="mt-6 flex items-center justify-center gap-2 text-xs text-[color:var(--text-secondary)]">
                             <ShieldCheck size={14} className="text-[color:var(--ui-tone-success-text)]" />
-                            Secure authentication and account recovery by Clerk.
+                            {t("Secure authentication and account recovery by Clerk.")}
                         </div>
                     </div>
                 </section>

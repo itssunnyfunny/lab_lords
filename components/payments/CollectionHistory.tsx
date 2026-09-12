@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppButton, Dialog } from "@/components/ui";
 import { formControlClass } from "@/components/ui/formSurface";
@@ -9,6 +10,7 @@ import { FeeReceipt } from "./FeeReceipt";
 export function CollectionHistory({ branchId, studentId, owner = false, refreshKey = 0 }: {
     branchId: string; studentId?: string; owner?: boolean; refreshKey?: number;
 }) {
+    const t = useTranslation();
     const [rows, setRows] = useState<FeeCollectionView[]>([]);
     const [search, setSearch] = useState("");
     const [month, setMonth] = useState("");
@@ -46,29 +48,29 @@ export function CollectionHistory({ branchId, studentId, owner = false, refreshK
         catch { setError("Unable to retrieve the receipt. Retry View receipt; the collection remains recorded."); }
     }
     return <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Collections &amp; receipts</h2>
-        <p className="text-sm text-[color:var(--text-muted)]">Each instalment has its own receipt. Historical and imported payments without a generated receipt remain in fee history.</p>
-        <div className="flex flex-wrap gap-3"><label className="text-sm">Search student, receipt or reference<input className={`${formControlClass} min-h-11 px-3`} value={search} maxLength={100} onChange={e => setSearch(e.target.value)} /></label>
-            <label className="text-sm">Collection month<input type="month" className={`${formControlClass} min-h-11 px-3`} value={month} onChange={e => setMonth(e.target.value)} /></label></div>
-        {error && <p role="alert">{error} <AppButton variant="secondary" onClick={() => void load()}>Retry</AppButton></p>}
+        <h2 className="text-lg font-semibold">{t("Collections & receipts")}</h2>
+        <p className="text-sm text-[color:var(--text-muted)]">{t("Each instalment has its own receipt. Historical and imported payments without a generated receipt remain in fee history.")}</p>
+        <div className="flex flex-wrap gap-3"><label className="text-sm">{t("Search student, receipt or reference")}<input className={`${formControlClass} min-h-11 px-3`} value={search} maxLength={100} onChange={e => setSearch(e.target.value)} /></label>
+            <label className="text-sm">{t("Collection month")}<input type="month" className={`${formControlClass} min-h-11 px-3`} value={month} onChange={e => setMonth(e.target.value)} /></label></div>
+        {error && <p role="alert">{t.error(error)} <AppButton variant="secondary" onClick={() => void load()}>{t("Retry")}</AppButton></p>}
         {rows.map(row => <div key={row.id} className="space-y-2 rounded border border-[color:var(--ui-form-surface-border)] p-3 text-sm">
-            <p className="font-semibold">{row.snapshot.studentName} · ₹{row.amount} · {row.method.replaceAll("_", " ")}{row.voidedAt ? " · VOID" : ""}</p>
-            <p>{new Date(row.collectedAt).toLocaleString("en-IN")} · Recorded by {row.snapshot.recordedBy}</p>
-            {row.reference && <p className="break-words">Reference: {row.reference}</p>}
+            <p className="font-semibold">{row.snapshot.studentName} · ₹{row.amount} · {t.owned(row.method.replaceAll("_", " "))}{row.voidedAt ? " · VOID" : ""}</p>
+            <p>{t("{toLocaleString2} · Recorded by {recordedBy}", { toLocaleString2: new Date(row.collectedAt).toLocaleString("en-IN"), recordedBy: row.snapshot.recordedBy })}</p>
+            {row.reference && <p className="break-words">{t("Reference:")} {row.reference}</p>}
             <p className="break-all">{row.receiptNumber}</p>
-            <div className="flex flex-wrap gap-2"><AppButton variant="secondary" onClick={() => void openReceipt(row.id)}>View receipt</AppButton>
-                {owner && !row.voidedAt && <AppButton variant="quiet" onClick={() => { setCorrection(row); setReason(""); }}>Correct / void</AppButton>}</div>
+            <div className="flex flex-wrap gap-2"><AppButton variant="secondary" onClick={() => void openReceipt(row.id)}>{t("View receipt")}</AppButton>
+                {owner && !row.voidedAt && <AppButton variant="quiet" onClick={() => { setCorrection(row); setReason(""); }}>{t("Correct / void")}</AppButton>}</div>
         </div>)}
-        {loading && <p role="status">Loading collections…</p>}
-        {!loading && !error && rows.length === 0 && <p>No collections in this view.</p>}
-        {cursor && <AppButton variant="secondary" disabled={loading} onClick={() => void load(cursor)}>Load more collections</AppButton>}
-        {selected && <Dialog open title="Fee payment receipt" onClose={() => setSelected(null)} className="max-w-2xl"><FeeReceipt branchId={branchId} collection={selected} /></Dialog>}
-        {correction && <Dialog open title="Void mistaken collection" onClose={() => setCorrection(null)} closeDisabled={voiding}
-            description="This corrects the app record. It does not return cash or initiate a provider refund. The receipt and reason remain in history."
-            footer={<AppButton variant="primary" disabled={!reason.trim()} isLoading={voiding} onClick={() => void voidCollection()}>Void collection</AppButton>}>
+        {loading && <p role="status">{t("Loading collections…")}</p>}
+        {!loading && !error && rows.length === 0 && <p>{t("No collections in this view.")}</p>}
+        {cursor && <AppButton variant="secondary" disabled={loading} onClick={() => void load(cursor)}>{t("Load more collections")}</AppButton>}
+        {selected && <Dialog open title={t("Fee payment receipt")} onClose={() => setSelected(null)} className="max-w-2xl"><FeeReceipt branchId={branchId} collection={selected} /></Dialog>}
+        {correction && <Dialog open title={t("Void mistaken collection")} onClose={() => setCorrection(null)} closeDisabled={voiding}
+            description={t("This corrects the app record. It does not return cash or initiate a provider refund. The receipt and reason remain in history.")}
+            footer={<AppButton variant="primary" disabled={!reason.trim()} isLoading={voiding} onClick={() => void voidCollection()}>{t("Void collection")}</AppButton>}>
             <p className="mb-3">₹{correction.amount} · {correction.snapshot.studentName}</p>
-            <label className="text-sm">Required reason<textarea className={`${formControlClass} p-3`} maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} /></label>
-            {error && <p role="alert">{error}</p>}
+            <label className="text-sm">{t("Required reason")}<textarea className={`${formControlClass} p-3`} maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} /></label>
+            {error && <p role="alert">{t.error(error)}</p>}
         </Dialog>}
     </section>;
 }

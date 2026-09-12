@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -67,6 +68,7 @@ function percent(value: number, formatNumber: NumberFormatter) {
 }
 
 export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: string }> }) {
+    const t = useTranslation();
     const router = useRouter();
     const { orgId } = use(params);
     const { formatDateTime, formatNumber } = useUserPreferences();
@@ -121,7 +123,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     }, [formatNumber, snapshot]);
 
     if (billingExperience?.loading || !billingExperience?.experience) {
-        return <PageLoadingSkeleton label="Checking analytics access" variant="analytics" />;
+        return <PageLoadingSkeleton label={t("Checking analytics access")} variant="analytics" />;
     }
 
     if (!analyticsAvailable) {
@@ -129,13 +131,13 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     }
 
     if (snapshotState.status === "loading" && !snapshot) {
-        return <PageLoadingSkeleton label="Loading organization analytics" variant="analytics" />;
+        return <PageLoadingSkeleton label={t("Loading organization analytics")} variant="analytics" />;
     }
 
     if (snapshotState.status === "error") {
         return (
             <ErrorState
-                title="Organization analytics unavailable"
+                title={t("Organization analytics unavailable")}
                 description={snapshotState.message}
                 onRetry={snapshotState.retryable ? () => setRefreshKey(key => key + 1) : undefined}
             />
@@ -143,7 +145,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     }
 
     if (!snapshot) {
-        return <ErrorState title="Organization analytics unavailable" description="No verified analytics snapshot was returned." />;
+        return <ErrorState title={t("Organization analytics unavailable")} description={t("No verified analytics snapshot was returned.")} />;
     }
 
     const collectionBase = snapshot.payments.paidAmount + snapshot.payments.dueAmount;
@@ -156,15 +158,14 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
         <PageShell>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>Organization analytics</p>
-                    <h1 className={cn(pageTitleClass, "mt-2")}>Cross-branch health</h1>
+                    <p className={pageEyebrowClass}>{t("Organization analytics")}</p>
+                    <h1 className={cn(pageTitleClass, "mt-2")}>{t("Cross-branch health")}</h1>
                     <p className={pageDescriptionClass}>
-                        Compare locations quickly, then move into the branch that needs work.
-                    </p>
+                        {t("Compare locations quickly, then move into the branch that needs work.")}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <span className={pageMetaPillClass}>
-                        Updated {snapshot.asOf || updatedAt ? formatDateTime(snapshot.asOf || updatedAt || "") : "just now"}
+                        {t("Updated")} {snapshot.asOf || updatedAt ? formatDateTime(snapshot.asOf || updatedAt || "") : t("just now")}
                     </span>
                     <AppButton
                         variant="quiet"
@@ -173,8 +174,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                         isLoading={snapshotState.status === "loading"}
                         onClick={() => setRefreshKey(key => key + 1)}
                     >
-                        Refresh
-                    </AppButton>
+                        {t("Refresh")}</AppButton>
                 </div>
             </header>
 
@@ -183,14 +183,14 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                     <AlertCircle size={16} className="shrink-0" />
                     {snapshotState.status === "stale"
                         ? `${snapshotState.reason} Showing the last verified snapshot.`
-                        : "Refreshing analytics. Showing the last verified snapshot."}
+                        : t("Refreshing analytics. Showing the last verified snapshot.")}
                 </div>
             )}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     icon={Building2}
-                    title="Branches"
+                    title={t("Branches")}
                     value={formatNumber(branchCount)}
                     sub="Operating locations"
                     accent="cyan"
@@ -198,7 +198,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                 />
                 <StatCard
                     icon={Users}
-                    title="Active students"
+                    title={t("Active students")}
                     value={formatNumber(snapshot.students.active)}
                     sub={`${formatNumber(snapshot.students.total)} total profiles`}
                     accent="cyan"
@@ -206,7 +206,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                 />
                 <StatCard
                     icon={LayoutGrid}
-                    title="Slot utilization"
+                    title={t("Slot utilization")}
                     value={percent(snapshot.seats.utilizationRatio, formatNumber)}
                     sub={`${formatNumber(usedSeatSlots)} of ${formatNumber(totalSeatSlots)} slots used`}
                     accent="violet"
@@ -216,7 +216,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                 />
                 <StatCard
                     icon={CreditCard}
-                    title="Collection rate"
+                    title={t("Collection rate")}
                     value={percent(collectionRate, formatNumber)}
                     sub={`${money(snapshot.payments.paidAmount, formatNumber)} collected`}
                     accent="emerald"
@@ -226,16 +226,16 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
             </div>
 
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                <AppPanel title="Seat health" description="How tightly the organization is using available slots.">
+                <AppPanel title={t("Seat health")} description={t("How tightly the organization is using available slots.")}>
                     <div className="space-y-4">
                         <div className="flex items-end justify-between gap-4">
                             <div>
                                 <p className="text-3xl font-semibold tracking-tight text-[color:var(--text-primary)]">
                                     {percent(snapshot.seats.utilizationRatio, formatNumber)}
                                 </p>
-                                <p className={cn(pageSubtleTextClass, "mt-1 text-sm")}>Overall utilization</p>
+                                <p className={cn(pageSubtleTextClass, "mt-1 text-sm")}>{t("Overall utilization")}</p>
                             </div>
-                            <Badge variant="cyan">{formatNumber(usedSeatSlots)} used</Badge>
+                            <Badge variant="cyan">{t("{formatNumber} used", { formatNumber: formatNumber(usedSeatSlots) })}</Badge>
                         </div>
                         <div className={pageProgressTrackClass}>
                             <div
@@ -246,21 +246,21 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                     </div>
                 </AppPanel>
 
-                <AppPanel title="Student mix" description="Active vs inactive profile balance.">
+                <AppPanel title={t("Student mix")} description={t("Active vs inactive profile balance.")}>
                     <div className="grid grid-cols-2 gap-3">
-                        <CompactStat label="Active" value={snapshot.students.active} tone="success" />
-                        <CompactStat label="Inactive" value={snapshot.students.inactive} tone="neutral" />
+                        <CompactStat label={t("Active")} value={snapshot.students.active} tone="success" />
+                        <CompactStat label={t("Inactive")} value={snapshot.students.inactive} tone="neutral" />
                     </div>
                 </AppPanel>
 
-                <AppPanel title="Payments" description="Open pressure without burying the page in finance detail.">
+                <AppPanel title={t("Payments")} description={t("Open pressure without burying the page in finance detail.")}>
                     <div className="grid grid-cols-2 gap-3">
-                        <CompactStat label="Paid" value={snapshot.payments.paidCount} tone="success" />
-                        <CompactStat label="Due" value={snapshot.payments.dueCount} tone="danger" />
+                        <CompactStat label={t("Paid")} value={snapshot.payments.paidCount} tone="success" />
+                        <CompactStat label={t("Due")} value={snapshot.payments.dueCount} tone="danger" />
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <AmountStat label="Collected" value={money(snapshot.payments.paidAmount, formatNumber)} tone="success" />
-                        <AmountStat label="Due" value={money(snapshot.payments.dueAmount, formatNumber)} tone="danger" />
+                        <AmountStat label={t("Collected")} value={money(snapshot.payments.paidAmount, formatNumber)} tone="success" />
+                        <AmountStat label={t("Due")} value={money(snapshot.payments.dueAmount, formatNumber)} tone="danger" />
                     </div>
                 </AppPanel>
             </div>
@@ -268,17 +268,16 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
             <section className="space-y-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h2 className={pageSectionTitleClass}>Branch breakdown</h2>
+                        <h2 className={pageSectionTitleClass}>{t("Branch breakdown")}</h2>
                         <p className={pageSectionDescriptionClass}>
-                            Scan health, then open the branch dashboard for action.
-                        </p>
+                            {t("Scan health, then open the branch dashboard for action.")}</p>
                     </div>
-                    <span className={pageMetaPillClass}>{formatNumber(rows.length)} branches</span>
+                    <span className={pageMetaPillClass}>{t("{formatNumber} branches", { formatNumber: formatNumber(rows.length) })}</span>
                 </div>
                 <DataTable
                     caption="Branch analytics"
                     data={rows}
-                    emptyMessage="No branches available for analytics."
+                    emptyMessage={t("No branches available for analytics.")}
                     columns={[
                         { header: "Branch", accessor: "branchName", className: "font-medium text-[color:var(--text-primary)]" },
                         { header: "Active / Total", accessor: "students" },
@@ -313,8 +312,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                             rightIcon={ArrowRight}
                             className="whitespace-nowrap"
                         >
-                            Open
-                        </AppButton>
+                            {t("Open")}</AppButton>
                     )}
                 />
             </section>
@@ -368,6 +366,7 @@ function AmountStat({
 }
 
 function BranchAnalyticsCard({ item, onOpen }: { item: BranchAnalyticsRow; onOpen: () => void }) {
+    const t = useTranslation();
     const { formatNumber } = useUserPreferences();
 
     return (
@@ -384,20 +383,20 @@ function BranchAnalyticsCard({ item, onOpen }: { item: BranchAnalyticsRow; onOpe
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                         <p className="truncate text-base font-semibold text-[color:var(--text-primary)]">{item.branchName}</p>
-                        <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>{item.students} students</p>
+                        <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>{t("{students} students", { students: item.students })}</p>
                     </div>
                     <Badge variant={getUtilizationStatus(item.utilization * 100).tone}>{percent(item.utilization, formatNumber)}</Badge>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     <div className={pageInsetMetricClass}>
-                        <p className={cn(pageSubtleTextClass, "text-xs")}>Collected</p>
+                        <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Collected")}</p>
                         <p className="mt-1 truncate text-sm font-semibold text-[color:var(--ui-tone-success-text)]">
                             {money(item.paidAmount, formatNumber)}
                         </p>
                     </div>
                     <div className={pageInsetMetricClass}>
-                        <p className={cn(pageSubtleTextClass, "text-xs")}>Due</p>
+                        <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Due")}</p>
                         <p className="mt-1 truncate text-sm font-semibold text-[color:var(--ui-tone-danger-text)]">
                             {money(item.dueAmount, formatNumber)}
                         </p>
@@ -407,11 +406,10 @@ function BranchAnalyticsCard({ item, onOpen }: { item: BranchAnalyticsRow; onOpe
 
             <div className="mt-5 flex items-center justify-between gap-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
                 <span className={cn(pageMutedTextClass, "text-xs")}>
-                    {item.overdueCount > 0 ? `${formatNumber(item.overdueCount)} overdue` : "No overdue payments"}
+                    {item.overdueCount > 0 ? `${formatNumber(item.overdueCount)} overdue` : t("No overdue payments")}
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)]">
-                    Open analytics
-                    <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                    {t("Open analytics")}<ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
                 </span>
             </div>
         </button>

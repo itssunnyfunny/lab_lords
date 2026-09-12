@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LocalizedText, OwnedLabel } from "@/components/settings/LocalizedText";
 import { CheckCircle2, Clock, ShieldAlert, UserPlus } from "lucide-react";
 import { LogoMark } from "@/components/brand/AppLogo";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
@@ -33,10 +34,10 @@ function AuthLinks({ invitePath }: { invitePath: string }) {
         <div className="flex flex-col gap-3 sm:flex-row">
             <Link href={`/sign-in?redirect_url=${encodedRedirect}`} className={cn(entryPrimaryLinkClass, "w-full")}>
                 <UserPlus size={16} />
-                Sign in to join
+                <LocalizedText text="Sign in to join" />
             </Link>
             <Link href={`/sign-up?redirect_url=${encodedRedirect}`} className={cn(entrySecondaryLinkClass, "w-full")}>
-                Create account
+                <LocalizedText text="Create account" />
             </Link>
         </div>
     );
@@ -60,13 +61,13 @@ function InviteState({
                 <div className={cn(entryIconFrameClass, "mb-5 flex h-12 w-12", variant === "danger" && "text-[color:var(--ui-badge-danger-text)]")}>
                     <Icon size={24} />
                 </div>
-                <h1 className={entryTitleClass}>{title}</h1>
-                <p className={cn("mt-3", entrySubtitleClass)}>{message}</p>
+                <h1 className={entryTitleClass}><OwnedLabel text={title} /></h1>
+                <p className={cn("mt-3", entrySubtitleClass)}><OwnedLabel text={message} /></p>
                 <Link
                     href="/app"
                     className={cn(entrySecondaryLinkClass, "mt-6")}
                 >
-                    Return to workspaces
+                    <LocalizedText text="Return to workspaces" />
                 </Link>
             </section>
         </main>
@@ -120,27 +121,27 @@ export default async function StaffInvitePage({ params }: InvitePageProps) {
                     <LogoMark className="h-11 w-11" title="Lab Lords logo" />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                    <h1 className={entryTitleClass}>Join {invite.branch.name}</h1>
+                    <h1 className={entryTitleClass}><LocalizedText text="Join {name}" params={{ name: invite.branch.name }} /></h1>
                     <Badge variant={invite.role === "MANAGER" ? "cyan" : "default"}>
-                        {invite.role === "MANAGER" ? "Manager" : "Staff"}
+                        <LocalizedText text={invite.role === "MANAGER" ? "Manager" : "Staff"} />
                     </Badge>
                 </div>
                 <p className={cn("mt-2 text-sm", entryMutedTextClass)}>{invite.branch.organization.name}</p>
                 <p className={cn("mt-5", entrySubtitleClass)}>
-                    {user
+                    <LocalizedText text={user
                         ? "Review the workspace and role below, then explicitly accept when you are ready. No access is created until you confirm."
-                        : "Sign in or create an account to review and accept this branch invite. This link only works for the intended email address."}
+                        : "Sign in or create an account to review and accept this branch invite. This link only works for the intended email address."} />
                 </p>
                 <div className={cn(entryInlineInfoClass, "mt-6 p-4 text-sm", entryMutedTextClass)}>
                     <dl className="grid gap-3 sm:grid-cols-2">
                         <div>
-                            <dt className="text-xs uppercase tracking-wide text-[color:var(--text-muted)]">Role</dt>
+                            <dt className="text-xs uppercase tracking-wide text-[color:var(--text-muted)]"><LocalizedText text="Role" /></dt>
                             <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
-                                {invite.role === "MANAGER" ? "Manager" : "Staff"}
+                                <LocalizedText text={invite.role === "MANAGER" ? "Manager" : "Staff"} />
                             </dd>
                         </div>
                         <div>
-                            <dt className="text-xs uppercase tracking-wide text-[color:var(--text-muted)]">Expires</dt>
+                            <dt className="text-xs uppercase tracking-wide text-[color:var(--text-muted)]"><LocalizedText text="Expires" /></dt>
                             <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
                                 {invite.expiresAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                             </dd>

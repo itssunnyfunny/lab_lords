@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+
+import { useTranslation } from "@/components/settings/LocalizedText";import { useEffect, useMemo, useState } from "react";
 import { Brain, Save } from "lucide-react";
 import { AppButton, AppPanel, AppSelect } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
@@ -84,6 +85,7 @@ function spreadsheetColumnName(index: number) {
 }
 
 export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggestedRecipe, onDirtyChange, onSave }: ColumnsStepProps) {
+    const t = useTranslation();
     const mapping = useMemo(() => detail.mapping?.columnMappings ?? [], [detail.mapping?.columnMappings]);
     const [draft, setDraft] = useState<ImportColumnMapping[]>(mapping);
 
@@ -154,8 +156,8 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
     return (
         <div className="space-y-5">
             <AppPanel
-                title="Column meanings"
-                description="Confirm how each source column maps into the ERP. AI is only a suggestion layer."
+                title={t("Column meanings")}
+                description={t("Confirm how each source column maps into the ERP. AI is only a suggestion layer.")}
                 action={
                     <AppButton
                         variant="primary"
@@ -165,54 +167,51 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                         aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                         isLoading={saving}
                     >
-                        Confirm columns
-                    </AppButton>
+                        {t("Confirm columns")}</AppButton>
                 }
             >
                 <div className="space-y-4">
                     <StepNotice tone={aiState.tone} title={aiState.title} message={aiState.message} />
-                    <StepNotice tone="cyan" title="Intentional import behavior" message={intentionalBehavior} />
+                    <StepNotice tone="cyan" title={t("Intentional import behavior")} message={intentionalBehavior} />
 
                     {suggestedRecipe && (
                         <div className={cn("flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between", pageInsetSurfaceClass)}>
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="purple">Saved recipe</Badge>
+                                    <Badge variant="purple">{t("Saved recipe")}</Badge>
                                     <p className="text-sm font-semibold text-[color:var(--text-primary)]">{suggestedRecipe.name}</p>
                                 </div>
                                 <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
-                                    The headers match a recipe used before. Apply its field meanings, then review every column before confirming.
-                                </p>
+                                    {t("The headers match a recipe used before. Apply its field meanings, then review every column before confirming.")}</p>
                             </div>
                             <AppButton variant="secondary" onClick={applySuggestedRecipe} disabled={mutationsDisabled || saving}>
-                                Use recipe, then review
-                            </AppButton>
+                                {t("Use recipe, then review")}</AppButton>
                         </div>
                     )}
 
                     <div className="grid gap-3 sm:grid-cols-3">
                         <div className={cn("p-3", pageInsetSurfaceClass)}>
-                            <p className={cn("text-xs", pageMutedTextClass)}>Mapped columns</p>
+                            <p className={cn("text-xs", pageMutedTextClass)}>{t("Mapped columns")}</p>
                             <p className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{mappedCount}</p>
                         </div>
                         <div className={cn("p-3", pageInsetSurfaceClass)}>
-                            <p className={cn("text-xs", pageMutedTextClass)}>Needs review</p>
+                            <p className={cn("text-xs", pageMutedTextClass)}>{t("Needs review")}</p>
                             <p className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">
                                 {draft.filter(item => item.needsReview).length}
                             </p>
                         </div>
                         <div className={cn("p-3", pageInsetSurfaceClass)}>
-                            <p className={cn("text-xs", pageMutedTextClass)}>AI mode</p>
+                            <p className={cn("text-xs", pageMutedTextClass)}>{t("AI mode")}</p>
                             <div className="mt-2 flex flex-wrap gap-2">
                                 <Badge variant={aiState.tone}>
                                     {detail.mapping?.analysis?.ai?.status?.replace(/_/g, " ") ?? "manual"}
                                 </Badge>
-                                {detail.mapping?.usedFallback && <Badge variant="warning">fallback</Badge>}
+                                {detail.mapping?.usedFallback && <Badge variant="warning">{t("fallback")}</Badge>}
                             </div>
                         </div>
                     </div>
 
-                    <div role="list" className="space-y-3 md:hidden" aria-label="Column mappings">
+                    <div role="list" className="space-y-3 md:hidden" aria-label={t("Column mappings")}>
                         {draft.map((item, index) => {
                             const profile = sourceColumns.get(item.sourceColumn);
                             const displayLabel = sourceColumnLabel(item.sourceColumn);
@@ -230,12 +229,11 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                                         <h3 id={headingId} className="break-words text-sm font-semibold text-[color:var(--text-primary)]">
                                             {displayLabel}
                                         </h3>
-                                        {item.needsReview ? <Badge variant="warning">Review</Badge> : item.targetField === "ignore" ? <Badge variant="default">Ignored</Badge> : null}
+                                        {item.needsReview ? <Badge variant="warning">{t("Review")}</Badge> : item.targetField === "ignore" ? <Badge variant="default">{t("Ignored")}</Badge> : null}
                                     </div>
 
                                     <label htmlFor={selectId} className="mt-4 block text-xs font-semibold text-[color:var(--text-secondary)]">
-                                        ERP field
-                                    </label>
+                                        {t("ERP field")}</label>
                                     <AppSelect
                                         id={selectId}
                                         value={item.targetField}
@@ -248,7 +246,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
 
                                     <dl className="mt-4 grid gap-3 text-xs">
                                         <div className="flex items-center justify-between gap-3">
-                                            <dt className={pageMutedTextClass}>Confidence</dt>
+                                            <dt className={pageMutedTextClass}>{t("Confidence")}</dt>
                                             <dd>
                                                 <Badge variant={item.confidence >= 85 ? "success" : item.confidence >= 60 ? "warning" : "default"}>
                                                     {Math.round(item.confidence)}%
@@ -256,13 +254,13 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                                             </dd>
                                         </div>
                                         <div>
-                                            <dt className={pageMutedTextClass}>Sample values</dt>
+                                            <dt className={pageMutedTextClass}>{t("Sample values")}</dt>
                                             <dd className="mt-1 break-words leading-5 text-[color:var(--text-primary)]">
                                                 {profile?.sampleValues?.slice(0, 3).join(", ") || "-"}
                                             </dd>
                                         </div>
                                         <div>
-                                            <dt className={pageMutedTextClass}>Mapping reason</dt>
+                                            <dt className={pageMutedTextClass}>{t("Mapping reason")}</dt>
                                             <dd className="mt-1 break-words leading-5 text-[color:var(--text-primary)]">
                                                 {item.reason || "Manual mapping."}
                                             </dd>
@@ -274,18 +272,18 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                     </div>
 
                     <AccessibleTableScroll
-                        label="Column mappings"
+                        label={t("Column mappings")}
                         className="hidden rounded-[8px] border border-[color:var(--ui-table-border)] md:block"
                     >
                         <table className="w-full min-w-[760px] text-left text-sm">
-                            <caption className="sr-only">Source columns mapped to Lab Lords ERP fields</caption>
+                            <caption className="sr-only">{t("Source columns mapped to Lab Lords ERP fields")}</caption>
                             <thead className={pageTableHeadClass}>
                                 <tr className="text-xs uppercase tracking-wide text-[color:var(--text-muted)]">
-                                    <th scope="col" className="p-3">Source column</th>
-                                    <th scope="col" className="p-3">ERP field</th>
-                                    <th scope="col" className="p-3">Confidence</th>
-                                    <th scope="col" className="p-3">Sample</th>
-                                    <th scope="col" className="p-3">Why</th>
+                                    <th scope="col" className="p-3">{t("Source column")}</th>
+                                    <th scope="col" className="p-3">{t("ERP field")}</th>
+                                    <th scope="col" className="p-3">{t("Confidence")}</th>
+                                    <th scope="col" className="p-3">{t("Sample")}</th>
+                                    <th scope="col" className="p-3">{t("Why")}</th>
                                 </tr>
                             </thead>
                             <tbody className={pageTableBodyDividerClass}>
@@ -296,7 +294,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                                         <tr key={item.sourceColumn} className={pageTableRowClass}>
                                             <th scope="row" className="p-3 text-left">
                                                 <div className="font-semibold text-[color:var(--text-primary)]">{displayLabel}</div>
-                                                {item.needsReview ? <Badge className="mt-2" variant="warning">Review</Badge> : item.targetField === "ignore" ? <Badge className="mt-2" variant="default">Ignored</Badge> : null}
+                                                {item.needsReview ? <Badge className="mt-2" variant="warning">{t("Review")}</Badge> : item.targetField === "ignore" ? <Badge className="mt-2" variant="default">{t("Ignored")}</Badge> : null}
                                             </th>
                                             <td className="p-3">
                                                 <AppSelect
@@ -328,7 +326,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                 </div>
             </AppPanel>
 
-            <AppPanel title="Manual-first fallback" description="The import does not depend on AI being available.">
+            <AppPanel title={t("Manual-first fallback")} description={t("The import does not depend on AI being available.")}>
                 <div className="grid gap-3 md:grid-cols-3">
                     {[
                         ["AI suggests", "Column meanings and likely payment words are only suggestions."],

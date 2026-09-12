@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { Suspense, type ComponentType, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
@@ -69,13 +71,14 @@ function mergeAllocationRows(current: AllocationRow[], incoming: AllocationRow[]
 }
 
 export default function AllocationsPage() {
+    const t = useTranslation();
     const params = useParams();
     const branchId = params?.branchId as string;
 
     return (
         <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.allocations}>
             {access => (
-                <Suspense fallback={<PageLoadingSkeleton label="Loading allocations" variant="table" rows={6} />}>
+                <Suspense fallback={<PageLoadingSkeleton label={t("Loading allocations")} variant="table" rows={6} />}>
                     <AllocationsContent
                         branchId={branchId}
                         manageDecision={getBranchCapabilityDecision(access, "allocationsManage")}
@@ -93,6 +96,7 @@ function AllocationsContent({
     branchId: string;
     manageDecision: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const canManageAllocations = manageDecision.allowed;
     const showManageActions = manageDecision.blocker !== "permission";
     const searchParams = useSearchParams();
@@ -375,16 +379,15 @@ function AllocationsContent({
         return { active: allocationTotals.ACTIVE, ended: allocationTotals.ENDED, multiShift };
     }, [allocationTotals, allocations]);
 
-    if (loading) return <PageLoadingSkeleton label="Loading allocations" variant="table" rows={6} />;
+    if (loading) return <PageLoadingSkeleton label={t("Loading allocations")} variant="table" rows={6} />;
 
     if (error) return (
         <div className={pageErrorStateClass}>
             <AlertCircle className={pageErrorIconClass} />
-            <h2 className="text-xl font-semibold">Allocations did not load</h2>
-            <p className={pageMutedTextClass}>{error}</p>
+            <h2 className="text-xl font-semibold">{t("Allocations did not load")}</h2>
+            <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
             <AppButton variant="secondary" onClick={() => fetchAllocations()}>
-                Try again
-            </AppButton>
+                {t("Try again")}</AppButton>
         </div>
     );
 
@@ -396,11 +399,10 @@ function AllocationsContent({
         <PageShell>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>Seat workflow</p>
-                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>Allocations</h1>
+                    <p className={pageEyebrowClass}>{t("Seat workflow")}</p>
+                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Allocations")}</h1>
                     <p className={pageDescriptionClass}>
-                        Keep current seat assignments visible, then move quickly into changes, releases, or allocation history.
-                    </p>
+                        {t("Keep current seat assignments visible, then move quickly into changes, releases, or allocation history.")}</p>
                 </div>
 
                 {showManageActions ? (
@@ -411,31 +413,29 @@ function AllocationsContent({
                         disabled={!canManageAllocations}
                         title={canManageAllocations ? undefined : manageDecision.reason ?? undefined}
                     >
-                        Allocate seat
-                    </AppButton>
+                        {t("Allocate seat")}</AppButton>
                 ) : null}
             </header>
 
             {!canManageAllocations ? (
                 <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
-                    Allocation changes are disabled. {manageDecision.reason}
+                    {t("Allocation changes are disabled.")} {manageDecision.reason}
                     {manageDecision.recoveryHref ? (
                         <a href={manageDecision.recoveryHref} className="ml-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
-                            Review billing
-                        </a>
+                            {t("Review billing")}</a>
                     ) : null}
                 </div>
             ) : null}
 
             <section className="grid gap-3 sm:grid-cols-3">
-                <AllocationMetric icon={Users} label="Active" value={allocationCounts.active} detail="Current seat assignments" tone="success" />
-                <AllocationMetric icon={CalendarCheck} label="Ended" value={allocationCounts.ended} detail="Historical allocations" tone="neutral" />
-                <AllocationMetric icon={ArrowRightLeft} label="Loaded multi-shift" value={allocationCounts.multiShift} detail="Loaded linked assignments" tone="info" />
+                <AllocationMetric icon={Users} label={t("Active")} value={allocationCounts.active} detail="Current seat assignments" tone="success" />
+                <AllocationMetric icon={CalendarCheck} label={t("Ended")} value={allocationCounts.ended} detail="Historical allocations" tone="neutral" />
+                <AllocationMetric icon={ArrowRightLeft} label={t("Loaded multi-shift")} value={allocationCounts.multiShift} detail="Loaded linked assignments" tone="info" />
             </section>
 
             {linkedRecordError && (
                 <p role="alert" className="text-sm text-[color:var(--ui-tone-danger-text)]">
-                    {linkedRecordError}
+                    <LocalizedError error={linkedRecordError} />
                 </p>
             )}
 
@@ -446,7 +446,7 @@ function AllocationsContent({
             )}
 
             <div className={cn("flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between", pageSectionDividerClass)}>
-                <div role="group" className="flex max-w-full items-center gap-2 overflow-x-auto" aria-label="Allocation status filter">
+                <div role="group" className="flex max-w-full items-center gap-2 overflow-x-auto" aria-label={t("Allocation status filter")}>
                     {(["ACTIVE", "ENDED"] as const).map(tab => {
                         const active = activeTab === tab;
                         const count = tab === "ACTIVE" ? allocationCounts.active : allocationCounts.ended;
@@ -469,7 +469,7 @@ function AllocationsContent({
                                 )}
                             >
                                 {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
-                                {tab === "ACTIVE" ? "Active" : "Ended"}
+                                {tab === "ACTIVE" ? t("Active") : t("Ended")}
                                 <span className={pageCountBadgeClass}>{count}</span>
                             </button>
                         );
@@ -478,7 +478,7 @@ function AllocationsContent({
 
                 <div className="flex items-center gap-2">
                     <AppSelect
-                        aria-label="Filter allocations by shift"
+                        aria-label={t("Filter allocations by shift")}
                         containerClassName="min-w-48"
                         value={shiftScopeValue(shiftScope)}
                         options={shiftFilterOptions}
@@ -494,13 +494,11 @@ function AllocationsContent({
             {filteredAllocations.length === 0 ? (
                 <div className={pageEmptyStateClass}>
                     <Users size={34} className="mb-4 opacity-60" />
-                    <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
-                        No {activeTab === "ACTIVE" ? "active" : "ended"} allocations
-                    </h2>
+                    <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">{t("No {value} allocations", { value: activeTab === "ACTIVE" ? t("active") : "ended" })}</h2>
                     <p className={cn("mt-2 max-w-md text-sm", pageMutedTextClass)}>
                         {activeTab === "ACTIVE"
-                            ? "No seats are currently allocated. Assign a student to a seat when they are ready to start."
-                            : "Ended allocations will appear here after seats are released."}
+                            ? t("No seats are currently allocated. Assign a student to a seat when they are ready to start.")
+                            : t("Ended allocations will appear here after seats are released.")}
                     </p>
                     {activeTab === "ACTIVE" && showManageActions && (
                         <AppButton
@@ -511,8 +509,7 @@ function AllocationsContent({
                             disabled={!canManageAllocations}
                             title={canManageAllocations ? undefined : manageDecision.reason ?? undefined}
                         >
-                            Allocate seat
-                        </AppButton>
+                            {t("Allocate seat")}</AppButton>
                     )}
                 </div>
             ) : (
@@ -534,9 +531,7 @@ function AllocationsContent({
             )}
 
             <div className="flex flex-col items-center gap-2" aria-busy={loadingMoreTab === activeTab}>
-                <p id="allocation-page-progress" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">
-                    Showing {filteredAllocations.length} of {allocationTotals[activeTab]} {activeTab.toLowerCase()} allocations
-                </p>
+                <p id="allocation-page-progress" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">{t("Showing {count} of {value} {toLowerCase} allocations", { count: filteredAllocations.length, value: allocationTotals[activeTab], toLowerCase: activeTab.toLowerCase() })}</p>
                 {nextCursors[activeTab] && (
                     <AppButton
                         type="button"
@@ -545,13 +540,11 @@ function AllocationsContent({
                         isLoading={loadingMoreTab === activeTab}
                         disabled={loadingMoreTab !== null}
                         aria-describedby="allocation-page-progress"
-                    >
-                        Load more {activeTab.toLowerCase()} allocations
-                    </AppButton>
+                    >{t("Load more {toLowerCase} allocations", { toLowerCase: activeTab.toLowerCase() })}</AppButton>
                 )}
                 {loadMoreError && (
                     <p role="alert" className="text-sm text-[color:var(--ui-tone-danger-text)]">
-                        {loadMoreError}
+                        <LocalizedError error={loadMoreError} />
                     </p>
                 )}
             </div>

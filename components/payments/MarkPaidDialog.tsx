@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 import { AppButton, Dialog } from "@/components/ui";
 import { Banknote, Smartphone, Building2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,12 +32,13 @@ export function MarkPaidDialog({
     method, onMethodChange,
     referenceId, onReferenceIdChange,
 }: MarkPaidDialogProps) {
+    const t = useTranslation();
     const needsRef = method === "UPI" || method === "BANK_TRANSFER";
     return (
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="Mark as paid"
+            title={t("Mark as paid")}
             description={summary ?? "Select the payment method used."}
             icon={<span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-300"><Check size={18} /></span>}
             closeDisabled={loading}
@@ -43,18 +46,16 @@ export function MarkPaidDialog({
             footer={(
                 <>
                     <AppButton variant="quiet" onClick={onClose} disabled={loading} data-dialog-initial-focus>
-                        Cancel
-                    </AppButton>
+                        {t("Cancel")}</AppButton>
                     <AppButton variant="primary" onClick={onConfirm} isLoading={loading} icon={Check}>
-                        Confirm payment
-                    </AppButton>
+                        {t("Confirm payment")}</AppButton>
                 </>
             )}
         >
             <div className="space-y-5">
-                {error && <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{error}</p>}
+                {error && <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]"><LocalizedError error={error} /></p>}
                 {/* Method selector */}
-                <div className="space-y-2" role="radiogroup" aria-label="Payment method">
+                <div className="space-y-2" role="radiogroup" aria-label={t("Payment method")}>
                     {METHOD_OPTIONS.map((opt) => (
                         <button
                             type="button"
@@ -76,7 +77,7 @@ export function MarkPaidDialog({
                                 {opt.icon}
                             </span>
                             <span className="flex-1">
-                                <span className="block text-sm font-medium">{opt.label}</span>
+                                <span className="block text-sm font-medium">{t.owned(opt.label)}</span>
                                 <span className={cn("block text-[11px]", formHelpTextClass)}>{opt.sublabel}</span>
                             </span>
                             {method === opt.value && (
@@ -96,8 +97,8 @@ export function MarkPaidDialog({
                         type="text"
                         value={referenceId}
                         onChange={(e) => onReferenceIdChange(e.target.value)}
-                        placeholder={method === "UPI" ? "UPI Transaction ID (optional)" : "Bank Reference ID (optional)"}
-                        aria-label={method === "UPI" ? "UPI transaction ID" : "Bank reference ID"}
+                        placeholder={method === "UPI" ? t("UPI Transaction ID (optional)") : t("Bank Reference ID (optional)")}
+                        aria-label={method === "UPI" ? t("UPI transaction ID") : t("Bank reference ID")}
                         className={cn(formControlClass, "px-3 py-2.5 text-sm focus:border-green-500/50")}
                     />
                 </div>

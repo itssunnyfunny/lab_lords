@@ -1,4 +1,7 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
+import { translate } from "@/lib/i18n";
+import type { InterfaceLanguage } from "@/lib/i18n/language";
 
 import { AppPanel } from "@/components/ui";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -25,27 +28,29 @@ export function buildChartSummary({
     contextLabel,
     data,
     valueFormatter,
+    language = "en",
 }: {
     title: string;
     contextLabel?: string;
     data: DisplayChartPoint[];
     valueFormatter: (value: number) => string;
+    language?: InterfaceLanguage;
 }) {
     const subject = contextLabel ?? title;
-    if (data.length === 0) return `${subject}. No data points are available.`;
+    if (data.length === 0) return translate(language, "{subject}. No data points are available.", { subject });
 
     if (data.length === 1) {
-        return `${subject}. ${data[0].displayDate}: ${valueFormatter(data[0].value)}.`;
+        return translate(language, "{subject}. {date}: {value}.", { subject, date: data[0].displayDate, value: valueFormatter(data[0].value) });
     }
 
     const lowest = data.reduce((current, point) => point.value < current.value ? point : current);
     const highest = data.reduce((current, point) => point.value > current.value ? point : current);
 
     if (lowest.value === highest.value) {
-        return `${subject}. ${data.length} data points, all at ${valueFormatter(lowest.value)}.`;
+        return translate(language, "{subject}. {count} data points, all at {value}.", { subject, count: data.length, value: valueFormatter(lowest.value) });
     }
 
-    return `${subject}. ${data.length} data points ranging from ${valueFormatter(lowest.value)} at ${lowest.displayDate} to ${valueFormatter(highest.value)} at ${highest.displayDate}.`;
+    return translate(language, "{subject}. {count} data points ranging from {low} at {lowDate} to {high} at {highDate}.", { subject, count: data.length, low: valueFormatter(lowest.value), lowDate: lowest.displayDate, high: valueFormatter(highest.value), highDate: highest.displayDate });
 }
 
 export function MainChart({
@@ -58,7 +63,8 @@ export function MainChart({
     contextLabel,
     dataLabel,
 }: MainChartProps) {
-    const { formatDate, formatNumber } = useUserPreferences();
+    const t = useTranslation();
+    const { formatDate, formatNumber, interfaceLanguage } = useUserPreferences();
     const resolvedValueFormatter = valueFormatter ?? ((value: number) => formatNumber(value));
     const chartData: DisplayChartPoint[] = data.map(d => ({
         ...d,
@@ -69,10 +75,11 @@ export function MainChart({
                 : formatDate(d.date),
     }));
     const chartSummary = buildChartSummary({
-        title,
-        contextLabel,
+        title: t.owned(title),
+        contextLabel: contextLabel ? t.owned(contextLabel) : undefined,
         data: chartData,
         valueFormatter: resolvedValueFormatter,
+        language: interfaceLanguage,
     });
     const firstColumnLabel = dataLabel ?? (variant === "bar" ? "Category" : "Date");
 
@@ -80,12 +87,12 @@ export function MainChart({
         return (
             <AppPanel
                 className="col-span-1 flex min-h-[400px] flex-col lg:col-span-2"
-                title={title}
+                title={t.owned(title)}
                 description={chartSummary}
                 contentClassName="flex min-h-0 flex-1"
             >
                 <div className="flex flex-1 items-center justify-center rounded-[var(--ui-radius-control)] border border-dashed border-[color:var(--ui-table-empty-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 text-center text-sm text-[color:var(--text-secondary)]">
-                    {emptyLabel}
+                    {t.owned(emptyLabel)}
                 </div>
             </AppPanel>
         );
@@ -100,7 +107,7 @@ export function MainChart({
     return (
         <AppPanel
             className="col-span-1 flex min-h-[400px] flex-col lg:col-span-2"
-            title={title}
+            title={t.owned(title)}
             description={chartSummary}
             contentClassName="flex min-h-0 flex-1 flex-col gap-3"
         >
@@ -121,7 +128,7 @@ export function MainChart({
                                 itemStyle={{ color: "var(--text-primary)" }}
                                 formatter={value => resolvedValueFormatter(Number(value))}
                             />
-                            <Bar dataKey="value" fill={color} radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="value" name={t("Value")} fill={color} radius={[6, 6, 0, 0]} />
                         </BarChart>
                     ) : (
                         <AreaChart data={chartData} accessibilityLayer={false}>
@@ -139,7 +146,7 @@ export function MainChart({
                                 itemStyle={{ color: "var(--text-primary)" }}
                                 formatter={value => resolvedValueFormatter(Number(value))}
                             />
-                            <Area type="monotone" dataKey="value" stroke={color} strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                            <Area type="monotone" dataKey="value" name={t("Value")} stroke={color} strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
                         </AreaChart>
                     )}
                 </ResponsiveContainer>
@@ -147,20 +154,19 @@ export function MainChart({
 
             <details className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-table-border)] bg-[color:var(--ui-form-muted-surface-bg)]">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-sm font-semibold text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] [&::-webkit-details-marker]:hidden">
-                    View chart data
-                </summary>
+                    {t("View chart data")}</summary>
                 <div
                     role="region"
-                    aria-label={`${title} data table`}
+                    aria-label={t("{title} data table", { title: t.owned(title) })}
                     tabIndex={0}
                     className="overflow-x-auto border-t border-[color:var(--ui-table-border)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
                 >
                     <table className="w-full min-w-[420px] text-left text-sm">
-                        <caption className="sr-only">Data displayed in the {title} chart</caption>
+                        <caption className="sr-only">{t("Data displayed in the {title} chart", { title: title })}</caption>
                         <thead className="bg-[color:var(--ui-table-head-bg)] text-xs uppercase tracking-wide text-[color:var(--ui-table-muted)]">
                             <tr>
-                                <th scope="col" className="px-3 py-2">{firstColumnLabel}</th>
-                                <th scope="col" className="px-3 py-2">Value</th>
+                                <th scope="col" className="px-3 py-2">{t.owned(firstColumnLabel)}</th>
+                                <th scope="col" className="px-3 py-2">{t("Value")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[color:var(--ui-table-divider)]">

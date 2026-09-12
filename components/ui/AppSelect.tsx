@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
 
 import { Check, ChevronDown } from "lucide-react";
 import {
@@ -460,7 +461,7 @@ export function AppSelect({
             </button>
             {error ? (
                 <p id={resolvedErrorId} role="alert" className="mt-1 text-xs text-[color:var(--ui-form-error-text)]">
-                    {error}
+                    <LocalizedError error={error} />
                 </p>
             ) : null}
             {menu}

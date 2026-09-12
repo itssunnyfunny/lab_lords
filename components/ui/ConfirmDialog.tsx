@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -63,6 +64,7 @@ export function ConfirmDialog({
     loading = false,
     variant = "default",
 }: ConfirmDialogProps) {
+    const t = useTranslation();
     const tone = dialogVariants[variant];
     const DialogIcon = tone.icon;
 
@@ -71,9 +73,9 @@ export function ConfirmDialog({
             open={isOpen}
             onClose={onClose}
             role="alertdialog"
-            title={title}
-            description={description}
-            closeLabel={`Close ${title}`}
+            title={t.owned(title)}
+            description={typeof description === "string" ? t.owned(description) : description}
+            closeLabel={t("Close")}
             closeDisabled={loading}
             className="max-w-sm"
             icon={(
@@ -89,14 +91,14 @@ export function ConfirmDialog({
                         disabled={loading}
                         data-dialog-initial-focus
                     >
-                        {cancelText}
+                        {t.owned(cancelText)}
                     </Button>
                     <Button
                         variant={tone.buttonVariant}
                         onClick={() => void onConfirm()}
                         isLoading={loading}
                     >
-                        {confirmText}
+                        {t.owned(confirmText)}
                     </Button>
                 </>
             )}

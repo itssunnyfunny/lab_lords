@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
 import { AppPanel } from "./AppPanel";
 import { PageShell } from "./PageShell";
 import {
@@ -313,7 +314,7 @@ function WorkspaceLoading() {
 export function EntryLoadingSkeleton({ label = "Loading", cards = 2 }: { label?: string; cards?: number }) {
     return (
         <section role="status" aria-live="polite" className="space-y-5">
-            <span className="sr-only">{label}</span>
+            <span className="sr-only"><OwnedLabel text={label} /></span>
             <LoadingCardGrid cards={cards} className="md:grid-cols-2" />
         </section>
     );
@@ -333,7 +334,7 @@ export function PageLoadingSkeleton({
             maxWidth={maxWidth}
             className={cn("py-1", className)}
         >
-            <span className="sr-only">{label}</span>
+            <span className="sr-only"><OwnedLabel text={label} /></span>
             {variant === "workspace" && <WorkspaceLoading />}
             {variant === "dashboard" && <DashboardLoading rows={rows} />}
             {variant === "table" && <TableLoading rows={rows} />}

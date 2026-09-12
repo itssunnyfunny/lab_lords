@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AppButton, AppPanel } from "@/components/ui";
 import {
@@ -27,54 +28,57 @@ function getActivityContent(
     item: ActivityItem,
     formatMoney: (amount: number) => string,
     formatNumber: (value: number) => string,
+    t: ReturnType<typeof useTranslation>,
 ) {
     switch (item.type) {
         case "allocation":
             return {
                 icon: LayoutGrid,
                 iconClass: "bg-cyan-400/10 text-cyan-300",
-                title: `Seat ${item.seat} allocated`,
-                description: `${item.studentName} was assigned to a seat.`,
+                title: t("Seat {seat} allocated", { seat: item.seat }),
+                description: t("{name} was assigned to a seat.", { name: item.studentName }),
             };
         case "payment":
             return {
                 icon: IndianRupee,
                 iconClass: "bg-emerald-400/10 text-emerald-300",
                 title: "Payment received",
-                description: `${formatMoney(item.amount)} collected from ${item.studentName}.`,
+                description: t("{amount} collected from {name}.", { amount: formatMoney(item.amount), name: item.studentName }),
             };
         case "overdue":
             return {
                 icon: TriangleAlert,
                 iconClass: "bg-rose-400/10 text-rose-300",
                 title: "Overdue payments detected",
-                description: `${formatNumber(item.count)} student${item.count === 1 ? "" : "s"} need follow-up.`,
+                description: t("{count} students need follow-up.", { count: formatNumber(item.count) }),
             };
         case "enrollment":
             return {
                 icon: UserPlus,
                 iconClass: "bg-violet-400/10 text-violet-300",
                 title: "New student enrolled",
-                description: `${item.studentName} joined the branch.`,
+                description: t("{name} joined the branch.", { name: item.studentName }),
             };
     }
 }
 
 function EmptyActivity() {
+    const t = useTranslation();
     return (
         <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
             <div className={cn("flex h-10 w-10 items-center justify-center", pageInsetSurfaceClass)}>
                 <Activity size={18} className="text-[color:var(--text-muted)]" />
             </div>
             <div>
-                <p className="text-sm font-medium text-[color:var(--text-primary)]">No recent activity</p>
-                <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>Student, seat, and payment changes will appear here.</p>
+                <p className="text-sm font-medium text-[color:var(--text-primary)]">{t("No recent activity")}</p>
+                <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{t("Student, seat, and payment changes will appear here.")}</p>
             </div>
         </div>
     );
 }
 
 export function RecentActivity({ items, branchId }: RecentActivityProps) {
+    const t = useTranslation();
     const router = useRouter();
     const visibleItems = items.slice(0, 7);
     const { formatDateTime, formatNumber } = useUserPreferences();
@@ -86,8 +90,8 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
 
     return (
         <AppPanel
-            title="Activity stream"
-            description="Latest movement across branch operations."
+            title={t("Activity stream")}
+            description={t("Latest movement across branch operations.")}
             action={
                 <AppButton
                     onClick={() => router.push(`/branch/${branchId}/payments`)}
@@ -95,8 +99,7 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
                     size="sm"
                     rightIcon={ArrowRight}
                 >
-                    Audit
-                </AppButton>
+                    {t("Audit")}</AppButton>
             }
             contentClassName="p-0"
             className="h-full"
@@ -106,7 +109,7 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
             ) : (
                 <div className={cn("divide-y", pageSectionDividerClass)}>
                     {visibleItems.map((item, index) => {
-                        const content = getActivityContent(item, formatMoney, formatNumber);
+                        const content = getActivityContent(item, formatMoney, formatNumber, t);
                         const Icon = content.icon;
 
                         return (
@@ -116,7 +119,7 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{content.title}</p>
+                                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{t.owned(content.title)}</p>
                                         <time dateTime={item.ts} className={cn("shrink-0 text-xs", pageSubtleTextClass)}>
                                             {formatDateTime(item.ts)}
                                         </time>

@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -88,6 +90,7 @@ export function getBillingProcessingCopy(operation: BillingOperationDto | null, 
 }
 
 export default function BillingProcessingPage({ params }: { params: Promise<{ orgId: string; changeId: string }> }) {
+    const t = useTranslation();
   const { orgId, changeId } = use(params);
   const router = useRouter();
   const [operation, setOperation] = useState<BillingOperationDto | null>(null);
@@ -254,14 +257,14 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
   };
 
   return (
-    <PageShell aria-label="Billing confirmation">
+    <PageShell aria-label={t("Billing confirmation")}>
       <RazorpayCheckoutScript
         onReady={() => setCheckoutReady(true)}
         onError={() => setError("Razorpay Checkout could not be loaded. Check your connection and try again.")}
       />
       <div>
-        <h1 className="text-2xl font-bold text-[color:var(--ui-text)]">Billing confirmation</h1>
-        <p className="text-sm text-[color:var(--ui-text-muted)]">Provider-confirmed subscription processing</p>
+        <h1 className="text-2xl font-bold text-[color:var(--ui-text)]">{t("Billing confirmation")}</h1>
+        <p className="text-sm text-[color:var(--ui-text-muted)]">{t("Provider-confirmed subscription processing")}</p>
       </div>
       <Card className="mx-auto max-w-2xl" noHover>
         <div
@@ -270,10 +273,10 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
         >
           {successful ? <CheckCircle2 className="h-12 w-12 text-emerald-500" /> : failed ? <AlertCircle className="h-12 w-12 text-amber-500" /> : timedOut ? <Clock3 className="h-12 w-12 text-amber-500" /> : <Loader2 className="h-12 w-12 animate-spin text-[color:var(--ui-accent)]" />}
           <div className="space-y-2" role="status" aria-live="polite" aria-atomic="true">
-            <h2 className="text-xl font-bold text-[color:var(--ui-text)]">{content.title}</h2>
-            <p className="max-w-lg text-sm text-[color:var(--ui-text-muted)]">{content.body}</p>
+            <h2 className="text-xl font-bold text-[color:var(--ui-text)]">{t.owned(content.title)}</h2>
+            <p className="max-w-lg text-sm text-[color:var(--ui-text-muted)]">{t.error(content.body)}</p>
           </div>
-          {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
+          {error && <p className="text-sm text-red-500" role="alert"><LocalizedError error={error} /></p>}
           <div className="flex flex-wrap justify-center gap-3">
             {failed && (
               <AppButton
@@ -282,13 +285,12 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
                 disabled={operation.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady}
                 onClick={retry}
               >
-                {operation.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady ? "Loading secure checkout..." : "Retry safely"}
+                {operation.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady ? t("Loading secure checkout...") : t("Retry safely")}
               </AppButton>
             )}
             {(successful || failed || timedOut) && (
               <Link className="inline-flex h-10 items-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] px-3 text-sm font-semibold text-[color:var(--ui-text)]" href={returnPath}>
-                Continue
-              </Link>
+                {t("Continue")}</Link>
             )}
           </div>
         </div>

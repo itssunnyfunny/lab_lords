@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
@@ -23,6 +24,7 @@ export function RegisterPhoneDialog({
   onClose: () => void;
   onRegister: (pin: string) => Promise<void>;
 }) {
+    const t = useTranslation();
   const [pin, setPin] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -71,29 +73,27 @@ export function RegisterPhoneDialog({
       open={open}
       onClose={close}
       role="dialog"
-      title="Complete phone registration"
+      title={t("Complete phone registration")}
       description={`Enter the six-digit Meta registration PIN for ${senderLabel}. This is not a one-time password.`}
-      closeLabel="Close phone registration"
+      closeLabel={t("Close phone registration")}
       closeDisabled={loading}
       className="max-w-md"
       footer={(
         <>
           <AppButton variant="quiet" onClick={close} disabled={loading}>
-            Cancel
-          </AppButton>
+            {t("Cancel")}</AppButton>
           <AppButton
             variant="primary"
             onClick={() => void register()}
             isLoading={loading}
           >
-            Register phone
-          </AppButton>
+            {t("Register phone")}</AppButton>
         </>
       )}
     >
       <FormField
-        label="Meta registration PIN"
-        description="Exactly six digits. The PIN is sent only for this registration request and is not saved by Lab Lords."
+        label={t("Meta registration PIN")}
+        description={t("Exactly six digits. The PIN is sent only for this registration request and is not saved by Lab Lords.")}
         error={pinError}
         required
       >

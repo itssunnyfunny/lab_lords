@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Circle, HeartPulse, MessageCircle } from "lucide-react";
@@ -110,6 +112,7 @@ function requireReportChallenge(response: {
 }
 
 function ChecklistItem({ complete, children }: { complete: boolean; children: ReactNode }) {
+    const t = useTranslation();
   const Icon = complete ? CheckCircle2 : Circle;
   return (
     <li className="flex items-start gap-2 text-sm">
@@ -119,7 +122,7 @@ function ChecklistItem({ complete, children }: { complete: boolean; children: Re
           : "mt-0.5 h-4 w-4 shrink-0 text-[color:var(--text-muted)]"}
         aria-hidden="true"
       />
-      <span><span className="sr-only">{complete ? "Complete: " : "Incomplete: "}</span>{children}</span>
+      <span><span className="sr-only">{complete ? t("Complete: ") : t("Incomplete: ")}</span>{children}</span>
     </li>
   );
 }
@@ -164,6 +167,7 @@ export function BranchWhatsAppReadiness({
   onAssign: () => void;
   onUnassign: () => void;
 }) {
+    const t = useTranslation();
   const assignment = response.assignment;
   const sender = assignment?.sender ?? null;
   const currentSenderId = sender?.id ?? "";
@@ -186,43 +190,43 @@ export function BranchWhatsAppReadiness({
   return (
     <>
       <ReadOnlyRow
-        label="Assigned sender"
+        label={t("Assigned sender")}
         value={sender
           ? `${sender.verifiedName || "WhatsApp business number"} · ${sender.displayPhoneNumber}`
           : "Not assigned"}
       />
       <ReadOnlyRow
-        label="Connection readiness"
+        label={t("Connection readiness")}
         value={sender ? (
           <span className="inline-flex flex-wrap items-center justify-end gap-2">
-            <Badge variant={sender.status === "ACTIVE" ? "success" : "warning"}>{titleCase(sender.status)}</Badge>
+            <Badge variant={sender.status === "ACTIVE" ? "success" : "warning"}><OwnedLabel text={titleCase(sender.status)} /></Badge>
             <Badge variant={sender.providerMode === "TEST" ? "purple" : "cyan"}>{sender.providerMode}</Badge>
           </span>
         ) : "Unavailable"}
       />
       <ReadOnlyRow
-        label="Phone and webhook"
+        label={t("Phone and webhook")}
         value={sender?.phoneRegisteredAt && sender.webhookSubscribedAt ? "Provider verified" : "Setup incomplete"}
       />
 
       <div className="space-y-3 px-5 py-4">
-        <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Activation checklist</h3>
+        <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Activation checklist")}</h3>
         <ul className="grid gap-2 sm:grid-cols-2">
-          <ChecklistItem complete={sender?.status === "ACTIVE"}>Active sender assigned</ChecklistItem>
-          <ChecklistItem complete={requiredTemplatesInstalled}>Managed templates installed</ChecklistItem>
-          <ChecklistItem complete={requiredTemplatesApproved}>Required templates approved as Utility</ChecklistItem>
-          <ChecklistItem complete={settings?.monthlyBudgetMinor !== null && settings?.monthlyBudgetMinor !== undefined}>Monthly estimated-usage budget</ChecklistItem>
-          <ChecklistItem complete={optedInCount > 0}>Operational consent coverage</ChecklistItem>
-          <ChecklistItem complete={sendTimeConfigured}>Send time configured</ChecklistItem>
-          <ChecklistItem complete={enabledStages.length > 0}>Reminder stages selected</ChecklistItem>
-          <ChecklistItem complete={settings?.enabled ?? false}>Branch delivery enabled</ChecklistItem>
-          <ChecklistItem complete={settings?.automationEnabled ?? false}>Automation explicitly enabled</ChecklistItem>
+          <ChecklistItem complete={sender?.status === "ACTIVE"}>{t("Active sender assigned")}</ChecklistItem>
+          <ChecklistItem complete={requiredTemplatesInstalled}>{t("Managed templates installed")}</ChecklistItem>
+          <ChecklistItem complete={requiredTemplatesApproved}>{t("Required templates approved as Utility")}</ChecklistItem>
+          <ChecklistItem complete={settings?.monthlyBudgetMinor !== null && settings?.monthlyBudgetMinor !== undefined}>{t("Monthly estimated-usage budget")}</ChecklistItem>
+          <ChecklistItem complete={optedInCount > 0}>{t("Operational consent coverage")}</ChecklistItem>
+          <ChecklistItem complete={sendTimeConfigured}>{t("Send time configured")}</ChecklistItem>
+          <ChecklistItem complete={enabledStages.length > 0}>{t("Reminder stages selected")}</ChecklistItem>
+          <ChecklistItem complete={settings?.enabled ?? false}>{t("Branch delivery enabled")}</ChecklistItem>
+          <ChecklistItem complete={settings?.automationEnabled ?? false}>{t("Automation explicitly enabled")}</ChecklistItem>
         </ul>
       </div>
 
       {canManage ? (
         <div className="space-y-3 px-5 py-4">
-          <SettingsField label="Branch sender assignment" description="Assignment alone does not enable delivery or automation.">
+          <SettingsField label={t("Branch sender assignment")} description={t("Assignment alone does not enable delivery or automation.")}>
             <SettingsSelect
               value={selectedSenderId}
               onValueChange={onSelectedSenderChange}
@@ -232,11 +236,11 @@ export function BranchWhatsAppReadiness({
                     value: option.id,
                     label: `${option.verifiedName || "WhatsApp business number"} · ${option.displayPhoneNumber}`,
                   }))
-                : [{ value: "", label: "No active senders available", disabled: true }]}
+                : [{ value: "", label: t("No active senders available"), disabled: true }]}
             />
           </SettingsField>
           <div className="flex flex-wrap justify-end gap-2">
-            {sender ? <AppButton variant="quiet" size="sm" disabled={busy} onClick={onUnassign}>Unassign sender</AppButton> : null}
+            {sender ? <AppButton variant="quiet" size="sm" disabled={busy} onClick={onUnassign}>{t("Unassign sender")}</AppButton> : null}
             <AppButton
               variant="primary"
               size="sm"
@@ -244,8 +248,7 @@ export function BranchWhatsAppReadiness({
               disabled={busy || !selectedSenderId || selectedSenderId === currentSenderId}
               onClick={onAssign}
             >
-              Assign sender
-            </AppButton>
+              {t("Assign sender")}</AppButton>
           </div>
         </div>
       ) : null}
@@ -278,6 +281,7 @@ export function BranchWhatsAppSettingsEditor({
   onSetDelivery: (enabled: boolean) => void;
   onSetAutomation: (enabled: boolean) => void;
 }) {
+    const t = useTranslation();
   const parsedBudget = parseBudgetMinor(form.monthlyBudgetRupees);
   const managerBudgetIncrease = !isOwner
     && parsedBudget !== undefined
@@ -319,36 +323,36 @@ export function BranchWhatsAppSettingsEditor({
 
   return (
     <>
-      <SettingsField label="Default language" description="Only Lab Lords-managed English (India) and Hindi Utility templates are supported.">
+      <SettingsField label={t("Default language")} description={t("Only Lab Lords-managed English (India) and Hindi Utility templates are supported.")}>
         <SettingsSelect
           value={form.defaultLanguage}
           onValueChange={value => onFormChange({ ...form, defaultLanguage: value as WhatsAppManagedLanguage })}
           disabled={!canManage || busy}
-          options={[{ value: "en_IN", label: "English (India)" }, { value: "hi", label: "Hindi" }]}
+          options={[{ value: "en_IN", label: t("English (India)") }, { value: "hi", label: t("Hindi") }]}
         />
       </SettingsField>
-      <SettingsField label="Reminder tone" description="Tone selects a fixed approved catalogue variant; it is not custom text.">
+      <SettingsField label={t("Reminder tone")} description={t("Tone selects a fixed approved catalogue variant; it is not custom text.")}>
         <SettingsSelect
           value={form.defaultTone}
           onValueChange={value => onFormChange({ ...form, defaultTone: value as BranchSettingsForm["defaultTone"] })}
           disabled={!canManage || busy}
-          options={[{ value: "polite", label: "Polite" }, { value: "friendly", label: "Friendly" }, { value: "firm", label: "Firm" }]}
+          options={[{ value: "polite", label: t("Polite") }, { value: "friendly", label: t("Friendly") }, { value: "firm", label: t("Firm") }]}
         />
       </SettingsField>
-      <SettingsField label="Send time" description={`Local branch time in ${settings.timeZone}.`}>
+      <SettingsField label={t("Send time")} description={`Local branch time in ${settings.timeZone}.`}>
         <SettingsInput type="time" value={form.sendTimeLocal} onChange={event => onFormChange({ ...form, sendTimeLocal: event.target.value })} disabled={!canManage || busy} />
       </SettingsField>
-      <SettingsField label="Daily automatic limit" description={isOwner ? "Automatic messages are additionally limited by consent, stages, frequency, and budget." : "Managers may keep or reduce this limit; only the owner may increase it."} error={dailyLimitError}>
+      <SettingsField label={t("Daily automatic limit")} description={isOwner ? t("Automatic messages are additionally limited by consent, stages, frequency, and budget.") : t("Managers may keep or reduce this limit; only the owner may increase it.")} error={dailyLimitError}>
         <SettingsInput type="number" min={1} max={isOwner ? 200 : settings.dailyAutomaticMessageLimit} inputMode="numeric" value={form.dailyAutomaticMessageLimit} onChange={event => onFormChange({ ...form, dailyAutomaticMessageLimit: event.target.value })} disabled={!canManage || busy} />
       </SettingsField>
-      <SettingsField label="Collection messages per cycle" description={isOwner ? "Maximum automatic collection reminders per student billing cycle." : "Managers may keep or reduce this limit; only the owner may increase it."} error={cycleLimitError}>
+      <SettingsField label={t("Collection messages per cycle")} description={isOwner ? t("Maximum automatic collection reminders per student billing cycle.") : t("Managers may keep or reduce this limit; only the owner may increase it.")} error={cycleLimitError}>
         <SettingsInput type="number" min={1} max={isOwner ? 4 : settings.maxAutomaticCollectionMessagesPerCycle} inputMode="numeric" value={form.maxAutomaticCollectionMessagesPerCycle} onChange={event => onFormChange({ ...form, maxAutomaticCollectionMessagesPerCycle: event.target.value })} disabled={!canManage || busy} />
       </SettingsField>
       <SettingsField
-        label="Monthly estimated-usage budget"
+        label={t("Monthly estimated-usage budget")}
         description={isOwner
-          ? "Organization owners may set or increase this Lab Lords reservation ceiling."
-          : "Managers may keep or reduce the current ceiling; only the owner may increase it."}
+          ? t("Organization owners may set or increase this Lab Lords reservation ceiling.")
+          : t("Managers may keep or reduce the current ceiling; only the owner may increase it.")}
         error={budgetError}
       >
         <SettingsInput
@@ -356,16 +360,16 @@ export function BranchWhatsAppSettingsEditor({
           inputMode="decimal"
           value={form.monthlyBudgetRupees}
           onChange={event => onFormChange({ ...form, monthlyBudgetRupees: event.target.value })}
-          placeholder="Amount in INR"
+          placeholder={t("Amount in INR")}
           disabled={!canManage || busy || (!isOwner && settings.monthlyBudgetMinor === null)}
-          aria-label="Monthly estimated usage budget in INR"
+          aria-label={t("Monthly estimated usage budget in INR")}
         />
       </SettingsField>
 
       <div className="space-y-3 px-5 py-4">
         <div>
-          <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Automation stages</h3>
-          <p className="mt-1 text-xs text-[color:var(--text-muted)]">Stages use trusted payment state and fixed approved Utility templates. They start prospectively after activation.</p>
+          <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Automation stages")}</h3>
+          <p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("Stages use trusted payment state and fixed approved Utility templates. They start prospectively after activation.")}</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {WHATSAPP_AUTOMATION_STAGES.map(stage => (
@@ -377,7 +381,7 @@ export function BranchWhatsAppSettingsEditor({
                 disabled={!canManage || busy}
                 className="h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
               />
-              <span>{STAGE_LABELS[stage]}</span>
+              <span><OwnedLabel text={STAGE_LABELS[stage]} /></span>
             </label>
           ))}
         </div>
@@ -385,14 +389,14 @@ export function BranchWhatsAppSettingsEditor({
 
       <div className="space-y-3 px-5 py-4">
         <div className="flex flex-wrap justify-end gap-2">
-          <AppButton variant="secondary" size="sm" onClick={onSave} disabled={!canManage || busy || Boolean(budgetError || dailyLimitError || cycleLimitError)} isLoading={busy}>Save WhatsApp settings</AppButton>
+          <AppButton variant="secondary" size="sm" onClick={onSave} disabled={!canManage || busy || Boolean(budgetError || dailyLimitError || cycleLimitError)} isLoading={busy}>{t("Save WhatsApp settings")}</AppButton>
           <AppButton
             variant={settings.enabled ? "danger" : "primary"}
             size="sm"
             onClick={() => onSetDelivery(!settings.enabled)}
             disabled={!canManage || busy || (!settings.enabled && settings.monthlyBudgetMinor === null)}
           >
-            {settings.enabled ? "Disable branch delivery" : "Enable branch delivery"}
+            {settings.enabled ? t("Disable branch delivery") : t("Enable branch delivery")}
           </AppButton>
         </div>
         {settings.enabled ? (
@@ -407,8 +411,7 @@ export function BranchWhatsAppSettingsEditor({
                   className="mt-0.5 h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
                 />
                 <span>
-                  I understand messages may incur charges in the customer-owned Meta account; only future stages will be automated; historical dues will not be automatically blasted; Meta determines final billing; and STOP immediately suppresses future unsubmitted messages.
-                </span>
+                  {t("I understand messages may incur charges in the customer-owned Meta account; only future stages will be automated; historical dues will not be automatically blasted; Meta determines final billing; and STOP immediately suppresses future unsubmitted messages.")}</span>
               </label>
             ) : null}
             <div className="flex justify-end">
@@ -418,7 +421,7 @@ export function BranchWhatsAppSettingsEditor({
                 onClick={() => onSetAutomation(!settings.automationEnabled)}
                 disabled={!canManage || busy || (!settings.automationEnabled && (!automationConfirmed || !automationPrerequisitesMet))}
               >
-                {settings.automationEnabled ? "Disable automation" : "Enable prospective automation"}
+                {settings.automationEnabled ? t("Disable automation") : t("Enable prospective automation")}
               </AppButton>
             </div>
           </>
@@ -429,6 +432,7 @@ export function BranchWhatsAppSettingsEditor({
 }
 
 function BranchWhatsAppHealth({ settings }: { settings: WhatsAppBranchSettings }) {
+    const t = useTranslation();
   const queuedCount = ["SCHEDULED", "CLAIMED", "SUBMITTING"]
     .reduce((count, status) => count + (settings.deliveryHealth[status] ?? 0), 0);
   const healthEntries = [
@@ -451,21 +455,21 @@ function BranchWhatsAppHealth({ settings }: { settings: WhatsAppBranchSettings }
     : "Not yet";
   return (
     <>
-      <ReadOnlyRow label="Estimated budget ceiling" value={estimatedInr(settings.budget.ceilingMicros)} />
-      <ReadOnlyRow label="Reserved estimate" value={estimatedInr(settings.budget.reservedMicros)} />
-      <ReadOnlyRow label="Committed estimate" value={estimatedInr(settings.budget.committedMicros)} />
-      <ReadOnlyRow label="Estimated remaining" value={estimatedInr(settings.budget.remainingMicros)} />
-      <ReadOnlyRow label="Consent coverage" value={`${settings.consentCoverage.optedIn} opted in · ${settings.consentCoverage.associated} associated · ${settings.consentCoverage.activeStudents} active students`} />
-      <ReadOnlyRow label="Consent exceptions" value={`${settings.consentCoverage.missingPhone} missing phone · ${settings.consentCoverage.stale} stale · ${settings.consentCoverage.optedOut} opted out`} />
+      <ReadOnlyRow label={t("Estimated budget ceiling")} value={estimatedInr(settings.budget.ceilingMicros)} />
+      <ReadOnlyRow label={t("Reserved estimate")} value={estimatedInr(settings.budget.reservedMicros)} />
+      <ReadOnlyRow label={t("Committed estimate")} value={estimatedInr(settings.budget.committedMicros)} />
+      <ReadOnlyRow label={t("Estimated remaining")} value={estimatedInr(settings.budget.remainingMicros)} />
+      <ReadOnlyRow label={t("Consent coverage")} value={`${settings.consentCoverage.optedIn} opted in · ${settings.consentCoverage.associated} associated · ${settings.consentCoverage.activeStudents} active students`} />
+      <ReadOnlyRow label={t("Consent exceptions")} value={`${settings.consentCoverage.missingPhone} missing phone · ${settings.consentCoverage.stale} stale · ${settings.consentCoverage.optedOut} opted out`} />
       <ReadOnlyRow label={`Delivery health (${settings.deliveryHealthWindowDays} days)`} value={healthEntries.map(([status, count]) => `${status} ${count}`).join(" · ")} />
-      <ReadOnlyRow label="Last signed webhook received" value={lastWebhookLabel} />
-      <ReadOnlyRow label="Last planner run" value={lastPlannedLabel} />
+      <ReadOnlyRow label={t("Last signed webhook received")} value={lastWebhookLabel} />
+      <ReadOnlyRow label={t("Last planner run")} value={lastPlannedLabel} />
       {settings.lastPlannerErrorCode ? (
         <div className="flex items-start gap-3 px-5 py-4 text-sm text-[color:var(--ui-form-error-text)]" role="status">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> Planner health code: {settings.lastPlannerErrorCode}
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />  {t("Planner health code:")} {settings.lastPlannerErrorCode}
         </div>
       ) : null}
-      <div className="px-5 py-4 text-xs text-[color:var(--text-muted)]">Usage figures are Lab Lords estimates. Meta determines final charges in the customer’s Meta account.</div>
+      <div className="px-5 py-4 text-xs text-[color:var(--text-muted)]">{t("Usage figures are Lab Lords estimates. Meta determines final charges in the customer’s Meta account.")}</div>
     </>
   );
 }
@@ -493,6 +497,7 @@ export function BranchWhatsAppPanel({
   isOwner?: boolean;
   onAvailabilityChange: (available: boolean) => void;
 }) {
+    const t = useTranslation();
   const [response, setResponse] = useState<WhatsAppBranchAssignmentResponse | null>(null);
   const [settings, setSettings] = useState<WhatsAppBranchSettings | null>(null);
   const [form, setForm] = useState<BranchSettingsForm | null>(null);
@@ -669,7 +674,7 @@ export function BranchWhatsAppPanel({
 
   return (
     <>
-    <SettingsPanel id="whatsapp" title="WhatsApp" description="Configure consent-based delivery using only approved Lab Lords Utility templates." icon={MessageCircle}>
+    <SettingsPanel id="whatsapp" title="WhatsApp" description={t("Configure consent-based delivery using only approved Lab Lords Utility templates.")} icon={MessageCircle}>
       {response.safeReason ? <div className="px-5 py-4 text-sm text-[color:var(--text-secondary)]">{response.safeReason}</div> : null}
       {notice ? (
         <div className="px-5 py-4">
@@ -703,9 +708,9 @@ export function BranchWhatsAppPanel({
       ) : null}
       {settings ? (
         <div className="divide-y divide-[color:var(--ui-form-section-divider)]">
-          <div className="flex items-center gap-2 px-5 py-4"><HeartPulse className="h-4 w-4 text-[color:var(--ui-form-accent)]" aria-hidden="true" /><h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Delivery health</h3></div>
+          <div className="flex items-center gap-2 px-5 py-4"><HeartPulse className="h-4 w-4 text-[color:var(--ui-form-accent)]" aria-hidden="true" /><h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Delivery health")}</h3></div>
           <BranchWhatsAppHealth settings={settings} />
-          <div className="space-y-3 px-5 py-4"><h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Branch message history</h3><BranchWhatsAppMessageHistory branchId={branchId} /></div>
+          <div className="space-y-3 px-5 py-4"><h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Branch message history")}</h3><BranchWhatsAppMessageHistory branchId={branchId} /></div>
         </div>
       ) : null}
     </SettingsPanel>

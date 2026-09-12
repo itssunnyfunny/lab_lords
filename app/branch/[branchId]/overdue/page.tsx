@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -123,6 +125,7 @@ function OverdueContent({
     recordDecision: CapabilityDecision;
     whatsAppSendDecision: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const router = useRouter();
     const { formatDate, formatDateTime, formatNumber } = useUserPreferences();
     const formatMoney = (amount: number) => formatNumber(amount, {
@@ -296,18 +299,17 @@ function OverdueContent({
     const bulkReviewHref = getOverdueBulkReviewHref(branchId, selectedPayments);
 
     if (loading) {
-        return <PageLoadingSkeleton label="Loading overdue queue" variant="table" rows={5} />;
+        return <PageLoadingSkeleton label={t("Loading overdue queue")} variant="table" rows={5} />;
     }
 
     if (error && !updatedAt) {
         return (
             <div className={pageErrorStateClass}>
                 <AlertCircle className={pageErrorIconClass} />
-                <h2 className="text-xl font-semibold">Overdue queue did not load</h2>
-                <p className={pageMutedTextClass}>{error}</p>
+                <h2 className="text-xl font-semibold">{t("Overdue queue did not load")}</h2>
+                <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
                 <AppButton variant="secondary" icon={RefreshCw} onClick={() => fetchOverdue()}>
-                    Try again
-                </AppButton>
+                    {t("Try again")}</AppButton>
             </div>
         );
     }
@@ -317,16 +319,14 @@ function OverdueContent({
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                     <AppButton variant="quiet" size="sm" icon={ArrowLeft} onClick={() => router.back()}>
-                        Back
-                    </AppButton>
-                    <p className={cn(pageEyebrowClass, "mt-4")}>Collections queue</p>
-                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>Overdue collections</h1>
+                        {t("Back")}</AppButton>
+                    <p className={cn(pageEyebrowClass, "mt-4")}>{t("Collections queue")}</p>
+                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Overdue collections")}</h1>
                     <p className={pageDescriptionClass}>
-                        Work the collection queue by urgency, fix missing contact details, then copy reminder drafts for manual follow-up.
-                    </p>
+                        {t("Work the collection queue by urgency, fix missing contact details, then copy reminder drafts for manual follow-up.")}</p>
                     {updatedAt && (
                         <p className={cn("mt-2 text-xs", pageSubtleTextClass)}>
-                            Updated {formatDateTime(updatedAt)}
+                            {t("Updated")} {formatDateTime(updatedAt)}
                         </p>
                     )}
                 </div>
@@ -339,14 +339,13 @@ function OverdueContent({
                         disabled={refreshing}
                         className={refreshing ? "[&_svg]:animate-spin" : undefined}
                     >
-                        Refresh
-                    </AppButton>
+                        {t("Refresh")}</AppButton>
                     <AppButton
                         variant="primary"
                         icon={CreditCard}
                         onClick={() => router.push(bulkReviewHref)}
                     >
-                        {selectedPayments.length === 1 ? "Review selected payment" : "Review due payments"}
+                        {selectedPayments.length === 1 ? t("Review selected payment") : t("Review due payments")}
                     </AppButton>
                 </div>
             </header>
@@ -355,7 +354,7 @@ function OverdueContent({
                     <div className={cn("flex items-start gap-3 px-4 py-3 text-sm", formWarningBannerClass)} role="status">
                         <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
                         <span>
-                            Refresh failed. Showing data last updated {formatDateTime(updatedAt)}. {error}
+                            {t("Refresh failed. Showing data last updated {time}.", { time: formatDateTime(updatedAt) })} <LocalizedError error={error} />
                         </span>
                     </div>
                 )}
@@ -364,12 +363,11 @@ function OverdueContent({
                     <div id="overdue-record-blocker" className={cn("flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)}>
                         <span className="flex items-start gap-2">
                             <LockKeyhole size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                            <span><span className="font-semibold">Recording payments is unavailable.</span> {recordDecision.reason}</span>
+                            <span><span className="font-semibold">{t("Recording payments is unavailable.")}</span> {recordDecision.reason}</span>
                         </span>
                         {recordDecision.recoveryHref && (
                             <Link href={recordDecision.recoveryHref} className="shrink-0 font-semibold underline underline-offset-4">
-                                Resolve access
-                            </Link>
+                                {t("Resolve access")}</Link>
                         )}
                     </div>
                 )}
@@ -377,34 +375,33 @@ function OverdueContent({
                 {payments.length === 0 ? (
                     <div className={pageEmptyStateClass}>
                         <SearchX size={36} className="mb-4 opacity-60" />
-                        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">No overdue payments</h2>
+                        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">{t("No overdue payments")}</h2>
                         <p className={cn("mt-2 max-w-md text-sm", pageMutedTextClass)}>
-                            The collection queue is clear. New overdue payments will appear here after the grace period.
-                        </p>
+                            {t("The collection queue is clear. New overdue payments will appear here after the grace period.")}</p>
                     </div>
                 ) : (
                     <>
                         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            <MetricCard label="Loaded overdue amount" value={formatMoney(totals.totalAmount)} detail={`${payments.length} of ${total} open payments loaded`} tone="danger" />
-                            <MetricCard label="Loaded critical" value={formatNumber(totals.criticalCount)} detail="30+ days overdue in loaded rows" tone="danger" />
-                            <MetricCard label="Loaded missing phone" value={formatNumber(totals.missingPhoneCount)} detail="Profile cleanup in loaded rows" tone={totals.missingPhoneCount > 0 ? "warning" : "success"} />
-                            <MetricCard label="Oldest due" value={`${formatNumber(totals.oldestDays)}d`} detail="Oldest loaded payment" tone={totals.oldestDays >= 30 ? "danger" : "warning"} />
+                            <MetricCard label={t("Loaded overdue amount")} value={formatMoney(totals.totalAmount)} detail={`${payments.length} of ${total} open payments loaded`} tone="danger" />
+                            <MetricCard label={t("Loaded critical")} value={formatNumber(totals.criticalCount)} detail="30+ days overdue in loaded rows" tone="danger" />
+                            <MetricCard label={t("Loaded missing phone")} value={formatNumber(totals.missingPhoneCount)} detail="Profile cleanup in loaded rows" tone={totals.missingPhoneCount > 0 ? "warning" : "success"} />
+                            <MetricCard label={t("Oldest due")} value={`${formatNumber(totals.oldestDays)}d`} detail="Oldest loaded payment" tone={totals.oldestDays >= 30 ? "danger" : "warning"} />
                         </section>
 
                         <AppPanel
-                            title="Collection Queue"
-                            description="Oldest dues load first. Filters and bulk selection apply to the rows currently loaded."
+                            title={t("Collection Queue")}
+                            description={t("Oldest dues load first. Filters and bulk selection apply to the rows currently loaded.")}
                             action={
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                     <AppSelect
-                                        aria-label="Reminder language"
+                                        aria-label={t("Reminder language")}
                                         className="h-11 w-full text-xs sm:w-32 lg:min-h-9 lg:h-9"
                                         containerClassName="w-full sm:w-32"
                                         value={language}
                                         onValueChange={value => setLanguage(value as MessageLanguage)}
                                         options={[
                                             { value: "EN", label: "English" },
-                                            { value: "HI", label: "Hindi" },
+                                            { value: "HI", label: t("Hindi") },
                                         ]}
                                     />
                                     <AppButton
@@ -414,9 +411,7 @@ function OverdueContent({
                                         onClick={generateDrafts}
                                         disabled={selectedPayments.length === 0}
                                         isLoading={generatingDrafts}
-                                    >
-                                        Draft selected ({selectedPayments.length})
-                                    </AppButton>
+                                    >{t("Draft selected ({count})", { count: selectedPayments.length })}</AppButton>
                                 </div>
                             }
                             contentClassName="space-y-4"
@@ -444,7 +439,7 @@ function OverdueContent({
                                             )}
                                         >
                                             <span className="flex items-center justify-between gap-3">
-                                                <span className="text-sm font-semibold">{item.label}</span>
+                                                <span className="text-sm font-semibold">{t.owned(item.label)}</span>
                                                 <span className={pageCountBadgeClass}>{count}</span>
                                             </span>
                                             <span className={cn("mt-1 block text-xs", pageSubtleTextClass)}>{item.description}</span>
@@ -463,18 +458,15 @@ function OverdueContent({
                                         disabled={visiblePayments.length === 0}
                                         className="h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
                                     />
-                                    Select all {visiblePayments.length} shown
-                                </label>
+                                    {t("Select all")} {visiblePayments.length}  {t("shown")}</label>
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <span className={cn("text-sm", pageMutedTextClass)} aria-live="polite">
-                                        {selectedPayments.length} selected
-                                    </span>
+                                    <span className={cn("text-sm", pageMutedTextClass)} aria-live="polite">{t("{count} selected", { count: selectedPayments.length })}</span>
                                     {selectedPayments.length > 0 && (
                                         <Link
                                             href={bulkReviewHref}
                                             className="inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 text-sm font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
                                         >
-                                            {selectedPayments.length === 1 ? "Review selected payment" : "Open matching due queue"}
+                                            {selectedPayments.length === 1 ? t("Review selected payment") : t("Open matching due queue")}
                                         </Link>
                                     )}
                                 </div>
@@ -483,15 +475,15 @@ function OverdueContent({
                             {totals.missingPhoneCount > 0 && (
                                 <div className={cn("flex items-start gap-3 px-4 py-3 text-sm", formWarningBannerClass)}>
                                     <TriangleAlert size={16} className="mt-0.5 shrink-0" />
-                                    <span>{totals.missingPhoneCount} loaded overdue student{totals.missingPhoneCount === 1 ? "" : "s"} need a phone number before reminders can be sent cleanly.</span>
+                                    <span>{t("{missingPhoneCount} loaded overdue student(s) need a phone number before reminders can be sent cleanly.", { missingPhoneCount: totals.missingPhoneCount })}</span>
                                 </div>
                             )}
 
                             {visiblePayments.length === 0 ? (
                                 <div className={cn("min-h-[220px]", pageEmptyStateClass)}>
                                     <SearchX size={30} className="mb-3 opacity-60" />
-                                    <p className="font-medium text-[color:var(--text-primary)]">No payments in this queue</p>
-                                    <p className={cn("mt-1 text-sm", pageMutedTextClass)}>Switch filters to continue collection work.</p>
+                                    <p className="font-medium text-[color:var(--text-primary)]">{t("No payments in this queue")}</p>
+                                    <p className={cn("mt-1 text-sm", pageMutedTextClass)}>{t("Switch filters to continue collection work.")}</p>
                                 </div>
                             ) : (
                                 <>
@@ -509,20 +501,20 @@ function OverdueContent({
                                     </div>
 
                                     <div className={cn("hidden lg:block", pageTableShellClass)}>
-                                        <div className="overflow-x-auto" role="region" aria-label="Overdue payments completion queue" tabIndex={0}>
+                                        <div className="overflow-x-auto" role="region" aria-label={t("Overdue payments completion queue")} tabIndex={0}>
                                             <table className="w-full min-w-[760px] text-left text-sm">
-                                                <caption className="sr-only">Overdue payments completion queue</caption>
+                                                <caption className="sr-only">{t("Overdue payments completion queue")}</caption>
                                                 <thead className={pageTableHeadClass}>
                                                     <tr>
                                                         <th scope="col" className="w-12 px-5 py-4">
-                                                            <span className="sr-only">Select payment</span>
+                                                            <span className="sr-only">{t("Select payment")}</span>
                                                         </th>
-                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">Student</th>
-                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">Contact</th>
-                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">Age</th>
-                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">Due date</th>
-                                                        <th scope="col" className="px-5 py-4 text-right text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">Amount</th>
-                                                        <th scope="col" className="px-5 py-4 text-right text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">Action</th>
+                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Student")}</th>
+                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Contact")}</th>
+                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Age")}</th>
+                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Due date")}</th>
+                                                        <th scope="col" className="px-5 py-4 text-right text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Amount")}</th>
+                                                        <th scope="col" className="px-5 py-4 text-right text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Action")}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className={pageTableBodyDividerClass}>
@@ -556,11 +548,11 @@ function OverdueContent({
                                                                             <Phone size={13} /> {payment.phone}
                                                                         </span>
                                                                     ) : (
-                                                                        <Badge variant="warning">No phone</Badge>
+                                                                        <Badge variant="warning">{t("No phone")}</Badge>
                                                                     )}
                                                                 </td>
                                                                 <td className="px-5 py-4">
-                                                                    <Badge variant={severity.variant}>{days} days</Badge>
+                                                                    <Badge variant={severity.variant}>{t("{days} days", { days: days })}</Badge>
                                                                 </td>
                                                                 <td className={cn("px-5 py-4", pageMutedTextClass)}>{formatDate(payment.dueDate)}</td>
                                                                 <td className="px-5 py-4 text-right font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</td>
@@ -581,9 +573,7 @@ function OverdueContent({
                             )}
 
                             <div className="flex flex-col items-center gap-3 border-t border-[color:var(--ui-form-section-divider)] pt-4 text-center">
-                                <p id="overdue-pagination-status" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">
-                                    Showing {payments.length} of {total} overdue payment{total === 1 ? "" : "s"}
-                                </p>
+                                <p id="overdue-pagination-status" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">{t("Showing {count} of {total} overdue payment(s)", { count: payments.length, total: total })}</p>
                                 {nextCursor && (
                                     <AppButton
                                         type="button"
@@ -594,13 +584,13 @@ function OverdueContent({
                                         aria-describedby="overdue-pagination-status"
                                         className="min-h-11 min-w-36 justify-center"
                                     >
-                                        {loadingMore ? "Loading..." : "Load more payments"}
+                                        {loadingMore ? t("Loading...") : t("Load more payments")}
                                     </AppButton>
                                 )}
                                 {loadMoreError && (
                                     <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formWarningBannerClass)} role="alert">
                                         <AlertCircle size={14} aria-hidden="true" />
-                                        <span>{loadMoreError}</span>
+                                        <span><LocalizedError error={loadMoreError} /></span>
                                     </div>
                                 )}
                             </div>
@@ -615,14 +605,14 @@ function OverdueContent({
 
                         {drafts.length > 0 && (
                             <AppPanel
-                                title="Reminder Drafts"
-                                description="Drafts are not sent automatically. Copy the message and send through your normal channel."
-                                action={<Badge variant="warning">Manual send</Badge>}
+                                title={t("Reminder Drafts")}
+                                description={t("Drafts are not sent automatically. Copy the message and send through your normal channel.")}
+                                action={<Badge variant="warning">{t("Manual send")}</Badge>}
                                 contentClassName="space-y-4"
                             >
                                 <div className={cn("flex items-start gap-3 px-4 py-3 text-sm", formWarningBannerClass)}>
                                     <Send size={16} className="mt-0.5 shrink-0" />
-                                    <span>These messages can affect collections. Review names, amounts, and tone before sending.</span>
+                                    <span>{t("These messages can affect collections. Review names, amounts, and tone before sending.")}</span>
                                 </div>
 
                                 <div className="grid gap-4 lg:grid-cols-2">
@@ -635,7 +625,7 @@ function OverdueContent({
                                                         <Phone size={12} /> {draft.phone || "Phone not added"}
                                                     </p>
                                                 </div>
-                                                {!draft.phone && <Badge variant="warning">Needs phone</Badge>}
+                                                {!draft.phone && <Badge variant="warning">{t("Needs phone")}</Badge>}
                                             </div>
 
                                             <div className={cn("mt-4 p-3", pageInsetSurfaceClass)}>
@@ -649,7 +639,7 @@ function OverdueContent({
                                                     icon={copiedId === draft.paymentId ? Check : Copy}
                                                     onClick={() => copyToClipboard(draft.message, draft.paymentId)}
                                                 >
-                                                    {copiedId === draft.paymentId ? "Copied" : "Copy message"}
+                                                    {copiedId === draft.paymentId ? t("Copied") : t("Copy message")}
                                                 </AppButton>
                                             </div>
                                         </div>
@@ -692,17 +682,18 @@ function MetricCard({
 const queueActionLinkClass = "inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]";
 
 function PaymentQueueAction({ href, decision }: { href: string; decision: CapabilityDecision }) {
+    const t = useTranslation();
     if (decision.allowed) {
-        return <Link href={href} className={queueActionLinkClass}>Record payment</Link>;
+        return <Link href={href} className={queueActionLinkClass}>{t("Record payment")}</Link>;
     }
 
     if (decision.blocker === "permission") {
-        return <Link href={href} className={queueActionLinkClass}>View payment</Link>;
+        return <Link href={href} className={queueActionLinkClass}>{t("View payment")}</Link>;
     }
 
     return (
         <div className="inline-flex flex-wrap justify-end gap-2">
-            <Link href={href} className={queueActionLinkClass}>View payment</Link>
+            <Link href={href} className={queueActionLinkClass}>{t("View payment")}</Link>
             <button
                 type="button"
                 disabled
@@ -710,8 +701,7 @@ function PaymentQueueAction({ href, decision }: { href: string; decision: Capabi
                 className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-1.5 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] opacity-[var(--ui-control-disabled-opacity)]"
             >
                 <LockKeyhole size={13} aria-hidden="true" />
-                Record payment
-            </button>
+                {t("Record payment")}</button>
         </div>
     );
 }
@@ -729,6 +719,7 @@ function OverduePaymentCard({
     onSelectedChange: (checked: boolean) => void;
     recordDecision: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const { formatDate, formatNumber } = useUserPreferences();
     const formattedAmount = formatNumber(payment.amount, {
         style: "currency",
@@ -759,16 +750,16 @@ function OverduePaymentCard({
                     <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{severity.helper}</p>
                     </div>
                 </div>
-                <Badge variant={severity.variant}>{days} days</Badge>
+                <Badge variant={severity.variant}>{t("{days} days", { days: days })}</Badge>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <div className={pageInsetMetricClass}>
-                    <p className={cn("text-xs", pageSubtleTextClass)}>Amount</p>
+                    <p className={cn("text-xs", pageSubtleTextClass)}>{t("Amount")}</p>
                     <p className="mt-1 font-semibold text-[color:var(--text-primary)]">{formattedAmount}</p>
                 </div>
                 <div className={pageInsetMetricClass}>
-                    <p className={cn("text-xs", pageSubtleTextClass)}>Due date</p>
+                    <p className={cn("text-xs", pageSubtleTextClass)}>{t("Due date")}</p>
                     <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{formatDate(payment.dueDate)}</p>
                 </div>
             </div>

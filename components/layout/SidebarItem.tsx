@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { LockKeyhole, LucideIcon } from "lucide-react";
 import Link from "next/link";
 import React from "react";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 interface SidebarItemProps {
     icon: LucideIcon;
@@ -18,10 +19,11 @@ interface SidebarItemProps {
 }
 
 export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isCollapsed, density = "default", locked = false, badge }: SidebarItemProps) => {
+    const t = useTranslation();
     const className = cn(
             "group relative flex w-full items-center text-left transition-all duration-300",
             density === "compact"
-                ? "h-11 gap-2.5 rounded-lg border px-2.5 lg:h-9"
+                ? "min-h-11 gap-2.5 rounded-lg border px-2.5 py-2 lg:min-h-9"
                 : "min-h-11 gap-3 rounded-xl border px-3 py-2.5",
             isActive
                 ? density === "compact"
@@ -43,10 +45,10 @@ export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isColl
         />
         {!isCollapsed && (
             <span className={cn(
-                "min-w-0 flex-1 truncate font-medium tracking-wide",
+                "min-w-0 flex-1 whitespace-normal break-words font-medium tracking-wide",
                 density === "compact" ? "text-[13px]" : "text-sm"
             )}>
-                {label}
+                {t.owned(label)}
             </span>
         )}
         {isActive && <div className={cn(

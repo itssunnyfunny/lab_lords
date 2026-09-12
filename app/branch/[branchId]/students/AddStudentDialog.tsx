@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -37,6 +39,7 @@ export function AddStudentDialog({
     branchId,
     allocationDecision,
 }: AddStudentDialogProps) {
+    const t = useTranslation();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<CreateStudentDto>({
@@ -243,25 +246,24 @@ export function AddStudentDialog({
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="Add new student"
+            title={t("Add new student")}
             description={allocationDecision.blocker === "permission"
-                ? "Create the student profile."
-                : "Create the student profile and optionally allocate a seat."}
-            closeLabel="Close add student dialog"
+                ? t("Create the student profile.")
+                : t("Create the student profile and optionally allocate a seat.")}
+            closeLabel={t("Close add student dialog")}
             closeDisabled={isLoading}
             className="max-w-2xl"
             footer={(
                 <>
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button type="submit" form="add-student-form" disabled={isLoading} className="min-w-[140px]">
                         {isLoading ? (
-                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> Saving...</>
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />  {t("Saving...")}</>
                         ) : wantsAllocation && allocationDecision.allowed ? (
-                            "Save & Allocate"
+                            t("Save & Allocate")
                         ) : (
-                            "Add Student"
+                            t("Add Student")
                         )}
                     </Button>
                 </>
@@ -276,14 +278,14 @@ export function AddStudentDialog({
                     >
                         {error && (
                             <div id="add-student-submit-error" role="alert" className={cn("p-3 text-sm", formErrorBannerClass)}>
-                                {error}
+                                <LocalizedError error={error} />
                             </div>
                         )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label htmlFor="add-student-name" className={formLabelClass}>
-                                    Full Name <span className={formRequiredClass}>*</span>
+                                    {t("Full Name")} <span className={formRequiredClass}>*</span>
                                 </label>
                                 <input
                                     id="add-student-name"
@@ -293,7 +295,7 @@ export function AddStudentDialog({
                                     onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setError(null); }}
                                     onBlur={() => markTouched("name")}
                                     className={cn(formControlClass, "px-3 py-2", fieldErrorClass(nameError))}
-                                    placeholder="e.g. John Doe"
+                                    placeholder={t("e.g. John Doe")}
                                     data-dialog-initial-focus
                                     maxLength={FORM_LIMITS.nameMax}
                                     {...fieldErrorProps("add-student-name-error", nameError)}
@@ -303,7 +305,7 @@ export function AddStudentDialog({
 
                             <div className="space-y-2">
                                 <label htmlFor="add-student-phone" className={formLabelClass}>
-                                    Phone Number <span className={formRequiredClass}>*</span>
+                                    {t("Phone Number")} <span className={formRequiredClass}>*</span>
                                 </label>
                                 <input
                                     id="add-student-phone"
@@ -323,8 +325,7 @@ export function AddStudentDialog({
 
                             <div className="space-y-2">
                                 <label htmlFor="add-student-monthly-fee" className={formLabelClass}>
-                                    Monthly Fee
-                                </label>
+                                    {t("Monthly Fee")}</label>
                                 <input
                                     id="add-student-monthly-fee"
                                     type="number"
@@ -339,7 +340,7 @@ export function AddStudentDialog({
                                     }}
                                     onBlur={() => markTouched("monthlyFee")}
                                     className={cn(formControlClass, "px-3 py-2", fieldErrorClass(monthlyFeeError))}
-                                    placeholder={linkFeeToSelection ? "Linked to shift price" : "Branch default"}
+                                    placeholder={linkFeeToSelection ? t("Linked to shift price") : t("Branch default")}
                                     min={0}
                                     max={FORM_LIMITS.moneyMax}
                                     step={1}
@@ -351,8 +352,7 @@ export function AddStudentDialog({
 
                             <div className="space-y-2">
                                 <label htmlFor="add-student-admission-fee" className={formLabelClass}>
-                                    Admission Fee
-                                </label>
+                                    {t("Admission Fee")}</label>
                                 <input
                                     id="add-student-admission-fee"
                                     type="number"
@@ -367,7 +367,7 @@ export function AddStudentDialog({
                                     }}
                                     onBlur={() => markTouched("admissionFee")}
                                     className={cn(formControlClass, "px-3 py-2", fieldErrorClass(admissionFeeError))}
-                                    placeholder="One-time"
+                                    placeholder={t("One-time")}
                                     min={0}
                                     max={FORM_LIMITS.moneyMax}
                                     step={1}
@@ -380,8 +380,7 @@ export function AddStudentDialog({
 
                         {createdStudentId && (
                             <div role="status" className={cn("p-3 text-sm", formSuccessBannerClass)}>
-                                Student profile saved. Pick a different seat and try allocating again.
-                            </div>
+                                {t("Student profile saved. Pick a different seat and try allocating again.")}</div>
                         )}
 
                         {allocationDecision.blocker !== "permission" && (
@@ -398,8 +397,7 @@ export function AddStudentDialog({
                                                 className={formCheckboxClass}
                                             />
                                             <span className="text-sm font-medium text-[color:var(--ui-form-label-strong)] transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]">
-                                                Allocate seat now (Optional)
-                                            </span>
+                                                {t("Allocate seat now (Optional)")}</span>
                                         </label>
                                     ) : (
                                         <div className={cn("space-y-2 p-3 text-sm", formWarningBannerClass)}>
@@ -411,7 +409,7 @@ export function AddStudentDialog({
                                                     aria-describedby="add-student-allocation-unavailable"
                                                     className={formCheckboxClass}
                                                 />
-                                                <span className="font-medium">Allocate seat now (Optional)</span>
+                                                <span className="font-medium">{t("Allocate seat now (Optional)")}</span>
                                             </label>
                                             <p id="add-student-allocation-unavailable">
                                                 {allocationDecision.reason}
@@ -421,8 +419,7 @@ export function AddStudentDialog({
                                                     href={allocationDecision.recoveryHref}
                                                     className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
                                                 >
-                                                    Resolve access
-                                                </Link>
+                                                    {t("Resolve access")}</Link>
                                             )}
                                         </div>
                                     )}
@@ -431,7 +428,7 @@ export function AddStudentDialog({
                                         <div
                                             className={cn("mt-4 p-3 sm:p-5", formSurfaceClass)}
                                             role="group"
-                                            aria-label="Seat allocation"
+                                            aria-label={t("Seat allocation")}
                                             aria-describedby={allocationError ? "add-student-allocation-error" : undefined}
                                         >
                                             <SeatPicker
@@ -472,9 +469,7 @@ export function AddStudentDialog({
                                                         onChange={(e) => setLinkFeeToSelection(e.target.checked)}
                                                         className={formCheckboxClass}
                                                     />
-                                                    <span className="text-sm font-medium text-[color:var(--ui-form-label-strong)] transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]">
-                                                        Link monthly fee to {feeLinkLabel} price
-                                                    </span>
+                                                    <span className="text-sm font-medium text-[color:var(--ui-form-label-strong)] transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]">{t("Link monthly fee to {feeLinkLabel} price", { feeLinkLabel: feeLinkLabel })}</span>
                                                 </label>
                                             )}
                                         </div>

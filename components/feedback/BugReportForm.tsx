@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useState } from "react";
 import { Bug, Mail } from "lucide-react";
@@ -9,6 +10,7 @@ type BugReportFormProps = {
 };
 
 export function BugReportForm({ supportEmail }: BugReportFormProps) {
+    const t = useTranslation();
   const [summary, setSummary] = useState("");
   const [details, setDetails] = useState("");
   const [contact, setContact] = useState("");
@@ -47,35 +49,32 @@ export function BugReportForm({ supportEmail }: BugReportFormProps) {
           <Bug size={18} />
         </span>
         <div>
-          <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">Report a bug</h2>
-          <p className="mt-1 text-sm text-[color:var(--text-secondary)]">The form opens a pre-filled email with page, browser, and timestamp details.</p>
+          <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">{t("Report a bug")}</h2>
+          <p className="mt-1 text-sm text-[color:var(--text-secondary)]">{t("The form opens a pre-filled email with page, browser, and timestamp details.")}</p>
         </div>
       </div>
 
       <div className="mt-5 grid gap-4">
         <label className="grid gap-2 text-sm font-medium text-[color:var(--text-secondary)]">
-          Summary
-          <input
+          {t("Summary")}<input
             value={summary}
             onChange={event => setSummary(event.target.value)}
             className="h-11 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)] px-3 text-sm text-[color:var(--ui-form-input-text)] outline-none focus:border-[color:var(--ui-form-accent)]"
-            placeholder="Short description"
+            placeholder={t("Short description")}
           />
         </label>
 
         <label className="grid gap-2 text-sm font-medium text-[color:var(--text-secondary)]">
-          Details
-          <textarea
+          {t("Details")}<textarea
             value={details}
             onChange={event => setDetails(event.target.value)}
             className="min-h-32 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)] px-3 py-3 text-sm text-[color:var(--ui-form-input-text)] outline-none focus:border-[color:var(--ui-form-accent)]"
-            placeholder="What happened? What did you expect? What steps reproduce it?"
+            placeholder={t("What happened? What did you expect? What steps reproduce it?")}
           />
         </label>
 
         <label className="grid gap-2 text-sm font-medium text-[color:var(--text-secondary)]">
-          Contact email
-          <input
+          {t("Contact email")}<input
             type="email"
             value={contact}
             onChange={event => setContact(event.target.value)}
@@ -90,8 +89,7 @@ export function BugReportForm({ supportEmail }: BugReportFormProps) {
         className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-5 text-sm font-semibold text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] transition-colors hover:bg-[color:var(--ui-button-primary-hover-bg)]"
       >
         <Mail size={16} />
-        Open email
-      </button>
+        {t("Open email")}</button>
     </form>
   );
 }

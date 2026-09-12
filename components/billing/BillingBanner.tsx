@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import Link from "next/link";
 import { useId, useSyncExternalStore } from "react";
@@ -51,6 +52,7 @@ export function getBillingBannerActionLabel(
 }
 
 export function BillingBanner({ experience }: { experience: BillingExperience }) {
+    const t = useTranslation();
   const titleId = useId();
   const hasActiveOperation = experience.hasActiveOperation ?? experience.activeOperation != null;
   const dismissible = experience.customerState === "TRIAL_ACTIVE"
@@ -108,9 +110,7 @@ export function BillingBanner({ experience }: { experience: BillingExperience })
           <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">{contextLabel}</p>
           <p id={titleId} className="mt-0.5 font-semibold leading-5 text-[color:var(--ui-text)]">{experience.customerMessage}</p>
           {experience.trialEndsAt ? (
-            <p className="mt-1 text-xs text-[color:var(--ui-text-muted)]">
-              Trial ends {new Date(experience.trialEndsAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.
-            </p>
+            <p className="mt-1 text-xs text-[color:var(--ui-text-muted)]">{t("Trial ends {toLocaleDateString}.", { toLocaleDateString: new Date(experience.trialEndsAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) })}</p>
           ) : null}
         </div>
       </div>
@@ -127,8 +127,8 @@ export function BillingBanner({ experience }: { experience: BillingExperience })
           type="button"
           className={`absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-control)] text-[color:var(--ui-text-muted)] transition-colors hover:text-[color:var(--ui-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] ${toneClasses.dismiss}`}
           onClick={dismiss}
-          aria-label="Dismiss trial reminder for this session"
-          title="Dismiss for this session"
+          aria-label={t("Dismiss trial reminder for this session")}
+          title={t("Dismiss for this session")}
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>

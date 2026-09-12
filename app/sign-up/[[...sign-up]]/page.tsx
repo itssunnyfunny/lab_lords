@@ -1,4 +1,5 @@
 import { SignUp } from "@clerk/nextjs";
+import { LocalizedText } from "@/components/settings/LocalizedText";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
@@ -26,13 +27,13 @@ export default async function SignUpPage({
       mode="sign-up"
       legal={(
         <p>
-          By continuing, you agree to the{" "}
+          <LocalizedText text="By continuing, you agree to the" />{" "}
           <Link className="text-[color:var(--ui-form-accent)] hover:text-[color:var(--ui-form-accent-hover)]" href="/terms">
-            Terms of Service
+            <LocalizedText text="Terms of Service" />
           </Link>{" "}
-          and{" "}
+          <LocalizedText text="and" />{" "}
           <Link className="text-[color:var(--ui-form-accent)] hover:text-[color:var(--ui-form-accent-hover)]" href="/privacy">
-            Privacy Policy
+            <LocalizedText text="Privacy Policy" />
           </Link>
           .
         </p>

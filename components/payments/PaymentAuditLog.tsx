@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError, OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import { payments, AuditLogEntry } from "@/lib/api/payments";
@@ -40,6 +42,7 @@ export function PaymentAuditLog({
     isOpen,
     onClose,
 }: PaymentAuditLogProps) {
+    const t = useTranslation();
     const { formatDateTime, formatNumber } = useUserPreferences();
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
     const [loading, setLoading] = useState(false);
@@ -70,9 +73,9 @@ export function PaymentAuditLog({
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="Payment history"
+            title={t("Payment history")}
             description={studentName}
-            closeLabel="Close payment history"
+            closeLabel={t("Close payment history")}
             className="max-w-md"
             icon={(
                 <div className="rounded-full bg-violet-500/10 p-2">
@@ -83,7 +86,7 @@ export function PaymentAuditLog({
                 <div className="space-y-3">
                     {loading && (
                         <div role="status" aria-live="polite" className="space-y-3">
-                            <span className="sr-only">Loading payment history</span>
+                            <span className="sr-only">{t("Loading payment history")}</span>
                             {Array.from({ length: 3 }, (_, index) => (
                                 <div key={index} className={cn("flex items-start gap-3 p-3", formSurfaceClass)}>
                                     <SkeletonBlock className="h-8 w-8 rounded-full" />
@@ -103,15 +106,14 @@ export function PaymentAuditLog({
                     {error && !loading && (
                         <div role="alert" className={cn("flex items-center justify-center gap-2 px-3 py-6 text-sm", formErrorBannerClass)}>
                             <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                            {error}
+                            <LocalizedError error={error} />
                         </div>
                     )}
 
                     {!loading && !error && logs.length === 0 && (
                         <div className={cn("py-10 text-center text-sm", formHelpTextClass)}>
                             <ShieldCheck className="mx-auto mb-2 h-8 w-8 opacity-30" aria-hidden="true" />
-                            No recorded actions for this payment.
-                        </div>
+                            {t("No recorded actions for this payment.")}</div>
                     )}
 
                     {!loading && !error && logs.map((log) => (
@@ -130,7 +132,7 @@ export function PaymentAuditLog({
                                             ACTION_COLOR[log.action]
                                         )}
                                     >
-                                        {ACTION_LABEL[log.action]}
+                                        <OwnedLabel text={ACTION_LABEL[log.action]} />
                                     </span>
                                     <span className={cn("text-xs", formHelpTextClass)}>
                                         {formatCurrency(log.details.amount)}
@@ -152,10 +154,10 @@ export function PaymentAuditLog({
                                 </div>
                                 <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-[color:var(--ui-table-subtle)]">
                                     <span>{log.details.from} → {log.details.to}</span>
-                                    {log.details.reason && <span>Reason: {log.details.reason}</span>}
+                                    {log.details.reason && <span>{t("Reason:")} {log.details.reason}</span>}
                                     {log.details.referenceId && (
                                         <span className={cn("font-mono", formHelpTextClass)}>
-                                            Ref: {log.details.referenceId}
+                                            {t("Ref:")} {log.details.referenceId}
                                         </span>
                                     )}
                                 </div>

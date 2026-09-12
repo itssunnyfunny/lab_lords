@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -147,6 +149,7 @@ function ImportAssistantContent({
     branchId: string;
     importDecision: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const router = useRouter();
     const { formatDateTime, formatNumber } = useUserPreferences();
     const [goal, setGoal] = useState<ImportGoal>("STUDENTS");
@@ -294,35 +297,32 @@ function ImportAssistantContent({
         <PageShell>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <p className={pageEyebrowClass}>Data onboarding</p>
-                        <h1 className={pageTitleClass}>Import assistant</h1>
+                        <p className={pageEyebrowClass}>{t("Data onboarding")}</p>
+                        <h1 className={pageTitleClass}>{t("Import assistant")}</h1>
                         <p className={pageDescriptionClass}>
-                            Upload a spreadsheet or paste a table. AI can help with column suggestions, but manual review always works.
-                        </p>
+                            {t("Upload a spreadsheet or paste a table. AI can help with column suggestions, but manual review always works.")}</p>
                     </div>
                     <AppButton variant="quiet" icon={ArrowLeft} onClick={() => router.push(`/branch/${branchId}`)}>
-                        Skip import
-                    </AppButton>
+                        {t("Skip import")}</AppButton>
                 </div>
 
                 {mutationBlockReason && importDecision.blocker !== "permission" && (
                     <div id="import-mutation-blocker" className="flex flex-col gap-2 rounded-[8px] border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between" role="status">
-                        <span>Import changes are disabled. {mutationBlockReason}</span>
+                        <span>{t("Import changes are disabled.")} {mutationBlockReason}</span>
                         {importDecision.recoveryHref ? (
                             <Link href={importDecision.recoveryHref} className="shrink-0 font-semibold underline underline-offset-4">
-                                Resolve access
-                            </Link>
+                                {t("Resolve access")}</Link>
                         ) : null}
                     </div>
                 )}
 
                 <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
                     {importDecision.blocker !== "permission" ? <AppPanel
-                        title="1. Choose what to import"
-                        description="Start small or bring the full history. You can add deferred information later."
+                        title={t("1. Choose what to import")}
+                        description={t("Start small or bring the full history. You can add deferred information later.")}
                     >
                         <fieldset>
-                            <legend className="sr-only">Import goal</legend>
+                            <legend className="sr-only">{t("Import goal")}</legend>
                             <div className="grid gap-3 lg:grid-cols-3">
                                 {importGoals.map(option => {
                                     const selected = goal === option.id;
@@ -345,7 +345,7 @@ function ImportAssistantContent({
                                                 <span className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-cyan-400/10 text-cyan-300">
                                                     <GoalIcon size={19} />
                                                 </span>
-                                                {option.recommended && <Badge variant="success">Recommended</Badge>}
+                                                {option.recommended && <Badge variant="success">{t("Recommended")}</Badge>}
                                             </span>
                                             <span className="mt-4 text-sm font-semibold text-[color:var(--text-primary)]">{option.title}</span>
                                             <span className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{option.description}</span>
@@ -359,10 +359,10 @@ function ImportAssistantContent({
                         <div className="mt-6 border-t border-[color:var(--ui-form-section-divider)] pt-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">2. Add your data</p>
-                                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>Choose one source. Nothing is created until the final review.</p>
+                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("2. Add your data")}</p>
+                                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Choose one source. Nothing is created until the final review.")}</p>
                                 </div>
-                                <div className="inline-flex rounded-[8px] border border-[color:var(--ui-form-surface-border)] p-1" role="group" aria-label="Import source">
+                                <div className="inline-flex rounded-[8px] border border-[color:var(--ui-form-surface-border)] p-1" role="group" aria-label={t("Import source")}>
                                     <button
                                         type="button"
                                         aria-pressed={sourceMode === "file"}
@@ -370,8 +370,7 @@ function ImportAssistantContent({
                                         onClick={() => { setSourceMode("file"); setPastedTable(""); setWorkbookReview(null); setPdfReview(null); setError(null); }}
                                         className={cn("rounded-[6px] px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60", sourceMode === "file" ? "bg-cyan-400/15 text-cyan-100" : pageMutedTextClass)}
                                     >
-                                        Upload file
-                                    </button>
+                                        {t("Upload file")}</button>
                                     <button
                                         type="button"
                                         aria-pressed={sourceMode === "paste"}
@@ -379,8 +378,7 @@ function ImportAssistantContent({
                                         onClick={() => { setSourceMode("paste"); setFile(null); setWorkbookReview(null); setPdfReview(null); setError(null); }}
                                         className={cn("rounded-[6px] px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60", sourceMode === "paste" ? "bg-cyan-400/15 text-cyan-100" : pageMutedTextClass)}
                                     >
-                                        Paste table
-                                    </button>
+                                        {t("Paste table")}</button>
                                 </div>
                             </div>
 
@@ -396,20 +394,20 @@ function ImportAssistantContent({
                                 >
                                     <div className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-cyan-400/10 text-cyan-300"><UploadCloud size={22} /></div>
                                     <div>
-                                        <p className="break-all text-sm font-semibold text-[color:var(--text-primary)]">{file ? file.name : "Drop a file here"}</p>
-                                        <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{file ? `${(file.size / 1024).toFixed(1)} KiB selected` : "CSV, XLSX, XLS, or PDF up to 4 MiB"}</p>
+                                        <p className="break-all text-sm font-semibold text-[color:var(--text-primary)]">{file ? file.name : t("Drop a file here")}</p>
+                                        <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{file ? `${(file.size / 1024).toFixed(1)} KiB selected` : t("CSV, XLSX, XLS, or PDF up to 4 MiB")}</p>
                                     </div>
                                     <div className="flex flex-wrap justify-center gap-2">
                                         <label className={cn("inline-flex", mutationsDisabled || loading || pdfReview ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
                                             <input type="file" className="sr-only" accept=".csv,.xlsx,.xls,.pdf" disabled={mutationsDisabled || loading || Boolean(pdfReview)} aria-describedby="import-source-limits" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} />
-                                            <span className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 py-2 text-sm font-semibold text-[color:var(--ui-button-secondary-text)]">Choose file</span>
+                                            <span className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 py-2 text-sm font-semibold text-[color:var(--ui-button-secondary-text)]">{t("Choose file")}</span>
                                         </label>
-                                        {file && <AppButton size="sm" variant="quiet" onClick={() => chooseFile(null)} disabled={loading || Boolean(pdfReview)}>Clear</AppButton>}
+                                        {file && <AppButton size="sm" variant="quiet" onClick={() => chooseFile(null)} disabled={loading || Boolean(pdfReview)}>{t("Clear")}</AppButton>}
                                     </div>
                                 </div>
                             ) : (
                                 <label className="mt-4 block space-y-2">
-                                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]"><TableProperties className="h-4 w-4 text-cyan-300" />Paste rows with a header</span>
+                                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]"><TableProperties className="h-4 w-4 text-cyan-300" />{t("Paste rows with a header")}</span>
                                     <textarea
                                         value={pastedTable}
                                         onChange={(event) => { setPastedTable(event.target.value); setError(null); }}
@@ -419,9 +417,7 @@ function ImportAssistantContent({
                                         placeholder="Name\tMobile\tSeat No\tShift\tFee\tPaid"
                                         className="min-h-52 w-full rounded-[8px] border border-[color:var(--ui-form-field-border)] bg-[color:var(--ui-form-field-bg)] p-3 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--ui-form-field-focus-border)] disabled:cursor-not-allowed disabled:opacity-60"
                                     />
-                                    <span id="import-paste-count" className={cn("block text-xs", pastedRowEstimate > MAX_IMPORT_ROWS ? "text-red-300" : pageMutedTextClass)}>
-                                        About {formatNumber(pastedRowEstimate)} data rows detected · {formatNumber(pastedRequestBytes)} encoded bytes
-                                    </span>
+                                    <span id="import-paste-count" className={cn("block text-xs", pastedRowEstimate > MAX_IMPORT_ROWS ? "text-red-300" : pageMutedTextClass)}>{t("About {formatNumber} data rows detected · {formatNumber2} encoded bytes", { formatNumber: formatNumber(pastedRowEstimate), formatNumber2: formatNumber(pastedRequestBytes) })}</span>
                                 </label>
                             )}
 
@@ -429,13 +425,12 @@ function ImportAssistantContent({
                                 const selectedSheet = workbookReview.workbook.sheets.find(sheet => sheet.name === workbookReview.sheetName);
                                 return (
                                     <fieldset ref={workbookReviewRef} tabIndex={-1} className={cn("mt-4 space-y-4 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]", pageInsetSurfaceClass)}>
-                                        <legend className="px-1 text-sm font-semibold text-[color:var(--text-primary)]">Choose worksheet headings</legend>
+                                        <legend className="px-1 text-sm font-semibold text-[color:var(--text-primary)]">{t("Choose worksheet headings")}</legend>
                                         <p className={cn("text-xs leading-5", pageMutedTextClass)}>
-                                            The workbook has multiple possible tables. Select the worksheet and the row containing column names; the same file will be resubmitted.
-                                        </p>
+                                            {t("The workbook has multiple possible tables. Select the worksheet and the row containing column names; the same file will be resubmitted.")}</p>
                                         <div className="grid gap-4 sm:grid-cols-3">
                                             <label className="space-y-2">
-                                                <span className="text-xs font-semibold text-[color:var(--text-secondary)]">Worksheet</span>
+                                                <span className="text-xs font-semibold text-[color:var(--text-secondary)]">{t("Worksheet")}</span>
                                                 <AppSelect
                                                     value={workbookReview.sheetName}
                                                     disabled={loading}
@@ -455,7 +450,7 @@ function ImportAssistantContent({
                                                 />
                                             </label>
                                             <label className="space-y-2">
-                                                <span className="text-xs font-semibold text-[color:var(--text-secondary)]">Suggested header row</span>
+                                                <span className="text-xs font-semibold text-[color:var(--text-secondary)]">{t("Suggested header row")}</span>
                                                 <AppSelect
                                                     value={(selectedSheet?.headerCandidates ?? []).some(candidate => candidate.rowNumber === workbookReview.headerRow)
                                                         ? String(workbookReview.headerRow)
@@ -467,11 +462,11 @@ function ImportAssistantContent({
                                                         label: `Row ${candidate.rowNumber}`,
                                                         description: candidate.values.filter(Boolean).slice(0, 4).join(" · ") || "Blank row",
                                                     }))}
-                                                    placeholder="Choose header row"
+                                                    placeholder={t("Choose header row")}
                                                 />
                                             </label>
                                             <label className="space-y-2">
-                                                <span className="text-xs font-semibold text-[color:var(--text-secondary)]">Header row number</span>
+                                                <span className="text-xs font-semibold text-[color:var(--text-secondary)]">{t("Header row number")}</span>
                                                 <input
                                                     type="number"
                                                     inputMode="numeric"
@@ -490,15 +485,14 @@ function ImportAssistantContent({
                                                     className="min-h-11 w-full rounded-[8px] border border-[color:var(--ui-form-field-border)] bg-[color:var(--ui-form-field-bg)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--ui-form-field-focus-border)] disabled:cursor-not-allowed disabled:opacity-60"
                                                 />
                                                 <span id="workbook-header-row-help" className={cn("block text-xs leading-5", pageMutedTextClass)}>
-                                                    Enter any row number when the heading row is not in the suggestions.
-                                                </span>
+                                                    {t("Enter any row number when the heading row is not in the suggestions.")}</span>
                                             </label>
                                         </div>
                                         {selectedSheet && (
-                                            <div className="overflow-x-auto rounded-[8px] border border-[color:var(--ui-table-border)]" tabIndex={0} aria-label="Header row candidates">
+                                            <div className="overflow-x-auto rounded-[8px] border border-[color:var(--ui-table-border)]" tabIndex={0} aria-label={t("Header row candidates")}>
                                                 <table className="w-full min-w-[520px] text-left text-xs">
-                                                    <caption className="sr-only">Candidate header rows for {selectedSheet.name}</caption>
-                                                    <thead><tr><th scope="col" className="p-3">Row</th><th scope="col" className="p-3">Detected headings</th></tr></thead>
+                                                    <caption className="sr-only">{t("Candidate header rows for {name}", { name: selectedSheet.name })}</caption>
+                                                    <thead><tr><th scope="col" className="p-3">{t("Row")}</th><th scope="col" className="p-3">{t("Detected headings")}</th></tr></thead>
                                                     <tbody>
                                                         {selectedSheet.headerCandidates.map(candidate => (
                                                             <tr key={candidate.rowNumber} className="border-t border-[color:var(--ui-table-border)]">
@@ -517,14 +511,13 @@ function ImportAssistantContent({
                             {pdfReview && (
                                 <div ref={pdfReviewRef} tabIndex={-1} className={cn("mt-4 space-y-4 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]", pageInsetSurfaceClass)} role="region" aria-labelledby="pdf-extraction-review-title">
                                     <div>
-                                        <h3 id="pdf-extraction-review-title" className="text-sm font-semibold text-[color:var(--text-primary)]">Review PDF extraction</h3>
+                                        <h3 id="pdf-extraction-review-title" className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Review PDF extraction")}</h3>
                                         <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
-                                            PDF tables are beta. Compare this extracted sample with the source document before analysis starts.
-                                        </p>
+                                            {t("PDF tables are beta. Compare this extracted sample with the source document before analysis starts.")}</p>
                                     </div>
-                                    <div className="overflow-x-auto rounded-[8px] border border-[color:var(--ui-table-border)]" tabIndex={0} aria-label="PDF extraction preview">
+                                    <div className="overflow-x-auto rounded-[8px] border border-[color:var(--ui-table-border)]" tabIndex={0} aria-label={t("PDF extraction preview")}>
                                         <table className="w-full min-w-[520px] text-left text-xs">
-                                            <caption className="sr-only">Extracted PDF sample rows</caption>
+                                            <caption className="sr-only">{t("Extracted PDF sample rows")}</caption>
                                             <tbody>
                                                 {(pdfReview.extractionPreview ?? []).slice(0, 8).map((row, index) => (
                                                     <tr key={index} className="border-t border-[color:var(--ui-table-border)] first:border-t-0">
@@ -543,27 +536,25 @@ function ImportAssistantContent({
                                             onChange={event => setPdfAccepted(event.target.checked)}
                                             className="mt-0.5 h-4 w-4"
                                         />
-                                        <span>I reviewed the sample and confirm that the extracted columns and rows match the PDF.</span>
+                                        <span>{t("I reviewed the sample and confirm that the extracted columns and rows match the PDF.")}</span>
                                     </label>
                                     <div className="flex flex-wrap gap-2">
                                         <AppButton variant="primary" onClick={confirmPdfExtraction} disabled={!pdfAccepted || mutationsDisabled} isLoading={loading}>
-                                            Confirm and analyze PDF
-                                        </AppButton>
+                                            {t("Confirm and analyze PDF")}</AppButton>
                                         <AppButton variant="secondary" onClick={() => chooseFile(null)} disabled={loading}>
-                                            Choose a different file
-                                        </AppButton>
+                                            {t("Choose a different file")}</AppButton>
                                     </div>
                                 </div>
                             )}
 
                             <div id="import-source-limits" className={cn("mt-4 grid gap-2 text-xs sm:grid-cols-3", pageMutedTextClass)}>
-                                <span>Maximum file size: 4 MiB</span>
-                                <span>Maximum rows: {formatNumber(MAX_IMPORT_ROWS)}</span>
-                                <span>PDF beta: text-based tables only; scans may not read correctly</span>
+                                <span>{t("Maximum file size: 4 MiB")}</span>
+                                <span>{t("Maximum rows: {formatNumber}", { formatNumber: formatNumber(MAX_IMPORT_ROWS) })}</span>
+                                <span>{t("PDF beta: text-based tables only; scans may not read correctly")}</span>
                             </div>
                         </div>
 
-                        {error && <p className="mt-3 text-sm text-red-300" role="alert">{error}</p>}
+                        {error && <p className="mt-3 text-sm text-red-300" role="alert"><LocalizedError error={error} /></p>}
 
                         <div className="mt-5 flex flex-wrap gap-3">
                             <AppButton
@@ -574,47 +565,45 @@ function ImportAssistantContent({
                                 aria-describedby={mutationsDisabled ? "import-mutation-blocker" : undefined}
                                 isLoading={loading}
                             >
-                                {workbookReview ? "Continue with selected worksheet" : "Upload and review " + goalLabel(goal).toLowerCase()}
+                                {workbookReview ? t("Continue with selected worksheet") : "Upload and review " + goalLabel(goal).toLowerCase()}
                             </AppButton>
                             <AppButton variant="secondary" icon={FileSpreadsheet} onClick={() => downloadSampleTemplate(branchId, goal)}>
-                                Download {goalLabel(goal)} Excel template
-                            </AppButton>
+                                {t("Download")} {goalLabel(goal)}  {t("Excel template")}</AppButton>
                             <AppButton variant="quiet" onClick={() => router.push(`/branch/${branchId}`)}>
-                                Continue without import
-                            </AppButton>
+                                {t("Continue without import")}</AppButton>
                         </div>
                     </AppPanel> : null}
 
                     <div className="space-y-5">
-                        <AppPanel title="What happens next" description="Upload, fix only what needs attention, then review the exact import plan.">
+                        <AppPanel title={t("What happens next")} description={t("Upload, fix only what needs attention, then review the exact import plan.")}>
                             <div className="flex flex-wrap gap-2">
                                 {supportedFormats.map(format => <Badge key={format} variant="cyan">{format}</Badge>)}
                             </div>
                             <div className="mt-5 space-y-3 text-sm text-[color:var(--text-secondary)]">
                                 <div className="flex gap-3">
                                     <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-                                    <span>Your source stays in a review workspace until you explicitly confirm the import.</span>
+                                    <span>{t("Your source stays in a review workspace until you explicitly confirm the import.")}</span>
                                 </div>
                                 <div className="flex gap-3">
                                     <FileText className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                                    <span>AI suggestions are optional. Every field can be reviewed and corrected manually.</span>
+                                    <span>{t("AI suggestions are optional. Every field can be reviewed and corrected manually.")}</span>
                                 </div>
                             </div>
                         </AppPanel>
 
-                        <AppPanel title="Recent imports" description="Resume a previous staging workspace." contentClassName="p-0">
+                        <AppPanel title={t("Recent imports")} description={t("Resume a previous staging workspace.")} contentClassName="p-0">
                             {loadingSessions ? (
-                                <p className={cn("p-4 text-sm", pageMutedTextClass)} role="status">Loading sessions...</p>
+                                <p className={cn("p-4 text-sm", pageMutedTextClass)} role="status">{t("Loading sessions...")}</p>
                             ) : sessionsError ? (
                                 <ErrorState
                                     className="m-4 min-h-40"
-                                    title="Import history unavailable"
+                                    title={t("Import history unavailable")}
                                     description={sessionsError}
                                     retryLabel="Retry history"
                                     onRetry={() => setSessionsReloadKey(key => key + 1)}
                                 />
                             ) : sessions.length === 0 ? (
-                                <p className={cn("p-4 text-sm", pageMutedTextClass)}>No import sessions yet.</p>
+                                <p className={cn("p-4 text-sm", pageMutedTextClass)}>{t("No import sessions yet.")}</p>
                             ) : (
                                 <div className={pageTableBodyDividerClass}>
                                     {sessions.slice(0, 8).map(session => {
@@ -634,17 +623,17 @@ function ImportAssistantContent({
                                                         <span className="block truncate text-sm font-semibold text-[color:var(--text-primary)]">{session.fileName ?? session.sourceType}</span>
                                                         <span className={cn("mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs", pageMutedTextClass)}>
                                                             <span>{goalLabel(sessionGoal)}</span>
-                                                            <span>{formatNumber(session.summary?.totalRows ?? 0)} rows</span>
+                                                            <span>{t("{formatNumber} rows", { formatNumber: formatNumber(session.summary?.totalRows ?? 0) })}</span>
                                                             <span className="inline-flex items-center gap-1"><CalendarClock className="h-3 w-3" />{formatDateTime(session.updatedAt)}</span>
                                                         </span>
                                                     </span>
                                                     <Badge variant={statusTone(session.status)}>{labelImportStatus(session.status)}</Badge>
                                                 </span>
                                                 <span className="mt-3 flex items-center gap-3">
-                                                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Import readiness" aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness}>
+                                                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label={t("Import readiness")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness}>
                                                         <span className="block h-full rounded-full bg-cyan-300" style={{ width: `${Math.max(0, Math.min(100, readiness))}%` }} />
                                                     </span>
-                                                    <span className="text-xs font-semibold text-cyan-200">{finished ? "Review result" : "Resume"}</span>
+                                                    <span className="text-xs font-semibold text-cyan-200">{finished ? t("Review result") : t("Resume")}</span>
                                                 </span>
                                             </button>
                                         );

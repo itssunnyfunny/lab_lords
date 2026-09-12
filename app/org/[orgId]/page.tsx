@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -42,7 +44,8 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 
 function DashboardSkeleton() {
-    return <PageLoadingSkeleton label="Loading organization dashboard" variant="workspace" rows={4} />;
+    const t = useTranslation();
+    return <PageLoadingSkeleton label={t("Loading organization dashboard")} variant="workspace" rows={4} />;
 }
 
 function getBranchStatus(overdueCount: number, utilization: number) {
@@ -68,6 +71,7 @@ function getBranchStatus(overdueCount: number, utilization: number) {
 }
 
 export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: string }> }) {
+    const t = useTranslation();
     const { orgId } = use(params);
     const { formatDateTime, formatNumber } = useUserPreferences();
     const [branchList, setBranchList] = useState<BranchWithCounts[]>([]);
@@ -180,7 +184,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
         return (
             <PageShell>
                 <ErrorState
-                    title="Organization branches unavailable"
+                    title={t("Organization branches unavailable")}
                     description={error}
                     onRetry={loadDashboard}
                 />
@@ -193,27 +197,25 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
             {error && (
                 <div className={cn(formErrorBannerClass, "flex items-center gap-3 px-4 py-3 text-sm")}>
                     <AlertCircle size={16} className="shrink-0" />
-                    {error}
+                    <LocalizedError error={error} />
                 </div>
             )}
 
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                     <div className={cn(pageEyebrowClass, "flex flex-wrap items-center gap-2")}>
-                        <span>Workspace entry</span>
+                        <span>{t("Workspace entry")}</span>
                         <span className="h-1 w-1 rounded-full bg-[color:var(--text-muted)]" />
                         <span>
                             {snapshot
                                 ? `Analytics as of ${formatDateTime(snapshot.asOf)}`
-                                : "Analytics unavailable"}
+                                : t("Analytics unavailable")}
                         </span>
                     </div>
                     <h1 className={cn(pageTitleClass, "mt-2")}>
-                        Open a branch dashboard
-                    </h1>
+                        {t("Open a branch dashboard")}</h1>
                     <p className={pageDescriptionClass}>
-                        Choose the branch you want to work in. Organization numbers are here only as quick context.
-                    </p>
+                        {t("Choose the branch you want to work in. Organization numbers are here only as quick context.")}</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -224,42 +226,36 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                         disabled={snapshotRefreshing}
                         isLoading={snapshotRefreshing}
                     >
-                        Refresh
-                    </AppButton>
+                        {t("Refresh")}</AppButton>
                     <AppButton
                         onClick={() => setCreateDialogOpen(true)}
                         variant="primary"
                         icon={Plus}
                     >
-                        Create branch
-                    </AppButton>
+                        {t("Create branch")}</AppButton>
                 </div>
             </header>
 
             {snapshotState.status === "stale" ? (
                 <div className={cn(formWarningBannerClass, "flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between")} role="status">
-                    <span>{snapshotState.reason} Showing analytics from {formatDateTime(snapshotState.updatedAt)}.</span>
-                    <AppButton variant="quiet" size="sm" onClick={loadDashboard}>Retry analytics</AppButton>
+                    <span>{t("{reason} Showing analytics from {formatDateTime}.", { reason: snapshotState.reason, formatDateTime: formatDateTime(snapshotState.updatedAt) })}</span>
+                    <AppButton variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry analytics")}</AppButton>
                 </div>
             ) : snapshotState.status === "error" || snapshotState.status === "restricted" ? (
                 <div className={cn(formWarningBannerClass, "flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between")} role="status">
                     <span>{snapshotState.status === "error" ? snapshotState.message : snapshotState.reason}</span>
-                    <AppButton variant="quiet" size="sm" onClick={loadDashboard}>Retry analytics</AppButton>
+                    <AppButton variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry analytics")}</AppButton>
                 </div>
             ) : snapshotRefreshing && snapshotUpdatedAt ? (
-                <div className={cn(formWarningBannerClass, "px-4 py-3 text-sm")} role="status">
-                    Refreshing organization analytics. Current values are from {formatDateTime(snapshotUpdatedAt)}.
-                </div>
+                <div className={cn(formWarningBannerClass, "px-4 py-3 text-sm")} role="status">{t("Refreshing organization analytics. Current values are from {formatDateTime}.", { formatDateTime: formatDateTime(snapshotUpdatedAt) })}</div>
             ) : null}
 
             <AppPanel
-                title="Choose branch"
-                description="Select a branch to continue to students, payments, seats, shifts, and follow-ups."
+                title={t("Choose branch")}
+                description={t("Select a branch to continue to students, payments, seats, shifts, and follow-ups.")}
                 action={
                     branchList.length > 0 && (
-                        <span className={pageMetaPillClass}>
-                            {formatNumber(branchList.length)} available
-                        </span>
+                        <span className={pageMetaPillClass}>{t("{formatNumber} available", { formatNumber: formatNumber(branchList.length) })}</span>
                     )
                 }
                 contentClassName="p-4"
@@ -270,10 +266,9 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             <Building2 size={21} className="text-[color:var(--text-muted)]" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-[color:var(--text-primary)]">No branches yet</p>
+                            <p className="text-sm font-medium text-[color:var(--text-primary)]">{t("No branches yet")}</p>
                             <p className={cn(pageSubtleTextClass, "mt-1 max-w-sm text-xs leading-5")}>
-                                Create your first branch to start using the operational dashboard.
-                            </p>
+                                {t("Create your first branch to start using the operational dashboard.")}</p>
                         </div>
                         <AppButton
                             onClick={() => setCreateDialogOpen(true)}
@@ -281,8 +276,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             size="sm"
                             icon={Plus}
                         >
-                            Create branch
-                        </AppButton>
+                            {t("Create branch")}</AppButton>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -331,29 +325,28 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
 
                                         <div className="mt-5 grid grid-cols-3 divide-x divide-[color:var(--ui-form-section-divider)] overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]">
                                             <div className="px-3 py-3">
-                                                <p className={cn(pageSubtleTextClass, "text-xs")}>Students</p>
+                                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Students")}</p>
                                                 <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{formatNumber(activeStudents)}</p>
                                             </div>
                                             <div className="px-3 py-3">
-                                                <p className={cn(pageSubtleTextClass, "text-xs")}>Utilization</p>
+                                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Utilization")}</p>
                                                 <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">
-                                                    {utilization !== null ? formatPercent(utilization) : "Unavailable"}
+                                                    {utilization !== null ? formatPercent(utilization) : t("Unavailable")}
                                                 </p>
                                             </div>
                                             <div className="px-3 py-3">
-                                                <p className={cn(pageSubtleTextClass, "text-xs")}>Overdue</p>
+                                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Overdue")}</p>
                                                 <p className={(overdueCount ?? 0) > 0 ? "mt-1 text-lg font-semibold text-[color:var(--ui-tone-danger-text)]" : "mt-1 text-lg font-semibold text-[color:var(--text-primary)]"}>
-                                                    {overdueCount === null ? "Unavailable" : formatNumber(overdueCount)}
+                                                    {overdueCount === null ? t("Unavailable") : formatNumber(overdueCount)}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="mt-5 flex items-center justify-between gap-3">
                                             <span className={cn(pageSubtleTextClass, "text-xs")}>
-                                                {branch.defaultFee ? `${formatMoney(branch.defaultFee)} default fee` : "Fee not set"}
+                                                {branch.defaultFee ? `${formatMoney(branch.defaultFee)} default fee` : t("Fee not set")}
                                             </span>
                                             <span className="inline-flex items-center gap-1.5 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] transition-colors group-hover:bg-[color:var(--ui-button-primary-hover-bg)]">
-                                                Open dashboard
-                                                <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                                                {t("Open dashboard")}<ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
                                             </span>
                                         </div>
                                     </div>
@@ -366,12 +359,12 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
 
             <section className="space-y-3">
                 <div>
-                    <h2 className={pageSectionTitleClass}>Organization snapshot</h2>
-                    <p className={pageSectionDescriptionClass}>Secondary context after branch selection.</p>
+                    <h2 className={pageSectionTitleClass}>{t("Organization snapshot")}</h2>
+                    <p className={pageSectionDescriptionClass}>{t("Secondary context after branch selection.")}</p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard
-                        title="Branches"
+                        title={t("Branches")}
                         value={formatNumber(totals.branches)}
                         sub={`${formatNumber(totals.shifts)} configured shifts`}
                         icon={Building2}
@@ -379,7 +372,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                         tone="info"
                     />
                     <StatCard
-                        title="Active students"
+                        title={t("Active students")}
                         value={totals.students === null ? "Unavailable" : formatNumber(totals.students)}
                         sub={totals.students === null ? "Analytics could not be loaded" : "Currently active across branches"}
                         icon={Users}
@@ -387,7 +380,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                         tone={totals.students === null ? "neutral" : "success"}
                     />
                     <StatCard
-                        title="Slot utilization"
+                        title={t("Slot utilization")}
                         value={totals.utilization === null ? "Unavailable" : formatPercent(totals.utilization)}
                         sub={
                             totals.usedSeats !== null
@@ -401,7 +394,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                         footer={organizationUtilizationStatus?.label}
                     />
                     <StatCard
-                        title="Payment risk"
+                        title={t("Payment risk")}
                         value={totals.dueAmount === null ? "Unavailable" : formatMoney(totals.dueAmount)}
                         sub={totals.overdueCount === null
                             ? "Payment analytics could not be loaded"
@@ -416,25 +409,25 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
 
             <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
                 <AppPanel
-                    title="Revenue coverage"
-                    description="Default branch fees and actual payment collection signal."
+                    title={t("Revenue coverage")}
+                    description={t("Default branch fees and actual payment collection signal.")}
                 >
                     <div className="space-y-4">
                         <div>
-                            <p className={cn(pageSubtleTextClass, "text-xs")}>Collected</p>
+                            <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Collected")}</p>
                             <p className="mt-1 text-2xl font-semibold text-[color:var(--text-primary)]">
-                                {totals.paidAmount === null ? "Unavailable" : formatMoney(totals.paidAmount)}
+                                {totals.paidAmount === null ? t("Unavailable") : formatMoney(totals.paidAmount)}
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className={pageInsetMetricClass}>
-                                <p className={cn(pageSubtleTextClass, "text-xs")}>Due</p>
+                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Due")}</p>
                                 <p className="mt-1 text-sm font-semibold text-[color:var(--ui-tone-warning-text)]">
-                                    {totals.dueAmount === null ? "Unavailable" : formatMoney(totals.dueAmount)}
+                                    {totals.dueAmount === null ? t("Unavailable") : formatMoney(totals.dueAmount)}
                                 </p>
                             </div>
                             <div className={pageInsetMetricClass}>
-                                <p className={cn(pageSubtleTextClass, "text-xs")}>Fee base</p>
+                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Fee base")}</p>
                                 <p className="mt-1 text-sm font-semibold text-[color:var(--text-secondary)]">{formatMoney(totals.defaultMonthlyBase)}</p>
                             </div>
                         </div>
@@ -442,22 +435,22 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 </AppPanel>
 
                 <AppPanel
-                    title="Attention queue"
-                    description="Branches with overdue payment pressure."
+                    title={t("Attention queue")}
+                    description={t("Branches with overdue payment pressure.")}
                     contentClassName="p-0"
                 >
                     {!snapshot ? (
                         <div className="px-4 py-8 text-center" role="status">
                             <AlertCircle size={22} className="mx-auto text-[color:var(--ui-tone-warning-text)]" />
-                            <p className="mt-3 text-sm font-medium text-[color:var(--text-primary)]">Payment analytics unavailable</p>
-                            <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>The queue cannot be confirmed until analytics reloads.</p>
-                            <AppButton className="mt-3" variant="quiet" size="sm" onClick={loadDashboard}>Retry</AppButton>
+                            <p className="mt-3 text-sm font-medium text-[color:var(--text-primary)]">{t("Payment analytics unavailable")}</p>
+                            <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>{t("The queue cannot be confirmed until analytics reloads.")}</p>
+                            <AppButton className="mt-3" variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry")}</AppButton>
                         </div>
                     ) : attentionBranches.length === 0 ? (
                         <div className="px-4 py-8 text-center">
                             <CreditCard size={22} className="mx-auto text-[color:var(--ui-tone-success-text)]" />
-                            <p className="mt-3 text-sm font-medium text-[color:var(--text-primary)]">No overdue branch risk</p>
-                            <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>Payment follow-up queue is clear.</p>
+                            <p className="mt-3 text-sm font-medium text-[color:var(--text-primary)]">{t("No overdue branch risk")}</p>
+                            <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>{t("Payment follow-up queue is clear.")}</p>
                         </div>
                     ) : (
                         <div className="divide-y divide-[color:var(--ui-form-section-divider)]">
@@ -470,13 +463,10 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                 >
                                     <span className="min-w-0">
                                         <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">{branch.branchName}</span>
-                                        <span className={cn(pageSubtleTextClass, "mt-1 block text-xs")}>
-                                            {formatMoney(branch.snapshot.payments.dueAmount)} pending
-                                        </span>
+                                        <span className={cn(pageSubtleTextClass, "mt-1 block text-xs")}>{t("{formatMoney} pending", { formatMoney: formatMoney(branch.snapshot.payments.dueAmount) })}</span>
                                     </span>
                                     <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[color:var(--ui-badge-danger-border)] bg-[color:var(--ui-badge-danger-bg)] px-2 py-1 text-[11px] font-medium text-[color:var(--ui-badge-danger-text)]">
-                                        {formatNumber(branch.snapshot.payments.overdueCount)} overdue
-                                        <ArrowRight size={12} />
+                                        {formatNumber(branch.snapshot.payments.overdueCount)}  {t("overdue")}<ArrowRight size={12} />
                                     </span>
                                 </Link>
                             ))}
@@ -484,27 +474,24 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                     )}
                 </AppPanel>
 
-                <AppPanel title="Setup footprint" contentClassName="p-0">
+                <AppPanel title={t("Setup footprint")} contentClassName="p-0">
                     <div className="divide-y divide-[color:var(--ui-form-section-divider)]">
                         <div className="flex items-center justify-between px-4 py-3">
                             <span className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                                 <LayoutGrid size={15} />
-                                Seats
-                            </span>
+                                {t("Seats")}</span>
                             <span className="text-sm font-medium text-[color:var(--text-primary)]">{formatNumber(branchList.reduce((sum, branch) => sum + branch._count.seats, 0))}</span>
                         </div>
                         <div className="flex items-center justify-between px-4 py-3">
                             <span className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                                 <Clock size={15} />
-                                Shifts
-                            </span>
+                                {t("Shifts")}</span>
                             <span className="text-sm font-medium text-[color:var(--text-primary)]">{formatNumber(totals.shifts)}</span>
                         </div>
                         <div className="flex items-center justify-between px-4 py-3">
                             <span className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                                 <Users size={15} />
-                                Student profiles
-                            </span>
+                                {t("Student profiles")}</span>
                             <span className="text-sm font-medium text-[color:var(--text-primary)]">
                                 {formatNumber(branchList.reduce((sum, branch) => sum + branch._count.students, 0))}
                             </span>

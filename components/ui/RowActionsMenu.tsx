@@ -1,4 +1,5 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
 
 import { cn } from "@/lib/utils";
 import { MoreVertical } from "lucide-react";
@@ -206,8 +207,8 @@ export function RowActionsMenu({
                         >
                             <Icon size={14} className="shrink-0" />
                             <span className="min-w-0">
-                                <span className="block truncate">{action.label}</span>
-                                {action.description ? <span className="mt-0.5 block text-xs leading-4 opacity-80">{action.description}</span> : null}
+                                <span className="block"><OwnedLabel text={action.label} /></span>
+                                {action.description ? <span className="mt-0.5 block text-xs leading-5 opacity-80"><OwnedLabel text={action.description} /></span> : null}
                             </span>
                         </button>
                     );

@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel, LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, History } from "lucide-react";
@@ -47,6 +49,7 @@ export function BranchWhatsAppMessageHistoryList({
 }: {
   items: readonly WhatsAppMessageHistoryItem[];
 }) {
+    const t = useTranslation();
   const hasUnknown = items.some(item => item.status === "UNKNOWN");
   return (
     <div className="space-y-3">
@@ -54,8 +57,7 @@ export function BranchWhatsAppMessageHistoryList({
         <div className="flex items-start gap-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-warning-border)] bg-[color:var(--ui-form-warning-bg)] p-3 text-sm" role="alert">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
-            Provider acceptance could not be confirmed. Lab Lords will not retry automatically because that could send a duplicate message; operator review is required before any manual follow-up.
-          </span>
+            {t("Provider acceptance could not be confirmed. Lab Lords will not retry automatically because that could send a duplicate message; operator review is required before any manual follow-up.")}</span>
         </div>
       ) : null}
 
@@ -64,93 +66,93 @@ export function BranchWhatsAppMessageHistoryList({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="font-medium text-[color:var(--text-primary)]">
-                {item.student?.name ?? "Grouped recipient"}
+                {item.student?.name ?? t("Grouped recipient")}
               </p>
               <p className="mt-1 text-xs text-[color:var(--text-muted)]">
-                {item.maskedPhone} · {item.managedTemplateKey ? titleCase(item.managedTemplateKey) : "Template unavailable"}
+                {item.maskedPhone} · {item.managedTemplateKey ? t.owned(titleCase(item.managedTemplateKey)) : t("Template unavailable")}
               </p>
             </div>
-            <Badge variant={statusVariant(item.status)}>{titleCase(item.status)}</Badge>
+            <Badge variant={statusVariant(item.status)}><OwnedLabel text={titleCase(item.status)} /></Badge>
           </div>
           <dl className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <dt className="text-[color:var(--text-muted)]">Purpose</dt>
-              <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{titleCase(item.purpose)}</dd>
+              <dt className="text-[color:var(--text-muted)]">{t("Purpose")}</dt>
+              <dd className="mt-1 font-medium text-[color:var(--text-primary)]"><OwnedLabel text={titleCase(item.purpose)} /></dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Trigger</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Trigger")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
-                {titleCase(item.trigger)}{item.automationStage ? ` · ${titleCase(item.automationStage)}` : ""}
+                <OwnedLabel text={titleCase(item.trigger)} />{item.automationStage ? ` · ${t.owned(titleCase(item.automationStage))}` : ""}
               </dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Template</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Template")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
-                {item.template ? `${item.template.name} · ${item.template.language}` : "Unavailable"}
+                {item.template ? `${item.template.name} · ${item.template.language}` : t("Unavailable")}
               </dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Scheduled</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Scheduled")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{safeDate(item.scheduledFor)}</dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Estimated usage</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Estimated usage")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{estimatedCost(item.estimatedCostMicros)}</dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Submitted</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Submitted")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{safeDate(item.submissionStartedAt)}</dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Accepted</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Accepted")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{safeDate(item.acceptedAt)}</dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Sent</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Sent")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{safeDate(item.sentAt)}</dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Delivered</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Delivered")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{safeDate(item.deliveredAt)}</dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Read</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Read")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{safeDate(item.readAt)}</dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Failed</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Failed")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{safeDate(item.failedAt)}</dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Provider billing metadata</dt>
+              <dt className="text-[color:var(--text-muted)]">{t("Provider billing metadata")}</dt>
               <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
-                {item.providerBillable === null ? "Not supplied" : item.providerBillable ? "Billable" : "Not billable"}
-                {item.providerPricingCategory ? ` · ${titleCase(item.providerPricingCategory)}` : ""}
+                {item.providerBillable === null ? t("Not supplied") : item.providerBillable ? t("Billable") : t("Not billable")}
+                {item.providerPricingCategory ? ` · ${t.owned(titleCase(item.providerPricingCategory))}` : ""}
               </dd>
             </div>
             <div>
-              <dt className="text-[color:var(--text-muted)]">Queued by</dt>
-              <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{item.createdBy?.name ?? (item.trigger === "AUTOMATION" ? "Automation" : "Unavailable")}</dd>
+              <dt className="text-[color:var(--text-muted)]">{t("Queued by")}</dt>
+              <dd className="mt-1 font-medium text-[color:var(--text-primary)]">{item.createdBy?.name ?? (item.trigger === "AUTOMATION" ? t("Automation") : t("Unavailable"))}</dd>
             </div>
           </dl>
           {item.payments && item.payments.length > 0 ? (
             <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] p-3 text-xs">
-              <p className="font-medium text-[color:var(--text-primary)]">Payment context</p>
+              <p className="font-medium text-[color:var(--text-primary)]">{t("Payment context")}</p>
               <ul className="mt-2 space-y-1 text-[color:var(--text-secondary)]">
                 {item.payments.map(payment => (
-                  <li key={payment.id}>{titleCase(payment.status)} · {paymentAmount(payment.amount)} · due {safeDate(payment.dueDate)}</li>
+                  <li key={payment.id}>{t("{status} · {amount} · due {date}", { status: t.owned(titleCase(payment.status)), amount: paymentAmount(payment.amount), date: t.owned(safeDate(payment.dueDate)) })}</li>
                 ))}
               </ul>
               {item.paymentResolutionEvent ? (
                 <p className="mt-2 text-[color:var(--text-muted)]">
-                  Resolution: {titleCase(item.paymentResolutionEvent.fromStatus)} → {titleCase(item.paymentResolutionEvent.toStatus)} · {safeDate(item.paymentResolutionEvent.occurredAt)}
+                  {t("Resolution: {from} → {to} · {time}", { from: t.owned(titleCase(item.paymentResolutionEvent.fromStatus)), to: t.owned(titleCase(item.paymentResolutionEvent.toStatus)), time: t.owned(safeDate(item.paymentResolutionEvent.occurredAt)) })}
                 </p>
               ) : null}
             </div>
           ) : null}
           {item.safeFailureCode ? (
             <p className="text-xs text-[color:var(--ui-form-error-text)]">
-              Safe failure code: {item.safeFailureCode}
+              {t("Safe failure code: {code}", { code: item.safeFailureCode })}
             </p>
           ) : null}
         </SettingsCard>
@@ -160,6 +162,7 @@ export function BranchWhatsAppMessageHistoryList({
 }
 
 export function BranchWhatsAppMessageHistory({ branchId }: { branchId: string }) {
+    const t = useTranslation();
   const [page, setPage] = useState<WhatsAppMessageHistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -192,23 +195,23 @@ export function BranchWhatsAppMessageHistory({ branchId }: { branchId: string })
   }, [load]);
 
   if (loading) {
-    return <p role="status" className="text-sm text-[color:var(--text-secondary)]">Loading message history…</p>;
+    return <p role="status" className="text-sm text-[color:var(--text-secondary)]">{t("Loading message history…")}</p>;
   }
   if (error && !page) {
-    return <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{error}</p>;
+    return <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]"><LocalizedError error={error} /></p>;
   }
   if (!page || page.items.length === 0) {
-    return <SettingsEmptyState>No WhatsApp messages have been queued for this branch.</SettingsEmptyState>;
+    return <SettingsEmptyState>{t("No WhatsApp messages have been queued for this branch.")}</SettingsEmptyState>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 text-sm text-[color:var(--text-secondary)]">
-        <span className="inline-flex items-center gap-2"><History className="h-4 w-4" aria-hidden="true" /> {page.total} message{page.total === 1 ? "" : "s"}</span>
-        <span>Estimated usage only; Meta determines final charges.</span>
+        <span className="inline-flex items-center gap-2"><History className="h-4 w-4" aria-hidden="true" /> {t("{count} message(s)", { count: page.total })}</span>
+        <span>{t("Estimated usage only; Meta determines final charges.")}</span>
       </div>
       <BranchWhatsAppMessageHistoryList items={page.items} />
-      {error ? <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{error}</p> : null}
+      {error ? <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]"><LocalizedError error={error} /></p> : null}
       {page.nextCursor ? (
         <div className="flex justify-center">
           <AppButton
@@ -218,8 +221,7 @@ export function BranchWhatsAppMessageHistory({ branchId }: { branchId: string })
             disabled={loadingMore}
             isLoading={loadingMore}
           >
-            Load more history
-          </AppButton>
+            {t("Load more history")}</AppButton>
         </div>
       ) : null}
     </div>

@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, MessageCircle, ShieldCheck } from "lucide-react";
@@ -178,41 +179,41 @@ export function WhatsAppDailyReportPreviewCard({
 }: {
   preview: WhatsAppDailyReportPreviewView;
 }) {
+    const t = useTranslation();
   const { metrics } = preview;
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {preview.scope === "ORGANIZATION" ? (
-          <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Branches</p><p className="mt-1 text-lg font-semibold">{metrics.branchCount ?? 0}</p></div>
+          <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Branches")}</p><p className="mt-1 text-lg font-semibold">{metrics.branchCount ?? 0}</p></div>
         ) : null}
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Payments recorded today</p><p className="mt-1 text-lg font-semibold">{metrics.paymentsRecordedTodayCount} · {metrics.paymentsRecordedTodayAmount}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">New / active students</p><p className="mt-1 text-lg font-semibold">{metrics.newStudentsToday} / {metrics.activeStudents}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Shift slots used</p><p className="mt-1 text-lg font-semibold">{metrics.usedShiftSlots} / {metrics.totalShiftCapacity}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Open due</p><p className="mt-1 text-lg font-semibold">{metrics.openDueCount} · {metrics.openDueAmount}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Overdue</p><p className="mt-1 text-lg font-semibold">{metrics.overdueCount} · {metrics.overdueAmount}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">WhatsApp accepted / delivered</p><p className="mt-1 text-lg font-semibold">{metrics.whatsAppAcceptedToday} / {metrics.whatsAppDeliveredToday}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">WhatsApp failed / unknown</p><p className="mt-1 text-lg font-semibold">{metrics.whatsAppFailedToday} / {metrics.whatsAppUnknownToday}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Payments recorded today")}</p><p className="mt-1 text-lg font-semibold">{metrics.paymentsRecordedTodayCount} · {metrics.paymentsRecordedTodayAmount}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("New / active students")}</p><p className="mt-1 text-lg font-semibold">{metrics.newStudentsToday} / {metrics.activeStudents}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Shift slots used")}</p><p className="mt-1 text-lg font-semibold">{metrics.usedShiftSlots} / {metrics.totalShiftCapacity}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Open due")}</p><p className="mt-1 text-lg font-semibold">{metrics.openDueCount} · {metrics.openDueAmount}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Overdue")}</p><p className="mt-1 text-lg font-semibold">{metrics.overdueCount} · {metrics.overdueAmount}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("WhatsApp accepted / delivered")}</p><p className="mt-1 text-lg font-semibold">{metrics.whatsAppAcceptedToday} / {metrics.whatsAppDeliveredToday}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("WhatsApp failed / unknown")}</p><p className="mt-1 text-lg font-semibold">{metrics.whatsAppFailedToday} / {metrics.whatsAppUnknownToday}</p></div>
       </div>
 
       <div className={cn("space-y-2 p-4", pageInsetSurfaceClass)}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-semibold">Official Utility-template preview</p>
+          <p className="font-semibold">{t("Official Utility-template preview")}</p>
           <div className="flex flex-wrap items-center gap-2">
-            {preview.alreadyQueued ? <Badge variant="warning">Already queued</Badge> : null}
-            <Badge variant="cyan">As of {preview.asOfLocalTime}</Badge>
+            {preview.alreadyQueued ? <Badge variant="warning">{t("Already queued")}</Badge> : null}
+            <Badge variant="cyan">{t("As of")} {preview.asOfLocalTime}</Badge>
           </div>
         </div>
         <p className="whitespace-pre-wrap text-sm leading-6 text-[color:var(--text-primary)]">{preview.renderedPreview}</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Confirmed recipients</p><p className="mt-1 font-semibold">{preview.eligibleRecipientCount}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Suppressed</p><p className="mt-1 font-semibold">{preview.suppressedCount}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Estimated Meta usage</p><p className="mt-1 font-semibold">{estimatedInr(preview.estimatedCostMicros)}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Confirmed recipients")}</p><p className="mt-1 font-semibold">{preview.eligibleRecipientCount}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Suppressed")}</p><p className="mt-1 font-semibold">{preview.suppressedCount}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Estimated Meta usage")}</p><p className="mt-1 font-semibold">{estimatedInr(preview.estimatedCostMicros)}</p></div>
       </div>
       <p className="text-xs leading-5 text-[color:var(--text-muted)]">
-        {preview.estimateDisclaimer} This is an estimate, not an invoice; Meta determines final billing and category.
-      </p>
+        {preview.estimateDisclaimer}  {t("This is an estimate, not an invoice; Meta determines final billing and category.")}</p>
     </div>
   );
 }
@@ -226,6 +227,7 @@ export function WhatsAppDailyReportActions({
   onPreview,
   onQueue,
 }: WhatsAppDailyReportActionsProps) {
+    const t = useTranslation();
   const [previewState, setPreviewState] = useState<{ preview: WhatsAppDailyReportPreviewView; idempotencyKey: string } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [queueResult, setQueueResult] = useState<WhatsAppDailyReportQueueResultView | null>(null);
@@ -279,45 +281,44 @@ export function WhatsAppDailyReportActions({
     <AppPanel
       title={`Today's ${scope === "ORGANIZATION" ? "organization" : "branch"} report`}
       description={`Preview aggregate operational metrics for ${scopeName}. Previewing does not reserve budget, queue a message, or call Meta.`}
-      action={<Badge variant="cyan">Utility only</Badge>}
+      action={<Badge variant="cyan">{t("Utility only")}</Badge>}
       contentClassName="space-y-4"
     >
       {!canQueue ? <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">{blockedReason || "You do not have permission to preview or queue this report."}</div> : null}
-      {notice ? <p className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"}>{notice.text}</p> : null}
+      {notice ? <p className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"}>{notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}</p> : null}
 
       <div className="flex justify-end">
-        <AppButton variant="secondary" size="sm" icon={MessageCircle} onClick={() => void previewReport()} disabled={!canQueue || busy !== null} isLoading={busy === "preview"}>Preview today&apos;s report</AppButton>
+        <AppButton variant="secondary" size="sm" icon={MessageCircle} onClick={() => void previewReport()} disabled={!canQueue || busy !== null} isLoading={busy === "preview"}>{t("Preview today's report")}</AppButton>
       </div>
 
       {previewState ? <WhatsAppDailyReportPreviewCard preview={previewState.preview} /> : null}
 
       {previewState?.preview.alreadyQueued ? (
         <p className={cn("px-3 py-2 text-sm", formWarningBannerClass)} role="status">
-          Today&apos;s report is already queued. The server-side daily deduplication key prevents another message.
-        </p>
+          {t("Today's report is already queued. The server-side daily deduplication key prevents another message.")}</p>
       ) : null}
 
       {previewState && previewState.preview.eligibleRecipientCount > 0 && !previewState.preview.alreadyQueued && !queueResult ? (
         <div className="space-y-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm">
             <input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy !== null} className="mt-0.5 h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500" />
-            <span>I reviewed the aggregate snapshot, confirmed recipient count, suppressions, and estimated customer-owned Meta usage.</span>
+            <span>{t("I reviewed the aggregate snapshot, confirmed recipient count, suppressions, and estimated customer-owned Meta usage.")}</span>
           </label>
           <div className="flex justify-end">
-            <AppButton variant="primary" size="sm" icon={ShieldCheck} onClick={() => void queueReport()} disabled={!confirmed || busy !== null} isLoading={busy === "queue"}>Confirm and queue today&apos;s report</AppButton>
+            <AppButton variant="primary" size="sm" icon={ShieldCheck} onClick={() => void queueReport()} disabled={!confirmed || busy !== null} isLoading={busy === "queue"}>{t("Confirm and queue today's report")}</AppButton>
           </div>
         </div>
       ) : null}
 
-      {queueResult ? <div className={cn("flex items-start gap-3 p-3 text-sm", formSuccessBannerClass)} role="status"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>Queue status: {queueResult.status.toLowerCase()}. Delivery remains subject to send-time authorization, consent, sender health, rate, and budget checks.</span></div> : null}
+      {queueResult ? <div className={cn("flex items-start gap-3 p-3 text-sm", formSuccessBannerClass)} role="status"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{t("Queue status: {toLowerCase}. Delivery remains subject to send-time authorization, consent, sender health, rate, and budget checks.", { toLowerCase: queueResult.status.toLowerCase() })}</span></div> : null}
 
       <section aria-labelledby={`${scope.toLowerCase()}-recent-report-heading`} className="space-y-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
-        <h3 id={`${scope.toLowerCase()}-recent-report-heading`} className="font-semibold">Recent daily reports</h3>
-        {recentReports.length === 0 ? <p className="text-sm text-[color:var(--text-muted)]">No daily report history yet.</p> : (
+        <h3 id={`${scope.toLowerCase()}-recent-report-heading`} className="font-semibold">{t("Recent daily reports")}</h3>
+        {recentReports.length === 0 ? <p className="text-sm text-[color:var(--text-muted)]">{t("No daily report history yet.")}</p> : (
           <ul className="grid gap-2">
             {recentReports.map(report => (
               <li key={report.id} className={cn("flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between", pageInsetSurfaceClass)}>
-                <div><p className="text-sm font-medium">{report.localReportDate} · {report.maskedPhone}</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">Scheduled {formatDateTime(report.scheduledFor)} · estimate {estimatedInr(report.estimatedCostMicros)}</p></div>
+                <div><p className="text-sm font-medium">{report.localReportDate} · {report.maskedPhone}</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("Scheduled {formatDateTime} · estimate {estimatedInr}", { formatDateTime: formatDateTime(report.scheduledFor), estimatedInr: estimatedInr(report.estimatedCostMicros) })}</p></div>
                 <Badge variant={reportStatusVariant(report.status)}>{report.status.replaceAll("_", " ")}</Badge>
               </li>
             ))}
@@ -353,6 +354,7 @@ export function OrganizationWhatsAppReports({
   onPreview,
   onQueue,
 }: OrganizationWhatsAppReportsProps) {
+    const t = useTranslation();
   const [changing, setChanging] = useState(false);
   const [selectedSenderId, setSelectedSenderId] = useState(settings.senderId ?? "");
   const [monthlyBudgetRupees, setMonthlyBudgetRupees] = useState(
@@ -424,25 +426,25 @@ export function OrganizationWhatsAppReports({
 
   return (
     <div className="space-y-4">
-      <AppPanel title="Organization report setup" description="Owner-only organization rollups use a separate organization-report budget and a confirmed recipient." action={<Badge variant={settings.enabled ? "success" : "default"}>{settings.enabled ? "Enabled" : "Disabled"}</Badge>} contentClassName="space-y-4">
+      <AppPanel title={t("Organization report setup")} description={t("Owner-only organization rollups use a separate organization-report budget and a confirmed recipient.")} action={<Badge variant={settings.enabled ? "success" : "default"}>{settings.enabled ? t("Enabled") : t("Disabled")}</Badge>} contentClassName="space-y-4">
         <dl className="grid gap-3 sm:grid-cols-3">
-          <div className={pageInsetMetricClass}><dt className="text-xs text-[color:var(--text-muted)]">Connected sender</dt><dd className="mt-1 font-medium">{settings.senderLabel || "Not assigned"}</dd></div>
-          <div className={pageInsetMetricClass}><dt className="text-xs text-[color:var(--text-muted)]">Budget source</dt><dd className="mt-1 font-medium">Separate organization report budget</dd></div>
-          <div className={pageInsetMetricClass}><dt className="text-xs text-[color:var(--text-muted)]">Monthly ceiling</dt><dd className="mt-1 font-medium">{settings.monthlyBudgetMinor === null ? "Not configured" : `₹${(settings.monthlyBudgetMinor / 100).toFixed(2)}`}</dd></div>
+          <div className={pageInsetMetricClass}><dt className="text-xs text-[color:var(--text-muted)]">{t("Connected sender")}</dt><dd className="mt-1 font-medium">{settings.senderLabel || "Not assigned"}</dd></div>
+          <div className={pageInsetMetricClass}><dt className="text-xs text-[color:var(--text-muted)]">{t("Budget source")}</dt><dd className="mt-1 font-medium">{t("Separate organization report budget")}</dd></div>
+          <div className={pageInsetMetricClass}><dt className="text-xs text-[color:var(--text-muted)]">{t("Monthly ceiling")}</dt><dd className="mt-1 font-medium">{settings.monthlyBudgetMinor === null ? t("Not configured") : `₹${(settings.monthlyBudgetMinor / 100).toFixed(2)}`}</dd></div>
         </dl>
         <div className="overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-section-divider)]">
-          <SettingsField label="Report sender" description="Changing the sender makes existing report subscriptions stale and requires fresh confirmation.">
+          <SettingsField label={t("Report sender")} description={t("Changing the sender makes existing report subscriptions stale and requires fresh confirmation.")}>
             <SettingsSelect
               value={selectedSenderId}
               onValueChange={setSelectedSenderId}
               options={senderOptions}
               disabled={!canManage || changing}
-              aria-label="Organization report sender"
+              aria-label={t("Organization report sender")}
             />
           </SettingsField>
           <SettingsField
-            label="Monthly report budget"
-            description="Separate reservation ceiling for organization daily reports. Enter ₹0.01 through ₹100,000."
+            label={t("Monthly report budget")}
+            description={t("Separate reservation ceiling for organization daily reports. Enter ₹0.01 through ₹100,000.")}
             error={monthlyBudgetRupees.length > 0 && !budgetValid ? "Enter a valid amount from ₹0.01 through ₹100,000." : null}
           >
             <SettingsInput
@@ -451,15 +453,15 @@ export function OrganizationWhatsAppReports({
               value={monthlyBudgetRupees}
               onChange={event => setMonthlyBudgetRupees(event.target.value)}
               disabled={!canManage || changing}
-              aria-label="Organization report monthly budget in INR"
+              aria-label={t("Organization report monthly budget in INR")}
             />
           </SettingsField>
           <div className="flex justify-end border-t border-[color:var(--ui-form-section-divider)] p-4">
-            <AppButton variant="secondary" size="sm" onClick={() => void saveSettings()} disabled={!canManage || changing || !selectedSenderId || !budgetValid} isLoading={changing}>Save report setup</AppButton>
+            <AppButton variant="secondary" size="sm" onClick={() => void saveSettings()} disabled={!canManage || changing || !selectedSenderId || !budgetValid} isLoading={changing}>{t("Save report setup")}</AppButton>
           </div>
         </div>
-        {settingNotice ? <p className={cn("px-3 py-2 text-sm", settingNotice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={settingNotice.tone === "error" ? "alert" : "status"} aria-live={settingNotice.tone === "error" ? "assertive" : "polite"}>{settingNotice.text}</p> : null}
-        <div className="flex justify-end"><AppButton variant={settings.enabled ? "danger" : "primary"} size="sm" onClick={() => void setEnabled()} disabled={!canManage || changing || (!settings.enabled && (!settings.senderId || settings.monthlyBudgetMinor === null))} isLoading={changing}>{settings.enabled ? "Disable scheduled reports" : "Enable scheduled reports"}</AppButton></div>
+        {settingNotice ? <p className={cn("px-3 py-2 text-sm", settingNotice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={settingNotice.tone === "error" ? "alert" : "status"} aria-live={settingNotice.tone === "error" ? "assertive" : "polite"}>{settingNotice.tone === "error" ? t.error(settingNotice.text) : t.owned(settingNotice.text)}</p> : null}
+        <div className="flex justify-end"><AppButton variant={settings.enabled ? "danger" : "primary"} size="sm" onClick={() => void setEnabled()} disabled={!canManage || changing || (!settings.enabled && (!settings.senderId || settings.monthlyBudgetMinor === null))} isLoading={changing}>{settings.enabled ? t("Disable scheduled reports") : t("Enable scheduled reports")}</AppButton></div>
       </AppPanel>
       <WhatsAppDailyReportActions scope="ORGANIZATION" scopeName={organizationName} canQueue={canManage} blockedReason={blockedReason} recentReports={recentReports} onPreview={onPreview} onQueue={onQueue} />
     </div>

@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AppButton, AppPanel } from "@/components/ui";
 import {
@@ -48,13 +49,14 @@ const utilizationStyleMap: Record<UtilizationStatus["tone"], {
 };
 
 export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps) {
+    const t = useTranslation();
     const router = useRouter();
     const { formatNumber } = useUserPreferences();
 
     return (
         <AppPanel
-            title="Shift occupancy"
-            description="Slot usage across configured shift capacity."
+            title={t("Shift occupancy")}
+            description={t("Slot usage across configured shift capacity.")}
             action={
                 <AppButton
                     onClick={() => router.push(`/branch/${branchId}/shifts`)}
@@ -62,8 +64,7 @@ export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps
                     size="sm"
                     rightIcon={ArrowRight}
                 >
-                    Manage
-                </AppButton>
+                    {t("Manage")}</AppButton>
             }
             contentClassName="p-0"
             className="h-full"
@@ -74,16 +75,15 @@ export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps
                         <CalendarCheck size={18} className="text-[color:var(--text-muted)]" />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-[color:var(--text-primary)]">No shifts configured</p>
-                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>Create shifts before tracking seat utilization.</p>
+                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{t("No shifts configured")}</p>
+                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{t("Create shifts before tracking seat utilization.")}</p>
                     </div>
                     <button
                         type="button"
                         onClick={() => router.push(`/branch/${branchId}/shifts`)}
                         className="text-xs font-medium text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
                     >
-                        Set up shifts
-                    </button>
+                        {t("Set up shifts")}</button>
                 </div>
             ) : (
                 <div className={cn("divide-y", pageSectionDividerClass)}>
@@ -98,9 +98,7 @@ export function ShiftOccupancyCard({ shifts, branchId }: ShiftOccupancyCardProps
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{shift.shiftName}</p>
-                                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
-                                            {formatNumber(shift.used)} of {formatNumber(shift.capacity)} slots used
-                                        </p>
+                                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{t("{formatNumber} of {formatNumber2} slots used", { formatNumber: formatNumber(shift.used), formatNumber2: formatNumber(shift.capacity) })}</p>
                                     </div>
                                     <span
                                         className={cn(

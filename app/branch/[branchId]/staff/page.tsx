@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useState, use } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -167,17 +169,18 @@ function getEffectivePermission(role: StaffRoleOption, draft: StaffPermissionUpd
 }
 
 function AccessSummary({ member }: { member: StaffMember }) {
+    const t = useTranslation();
     const allowed = member.permissionOverrides?.filter(override => override.allowed).length ?? 0;
     const blocked = member.permissionOverrides?.filter(override => !override.allowed).length ?? 0;
 
     if (!allowed && !blocked) {
-        return <Badge variant="default">Role defaults</Badge>;
+        return <Badge variant="default">{t("Role defaults")}</Badge>;
     }
 
     return (
         <div className="flex flex-wrap gap-1.5">
-            {allowed > 0 && <Badge variant="success">{allowed} allowed</Badge>}
-            {blocked > 0 && <Badge variant="danger">{blocked} blocked</Badge>}
+            {allowed > 0 && <Badge variant="success">{t("{allowed} allowed", { allowed: allowed })}</Badge>}
+            {blocked > 0 && <Badge variant="danger">{t("{blocked} blocked", { blocked: blocked })}</Badge>}
         </div>
     );
 }
@@ -255,12 +258,12 @@ function PermissionControls({
     draft: StaffPermissionUpdate;
     onChange: (action: OverridableStaffAction, value: boolean | null) => void;
 }) {
+    const t = useTranslation();
     return (
         <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <SlidersHorizontal size={15} className="text-cyan-300" />
-                Access controls
-            </div>
+                {t("Access controls")}</div>
             <div className="grid gap-2">
                 {PERMISSION_OPTIONS.map(option => {
                     const override = draft[option.action] ?? null;
@@ -273,9 +276,9 @@ function PermissionControls({
                         >
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-sm font-semibold text-white">{option.label}</p>
+                                    <p className="text-sm font-semibold text-white">{t.owned(option.label)}</p>
                                     <Badge variant={effective ? "success" : "danger"} className="shrink-0">
-                                        {effective ? "Allowed" : "Blocked"}
+                                        {effective ? t("Allowed") : t("Blocked")}
                                     </Badge>
                                 </div>
                                 <p className={cn("mt-1 text-xs", formHelpTextClass)}>{option.summary}</p>
@@ -287,20 +290,17 @@ function PermissionControls({
                                     onClick={() => onChange(option.action, null)}
                                 >
                                     <RotateCcw size={12} />
-                                    Default
-                                </PermissionModeButton>
+                                    {t("Default")}</PermissionModeButton>
                                 <PermissionModeButton
                                     active={override === true}
                                     onClick={() => onChange(option.action, true)}
                                 >
-                                    Allow
-                                </PermissionModeButton>
+                                    {t("Allow")}</PermissionModeButton>
                                 <PermissionModeButton
                                     active={override === false}
                                     onClick={() => onChange(option.action, false)}
                                 >
-                                    Block
-                                </PermissionModeButton>
+                                    {t("Block")}</PermissionModeButton>
                             </div>
                         </div>
                     );
@@ -320,6 +320,7 @@ interface EditRoleDialogProps {
 }
 
 function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess, capability }: EditRoleDialogProps) {
+    const t = useTranslation();
     const [role, setRole] = useState<StaffRoleOption>("STAFF");
     const [permissionDraft, setPermissionDraft] = useState<StaffPermissionUpdate>({});
     const [loading, setLoading] = useState(false);
@@ -369,27 +370,26 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess, capabili
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="Staff Access"
+            title={t("Staff Access")}
             description={member.user?.name || member.user?.email}
-            closeLabel="Close staff access dialog"
+            closeLabel={t("Close staff access dialog")}
             closeDisabled={loading}
             className="max-w-3xl"
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="min-h-11 px-3 text-sm">
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button onClick={handleSave} disabled={loading || !hasChanges} className="min-h-11 min-w-[120px] justify-center px-4 text-sm">
                         {loading
-                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" /> Saving...</>
-                            : "Save Access"
+                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" />  {t("Saving...")}</>
+                            : t("Save Access")
                         }
                     </Button>
                 </>
             )}
         >
             <div className="space-y-5">
-                <div className="grid gap-3 md:grid-cols-2" role="group" aria-label="Staff role">
+                <div className="grid gap-3 md:grid-cols-2" role="group" aria-label={t("Staff role")}>
                     {(["MANAGER", "STAFF"] as const).map(r => (
                         <button
                             key={r}
@@ -428,7 +428,7 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess, capabili
 
                 {error ? (
                     <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)} role="alert">
-                        <AlertCircle size={13} aria-hidden="true" /> {error}
+                        <AlertCircle size={13} aria-hidden="true" /> <LocalizedError error={error} />
                     </div>
                 ) : null}
             </div>
@@ -447,6 +447,7 @@ interface AddStaffDialogProps {
 }
 
 function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: AddStaffDialogProps) {
+    const t = useTranslation();
     const [email, setEmail] = useState("");
     const [role, setRole] = useState<StaffRoleOption>("STAFF");
     const [loading, setLoading] = useState(false);
@@ -502,20 +503,19 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="Add Staff Member"
-            description="Enter their account email and assign a role."
-            closeLabel="Close add staff dialog"
+            title={t("Add Staff Member")}
+            description={t("Enter their account email and assign a role.")}
+            closeLabel={t("Close add staff dialog")}
             closeDisabled={loading}
             className="max-w-md"
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={loading} className="min-h-11 px-3 text-sm">
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button onClick={handleAdd} disabled={loading} className="min-h-11 min-w-[100px] justify-center px-4 text-sm">
                         {loading
-                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" /> Adding...</>
-                            : "Add Staff"
+                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" />  {t("Adding...")}</>
+                            : t("Add Staff")
                         }
                     </Button>
                 </>
@@ -523,7 +523,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
         >
             <div className="space-y-4">
                 <div className="space-y-1.5">
-                    <label htmlFor="add-staff-email" className={formCompactLabelClass}>Email *</label>
+                    <label htmlFor="add-staff-email" className={formCompactLabelClass}>{t("Email *")}</label>
                     <div className="relative">
                         <Mail size={14} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} aria-hidden="true" />
                         <input
@@ -539,11 +539,11 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
                         />
                     </div>
                     <FieldError id="add-staff-email-error" error={emailError} />
-                    <p className="text-xs text-[color:var(--ui-table-subtle)]">The user must sign in once before they can be added.</p>
+                    <p className="text-xs text-[color:var(--ui-table-subtle)]">{t("The user must sign in once before they can be added.")}</p>
                 </div>
 
                 <div className="space-y-1.5">
-                    <span id="add-staff-role-label" className={formCompactLabelClass}>Role</span>
+                    <span id="add-staff-role-label" className={formCompactLabelClass}>{t("Role")}</span>
                     <div className="grid gap-2" role="group" aria-labelledby="add-staff-role-label">
                         {(["MANAGER", "STAFF"] as const).map(r => (
                             <button
@@ -572,7 +572,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
 
                 {error ? (
                     <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)} role="alert">
-                        <AlertCircle size={13} aria-hidden="true" /> {error}
+                        <AlertCircle size={13} aria-hidden="true" /> <LocalizedError error={error} />
                     </div>
                 ) : null}
             </div>
@@ -615,6 +615,7 @@ function InviteLinkPanel({
     onRevokeInvite: (inviteId: string) => void;
     capability: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const { formatDateTime } = useUserPreferences();
     const olderInvites = activeInvites.filter(item => item.id !== invite?.id);
 
@@ -624,16 +625,14 @@ function InviteLinkPanel({
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 text-sm font-semibold text-white">
                         <Link2 size={16} className="text-cyan-300" />
-                        Invite by link
-                    </div>
+                        {t("Invite by link")}</div>
                     <p className={cn("mt-1 text-xs", formHelpTextClass)}>
-                        Create a one-use, account-restricted link. Links expire in 7 days.
-                    </p>
+                        {t("Create a one-use, account-restricted link. Links expire in 7 days.")}</p>
                 </div>
 
                 <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end lg:w-auto">
                     <label htmlFor="staff-invite-email" className="min-w-0 flex-1 sm:w-64">
-                        <span className={cn("mb-1.5 block", formCompactLabelClass)}>Invite email</span>
+                        <span className={cn("mb-1.5 block", formCompactLabelClass)}>{t("Invite email")}</span>
                         <span className="relative block">
                             <Mail
                                 size={15}
@@ -652,7 +651,7 @@ function InviteLinkPanel({
                             />
                         </span>
                     </label>
-                    <div className={cn("grid grid-cols-2 gap-2 p-1", formSurfaceClass)} role="group" aria-label="Invite role">
+                    <div className={cn("grid grid-cols-2 gap-2 p-1", formSurfaceClass)} role="group" aria-label={t("Invite role")}>
                         {(["MANAGER", "STAFF"] as const).map(role => (
                             <button
                                 key={role}
@@ -678,26 +677,25 @@ function InviteLinkPanel({
                         aria-describedby={!capability.allowed ? "staff-manage-blocker" : undefined}
                         className="h-11 whitespace-nowrap lg:h-10"
                     >
-                        Create invite
-                    </Button>
+                        {t("Create invite")}</Button>
                 </div>
             </div>
 
             {invite && (
                 <div className="mt-4 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.04] p-3">
                     <div className="mb-2 flex items-center justify-between gap-3">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-cyan-200">Latest invite</span>
-                        <span className={cn("text-xs", formHelpTextClass)}>Expires {formatDateTime(invite.expiresAt)}</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-cyan-200">{t("Latest invite")}</span>
+                        <span className={cn("text-xs", formHelpTextClass)}>{t("Expires")} {formatDateTime(invite.expiresAt)}</span>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                             readOnly
-                            aria-label="Latest invite link"
+                            aria-label={t("Latest invite link")}
                             value={invite.inviteUrl}
                             className={cn(formControlClass, "h-11 min-w-0 flex-1 px-3 font-mono text-xs lg:h-10")}
                         />
                         <Button variant="outline" onClick={() => onCopyInvite(invite)} className="h-11 whitespace-nowrap lg:h-10">
-                            {copiedInviteId === invite.id ? <><CheckCircle2 size={14} /> Copied</> : <><Copy size={14} /> Copy link</>}
+                            {copiedInviteId === invite.id ? <><CheckCircle2 size={14} />  {t("Copied")}</> : <><Copy size={14} />  {t("Copy link")}</>}
                         </Button>
                         <Button
                             variant="danger"
@@ -707,8 +705,7 @@ function InviteLinkPanel({
                             aria-describedby={!capability.allowed ? "staff-manage-blocker" : undefined}
                             className="h-11 whitespace-nowrap lg:h-10"
                         >
-                            <Trash2 size={14} /> Revoke
-                        </Button>
+                            <Trash2 size={14} />  {t("Revoke")}</Button>
                     </div>
                 </div>
             )}
@@ -716,16 +713,15 @@ function InviteLinkPanel({
             <div className="mt-4 border-t border-[color:var(--ui-form-section-divider)] pt-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
-                        <h3 className="text-sm font-semibold text-white">Active invite links</h3>
-                        <p className={cn("text-xs", formHelpTextClass)}>Copy an existing link or revoke it when it should no longer be used.</p>
+                        <h3 className="text-sm font-semibold text-white">{t("Active invite links")}</h3>
+                        <p className={cn("text-xs", formHelpTextClass)}>{t("Copy an existing link or revoke it when it should no longer be used.")}</p>
                     </div>
                     {invitesLoading && <Loader2 size={14} className={cn("animate-spin", formHelpTextClass)} />}
                 </div>
 
                 {!invitesLoading && activeInvites.length === 0 && (
                     <div className={cn("rounded-[var(--ui-radius-control)] border border-dashed border-[color:var(--ui-form-surface-border)] px-4 py-3 text-sm", formHelpTextClass)}>
-                        No active invite links.
-                    </div>
+                        {t("No active invite links.")}</div>
                 )}
 
                 {olderInvites.length > 0 && (
@@ -737,13 +733,13 @@ function InviteLinkPanel({
                                         <Badge variant={item.role === "MANAGER" ? "cyan" : "default"}>
                                             {ROLE_DETAILS[item.role].label}
                                         </Badge>
-                                        <span className={cn("text-xs", formHelpTextClass)}>Expires {formatDateTime(item.expiresAt)}</span>
+                                        <span className={cn("text-xs", formHelpTextClass)}>{t("Expires")} {formatDateTime(item.expiresAt)}</span>
                                     </div>
                                     <p className={cn("mt-1 truncate font-mono text-xs", formHelpTextClass)}>{item.inviteUrl}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button variant="outline" size="sm" onClick={() => onCopyInvite(item)}>
-                                        {copiedInviteId === item.id ? <><CheckCircle2 size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
+                                        {copiedInviteId === item.id ? <><CheckCircle2 size={13} />  {t("Copied")}</> : <><Copy size={13} />  {t("Copy")}</>}
                                     </Button>
                                     <Button
                                         variant="danger"
@@ -753,8 +749,7 @@ function InviteLinkPanel({
                                         disabled={!capability.allowed}
                                         aria-describedby={!capability.allowed ? "staff-manage-blocker" : undefined}
                                     >
-                                        <Trash2 size={13} /> Revoke
-                                    </Button>
+                                        <Trash2 size={13} />  {t("Revoke")}</Button>
                                 </div>
                             </div>
                         ))}
@@ -764,7 +759,7 @@ function InviteLinkPanel({
 
             {error && (
                 <div className={cn("mt-3 flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
-                    <AlertCircle size={13} /> {error}
+                    <AlertCircle size={13} /> <LocalizedError error={error} />
                 </div>
             )}
         </Card>
@@ -788,24 +783,25 @@ export default function StaffPage({ params }: { params: Promise<{ branchId: stri
 }
 
 function StaffCapabilityNotice({ decision }: { decision: CapabilityDecision }) {
+    const t = useTranslation();
     if (decision.allowed || decision.blocker === "permission") return null;
 
     return (
         <div id="staff-manage-blocker" className={cn("flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)}>
             <span className="flex items-start gap-2">
                 <LockKeyhole size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                <span><span className="font-semibold">Staff changes are unavailable.</span> {decision.reason}</span>
+                <span><span className="font-semibold">{t("Staff changes are unavailable.")}</span> {decision.reason}</span>
             </span>
             {decision.recoveryHref && (
                 <Link href={decision.recoveryHref} className="shrink-0 font-semibold underline underline-offset-4">
-                    Resolve access
-                </Link>
+                    {t("Resolve access")}</Link>
             )}
         </div>
     );
 }
 
 function DisabledStaffAction() {
+    const t = useTranslation();
     return (
         <button
             type="button"
@@ -814,8 +810,7 @@ function DisabledStaffAction() {
             className="inline-flex items-center gap-1.5 text-xs text-[color:var(--ui-table-subtle)] disabled:cursor-not-allowed"
         >
             <LockKeyhole size={13} aria-hidden="true" />
-            Changes locked
-        </button>
+            {t("Changes locked")}</button>
     );
 }
 
@@ -826,6 +821,7 @@ function StaffContent({
     branchId: string;
     staffManageDecision: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const searchParams = useSearchParams();
     const targetStaffId = searchParams.get("staffId");
     const canMutateStaff = staffManageDecision.allowed;
@@ -1052,12 +1048,12 @@ function StaffContent({
         }
     };
 
-    if (loading) return <PageLoadingSkeleton label="Loading staff" variant="table" rows={5} />;
+    if (loading) return <PageLoadingSkeleton label={t("Loading staff")} variant="table" rows={5} />;
 
     if (error) return (
         <div className={pageErrorStateClass}>
             <AlertCircle className={pageErrorIconClass} />
-            <p className={pageMutedTextClass}>{error}</p>
+            <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
         </div>
     );
 
@@ -1096,7 +1092,7 @@ function StaffContent({
                         <div className="flex min-w-0 items-center gap-3">
                             <Avatar name={member.user?.name || member.user?.email || "Staff member"} />
                             <div className="min-w-0">
-                                <p className="truncate font-medium text-[color:var(--ui-table-text)]">{member.user?.name || <span className={cn("italic text-xs", pageSubtleTextClass)}>No name</span>}</p>
+                                <p className="truncate font-medium text-[color:var(--ui-table-text)]">{member.user?.name || <span className={cn("italic text-xs", pageSubtleTextClass)}>{t("No name")}</span>}</p>
                                 <p className={cn("mt-1 flex min-w-0 items-center gap-1 truncate text-xs", pageSubtleTextClass)}>
                                     <Mail size={10} className="flex-shrink-0" />{member.user?.email}
                                 </p>
@@ -1109,24 +1105,24 @@ function StaffContent({
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                         <div className={cn("p-3", pageInsetSurfaceClass)}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>Role</div>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Role")}</div>
                             <div className="mt-2">
                                 <Badge variant={member.role === "MANAGER" ? "cyan" : "default"}>
                                     {member.role === "MANAGER"
-                                        ? <><Shield size={10} className="mr-1" />Manager</>
-                                        : <><UserCog size={10} className="mr-1" />Staff</>
+                                        ? <><Shield size={10} className="mr-1" />{t("Manager")}</>
+                                        : <><UserCog size={10} className="mr-1" />{t("Staff")}</>
                                     }
                                 </Badge>
                             </div>
                         </div>
                         <div className={cn("p-3", pageInsetSurfaceClass)}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>Added</div>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Added")}</div>
                             <div className={cn("mt-2 text-xs", pageMutedTextClass)}>{formatDate(member.createdAt)}</div>
                         </div>
                     </div>
 
                     <div className={cn("mt-3 p-3", pageInsetSurfaceClass)}>
-                        <div className={cn("mb-2 text-xs", pageSubtleTextClass)}>Access</div>
+                        <div className={cn("mb-2 text-xs", pageSubtleTextClass)}>{t("Access")}</div>
                         <AccessSummary member={member} />
                     </div>
                 </div>
@@ -1137,8 +1133,8 @@ function StaffContent({
     return (
         <div className="relative space-y-6">
             <PageHeader
-                title="Staff"
-                subtitle="Manage team members and their access roles."
+                title={t("Staff")}
+                subtitle={t("Manage team members and their access roles.")}
                 onAdd={canMutateStaff ? () => setAddOpen(true) : undefined}
                 extraActions={showMutationControls && !canMutateStaff ? (
                     <Button
@@ -1147,8 +1143,7 @@ function StaffContent({
                         aria-describedby="staff-manage-blocker"
                         className="flex-shrink-0 whitespace-nowrap"
                     >
-                        Add Staff
-                    </Button>
+                        {t("Add Staff")}</Button>
                 ) : undefined}
                 actionLabel="Add Staff"
             />
@@ -1186,17 +1181,16 @@ function StaffContent({
             {staffManageDecision.blocker === "entitlement" ? (
                 <div className={cn("space-y-2", pageEmptyStateClass)} role="status">
                     <LockKeyhole size={32} className="mx-auto opacity-50" aria-hidden="true" />
-                    <p className="font-medium text-[color:var(--text-primary)]">Staff directory is restricted</p>
+                    <p className="font-medium text-[color:var(--text-primary)]">{t("Staff directory is restricted")}</p>
                     <p className={cn("mx-auto max-w-md text-sm", pageMutedTextClass)}>{staffManageDecision.reason}</p>
                 </div>
             ) : data.length === 0 ? (
                 <div className={cn("space-y-3", pageEmptyStateClass)}>
                     <UserPlus size={36} className="mx-auto opacity-30" />
-                    <p>No staff members yet.</p>
+                    <p>{t("No staff members yet.")}</p>
                     {canMutateStaff && (
                         <button onClick={() => setAddOpen(true)} className="text-sm text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]">
-                            + Add your first staff member
-                        </button>
+                            {t("+ Add your first staff member")}</button>
                     )}
                 </div>
             ) : (
@@ -1206,18 +1200,18 @@ function StaffContent({
                     <div
                         className="w-full overflow-x-auto"
                         role="region"
-                        aria-label="Branch staff directory"
+                        aria-label={t("Branch staff directory")}
                         tabIndex={0}
                     >
                     <table className="w-full min-w-[54rem] text-left text-sm">
-                        <caption className="sr-only">Branch staff directory</caption>
+                        <caption className="sr-only">{t("Branch staff directory")}</caption>
                         <thead>
                             <tr className="border-b border-[color:var(--ui-table-divider)] bg-[color:var(--ui-table-head-bg)] text-[color:var(--ui-table-muted)]">
-                                <th scope="col" className="px-6 py-4 font-medium">Member</th>
-                                <th scope="col" className="px-6 py-4 font-medium">Role</th>
-                                <th scope="col" className="px-6 py-4 font-medium">Access</th>
-                                <th scope="col" className="px-6 py-4 font-medium">Added</th>
-                                <th scope="col" className="px-6 py-4 font-medium w-14"><span className="sr-only">Actions</span></th>
+                                <th scope="col" className="px-6 py-4 font-medium">{t("Member")}</th>
+                                <th scope="col" className="px-6 py-4 font-medium">{t("Role")}</th>
+                                <th scope="col" className="px-6 py-4 font-medium">{t("Access")}</th>
+                                <th scope="col" className="px-6 py-4 font-medium">{t("Added")}</th>
+                                <th scope="col" className="px-6 py-4 font-medium w-14"><span className="sr-only">{t("Actions")}</span></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
@@ -1238,7 +1232,7 @@ function StaffContent({
                                         <div className="flex items-center gap-3">
                                             <Avatar name={member.user?.name || member.user?.email || "Staff member"} size="sm" />
                                             <div>
-                                                <p className="font-medium text-[color:var(--ui-table-text)]">{member.user?.name || <span className="text-xs italic text-[color:var(--ui-table-subtle)]">No name</span>}</p>
+                                                <p className="font-medium text-[color:var(--ui-table-text)]">{member.user?.name || <span className="text-xs italic text-[color:var(--ui-table-subtle)]">{t("No name")}</span>}</p>
                                                 <p className="flex items-center gap-1 text-xs text-[color:var(--ui-table-subtle)]">
                                                     <Mail size={10} />{member.user?.email}
                                                 </p>
@@ -1249,8 +1243,8 @@ function StaffContent({
                                     <td className="px-6 py-4">
                                         <Badge variant={member.role === "MANAGER" ? "cyan" : "default"}>
                                             {member.role === "MANAGER"
-                                                ? <><Shield size={10} className="mr-1" />Manager</>
-                                                : <><UserCog size={10} className="mr-1" />Staff</>
+                                                ? <><Shield size={10} className="mr-1" />{t("Manager")}</>
+                                                : <><UserCog size={10} className="mr-1" />{t("Staff")}</>
                                             }
                                         </Badge>
                                     </td>
@@ -1279,9 +1273,7 @@ function StaffContent({
 
             {data.length > 0 && staffManageDecision.blocker !== "entitlement" && (
                 <div className="flex flex-col items-center gap-3 text-center">
-                    <p id="staff-pagination-status" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">
-                        Showing {data.length} of {total} staff member{total === 1 ? "" : "s"}
-                    </p>
+                    <p id="staff-pagination-status" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">{t("Showing {count} of {total} staff member(s)", { count: data.length, total: total })}</p>
                     {nextCursor && (
                         <Button
                             type="button"
@@ -1292,13 +1284,13 @@ function StaffContent({
                             aria-describedby="staff-pagination-status"
                             className="min-h-11 min-w-32 justify-center"
                         >
-                            {loadingMore ? "Loading..." : "Load more staff"}
+                            {loadingMore ? t("Loading...") : t("Load more staff")}
                         </Button>
                     )}
                     {loadMoreError && (
                         <div className={cn("flex items-center gap-2 text-sm", formErrorBannerClass)} role="alert">
                             <AlertCircle size={14} aria-hidden="true" />
-                            <span>{loadMoreError}</span>
+                            <span><LocalizedError error={loadMoreError} /></span>
                         </div>
                     )}
                 </div>
@@ -1341,7 +1333,7 @@ function StaffContent({
                     isOpen={!!removeTarget}
                     onClose={() => setRemoveTarget(null)}
                     onConfirm={confirmRemove}
-                    title="Remove Staff"
+                    title={t("Remove Staff")}
                     description={`Are you sure you want to remove ${removeTarget?.user?.name || removeTarget?.user?.email} from this branch?`}
                     confirmText="Remove"
                     variant="danger"

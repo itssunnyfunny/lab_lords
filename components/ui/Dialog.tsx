@@ -1,6 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { LanguageControls } from "@/components/settings/LanguageControls";
+import { useTranslation } from "@/components/settings/LocalizedText";
 import { X } from "lucide-react";
 import {
   useEffect,
@@ -90,6 +92,7 @@ export function Dialog({
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const t = useTranslation();
   const titleId = useId();
   const descriptionId = useId();
 
@@ -244,13 +247,14 @@ export function Dialog({
           </div>
         </div>
 
+        <div className="mt-3"><LanguageControls compact /></div>
         {showCloseButton ? (
           <button
             type="button"
             className="absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-[var(--ui-radius-control)] text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--ui-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]"
             onClick={onClose}
             disabled={closeDisabled}
-            aria-label={closeLabel}
+            aria-label={t.owned(closeLabel)}
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>

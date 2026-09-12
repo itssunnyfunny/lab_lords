@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, Lock, Check, Layers } from "lucide-react";
@@ -87,9 +89,10 @@ function formatTime(t: string | null) {
 }
 
 function ShiftPickerSkeleton() {
+    const t = useTranslation();
     return (
         <div role="status" aria-live="polite" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <span className="sr-only">Loading shifts</span>
+            <span className="sr-only">{t("Loading shifts")}</span>
             {Array.from({ length: 4 }, (_, index) => (
                 <div key={index} className="space-y-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] p-3.5">
                     <div className="flex items-start justify-between gap-3">
@@ -108,9 +111,10 @@ function ShiftPickerSkeleton() {
 }
 
 function SeatPickerSkeleton() {
+    const t = useTranslation();
     return (
         <div role="status" aria-live="polite" className="grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-7">
-            <span className="sr-only">Loading seats</span>
+            <span className="sr-only">{t("Loading seats")}</span>
             {Array.from({ length: 14 }, (_, index) => (
                 <SkeletonBlock key={index} className="aspect-square w-full" />
             ))}
@@ -145,6 +149,7 @@ export function SeatPicker({
     excludeAllocationIds,
     currentSeatId,
 }: SeatPickerProps) {
+    const t = useTranslation();
     const [shifts, setShifts] = useState<ShiftCapacity[]>([]);
     const [shiftsLoading, setShiftsLoading] = useState(false);
     const [shiftsError, setShiftsError] = useState<string | null>(null);
@@ -237,12 +242,9 @@ export function SeatPicker({
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <p className={pickerSectionLabelClass}>
-                        Select shift(s)
-                    </p>
+                        {t("Select shift(s)")}</p>
                     {selectedCount > 0 && (
-                        <span className="text-xs font-medium text-[color:var(--ui-badge-cyan-text)]">
-                            {selectedCount} shift{selectedCount > 1 ? "s" : ""} selected
-                        </span>
+                        <span className="text-xs font-medium text-[color:var(--ui-badge-cyan-text)]">{t("{selectedCount} shift(s) selected", { selectedCount: selectedCount })}</span>
                     )}
                 </div>
 
@@ -252,7 +254,7 @@ export function SeatPicker({
 
                 {shiftsError && (
                     <div className={cn("p-3 text-sm", formErrorBannerClass)}>
-                        {shiftsError}
+                        <LocalizedError error={shiftsError} />
                     </div>
                 )}
 
@@ -263,8 +265,7 @@ export function SeatPicker({
                             <div className="space-y-2">
                                 <p className={pickerGroupLabelClass}>
                                     <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ui-badge-warning-text)]" />
-                                    Primary shifts
-                                </p>
+                                    {t("Primary shifts")}</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {primaryShifts.map(shift => (
                                         <ShiftCard
@@ -283,8 +284,7 @@ export function SeatPicker({
                             <div className="space-y-2">
                                 <p className={pickerGroupLabelClass}>
                                     <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ui-badge-purple-text)]" />
-                                    Multi-shifts
-                                </p>
+                                    {t("Multi-shifts")}</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {multiShifts.map(shift => (
                                         <ShiftCard
@@ -309,12 +309,11 @@ export function SeatPicker({
                 {/* Hint: only show the "first shift only" caveat for manual multi-primary selections */}
                 {selectedCount > 1 && !selectedMultiShiftId && (
                     <p className={pickerHintClass}>
-                        Seat availability is shown for the first selected shift. The same seat will be booked across all selected shifts.
-                    </p>
+                        {t("Seat availability is shown for the first selected shift. The same seat will be booked across all selected shifts.")}</p>
                 )}
                 {selectedMultiShiftId && (
                     <p className={pickerWarningHintClass}>
-                        Showing seats free across <span className="font-medium text-[color:var(--ui-badge-warning-text)]">all component shifts</span>. A seat is available only if it is unoccupied in every shift of this multi-shift.
+                        {t("Showing seats free across all component shifts. A seat is available only if it is unoccupied in every shift of this multi-shift.")}
                     </p>
                 )}
             </div>
@@ -324,13 +323,10 @@ export function SeatPicker({
                 <div className={cn("space-y-4 pt-2 ui-dialog-enter", pickerDividerClass)}>
                     <div className="flex items-center justify-between">
                         <p className={pickerSectionLabelClass}>
-                            Select a seat
-                        </p>
+                            {t("Select a seat")}</p>
                         {seatMap && (
                             <div className="text-[10px] text-[color:var(--text-muted)]">
-                                <span className="font-medium text-[color:var(--ui-tone-success-text)]">{seatMap.availableCount}</span> free
-                                <span className="mx-1">/</span><span className="text-[color:var(--ui-tone-danger-text)]">{seatMap.occupiedCount}</span> taken
-                            </div>
+                                <span className="font-medium text-[color:var(--ui-tone-success-text)]">{seatMap.availableCount}</span>  {t("free")}<span className="mx-1">/</span><span className="text-[color:var(--ui-tone-danger-text)]">{seatMap.occupiedCount}</span>  {t("taken")}</div>
                         )}
                     </div>
 
@@ -340,7 +336,7 @@ export function SeatPicker({
 
                     {seatMapError && (
                         <div className={cn("p-3 text-sm", formErrorBannerClass)}>
-                            {seatMapError}
+                            <LocalizedError error={seatMapError} />
                         </div>
                     )}
 
@@ -376,8 +372,7 @@ export function SeatPicker({
                                             }
                                             {isCurrent && !isSelected && (
                                                 <span className="text-[8px] font-bold uppercase leading-none tracking-wide">
-                                                    current
-                                                </span>
+                                                    {t("current")}</span>
                                             )}
                                         </button>
 
@@ -390,8 +385,7 @@ export function SeatPicker({
                                         {/* Current seat tooltip */}
                                         {isCurrent && !isSelected && isHovered && (
                                             <div className={pickerTooltipClass}>
-                                                Currently assigned
-                                            </div>
+                                                {t("Currently assigned")}</div>
                                         )}
                                     </div>
                                 );
@@ -415,6 +409,7 @@ function ShiftCard({
     isSelected: boolean;
     onToggle: (s: ShiftCapacity) => void;
 }) {
+    const t = useTranslation();
     const blocked = shift.isFull || shift.studentAlreadyAllocated;
     const pct = shift.occupancyPercent;
     const isMulti = shift.type === "MULTISHIFT";
@@ -455,12 +450,10 @@ function ShiftCard({
                 <div className="flex items-center gap-1.5 mb-0.5">
                     {isMulti ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[color:var(--ui-badge-warning-text)]">
-                            <Layers size={8} /> MULTI-SHIFT
-                        </span>
+                            <Layers size={8} />  {t("MULTI-SHIFT")}</span>
                     ) : (
                         <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[color:var(--ui-badge-cyan-text)]">
-                            PRIMARY
-                        </span>
+                            {t("PRIMARY")}</span>
                     )}
                 </div>
 
@@ -483,14 +476,11 @@ function ShiftCard({
                     <div className="text-right flex-shrink-0 ml-4">
                         {shift.studentAlreadyAllocated ? (
                             <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-1.5 py-0.5 text-[10px] text-[color:var(--ui-badge-cyan-text)]">
-                                <Lock size={10} /> Allocated
-                            </span>
+                                <Lock size={10} />  {t("Allocated")}</span>
                         ) : shift.isFull ? (
-                            <span className="text-xs font-medium text-[color:var(--ui-tone-danger-text)]">Full</span>
+                            <span className="text-xs font-medium text-[color:var(--ui-tone-danger-text)]">{t("Full")}</span>
                         ) : (
-                            <span className={cn("text-xs font-medium", capacityTextColor(pct, shift.isFull))}>
-                                {shift.available} / {shift.totalSeats} free
-                            </span>
+                            <span className={cn("text-xs font-medium", capacityTextColor(pct, shift.isFull))}>{t("{available} / {totalSeats} free", { available: shift.available, totalSeats: shift.totalSeats })}</span>
                         )}
                     </div>
                 </div>

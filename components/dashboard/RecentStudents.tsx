@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AppButton, AppPanel } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
@@ -35,13 +36,14 @@ function getInitials(name: string) {
 }
 
 export function RecentStudents({ students, branchId }: RecentStudentsProps) {
+    const t = useTranslation();
     const router = useRouter();
     const visibleStudents = students.slice(0, 6);
 
     return (
         <AppPanel
-            title="New enrollments"
-            description="Recently added student profiles."
+            title={t("New enrollments")}
+            description={t("Recently added student profiles.")}
             action={
                 <AppButton
                     onClick={() => router.push(`/branch/${branchId}/students`)}
@@ -49,8 +51,7 @@ export function RecentStudents({ students, branchId }: RecentStudentsProps) {
                     size="sm"
                     rightIcon={ArrowRight}
                 >
-                    Students
-                </AppButton>
+                    {t("Students")}</AppButton>
             }
             contentClassName="p-0"
             className="h-full"
@@ -61,16 +62,15 @@ export function RecentStudents({ students, branchId }: RecentStudentsProps) {
                         <Users size={18} className="text-[color:var(--text-muted)]" />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-[color:var(--text-primary)]">No students yet</p>
-                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>Enroll students to start tracking occupancy and payments.</p>
+                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{t("No students yet")}</p>
+                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{t("Enroll students to start tracking occupancy and payments.")}</p>
                     </div>
                     <button
                         type="button"
                         onClick={() => router.push(`/branch/${branchId}/students`)}
                         className="text-xs font-medium text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
                     >
-                        Add first student
-                    </button>
+                        {t("Add first student")}</button>
                 </div>
             ) : (
                 <div className={cn("divide-y", pageSectionDividerClass)}>

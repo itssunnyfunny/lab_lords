@@ -12,6 +12,8 @@ export type DensityPreference = typeof DENSITY_PREFERENCES[number];
 export type DefaultLandingPage = typeof DEFAULT_LANDING_PAGES[number];
 
 export interface UpdateUserSettingsDto {
+    interfaceLanguage?: import("@/lib/i18n/language").InterfaceLanguage;
+    documentLanguage?: import("@/lib/i18n/language").InterfaceLanguage;
     name?: string;
     phone?: string;
     timezone?: string;

@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { LayoutDashboard, BarChart3, Settings } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
@@ -15,6 +16,7 @@ import { useBillingExperience } from "@/components/billing/BillingExperienceProv
 import { hasFeatureEntitlement } from "@/lib/billingPolicy";
 
 export function OrgSidebar() {
+    const t = useTranslation();
     const pathname = usePathname();
     const billing = useBillingExperience();
 
@@ -23,11 +25,11 @@ export function OrgSidebar() {
     const basePath = `/org/${orgId}`;
 
     return (
-        <aside className={chromeOrgSidebarClass} aria-label="Organization navigation">
+        <aside className={chromeOrgSidebarClass} aria-label={t("Organization navigation")}>
             <div className={chromeSidebarHeaderClass}>
-                <Link href="/app" aria-label="Open workspace home">
+                <Link href="/app" aria-label={t("Open workspace home")}>
                     <AppLogo
-                        subtitle="Operations"
+                        subtitle={t("Operations")}
                         markClassName="h-10 w-10"
                         titleClassName="text-lg font-bold sm:text-lg"
                         subtitleClassName="tracking-widest"
@@ -36,11 +38,11 @@ export function OrgSidebar() {
             </div>
 
             <div className="flex-1 p-6 space-y-2">
-                <div className={`${chromeSidebarSectionLabelClass} mb-4`}>Organization</div>
-                <SidebarItem icon={LayoutDashboard} label="Dashboard" isActive={pathname === basePath} href={basePath} />
+                <div className={`${chromeSidebarSectionLabelClass} mb-4`}>{t("Organization")}</div>
+                <SidebarItem icon={LayoutDashboard} label={t("Dashboard")} isActive={pathname === basePath} href={basePath} />
                 <SidebarItem
                     icon={BarChart3}
-                    label="Global Analytics"
+                    label={t("Global Analytics")}
                     isActive={pathname === `${basePath}/analytics`}
                     href={`${basePath}/analytics`}
                     locked={!hasFeatureEntitlement(billing?.experience?.entitlements ?? [], "ORG_ANALYTICS")}
@@ -51,7 +53,7 @@ export function OrgSidebar() {
             <div className={chromeSidebarFooterClass}>
                 <SidebarItem
                     icon={Settings}
-                    label="System Settings"
+                    label={t("System Settings")}
                     isActive={pathname === `${basePath}/settings`}
                     href={`${basePath}/settings`}
                 />
