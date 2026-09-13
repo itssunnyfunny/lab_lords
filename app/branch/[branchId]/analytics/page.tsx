@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { KpiRow } from "@/components/snapshot/KpiRow";
 import { MainChart } from "@/components/snapshot/MainChart";
@@ -89,6 +90,7 @@ export default function AnalyticsPage({ params }: { params: Promise<{ branchId: 
 }
 
 function AnalyticsContent({ branchId }: { branchId: string }) {
+    const t = useTranslation();
     const [period, setPeriod] = useState<AnalyticsPeriod>("month");
     const [activeChart, setActiveChart] = useState<ChartKey>("revenue");
     const [resource, setResource] = useState<ResourceState<BranchAnalyticsPayload>>({ status: "loading" });
@@ -169,8 +171,8 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
         if (displayedChart === "students") {
             if (!snapshot) return [];
             return [
-                { date: "Active", value: snapshot.activeStudents, category: "Active" },
-                { date: "Inactive", value: Math.max(0, snapshot.totalStudents - snapshot.activeStudents), category: "Inactive" },
+                { date: "Active", value: snapshot.activeStudents, category: t("Active") },
+                { date: "Inactive", value: Math.max(0, snapshot.totalStudents - snapshot.activeStudents), category: t("Inactive") },
             ];
         }
 
@@ -195,17 +197,17 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
     const chartContext = displayedChart === "students"
         ? "Current active and inactive student counts"
         : displayedPeriod === "month" && ["revenue", "collected", "due"].includes(displayedChart)
-            ? `${chartConfig.label} trend for the current month`
-            : `${chartConfig.label} trend for the last 30 days`;
+            ? t("{label} trend for the current month", { label: t.owned(chartConfig.label) })
+            : t("{label} trend for the last 30 days", { label: t.owned(chartConfig.label) });
 
     if (resource.status === "loading" && !payload) {
-        return <PageLoadingSkeleton label="Loading branch analytics" variant="analytics" />;
+        return <PageLoadingSkeleton label={t("Loading branch analytics")} variant="analytics" />;
     }
 
     if (resource.status === "error") {
         return (
             <ErrorState
-                title="Branch analytics unavailable"
+                title={t("Branch analytics unavailable")}
                 description={resource.message}
                 onRetry={resource.retryable ? () => setRefreshKey(key => key + 1) : undefined}
             />
@@ -213,19 +215,19 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
     }
 
     if (!payload || !snapshot) {
-        return <ErrorState title="Branch analytics unavailable" description="No verified analytics snapshot was returned." />;
+        return <ErrorState title={t("Branch analytics unavailable")} description={t("No verified analytics snapshot was returned.")} />;
     }
 
     return (
         <PageShell>
             <PageHeader
-                title="Analytics & Trends"
-                subtitle="Branch performance with corrected revenue, collections, dues, and utilization."
+                title={t("Analytics & Trends")}
+                subtitle={t("Branch performance with corrected revenue, collections, dues, and utilization.")}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className={pageMutedTextClass}>
-                    Updated {updatedAt ? formatDateTime(updatedAt) : "recently"}
+                    {t("Updated")} {updatedAt ? formatDateTime(updatedAt) : t("recently")}
                 </span>
                 <AppButton
                     variant="quiet"
@@ -234,8 +236,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                     isLoading={resource.status === "loading"}
                     onClick={() => setRefreshKey(key => key + 1)}
                 >
-                    Refresh
-                </AppButton>
+                    {t("Refresh")}</AppButton>
             </div>
 
             {(resource.status === "stale" || (resource.status === "loading" && resource.previous)) && (
@@ -248,7 +249,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
             )}
 
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div role="group" aria-label="Analytics period" className={cn("inline-flex w-fit p-1", pageFilterShellClass)}>
+                <div role="group" aria-label={t("Analytics period")} className={cn("inline-flex w-fit p-1", pageFilterShellClass)}>
                     {PERIODS.map(item => (
                         <button
                             key={item.key}
@@ -262,12 +263,12 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                                     : "text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
                             )}
                         >
-                            {item.label}
+                            {t.owned(item.label)}
                         </button>
                     ))}
                 </div>
 
-                <div role="group" aria-label="Chart metric" className="inline-flex flex-wrap gap-2">
+                <div role="group" aria-label={t("Chart metric")} className="inline-flex flex-wrap gap-2">
                     {CHARTS.map(item => (
                         <button
                             key={item.key}
@@ -281,7 +282,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                                     : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--ui-form-input-border)] hover:text-white"
                             )}
                         >
-                            {item.label}
+                            {t.owned(item.label)}
                         </button>
                     ))}
                 </div>
@@ -292,7 +293,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <MainChart
                     data={chartData}
-                    title={`${chartConfig.label} ${displayedChart === "students" ? "Snapshot" : "Trend"}`}
+                    title={t(displayedChart === "students" ? "{label} Snapshot" : "{label} Trend", { label: t.owned(chartConfig.label) })}
                     variant={displayedChart === "students" ? "bar" : "area"}
                     color={chartConfig.color}
                     valueFormatter={valueFormatter}
@@ -304,31 +305,31 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
             </div>
 
             <AppPanel
-                title="Branch Summary"
-                description="A compact snapshot of the current branch numbers."
+                title={t("Branch Summary")}
+                description={t("A compact snapshot of the current branch numbers.")}
                 contentClassName="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
             >
                 {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-students`} label="Students" value={formatNumber(item.students)} detail={item.branch} tone="info" />
+                    <BranchSummaryCard key={`${item.id}-students`} label={t("Students")} value={formatNumber(item.students)} detail={item.branch} tone="info" />
                 ))}
                 {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-util`} label="Seat utilization" value={formatPercent(item.util, 2)} detail="Current occupancy" tone="neutral" badge={formatPercent(item.util, 2)} />
+                    <BranchSummaryCard key={`${item.id}-util`} label={t("Seat utilization")} value={formatPercent(item.util, 2)} detail="Current occupancy" tone="neutral" badge={formatPercent(item.util, 2)} />
                 ))}
                 {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-revenue`} label="Revenue" value={formatMoney(item.revenue)} detail={displayedPeriod === "month" ? "This month" : "All time"} tone="neutral" />
+                    <BranchSummaryCard key={`${item.id}-revenue`} label={t("Revenue")} value={formatMoney(item.revenue)} detail={displayedPeriod === "month" ? "This month" : "All time"} tone="neutral" />
                 ))}
                 {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-collected`} label="Collected" value={formatMoney(item.collected)} detail="Received payments" tone="success" />
+                    <BranchSummaryCard key={`${item.id}-collected`} label={t("Collected")} value={formatMoney(item.collected)} detail="Received payments" tone="success" />
                 ))}
                 {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-due`} label="All due" value={formatMoney(item.due)} detail="Open receivables" tone="danger" />
+                    <BranchSummaryCard key={`${item.id}-due`} label={t("All due")} value={formatMoney(item.due)} detail="Open receivables" tone="danger" />
                 ))}
             </AppPanel>
 
             {snapshot?.seatDetails && (
                 <AppPanel
-                    title="Shift Breakdown"
-                    description="Capacity and utilization by shift."
+                    title={t("Shift Breakdown")}
+                    description={t("Capacity and utilization by shift.")}
                     contentClassName="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
                 >
                         {snapshot.seatDetails.shifts.map((shift) => (
@@ -377,6 +378,7 @@ function ShiftBreakdownCard({
 }: {
     shift: NonNullable<BranchSnapshot["seatDetails"]>["shifts"][number];
 }) {
+    const t = useTranslation();
     const { formatNumber } = useUserPreferences();
     const percent = Math.min(Math.max(shift.occupancyPercent, 0), 100);
     const available = Math.max(shift.capacity - shift.used, 0);
@@ -396,9 +398,7 @@ function ShiftBreakdownCard({
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h3 className="truncate text-sm font-semibold text-white">{shift.shiftName}</h3>
-                    <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
-                        {formatNumber(available)} available of {formatNumber(shift.capacity)}
-                    </p>
+                    <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{t("{formatNumber} available of {formatNumber2}", { formatNumber: formatNumber(available), formatNumber2: formatNumber(shift.capacity) })}</p>
                 </div>
                 <Badge variant={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "success"}>
                     {formattedPercent}
@@ -411,11 +411,10 @@ function ShiftBreakdownCard({
                         {formatNumber(shift.used)}
                         <span className={cn("text-sm font-medium", pageMutedTextClass)}> / {formatNumber(shift.capacity)}</span>
                     </p>
-                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>Seats used</p>
+                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Seats used")}</p>
                 </div>
                 <div className={cn("rounded-[var(--ui-radius-control)] px-2.5 py-1 text-xs", pageInsetSurfaceClass)}>
-                    Capacity
-                </div>
+                    {t("Capacity")}</div>
             </div>
 
             <div className={cn("mt-4 h-2 overflow-hidden rounded-full border", pageSectionDividerClass)}>

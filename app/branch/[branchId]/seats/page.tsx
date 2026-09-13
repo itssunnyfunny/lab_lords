@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { Badge } from "@/components/ui/Badge";
@@ -214,12 +216,13 @@ function getShiftTone(percent: number): "success" | "warning" | "danger" | "info
 }
 
 export default function SeatsPage({ params }: { params: Promise<{ branchId: string }> }) {
+    const t = useTranslation();
     const { branchId } = use(params);
 
     return (
         <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.seats}>
             {access => (
-                <Suspense fallback={<PageLoadingSkeleton label="Loading seats" variant="cards" rows={6} />}>
+                <Suspense fallback={<PageLoadingSkeleton label={t("Loading seats")} variant="cards" rows={6} />}>
                     <SeatsContent
                         branchId={branchId}
                         seatManageDecision={getBranchCapabilityDecision(access, "seatsManage")}
@@ -240,6 +243,7 @@ function SeatsContent({
     seatManageDecision: CapabilityDecision;
     allocationDecision: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const canManageBranch = seatManageDecision.allowed;
     const showSeatManageActions = seatManageDecision.blocker !== "permission";
     const canAllocateSeats = allocationDecision.allowed;
@@ -648,18 +652,17 @@ function SeatsContent({
     };
 
     if (loading) {
-        return <PageLoadingSkeleton label="Loading seats" variant="cards" rows={6} />;
+        return <PageLoadingSkeleton label={t("Loading seats")} variant="cards" rows={6} />;
     }
 
     if (error) {
         return (
             <div className={pageErrorStateClass}>
                 <AlertCircle className={pageErrorIconClass} />
-                <h2 className="text-xl font-semibold">Something went wrong</h2>
-                <p className={pageMutedTextClass}>{error}</p>
+                <h2 className="text-xl font-semibold">{t("Something went wrong")}</h2>
+                <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
                 <AppButton variant="quiet" icon={ArrowLeft} onClick={() => router.push("/org")}>
-                    Back to Workspace
-                </AppButton>
+                    {t("Back to Workspace")}</AppButton>
             </div>
         );
     }
@@ -668,11 +671,10 @@ function SeatsContent({
         <PageShell>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>Seat map</p>
-                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>Seats</h1>
+                    <p className={pageEyebrowClass}>{t("Seat map")}</p>
+                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Seats")}</h1>
                     <p className={pageDescriptionClass}>
-                        Review availability by shift and move straight into allocation work.
-                    </p>
+                        {t("Review availability by shift and move straight into allocation work.")}</p>
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
@@ -682,8 +684,8 @@ function SeatsContent({
                             type="text"
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Search seat, student, shift..."
-                            aria-label="Search loaded seats"
+                            placeholder={t("Search seat, student, shift...")}
+                            aria-label={t("Search loaded seats")}
                             className={cn(formControlClass, "h-11 pl-9 pr-3 text-sm lg:h-10")}
                         />
                     </div>
@@ -696,42 +698,39 @@ function SeatsContent({
                             title={canManageBranch ? undefined : seatManageDecision.reason ?? undefined}
                             className="sm:w-auto"
                         >
-                            Add seat
-                        </AppButton>
+                            {t("Add seat")}</AppButton>
                     )}
                 </div>
             </header>
 
             {!canManageBranch && (
                 <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
-                    Adding seats is disabled. {seatManageDecision.reason ?? getPermissionHelpText("manage_branch")}
+                    {t("Adding seats is disabled.")} {seatManageDecision.reason ?? getPermissionHelpText("manage_branch")}
                     {seatManageDecision.recoveryHref ? (
                         <a href={seatManageDecision.recoveryHref} className="ml-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
-                            Review billing
-                        </a>
+                            {t("Review billing")}</a>
                     ) : null}
                 </div>
             )}
 
             {!canAllocateSeats && allocationDecision.blocker !== "permission" ? (
                 <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
-                    Allocation changes are disabled. {allocationDecision.reason}
+                    {t("Allocation changes are disabled.")} {allocationDecision.reason}
                     {allocationDecision.recoveryHref ? (
                         <a href={allocationDecision.recoveryHref} className="ml-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
-                            Review billing
-                        </a>
+                            {t("Review billing")}</a>
                     ) : null}
                 </div>
             ) : null}
 
             {actionError && (
                 <div className={cn("flex items-start justify-between gap-3 px-4 py-3 text-sm", formErrorBannerClass)}>
-                    <span>{actionError}</span>
+                    <span><LocalizedError error={actionError} /></span>
                     <button
                         type="button"
                         onClick={() => setActionError(null)}
                         className="transition-colors hover:text-[color:var(--text-primary)]"
-                        aria-label="Dismiss error"
+                        aria-label={t("Dismiss error")}
                     >
                         <X size={16} />
                     </button>
@@ -761,8 +760,7 @@ function SeatsContent({
                     {multiShiftAvailabilityPending ? (
                         <div role="status" className={cn("flex min-h-20 items-center justify-center gap-2 text-sm", pageMutedTextClass)}>
                             <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                            Checking every component and overlapping shift…
-                        </div>
+                            {t("Checking every component and overlapping shift…")}</div>
                     ) : (
                         <SeatSummaryBar
                             stats={stats}
@@ -794,7 +792,7 @@ function SeatsContent({
                                     ? formatTimeRange(activeShift.startTime, activeShift.endTime)
                                     : activeMultiShift
                                         ? activeMultiShift.components.map(component => component.shiftName).join(" + ")
-                                        : "All active allocations"}
+                                        : t("All active allocations")}
                             </span>
                         </div>
                         <ViewToggle value={viewMode} onChange={setViewMode} className="hidden lg:inline-flex" />
@@ -807,8 +805,7 @@ function SeatsContent({
                             disabled={seatViewRefreshing}
                             className={seatViewRefreshing ? "[&_svg]:animate-spin" : undefined}
                         >
-                            Refresh
-                        </AppButton>
+                            {t("Refresh")}</AppButton>
                     </div>
                 </div>
                 )}
@@ -818,18 +815,15 @@ function SeatsContent({
                 {multiShiftAvailabilityPending ? (
                     <div role="status" className={cn("flex min-h-56 flex-col items-center justify-center gap-3", pageEmptyStateClass)}>
                         <Loader2 size={28} className="animate-spin" aria-hidden="true" />
-                        <p className="text-sm font-medium text-[color:var(--text-primary)]">Calculating multi-shift availability</p>
-                        <p className={cn("text-xs", pageMutedTextClass)}>Seats remain unavailable until every component and overlap check completes.</p>
+                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{t("Calculating multi-shift availability")}</p>
+                        <p className={cn("text-xs", pageMutedTextClass)}>{t("Seats remain unavailable until every component and overlap check completes.")}</p>
                     </div>
                 ) : filteredSeats.length === 0 && unloadedMultiShiftMatchCount > 0 && nextCursor ? (
                     <div role="status" className={cn("flex min-h-56 flex-col items-center justify-center gap-3 text-center", pageEmptyStateClass)}>
                         <SearchX size={28} aria-hidden="true" />
                         <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                            Matching seats are on later pages
-                        </p>
-                        <p className={cn("max-w-md text-sm", pageMutedTextClass)}>
-                            {unloadedMultiShiftMatchCount} matching {unloadedMultiShiftMatchCount === 1 ? "seat is" : "seats are"} in this branch but not loaded yet.
-                        </p>
+                            {t("Matching seats are on later pages")}</p>
+                        <p className={cn("max-w-md text-sm", pageMutedTextClass)}>{t("{unloadedMultiShiftMatchCount} matching {value} in this branch but not loaded yet.", { unloadedMultiShiftMatchCount: unloadedMultiShiftMatchCount, value: unloadedMultiShiftMatchCount === 1 ? "seat is" : "seats are" })}</p>
                         <AppButton
                             type="button"
                             variant="secondary"
@@ -837,8 +831,7 @@ function SeatsContent({
                             isLoading={loadingMore}
                             disabled={loadingMore}
                         >
-                            Load next seats
-                        </AppButton>
+                            {t("Load next seats")}</AppButton>
                     </div>
                 ) : filteredSeats.length === 0 ? (
                     <SeatEmptyState
@@ -875,9 +868,7 @@ function SeatsContent({
             </div>
 
             <div className="flex flex-col items-center gap-2" aria-busy={loadingMore}>
-                <p id="seat-page-progress" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">
-                    Showing {allSeats.length} of {totalSeatCount} seats
-                </p>
+                <p id="seat-page-progress" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">{t("Showing {count} of {totalSeatCount} seats", { count: allSeats.length, totalSeatCount: totalSeatCount })}</p>
                 {nextCursor && (
                     <AppButton
                         type="button"
@@ -887,12 +878,11 @@ function SeatsContent({
                         disabled={loadingMore}
                         aria-describedby="seat-page-progress"
                     >
-                        Load more seats
-                    </AppButton>
+                        {t("Load more seats")}</AppButton>
                 )}
                 {loadMoreError && (
                     <p role="alert" className="text-sm text-[color:var(--ui-tone-danger-text)]">
-                        {loadMoreError}
+                        <LocalizedError error={loadMoreError} />
                     </p>
                 )}
             </div>
@@ -936,7 +926,7 @@ function SeatsContent({
                 isOpen={!!releaseTarget}
                 onClose={() => setReleaseTarget(null)}
                 onConfirm={handleReleaseAllocation}
-                title={releaseTarget?.multiShiftId ? "Release multi-shift allocation?" : "Release allocation?"}
+                title={releaseTarget?.multiShiftId ? t("Release multi-shift allocation?") : t("Release allocation?")}
                 description={
                     releaseTarget ? (
                         <span>
@@ -975,6 +965,7 @@ function ShiftFilterPanel({
     totalAllocatedSlots: number;
     onSelect: (scope: ShiftScope) => void;
 }) {
+    const t = useTranslation();
     const allPercent = totalSlots === 0 ? 0 : Math.round((totalAllocatedSlots / totalSlots) * 100);
     const selectedSummary = selectedScope.kind === "primary"
         ? summaries.find((shift) => shift.id === selectedScope.id)
@@ -991,11 +982,11 @@ function ShiftFilterPanel({
         <div className="space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">Shift scope</h2>
+                    <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Shift scope")}</h2>
                     <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
                         {selectedScope.kind === "multi"
-                            ? "Multi-shift totals cover every branch seat; the list below remains paginated."
-                            : "Primary-shift status is calculated across the records loaded so far."}
+                            ? t("Multi-shift totals cover every branch seat; the list below remains paginated.")
+                            : t("Primary-shift status is calculated across the records loaded so far.")}
                     </p>
                 </div>
                 <p className={cn("text-xs font-medium", pageMutedTextClass)}>{selectedLabel}</p>
@@ -1004,7 +995,7 @@ function ShiftFilterPanel({
                 <div className="flex gap-1.5 overflow-x-auto">
                 <ShiftFilterChip
                     active={selectedScope.kind === "all"}
-                    label="All shifts"
+                    label={t("All shifts")}
                     sublabel={`${totalSeats}/${branchTotalSeats} loaded`}
                     count={`${allPercent}% used`}
                     percent={allPercent}
@@ -1050,8 +1041,7 @@ function ShiftFilterPanel({
             </div>
             {selectedScope.kind === "multi" && (
                 <p className={cn("text-xs", pageSubtleTextClass)}>
-                    Assigned seats belong to this exact shift combination. Blocked seats are occupied in a component or overlapping shift; available seats are free across every component.
-                </p>
+                    {t("Assigned seats belong to this exact shift combination. Blocked seats are occupied in a component or overlapping shift; available seats are free across every component.")}</p>
             )}
         </div>
     );
@@ -1145,6 +1135,7 @@ function SeatSummaryBar({
     branchTotalSeats: number;
     multiShiftSeatMap: MultiShiftSeatMap | null;
 }) {
+    const t = useTranslation();
     const displayedTotal = multiShiftSeatMap?.totalSeats ?? stats.total;
     const displayedAssigned = multiShiftSeatMap?.assignedCount ?? stats.allocated;
     const displayedBlocked = multiShiftSeatMap?.blockedCount ?? stats.blocked;
@@ -1161,13 +1152,13 @@ function SeatSummaryBar({
     return (
         <div className={cn("grid gap-3 sm:grid-cols-2", multiShiftSelected ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
             <SummaryMetric
-                label={multiShiftSelected ? "Branch seats" : "Loaded seats"}
+                label={multiShiftSelected ? t("Branch seats") : t("Loaded seats")}
                 value={displayedTotal}
                 detail={multiShiftSelected ? `${stats.total} loaded below` : `${branchTotalSeats} total`}
                 tone="neutral"
             />
             <SummaryMetric
-                label={multiShiftSelected ? "Assigned" : "Allocated"}
+                label={multiShiftSelected ? t("Assigned") : t("Allocated")}
                 value={multiShiftSelected ? displayedAssigned : stats.allocated}
                 detail={multiShiftSelected
                     ? "Exact bundle assignments across branch"
@@ -1175,10 +1166,10 @@ function SeatSummaryBar({
                 tone="success"
             />
             {multiShiftSelected && (
-                <SummaryMetric label="Blocked" value={displayedBlocked} detail="Branch component or overlap conflicts" tone="danger" />
+                <SummaryMetric label={t("Blocked")} value={displayedBlocked} detail="Branch component or overlap conflicts" tone="danger" />
             )}
             <SummaryMetric
-                label="Available"
+                label={t("Available")}
                 value={multiShiftSelected ? displayedAvailable : stats.available}
                 detail={multiShiftSelected ? "Available across the branch" : activeShiftName ? `Loaded in ${activeShiftName}` : "Loaded unallocated seats"}
                 tone="warning"
@@ -1232,6 +1223,7 @@ function StatusFilterChip({
     active: boolean;
     onClick: () => void;
 }) {
+    const t = useTranslation();
     const tone = filter.value === "ALLOCATED"
         ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
         : filter.value === "BLOCKED"
@@ -1250,7 +1242,7 @@ function StatusFilterChip({
                 active ? tone : cn(pageInsetSurfaceClass, pageInsetHoverClass, "text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]")
             )}
         >
-            {filter.label}
+            {t.owned(filter.label)}
             <span className="rounded-full bg-[color:var(--ui-table-action-bg)] px-1.5 py-0.5 text-[10px] text-[color:var(--text-primary)]">
                 {filter.count}
             </span>
@@ -1279,6 +1271,7 @@ function SeatGrid({
     onInspect: (seatId: string) => void;
     onAllocate: (seat: SeatWithStatus) => void;
 }) {
+    const t = useTranslation();
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {seats.map(seat => {
@@ -1320,19 +1313,18 @@ function SeatGrid({
 
                         <div className="mt-3 min-h-[42px] flex-1">
                             <p className={cn("truncate text-sm font-medium", allocated ? "text-[color:var(--text-primary)]" : blocked ? "text-[color:var(--ui-tone-danger-text)]" : "text-[color:var(--ui-tone-warning-text)]")}>
-                                {allocated ? studentNames.join(", ") || "Student" : blocked ? seat.blockedBy ?? "Conflict" : "Available"}
+                                {allocated ? studentNames.join(", ") || "Student" : blocked ? seat.blockedBy ?? "Conflict" : t("Available")}
                             </p>
                             <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
                                 {allocated
                                     ? `${seat.allocations.length} allocation${seat.allocations.length === 1 ? "" : "s"}`
-                                    : blocked ? "Unavailable across this combination" : "Ready to assign"}
+                                    : blocked ? t("Unavailable across this combination") : t("Ready to assign")}
                             </p>
                         </div>
 
                         <div className="mt-3 flex items-center justify-between gap-2">
                             <AppButton type="button" variant="quiet" size="sm" onClick={() => onInspect(seat.id)}>
-                                Details
-                            </AppButton>
+                                {t("Details")}</AppButton>
                             {showAllocationActions && allocationEligible && (
                                 <AppButton
                                     type="button"
@@ -1343,7 +1335,7 @@ function SeatGrid({
                                     disabled={!canAllocateSeats}
                                     title={canAllocateSeats ? undefined : allocationDisabledReason}
                                 >
-                                    {allocated ? "Add shift" : "Assign"}
+                                    {allocated ? t("Add shift") : t("Assign")}
                                 </AppButton>
                             )}
                         </div>
@@ -1373,18 +1365,19 @@ function SeatList({
     onInspect: (seatId: string) => void;
     onAllocate: (seat: SeatWithStatus) => void;
 }) {
+    const t = useTranslation();
     return (
         <div className={pageTableShellClass}>
-            <div className="overflow-x-auto" role="region" aria-label="Loaded seat inventory" tabIndex={0}>
+            <div className="overflow-x-auto" role="region" aria-label={t("Loaded seat inventory")} tabIndex={0}>
                 <table className="w-full min-w-[760px] text-left text-sm">
-                    <caption className="sr-only">Loaded seat inventory and active allocations</caption>
+                    <caption className="sr-only">{t("Loaded seat inventory and active allocations")}</caption>
                     <thead className={pageTableHeadClass}>
                         <tr>
-                            <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">Seat</th>
-                            <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">Status</th>
-                            <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">Students</th>
-                            <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">Shift coverage</th>
-                            <th scope="col" className="px-5 py-4 text-right text-xs font-medium uppercase tracking-wider text-textSecondary">Actions</th>
+                            <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">{t("Seat")}</th>
+                            <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">{t("Status")}</th>
+                            <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">{t("Students")}</th>
+                            <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">{t("Shift coverage")}</th>
+                            <th scope="col" className="px-5 py-4 text-right text-xs font-medium uppercase tracking-wider text-textSecondary">{t("Actions")}</th>
                         </tr>
                     </thead>
                     <tbody className={pageTableBodyDividerClass}>
@@ -1408,7 +1401,7 @@ function SeatList({
                                             </div>
                                             <div>
                                                 <p className="font-medium text-[color:var(--text-primary)]">{seat.label}</p>
-                                                <p className="text-xs text-textMuted">{seat.allocations.length} allocation{seat.allocations.length === 1 ? "" : "s"}</p>
+                                                <p className="text-xs text-textMuted">{t("{count} allocation(s)", { count: seat.allocations.length })}</p>
                                             </div>
                                         </div>
                                     </th>
@@ -1419,13 +1412,12 @@ function SeatList({
                                         {studentNames.length > 0 ? studentNames.join(", ") : seat.blockedBy ?? "No student"}
                                     </td>
                                     <td className="px-5 py-4 text-textSecondary">
-                                        {allocated ? seat.allocations.map(getAllocationShiftLabel).join(", ") : seat.status === "Blocked" ? "Component or overlap conflict" : "Open"}
+                                        {allocated ? seat.allocations.map(getAllocationShiftLabel).join(", ") : seat.status === "Blocked" ? t("Component or overlap conflict") : t("Open")}
                                     </td>
                                     <td className="px-5 py-4">
                                         <div className="flex justify-end gap-2">
                                             <AppButton type="button" variant="quiet" size="sm" onClick={() => onInspect(seat.id)}>
-                                                Details
-                                            </AppButton>
+                                                {t("Details")}</AppButton>
                                             {showAllocationActions && allocationEligible && (
                                                 <AppButton
                                                     type="button"
@@ -1436,8 +1428,7 @@ function SeatList({
                                                     disabled={!canAllocateSeats}
                                                     title={canAllocateSeats ? undefined : allocationDisabledReason}
                                                 >
-                                                    Assign
-                                                </AppButton>
+                                                    {t("Assign")}</AppButton>
                                             )}
                                         </div>
                                     </td>
@@ -1472,18 +1463,19 @@ function SeatEmptyState({
     disabledReason?: string;
     onAddSeat: () => void;
 }) {
+    const t = useTranslation();
     return (
         <div className={pageEmptyStateClass}>
             <div className={cn("flex h-14 w-14 items-center justify-center", pageInsetSurfaceClass, pageMutedTextClass)}>
                 {hasSeats ? <SearchX size={24} /> : <Armchair size={24} />}
             </div>
             <h3 className="mt-4 text-lg font-semibold text-[color:var(--text-primary)]">
-                {hasSeats ? "No seats match this view" : "No seats yet"}
+                {hasSeats ? t("No seats match this view") : t("No seats yet")}
             </h3>
             <p className="mt-2 max-w-md text-sm text-textSecondary">
                 {hasSeats
-                    ? "Try a different search, status, or shift filter."
-                    : "Create the physical seats first, then assign active students into the right shifts."}
+                    ? t("Try a different search, status, or shift filter.")
+                    : t("Create the physical seats first, then assign active students into the right shifts.")}
             </p>
             {!hasSeats && showManageAction && (
                 <AppButton
@@ -1495,8 +1487,7 @@ function SeatEmptyState({
                     disabled={!canManageBranch}
                     title={canManageBranch ? undefined : disabledReason}
                 >
-                    Add first seat
-                </AppButton>
+                    {t("Add first seat")}</AppButton>
             )}
         </div>
     );
@@ -1523,6 +1514,7 @@ function SeatDetailsDrawer({
     onAllocate: (seat: SeatWithStatus) => void;
     onRelease: (target: ReleaseTarget) => void;
 }) {
+    const t = useTranslation();
     if (!seat) return null;
 
     const allocated = seat.status === "Allocated" || seat.status === "Assigned";
@@ -1539,8 +1531,8 @@ function SeatDetailsDrawer({
                 ? studentNames.join(", ") || "Assigned"
                 : blocked
                     ? `Unavailable because ${seat.blockedBy ?? "another allocation"} occupies a component or overlapping shift`
-                    : "Available for assignment"}
-            closeLabel="Close seat details"
+                    : t("Available for assignment")}
+            closeLabel={t("Close seat details")}
             className="max-w-lg"
             footer={
                 showAllocationActions && allocationEligible ? (
@@ -1553,13 +1545,13 @@ function SeatDetailsDrawer({
                         disabled={!canAllocateSeats}
                         title={canAllocateSeats ? undefined : allocationDisabledReason}
                     >
-                        {allocated ? "Add another shift allocation" : "Assign this seat"}
+                        {allocated ? t("Add another shift allocation") : t("Assign this seat")}
                     </AppButton>
                 ) : allocationEligible ? null : (
                     <div className={cn("w-full px-4 py-3 text-sm", formWarningBannerClass)}>
                         {blocked
-                            ? "This seat is blocked by a component or overlapping shift."
-                            : "This seat is already allocated in the selected shift."}
+                            ? t("This seat is blocked by a component or overlapping shift.")
+                            : t("This seat is already allocated in the selected shift.")}
                     </div>
                 )
             }
@@ -1576,25 +1568,24 @@ function SeatDetailsDrawer({
 
                 <div className="grid grid-cols-2 gap-3">
                     <div className={cn("p-3", formSurfaceClass)}>
-                        <p className="text-xs uppercase tracking-wide text-textMuted">Allocations</p>
+                        <p className="text-xs uppercase tracking-wide text-textMuted">{t("Allocations")}</p>
                         <p className="mt-2 text-xl font-semibold text-[color:var(--text-primary)]">{seat.allocations.length}</p>
                     </div>
                     <div className={cn("p-3", formSurfaceClass)}>
-                        <p className="text-xs uppercase tracking-wide text-textMuted">Scope</p>
+                        <p className="text-xs uppercase tracking-wide text-textMuted">{t("Scope")}</p>
                         <p className="mt-2 truncate text-sm font-medium text-[color:var(--text-primary)]">{activeShiftName ?? "All shifts"}</p>
                     </div>
                 </div>
 
                 <div>
                     <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Active allocations</h3>
+                        <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Active allocations")}</h3>
                         {allocated ? <Badge variant="purple">{seat.allocations.length}</Badge> : null}
                     </div>
 
                     {seat.allocations.length === 0 ? (
                         <div className={cn("rounded-[var(--ui-radius-control)] border border-dashed border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-4 text-sm", formHelpTextClass)}>
-                            No active allocation in this view.
-                        </div>
+                            {t("No active allocation in this view.")}</div>
                     ) : (
                         <div className="space-y-3">
                             {seat.allocations.map((allocation, index) => {
@@ -1644,7 +1635,7 @@ function SeatDetailsDrawer({
                                                     multiShiftName: allocation.multiShift?.name ?? undefined,
                                                 })}
                                             >
-                                                {allocation.multiShiftId ? "Release bundle" : "Release"}
+                                                {allocation.multiShiftId ? t("Release bundle") : t("Release")}
                                             </AppButton>
                                         ) : null}
                                     </div>

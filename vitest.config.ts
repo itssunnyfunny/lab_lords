@@ -9,7 +9,7 @@ export default defineConfig({
     setupFiles: [],
     // Workflow fixtures require the dedicated @workflow/vitest transform and
     // are run through `pnpm test:workflow`, not the general Vitest suite.
-    exclude: [...configDefaults.exclude, "tests/browser/**", "tests/workflow/**"],
+    exclude: [...configDefaults.exclude, "tests/browser/**", "tests/localization-browser/**", "tests/workflow/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

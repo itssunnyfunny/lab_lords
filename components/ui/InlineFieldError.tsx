@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 type ErrorMap<K extends string> = Partial<Record<K, string>>;
 type TouchedMap<K extends string> = Partial<Record<K, boolean>>;
@@ -16,12 +17,13 @@ export function FieldError({
     error?: string | null;
     className?: string;
 }) {
+    const t = useTranslation();
     if (!error) return null;
 
     return (
         <p id={id} role="alert" className={cn("mt-1.5 flex items-start gap-1.5 text-xs text-[color:var(--ui-form-error-text)]", className)}>
             <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
-            <span>{error}</span>
+            <span>{t.error(error)}</span>
         </p>
     );
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { cn } from "@/lib/utils";
 import type { HTMLAttributes, ReactNode } from "react";
@@ -28,6 +29,7 @@ export function DataTable<T extends { id: string | number }>({
     emptyMessage = "No data available.",
     getRowAttributes,
 }: DataTableProps<T>) {
+    const t = useTranslation();
     const cardGrid = renderGridCard ? (
         <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-3", gridClassName)}>
             {data.map((item) => {
@@ -44,7 +46,7 @@ export function DataTable<T extends { id: string | number }>({
             })}
             {data.length === 0 && (
                 <div className="col-span-full rounded-[var(--ui-table-radius)] border border-dashed border-[color:var(--ui-table-empty-border)] py-12 text-center text-[color:var(--ui-table-subtle)]">
-                    {emptyMessage}
+                    {t.owned(emptyMessage)}
                 </div>
             )}
         </div>
@@ -54,12 +56,12 @@ export function DataTable<T extends { id: string | number }>({
     const tableView = (
         <div
             role="region"
-            aria-label={`${caption} table`}
+            aria-label={t.owned(caption)}
             tabIndex={0}
             className="w-full overflow-x-auto overflow-y-hidden rounded-[var(--ui-table-radius)] border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-bg)] shadow-[var(--ui-table-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
         >
             <table className="w-full text-left text-sm" style={{ minWidth: tableMinWidth }}>
-                <caption className="sr-only">{caption}</caption>
+                <caption className="sr-only">{t.owned(caption)}</caption>
                 <thead className="bg-[color:var(--ui-table-head-bg)]">
                     <tr>
                         {columns.map((col, idx) => (
@@ -71,10 +73,10 @@ export function DataTable<T extends { id: string | number }>({
                                     col.className
                                 )}
                             >
-                                {col.header}
+                                {t.owned(col.header)}
                             </th>
                         ))}
-                        {actions && <th scope="col" className="ui-density-cell px-6 py-4 text-right text-xs uppercase text-[color:var(--ui-table-muted)]">Actions</th>}
+                        {actions && <th scope="col" className="ui-density-cell px-6 py-4 text-right text-xs uppercase text-[color:var(--ui-table-muted)]">{t("Actions")}</th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
@@ -112,7 +114,7 @@ export function DataTable<T extends { id: string | number }>({
                     {data.length === 0 && (
                         <tr>
                             <td colSpan={columns.length + (actions ? 1 : 0)} className="py-12 text-center text-[color:var(--ui-table-subtle)]">
-                                {emptyMessage}
+                                {t.owned(emptyMessage)}
                             </td>
                         </tr>
                     )}

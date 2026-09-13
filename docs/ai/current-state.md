@@ -10,6 +10,27 @@ This document is a durable orientation map for engineers and AI agents. It recor
 
 It is **not** a deployment record. The repository cannot prove which migrations have been applied to Preview or Production, which feature flags are enabled, whether provider accounts are ready, or whether scheduled jobs and webhooks are currently healthy. Verify those facts in the target environment before operational work.
 
+### 2026-09-12: personal interface and document localization
+
+The local implementation adds English, Hindi and Hinglish catalogs under
+`lib/i18n`, used by operational screens and shared controls. Separate
+`User.interfaceLanguage` and `User.documentLanguage` fields default to English
+and use the existing current-user settings service/API. The preference provider
+now sits below Clerk at the root and resets only on identity change; branch
+navigation and language switching preserve active form and retry state.
+Receipts retain the existing canvas/jsPDF snapshot renderer and use explicit
+document language with grapheme-safe wrapping. The existing AI report download
+and printable template use that same independent document preference; stored
+AI prose is untouched. See [localization guidance](../localization.md) for the
+glossary, boundaries and test surfaces.
+
+The standalone AI Messages/reminder-generation page and generation-only controls
+are explicitly excluded pending a separate retirement cleanup. No draft or AI
+implementation is removed. WhatsApp automation, reminder and delivery controls,
+AI reports and import assistance remain in scope. Provider templates and existing
+message-language mappings are unchanged. This entry records local code only;
+it is not evidence of a Production release.
+
 The September 5 sprint adds replacement provisioning protocol version 2 using
 existing billing-change fields and audit history. Provider intent and dispatch
 are durable; uncertain creation recovery reads provider state without creating

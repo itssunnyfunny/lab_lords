@@ -12,6 +12,24 @@ function permissions(allowed: StaffAction[]) {
 const branchId = "branch_1";
 
 describe("buildBranchNotifications", () => {
+    it("localizes display text without changing notification identity, destinations, counts or names", () => {
+        const input = {
+            branchId,
+            access: { permissions: permissions(["view_payments"]) },
+            overdue: { total: 2, nextCursor: null, items: [{ paymentId: "p1", studentId: "s1", studentName: "Original नाम {count}", amount: 1200, dueDate: "2026-01-10T00:00:00.000Z" }] },
+        };
+        const english = buildBranchNotifications(input);
+        for (const language of ["hi", "hinglish"] as const) {
+            const localized = buildBranchNotifications(input, language);
+            expect(localized).toHaveLength(1);
+            const { title, message, ...identity } = localized[0];
+            const { title: originalTitle, message: originalMessage, ...originalIdentity } = english[0];
+            expect(identity).toEqual(originalIdentity);
+            expect(title).not.toBe(originalTitle);
+            expect(message).not.toBe(originalMessage);
+            expect(message).toContain("Original नाम {count}");
+        }
+    });
     it("creates an overdue payment notification when payment access is allowed", () => {
         const notifications = buildBranchNotifications({
             branchId,

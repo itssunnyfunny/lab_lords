@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useRef, useState } from "react";
 import { PauseCircle, PlayCircle, RefreshCw, ShieldAlert } from "lucide-react";
@@ -102,6 +104,7 @@ export function WhatsAppSenderSafety({
   onResume,
   onRefresh,
 }: WhatsAppSenderSafetyProps) {
+    const t = useTranslation();
   const [pauseOpen, setPauseOpen] = useState(false);
   const [resumeOpen, setResumeOpen] = useState(false);
   const [busy, setBusy] = useState<"pause" | "resume" | "refresh" | null>(null);
@@ -134,60 +137,60 @@ export function WhatsAppSenderSafety({
 
   return (
     <AppPanel
-      title="Sender delivery safety"
-      description="Local circuit breaking stops provider calls when delivery truth or provider health is unsafe. Thresholds are fixed server-side and cannot be changed here."
-      action={<Badge variant={safety.paused ? "danger" : "success"}>{safety.pausePending ? "Pause draining" : safety.paused ? "Delivery paused" : "Delivery active"}</Badge>}
+      title={t("Sender delivery safety")}
+      description={t("Local circuit breaking stops provider calls when delivery truth or provider health is unsafe. Thresholds are fixed server-side and cannot be changed here.")}
+      action={<Badge variant={safety.paused ? "danger" : "success"}>{safety.pausePending ? t("Pause draining") : safety.paused ? t("Delivery paused") : t("Delivery active")}</Badge>}
       contentClassName="space-y-4"
     >
-      {!isOwner ? <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">{blockedReason || "Only the organization owner can pause or resume sender delivery."}</div> : null}
-      {notice ? <p className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"}>{notice.text}</p> : null}
+      {!isOwner ? <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">{t.owned(blockedReason || "Only the organization owner can pause or resume sender delivery.")}</div> : null}
+      {notice ? <p className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"}>{notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}</p> : null}
 
       {safety.pausePending ? (
         <div className={cn("flex items-start gap-3 p-4", formWarningBannerClass)} role="status">
           <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-          <div><p className="font-semibold">Pause requested for {safety.senderLabel}</p><p className="mt-1 text-sm">New provider calls are blocked. An already-admitted bounded call is still draining; full pause will be recorded automatically. Requested {formatDateTime(safety.pauseRequestedAt)}.</p></div>
+          <div><p className="font-semibold">{t("Pause requested for {sender}", { sender: safety.senderLabel })}</p><p className="mt-1 text-sm">{t("New provider calls are blocked. An already-admitted bounded call is still draining; full pause will be recorded automatically. Requested {time}.", { time: t.owned(formatDateTime(safety.pauseRequestedAt)) })}</p></div>
         </div>
       ) : safety.paused ? (
         <div className={cn("flex items-start gap-3 p-4", formWarningBannerClass)} role="status">
           <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-          <div><p className="font-semibold">Provider delivery is paused for {safety.senderLabel}</p><p className="mt-1 text-sm">Reason: {safety.pauseReason ? PAUSE_REASON_LABELS[safety.pauseReason] : "Safety state unavailable"}. Paused {formatDateTime(safety.pausedAt)}.</p></div>
+          <div><p className="font-semibold">{t("Provider delivery is paused for {sender}", { sender: safety.senderLabel })}</p><p className="mt-1 text-sm">{t("Reason: {reason}. Paused {time}.", { reason: safety.pauseReason ? t.owned(PAUSE_REASON_LABELS[safety.pauseReason]) : t("Safety state unavailable"), time: t.owned(formatDateTime(safety.pausedAt)) })}</p></div>
         </div>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Sender status</p><p className="mt-1 font-semibold">{safety.senderStatus}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Ambiguous outcomes in window</p><p className="mt-1 font-semibold">{safety.ambiguousOutcomeCount} / 3</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">10-minute fixed window</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Selected definite failures</p><p className="mt-1 font-semibold">{safety.definiteFailureCount} / 10</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">10-minute fixed window</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Unknown / critical</p><p className="mt-1 font-semibold">{safety.unknownOutcomeCount} / {safety.openCriticalIncidentCount}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Sender status")}</p><p className="mt-1 font-semibold">{t.owned(safety.senderStatus)}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Ambiguous outcomes in window")}</p><p className="mt-1 font-semibold">{safety.ambiguousOutcomeCount} / 3</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("10-minute fixed window")}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Selected definite failures")}</p><p className="mt-1 font-semibold">{safety.definiteFailureCount} / 10</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("10-minute fixed window")}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Unknown / critical")}</p><p className="mt-1 font-semibold">{safety.unknownOutcomeCount} / {safety.openCriticalIncidentCount}</p></div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Last accepted</p><p className="mt-1 text-sm font-medium">{formatDateTime(safety.lastAcceptedAt)}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Last delivered</p><p className="mt-1 text-sm font-medium">{formatDateTime(safety.lastDeliveredAt)}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Last health check</p><p className="mt-1 text-sm font-medium">{formatDateTime(safety.lastHealthCheckAt)}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Last healthy</p><p className="mt-1 text-sm font-medium">{formatDateTime(safety.lastHealthyAt)}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Last accepted")}</p><p className="mt-1 text-sm font-medium">{formatDateTime(safety.lastAcceptedAt)}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Last delivered")}</p><p className="mt-1 text-sm font-medium">{formatDateTime(safety.lastDeliveredAt)}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Last health check")}</p><p className="mt-1 text-sm font-medium">{formatDateTime(safety.lastHealthCheckAt)}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Last healthy")}</p><p className="mt-1 text-sm font-medium">{formatDateTime(safety.lastHealthyAt)}</p></div>
       </div>
 
       <section className="space-y-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-section-divider)] p-4" aria-labelledby="sender-rate-card-heading">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="sender-rate-card-heading" className="font-semibold">Rate-card and resume readiness</h3><Badge variant={rateVariant(safety.rateCardState)}>{safety.rateCardState}</Badge></div>
-        <p className="text-sm text-[color:var(--text-secondary)]">Rate card {safety.rateCardVersion || "unavailable"} · expires {formatDateTime(safety.rateCardExpiresAt)}. Meta determines final billing and category; configured rates are estimates used for reservation safety.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="sender-rate-card-heading" className="font-semibold">{t("Rate-card and resume readiness")}</h3><Badge variant={rateVariant(safety.rateCardState)}>{t.owned(safety.rateCardState)}</Badge></div>
+        <p className="text-sm text-[color:var(--text-secondary)]">{t("Rate card {version} · expires {time}. Meta determines final billing and category; configured rates are estimates used for reservation safety.", { version: safety.rateCardVersion || t("Unavailable"), time: t.owned(formatDateTime(safety.rateCardExpiresAt)) })}</p>
         <ul className="grid gap-2 text-sm sm:grid-cols-2">
-          <li>Provider unrestricted: {safety.providerRestricted ? "No" : "Yes"}</li>
-          <li>Required Utility templates healthy: {safety.templatesHealthy ? "Yes" : "No"}</li>
+          <li>{t("Provider unrestricted: {answer}", { answer: safety.providerRestricted ? t("No") : t("Yes") })}</li>
+          <li>{t("Required Utility templates healthy: {answer}", { answer: safety.templatesHealthy ? t("Yes") : t("No") })}</li>
         </ul>
-        {safety.resumeBlockers.length > 0 ? <div className={cn("px-3 py-3 text-sm", formWarningBannerClass)}><p className="font-medium">Resume is blocked:</p><ul className="mt-2 list-disc space-y-1 pl-5">{safety.resumeBlockers.map(blocker => <li key={blocker}>{RESUME_BLOCKER_LABELS[blocker]}</li>)}</ul></div> : null}
+        {safety.resumeBlockers.length > 0 ? <div className={cn("px-3 py-3 text-sm", formWarningBannerClass)}><p className="font-medium">{t("Resume is blocked:")}</p><ul className="mt-2 list-disc space-y-1 pl-5">{safety.resumeBlockers.map(blocker => <li key={blocker}><OwnedLabel text={RESUME_BLOCKER_LABELS[blocker]} /></li>)}</ul></div> : null}
       </section>
 
-      {safety.unknownOutcomeCount > 0 ? <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status"><strong>Unknown delivery warning:</strong> do not retry ambiguous messages. Pause/resume never resends them automatically.</div> : null}
+      {safety.unknownOutcomeCount > 0 ? <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">{t("Unknown delivery warning: do not retry ambiguous messages. Pause/resume never resends them automatically.")}</div> : null}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-        <AppButton variant="secondary" size="sm" icon={RefreshCw} onClick={() => void run("refresh", onRefresh)} disabled={busy !== null} isLoading={busy === "refresh"}>Refresh readiness</AppButton>
-        {isOwner && !safety.paused ? <AppButton variant="danger" size="sm" icon={PauseCircle} onClick={() => setPauseOpen(true)} disabled={busy !== null}>Pause sender delivery</AppButton> : null}
-        {isOwner && safety.paused && !safety.pausePending ? <AppButton variant="primary" size="sm" icon={PlayCircle} onClick={() => setResumeOpen(true)} disabled={!safety.resumeEligible || busy !== null}>Resume sender delivery</AppButton> : null}
+        <AppButton variant="secondary" size="sm" icon={RefreshCw} onClick={() => void run("refresh", onRefresh)} disabled={busy !== null} isLoading={busy === "refresh"}>{t("Refresh readiness")}</AppButton>
+        {isOwner && !safety.paused ? <AppButton variant="danger" size="sm" icon={PauseCircle} onClick={() => setPauseOpen(true)} disabled={busy !== null}>{t("Pause sender delivery")}</AppButton> : null}
+        {isOwner && safety.paused && !safety.pausePending ? <AppButton variant="primary" size="sm" icon={PlayCircle} onClick={() => setResumeOpen(true)} disabled={!safety.resumeEligible || busy !== null}>{t("Resume sender delivery")}</AppButton> : null}
       </div>
 
-      <ConfirmDialog isOpen={pauseOpen} onClose={() => setPauseOpen(false)} onConfirm={() => run("pause", onPause)} title="Pause sender delivery?" description="This immediately blocks new provider delivery calls for this sender in Lab Lords. It preserves messages, incidents, history, and provider configuration." confirmText="Pause delivery" loading={busy === "pause"} variant="danger" />
-      <ConfirmDialog isOpen={resumeOpen} onClose={() => setResumeOpen(false)} onConfirm={() => run("resume", onResume)} title="Resume sender delivery?" description={<span className="space-y-2"><span className="block">I confirm the sender is active, the rate card is current, health reconciliation is recent, provider restrictions are clear, Utility templates are healthy, and no critical condition blocks resume.</span><span className="block font-medium">Resume preserves incidents and does not retry unknown messages.</span></span>} confirmText="Confirm safe resume" loading={busy === "resume"} variant="warning" />
+      <ConfirmDialog isOpen={pauseOpen} onClose={() => setPauseOpen(false)} onConfirm={() => run("pause", onPause)} title={t("Pause sender delivery?")} description={t("This immediately blocks new provider delivery calls for this sender in Lab Lords. It preserves messages, incidents, history, and provider configuration.")} confirmText="Pause delivery" loading={busy === "pause"} variant="danger" />
+      <ConfirmDialog isOpen={resumeOpen} onClose={() => setResumeOpen(false)} onConfirm={() => run("resume", onResume)} title={t("Resume sender delivery?")} description={<span className="space-y-2"><span className="block">{t("I confirm the sender is active, the rate card is current, health reconciliation is recent, provider restrictions are clear, Utility templates are healthy, and no critical condition blocks resume.")}</span><span className="block font-medium">{t("Resume preserves incidents and does not retry unknown messages.")}</span></span>} confirmText="Confirm safe resume" loading={busy === "resume"} variant="warning" />
     </AppPanel>
   );
 }

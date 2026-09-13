@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, MessageCircle, PackageCheck, RefreshCw, ShieldCheck } from "lucide-react";
@@ -102,6 +103,7 @@ export function WhatsAppSenderSummaryCard({
   onDisconnect: (sender: WhatsAppSenderSummary) => void;
   installation?: WhatsAppManagedTemplateInstallation | null;
 }) {
+    const t = useTranslation();
   const busy = activeOperation !== null;
   const branchNames = sender.assignedBranches.map(branch => branch.name);
   const installationLanguages = installation
@@ -131,46 +133,44 @@ export function WhatsAppSenderSummaryCard({
 
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-xs text-[color:var(--text-muted)]">Phone registration</dt>
+          <dt className="text-xs text-[color:var(--text-muted)]">{t("Phone registration")}</dt>
           <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
-            {sender.phoneRegisteredAt ? "Provider verified" : "Registration required"}
+            {sender.phoneRegisteredAt ? t("Provider verified") : t("Registration required")}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-[color:var(--text-muted)]">Webhook subscription</dt>
+          <dt className="text-xs text-[color:var(--text-muted)]">{t("Webhook subscription")}</dt>
           <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
-            {sender.webhookSubscribedAt ? "Provider verified" : "Not verified"}
+            {sender.webhookSubscribedAt ? t("Provider verified") : t("Not verified")}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-[color:var(--text-muted)]">Quality</dt>
+          <dt className="text-xs text-[color:var(--text-muted)]">{t("Quality")}</dt>
           <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
             {sender.qualityRating || "Unavailable"}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-[color:var(--text-muted)]">Account mode</dt>
+          <dt className="text-xs text-[color:var(--text-muted)]">{t("Account mode")}</dt>
           <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
             {sender.accountMode || "Unavailable"}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-[color:var(--text-muted)]">Last health check</dt>
+          <dt className="text-xs text-[color:var(--text-muted)]">{t("Last health check")}</dt>
           <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
             {safeDateLabel(sender.lastHealthCheckAt)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-[color:var(--text-muted)]">Last template sync</dt>
+          <dt className="text-xs text-[color:var(--text-muted)]">{t("Last template sync")}</dt>
           <dd className="mt-1 font-medium text-[color:var(--text-primary)]">
             {safeDateLabel(sender.lastTemplateSyncAt)}
           </dd>
         </div>
       </dl>
 
-      <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] px-3 py-2 text-xs text-[color:var(--text-secondary)]">
-        Templates: {sender.templateCounts.approved} approved, {sender.templateCounts.pending} pending, {sender.templateCounts.rejected} rejected, {sender.templateCounts.other} other.
-      </div>
+      <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] px-3 py-2 text-xs text-[color:var(--text-secondary)]">{t("Templates: {approved} approved, {pending} pending, {rejected} rejected, {other} other.", { approved: sender.templateCounts.approved, pending: sender.templateCounts.pending, rejected: sender.templateCounts.rejected, other: sender.templateCounts.other })}</div>
 
       {installation ? (
         <div className="space-y-2 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
@@ -179,15 +179,14 @@ export function WhatsAppSenderSummaryCard({
               Lab Lords Utility catalogue v{installation.catalogVersion}
             </p>
             <span className="text-xs text-[color:var(--text-muted)]">
-              {installation.templates.filter(template => template.active).length}/{installation.templates.length} active
-            </span>
+              {installation.templates.filter(template => template.active).length}/{installation.templates.length}  {t("active")}</span>
           </div>
           <p className="text-xs text-[color:var(--text-muted)]">
-            Languages: {installationLanguages.map(language =>
+            {t("Languages:")} {installationLanguages.map(language =>
               language === "hi" ? "Hindi" : "English (India)"
             ).join(", ")}
           </p>
-          <ul className="grid gap-2 text-xs sm:grid-cols-2" aria-label="Managed Utility template status">
+          <ul className="grid gap-2 text-xs sm:grid-cols-2" aria-label={t("Managed Utility template status")}>
             {installation.templates.map(template => {
               const providerStatus = template.providerStatus
                 ? statusLabel(template.providerStatus)
@@ -201,19 +200,13 @@ export function WhatsAppSenderSummaryCard({
                   className="space-y-1 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] p-2"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate">{statusLabel(template.managedKey)} · {template.language === "hi" ? "Hindi" : "English (India)"}</span>
+                    <span className="truncate">{statusLabel(template.managedKey)} · {template.language === "hi" ? t("Hindi") : t("English (India)")}</span>
                     <span className="shrink-0 font-medium">{statusLabel(template.status)}</span>
                   </div>
-                  <p className="text-[color:var(--text-muted)]">
-                    Provider: {providerStatus} · {providerCategory}
-                  </p>
-                  <p className="text-[color:var(--text-muted)]">
-                    {template.active ? "Binding active" : "Binding inactive"} · Last synchronized: {safeDateLabel(template.lastSyncedAt)}
-                  </p>
+                  <p className="text-[color:var(--text-muted)]">{t("Provider: {providerStatus} · {providerCategory}", { providerStatus: providerStatus, providerCategory: providerCategory })}</p>
+                  <p className="text-[color:var(--text-muted)]">{t("{value} · Last synchronized: {safeDateLabel}", { value: template.active ? t("Binding active") : t("Binding inactive"), safeDateLabel: safeDateLabel(template.lastSyncedAt) })}</p>
                   {template.errorCode ? (
-                    <p className="text-[color:var(--ui-form-error-text)]">
-                      Review code: {statusLabel(template.errorCode)}
-                    </p>
+                    <p className="text-[color:var(--ui-form-error-text)]">{t("Review code: {statusLabel}", { statusLabel: statusLabel(template.errorCode) })}</p>
                   ) : null}
                 </li>
               );
@@ -222,21 +215,19 @@ export function WhatsAppSenderSummaryCard({
           {installation.templates.some(template => template.status === "UNKNOWN") ? (
             <p className="flex items-start gap-2 text-xs text-[color:var(--ui-form-warning-text)]" role="alert">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              Meta may have accepted a template creation. Do not retry; synchronize or request operator review.
-            </p>
+              {t("Meta may have accepted a template creation. Do not retry; synchronize or request operator review.")}</p>
           ) : null}
           {installation.templates.some(template => template.status === "REJECTED" || template.status === "FAILED") ? (
             <p className="text-xs text-[color:var(--ui-form-error-text)]" role="status">
-              One or more managed Utility templates need review before branch activation.
-            </p>
+              {t("One or more managed Utility templates need review before branch activation.")}</p>
           ) : null}
         </div>
       ) : null}
 
       <div>
-        <p className="text-xs font-medium text-[color:var(--text-muted)]">Assigned branches</p>
+        <p className="text-xs font-medium text-[color:var(--text-muted)]">{t("Assigned branches")}</p>
         <p className="mt-1 text-sm text-[color:var(--text-primary)]">
-          {branchNames.length > 0 ? branchNames.join(", ") : "No branches assigned"}
+          {branchNames.length > 0 ? branchNames.join(", ") : t("No branches assigned")}
         </p>
       </div>
 
@@ -249,8 +240,7 @@ export function WhatsAppSenderSummaryCard({
               disabled={busy}
               onClick={() => onRegister(sender)}
             >
-              Complete registration
-            </AppButton>
+              {t("Complete registration")}</AppButton>
           ) : null}
           {sender.status !== "DISCONNECTED" ? (
             onInstall ? (
@@ -262,8 +252,7 @@ export function WhatsAppSenderSummaryCard({
                 disabled={busy || sender.status !== "ACTIVE"}
                 onClick={() => onInstall(sender)}
               >
-                Install Lab Lords Utility templates
-              </AppButton>
+                {t("Install Lab Lords Utility templates")}</AppButton>
             ) : null
           ) : null}
           {sender.status !== "DISCONNECTED" ? (
@@ -275,8 +264,7 @@ export function WhatsAppSenderSummaryCard({
               disabled={busy}
               onClick={() => onSync(sender)}
             >
-              Synchronize templates
-            </AppButton>
+              {t("Synchronize templates")}</AppButton>
           ) : null}
           {sender.status !== "DISCONNECTED" ? (
             <AppButton
@@ -285,8 +273,7 @@ export function WhatsAppSenderSummaryCard({
               disabled={busy}
               onClick={() => onDisconnect(sender)}
             >
-              Disconnect locally
-            </AppButton>
+              {t("Disconnect locally")}</AppButton>
           ) : null}
         </div>
       ) : null}
@@ -303,6 +290,7 @@ export function OrganizationWhatsAppPanel({
   organizationName: string;
   onAvailabilityChange: (available: boolean) => void;
 }) {
+    const t = useTranslation();
   const [config, setConfig] = useState<WhatsAppBrowserConfig | null>(null);
   const [sendersResponse, setSendersResponse] = useState<WhatsAppSendersResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -563,7 +551,7 @@ export function OrganizationWhatsAppPanel({
       <SettingsPanel
         id="whatsapp"
         title="WhatsApp"
-        description="Connect customer-owned Meta assets and install the fixed Lab Lords Utility-template catalogue. No custom, marketing, or authentication template can be entered here."
+        description={t("Connect customer-owned Meta assets and install the fixed Lab Lords Utility-template catalogue. No custom, marketing, or authentication template can be entered here.")}
         icon={MessageCircle}
       >
         {notice ? (
@@ -585,11 +573,9 @@ export function OrganizationWhatsAppPanel({
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[color:var(--ui-form-accent)]" aria-hidden="true" />
             <div>
               <p className="text-sm font-medium text-[color:var(--text-primary)]">
-                Customer-owned Meta connection
-              </p>
+                {t("Customer-owned Meta connection")}</p>
               <SettingsSubtleText className="mt-1">
-                Lab Lords receives delegated access only. The customer retains ownership, payment responsibility, and provider charges.
-              </SettingsSubtleText>
+                {t("Lab Lords receives delegated access only. The customer retains ownership, payment responsibility, and provider charges.")}</SettingsSubtleText>
             </div>
           </div>
         </div>
@@ -613,8 +599,7 @@ export function OrganizationWhatsAppPanel({
         <div className="px-5 py-4">
           {loading ? (
             <p role="status" className="text-sm text-[color:var(--text-secondary)]">
-              Loading WhatsApp readiness...
-            </p>
+              {t("Loading WhatsApp readiness...")}</p>
           ) : sendersResponse?.senders.length ? (
             <div className="grid gap-3">
               {sendersResponse.senders.map(sender => (
@@ -633,8 +618,7 @@ export function OrganizationWhatsAppPanel({
             </div>
           ) : (
             <SettingsEmptyState>
-              No customer-owned WhatsApp senders are connected yet.
-            </SettingsEmptyState>
+              {t("No customer-owned WhatsApp senders are connected yet.")}</SettingsEmptyState>
           )}
         </div>
       </SettingsPanel>
@@ -785,8 +769,8 @@ export function OrganizationWhatsAppPanel({
         onConfirm={disconnectLocally}
         loading={activeOperation?.startsWith("disconnect:") ?? false}
         variant="danger"
-        title="Disconnect this sender locally?"
-        description="This disables the sender only in Lab Lords and unassigns its branches. It does not deregister the number, revoke the customer’s Meta account, remove templates, or stop provider charges."
+        title={t("Disconnect this sender locally?")}
+        description={t("This disables the sender only in Lab Lords and unassigns its branches. It does not deregister the number, revoke the customer’s Meta account, remove templates, or stop provider charges.")}
         confirmText="Disconnect locally"
         cancelText="Keep sender"
       />

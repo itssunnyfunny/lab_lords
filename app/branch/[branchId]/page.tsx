@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AppButton, AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { OverdueTable } from "@/components/dashboard/OverdueTable";
@@ -43,7 +45,8 @@ interface DashboardData {
 }
 
 function DashboardSkeleton() {
-    return <PageLoadingSkeleton label="Loading branch dashboard" variant="dashboard" rows={6} />;
+    const t = useTranslation();
+    return <PageLoadingSkeleton label={t("Loading branch dashboard")} variant="dashboard" rows={6} />;
 }
 
 function toneForCollection(rate: number, dueAmount: number): "success" | "warning" | "danger" {
@@ -61,6 +64,7 @@ function DashboardUnavailablePanel({
     description: string;
     onRetry?: () => void;
 }) {
+    const t = useTranslation();
     return (
         <AppPanel title={title} description={description} className="h-full">
             <div className="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
@@ -68,8 +72,7 @@ function DashboardUnavailablePanel({
                 <p className="max-w-sm text-sm leading-6 text-gray-400">{description}</p>
                 {onRetry && (
                     <AppButton onClick={onRetry} variant="secondary" size="sm" icon={RefreshCw}>
-                        Try again
-                    </AppButton>
+                        {t("Try again")}</AppButton>
                 )}
             </div>
         </AppPanel>
@@ -81,6 +84,7 @@ export default function BranchDashboardPage({
 }: {
     params: Promise<{ branchId: string }>;
 }) {
+    const t = useTranslation();
     const { branchId } = use(params);
     const router = useRouter();
     const [data, setData] = useState<DashboardData | null>(null);
@@ -266,7 +270,7 @@ export default function BranchDashboardPage({
                 <div role="alert" className="flex flex-col gap-3 rounded-[8px] border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200 sm:flex-row sm:items-center">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
                         <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                        <span>{error}</span>
+                        <span><LocalizedError error={error} /></span>
                     </div>
                     {access && (
                         <AppButton
@@ -276,8 +280,7 @@ export default function BranchDashboardPage({
                             icon={RefreshCw}
                             isLoading={refreshing}
                         >
-                            Retry
-                        </AppButton>
+                            {t("Retry")}</AppButton>
                     )}
                 </div>
             )}
@@ -285,13 +288,13 @@ export default function BranchDashboardPage({
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-                        <span>Branch overview</span>
+                        <span>{t("Branch overview")}</span>
                         <span className="h-1 w-1 rounded-full bg-gray-600" />
                         <span>{formatDate(new Date())}</span>
                         {data?.updatedAt && (
                             <>
                                 <span className="h-1 w-1 rounded-full bg-gray-600" />
-                                <span>Updated {formatDateTime(data.updatedAt)}</span>
+                                <span>{t("Updated")} {formatDateTime(data.updatedAt)}</span>
                             </>
                         )}
                     </div>
@@ -299,8 +302,7 @@ export default function BranchDashboardPage({
                         {data?.branchName ?? "Dashboard"}
                     </h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
-                        Monitor collections, occupancy, follow-ups, and student movement from one operating view.
-                    </p>
+                        {t("Monitor collections, occupancy, follow-ups, and student movement from one operating view.")}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -310,31 +312,28 @@ export default function BranchDashboardPage({
                         icon={RefreshCw}
                         isLoading={refreshing}
                     >
-                        Refresh
-                    </AppButton>
+                        {t("Refresh")}</AppButton>
                     {canViewPayments && (
                         <AppButton
                             onClick={() => router.push(`/branch/${branchId}/payments`)}
                             variant="secondary"
                             rightIcon={ArrowRight}
                         >
-                            Review payments
-                        </AppButton>
+                            {t("Review payments")}</AppButton>
                     )}
                     {canAddStudents && (
                         <AppButton
                             onClick={() => router.push(`/branch/${branchId}/students`)}
                             variant="primary"
                         >
-                            Add student
-                        </AppButton>
+                            {t("Add student")}</AppButton>
                     )}
                 </div>
             </header>
 
             <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
-                    title="Collected this month"
+                    title={t("Collected this month")}
                     value={snap ? formatMoney(snap.paidAmount) : analyticsStatus === "restricted" ? "Restricted" : "Unavailable"}
                     sub={snap ? `${formatNumber(snap.collectionRate / 100, { style: "percent", maximumFractionDigits: 0 })} collection rate` : collectionSummary.note}
                     icon={IndianRupee}
@@ -344,7 +343,7 @@ export default function BranchDashboardPage({
                     footer={snap ? `${formatMoney(collectionSummary.pending)} pending` : undefined}
                 />
                 <StatCard
-                    title="Pending dues"
+                    title={t("Pending dues")}
                     value={snap ? formatMoney(snap.dueAmount) : analyticsStatus === "restricted" ? "Restricted" : "Unavailable"}
                     sub={
                         overdueStatus === "success"
@@ -359,7 +358,7 @@ export default function BranchDashboardPage({
                     alert={!!snap && snap.dueAmount > 0}
                 />
                 <StatCard
-                    title="Active students"
+                    title={t("Active students")}
                     value={
                         snap
                             ? formatNumber(snap.activeStudents)
@@ -383,7 +382,7 @@ export default function BranchDashboardPage({
                     tone="info"
                 />
                 <StatCard
-                    title="Seat utilization"
+                    title={t("Seat utilization")}
                     value={snap ? formatNumber(snap.occupancyRate / 100, { style: "percent", maximumFractionDigits: 0 }) : analyticsStatus === "restricted" ? "Restricted" : "Unavailable"}
                     sub={
                         snap?.seatDetails
@@ -405,29 +404,27 @@ export default function BranchDashboardPage({
             <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.75fr)]">
                 {snap ? (
                     <AppPanel
-                        title="Monthly collections"
-                        description="Billed, collected, and pending revenue for the active billing month."
+                        title={t("Monthly collections")}
+                        description={t("Billed, collected, and pending revenue for the active billing month.")}
                         className="h-full"
                     >
                     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
                         <div>
                             <div className="flex flex-col items-start gap-3 min-[380px]:flex-row min-[380px]:items-end min-[380px]:justify-between">
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">Collection progress</p>
+                                    <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">{t("Collection progress")}</p>
                                     <p className="mt-2 text-3xl font-semibold tracking-tight text-white">
-                                        {snap ? formatNumber(collectionSummary.progress / 100, { style: "percent", maximumFractionDigits: 0 }) : "Restricted"}
+                                        {snap ? formatNumber(collectionSummary.progress / 100, { style: "percent", maximumFractionDigits: 0 }) : t("Restricted")}
                                     </p>
                                 </div>
                                 {snap && snap.dueAmount === 0 ? (
                                     <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-200">
                                         <CheckCircle2 size={13} />
-                                        Clear
-                                    </span>
+                                        {t("Clear")}</span>
                                 ) : (
                                     <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-200">
                                         <AlertTriangle size={13} />
-                                        Follow-up
-                                    </span>
+                                        {t("Follow-up")}</span>
                                 )}
                             </div>
                             <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
@@ -441,15 +438,15 @@ export default function BranchDashboardPage({
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
                             <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.02] p-3">
-                                <p className="text-xs text-[color:var(--ui-text-muted)]">Billed</p>
+                                <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Billed")}</p>
                                 <p className="mt-1 break-words text-base font-semibold text-white sm:text-sm">{formatMoney(collectionSummary.billed)}</p>
                             </div>
                             <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.02] p-3">
-                                <p className="text-xs text-[color:var(--ui-text-muted)]">Collected</p>
+                                <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Collected")}</p>
                                 <p className="mt-1 break-words text-base font-semibold text-emerald-200 sm:text-sm">{formatMoney(collectionSummary.collected)}</p>
                             </div>
                             <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.02] p-3">
-                                <p className="text-xs text-[color:var(--ui-text-muted)]">Pending</p>
+                                <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Pending")}</p>
                                 <p className="mt-1 break-words text-base font-semibold text-amber-200 sm:text-sm">{formatMoney(collectionSummary.pending)}</p>
                             </div>
                         </div>
@@ -457,11 +454,11 @@ export default function BranchDashboardPage({
                     </AppPanel>
                 ) : (
                     <DashboardUnavailablePanel
-                        title="Monthly collections"
+                        title={t("Monthly collections")}
                         description={
                             analyticsStatus === "restricted"
-                                ? "Your role does not include analytics access."
-                                : "Collection analytics could not be refreshed."
+                                ? t("Your role does not include analytics access.")
+                                : t("Collection analytics could not be refreshed.")
                         }
                         onRetry={analyticsStatus === "error" ? refreshDashboard : undefined}
                     />
@@ -480,11 +477,11 @@ export default function BranchDashboardPage({
                     />
                 ) : (
                     <DashboardUnavailablePanel
-                        title="Payment follow-ups"
+                        title={t("Payment follow-ups")}
                         description={
                             overdueStatus === "restricted"
-                                ? "Your role does not include payment access."
-                                : "Overdue payment data could not be refreshed."
+                                ? t("Your role does not include payment access.")
+                                : t("Overdue payment data could not be refreshed.")
                         }
                         onRetry={overdueStatus === "error" ? refreshDashboard : undefined}
                     />
@@ -493,11 +490,11 @@ export default function BranchDashboardPage({
                     <ShiftOccupancyCard shifts={snap.seatDetails?.shifts ?? []} branchId={branchId} />
                 ) : (
                     <DashboardUnavailablePanel
-                        title="Shift occupancy"
+                        title={t("Shift occupancy")}
                         description={
                             analyticsStatus === "restricted"
-                                ? "Your role does not include occupancy analytics."
-                                : "Occupancy data could not be refreshed."
+                                ? t("Your role does not include occupancy analytics.")
+                                : t("Occupancy data could not be refreshed.")
                         }
                         onRetry={analyticsStatus === "error" ? refreshDashboard : undefined}
                     />
@@ -509,8 +506,8 @@ export default function BranchDashboardPage({
                     <RecentActivity items={data?.activityItems ?? []} branchId={branchId} />
                 ) : (
                     <DashboardUnavailablePanel
-                        title="Activity stream"
-                        description="Recent activity could not be verified because one or more data sources failed."
+                        title={t("Activity stream")}
+                        description={t("Recent activity could not be verified because one or more data sources failed.")}
                         onRetry={refreshDashboard}
                     />
                 )}
@@ -518,11 +515,11 @@ export default function BranchDashboardPage({
                     <RecentStudents students={data?.recentStudents ?? []} branchId={branchId} />
                 ) : (
                     <DashboardUnavailablePanel
-                        title="New enrollments"
+                        title={t("New enrollments")}
                         description={
                             studentsStatus === "restricted"
-                                ? "Your role does not include student access."
-                                : "Recent student records could not be refreshed."
+                                ? t("Your role does not include student access.")
+                                : t("Recent student records could not be refreshed.")
                         }
                         onRetry={studentsStatus === "error" ? refreshDashboard : undefined}
                     />

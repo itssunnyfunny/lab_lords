@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import {
     ArrowLeft,
@@ -43,6 +44,7 @@ type BranchNavItem = {
 };
 
 export function BranchSidebar() {
+    const t = useTranslation();
     const pathname = usePathname();
     const segments = pathname?.split("/") || [];
     const branchId = segments[2];
@@ -114,12 +116,12 @@ export function BranchSidebar() {
     };
 
     return (
-        <aside className={chromeSidebarClass} aria-label="Branch navigation">
+        <aside className={chromeSidebarClass} aria-label={t("Branch navigation")}>
             <div className={chromeSidebarHeaderClass}>
                 <Link
                     href="/app"
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
-                    aria-label="Open workspace home"
+                    aria-label={t("Open workspace home")}
                 >
                     <LogoMark className="h-10 w-10" title="" />
                 </Link>
@@ -145,7 +147,7 @@ export function BranchSidebar() {
                         {access?.isOwner && (
                             <SidebarItem
                                 icon={ArrowLeft}
-                                label="Back to organization"
+                                label={t("Back to organization")}
                                 isActive={false}
                                 href={`/org/${access.organizationId}`}
                                 density="compact"
@@ -154,7 +156,7 @@ export function BranchSidebar() {
                         {canOpenSettings && (
                             <SidebarItem
                                 icon={Settings}
-                                label={canManageBranchSettings ? "Branch Settings" : "WhatsApp Reports"}
+                                label={canManageBranchSettings ? t("Branch Settings") : t("WhatsApp Reports")}
                                 isActive={pathname === `${basePath}/settings`}
                                 href={`${basePath}/settings`}
                                 density="compact"

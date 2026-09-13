@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import Link from "next/link";
 import { Archive, Loader2 } from "lucide-react";
@@ -21,6 +23,7 @@ import {
 } from "@/components/billing/RazorpayCheckoutLauncher";
 
 export function BranchActivationGate({ children }: { children: ReactNode }) {
+    const t = useTranslation();
   const billingContext = useBillingExperience();
   const router = useRouter();
   const [working, setWorking] = useState<"retry" | "discard" | "reactivate" | null>(null);
@@ -110,21 +113,21 @@ export function BranchActivationGate({ children }: { children: ReactNode }) {
       />
       <Archive className="h-10 w-10 text-amber-500" />
       <div>
-        <h1 className="text-xl font-bold text-[color:var(--ui-text)]">{pending ? "Branch activation is pending" : "This branch is archived"}</h1>
-        <p className="mt-2 text-sm text-[color:var(--ui-text-muted)]">{pending ? "Operational changes stay blocked until Razorpay confirms the branch quantity update." : "Existing data remains readable. Reactivation requires a provider-confirmed quantity increase."}</p>
+        <h1 className="text-xl font-bold text-[color:var(--ui-text)]">{pending ? t("Branch activation is pending") : t("This branch is archived")}</h1>
+        <p className="mt-2 text-sm text-[color:var(--ui-text-muted)]">{pending ? t("Operational changes stay blocked until Razorpay confirms the branch quantity update.") : t("Existing data remains readable. Reactivation requires a provider-confirmed quantity increase.")}</p>
       </div>
-      {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
+      {error && <p className="text-sm text-red-500" role="alert"><LocalizedError error={error} /></p>}
       {owner && (
         <div className="flex flex-wrap justify-center gap-2">
           {pending ? (
             <>
-              <AppButton isLoading={working === "retry"} onClick={() => perform("retry")}>Retry activation</AppButton>
-              <AppButton variant="danger" isLoading={working === "discard"} onClick={() => perform("discard")}>Discard pending branch</AppButton>
+              <AppButton isLoading={working === "retry"} onClick={() => perform("retry")}>{t("Retry activation")}</AppButton>
+              <AppButton variant="danger" isLoading={working === "discard"} onClick={() => perform("discard")}>{t("Discard pending branch")}</AppButton>
             </>
           ) : (
-            <AppButton isLoading={working === "reactivate"} onClick={() => perform("reactivate")}>Reactivate branch</AppButton>
+            <AppButton isLoading={working === "reactivate"} onClick={() => perform("reactivate")}>{t("Reactivate branch")}</AppButton>
           )}
-          <Link className="inline-flex items-center px-2 font-semibold text-[color:var(--ui-accent)] hover:underline" href={`/org/${encodeURIComponent(organizationId!)}/settings#billing`}>Open organization billing</Link>
+          <Link className="inline-flex items-center px-2 font-semibold text-[color:var(--ui-accent)] hover:underline" href={`/org/${encodeURIComponent(organizationId!)}/settings#billing`}>{t("Open organization billing")}</Link>
         </div>
       )}
     </div>

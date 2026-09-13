@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 import { useEffect, useRef, useState } from "react";
 import { AppButton, Dialog } from "@/components/ui";
 import { formControlClass } from "@/components/ui/formSurface";
@@ -11,6 +12,7 @@ import { FeeReceipt } from "./FeeReceipt";
 export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSaved }: {
     branchId: string; studentId: string; paymentId?: string; onClose: () => void; onSaved: () => void;
 }) {
+    const t = useTranslation();
     const [dues, setDues] = useState<PaymentListItem[]>([]);
     const [name, setName] = useState("");
     const [selected, setSelected] = useState<string[]>([]);
@@ -77,41 +79,40 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
         } catch (err) { setError(err instanceof Error ? err.message : "Unable to confirm the result. Retry the same request."); }
         finally { inFlight.current = false; setBusy(false); }
     }
-    return <Dialog open onClose={onClose} closeDisabled={busy} title={receipt ? "Collection recorded" : "Collect fee"}
+    return <Dialog open onClose={onClose} closeDisabled={busy} title={receipt ? t("Collection recorded") : t("Collect fee")}
         description={name} className="max-w-2xl" footer={!receipt ? <>
-            <AppButton variant="quiet" onClick={onClose} disabled={busy}>Close</AppButton>
+            <AppButton variant="quiet" onClick={onClose} disabled={busy}>{t("Close")}</AppButton>
             <AppButton variant="primary" onClick={() => void confirm()} isLoading={busy} disabled={loading || (!pending && !valid)}>
-                {pending ? "Retry same collection" : "Confirm collection"}
+                {pending ? t("Retry same collection") : t("Confirm collection")}
             </AppButton></> : undefined}>
         {receipt ? <FeeReceipt branchId={branchId} collection={receipt} /> : <div className="space-y-4">
-            {loading && <p role="status">Loading outstanding dues…</p>}
-            {error && <p role="alert">{error}</p>}
-            {pending && <p role="status">This request may already be recorded. Retry to retrieve its receipt safely. Its amount and selections are locked until confirmed.</p>}
+            {loading && <p role="status">{t("Loading outstanding dues…")}</p>}
+            {error && <p role="alert">{t.error(error, pending ? "Unable to confirm the result. Retry the same request." : "Something went wrong. Try again.")}</p>}
+            {pending && <p role="status">{t("This request may already be recorded. Retry to retrieve its receipt safely. Its amount and selections are locked until confirmed.")}</p>}
             <fieldset disabled={busy || !!pending || loading} className="space-y-4">
-                <legend className="text-sm">Select up to 100 existing dues · oldest selected fee receives money first</legend>
+                <legend className="text-sm">{t("Select up to 100 existing dues · oldest selected fee receives money first")}</legend>
                 <div className="max-h-60 space-y-2 overflow-y-auto">
                     {dues.map(p => <label key={p.id} className="flex min-h-11 gap-3 rounded border border-[color:var(--ui-form-surface-border)] p-3 text-sm">
                         <input type="checkbox" checked={selected.includes(p.id)} disabled={selected.length >= 100 && !selected.includes(p.id)} onChange={event => {
                             const ids = event.target.checked ? [...selected, p.id] : selected.filter(id => id !== p.id);
                             setSelected(ids); setAmount(String(dues.filter(d => ids.includes(d.id)).reduce((sum, d) => sum + remainingFee(d), 0)));
                         }} />
-                        <span>{p.type === "ADMISSION" ? "Admission" : "Monthly"} · {new Date(p.periodStart).toLocaleDateString("en-IN")} – {new Date(p.periodEnd).toLocaleDateString("en-IN")}<br />
-                            Fee ₹{p.amount} · Collected ₹{p.collectedAmount} · Waived ₹{p.waivedAmount} · Remaining ₹{remainingFee(p)}
-                            {p.collectedAmount > 0 && <strong> · Partially paid</strong>}</span>
+                        <span>{p.type === "ADMISSION" ? t("Admission") : t("Monthly")} · {new Date(p.periodStart).toLocaleDateString("en-IN")} – {new Date(p.periodEnd).toLocaleDateString("en-IN")}<br />
+                            {t("Fee ₹{fee} · Collected ₹{collected} · Waived ₹{waived} · Remaining ₹{remaining}", { fee: p.amount, collected: p.collectedAmount, waived: p.waivedAmount, remaining: remainingFee(p) })}
+                            {p.collectedAmount > 0 && <strong>  {t("· Partially paid")}</strong>}</span>
                     </label>)}
                 </div>
-                {!loading && dues.length === 0 && <p>No collectible dues. Expected fees must first be generated through the existing fee process.</p>}
-                <label className="block space-y-1 text-sm">Amount received (whole ₹)
-                    <input className={`${formControlClass} min-h-11 px-3`} inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} /></label>
-                <label className="block space-y-1 text-sm">Payment method<select className={`${formControlClass} min-h-11 px-3`} value={method} onChange={e => setMethod(e.target.value as CollectionInput["method"])}>
-                    <option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank Transfer</option></select></label>
-                <label className="block space-y-1 text-sm">Reference (optional)<input className={`${formControlClass} min-h-11 px-3`} maxLength={200} value={reference} onChange={e => setReference(e.target.value)} /></label>
-                <label className="block space-y-1 text-sm">Note (shown on receipt, optional)<textarea className={`${formControlClass} p-3`} maxLength={1000} value={note} onChange={e => setNote(e.target.value)} /></label>
+                {!loading && dues.length === 0 && <p>{t("No collectible dues. Expected fees must first be generated through the existing fee process.")}</p>}
+                <label className="block space-y-1 text-sm">{t("Amount received (whole ₹)")}<input className={`${formControlClass} min-h-11 px-3`} inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} /></label>
+                <label className="block space-y-1 text-sm">{t("Payment method")}<select className={`${formControlClass} min-h-11 px-3`} value={method} onChange={e => setMethod(e.target.value as CollectionInput["method"])}>
+                    <option value="CASH">{t("Cash")}</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">{t("Bank Transfer")}</option></select></label>
+                <label className="block space-y-1 text-sm">{t("Reference (optional)")}<input className={`${formControlClass} min-h-11 px-3`} maxLength={200} value={reference} onChange={e => setReference(e.target.value)} /></label>
+                <label className="block space-y-1 text-sm">{t("Note (shown on receipt, optional)")}<textarea className={`${formControlClass} p-3`} maxLength={1000} value={note} onChange={e => setNote(e.target.value)} /></label>
             </fieldset>
             {!pending && <div className="space-y-2 rounded border border-[color:var(--ui-form-surface-border)] p-3 text-sm">
-                <p>Selected outstanding balance: ₹{total}</p>
-                {preview.map(a => <p key={a.payment.id}>{new Date(a.payment.periodStart).toLocaleDateString("en-IN")}: apply ₹{a.amount} · ₹{a.remaining} remains</p>)}
-                {!valid && <p>Enter a positive whole-rupee amount within the selected balance.</p>}
+                <p>{t("Selected outstanding balance: ₹{amount}", { amount: total })}</p>
+                {preview.map(a => <p key={a.payment.id}>{t("{date}: apply ₹{amount} · ₹{remaining} remains", { date: new Date(a.payment.periodStart).toLocaleDateString("en-IN"), amount: a.amount, remaining: a.remaining })}</p>)}
+                {!valid && <p>{t("Enter a positive whole-rupee amount within the selected balance.")}</p>}
             </div>}
         </div>}
     </Dialog>;

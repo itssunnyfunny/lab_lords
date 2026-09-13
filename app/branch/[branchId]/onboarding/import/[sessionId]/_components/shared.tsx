@@ -1,3 +1,4 @@
+import { OwnedLabel, LocalizedError } from "@/components/settings/LocalizedText";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/Badge";
@@ -99,7 +100,7 @@ export function Metric({
     return (
         <div className={pageInsetMetricClass}>
             <div className="flex items-center justify-between gap-2">
-                <p className={cn("text-xs", pageMutedTextClass)}>{label}</p>
+                <p className={cn("text-xs", pageMutedTextClass)}><OwnedLabel text={label} /></p>
                 <Badge variant={tone}>{displayValue}</Badge>
             </div>
             <p className="mt-2 text-lg font-semibold text-[color:var(--text-primary)]">{displayValue}</p>
@@ -108,11 +109,11 @@ export function Metric({
 }
 
 export function StatusBadge({ status }: { status: string | undefined | null }) {
-    return <Badge variant={statusTone(status)}>{labelImportStatus(status)}</Badge>;
+    return <Badge variant={statusTone(status)}><OwnedLabel text={labelImportStatus(status)} /></Badge>;
 }
 
 export function PlanCheckBadge({ status }: { status: string }) {
-    return <Badge variant={planCheckTone(status)}>{status}</Badge>;
+    return <Badge variant={planCheckTone(status)}><OwnedLabel text={status} /></Badge>;
 }
 
 export function IssueList({ issues, emptyText = "Clean" }: { issues: ImportIssue[]; emptyText?: string }) {
@@ -121,7 +122,7 @@ export function IssueList({ issues, emptyText = "Clean" }: { issues: ImportIssue
             <div className={cn("p-3", pageInsetSurfaceClass)}>
                 <div className="flex items-center gap-2 text-sm text-emerald-200">
                     <CheckCircle2 className="h-4 w-4" />
-                    {emptyText}
+                    <OwnedLabel text={emptyText} />
                 </div>
             </div>
         );
@@ -133,11 +134,11 @@ export function IssueList({ issues, emptyText = "Clean" }: { issues: ImportIssue
                 <div key={`${issue.code}-${index}`} className={cn("p-3", pageInsetSurfaceClass)}>
                     <div className="flex flex-wrap items-center gap-2">
                         <Badge variant={issue.severity === "error" ? "danger" : issue.severity === "warning" ? "warning" : "cyan"}>
-                            {issue.severity}
+                            <OwnedLabel text={issue.severity} />
                         </Badge>
                         <p className="text-sm font-semibold text-[color:var(--text-primary)]">{issue.code.replace(/_/g, " ")}</p>
                     </div>
-                    <p className={cn("mt-2 text-xs", pageMutedTextClass)}>{issue.message}</p>
+                    <p className={cn("mt-2 text-xs", pageMutedTextClass)}><LocalizedError error={issue.message} /></p>
                 </div>
             ))}
         </div>
@@ -167,10 +168,10 @@ export function StepNotice({
             )} />
             <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{title}</p>
+                    <p className="text-sm font-semibold text-[color:var(--text-primary)]"><OwnedLabel text={title} /></p>
                     <Badge variant={tone}>{tone}</Badge>
                 </div>
-                <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{message}</p>
+                <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{tone === "danger" ? <LocalizedError error={message} /> : <OwnedLabel text={message} />}</p>
             </div>
         </div>
     );

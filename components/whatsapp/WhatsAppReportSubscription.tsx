@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useRef, useState } from "react";
 import { Clock3, RefreshCw, ShieldCheck, UserRoundCheck } from "lucide-react";
@@ -95,6 +97,7 @@ function formatExpiry(value: string) {
 }
 
 function ReportConfirmationChallenge({ challenge }: { challenge: WhatsAppReportChallengeResult }) {
+    const t = useTranslation();
   return (
     <div
       className={cn("space-y-3 p-4", formWarningBannerClass)}
@@ -105,18 +108,15 @@ function ReportConfirmationChallenge({ challenge }: { challenge: WhatsAppReportC
       <div className="flex items-start gap-3">
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <div className="min-w-0">
-          <p className="font-semibold">Confirm control from the intended WhatsApp phone</p>
-          <p className="mt-1 text-sm leading-6">
-            Send this exact command to the connected organization sender before {formatExpiry(challenge.expiresAt)}.
-          </p>
+          <p className="font-semibold">{t("Confirm control from the intended WhatsApp phone")}</p>
+          <p className="mt-1 text-sm leading-6">{t("Send this exact command to the connected organization sender before {formatExpiry}.", { formatExpiry: formatExpiry(challenge.expiresAt) })}</p>
         </div>
       </div>
       <code className="block overflow-x-auto rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-warning-border)] bg-[color:var(--ui-form-input-bg)] px-3 py-3 text-base font-semibold text-[color:var(--text-primary)]">
         START REPORTS {challenge.code}
       </code>
       <p className="text-xs leading-5">
-        This one-time code is shown only in this screen and is not Lab Lords sign-in authentication.
-      </p>
+        {t("This one-time code is shown only in this screen and is not Lab Lords sign-in authentication.")}</p>
     </div>
   );
 }
@@ -132,6 +132,7 @@ export function WhatsAppReportSubscription({
   onRevoke,
   onRefresh,
 }: WhatsAppReportSubscriptionProps) {
+    const t = useTranslation();
   const [phoneE164, setPhoneE164] = useState("");
   const [language, setLanguage] = useState<WhatsAppReportLanguage>("en_IN");
   const [sendTimeLocal, setSendTimeLocal] = useState("21:00");
@@ -222,7 +223,7 @@ export function WhatsAppReportSubscription({
     <AppPanel
       title={`${scope === "ORGANIZATION" ? "Organization" : "Branch"} daily report recipient`}
       description={`Reports contain only deterministic aggregate ${scopeLabel} metrics. The current user must prove control of the receiving phone through WhatsApp.`}
-      action={subscription ? <Badge variant={statusVariant(subscription.status)}>{STATUS_LABELS[subscription.status]}</Badge> : <Badge>Not configured</Badge>}
+      action={subscription ? <Badge variant={statusVariant(subscription.status)}><OwnedLabel text={STATUS_LABELS[subscription.status]} /></Badge> : <Badge>{t("Not configured")}</Badge>}
       contentClassName="space-y-4"
     >
       {!canManage ? (
@@ -237,48 +238,45 @@ export function WhatsAppReportSubscription({
           role={notice.tone === "error" ? "alert" : "status"}
           aria-live={notice.tone === "error" ? "assertive" : "polite"}
         >
-          {notice.text}
+          {notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}
         </p>
       ) : null}
 
       {subscription ? (
         <dl className={cn("grid gap-3 p-4 sm:grid-cols-2", pageInsetSurfaceClass)}>
-          <div><dt className="text-xs text-[color:var(--text-muted)]">Recipient</dt><dd className="mt-1 font-medium">{subscription.maskedPhone}</dd></div>
-          <div><dt className="text-xs text-[color:var(--text-muted)]">Local send time</dt><dd className="mt-1 font-medium">{subscription.sendTimeLocal}</dd></div>
-          <div><dt className="text-xs text-[color:var(--text-muted)]">Language</dt><dd className="mt-1 font-medium">{subscription.language === "hi" ? "Hindi" : "English (India)"}</dd></div>
-          <div><dt className="text-xs text-[color:var(--text-muted)]">Connected sender</dt><dd className="mt-1 font-medium">{subscription.senderLabel || "Unavailable"}</dd></div>
+          <div><dt className="text-xs text-[color:var(--text-muted)]">{t("Recipient")}</dt><dd className="mt-1 font-medium">{subscription.maskedPhone}</dd></div>
+          <div><dt className="text-xs text-[color:var(--text-muted)]">{t("Local send time")}</dt><dd className="mt-1 font-medium">{subscription.sendTimeLocal}</dd></div>
+          <div><dt className="text-xs text-[color:var(--text-muted)]">{t("Language")}</dt><dd className="mt-1 font-medium">{subscription.language === "hi" ? t("Hindi") : t("English (India)")}</dd></div>
+          <div><dt className="text-xs text-[color:var(--text-muted)]">{t("Connected sender")}</dt><dd className="mt-1 font-medium">{subscription.senderLabel || "Unavailable"}</dd></div>
         </dl>
       ) : null}
 
       {canCreate ? (
         <div className="overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-section-divider)]">
-          <SettingsField label="Your WhatsApp phone" description="Enter your own phone in E.164 format. It is not trusted until the inbound challenge succeeds.">
-            <SettingsInput type="tel" inputMode="tel" autoComplete="tel" placeholder="+919876543210" value={phoneE164} onChange={event => setPhoneE164(event.target.value)} disabled={!canManage || busy !== null} aria-label="Report recipient phone" />
+          <SettingsField label={t("Your WhatsApp phone")} description={t("Enter your own phone in E.164 format. It is not trusted until the inbound challenge succeeds.")}>
+            <SettingsInput type="tel" inputMode="tel" autoComplete="tel" placeholder="+919876543210" value={phoneE164} onChange={event => setPhoneE164(event.target.value)} disabled={!canManage || busy !== null} aria-label={t("Report recipient phone")} />
           </SettingsField>
-          <SettingsField label="Report language">
+          <SettingsField label={t("Report language")}>
             <SettingsSelect
               value={language}
               onValueChange={value => setLanguage(value as WhatsAppReportLanguage)}
               options={REPORT_LANGUAGE_OPTIONS}
               disabled={!canManage || busy !== null}
-              aria-label="Report language"
+              aria-label={t("Report language")}
             />
           </SettingsField>
-          <SettingsField label="Daily send time" description="Choose a local time from 18:00 through 23:30.">
-            <SettingsInput type="time" min="18:00" max="23:30" step="900" value={sendTimeLocal} onChange={event => setSendTimeLocal(event.target.value)} disabled={!canManage || busy !== null} aria-label="Daily report send time" />
+          <SettingsField label={t("Daily send time")} description={t("Choose a local time from 18:00 through 23:30.")}>
+            <SettingsInput type="time" min="18:00" max="23:30" step="900" value={sendTimeLocal} onChange={event => setSendTimeLocal(event.target.value)} disabled={!canManage || busy !== null} aria-label={t("Daily report send time")} />
           </SettingsField>
           <div className="flex justify-end border-t border-[color:var(--ui-form-section-divider)] p-4">
             <AppButton variant="primary" size="sm" icon={UserRoundCheck} onClick={() => void createSubscription()} disabled={!canManage || !phoneE164.trim() || busy !== null} isLoading={busy === "create"}>
-              Create pending subscription
-            </AppButton>
+              {t("Create pending subscription")}</AppButton>
           </div>
         </div>
       ) : null}
 
       {pending && !challenge ? (
-        <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">
-          The original one-time code is no longer displayed. Reissue a code, then send the exact command from {subscription.maskedPhone}.
-        </div>
+        <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">{t("The original one-time code is no longer displayed. Reissue a code, then send the exact command from {maskedPhone}.", { maskedPhone: subscription.maskedPhone })}</div>
       ) : null}
 
       {challenge ? <ReportConfirmationChallenge challenge={challenge} /> : null}
@@ -286,16 +284,16 @@ export function WhatsAppReportSubscription({
       {subscription && canManage ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           {needsReissue ? (
-            <AppButton variant="secondary" size="sm" icon={RefreshCw} onClick={() => void reissue()} disabled={busy !== null} isLoading={busy === "reissue"}>Reissue one-time code</AppButton>
+            <AppButton variant="secondary" size="sm" icon={RefreshCw} onClick={() => void reissue()} disabled={busy !== null} isLoading={busy === "reissue"}>{t("Reissue one-time code")}</AppButton>
           ) : null}
           {pending ? (
-            <AppButton variant="secondary" size="sm" icon={Clock3} onClick={() => void refresh()} disabled={busy !== null} isLoading={busy === "refresh"}>Refresh confirmation status</AppButton>
+            <AppButton variant="secondary" size="sm" icon={Clock3} onClick={() => void refresh()} disabled={busy !== null} isLoading={busy === "refresh"}>{t("Refresh confirmation status")}</AppButton>
           ) : null}
           {subscription.status === "ACTIVE" ? (
-            <AppButton variant="secondary" size="sm" onClick={() => void pause()} disabled={busy !== null} isLoading={busy === "pause"}>Pause reports</AppButton>
+            <AppButton variant="secondary" size="sm" onClick={() => void pause()} disabled={busy !== null} isLoading={busy === "pause"}>{t("Pause reports")}</AppButton>
           ) : null}
           {subscription.status !== "REVOKED" ? (
-            <AppButton variant="danger" size="sm" onClick={() => setRevokeOpen(true)} disabled={busy !== null}>Revoke subscription</AppButton>
+            <AppButton variant="danger" size="sm" onClick={() => setRevokeOpen(true)} disabled={busy !== null}>{t("Revoke subscription")}</AppButton>
           ) : null}
         </div>
       ) : null}
@@ -304,8 +302,8 @@ export function WhatsAppReportSubscription({
         isOpen={revokeOpen}
         onClose={() => setRevokeOpen(false)}
         onConfirm={revoke}
-        title="Revoke report subscription?"
-        description="Future unsubmitted reports for this subscription will be suppressed. A new subscription requires fresh phone confirmation."
+        title={t("Revoke report subscription?")}
+        description={t("Future unsubmitted reports for this subscription will be suppressed. A new subscription requires fresh phone confirmation.")}
         confirmText="Revoke subscription"
         loading={busy === "revoke"}
         variant="danger"

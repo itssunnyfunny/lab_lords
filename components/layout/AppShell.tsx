@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { UserButton, useUser } from "@clerk/nextjs";
 import { ReactNode, useEffect, useRef, useState } from "react";
@@ -6,6 +7,7 @@ import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { usePathname, useRouter } from "next/navigation";
 import { BranchTopSearch } from "@/components/layout/BranchTopSearch";
 import { BranchNotifications } from "@/components/layout/BranchNotifications";
+import { LanguageControls } from "@/components/settings/LanguageControls";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -24,7 +26,7 @@ import { useBillingExperience } from "@/components/billing/BillingExperienceProv
 import { BillingBanner } from "@/components/billing/BillingBanner";
 import { ReadOnlyBanner } from "@/components/billing/ReadOnlyBanner";
 import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher";
-import { UserPreferencesProvider, useUserPreferences } from "@/components/settings/UserPreferencesApplier";
+import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { ToastProvider } from "@/components/ui/Toast";
 import { RouteTitleUpdater } from "@/components/layout/RouteTitleUpdater";
 import { Drawer } from "@/components/ui/Drawer";
@@ -61,6 +63,7 @@ function AccountSummary({ user }: { user?: User }) {
 }
 
 export function AppShell({ children, sidebar, user }: AppShellProps) {
+    const t = useTranslation();
     const router = useRouter();
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -77,7 +80,6 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
     }, [pathname]);
 
     return (
-        <UserPreferencesProvider>
         <ToastProvider>
         <div className={chromeAppRootClass}>
             <RouteTitleUpdater />
@@ -85,8 +87,7 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                 href="#main-content"
                 className="fixed left-4 top-3 z-[120] -translate-y-20 rounded-[var(--ui-radius-control)] bg-cyan-200 px-4 py-2 text-sm font-bold text-slate-950 shadow-lg transition-transform focus:translate-y-0"
             >
-                Skip to main content
-            </a>
+                {t("Skip to main content")}</a>
             <AmbientBackground />
 
             {/* Sidebar Area - Glassmorphic */}
@@ -97,8 +98,8 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
             <Drawer
                 open={mobileNavOpen}
                 onClose={() => setMobileNavOpen(false)}
-                title="Workspace navigation"
-                closeLabel="Close navigation"
+                title={t("Workspace navigation")}
+                closeLabel={t("Close navigation")}
                 className="max-w-[19rem] lg:hidden"
             >
                 <div className="h-[calc(100dvh-7rem)] overflow-hidden">{sidebar}</div>
@@ -113,7 +114,7 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                             type="button"
                             onClick={() => setMobileNavOpen(true)}
                             className={cn("flex-shrink-0 lg:hidden", chromeIconButtonClass)}
-                            aria-label="Open navigation"
+                            aria-label={t("Open navigation")}
                             aria-expanded={mobileNavOpen}
                         >
                             <Menu size={18} />
@@ -136,6 +137,7 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
                         >
                             <AccountSummary user={user} />
                         </button>
+                        <LanguageControls compact />
                         <UserButton
                             appearance={accountMenuClerkAppearance}
                             userProfileMode="modal"
@@ -154,6 +156,5 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
             </div>
         </div>
         </ToastProvider>
-        </UserPreferencesProvider>
     );
 }

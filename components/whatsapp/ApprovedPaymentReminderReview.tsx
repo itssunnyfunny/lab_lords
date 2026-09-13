@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, MessageCircle, ShieldCheck } from "lucide-react";
@@ -37,20 +39,21 @@ export function ApprovedPaymentReminderPreview({
 }: {
   preview: WhatsAppPaymentReminderPreview;
 }) {
+    const t = useTranslation();
   const suppressions = suppressionCounts(preview);
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className={cn("p-3", pageInsetSurfaceClass)}>
-          <p className="text-xs text-[color:var(--text-muted)]">Eligible recipient groups</p>
+          <p className="text-xs text-[color:var(--text-muted)]">{t("Eligible recipient groups")}</p>
           <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{preview.eligibleRecipientCount}</p>
         </div>
         <div className={cn("p-3", pageInsetSurfaceClass)}>
-          <p className="text-xs text-[color:var(--text-muted)]">Suppressed payments</p>
+          <p className="text-xs text-[color:var(--text-muted)]">{t("Suppressed payments")}</p>
           <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{preview.suppressedCount}</p>
         </div>
         <div className={cn("p-3", pageInsetSurfaceClass)}>
-          <p className="text-xs text-[color:var(--text-muted)]">Estimated Meta usage</p>
+          <p className="text-xs text-[color:var(--text-muted)]">{t("Estimated Meta usage")}</p>
           <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{estimatedInr(preview.estimatedCostMicros)}</p>
         </div>
       </div>
@@ -64,34 +67,33 @@ export function ApprovedPaymentReminderPreview({
                   <p className="font-medium text-[color:var(--text-primary)]">{group.studentName}</p>
                   <p className="mt-1 text-xs text-[color:var(--text-muted)]">{group.maskedPhone}</p>
                 </div>
-                <Badge variant="cyan">{group.paymentCount} payment{group.paymentCount === 1 ? "" : "s"}</Badge>
+                <Badge variant="cyan">{t("{count} payments", { count: group.paymentCount })}</Badge>
               </div>
               {group.studentCount > 1 ? (
                 <p className="text-xs text-[color:var(--text-secondary)]">
-                  Shared recipient group: {group.studentCount} students will receive one summary message.
+                  {t("Shared recipient group: {count} students will receive one summary message.", { count: group.studentCount })}
                 </p>
               ) : null}
               <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-input-bg)] p-3">
                 <p className="whitespace-pre-wrap text-sm leading-6 text-[color:var(--text-primary)]">{group.renderedPreview}</p>
               </div>
               <p className="text-xs text-[color:var(--text-muted)]">
-                Fixed catalogue template: {titleCase(group.managedTemplateKey)}
+                {t("Fixed catalogue template: {template}", { template: t.owned(titleCase(group.managedTemplateKey)) })}
               </p>
             </div>
           ))}
         </div>
       ) : (
         <div className={cn("px-3 py-3 text-sm", formWarningBannerClass)} role="status">
-          No selected payment is currently eligible to queue.
-        </div>
+          {t("No selected payment is currently eligible to queue.")}</div>
       )}
 
       {suppressions.length > 0 ? (
         <div className={cn("space-y-2 px-3 py-3 text-sm", formWarningBannerClass)}>
-          <p className="font-medium">Server-side suppressions</p>
+          <p className="font-medium">{t("Server-side suppressions")}</p>
           <ul className="grid gap-1 sm:grid-cols-2">
             {suppressions.map(([reason, count]) => (
-              <li key={reason}>{titleCase(reason)}: {count}</li>
+              <li key={reason}><OwnedLabel text={titleCase(reason)} />: {count}</li>
             ))}
           </ul>
         </div>
@@ -113,6 +115,7 @@ export function ApprovedPaymentReminderReview({
   canSend: boolean;
   blockedReason?: string;
 }) {
+    const t = useTranslation();
   const [previewState, setPreviewState] = useState<{
     selectionKey: string;
     preview: WhatsAppPaymentReminderPreview;
@@ -179,9 +182,9 @@ export function ApprovedPaymentReminderReview({
 
   return (
     <AppPanel
-      title="Approved WhatsApp reminder"
-      description="Preview and queue only the official Lab Lords Utility template. Recipient, payment values, template, grouping, suppression, and cost are resolved by the server."
-      action={<Badge variant="cyan">Utility only</Badge>}
+      title={t("Approved WhatsApp reminder")}
+      description={t("Preview and queue only the official Lab Lords Utility template. Recipient, payment values, template, grouping, suppression, and cost are resolved by the server.")}
+      action={<Badge variant="cyan">{t("Utility only")}</Badge>}
       contentClassName="space-y-4"
     >
       {!canSend ? (
@@ -193,7 +196,7 @@ export function ApprovedPaymentReminderReview({
 
       {notice ? (
         <p role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"} className={notice.tone === "error" ? "text-sm text-[color:var(--ui-form-error-text)]" : "text-sm text-[color:var(--text-secondary)]"}>
-          {notice.text}
+          {notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}
         </p>
       ) : null}
 
@@ -206,7 +209,7 @@ export function ApprovedPaymentReminderReview({
           disabled={!canSend || paymentIds.length === 0 || busy !== null}
           isLoading={busy === "preview"}
         >
-          Preview approved reminder ({paymentIds.length})
+          {t("Preview approved reminder ({count})", { count: paymentIds.length })}
         </AppButton>
       </div>
 
@@ -223,8 +226,7 @@ export function ApprovedPaymentReminderReview({
               className="mt-0.5 h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
             />
             <span>
-              I reviewed the official preview, server suppressions, recipient grouping, and estimated customer-owned Meta usage.
-            </span>
+              {t("I reviewed the official preview, server suppressions, recipient grouping, and estimated customer-owned Meta usage.")}</span>
           </label>
           <div className="flex justify-end">
             <AppButton
@@ -235,7 +237,7 @@ export function ApprovedPaymentReminderReview({
               disabled={!confirmed || busy !== null}
               isLoading={busy === "queue"}
             >
-              Confirm and queue {currentPreview.preview.eligibleRecipientCount} recipient group{currentPreview.preview.eligibleRecipientCount === 1 ? "" : "s"}
+              {t("Confirm and queue {count} recipient groups", { count: currentPreview.preview.eligibleRecipientCount })}
             </AppButton>
           </div>
         </div>
@@ -245,7 +247,7 @@ export function ApprovedPaymentReminderReview({
         <div className="flex items-start gap-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] p-3 text-sm" role="status">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
-            Queue request {currentQueueResult.request.status.toLowerCase()}: {currentQueueResult.request.queuedMessageCount} queued, {currentQueueResult.request.suppressedCount} suppressed.
+            {t("Queue request {status}: {queued} queued, {suppressed} suppressed.", { status: t.owned(currentQueueResult.request.status), queued: currentQueueResult.request.queuedMessageCount, suppressed: currentQueueResult.request.suppressedCount })}
           </span>
         </div>
       ) : null}

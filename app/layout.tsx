@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { UserPreferencesBoundary } from "@/components/settings/UserPreferencesBoundary";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { AttendanceCameraBoundary } from "@/components/attendance/AttendanceCameraBoundary";
 import { getGoogleAnalyticsBootstrapScript } from "@/lib/tracking";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 import { clerkRouting } from "@/lib/clerkRouting";
-import { Geist_Mono, Inter, Manrope } from "next/font/google";
+import { Geist_Mono, Inter, Manrope, Noto_Sans_Devanagari } from "next/font/google";
 import Script from "next/script";
 import { Suspense } from "react";
 import { clerkAppAppearance } from "@/components/ui/entrySurface";
@@ -26,6 +27,12 @@ const manrope = Manrope({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const devanagari = Noto_Sans_Devanagari({
+  variable: "--font-devanagari",
+  subsets: ["devanagari"],
   display: "swap",
 });
 
@@ -109,7 +116,7 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${inter.variable} ${manrope.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${manrope.variable} ${geistMono.variable} ${devanagari.variable} antialiased`}
       >
         <ClerkProvider
           appearance={clerkAppAppearance}
@@ -119,7 +126,7 @@ export default function RootLayout({
           signUpFallbackRedirectUrl="/app"
           afterSignOutUrl="/"
         >
-          <AttendanceCameraBoundary>{children}</AttendanceCameraBoundary>
+          <UserPreferencesBoundary><AttendanceCameraBoundary>{children}</AttendanceCameraBoundary></UserPreferencesBoundary>
         </ClerkProvider>
         {measurementId && (
           <Script

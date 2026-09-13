@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AppPanel } from "@/components/ui";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -13,6 +14,7 @@ const tooltipStyle = {
 };
 
 export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapshot; branchId?: string }) {
+    const t = useTranslation();
     const [studentTrends, setStudentTrends] = useState<TrendData>([]);
     const [paymentTrends, setPaymentTrends] = useState<TrendData>([]);
     const { formatDate, formatNumber } = useUserPreferences();
@@ -77,7 +79,7 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
 
     return (
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <AppPanel title="Active vs. Inactive Students" className="flex h-[300px] flex-col" contentClassName="min-h-0 flex-1">
+            <AppPanel title={t("Active vs. Inactive Students")} className="flex h-[300px] flex-col" contentClassName="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={studentData.length > 0 ? studentData : [{ name: "Loading", active: 0, inactive: 0 }]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} dy={10} />
@@ -102,15 +104,15 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
                 </ResponsiveContainer>
             </AppPanel>
 
-            <AppPanel title="Due vs. Paid Payments" className="flex h-[300px] flex-col" contentClassName="min-h-0 flex-1">
+            <AppPanel title={t("Due vs. Paid Payments")} className="flex h-[300px] flex-col" contentClassName="min-h-0 flex-1">
                 <div className="flex h-full items-end justify-between pb-4">
                     <div className="space-y-4">
                         <div>
-                            <p className="text-sm text-[color:var(--text-secondary)]">Collected</p>
+                            <p className="text-sm text-[color:var(--text-secondary)]">{t("Collected")}</p>
                             <h3 className="text-2xl font-semibold text-[color:var(--text-primary)]">{formatMoney(snapshot.paidAmount)}</h3>
                         </div>
                         <div>
-                            <p className="text-sm text-[color:var(--text-secondary)]">Pending</p>
+                            <p className="text-sm text-[color:var(--text-secondary)]">{t("Pending")}</p>
                             <h3 className="text-2xl font-semibold text-[color:var(--ui-tone-danger-text)]">{formatMoney(snapshot.dueAmount)}</h3>
                         </div>
                     </div>

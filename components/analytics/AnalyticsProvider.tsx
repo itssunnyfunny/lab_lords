@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -17,6 +18,7 @@ type AnalyticsProviderProps = {
 };
 
 export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
+    const t = useTranslation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [showPreferences, setShowPreferences] = useState(false);
@@ -95,8 +97,7 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
               className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] px-3 text-sm font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
               onClick={() => setShowPreferences(false)}
             >
-              Manage
-            </Link>
+              {t("Manage")}</Link>
           </div>
         </aside>
       )}

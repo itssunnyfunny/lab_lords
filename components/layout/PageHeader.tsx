@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { Search, Filter, Plus, Download } from "lucide-react";
 import { AppButton } from "@/components/ui";
@@ -31,6 +32,7 @@ export function PageHeader({
     extraActions,
     actionLabel = "Add New",
 }: PageHeaderProps) {
+    const t = useTranslation();
     return (
         <div className="mb-6 flex flex-col justify-between gap-4 md:mb-8 md:flex-row md:items-end">
             <div className="min-w-0">
@@ -44,7 +46,7 @@ export function PageHeader({
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-muted)] transition-colors group-focus-within:text-[color:var(--ui-form-accent)]" />
                         <input
                             type="text"
-                            placeholder="Search..."
+                            placeholder={t("Search...")}
                             aria-label={`Search ${title}`}
                             className={`${formControlClass} h-11 w-full pl-9 pr-4 text-base sm:text-sm md:w-64`}
                             onChange={(e) => onSearch(e.target.value)}
@@ -53,7 +55,7 @@ export function PageHeader({
                 )}
 
                 {onFilter && (
-                    <AppButton variant="secondary" size="icon" icon={Filter} onClick={onFilter} aria-label="Filter" />
+                    <AppButton variant="secondary" size="icon" icon={Filter} onClick={onFilter} aria-label={t("Filter")} />
                 )}
 
                 {onExport && (

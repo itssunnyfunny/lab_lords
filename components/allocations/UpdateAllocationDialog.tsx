@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import { Loader2, ArrowRightLeft } from "lucide-react";
@@ -47,6 +49,7 @@ export function UpdateAllocationDialog({
     onClose,
     onSuccess,
 }: UpdateAllocationDialogProps) {
+    const t = useTranslation();
     const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>(currentShiftIds);
     const [selectedShiftNames, setSelectedShiftNames] = useState<string[]>([]);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
@@ -218,20 +221,19 @@ export function UpdateAllocationDialog({
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="Change seat or shift"
+            title={t("Change seat or shift")}
             description={`Update the allocation for ${studentName}${selectedShiftNames.length > 0 ? ` / ${selectedShiftNames.join(", ")}` : ""}.`}
-            closeLabel="Close change allocation dialog"
+            closeLabel={t("Close change allocation dialog")}
             closeDisabled={submitting}
             className="max-w-2xl"
             icon={<ArrowRightLeft size={18} className="text-[color:var(--ui-badge-cyan-text)]" aria-hidden="true" />}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={submitting} className="h-8 px-4 text-sm">
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button onClick={handleConfirm} disabled={submitting} className="h-8 px-5 text-sm">
                         {submitting
-                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" /> Updating...</>
+                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" />  {t("Updating...")}</>
                             : confirmLabel
                         }
                     </Button>
@@ -240,7 +242,7 @@ export function UpdateAllocationDialog({
         >
                 <div
                     role="group"
-                    aria-label="Seat and shift selection"
+                    aria-label={t("Seat and shift selection")}
                     aria-describedby={selectionError ? "update-allocation-selection-error" : undefined}
                 >
                     <SeatPicker
@@ -260,7 +262,7 @@ export function UpdateAllocationDialog({
                         <div className={cn("mt-5 space-y-3 p-4", formSurfaceClass)}>
                             <div className="flex items-center gap-3">
                                 <label htmlFor="update-allocation-fee" className={cn("whitespace-nowrap text-xs", formHelpTextClass)}>
-                                    Monthly fee:{" "}
+                                    {t("Monthly fee:")}{" "}
                                     <span className="font-medium text-[color:var(--ui-form-label-strong)]">
                                         {currentFee != null ? `Rs.${currentFee}` : "--"}
                                     </span>
@@ -278,7 +280,7 @@ export function UpdateAllocationDialog({
                                         disabled={linkFeeToSelection}
                                         onChange={e => { setNewFee(e.target.value); setSubmitError(null); }}
                                         onBlur={() => markTouched("fee")}
-                                        placeholder={linkFeeToSelection ? "Linked to shift price" : "Update fee (optional)"}
+                                        placeholder={linkFeeToSelection ? t("Linked to shift price") : t("Update fee (optional)")}
                                         className={cn(formControlClass, "py-2 pl-10 pr-3 text-sm", fieldErrorClass(feeError))}
                                         {...fieldErrorProps("update-allocation-fee-error", feeError)}
                                     />
@@ -293,16 +295,14 @@ export function UpdateAllocationDialog({
                                     onChange={(e) => setLinkFeeToSelection(e.target.checked)}
                                     className={formCheckboxClass}
                                 />
-                                <span className={cn("text-sm font-medium transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]", formLabelClass)}>
-                                    Link monthly fee to {feeLinkLabel} price
-                                </span>
+                                <span className={cn("text-sm font-medium transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]", formLabelClass)}>{t("Link monthly fee to {feeLinkLabel} price", { feeLinkLabel: feeLinkLabel })}</span>
                             </label>
                         </div>
                     )}
 
                     {submitError && (
                         <div role="alert" className={cn("mt-4 p-3 text-sm", formErrorBannerClass)}>
-                            {submitError}
+                            <LocalizedError error={submitError} />
                         </div>
                     )}
                 </div>

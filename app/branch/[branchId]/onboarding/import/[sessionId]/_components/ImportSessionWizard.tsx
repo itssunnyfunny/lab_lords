@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -80,12 +82,13 @@ function Metric({
     value: string | number;
     tone?: "success" | "warning" | "danger" | "default" | "cyan" | "purple";
 }) {
+    const t = useTranslation();
     return (
         <div className={pageInsetMetricClass}>
             <p className={cn("text-xs", pageMutedTextClass)}>{label}</p>
             <p className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{String(value)}</p>
             <Badge className="mt-2" variant={tone}>
-                {tone === "success" ? "Ready" : tone === "warning" ? "Review" : tone === "danger" ? "Action needed" : "Info"}
+                {tone === "success" ? t("Ready") : tone === "warning" ? t("Review") : tone === "danger" ? t("Action needed") : t("Info")}
             </Badge>
         </div>
     );
@@ -161,6 +164,7 @@ function goalAllowsQuestion(goal: ImportGoal, field: string | null) {
 }
 
 export function ImportSessionWizard({ branchId, sessionId, importDecision }: ImportSessionWizardProps) {
+    const t = useTranslation();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [detail, setDetail] = useState<ImportDetail | null>(null);
@@ -1050,8 +1054,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
             <PageShell>
                 <div className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]" role="status" aria-live="polite">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading import session...
-                </div>
+                    {t("Loading import session...")}</div>
             </PageShell>
         );
     }
@@ -1060,35 +1063,33 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
         <PageShell>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <p className={pageEyebrowClass}>Data import</p>
-                    <h1 className={pageTitleClass}>Import review</h1>
+                    <p className={pageEyebrowClass}>{t("Data import")}</p>
+                    <h1 className={pageTitleClass}>{t("Import review")}</h1>
                     <p className={pageDescriptionClass}>{detail?.fileName ?? "Review staged records before import."}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="cyan">{importGoalLabel(goal)}</Badge>
                     {detail?.status && <Badge variant={statusTone(detail.status)}>{labelImportStatus(detail.status)}</Badge>}
                     <AppButton variant="quiet" icon={ArrowLeft} onClick={() => requestNavigation({ kind: "imports" })}>
-                        All imports
-                    </AppButton>
+                        {t("All imports")}</AppButton>
                 </div>
             </div>
 
             {error && (
                 <div className="flex flex-col gap-3 rounded-[8px] border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200 sm:flex-row sm:items-center sm:justify-between" role="alert">
-                    <span>{error}</span>
+                    <span><LocalizedError error={error} /></span>
                     {detail?.status === "UPLOADED" && !analyzing && !waitingForPdfConfirmation && (
-                        <AppButton size="sm" variant="secondary" onClick={retryAnalysis}>Retry analysis</AppButton>
+                        <AppButton size="sm" variant="secondary" onClick={retryAnalysis}>{t("Retry analysis")}</AppButton>
                     )}
                 </div>
             )}
 
             {mutationBlockReason && importDecision.blocker !== "permission" && (
                 <div id="import-session-mutation-blocker" className="flex flex-col gap-2 rounded-[8px] border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between" role="status">
-                    <span>Import changes are disabled. {mutationBlockReason}</span>
+                    <span>{t("Import changes are disabled.")} {mutationBlockReason}</span>
                     {importDecision.recoveryHref ? (
                         <Link href={importDecision.recoveryHref} className="shrink-0 font-semibold underline underline-offset-4">
-                            Resolve access
-                        </Link>
+                            {t("Resolve access")}</Link>
                     ) : null}
                 </div>
             )}
@@ -1102,23 +1103,21 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
             {analyzing && (
                 <div className="flex items-center gap-3 rounded-[8px] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] p-3 text-sm text-[color:var(--ui-badge-cyan-text)]" role="status" aria-live="polite">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Analyzing source data. Manual fallback remains available if AI is unavailable.
-                </div>
+                    {t("Analyzing source data. Manual fallback remains available if AI is unavailable.")}</div>
             )}
 
             {detail && waitingForPdfConfirmation && (
-                <AppPanel title="Review PDF extraction" description="PDF table extraction is beta. Confirm the persisted text rows before analysis starts.">
-                    <div ref={pdfReviewRef} tabIndex={-1} aria-label="PDF extraction review" className="space-y-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]">
+                <AppPanel title={t("Review PDF extraction")} description={t("PDF table extraction is beta. Confirm the persisted text rows before analysis starts.")}>
+                    <div ref={pdfReviewRef} tabIndex={-1} aria-label={t("PDF extraction review")} className="space-y-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]">
                         <div className={cn("p-4 text-xs leading-5", pageInsetMetricClass)}>
-                            Compare this sample with the original PDF. Scanned images are not read because OCR is not enabled.
-                        </div>
-                        <div className="overflow-x-auto rounded-[8px] border border-[color:var(--ui-table-border)]" tabIndex={0} aria-label="Persisted PDF extraction preview">
+                            {t("Compare this sample with the original PDF. Scanned images are not read because OCR is not enabled.")}</div>
+                        <div className="overflow-x-auto rounded-[8px] border border-[color:var(--ui-table-border)]" tabIndex={0} aria-label={t("Persisted PDF extraction preview")}>
                             <table className="w-full min-w-[560px] text-left text-xs">
-                                <caption className="sr-only">Persisted extracted PDF sample rows</caption>
+                                <caption className="sr-only">{t("Persisted extracted PDF sample rows")}</caption>
                                 <tbody>
                                     {(detail.extractionPreview ?? []).map(row => (
                                         <tr key={row.rowNumber} className="border-t border-[color:var(--ui-table-border)] first:border-t-0">
-                                            <th scope="row" className="w-20 p-3">Row {row.rowNumber}</th>
+                                            <th scope="row" className="w-20 p-3">{t("Row")} {row.rowNumber}</th>
                                             <td className="p-3 text-[color:var(--text-secondary)]">{pdfExtractionPreviewCells(row.rawData).join(" · ") || "Empty row"}</td>
                                         </tr>
                                     ))}
@@ -1126,7 +1125,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                             </table>
                         </div>
                         {(detail.extractionPreview?.length ?? 0) === 0 && loading && (
-                            <p className={cn("text-sm", pageMutedTextClass)} role="status">Loading the persisted extraction preview...</p>
+                            <p className={cn("text-sm", pageMutedTextClass)} role="status">{t("Loading the persisted extraction preview...")}</p>
                         )}
                         <label className="flex items-start gap-3 text-sm text-[color:var(--text-primary)]">
                             <input
@@ -1136,7 +1135,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                 onChange={event => setPdfAccepted(event.target.checked)}
                                 className="mt-0.5 h-4 w-4"
                             />
-                            <span>I reviewed the sample and confirm that the extracted columns and rows match the PDF.</span>
+                            <span>{t("I reviewed the sample and confirm that the extracted columns and rows match the PDF.")}</span>
                         </label>
                         <div className="flex flex-wrap gap-2">
                             <AppButton
@@ -1146,11 +1145,9 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                 aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                                 isLoading={saving}
                             >
-                                Confirm and analyze PDF
-                            </AppButton>
+                                {t("Confirm and analyze PDF")}</AppButton>
                             <AppButton variant="secondary" onClick={() => requestNavigation({ kind: "imports" })} disabled={saving}>
-                                Choose a different source
-                            </AppButton>
+                                {t("Choose a different source")}</AppButton>
                         </div>
                     </div>
                 </AppPanel>
@@ -1159,7 +1156,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
             {detail && !waitingForPdfConfirmation && (
                 <>
                     <AppPanel contentClassName="space-y-5">
-                        <nav aria-label="Import progress" className="grid gap-2 sm:grid-cols-3">
+                        <nav aria-label={t("Import progress")} className="grid gap-2 sm:grid-cols-3">
                             {[
                                 { id: "upload", label: "Upload", detail: "Source staged", icon: FileUp },
                                 { id: "fix", label: "Fix issues", detail: relevantAttention.length > 0 ? `${relevantAttention.length} issue groups` : "Checks reviewed", icon: ListChecks },
@@ -1191,30 +1188,30 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[color:var(--ui-form-surface-border)] text-xs font-semibold">
                                             {stage.id === "upload" || stage.id === "fix" && relevantAttention.length === 0 || stage.id === "review" && (run?.kind === "COMMIT" || Boolean(detail.commits?.length)) ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : index + 1}
                                         </span>
-                                        <span className="min-w-0"><span className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]"><StageIcon className="h-4 w-4" />{stage.label}</span><span className={cn("mt-1 block text-xs", pageMutedTextClass)}>{stage.detail}</span></span>
+                                        <span className="min-w-0"><span className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]"><StageIcon className="h-4 w-4" />{t.owned(stage.label)}</span><span className={cn("mt-1 block text-xs", pageMutedTextClass)}>{t.owned(stage.detail)}</span></span>
                                     </button>
                                 );
                             })}
                         </nav>
 
                         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            <Metric label="Ready to import" value={detail.summary?.readyRows ?? 0} tone="success" />
-                            <Metric label="Needs review" value={(detail.summary?.needsReviewRows ?? 0) + (detail.summary?.duplicateRows ?? 0)} tone={(detail.summary?.needsReviewRows ?? 0) + (detail.summary?.duplicateRows ?? 0) > 0 ? "warning" : "success"} />
-                            <Metric label="Blocked" value={(detail.summary?.blockedRows ?? 0) + (detail.summary?.conflictRows ?? 0)} tone={(detail.summary?.blockedRows ?? 0) + (detail.summary?.conflictRows ?? 0) > 0 ? "danger" : "success"} />
-                            <Metric label="Skipped" value={detail.summary?.skippedRows ?? 0} tone="default" />
+                            <Metric label={t("Ready to import")} value={detail.summary?.readyRows ?? 0} tone="success" />
+                            <Metric label={t("Needs review")} value={(detail.summary?.needsReviewRows ?? 0) + (detail.summary?.duplicateRows ?? 0)} tone={(detail.summary?.needsReviewRows ?? 0) + (detail.summary?.duplicateRows ?? 0) > 0 ? "warning" : "success"} />
+                            <Metric label={t("Blocked")} value={(detail.summary?.blockedRows ?? 0) + (detail.summary?.conflictRows ?? 0)} tone={(detail.summary?.blockedRows ?? 0) + (detail.summary?.conflictRows ?? 0) > 0 ? "danger" : "success"} />
+                            <Metric label={t("Skipped")} value={detail.summary?.skippedRows ?? 0} tone="default" />
                         </div>
                         <div>
                             <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-                                <span className={pageMutedTextClass}>Import readiness</span>
+                                <span className={pageMutedTextClass}>{t("Import readiness")}</span>
                                 <span className="font-semibold text-[color:var(--text-primary)]">{readiness}%</span>
                             </div>
-                            <div className={pageProgressTrackClass} role="progressbar" aria-label="Import readiness" aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness}>
+                            <div className={pageProgressTrackClass} role="progressbar" aria-label={t("Import readiness")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness}>
                                 <div className="h-full rounded-full bg-cyan-300 transition-all" style={{ width: `${Math.max(0, Math.min(100, readiness))}%` }} />
                             </div>
                         </div>
 
                         {fixSteps.some(step => step.id === activeStep) && (
-                            <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Fix import issues">
+                            <nav className="flex gap-2 overflow-x-auto pb-1" aria-label={t("Fix import issues")}>
                                 {fixSteps.map(step => (
                                     <button
                                         key={step.id}
@@ -1226,7 +1223,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                             activeStep === step.id ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)]"
                                         )}
                                     >
-                                        <span className="font-semibold">{step.label}</span>
+                                        <span className="font-semibold">{t.owned(step.label)}</span>
                                         {typeof step.count === "number" && step.count > 0 && <span className="ml-2">{step.count}</span>}
                                     </button>
                                 ))}
@@ -1235,7 +1232,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                     </AppPanel>
 
                     {relevantAttention.length > 0 && fixSteps.some(step => step.id === activeStep) && (
-                        <AppPanel title="Fix these first" description="Open an issue group to jump to the best place to resolve it.">
+                        <AppPanel title={t("Fix these first")} description={t("Open an issue group to jump to the best place to resolve it.")}>
                             <ul className="grid gap-3 lg:grid-cols-2">
                                 {relevantAttention.map(bucket => {
                                     const target = attentionStep(bucket, goal);
@@ -1256,9 +1253,9 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                             >
                                                 <AlertTriangle className={cn("mt-0.5 h-4 w-4 shrink-0", bucket.severity === "error" ? "text-red-300" : bucket.severity === "warning" ? "text-amber-300" : "text-cyan-300")} />
                                                 <span className="min-w-0 flex-1">
-                                                    <span className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-[color:var(--text-primary)]">{bucket.label}</span><Badge variant={bucket.severity === "error" ? "danger" : bucket.severity === "warning" ? "warning" : "cyan"}>{bucket.count}</Badge></span>
+                                                    <span className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-[color:var(--text-primary)]">{t.owned(bucket.label)}</span><Badge variant={bucket.severity === "error" ? "danger" : bucket.severity === "warning" ? "warning" : "cyan"}>{bucket.count}</Badge></span>
                                                     <span className={cn("mt-1 block text-xs leading-5", pageMutedTextClass)}>{bucket.action ?? bucket.message}</span>
-                                                    {bucket.sampleRowNumbers?.length ? <span className={cn("mt-1 block text-[11px]", pageSubtleTextClass)}>Example rows: {bucket.sampleRowNumbers.slice(0, 4).join(", ")}</span> : null}
+                                                    {bucket.sampleRowNumbers?.length ? <span className={cn("mt-1 block text-[11px]", pageSubtleTextClass)}>{t("Example rows: {join}", { join: bucket.sampleRowNumbers.slice(0, 4).join(", ") })}</span> : null}
                                                 </span>
                                             </button>
                                         </li>
@@ -1399,15 +1396,11 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <AppButton variant="quiet" icon={RotateCcw} onClick={() => requestNavigation({ kind: "refresh" })} isLoading={loading}>
-                            Refresh session
-                        </AppButton>
+                            {t("Refresh session")}</AppButton>
                         <div className="flex flex-wrap gap-2">
                             <AppButton variant="secondary" onClick={goBackStep} disabled={currentStepIndex === 0}>
-                                Previous
-                            </AppButton>
-                            <AppButton variant="primary" rightIcon={ArrowRight} onClick={goNext} disabled={currentStepIndex === steps.length - 1}>
-                                Next: {steps[Math.min(currentStepIndex + 1, steps.length - 1)]?.label ?? activeStepMeta?.label}
-                            </AppButton>
+                                {t("Previous")}</AppButton>
+                            <AppButton variant="primary" rightIcon={ArrowRight} onClick={goNext} disabled={currentStepIndex === steps.length - 1}>{t("Next: {value}", { value: steps[Math.min(currentStepIndex + 1, steps.length - 1)]?.label ?? activeStepMeta?.label })}</AppButton>
                         </div>
                     </div>
 
@@ -1417,12 +1410,12 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                         onConfirm={commit}
                         loading={saving}
                         variant="warning"
-                        title="Confirm final import"
+                        title={t("Confirm final import")}
                         description={plan
                             ? readinessPolicy === "READY_ROWS_ONLY"
                                 ? `Start a background run for ${plan.readyRows} ready row${plan.readyRows === 1 ? "" : "s"}. ${plan.blockedRows + plan.skippedRows} row${plan.blockedRows + plan.skippedRows === 1 ? "" : "s"} will stay in this workspace.`
-                                : "Every row passed the reviewed checks. Work runs in durable batches, and completed records remain saved if a later item fails."
-                            : "Refresh the reviewed plan before importing."}
+                                : t("Every row passed the reviewed checks. Work runs in durable batches, and completed records remain saved if a later item fails.")
+                            : t("Refresh the reviewed plan before importing.")}
                         confirmText={readinessPolicy === "READY_ROWS_ONLY" ? "Import ready rows" : "Start checked import"}
                     />
 
@@ -1431,7 +1424,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                         onClose={() => setPendingNavigation(null)}
                         onConfirm={discardDraftsAndContinue}
                         variant="warning"
-                        title="Discard unsaved import changes?"
+                        title={t("Discard unsaved import changes?")}
                         description={[
                             columnsDirty ? "Column meaning changes are not saved." : null,
                             hasUnsavedRows ? `${dirtyRowIds.length} row${dirtyRowIds.length === 1 ? " has" : "s have"} unsaved edits.` : null,

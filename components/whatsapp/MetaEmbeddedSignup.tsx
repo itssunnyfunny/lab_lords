@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -187,6 +188,7 @@ export function MetaEmbeddedSignup({
   disabledReason?: string | null;
   onConnected: () => void | Promise<void>;
 }) {
+    const t = useTranslation();
   const [phase, setPhase] = useState<LaunchPhase>("idle");
   const [sdkReady, setSdkReady] = useState(false);
   const [notice, setNotice] = useState<{
@@ -392,7 +394,7 @@ export function MetaEmbeddedSignup({
   };
 
   return (
-    <div className="space-y-3 px-5 py-4" aria-label="Connect a customer-owned WhatsApp number">
+    <div className="space-y-3 px-5 py-4" aria-label={t("Connect a customer-owned WhatsApp number")}>
       {hasActiveAttempt ? (
         <Script
           id="meta-facebook-jssdk"
@@ -418,13 +420,11 @@ export function MetaEmbeddedSignup({
             disabled={disabled}
             title={disabled ? disabledReason ?? undefined : undefined}
           >
-            Prepare Meta connection
-          </AppButton>
+            {t("Prepare Meta connection")}</AppButton>
         ) : null}
         {phase === "preparing" ? (
           <AppButton variant="primary" isLoading disabled>
-            Preparing connection
-          </AppButton>
+            {t("Preparing connection")}</AppButton>
         ) : null}
         {phase === "prepared" ? (
           <>
@@ -433,22 +433,20 @@ export function MetaEmbeddedSignup({
               onClick={launch}
               disabled={!sdkReady}
             >
-              {sdkReady ? "Continue with Meta" : "Loading Meta setup"}
+              {sdkReady ? t("Continue with Meta") : t("Loading Meta setup")}
             </AppButton>
             <AppButton variant="quiet" onClick={() => resetAttempt()}>
-              Cancel setup
-            </AppButton>
+              {t("Cancel setup")}</AppButton>
           </>
         ) : null}
         {phase === "launching" || phase === "completing" ? (
           <>
             <AppButton variant="primary" isLoading disabled>
-              {phase === "completing" ? "Verifying connection" : "Waiting for Meta"}
+              {phase === "completing" ? t("Verifying connection") : t("Waiting for Meta")}
             </AppButton>
             {phase === "launching" ? (
               <AppButton variant="quiet" onClick={() => resetAttempt()}>
-                Cancel setup
-              </AppButton>
+                {t("Cancel setup")}</AppButton>
             ) : null}
           </>
         ) : null}

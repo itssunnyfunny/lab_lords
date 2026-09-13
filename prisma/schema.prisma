@@ -22,6 +22,8 @@ model User {
   phone                         String?
   timezone                      String                        @default("Asia/Kolkata")
   locale                        String                        @default("en-IN")
+  interfaceLanguage             String                        @default("en")
+  documentLanguage              String                        @default("en")
   dateFormat                    String                        @default("dd MMM yyyy")
   themePreference               String                        @default("dark")
   densityPreference             String                        @default("comfortable")

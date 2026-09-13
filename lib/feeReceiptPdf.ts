@@ -1,17 +1,23 @@
 import type { FeeCollectionView } from "@/lib/feeCollections";
-export function receiptSummary(collection: FeeCollectionView) {
+import { translate, translateOwnedText } from "@/lib/i18n";
+import { LANGUAGE_TAGS, type InterfaceLanguage } from "@/lib/i18n/language";
+export function receiptSummary(collection: FeeCollectionView, language: InterfaceLanguage = "en") {
     const s = collection.snapshot;
-    return ["Lab Lords · Fee payment receipt", ...(collection.voidedAt ? [`VOID — ${collection.voidReason}`] : []),
-        s.branchName, s.organizationName, s.address, s.contactPhone, `Receipt: ${collection.receiptNumber}`,
-        `Student: ${s.studentName} (${s.studentId})`, new Date(s.collectedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST",
-        `Received: ₹${s.amount} · ${s.method.replaceAll("_", " ")}`, s.reference ? `Reference: ${s.reference}` : null,
-        ...s.allocations.map(a => `${a.type}: ${new Date(a.periodStart).toLocaleDateString("en-IN")} – ${new Date(a.periodEnd).toLocaleDateString("en-IN")} | Applied ₹${a.amount} | Remaining ₹${a.remaining}`),
-        `Student balance immediately after collection: ₹${s.remainingBalance}`, `Recorded by: ${s.recordedBy}`, s.note ? `Note: ${s.note}` : null,
+    const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) => translate(language, key, params);
+    return [`Lab Lords · ${t("Fee payment receipt")}`, ...(collection.voidedAt ? [t("VOID — {reason}", { reason: collection.voidReason ?? "" })] : []),
+        s.branchName, s.organizationName, s.address, s.contactPhone, t("Receipt: {number}", { number: collection.receiptNumber }),
+        t("Student: {name} ({id})", { name: s.studentName, id: s.studentId }), new Date(s.collectedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST",
+        t("Received: ₹{amount} · {method}", { amount: s.amount, method: translateOwnedText(language, s.method.replaceAll("_", " ")) }), s.reference ? t("Reference: {reference}", { reference: s.reference }) : null,
+        ...s.allocations.map(a => t("{type}: {start} – {end} | Applied ₹{amount} | Remaining ₹{remaining}", { type: translateOwnedText(language, a.type), start: new Date(a.periodStart).toLocaleDateString("en-IN"), end: new Date(a.periodEnd).toLocaleDateString("en-IN"), amount: a.amount, remaining: a.remaining })),
+        t("Student balance immediately after collection: ₹{amount}", { amount: s.remainingBalance }), t("Recorded by: {name}", { name: s.recordedBy }), s.note ? t("Note: {note}", { note: s.note }) : null,
     ].filter(Boolean).join("\n");
 }
 
-export async function feeReceiptFile(collection: FeeCollectionView): Promise<File> {
+export async function feeReceiptFile(collection: FeeCollectionView, language: InterfaceLanguage = "en"): Promise<File> {
     const { jsPDF } = await import("jspdf");
+    const devanagariFont = getComputedStyle(document.body).getPropertyValue("--font-devanagari").trim();
+    const receiptFont = `26px ${devanagariFont || '"Nirmala UI"'}, "Noto Sans Devanagari", sans-serif`;
+    await document.fonts.load(receiptFont, "फीस की रसीद");
     await document.fonts.ready;
     // Canvas uses the browser's Unicode fonts, including Indian student names.
     // Each bounded page becomes a high-resolution image inside the PDF.
@@ -27,12 +33,13 @@ export async function feeReceiptFile(collection: FeeCollectionView): Promise<Fil
         try { await candidate.decode(); logo = candidate; } catch { /* Text branding remains available. */ }
     }
     let y = 90, page = 0;
-    function clear() { ctx!.fillStyle = "#ffffff"; ctx!.fillRect(0, 0, canvas.width, canvas.height); ctx!.fillStyle = "#111827"; ctx!.font = "26px sans-serif"; if (logo) ctx!.drawImage(logo, 80, 40, 70, 70); y = logo ? 155 : 90; }
+    function clear() { ctx!.fillStyle = "#ffffff"; ctx!.fillRect(0, 0, canvas.width, canvas.height); ctx!.fillStyle = "#111827"; ctx!.font = receiptFont; if (logo) ctx!.drawImage(logo, 80, 40, 70, 70); y = logo ? 155 : 90; }
     function flush() { if (page++) pdf.addPage(); pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297); }
     clear();
-    for (const paragraph of receiptSummary(collection).split("\n")) {
+    const graphemes = new Intl.Segmenter(LANGUAGE_TAGS[language], { granularity: "grapheme" });
+    for (const paragraph of receiptSummary(collection, language).split("\n")) {
         let line = "";
-        for (const char of paragraph) {
+        for (const { segment: char } of graphemes.segment(paragraph)) {
             if (ctx.measureText(line + char).width > 1080) { ctx.fillText(line, 80, y); y += 40; line = ""; }
             if (y > 1650) { flush(); clear(); }
             line += char;

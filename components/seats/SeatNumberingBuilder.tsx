@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { Hash, Plus, Trash2 } from "lucide-react";
 import { AppSelect } from "@/components/ui";
@@ -82,6 +84,7 @@ export function SeatNumberingBuilder({
     disabled = false,
     className,
 }: SeatNumberingBuilderProps) {
+    const t = useTranslation();
     const effectiveValue = expectedCount !== undefined
         ? resolveSeatNumberingForCount(value, expectedCount)
         : value;
@@ -150,8 +153,7 @@ export function SeatNumberingBuilder({
                     aria-pressed={value.mode === "SIMPLE"}
                 >
                     <Hash size={15} />
-                    Default
-                </button>
+                    {t("Default")}</button>
                 <button
                     type="button"
                     disabled={disabled}
@@ -165,15 +167,14 @@ export function SeatNumberingBuilder({
                     aria-pressed={value.mode === "RANGE"}
                 >
                     <Hash size={15} />
-                    Custom ranges
-                </button>
+                    {t("Custom ranges")}</button>
             </div>
 
             {value.mode === "SIMPLE" && expectedCount === undefined && (
                 <div className="max-w-xs space-y-1.5">
-                    <label className={formLabelClass}>Seat count</label>
+                    <label className={formLabelClass}>{t("Seat count")}</label>
                     <input
-                        aria-label="Seat count"
+                        aria-label={t("Seat count")}
                         type="number"
                         min="1"
                         max={FORM_LIMITS.seatsMax}
@@ -193,7 +194,7 @@ export function SeatNumberingBuilder({
                         <div key={index} className={cn("space-y-3 p-3", formSurfaceClass)}>
                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-12">
                                 <div className="col-span-2 sm:col-span-3">
-                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>Prefix</label>
+                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Prefix")}</label>
                                     <input
                                         aria-label={`Range ${index + 1} prefix`}
                                         type="text"
@@ -206,7 +207,7 @@ export function SeatNumberingBuilder({
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>Start</label>
+                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Start")}</label>
                                     <input
                                         aria-label={`Range ${index + 1} start`}
                                         type="number"
@@ -220,7 +221,7 @@ export function SeatNumberingBuilder({
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>End</label>
+                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("End")}</label>
                                     <input
                                         aria-label={`Range ${index + 1} end`}
                                         type="number"
@@ -234,7 +235,7 @@ export function SeatNumberingBuilder({
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>Padding</label>
+                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Padding")}</label>
                                     <input
                                         aria-label={`Range ${index + 1} padding`}
                                         type="number"
@@ -248,7 +249,7 @@ export function SeatNumberingBuilder({
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <label htmlFor={`seat-range-${index}-separator`} className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>Separator</label>
+                                    <label htmlFor={`seat-range-${index}-separator`} className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Separator")}</label>
                                     <AppSelect
                                         id={`seat-range-${index}-separator`}
                                         aria-label={`Range ${index + 1} separator`}
@@ -265,15 +266,13 @@ export function SeatNumberingBuilder({
                                         disabled={disabled || value.ranges.length <= 1}
                                         onClick={() => removeRange(index)}
                                         className={cn("rounded-[var(--ui-radius-control)] p-2 transition-colors hover:text-[color:var(--ui-form-error-text)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]", formHelpTextClass)}
-                                        aria-label="Remove range"
+                                        aria-label={t("Remove range")}
                                     >
                                         <Trash2 size={14} />
                                     </button>
                                 </div>
                             </div>
-                            <div className={cn("text-xs", formHelpTextClass)}>
-                                {rangeCount(range)} seats
-                            </div>
+                            <div className={cn("text-xs", formHelpTextClass)}>{t("{rangeCount} seats", { rangeCount: rangeCount(range) })}</div>
                         </div>
                     ))}
                     <button
@@ -283,20 +282,17 @@ export function SeatNumberingBuilder({
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]"
                     >
                         <Plus size={13} />
-                        Add range
-                    </button>
+                        {t("Add range")}</button>
                 </div>
             )}
 
             <div className={cn("space-y-2 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3")}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className={cn("text-xs font-semibold uppercase", formHelpTextClass)}>Preview</span>
-                    <span className={cn("text-xs", previewError ? "text-[color:var(--ui-form-error-text)]" : formHelpTextClass)}>
-                        {labels.length} seat{labels.length === 1 ? "" : "s"}
-                    </span>
+                    <span className={cn("text-xs font-semibold uppercase", formHelpTextClass)}>{t("Preview")}</span>
+                    <span className={cn("text-xs", previewError ? "text-[color:var(--ui-form-error-text)]" : formHelpTextClass)}>{t("{count} seat(s)", { count: labels.length })}</span>
                 </div>
                 {previewError ? (
-                    <p className="text-xs text-[color:var(--ui-form-error-text)]">{previewError}</p>
+                    <p className="text-xs text-[color:var(--ui-form-error-text)]"><LocalizedError error={previewError} /></p>
                 ) : (
                     <div className="flex flex-wrap gap-1.5">
                         {formatPreview(labels).map((label, index) => (

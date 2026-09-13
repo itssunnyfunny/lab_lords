@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -154,14 +155,16 @@ function toForm(org: OrgDetails): OrgForm {
 }
 
 export default function OrgSettingsPage({ params }: { params: Promise<{ orgId: string }> }) {
+    const t = useTranslation();
     return (
-        <Suspense fallback={<PageLoadingSkeleton label="Loading organization settings" variant="settings" maxWidth="content" />}>
+        <Suspense fallback={<PageLoadingSkeleton label={t("Loading organization settings")} variant="settings" maxWidth="content" />}>
             <OrgSettingsContent params={params} />
         </Suspense>
     );
 }
 
 function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) {
+    const t = useTranslation();
     const { orgId } = use(params);
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -900,7 +903,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
     };
 
     if (loading) {
-        return <PageLoadingSkeleton label="Loading organization settings" variant="settings" maxWidth="content" />;
+        return <PageLoadingSkeleton label={t("Loading organization settings")} variant="settings" maxWidth="content" />;
     }
 
     if (fetchError || !org || !form) {
@@ -908,7 +911,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
             <div className={pageErrorStateClass}>
                 <AlertCircle className={pageErrorIconClass} />
                 <p className={pageMutedTextClass}>{fetchError || "Organization not found."}</p>
-                <AppButton variant="secondary" onClick={() => router.back()}>Back</AppButton>
+                <AppButton variant="secondary" onClick={() => router.back()}>{t("Back")}</AppButton>
             </div>
         );
     }
@@ -926,8 +929,8 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 }}
             />
             <SettingsWorkspace
-                title="Organization Settings"
-                subtitle="Configure business identity, contact details, and workspace defaults."
+                title={t("Organization Settings")}
+                subtitle={t("Configure business identity, contact details, and workspace defaults.")}
                 sections={whatsAppAvailable ? SECTIONS_WITH_WHATSAPP : SECTIONS}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
@@ -940,26 +943,25 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                         onClick={beginEditing}
                         className="min-h-11 lg:min-h-9"
                     >
-                        Edit settings
-                    </AppButton>
+                        {t("Edit settings")}</AppButton>
                 ) : null}
             >
                 {billingOverview && !organizationCanEdit ? (
                     <aside className={cn("flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)}>
                         <p>{organizationEditReason}</p>
-                        <a href="#billing" className="shrink-0 font-semibold underline underline-offset-4">Review billing</a>
+                        <a href="#billing" className="shrink-0 font-semibold underline underline-offset-4">{t("Review billing")}</a>
                     </aside>
                 ) : null}
-                <SettingsPanel id="profile" title="Business Profile" description="Core business information used across this organization." icon={Building2}>
+                <SettingsPanel id="profile" title={t("Business Profile")} description={t("Core business information used across this organization.")} icon={Building2}>
                     {isEditing && organizationCanEdit ? (
                         <>
-                            <SettingsField label="Organization name" description="The public workspace name." error={nameError} errorId="org-name-error">
-                                <SettingsInput value={form.name} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder="Organization name" error={nameError} errorId="org-name-error" />
+                            <SettingsField label={t("Organization name")} description={t("The public workspace name.")} error={nameError} errorId="org-name-error">
+                                <SettingsInput value={form.name} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder={t("Organization name")} error={nameError} errorId="org-name-error" />
                             </SettingsField>
-                            <SettingsField label="Legal name" description="Optional legal or billing name." error={legalNameError} errorId="org-legal-name-error">
-                                <SettingsInput value={form.legalName ?? ""} onChange={e => updateForm("legalName", e.target.value)} onBlur={() => markTouched("legalName")} placeholder="Registered business name" error={legalNameError} errorId="org-legal-name-error" />
+                            <SettingsField label={t("Legal name")} description={t("Optional legal or billing name.")} error={legalNameError} errorId="org-legal-name-error">
+                                <SettingsInput value={form.legalName ?? ""} onChange={e => updateForm("legalName", e.target.value)} onBlur={() => markTouched("legalName")} placeholder={t("Registered business name")} error={legalNameError} errorId="org-legal-name-error" />
                             </SettingsField>
-                            <SettingsField label="Business type" error={businessTypeError} errorId="org-business-type-error">
+                            <SettingsField label={t("Business type")} error={businessTypeError} errorId="org-business-type-error">
                                 <SettingsSelect
                                     value={form.businessType ?? ""}
                                     onValueChange={value => updateForm("businessType", value)}
@@ -967,7 +969,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                                     error={businessTypeError}
                                     errorId="org-business-type-error"
                                     options={[
-                                        { value: "", label: "Not set" },
+                                        { value: "", label: t("Not set") },
                                         ...BUSINESS_TYPES.map(type => ({ value: type, label: type })),
                                     ]}
                                 />
@@ -975,39 +977,39 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Organization name" value={org.name} />
-                            <ReadOnlyRow label="Legal name" value={org.legalName || "Not set"} />
-                            <ReadOnlyRow label="Business type" value={org.businessType || "Not set"} />
+                            <ReadOnlyRow label={t("Organization name")} value={org.name} />
+                            <ReadOnlyRow label={t("Legal name")} value={org.legalName || "Not set"} />
+                            <ReadOnlyRow label={t("Business type")} value={org.businessType || "Not set"} />
                         </>
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="contact" title="Contact" description="Contact details for operations and billing conversations." icon={MapPin}>
+                <SettingsPanel id="contact" title={t("Contact")} description={t("Contact details for operations and billing conversations.")} icon={MapPin}>
                     {isEditing && organizationCanEdit ? (
                         <>
-                            <SettingsField label="Contact email" error={contactEmailError} errorId="org-contact-email-error">
+                            <SettingsField label={t("Contact email")} error={contactEmailError} errorId="org-contact-email-error">
                                 <SettingsInput value={form.contactEmail ?? ""} onChange={e => updateForm("contactEmail", e.target.value)} onBlur={() => markTouched("contactEmail")} placeholder="owner@example.com" error={contactEmailError} errorId="org-contact-email-error" />
                             </SettingsField>
-                            <SettingsField label="Contact phone" description="Required phone number for owner and operations contact." error={contactPhoneError} errorId="org-contact-phone-error">
+                            <SettingsField label={t("Contact phone")} description={t("Required phone number for owner and operations contact.")} error={contactPhoneError} errorId="org-contact-phone-error">
                                 <SettingsInput value={form.contactPhone ?? ""} onChange={e => updateForm("contactPhone", e.target.value)} onBlur={() => markTouched("contactPhone")} placeholder="+91 98765 43210" error={contactPhoneError} errorId="org-contact-phone-error" />
                             </SettingsField>
-                            <SettingsField label="Address" error={addressError} errorId="org-address-error">
-                                <SettingsTextArea value={form.address ?? ""} onChange={e => updateForm("address", e.target.value)} onBlur={() => markTouched("address")} placeholder="Organization address" error={addressError} errorId="org-address-error" />
+                            <SettingsField label={t("Address")} error={addressError} errorId="org-address-error">
+                                <SettingsTextArea value={form.address ?? ""} onChange={e => updateForm("address", e.target.value)} onBlur={() => markTouched("address")} placeholder={t("Organization address")} error={addressError} errorId="org-address-error" />
                             </SettingsField>
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Contact email" value={org.contactEmail || "Not set"} />
-                            <ReadOnlyRow label="Contact phone" value={org.contactPhone || "Not set"} />
-                            <ReadOnlyRow label="Address" value={org.address || "Not set"} />
+                            <ReadOnlyRow label={t("Contact email")} value={org.contactEmail || "Not set"} />
+                            <ReadOnlyRow label={t("Contact phone")} value={org.contactPhone || "Not set"} />
+                            <ReadOnlyRow label={t("Address")} value={org.address || "Not set"} />
                         </>
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="regional" title="Regional Defaults" description="Defaults new branches can align with later." icon={Clock}>
+                <SettingsPanel id="regional" title={t("Regional Defaults")} description={t("Defaults new branches can align with later.")} icon={Clock}>
                     {isEditing && organizationCanEdit ? (
                         <>
-                            <SettingsField label="Timezone">
+                            <SettingsField label={t("Timezone")}>
                                 <SettingsSelect
                                     value={form.timezone}
                                     onValueChange={value => updateForm("timezone", value)}
@@ -1017,7 +1019,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                                     ]}
                                 />
                             </SettingsField>
-                            <SettingsField label="Currency">
+                            <SettingsField label={t("Currency")}>
                                 <SettingsSelect
                                     value={form.currency}
                                     onValueChange={value => updateForm("currency", value)}
@@ -1027,35 +1029,35 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                                     ]}
                                 />
                             </SettingsField>
-                            <SettingsField label="Week starts on">
+                            <SettingsField label={t("Week starts on")}>
                                 <SegmentedControl
                                     value={String(form.weekStartsOn) as "0" | "1"}
                                     onChange={value => updateForm("weekStartsOn", Number(value) as 0 | 1)}
                                     options={[
-                                        { value: "1", label: "Monday" },
-                                        { value: "0", label: "Sunday" },
+                                        { value: "1", label: t("Monday") },
+                                        { value: "0", label: t("Sunday") },
                                     ]}
                                 />
                             </SettingsField>
-                            <SettingsField label="Payment grace days" description="Stored organization policy for payment follow-up windows." error={paymentGraceDaysError} errorId="org-payment-grace-days-error">
+                            <SettingsField label={t("Payment grace days")} description={t("Stored organization policy for payment follow-up windows.")} error={paymentGraceDaysError} errorId="org-payment-grace-days-error">
                                 <SettingsInput type="number" min={0} max={60} value={form.paymentGraceDays} onChange={e => updateForm("paymentGraceDays", Number(e.target.value))} onBlur={() => markTouched("paymentGraceDays")} error={paymentGraceDaysError} errorId="org-payment-grace-days-error" />
                             </SettingsField>
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Timezone" value={org.timezone} />
-                            <ReadOnlyRow label="Currency" value={org.currency} />
-                            <ReadOnlyRow label="Week starts on" value={org.weekStartsOn === 0 ? "Sunday" : "Monday"} />
-                            <ReadOnlyRow label="Payment grace days" value={org.paymentGraceDays} />
+                            <ReadOnlyRow label={t("Timezone")} value={org.timezone} />
+                            <ReadOnlyRow label={t("Currency")} value={org.currency} />
+                            <ReadOnlyRow label={t("Week starts on")} value={org.weekStartsOn === 0 ? "Sunday" : "Monday"} />
+                            <ReadOnlyRow label={t("Payment grace days")} value={org.paymentGraceDays} />
                         </>
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="branches" title="Branches" description="Open a branch to manage branch-level settings." icon={GitBranch}>
-                    <ReadOnlyRow label="Total branches" value={org._count.branches} />
+                <SettingsPanel id="branches" title={t("Branches")} description={t("Open a branch to manage branch-level settings.")} icon={GitBranch}>
+                    <ReadOnlyRow label={t("Total branches")} value={org._count.branches} />
                     <div className="grid gap-2 px-5 py-4 md:grid-cols-2">
                         {org.branches.length === 0 ? (
-                            <SettingsEmptyState>No branches yet.</SettingsEmptyState>
+                            <SettingsEmptyState>{t("No branches yet.")}</SettingsEmptyState>
                         ) : org.branches.map(branch => (
                             <SettingsCard
                                 key={branch.id}
@@ -1079,7 +1081,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                     onAvailabilityChange={setWhatsAppAvailable}
                 />
 
-                <SettingsPanel id="billing" title="Billing" description="Workspace subscription and Razorpay billing state." icon={CreditCard}>
+                <SettingsPanel id="billing" title={t("Billing")} description={t("Workspace subscription and Razorpay billing state.")} icon={CreditCard}>
                     {billingNotice && (
                         <div className={cn(
                             "mx-5 my-4 flex items-center gap-2 px-4 py-2 text-sm",
@@ -1121,26 +1123,22 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                     {pendingReplacement ? (
                         <section
                             className="mx-5 mt-4 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-4 py-3 text-sm"
-                            aria-label="Pending subscription replacement"
+                            aria-label={t("Pending subscription replacement")}
                         >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
-                                    <p className="font-semibold text-[color:var(--text-primary)]">
-                                        {pendingReplacement.shortName} replacement mandate
-                                    </p>
+                                    <p className="font-semibold text-[color:var(--text-primary)]">{t("{shortName} replacement mandate", { shortName: pendingReplacement.shortName })}</p>
                                     <p className="mt-1 text-[color:var(--text-secondary)]">
                                         {getProviderPaymentMethodLabel(pendingReplacement.providerPaymentMethod)}
                                         {pendingReplacementEffectiveAt
                                             ? ` · planned for ${format(new Date(pendingReplacementEffectiveAt), "PP")}`
-                                            : " · cutover date will appear after Razorpay confirms the mandate"}
+                                            : t(" · cutover date will appear after Razorpay confirms the mandate")}
                                     </p>
                                     <p className="mt-1 text-xs text-[color:var(--text-secondary)]">
-                                        Current billing, invoices, and paid-through dates remain on the existing subscription until cutover.
-                                    </p>
+                                        {t("Current billing, invoices, and paid-through dates remain on the existing subscription until cutover.")}</p>
                                     {complimentaryReplacementAccess ? (
                                         <p className="mt-2 font-medium text-[color:var(--ui-badge-success-text)]">
-                                            Complimentary upgrade access is active while billing remains on the current subscription.
-                                        </p>
+                                            {t("Complimentary upgrade access is active while billing remains on the current subscription.")}</p>
                                     ) : null}
                                 </div>
                                 {pendingReplacementCanUndo && pendingReplacementChange ? (
@@ -1151,8 +1149,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                                         isLoading={billingOperationLoading}
                                         onClick={() => void undoBillingChange(pendingReplacementChange.id)}
                                     >
-                                        Undo
-                                    </AppButton>
+                                        {t("Undo")}</AppButton>
                                 ) : null}
                             </div>
                         </section>
@@ -1177,19 +1174,16 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
 
                     <section className="px-5 py-5" aria-labelledby="billing-plans-title">
                         <div className="mb-4">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">Plans</p>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">{t("Plans")}</p>
                             <h3 id="billing-plans-title" className="mt-1 text-base font-semibold text-[color:var(--text-primary)]">
-                                Choose the right workspace plan
-                            </h3>
+                                {t("Choose the right workspace plan")}</h3>
                             <p className="mt-1 text-xs leading-5 text-[color:var(--text-secondary)]">
-                                Monthly billing is based on the selected plan and active branch count. You review the total before continuing to Razorpay.
-                            </p>
+                                {t("Monthly billing is based on the selected plan and active branch count. You review the total before continuing to Razorpay.")}</p>
                         </div>
                         {billingLoading ? (
                             <div className="flex min-h-28 items-center justify-center text-sm text-[color:var(--text-primary)]">
                                 <Loader2 className="mr-2 animate-spin" size={18} />
-                                Loading billing plans...
-                            </div>
+                                {t("Loading billing plans...")}</div>
                         ) : (
                             <div className="grid gap-3 lg:grid-cols-2">
                                 {(billingOverview?.plans ?? []).map(plan => (
@@ -1211,17 +1205,15 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                         && (billingOverview.current.cancelAtCycleEnd || billingOverview.current.status === "ACTIVE") ? (
                         <section className="space-y-3 px-5 py-4" aria-labelledby="subscription-controls-title">
                             <div>
-                                <h3 id="subscription-controls-title" className="text-sm font-semibold text-[color:var(--text-primary)]">Subscription controls</h3>
+                                <h3 id="subscription-controls-title" className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Subscription controls")}</h3>
                                 <p className="mt-1 text-xs text-[color:var(--text-secondary)]">
-                                    Cancellation preserves access through the end of the current paid billing cycle.
-                                </p>
+                                    {t("Cancellation preserves access through the end of the current paid billing cycle.")}</p>
                             </div>
                             {billingOverview.current.cancelAtCycleEnd ? (
                                 <div className={cn(formWarningBannerClass, "px-4 py-3 text-sm")}>
-                                    Cancellation is scheduled
-                                    {billingOverview.current.cancellationScheduledAt
+                                    {t("Cancellation is scheduled")}{billingOverview.current.cancellationScheduledAt
                                         ? ` for ${format(new Date(billingOverview.current.cancellationScheduledAt), "PP")}`
-                                        : " for the end of the current billing cycle"}.
+                                        : t(" for the end of the current billing cycle")}.
                                 </div>
                             ) : billingOverview.current.status === "ACTIVE" ? (
                                 <div className="flex flex-wrap justify-end gap-2">
@@ -1230,8 +1222,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                                         size="sm"
                                         onClick={() => setCancelDialogOpen(true)}
                                     >
-                                        Cancel at cycle end
-                                    </AppButton>
+                                        {t("Cancel at cycle end")}</AppButton>
                                 </div>
                             ) : null}
                         </section>
@@ -1240,28 +1231,26 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                     {billingOverview?.ownerTrialEligibility?.claimable && !billingOverview.trial && (
                         <div className="mx-5 mt-4 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                <span>Your owner account has one available 30-day Standard trial.</span>
+                                <span>{t("Your owner account has one available 30-day Standard trial.")}</span>
                                 <AppButton size="sm" onClick={async () => { await billing.claimTrial(orgId); await loadBilling(); }}>
-                                    Start trial here
-                                </AppButton>
+                                    {t("Start trial here")}</AppButton>
                             </div>
                         </div>
                     )}
 
                     {(billingOverview?.experience.scheduledChanges.length ?? 0) > 0 && (
                         <div className="border-t border-[color:var(--ui-form-section-divider)] px-5 py-4">
-                            <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Scheduled changes</h3>
+                            <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Scheduled changes")}</h3>
                             <div className="mt-3 space-y-2">
                                 {billingOverview?.experience.scheduledChanges.map(change => (
                                     <div key={change.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] px-3 py-2 text-xs">
                                         <span className="text-[color:var(--text-primary)]">
-                                            {formatBillingChangeType(change.type)} · {change.status === "SCHEDULED" ? "Scheduled" : "Awaiting confirmation"}
+                                            {formatBillingChangeType(change.type)} · {change.status === "SCHEDULED" ? t("Scheduled") : t("Awaiting confirmation")}
                                             {change.effectiveAt ? ` · ${format(new Date(change.effectiveAt), "PP")}` : ""}
                                         </span>
                                         {(change.status === "SCHEDULED" || change.status === "FAILED" || change.status === "AWAITING_PROVIDER_CONFIRMATION") && (
                                             <AppButton variant="secondary" size="sm" onClick={() => void undoBillingChange(change.id)}>
-                                                Undo
-                                            </AppButton>
+                                                {t("Undo")}</AppButton>
                                         )}
                                     </div>
                                 ))}
@@ -1271,7 +1260,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
 
                     {(billingOverview?.invoices.length ?? 0) > 0 && (
                         <div className="border-t border-[color:var(--ui-form-section-divider)] px-5 py-4">
-                            <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Invoices</h3>
+                            <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Invoices")}</h3>
                             <div className="mt-3 space-y-2">
                                 {billingOverview?.invoices.map(invoice => (
                                     <div key={invoice.id} className="flex justify-between rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] px-3 py-2 text-xs">
@@ -1285,7 +1274,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
 
                     {(billingOverview?.history.length ?? 0) > 0 && (
                         <div className="border-t border-[color:var(--ui-form-section-divider)] px-5 py-4">
-                            <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Subscription history</h3>
+                            <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Subscription history")}</h3>
                             <div className="mt-3 space-y-2">
                                 {billingOverview?.history.slice(0, 8).map(entry => (
                                     <div
@@ -1305,15 +1294,15 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="system" title="System Info" description="Owner and identifiers are read-only." icon={Shield}>
-                    <ReadOnlyRow label="Owner" value={<span className="inline-flex items-center gap-2"><Mail size={14} />{org.owner?.email || org.ownerId}</span>} />
-                    <ReadOnlyRow label="Organization ID" value={<span className="font-mono">{org.id}</span>} />
-                    <ReadOnlyRow label="Created" value={<span className="inline-flex items-center gap-2"><Calendar size={14} />{format(new Date(org.createdAt), "PPP")}</span>} />
-                    <ReadOnlyRow label="Business type" value={<span className="inline-flex items-center gap-2"><Briefcase size={14} />{org.businessType || "Not set"}</span>} />
-                    <ReadOnlyRow label="Billing currency" value={<span className="inline-flex items-center gap-2"><CreditCard size={14} />{org.currency}</span>} />
-                    <ReadOnlyRow label="Contact phone" value={<span className="inline-flex items-center gap-2"><Phone size={14} />{org.contactPhone || "Not set"}</span>} />
-                    <ReadOnlyRow label="Owner ID" value={<span className="font-mono">{org.ownerId}</span>} />
-                    <ReadOnlyRow label="Hash" value={<span className="inline-flex items-center gap-2"><Hash size={14} />System managed</span>} />
+                <SettingsPanel id="system" title={t("System Info")} description={t("Owner and identifiers are read-only.")} icon={Shield}>
+                    <ReadOnlyRow label={t("Owner")} value={<span className="inline-flex items-center gap-2"><Mail size={14} />{org.owner?.email || org.ownerId}</span>} />
+                    <ReadOnlyRow label={t("Organization ID")} value={<span className="font-mono">{org.id}</span>} />
+                    <ReadOnlyRow label={t("Created")} value={<span className="inline-flex items-center gap-2"><Calendar size={14} />{format(new Date(org.createdAt), "PPP")}</span>} />
+                    <ReadOnlyRow label={t("Business type")} value={<span className="inline-flex items-center gap-2"><Briefcase size={14} />{org.businessType || "Not set"}</span>} />
+                    <ReadOnlyRow label={t("Billing currency")} value={<span className="inline-flex items-center gap-2"><CreditCard size={14} />{org.currency}</span>} />
+                    <ReadOnlyRow label={t("Contact phone")} value={<span className="inline-flex items-center gap-2"><Phone size={14} />{org.contactPhone || "Not set"}</span>} />
+                    <ReadOnlyRow label={t("Owner ID")} value={<span className="font-mono">{org.ownerId}</span>} />
+                    <ReadOnlyRow label={t("Hash")} value={<span className="inline-flex items-center gap-2"><Hash size={14} />{t("System managed")}</span>} />
                 </SettingsPanel>
             </SettingsWorkspace>
 
@@ -1331,8 +1320,8 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 onClose={() => setDiscardDialogOpen(false)}
                 onConfirm={discardChanges}
                 variant="warning"
-                title="Discard organization changes?"
-                description="Your unsaved organization settings will be restored to their last saved values."
+                title={t("Discard organization changes?")}
+                description={t("Your unsaved organization settings will be restored to their last saved values.")}
                 confirmText="Discard changes"
                 cancelText="Keep editing"
             />
@@ -1399,8 +1388,8 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 onConfirm={confirmCancellation}
                 loading={cancellingSubscription}
                 variant="danger"
-                title="Cancel at cycle end?"
-                description="Your current access remains available until this billing cycle ends. Razorpay will not renew the subscription afterward. Already-paid fees are handled under the Cancellation and Refund Policy."
+                title={t("Cancel at cycle end?")}
+                description={t("Your current access remains available until this billing cycle ends. Razorpay will not renew the subscription afterward. Already-paid fees are handled under the Cancellation and Refund Policy.")}
                 confirmText="Schedule cancellation"
             />
         </>
@@ -1549,6 +1538,7 @@ function BillingPlanCard({
     checkoutReady: boolean;
     onStart: (plan: CheckoutBillingPlanId) => void;
 }) {
+    const t = useTranslation();
     const isCurrent = isCurrentBillingPlan(plan, current, experience);
     const selectedPlanId = experience?.selectedPostTrialPlan === "STANDARD"
         ? "PRO"
@@ -1614,34 +1604,30 @@ function BillingPlanCard({
                 {plan.featured && (
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2 py-1 text-[10px] font-semibold uppercase text-[color:var(--ui-badge-cyan-text)]">
                         <Sparkles size={11} />
-                        Popular
-                    </span>
+                        {t("Popular")}</span>
                 )}
             </div>
 
             <div className="mt-5">
                 <span className="text-2xl font-semibold text-[color:var(--text-primary)]">{formatPlanAmount(plan)}</span>
-                {!plan.custom && <span className="ml-1 text-xs text-[color:var(--text-secondary)]">/ branch / month</span>}
+                {!plan.custom && <span className="ml-1 text-xs text-[color:var(--text-secondary)]">{t("/ branch / month")}</span>}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
                 {isCurrent && current && (
                     <span className="rounded-full border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] px-2 py-1 text-[10px] font-semibold uppercase text-[color:var(--ui-badge-success-text)]">
-                        Current plan
-                    </span>
+                        {t("Current plan")}</span>
                 )}
                 {isAuthorizedAfterTrial ? (
                     <span className="rounded-full border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] px-2 py-1 text-[10px] font-semibold uppercase text-[color:var(--ui-badge-success-text)]">
-                        Authorized after trial
-                    </span>
+                        {t("Authorized after trial")}</span>
                 ) : isSelectedAfterTrial ? (
                     <span className="rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-2 py-1 text-[10px] font-semibold uppercase text-[color:var(--ui-badge-cyan-text)]">
-                        Selected after trial
-                    </span>
+                        {t("Selected after trial")}</span>
                 ) : null}
                 {!plan.active && (
                     <span className="rounded-full border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-2 py-1 text-[10px] font-semibold uppercase text-[color:var(--text-secondary)]">
-                        {plan.custom ? "Custom" : "Soon"}
+                        {plan.custom ? t("Custom") : t("Soon")}
                     </span>
                 )}
             </div>
@@ -1654,7 +1640,7 @@ function BillingPlanCard({
                         ) : (
                             <XCircle size={15} className="mt-0.5 shrink-0 text-[color:var(--text-secondary)]" />
                         )}
-                        <span>{capability.label}{capability.included ? "" : " — Standard only"}</span>
+                        <span>{t.owned(capability.label)}{capability.included ? "" : t(" — Standard only")}</span>
                     </div>
                 ))}
             </div>

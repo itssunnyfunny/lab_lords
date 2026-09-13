@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
@@ -85,6 +86,7 @@ export function StatCard({
     progress,
     footer,
 }: StatCardProps) {
+    const t = useTranslation();
     const statusStyle = toneMap[tone];
     const identityStyle = accentMap[accent];
     const progressValue = typeof progress === "number" ? Math.max(0, Math.min(progress, 100)) : null;
@@ -101,9 +103,9 @@ export function StatCard({
             <span aria-hidden="true" className={cn("pointer-events-none absolute inset-0", identityStyle.wash)} />
             <div className="relative flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-xs font-medium text-[color:var(--ui-stat-title)]">{title}</p>
+                    <p className="text-xs font-medium text-[color:var(--ui-stat-title)]">{t.owned(title)}</p>
                     <p className={cn("mt-2 break-words text-2xl font-semibold tracking-tight", identityStyle.value)}>{value}</p>
-                    <p className="mt-1 text-xs leading-5 text-[color:var(--ui-stat-subtitle)]">{sub}</p>
+                    <p className="mt-1 text-xs leading-5 text-[color:var(--ui-stat-subtitle)]">{t.owned(sub)}</p>
                 </div>
                 <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)]", identityStyle.icon)}>
                     <Icon size={17} />
@@ -115,15 +117,14 @@ export function StatCard({
                     <div className="h-1.5 overflow-hidden rounded-full bg-[color:var(--ui-stat-track)]">
                         <div className={cn("h-full rounded-full", statusStyle.progress)} style={{ width: `${progressValue}%` }} />
                     </div>
-                    {footer && <p className="mt-2 text-[11px] text-[color:var(--ui-stat-subtitle)]">{footer}</p>}
+                    {footer && <p className="mt-2 text-[11px] text-[color:var(--ui-stat-subtitle)]">{t.owned(footer)}</p>}
                 </div>
             )}
 
             {alert && progressValue === null && (
                 <div className="relative mt-4 flex items-center gap-2 text-[11px] font-medium text-[color:var(--ui-stat-alert)]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ui-stat-alert-dot)]" />
-                    Needs attention
-                </div>
+                    {t("Needs attention")}</div>
             )}
         </div>
     );

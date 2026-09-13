@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useRef, useState } from "react";
 import { CalendarClock, CheckCircle2, ShieldCheck, XCircle } from "lucide-react";
@@ -152,23 +154,24 @@ export function WhatsAppServiceNoticePreviewCard({
 }: {
   preview: WhatsAppServiceNoticePreviewView;
 }) {
+    const t = useTranslation();
   return (
     <div className="space-y-4">
       <div className={cn("space-y-2 p-4", pageInsetSurfaceClass)}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-semibold">Official Utility-template preview</p>
-          <Badge variant="cyan">Typed notice</Badge>
+          <p className="font-semibold">{t("Official Utility-template preview")}</p>
+          <Badge variant="cyan">{t("Typed notice")}</Badge>
         </div>
         <p className="whitespace-pre-wrap text-sm leading-6 text-[color:var(--text-primary)]">{preview.renderedPreview}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Unique eligible phones</p><p className="mt-1 text-lg font-semibold">{preview.eligibleRecipientCount}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Suppressed</p><p className="mt-1 text-lg font-semibold">{preview.suppressedCount}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Estimated Meta usage</p><p className="mt-1 text-lg font-semibold">{estimatedInr(preview.estimatedCostMicros)}</p></div>
-        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">Scheduled delivery</p><p className="mt-1 text-sm font-semibold">{formatDateTime(preview.scheduledFor)}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Unique eligible phones")}</p><p className="mt-1 text-lg font-semibold">{preview.eligibleRecipientCount}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Suppressed")}</p><p className="mt-1 text-lg font-semibold">{preview.suppressedCount}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Estimated Meta usage")}</p><p className="mt-1 text-lg font-semibold">{estimatedInr(preview.estimatedCostMicros)}</p></div>
+        <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Scheduled delivery")}</p><p className="mt-1 text-sm font-semibold">{formatDateTime(preview.scheduledFor)}</p></div>
       </div>
-      {preview.budgetRemainingAfterMicros !== null ? <p className="text-sm text-[color:var(--text-secondary)]">Estimated branch budget remaining after reservation: {estimatedInr(preview.budgetRemainingAfterMicros)}</p> : null}
-      <p className="text-xs leading-5 text-[color:var(--text-muted)]">{preview.estimateDisclaimer} This is an estimate, not an invoice; Meta determines final billing and category.</p>
+      {preview.budgetRemainingAfterMicros !== null ? <p className="text-sm text-[color:var(--text-secondary)]">{t("Estimated branch budget remaining after reservation: {estimatedInr}", { estimatedInr: estimatedInr(preview.budgetRemainingAfterMicros) })}</p> : null}
+      <p className="text-xs leading-5 text-[color:var(--text-muted)]">{preview.estimateDisclaimer}  {t("This is an estimate, not an invoice; Meta determines final billing and category.")}</p>
     </div>
   );
 }
@@ -182,6 +185,7 @@ export function WhatsAppServiceNoticeComposer({
   onQueue,
   onCancel,
 }: WhatsAppServiceNoticeComposerProps) {
+    const t = useTranslation();
   const [draft, setDraft] = useState<WhatsAppServiceNoticeDraft>(initialDraft);
   const [previewState, setPreviewState] = useState<{ draft: WhatsAppServiceNoticeDraft; preview: WhatsAppServiceNoticePreviewView; idempotencyKey: string } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -277,77 +281,77 @@ export function WhatsAppServiceNoticeComposer({
 
   return (
     <AppPanel
-      title="Operational service notice"
+      title={t("Operational service notice")}
       description={`Queue only a fixed branch-closed, changed-hours, or maintenance Utility template for ${branchName}. There is no arbitrary message or recipient field.`}
-      action={<Badge variant="cyan">Operational only</Badge>}
+      action={<Badge variant="cyan">{t("Operational only")}</Badge>}
       contentClassName="space-y-5"
     >
       {!canManage ? <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">{blockedReason || "You need WhatsApp management and sending permission to manage branch-wide notices."}</div> : null}
-      {notice ? <p className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"}>{notice.text}</p> : null}
+      {notice ? <p className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"}>{notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}</p> : null}
 
       <div className="overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-section-divider)]">
-        <SettingsField label="Notice type" description="Only the fixed operational catalogue is available.">
+        <SettingsField label={t("Notice type")} description={t("Only the fixed operational catalogue is available.")}>
           <SettingsSelect
             value={draft.type}
             onValueChange={value => changeType(value as WhatsAppServiceNoticeType)}
             options={NOTICE_TYPE_OPTIONS}
             disabled={!canManage || busy !== null}
-            aria-label="Service notice type"
+            aria-label={t("Service notice type")}
           />
         </SettingsField>
 
         {draft.type !== "MAINTENANCE_WINDOW" ? (
-          <SettingsField label="Fixed reason" description="Free-form reasons are not supported.">
+          <SettingsField label={t("Fixed reason")} description={t("Free-form reasons are not supported.")}>
             <SettingsSelect
               value={draft.reason}
               onValueChange={value => updateDraft("reason", value as WhatsAppServiceNoticeReason)}
               options={NOTICE_REASON_OPTIONS}
               disabled={!canManage || busy !== null}
-              aria-label="Service notice reason"
+              aria-label={t("Service notice reason")}
             />
           </SettingsField>
         ) : null}
 
-        <SettingsField label={draft.type === "BRANCH_CLOSED" ? "Closure date" : "Effective date"}>
-          <SettingsInput type="date" value={draft.localEffectiveDate} onChange={event => updateDraft("localEffectiveDate", event.target.value)} disabled={!canManage || busy !== null} aria-label={draft.type === "BRANCH_CLOSED" ? "Closure local date" : "Effective local date"} />
+        <SettingsField label={draft.type === "BRANCH_CLOSED" ? t("Closure date") : t("Effective date")}>
+          <SettingsInput type="date" value={draft.localEffectiveDate} onChange={event => updateDraft("localEffectiveDate", event.target.value)} disabled={!canManage || busy !== null} aria-label={draft.type === "BRANCH_CLOSED" ? t("Closure local date") : t("Effective local date")} />
         </SettingsField>
 
         {draft.type === "BRANCH_CLOSED" ? (
-          <SettingsField label="Operations resume date"><SettingsInput type="date" value={draft.resumeLocalDate ?? ""} onChange={event => updateDraft("resumeLocalDate", event.target.value)} disabled={!canManage || busy !== null} aria-label="Resume local date" /></SettingsField>
+          <SettingsField label={t("Operations resume date")}><SettingsInput type="date" value={draft.resumeLocalDate ?? ""} onChange={event => updateDraft("resumeLocalDate", event.target.value)} disabled={!canManage || busy !== null} aria-label={t("Resume local date")} /></SettingsField>
         ) : null}
 
         {draft.type === "HOURS_CHANGED" ? (
-          <SettingsField label="Changed operating hours">
+          <SettingsField label={t("Changed operating hours")}>
             <div className="grid gap-2 sm:grid-cols-2">
-              <SettingsInput type="time" value={draft.openingTimeLocal ?? ""} onChange={event => updateDraft("openingTimeLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label="Changed opening time" />
-              <SettingsInput type="time" value={draft.closingTimeLocal ?? ""} onChange={event => updateDraft("closingTimeLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label="Changed closing time" />
+              <SettingsInput type="time" value={draft.openingTimeLocal ?? ""} onChange={event => updateDraft("openingTimeLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label={t("Changed opening time")} />
+              <SettingsInput type="time" value={draft.closingTimeLocal ?? ""} onChange={event => updateDraft("closingTimeLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label={t("Changed closing time")} />
             </div>
           </SettingsField>
         ) : null}
 
         {draft.type === "MAINTENANCE_WINDOW" ? (
-          <SettingsField label="Maintenance window">
+          <SettingsField label={t("Maintenance window")}>
             <div className="grid gap-2 sm:grid-cols-2">
-              <SettingsInput type="time" value={draft.maintenanceStartTimeLocal ?? ""} onChange={event => updateDraft("maintenanceStartTimeLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label="Maintenance start time" />
-              <SettingsInput type="time" value={draft.maintenanceEndTimeLocal ?? ""} onChange={event => updateDraft("maintenanceEndTimeLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label="Maintenance end time" />
+              <SettingsInput type="time" value={draft.maintenanceStartTimeLocal ?? ""} onChange={event => updateDraft("maintenanceStartTimeLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label={t("Maintenance start time")} />
+              <SettingsInput type="time" value={draft.maintenanceEndTimeLocal ?? ""} onChange={event => updateDraft("maintenanceEndTimeLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label={t("Maintenance end time")} />
             </div>
           </SettingsField>
         ) : null}
 
-        <SettingsField label="Delivery timing" description="Scheduled delivery must be before the event and no more than 30 days ahead.">
+        <SettingsField label={t("Delivery timing")} description={t("Scheduled delivery must be before the event and no more than 30 days ahead.")}>
           <SettingsSelect
             value={draft.delivery}
             onValueChange={value => updateDraft("delivery", value as WhatsAppServiceNoticeDraft["delivery"])}
             options={NOTICE_DELIVERY_OPTIONS}
             disabled={!canManage || busy !== null}
-            aria-label="Service notice delivery timing"
+            aria-label={t("Service notice delivery timing")}
           />
         </SettingsField>
-        {draft.delivery === "SCHEDULED" ? <SettingsField label="Scheduled local date and time"><SettingsInput type="datetime-local" value={draft.scheduledForLocal ?? ""} onChange={event => updateDraft("scheduledForLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label="Scheduled notice date and time" /></SettingsField> : null}
+        {draft.delivery === "SCHEDULED" ? <SettingsField label={t("Scheduled local date and time")}><SettingsInput type="datetime-local" value={draft.scheduledForLocal ?? ""} onChange={event => updateDraft("scheduledForLocal", event.target.value)} disabled={!canManage || busy !== null} aria-label={t("Scheduled notice date and time")} /></SettingsField> : null}
       </div>
 
       <div className="flex justify-end">
-        <AppButton variant="secondary" size="sm" icon={CalendarClock} onClick={() => void previewNotice()} disabled={!canManage || !draftComplete || busy !== null} isLoading={busy === "preview"}>Preview typed notice</AppButton>
+        <AppButton variant="secondary" size="sm" icon={CalendarClock} onClick={() => void previewNotice()} disabled={!canManage || !draftComplete || busy !== null} isLoading={busy === "preview"}>{t("Preview typed notice")}</AppButton>
       </div>
 
       {previewState ? <WhatsAppServiceNoticePreviewCard preview={previewState.preview} /> : null}
@@ -355,28 +359,28 @@ export function WhatsAppServiceNoticeComposer({
         <div className="space-y-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm">
             <input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy !== null} className="mt-0.5 h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500" />
-            <span>I reviewed the fixed operational wording, unique recipient count, suppressions, schedule, budget impact, and estimated customer-owned Meta usage.</span>
+            <span>{t("I reviewed the fixed operational wording, unique recipient count, suppressions, schedule, budget impact, and estimated customer-owned Meta usage.")}</span>
           </label>
-          <div className="flex justify-end"><AppButton variant="primary" size="sm" icon={ShieldCheck} onClick={() => void queueNotice()} disabled={!confirmed || busy !== null} isLoading={busy === "queue"}>Confirm charges and queue notice</AppButton></div>
+          <div className="flex justify-end"><AppButton variant="primary" size="sm" icon={ShieldCheck} onClick={() => void queueNotice()} disabled={!confirmed || busy !== null} isLoading={busy === "queue"}>{t("Confirm charges and queue notice")}</AppButton></div>
         </div>
       ) : null}
-      {queueResult ? <div className={cn("flex items-start gap-3 p-3 text-sm", formSuccessBannerClass)} role="status"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>Notice status: {queueResult.status.toLowerCase()}. {queueResult.queuedMessageCount} messages queued and {queueResult.suppressedCount} suppressed.</span></div> : null}
+      {queueResult ? <div className={cn("flex items-start gap-3 p-3 text-sm", formSuccessBannerClass)} role="status"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{t("Notice status: {toLowerCase}. {queuedMessageCount} messages queued and {suppressedCount} suppressed.", { toLowerCase: queueResult.status.toLowerCase(), queuedMessageCount: queueResult.queuedMessageCount, suppressedCount: queueResult.suppressedCount })}</span></div> : null}
 
       <section className="space-y-3 border-t border-[color:var(--ui-form-section-divider)] pt-4" aria-labelledby="recent-service-notices-heading">
-        <h3 id="recent-service-notices-heading" className="font-semibold">Recent service notices</h3>
-        {recentNotices.length === 0 ? <p className="text-sm text-[color:var(--text-muted)]">No service-notice history yet.</p> : (
+        <h3 id="recent-service-notices-heading" className="font-semibold">{t("Recent service notices")}</h3>
+        {recentNotices.length === 0 ? <p className="text-sm text-[color:var(--text-muted)]">{t("No service-notice history yet.")}</p> : (
           <ul className="grid gap-2">
             {recentNotices.map(item => (
               <li key={item.id} className={cn("flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between", pageInsetSurfaceClass)}>
-                <div><p className="text-sm font-medium">{NOTICE_TYPE_LABELS[item.type]} · {item.localEffectiveDate}</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">{REASON_LABELS[item.reason]} · {item.eligibleRecipientCount} unique eligible · {item.queuedMessageCount} queued · {item.suppressedCount} suppressed · estimate {estimatedInr(item.estimatedCostMicros)}</p></div>
-                <div className="flex flex-wrap items-center gap-2"><Badge variant={noticeStatusVariant(item.status)}>{item.status}</Badge>{item.canCancel && canManage ? <AppButton variant="danger" size="sm" icon={XCircle} onClick={() => setCancelTarget(item)} disabled={busy !== null}>Cancel unsubmitted</AppButton> : null}</div>
+                <div><p className="text-sm font-medium"><OwnedLabel text={NOTICE_TYPE_LABELS[item.type]} /> · {item.localEffectiveDate}</p><p className="mt-1 text-xs text-[color:var(--text-muted)]"><OwnedLabel text={REASON_LABELS[item.reason]} /> · {t("{eligible} unique eligible · {queued} queued · {suppressed} suppressed · estimate {amount}", { eligible: item.eligibleRecipientCount, queued: item.queuedMessageCount, suppressed: item.suppressedCount, amount: estimatedInr(item.estimatedCostMicros) })}</p></div>
+                <div className="flex flex-wrap items-center gap-2"><Badge variant={noticeStatusVariant(item.status)}>{item.status}</Badge>{item.canCancel && canManage ? <AppButton variant="danger" size="sm" icon={XCircle} onClick={() => setCancelTarget(item)} disabled={busy !== null}>{t("Cancel unsubmitted")}</AppButton> : null}</div>
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <ConfirmDialog isOpen={Boolean(cancelTarget)} onClose={() => setCancelTarget(null)} onConfirm={cancelNotice} title="Cancel unsubmitted notice messages?" description="Only safely unsubmitted messages will be cancelled and their reservations released. Submitted, accepted, ambiguous, and delivered history is preserved and cannot be recalled." confirmText="Cancel unsubmitted" loading={busy === "cancel"} variant="danger" />
+      <ConfirmDialog isOpen={Boolean(cancelTarget)} onClose={() => setCancelTarget(null)} onConfirm={cancelNotice} title={t("Cancel unsubmitted notice messages?")} description={t("Only safely unsubmitted messages will be cancelled and their reservations released. Submitted, accepted, ambiguous, and delivered history is preserved and cannot be recalled.")} confirmText="Cancel unsubmitted" loading={busy === "cancel"} variant="danger" />
     </AppPanel>
   );
 }

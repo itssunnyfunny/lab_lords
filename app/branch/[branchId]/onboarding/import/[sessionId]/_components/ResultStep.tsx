@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useTranslation } from "@/components/settings/LocalizedText";import { useState } from "react";
 import { ArrowRight, Download, LayoutDashboard, Loader2, ReceiptText, RotateCcw, Save, Sofa, UsersRound, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AppButton, AppPanel } from "@/components/ui";
@@ -49,6 +50,7 @@ export function ResultStep({
     onSaveRecipe,
     recipeSaved,
 }: ResultStepProps) {
+    const t = useTranslation();
     const router = useRouter();
     const { formatDateTime, formatNumber } = useUserPreferences();
     const [recipeName, setRecipeName] = useState("");
@@ -116,7 +118,7 @@ export function ResultStep({
 
     return (
         <div className="space-y-5">
-            <AppPanel title="Import progress & result" description={hasResult ? "Saved progress for the latest import run." : "No branch records have been created from this session yet."}>
+            <AppPanel title={t("Import progress & result")} description={hasResult ? t("Saved progress for the latest import run.") : t("No branch records have been created from this session yet.")}>
                 <div className="space-y-5" aria-busy={runLoading}>
                     <div role="status" aria-live="polite" aria-atomic="true">
                         <StepNotice tone={notice.tone} title={notice.title} message={notice.message} />
@@ -126,16 +128,16 @@ export function ResultStep({
                         <>
                             <div className="flex flex-wrap items-center gap-2">
                                 <StatusBadge status={run.status} />
-                                <Badge variant="cyan">{run.kind === "COMMIT" ? "Import run" : "Analysis run"}</Badge>
-                                <span className={cn("text-xs", pageMutedTextClass)}>Updated {formatDateTime(run.updatedAt ?? run.createdAt)}</span>
-                                {runLoading && <Loader2 className="h-4 w-4 animate-spin" aria-label="Refreshing progress" />}
+                                <Badge variant="cyan">{run.kind === "COMMIT" ? t("Import run") : t("Analysis run")}</Badge>
+                                <span className={cn("text-xs", pageMutedTextClass)}>{t("Updated")} {formatDateTime(run.updatedAt ?? run.createdAt)}</span>
+                                {runLoading && <Loader2 className="h-4 w-4 animate-spin" aria-label={t("Refreshing progress")} />}
                             </div>
                             <div>
                                 <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-                                    <span className={pageMutedTextClass}>Background progress</span>
+                                    <span className={pageMutedTextClass}>{t("Background progress")}</span>
                                     <span className="font-semibold text-[color:var(--text-primary)]">{formatNumber(progress)}%</span>
                                 </div>
-                                <div className={pageProgressTrackClass} role="progressbar" aria-label="Background import progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+                                <div className={pageProgressTrackClass} role="progressbar" aria-label={t("Background import progress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
                                     <div className="h-full rounded-full bg-cyan-300 transition-all" style={{ width: `${progress}%` }} />
                                 </div>
                             </div>
@@ -153,37 +155,37 @@ export function ResultStep({
 
                     {run?.error?.message && (
                         <div className={cn("p-3", pageInsetSurfaceClass)} role="alert">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-red-200"><XCircle className="h-4 w-4" />Run error</div>
+                            <div className="flex items-center gap-2 text-sm font-semibold text-red-200"><XCircle className="h-4 w-4" />{t("Run error")}</div>
                             <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{run.error.message}</p>
                         </div>
                     )}
 
                     <div className="flex flex-wrap gap-2">
                         {run && ["QUEUED", "RUNNING", "RETRYABLE_FAILURE"].includes(run.status) && (
-                            <AppButton variant="secondary" onClick={onCancelRun} isLoading={actionLoading}>Cancel import</AppButton>
+                            <AppButton variant="secondary" onClick={onCancelRun} isLoading={actionLoading}>{t("Cancel import")}</AppButton>
                         )}
                         {repairable && canRetryRun && (
-                            <AppButton variant="primary" icon={RotateCcw} onClick={onRetryRun} isLoading={actionLoading}>Retry remaining work</AppButton>
+                            <AppButton variant="primary" icon={RotateCcw} onClick={onRetryRun} isLoading={actionLoading}>{t("Retry remaining work")}</AppButton>
                         )}
                         {repairable && !canRetryRun && (
-                            <AppButton variant="primary" icon={ArrowRight} onClick={onRepairRun}>Fix issues and review a new plan</AppButton>
+                            <AppButton variant="primary" icon={ArrowRight} onClick={onRepairRun}>{t("Fix issues and review a new plan")}</AppButton>
                         )}
                         {run && run.failedItems > 0 && (
                             <>
-                                <AppButton variant="secondary" icon={Download} onClick={() => onExportErrors("csv")} isLoading={actionLoading}>Download error CSV</AppButton>
-                                <AppButton variant="secondary" icon={Download} onClick={() => onExportErrors("xlsx")} isLoading={actionLoading}>Download error XLSX</AppButton>
+                                <AppButton variant="secondary" icon={Download} onClick={() => onExportErrors("csv")} isLoading={actionLoading}>{t("Download error CSV")}</AppButton>
+                                <AppButton variant="secondary" icon={Download} onClick={() => onExportErrors("xlsx")} isLoading={actionLoading}>{t("Download error XLSX")}</AppButton>
                             </>
                         )}
-                        {!hasResult && !runLoading && <AppButton variant="primary" icon={ArrowRight} onClick={onGoPreview}>Go to review & import</AppButton>}
-                        <AppButton variant="quiet" onClick={() => router.push(`/branch/${branchId}/onboarding/import`)}>All imports</AppButton>
+                        {!hasResult && !runLoading && <AppButton variant="primary" icon={ArrowRight} onClick={onGoPreview}>{t("Go to review & import")}</AppButton>}
+                        <AppButton variant="quiet" onClick={() => router.push(`/branch/${branchId}/onboarding/import`)}>{t("All imports")}</AppButton>
                     </div>
                 </div>
             </AppPanel>
 
             {complete && onSaveRecipe && (
-                <AppPanel title="Reuse these column meanings" description="Save a recipe after success. Future files with the same headers can start with these mappings, and you will still review them before import.">
+                <AppPanel title={t("Reuse these column meanings")} description={t("Save a recipe after success. Future files with the same headers can start with these mappings, and you will still review them before import.")}>
                     {recipeSaved ? (
-                        <StepNotice tone="success" title="Recipe saved" message={`${recipeSaved} is ready for matching future imports.`} />
+                        <StepNotice tone="success" title={t("Recipe saved")} message={`${recipeSaved} is ready for matching future imports.`} />
                     ) : (
                         <form
                             className="flex flex-col gap-3 sm:flex-row"
@@ -194,17 +196,17 @@ export function ResultStep({
                             }}
                         >
                             <div className="min-w-0 flex-1">
-                                <label htmlFor="import-recipe-name" className="text-xs font-semibold text-[color:var(--text-secondary)]">Recipe name</label>
-                                <input id="import-recipe-name" value={recipeName} onChange={event => setRecipeName(event.target.value)} className={cn("mt-2 w-full", importFieldClass)} placeholder="Example: August student register" />
+                                <label htmlFor="import-recipe-name" className="text-xs font-semibold text-[color:var(--text-secondary)]">{t("Recipe name")}</label>
+                                <input id="import-recipe-name" value={recipeName} onChange={event => setRecipeName(event.target.value)} className={cn("mt-2 w-full", importFieldClass)} placeholder={t("Example: August student register")} />
                             </div>
-                            <AppButton className="sm:self-end" type="submit" variant="secondary" icon={Save} disabled={!recipeName.trim()} isLoading={actionLoading}>Save recipe</AppButton>
+                            <AppButton className="sm:self-end" type="submit" variant="secondary" icon={Save} disabled={!recipeName.trim()} isLoading={actionLoading}>{t("Save recipe")}</AppButton>
                         </form>
                     )}
                 </AppPanel>
             )}
 
             {canContinueToBranch && (
-                <AppPanel title="Next" description="Open the records created or continue operating the branch.">
+                <AppPanel title={t("Next")} description={t("Open the records created or continue operating the branch.")}>
                     <div className="grid gap-3 md:grid-cols-4">
                         {[
                             ["View students", UsersRound, `/branch/${branchId}/students`],

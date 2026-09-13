@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useClerk } from "@clerk/nextjs";
 import { ArrowRight, LogOut } from "lucide-react";
@@ -24,6 +26,7 @@ export function InviteAcceptanceActions({
     invitePath,
     signedInEmail,
 }: InviteAcceptanceActionsProps) {
+    const t = useTranslation();
     const router = useRouter();
     const { signOut } = useClerk();
     const [accepting, setAccepting] = useState(false);
@@ -68,11 +71,10 @@ export function InviteAcceptanceActions({
     return (
         <div className="mt-6 space-y-4">
             <div className={cn(entryInlineInfoClass, "p-4 text-sm", entryMutedTextClass)}>
-                <p className="font-medium text-[color:var(--text-primary)]">Signed in as</p>
+                <p className="font-medium text-[color:var(--text-primary)]">{t("Signed in as")}</p>
                 <p className="mt-1 break-all">{signedInEmail}</p>
                 <p className="mt-3 text-xs leading-5">
-                    This invite is restricted to its intended account. Confirm only if you recognize this workspace and role.
-                </p>
+                    {t("This invite is restricted to its intended account. Confirm only if you recognize this workspace and role.")}</p>
             </div>
 
             {error && (
@@ -80,7 +82,7 @@ export function InviteAcceptanceActions({
                     role="alert"
                     className="rounded-[var(--ui-radius-control)] border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-200"
                 >
-                    {error}
+                    <LocalizedError error={error} />
                 </div>
             )}
 
@@ -95,7 +97,7 @@ export function InviteAcceptanceActions({
                     )}
                 >
                     <ArrowRight size={16} />
-                    {accepting ? "Accepting invite..." : "Accept invite"}
+                    {accepting ? t("Accepting invite...") : t("Accept invite")}
                 </button>
                 <button
                     type="button"
@@ -107,13 +109,12 @@ export function InviteAcceptanceActions({
                     )}
                 >
                     <LogOut size={16} />
-                    {switching ? "Switching..." : "Switch account"}
+                    {switching ? t("Switching...") : t("Switch account")}
                 </button>
             </div>
 
             <Link href="/app" className="block min-h-11 text-center text-sm font-medium leading-[2.75rem] text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]">
-                Decline invite and return to workspaces
-            </Link>
+                {t("Decline invite and return to workspaces")}</Link>
         </div>
     );
 }

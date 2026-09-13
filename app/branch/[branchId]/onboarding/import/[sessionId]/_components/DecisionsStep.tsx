@@ -1,4 +1,5 @@
-import { CheckCircle2, HelpCircle, Link2Off, Save, ShieldCheck, UserRoundCheck } from "lucide-react";
+
+import { useTranslation } from "@/components/settings/LocalizedText";import { CheckCircle2, HelpCircle, Link2Off, Save, ShieldCheck, UserRoundCheck } from "lucide-react";
 import { AppButton, AppPanel } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ export function DecisionsStep({
     configurationCreation,
     onConfigurationApproval,
 }: DecisionsStepProps) {
+    const t = useTranslation();
     const openQuestions = questions.filter(question => question.status === "OPEN");
     const answeredQuestions = questions.filter(question => question.status !== "OPEN");
     const configurationLabels = [
@@ -50,8 +52,8 @@ export function DecisionsStep({
     return (
         <div className="space-y-5">
             <AppPanel
-                title="Decisions"
-                description="Answer only the decisions needed for this import. Unclear seat, shift, and payment data can be deferred."
+                title={t("Decisions")}
+                description={t("Answer only the decisions needed for this import. Unclear seat, shift, and payment data can be deferred.")}
                 action={goal !== "STUDENTS" ?
                     <AppButton
                         variant="secondary"
@@ -61,14 +63,13 @@ export function DecisionsStep({
                         aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                         isLoading={saving}
                     >
-                        Defer seat/shift mapping
-                    </AppButton>
+                        {t("Defer seat/shift mapping")}</AppButton>
                     : undefined}
             >
                 <div className="space-y-4">
                     <StepNotice
                         tone={openQuestions.length > 0 || configurationLabels.length > 0 && !configurationCreation.approved ? "warning" : "success"}
-                        title={openQuestions.length > 0 ? `${openQuestions.length} decision${openQuestions.length === 1 ? "" : "s"} open` : configurationLabels.length > 0 && !configurationCreation.approved ? "Setup creation needs approval" : "No open decisions"}
+                        title={openQuestions.length > 0 ? `${openQuestions.length} decision${openQuestions.length === 1 ? "" : "s"} open` : configurationLabels.length > 0 && !configurationCreation.approved ? t("Setup creation needs approval") : t("No open decisions")}
                         message={openQuestions.length > 0
                             ? "Answers are saved to this staged import, then validation runs again. No branch records are created until the final preview is confirmed."
                             : configurationLabels.length > 0 && !configurationCreation.approved
@@ -78,7 +79,7 @@ export function DecisionsStep({
 
                     {configurationLabels.length > 0 && (
                         <fieldset className={cn("p-4", pageInsetSurfaceClass)}>
-                            <legend className="sr-only">Approve creation of missing setup records</legend>
+                            <legend className="sr-only">{t("Approve creation of missing setup records")}</legend>
                             <label htmlFor="configuration-batch-approval" className="flex cursor-pointer items-start gap-3">
                                 <input
                                     id="configuration-batch-approval"
@@ -92,11 +93,8 @@ export function DecisionsStep({
                                 <span className="min-w-0">
                                     <span className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]">
                                         <ShieldCheck className="h-4 w-4 text-cyan-300" />
-                                        Approve setup creation for this reviewed batch
-                                    </span>
-                                    <span id="configuration-batch-description" className={cn("mt-1 block text-xs leading-5", pageMutedTextClass)}>
-                                        This import is configured to create {configurationLabels.join(", ")} when a ready row refers to one that does not exist. Approval is saved with this staged import; later changes still require a new reviewed plan before running.
-                                    </span>
+                                        {t("Approve setup creation for this reviewed batch")}</span>
+                                    <span id="configuration-batch-description" className={cn("mt-1 block text-xs leading-5", pageMutedTextClass)}>{t("This import is configured to create {join} when a ready row refers to one that does not exist. Approval is saved with this staged import; later changes still require a new reviewed plan before running.", { join: configurationLabels.join(", ") })}</span>
                                 </span>
                             </label>
                         </fieldset>
@@ -107,12 +105,10 @@ export function DecisionsStep({
                             <div className="flex items-center gap-2">
                                 <UserRoundCheck className="h-4 w-4 text-cyan-300" />
                                 <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                                    Import students now, finish setup later
-                                </p>
+                                    {t("Import students now, finish setup later")}</p>
                             </div>
                             <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
-                                Defers seat/shift mapping and skips payments for this import while keeping valid student rows importable.
-                            </p>
+                                {t("Defers seat/shift mapping and skips payments for this import while keeping valid student rows importable.")}</p>
                         </div>
                         <AppButton
                             variant="primary"
@@ -122,15 +118,13 @@ export function DecisionsStep({
                             aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                             isLoading={saving}
                         >
-                            Use students-only mode
-                        </AppButton>
+                            {t("Use students-only mode")}</AppButton>
                     </div>}
 
                     <div className="space-y-3">
                         {openQuestions.length === 0 && (
                             <div className={cn("p-4 text-sm", pageInsetSurfaceClass, pageMutedTextClass)}>
-                                No open decisions are waiting.
-                            </div>
+                                {t("No open decisions are waiting.")}</div>
                         )}
 
                         {openQuestions.map(question => (
@@ -142,7 +136,7 @@ export function DecisionsStep({
                                             <p className="font-medium text-[color:var(--text-primary)]">{question.question}</p>
                                             <Badge variant="warning">{question.status}</Badge>
                                         </div>
-                                        {question.field && <p className={cn("mt-1 text-xs", pageMutedTextClass)}>Applies to {question.field.replace(/\./g, " ")}</p>}
+                                        {question.field && <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Applies to {replace}", { replace: question.field.replace(/\./g, " ") })}</p>}
 
                                         {(question.options ?? []).length > 0 && (
                                             <div className="mt-3 flex flex-wrap gap-2">
@@ -167,7 +161,7 @@ export function DecisionsStep({
                                                 value={questionDrafts[question.id] ?? ""}
                                                 onChange={event => onDraftChange(question.id, event.target.value)}
                                                 className={cn("min-w-0 flex-1", importFieldClass)}
-                                                placeholder="Custom answer"
+                                                placeholder={t("Custom answer")}
                                             />
                                             <AppButton
                                                 variant="primary"
@@ -178,8 +172,7 @@ export function DecisionsStep({
                                                 onClick={() => onAnswer(question.id, questionDrafts[question.id])}
                                                 isLoading={saving}
                                             >
-                                                Answer
-                                            </AppButton>
+                                                {t("Answer")}</AppButton>
                                         </div>
                                     </div>
                                 </div>
@@ -188,18 +181,14 @@ export function DecisionsStep({
 
                         {answeredQuestions.length > 0 && (
                             <details className={cn("rounded-[8px] border border-[color:var(--ui-form-surface-border)]", pageInsetSurfaceClass)}>
-                                <summary className="cursor-pointer list-none text-sm font-semibold text-[color:var(--text-primary)]">
-                                    Answered decisions ({answeredQuestions.length})
-                                </summary>
+                                <summary className="cursor-pointer list-none text-sm font-semibold text-[color:var(--text-primary)]">{t("Answered decisions ({count})", { count: answeredQuestions.length })}</summary>
                                 <div className="mt-3 space-y-3">
                                     {answeredQuestions.map(question => (
                                         <div key={question.id} className="flex items-start gap-3 text-sm">
                                             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
                                             <div className="min-w-0">
                                                 <p className="font-medium text-[color:var(--text-primary)]">{question.question}</p>
-                                                <p className={cn("mt-1 text-xs", pageMutedTextClass)}>
-                                                    Answered: {typeof question.answer === "string" ? labelImportOption(question.answer) : JSON.stringify(question.answer)}
-                                                </p>
+                                                <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Answered: {value}", { value: typeof question.answer === "string" ? labelImportOption(question.answer) : JSON.stringify(question.answer) })}</p>
                                             </div>
                                         </div>
                                     ))}

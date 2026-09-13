@@ -18,6 +18,16 @@ Every statement uses one of these labels:
 
 ## Tenant and identity boundaries
 
+- **Must preserve—enforced:** Interface and document language are independent
+  preferences of the authenticated user, defaulting to English. They do not
+  modify message languages, provider templates, date/number preferences, stored
+  content, receipt snapshots, financial/attendance command identities or retry
+  state. Changing language does not remount an active workflow. Preference events
+  from a previous Clerk identity must not affect the current user.
+  (`services/user.service.ts`, `components/settings/UserPreferencesApplier.tsx`,
+  `components/settings/UserPreferencesBoundary.tsx`, `lib/i18n`,
+  `tests/unit/lib/localization.test.ts`, `tests/localization-browser`)
+
 - **Must preserve—enforced:** A user is unique by Clerk identity. Email is
   normalized before persistence and is also unique. An email already linked to
   a different Clerk identity must not be silently relinked. Concurrent account

@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import type { ChangeEvent } from "react";
 import { use, useState } from "react";
@@ -140,6 +142,7 @@ export default function OnboardingPage({
 }: {
     searchParams: Promise<{ billingPlan?: string }>;
 }) {
+    const t = useTranslation();
     const query = use(searchParams);
     const requestedBillingPlan = isCheckoutBillingPlanId(query.billingPlan)
         ? query.billingPlan
@@ -445,12 +448,11 @@ export default function OnboardingPage({
                 <div className={cn(entryPanelClass, "grid overflow-hidden lg:grid-cols-[320px_minmax(0,1fr)]")}>
                     <aside className="border-b border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] p-5 lg:border-b-0 lg:border-r lg:p-6">
                         <div className={cn(entryIconFrameClass, "h-11 w-11")}>
-                            <LogoMark className="h-9 w-9" title="Lab Lords logo" />
+                            <LogoMark className="h-9 w-9" title={t("Lab Lords logo")} />
                         </div>
-                        <h1 className={cn(entryTitleClass, "mt-5")}>Set up Lab Lords</h1>
+                        <h1 className={cn(entryTitleClass, "mt-5")}>{t("Set up Lab Lords")}</h1>
                         <p className={cn(entrySubtitleClass, "mt-3")}>
-                            Create the organization, first branch, and preferred starting point for operational records.
-                        </p>
+                            {t("Create the organization, first branch, and preferred starting point for operational records.")}</p>
 
                         <div className="mt-8 space-y-3">
                             {stepItems.map(item => {
@@ -469,7 +471,7 @@ export default function OnboardingPage({
                                             {done ? <CheckCircle2 size={14} /> : item.step}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">{item.label}</p>
+                                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t.owned(item.label)}</p>
                                             <p className={cn("mt-1 text-xs leading-5", entryMutedTextClass)}>{item.description}</p>
                                         </div>
                                     </div>
@@ -480,9 +482,7 @@ export default function OnboardingPage({
 
                     <main className="p-5 sm:p-6 lg:p-8">
                         <div className="mb-6">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-form-accent)]">
-                                Step {step} of 4
-                            </p>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-form-accent)]">{t("Step {step} of 4", { step: step })}</p>
                             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">
                                 {stepHeadings[step]}
                             </h2>
@@ -495,7 +495,7 @@ export default function OnboardingPage({
                             <div className="space-y-5">
                                 <div>
                                     <label className={cn("mb-2 block", formLabelClass)}>
-                                        Organization Name <span className={formRequiredClass}>*</span>
+                                        {t("Organization Name")} <span className={formRequiredClass}>*</span>
                                     </label>
                                     <div className="relative">
                                         <Building2 className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={18} />
@@ -505,7 +505,7 @@ export default function OnboardingPage({
                                             value={formData.orgName}
                                             onChange={handleInputChange}
                                             onBlur={() => markTouched("orgName")}
-                                            placeholder="e.g. Apex Study Halls"
+                                            placeholder={t("e.g. Apex Study Halls")}
                                             maxLength={120}
                                             className={cn(formControlClass, "py-3 pl-10 pr-4", fieldErrorClass(orgNameError))}
                                             autoFocus
@@ -517,7 +517,7 @@ export default function OnboardingPage({
 
                                 <div>
                                     <label className={cn("mb-2 block", formLabelClass)}>
-                                        Owner Phone <span className={formRequiredClass}>*</span>
+                                        {t("Owner Phone")} <span className={formRequiredClass}>*</span>
                                     </label>
                                     <div className="relative">
                                         <Phone className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={18} />
@@ -537,7 +537,7 @@ export default function OnboardingPage({
 
                                 <div>
                                     <label htmlFor="onboarding-business-type" className={cn("mb-2 block", formLabelClass)}>
-                                        Business Type <span className={formHelpTextClass}>(Optional)</span>
+                                        {t("Business Type")} <span className={formHelpTextClass}>{t("(Optional)")}</span>
                                     </label>
                                     <AppSelect
                                         id="onboarding-business-type"
@@ -548,14 +548,14 @@ export default function OnboardingPage({
                                             setError(null);
                                         }}
                                         onBlur={() => markTouched("businessType")}
-                                        placeholder="Select type..."
+                                        placeholder={t("Select type...")}
                                         options={[
-                                            { value: "", label: "Select type..." },
-                                            { value: "Study Hall", label: "Study Hall" },
-                                            { value: "Library", label: "Library" },
-                                            { value: "Coaching Center", label: "Coaching Center" },
-                                            { value: "Tuition", label: "Tuition" },
-                                            { value: "Other", label: "Other" },
+                                            { value: "", label: t("Select type...") },
+                                            { value: "Study Hall", label: t("Study Hall") },
+                                            { value: "Library", label: t("Library") },
+                                            { value: "Coaching Center", label: t("Coaching Center") },
+                                            { value: "Tuition", label: t("Tuition") },
+                                            { value: "Other", label: t("Other") },
                                         ]}
                                         className={cn("px-4 py-3", fieldErrorClass(businessTypeError))}
                                         {...fieldErrorProps("onboarding-business-type-error", businessTypeError)}
@@ -564,8 +564,7 @@ export default function OnboardingPage({
                                 </div>
 
                                 <AppButton onClick={handleNext} rightIcon={ArrowRight} className="mt-2 w-full justify-center">
-                                    Continue
-                                </AppButton>
+                                    {t("Continue")}</AppButton>
                             </div>
                         )}
 
@@ -573,7 +572,7 @@ export default function OnboardingPage({
                             <div className="space-y-5">
                                 <div>
                                     <label className={cn("mb-2 block", formLabelClass)}>
-                                        Branch Name <span className={formRequiredClass}>*</span>
+                                        {t("Branch Name")} <span className={formRequiredClass}>*</span>
                                     </label>
                                     <div className="relative">
                                         <MapPin className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={18} />
@@ -583,7 +582,7 @@ export default function OnboardingPage({
                                             value={formData.branchName}
                                             onChange={handleInputChange}
                                             onBlur={() => markTouched("branchName")}
-                                            placeholder="e.g. Main Branch, Downtown"
+                                            placeholder={t("e.g. Main Branch, Downtown")}
                                             maxLength={120}
                                             className={cn(formControlClass, "py-3 pl-10 pr-4", fieldErrorClass(branchNameError))}
                                             autoFocus
@@ -596,7 +595,7 @@ export default function OnboardingPage({
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
                                         <label className={cn("mb-2 block", formLabelClass)}>
-                                            City / Area <span className={formHelpTextClass}>(Optional)</span>
+                                            {t("City / Area")} <span className={formHelpTextClass}>{t("(Optional)")}</span>
                                         </label>
                                         <input
                                             type="text"
@@ -604,7 +603,7 @@ export default function OnboardingPage({
                                             value={formData.city}
                                             onChange={handleInputChange}
                                             onBlur={() => markTouched("city")}
-                                            placeholder="e.g. New York"
+                                            placeholder={t("e.g. New York")}
                                             maxLength={FORM_LIMITS.cityMax}
                                             className={cn(formControlClass, "px-4 py-3", fieldErrorClass(cityError))}
                                             {...fieldErrorProps("onboarding-city-error", cityError)}
@@ -613,7 +612,7 @@ export default function OnboardingPage({
                                     </div>
                                     <div>
                                         <label className={cn("mb-2 block", formLabelClass)}>
-                                            Total Seats <span className={formRequiredClass}>*</span>
+                                            {t("Total Seats")} <span className={formRequiredClass}>*</span>
                                         </label>
                                         <input
                                             type="number"
@@ -634,7 +633,7 @@ export default function OnboardingPage({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className={cn("block", formLabelClass)}>Seat numbering</label>
+                                    <label className={cn("block", formLabelClass)}>{t("Seat numbering")}</label>
                                     <SeatNumberingBuilder
                                         value={formData.seatNumbering as SeatNumberingConfig}
                                         expectedCount={seatCountPreview}
@@ -651,15 +650,14 @@ export default function OnboardingPage({
                                 <div className="space-y-5">
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between gap-3">
-                                            <label className={formLabelClass}>Primary shifts</label>
+                                            <label className={formLabelClass}>{t("Primary shifts")}</label>
                                             <button
                                                 type="button"
                                                 onClick={addShift}
                                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
                                             >
                                                 <Plus size={13} />
-                                                Add primary
-                                            </button>
+                                                {t("Add primary")}</button>
                                         </div>
                                         {formData.shifts.map((shift, idx) => (
                                             <div key={shift.clientId} className={cn("flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:gap-2", formSurfaceClass)}>
@@ -667,7 +665,7 @@ export default function OnboardingPage({
                                                     <div className="sm:col-span-4">
                                                         <input
                                                             type="text"
-                                                            placeholder="Name"
+                                                            placeholder={t("Name")}
                                                             value={shift.name}
                                                             onChange={(e) => handleShiftChange(idx, "name", e.target.value)}
                                                             className={cn(formInlineControlClass, "py-1 text-sm")}
@@ -693,7 +691,7 @@ export default function OnboardingPage({
                                                         <span className={cn("absolute left-0 top-1 text-xs", formIconClass)}>Rs.</span>
                                                         <input
                                                             type="number"
-                                                            placeholder="Price"
+                                                            placeholder={t("Price")}
                                                             value={shift.price}
                                                             onChange={(e) => handleShiftChange(idx, "price", e.target.value)}
                                                             min={0}
@@ -709,7 +707,7 @@ export default function OnboardingPage({
                                                         type="button"
                                                         onClick={() => removeShift(idx)}
                                                         className={cn("self-end transition-colors hover:text-[color:var(--ui-form-error-text)] sm:mt-1", formHelpTextClass)}
-                                                        aria-label="Remove shift"
+                                                        aria-label={t("Remove shift")}
                                                     >
                                                         <X size={14} />
                                                     </button>
@@ -722,10 +720,9 @@ export default function OnboardingPage({
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
-                                                <label className={formLabelClass}>Multi-shift bundles</label>
+                                                <label className={formLabelClass}>{t("Multi-shift bundles")}</label>
                                                 <p className={cn("mt-1 text-xs", formHelpTextClass)}>
-                                                    Select 2 or more primary shifts and set the bundle price students will pay.
-                                                </p>
+                                                    {t("Select 2 or more primary shifts and set the bundle price students will pay.")}</p>
                                             </div>
                                             <button
                                                 type="button"
@@ -734,14 +731,12 @@ export default function OnboardingPage({
                                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]"
                                             >
                                                 <Plus size={13} />
-                                                Add bundle
-                                            </button>
+                                                {t("Add bundle")}</button>
                                         </div>
 
                                         {formData.multiShifts.length === 0 ? (
                                             <div className={cn("p-3 text-sm", formSurfaceClass, formHelpTextClass)}>
-                                                No multi-shift bundles yet. Add one when a student should get access to multiple primary shifts together.
-                                            </div>
+                                                {t("No multi-shift bundles yet. Add one when a student should get access to multiple primary shifts together.")}</div>
                                         ) : (
                                             formData.multiShifts.map((multiShift, idx) => {
                                                 const suggestedPrice = getSuggestedMultiShiftPrice(multiShift);
@@ -757,7 +752,7 @@ export default function OnboardingPage({
                                                                 <div className="sm:col-span-5">
                                                                     <input
                                                                         type="text"
-                                                                        placeholder="Bundle name"
+                                                                        placeholder={t("Bundle name")}
                                                                         value={multiShift.name}
                                                                         onChange={(e) => handleMultiShiftChange(idx, "name", e.target.value)}
                                                                         className={cn(formInlineControlClass, "py-1 text-sm")}
@@ -767,7 +762,7 @@ export default function OnboardingPage({
                                                                     <span className={cn("absolute left-0 top-1 text-xs", formIconClass)}>Rs.</span>
                                                                     <input
                                                                         type="number"
-                                                                        placeholder="Price"
+                                                                        placeholder={t("Price")}
                                                                         value={multiShift.price}
                                                                         onChange={(e) => handleMultiShiftChange(idx, "price", e.target.value)}
                                                                         min={0}
@@ -779,15 +774,14 @@ export default function OnboardingPage({
                                                                 </div>
                                                                 <div className="flex flex-col gap-1 sm:col-span-4 sm:items-end">
                                                                     <span className={cn("text-xs font-semibold", formHelpTextClass)}>
-                                                                        Selected total {formatPrice(suggestedPrice)}
+                                                                        {t("Selected total")} {formatPrice(suggestedPrice)}
                                                                     </span>
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => applySuggestedMultiShiftPrice(idx)}
                                                                         className="text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
                                                                     >
-                                                                        Use total
-                                                                    </button>
+                                                                        {t("Use total")}</button>
                                                                 </div>
                                                             </div>
                                                             <button
@@ -830,9 +824,7 @@ export default function OnboardingPage({
                                                             })}
                                                         </div>
 
-                                                        <p className={cn("text-xs", selectedCount >= 2 ? formHelpTextClass : "text-[color:var(--ui-form-error-text)]")}>
-                                                            {selectedCount} primary shift{selectedCount === 1 ? "" : "s"} selected.
-                                                        </p>
+                                                        <p className={cn("text-xs", selectedCount >= 2 ? formHelpTextClass : "text-[color:var(--ui-form-error-text)]")}>{t("{selectedCount} primary shift(s) selected.", { selectedCount: selectedCount })}</p>
                                                     </div>
                                                 );
                                             })
@@ -851,16 +843,14 @@ export default function OnboardingPage({
                                         }}
                                         disabled={loading}
                                     >
-                                        Back
-                                    </AppButton>
+                                        {t("Back")}</AppButton>
                                     <AppButton
                                         onClick={continueToPlan}
                                         disabled={loading}
                                         rightIcon={ArrowRight}
                                         className="sm:min-w-40"
                                     >
-                                        Choose plan
-                                    </AppButton>
+                                        {t("Choose plan")}</AppButton>
                                 </div>
                             </div>
                         )}
@@ -870,10 +860,9 @@ export default function OnboardingPage({
                                 <div className={cn("flex items-start gap-3 p-4", formSuccessBannerClass)}>
                                     <Sparkles className="mt-0.5 h-5 w-5 shrink-0" />
                                     <div>
-                                        <p className="text-sm font-semibold">Standard features throughout the trial</p>
+                                        <p className="text-sm font-semibold">{t("Standard features throughout the trial")}</p>
                                         <p className="mt-1 text-sm leading-6">
-                                            This choice applies only after the 30-day trial. Selecting a plan does not open Checkout, charge a card, or activate paid access.
-                                        </p>
+                                            {t("This choice applies only after the 30-day trial. Selecting a plan does not open Checkout, charge a card, or activate paid access.")}</p>
                                     </div>
                                 </div>
 
@@ -900,7 +889,7 @@ export default function OnboardingPage({
                                                     <span>
                                                         <span className="block text-lg font-semibold text-[color:var(--text-primary)]">{plan.shortName}</span>
                                                         <span className="mt-1 block text-2xl font-semibold text-[color:var(--text-primary)]">
-                                                            ₹{plan.amount}<span className={cn("ml-1 text-xs font-normal", formHelpTextClass)}>per billable branch/month</span>
+                                                            ₹{plan.amount}<span className={cn("ml-1 text-xs font-normal", formHelpTextClass)}>{t("per billable branch/month")}</span>
                                                         </span>
                                                     </span>
                                                     <span className={cn(
@@ -909,7 +898,7 @@ export default function OnboardingPage({
                                                             ? "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]"
                                                             : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)]"
                                                     )}>
-                                                        {selected ? "Selected" : "Choose"}
+                                                        {selected ? t("Selected") : t("Choose")}
                                                     </span>
                                                 </span>
 
@@ -922,7 +911,7 @@ export default function OnboardingPage({
                                                                 <X size={15} className="mt-0.5 shrink-0 text-[color:var(--text-muted)]" />
                                                             )}
                                                             <span className={capability.included ? "text-[color:var(--text-secondary)]" : "text-[color:var(--text-muted)]"}>
-                                                                {capability.label}{capability.included ? "" : " — Standard only"}
+                                                                {t.owned(capability.label)}{capability.included ? "" : t(" — Standard only")}
                                                             </span>
                                                         </span>
                                                     ))}
@@ -933,10 +922,9 @@ export default function OnboardingPage({
                                 </div>
 
                                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <AppButton variant="quiet" icon={ArrowLeft} onClick={() => setStep(2)} disabled={loading}>Back</AppButton>
+                                    <AppButton variant="quiet" icon={ArrowLeft} onClick={() => setStep(2)} disabled={loading}>{t("Back")}</AppButton>
                                     <AppButton onClick={continueToTrial} disabled={!selectedPostTrialPlan || loading} rightIcon={ArrowRight} className="sm:min-w-40">
-                                        Continue
-                                    </AppButton>
+                                        {t("Continue")}</AppButton>
                                 </div>
                             </div>
                         )}
@@ -946,10 +934,8 @@ export default function OnboardingPage({
                                 <div className={cn("flex items-start gap-3 p-4", formSuccessBannerClass)}>
                                     <Sparkles className="mt-0.5 h-5 w-5 shrink-0" />
                                     <div>
-                                        <p className="text-sm font-semibold">30 days of Standard access</p>
-                                        <p className="mt-1 text-sm leading-6">
-                                            Your trial starts only when you confirm this setup. It ends on {trialEndDate.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}. No card is required.
-                                        </p>
+                                        <p className="text-sm font-semibold">{t("30 days of Standard access")}</p>
+                                        <p className="mt-1 text-sm leading-6">{t("Your trial starts only when you confirm this setup. It ends on {toLocaleDateString}. No card is required.", { toLocaleDateString: trialEndDate.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) })}</p>
                                     </div>
                                 </div>
 
@@ -967,13 +953,12 @@ export default function OnboardingPage({
                                     >
                                         <span className={cn(entryIconFrameClass, "h-11 w-11")}><UploadCloud size={20} /></span>
                                         <span>
-                                            <span className="block text-base font-semibold text-[color:var(--text-primary)]">Import existing records</span>
+                                            <span className="block text-base font-semibold text-[color:var(--text-primary)]">{t("Import existing records")}</span>
                                             <span className={cn("mt-2 block text-sm leading-6", entryMutedTextClass)}>
-                                                Continue to the guided import wizard for spreadsheet or pasted records.
-                                            </span>
+                                                {t("Continue to the guided import wizard for spreadsheet or pasted records.")}</span>
                                         </span>
                                         <span className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-[color:var(--ui-form-accent)]">
-                                            {startingPoint === "IMPORT" ? "Selected" : "Select import"}
+                                            {startingPoint === "IMPORT" ? t("Selected") : t("Select import")}
                                             {startingPoint === "IMPORT" && <CheckCircle2 size={14} />}
                                         </span>
                                     </button>
@@ -991,13 +976,12 @@ export default function OnboardingPage({
                                     >
                                         <span className={cn(entryIconFrameClass, "h-11 w-11")}><LayoutDashboard size={20} /></span>
                                         <span>
-                                            <span className="block text-base font-semibold text-[color:var(--text-primary)]">Begin with a clean workspace</span>
+                                            <span className="block text-base font-semibold text-[color:var(--text-primary)]">{t("Begin with a clean workspace")}</span>
                                             <span className={cn("mt-2 block text-sm leading-6", entryMutedTextClass)}>
-                                                Go directly to the configured branch and add records as operations begin.
-                                            </span>
+                                                {t("Go directly to the configured branch and add records as operations begin.")}</span>
                                         </span>
                                         <span className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-[color:var(--ui-form-accent)]">
-                                            {startingPoint === "CLEAN" ? "Selected" : "Select clean workspace"}
+                                            {startingPoint === "CLEAN" ? t("Selected") : t("Select clean workspace")}
                                             {startingPoint === "CLEAN" && <CheckCircle2 size={14} />}
                                         </span>
                                     </button>
@@ -1006,26 +990,22 @@ export default function OnboardingPage({
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className={cn("p-3", formSurfaceClass)}>
                                         <Clock3 className="h-4 w-4 text-[color:var(--ui-form-accent)]" />
-                                        <p className="mt-2 text-sm font-semibold">Trial end</p>
+                                        <p className="mt-2 text-sm font-semibold">{t("Trial end")}</p>
                                         <p className={cn("mt-1 text-xs", formHelpTextClass)}>{trialEndDate.toLocaleDateString("en-IN", { dateStyle: "medium" })}</p>
                                     </div>
                                     <div className={cn("p-3", formSurfaceClass)}>
                                         <CreditCard className="h-4 w-4 text-[color:var(--ui-form-accent)]" />
-                                        <p className="mt-2 text-sm font-semibold">Selected after trial</p>
-                                        <p className={cn("mt-1 text-xs", formHelpTextClass)}>
-                                            {selectedPlan?.shortName} · ₹{selectedPlan?.amount} per billable branch/month
-                                        </p>
+                                        <p className="mt-2 text-sm font-semibold">{t("Selected after trial")}</p>
+                                        <p className={cn("mt-1 text-xs", formHelpTextClass)}>{t("{shortName} · ₹{amount} per billable branch/month", { shortName: selectedPlan?.shortName ?? "", amount: selectedPlan?.amount ?? "" })}</p>
                                     </div>
                                 </div>
 
-                                <p className={cn("text-xs leading-5", formHelpTextClass)}>
-                                    Staff controls, advanced analytics, and AI are available throughout the trial. Billing begins only after the owner separately authorizes {selectedPlan?.shortName} from organization billing settings.
-                                </p>
+                                <p className={cn("text-xs leading-5", formHelpTextClass)}>{t("Staff controls, advanced analytics, and AI are available throughout the trial. Billing begins only after the owner separately authorizes {shortName} from organization billing settings.", { shortName: selectedPlan?.shortName ?? "" })}</p>
 
                                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <AppButton variant="quiet" icon={ArrowLeft} onClick={() => setStep(3)} disabled={loading}>Back</AppButton>
+                                    <AppButton variant="quiet" icon={ArrowLeft} onClick={() => setStep(3)} disabled={loading}>{t("Back")}</AppButton>
                                     <AppButton onClick={handleSubmit} disabled={loading || !startingPoint || !selectedPostTrialPlan} isLoading={loading} rightIcon={loading ? undefined : ArrowRight} className="sm:min-w-48">
-                                        {loading ? "Starting trial..." : "Start Standard trial"}
+                                        {loading ? t("Starting trial...") : t("Start Standard trial")}
                                     </AppButton>
                                 </div>
                             </div>
@@ -1033,7 +1013,7 @@ export default function OnboardingPage({
 
                         {error && (
                             <div className={cn("mt-5 p-3 text-sm", formErrorBannerClass)}>
-                                {error}
+                                <LocalizedError error={error} />
                             </div>
                         )}
                     </main>

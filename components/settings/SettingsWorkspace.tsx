@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { ReactNode, createContext, useContext, useEffect, useId, useRef } from "react";
 import { CheckCircle2, AlertCircle, LucideIcon } from "lucide-react";
@@ -43,6 +44,7 @@ export function SettingsWorkspace({
     actions?: ReactNode;
     children: ReactNode;
 }) {
+    const t = useTranslation();
     const clickedSectionRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -90,8 +92,8 @@ export function SettingsWorkspace({
             <PageShell>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                    <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">{title}</h1>
-                    <p className={cn("mt-1 max-w-2xl text-sm leading-6", pageMutedTextClass)}>{subtitle}</p>
+                    <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">{t.owned(title)}</h1>
+                    <p className={cn("mt-1 max-w-2xl text-sm leading-6", pageMutedTextClass)}>{t.owned(subtitle)}</p>
                 </div>
                 {actions ? <div className="shrink-0">{actions}</div> : null}
             </div>
@@ -115,7 +117,7 @@ export function SettingsWorkspace({
                                 )}
                             >
                                 <Icon size={15} />
-                                <span className="font-medium">{section.label}</span>
+                                <span className="font-medium">{t.owned(section.label)}</span>
                             </button>
                         );
                     })}
@@ -153,6 +155,7 @@ export function SettingsPanel({
     icon: LucideIcon;
     children: ReactNode;
 }) {
+    const t = useTranslation();
     return (
         <section id={id} className="scroll-mt-6 overflow-hidden rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] shadow-[var(--ui-panel-shadow)]">
             <div className="flex items-start gap-3 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-5 py-4">
@@ -160,8 +163,8 @@ export function SettingsPanel({
                     <Icon size={16} />
                 </div>
                 <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-[color:var(--ui-panel-title)]">{title}</h2>
-                    {description && <p className={cn("mt-0.5 text-xs leading-5", pageMutedTextClass)}>{description}</p>}
+                    <h2 className="text-base font-semibold text-[color:var(--ui-panel-title)]">{t.owned(title)}</h2>
+                    {description && <p className={cn("mt-0.5 text-xs leading-5", pageMutedTextClass)}>{t.owned(description)}</p>}
                 </div>
             </div>
             <div className="divide-y divide-[color:var(--ui-form-section-divider)]">{children}</div>
@@ -182,6 +185,7 @@ export function SettingsField({
     errorId?: string;
     children: ReactNode;
 }) {
+    const t = useTranslation();
     const generatedId = useId();
     const controlId = `settings-field-${generatedId.replace(/:/g, "")}`;
     const labelId = `${controlId}-label`;
@@ -192,8 +196,8 @@ export function SettingsField({
     return (
         <div className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(170px,220px)_minmax(0,1fr)] md:items-center">
             <div>
-                <label id={labelId} htmlFor={controlId} className={formLabelClass}>{label}</label>
-                {description && <p id={descriptionId} className={cn("mt-1 text-xs leading-relaxed", formHelpTextClass)}>{description}</p>}
+                <label id={labelId} htmlFor={controlId} className={formLabelClass}>{t.owned(label)}</label>
+                {description && <p id={descriptionId} className={cn("mt-1 text-xs leading-relaxed", formHelpTextClass)}>{t.owned(description)}</p>}
             </div>
             <div className="min-w-0">
                 <SettingsFieldContext.Provider value={{ controlId, labelId, describedBy }}>
@@ -290,12 +294,13 @@ export function SettingsToggle({
     disabled?: boolean;
 }) {
     const field = useContext(SettingsFieldContext);
+    const t = useTranslation();
     return <Toggle
         id={field?.controlId}
         checked={checked}
         onCheckedChange={onChange}
-        label={label}
-        description={description}
+        label={t.owned(label)}
+        description={description ? t.owned(description) : undefined}
         labelledBy={field?.labelId}
         describedBy={field?.describedBy}
         disabled={disabled}
@@ -313,12 +318,13 @@ export function SegmentedControl<T extends string>({
     onChange: (value: T) => void;
     disabled?: boolean;
 }) {
+    const t = useTranslation();
     const field = useContext(SettingsFieldContext);
     return (
         <RadioGroup
             id={field?.controlId}
             value={value}
-            options={options.map(option => ({ ...option, disabled }))}
+            options={options.map(option => ({ ...option, label: t.owned(option.label), disabled }))}
             onChange={onChange}
             labelledBy={field?.labelId}
             describedBy={field?.describedBy}
@@ -327,9 +333,10 @@ export function SegmentedControl<T extends string>({
 }
 
 export function ReadOnlyRow({ label, value }: { label: string; value: ReactNode }) {
+    const t = useTranslation();
     return (
         <div className="flex flex-col items-start justify-between gap-2 px-5 py-3 text-sm sm:flex-row sm:gap-4">
-            <span className={formHelpTextClass}>{label}</span>
+            <span className={formHelpTextClass}>{t.owned(label)}</span>
             <span className="min-w-0 max-w-full break-words text-left font-medium text-[color:var(--ui-form-label)] sm:text-right">{value}</span>
         </div>
     );
@@ -397,6 +404,7 @@ export function SettingsSaveBar({
     onSave: () => void;
     onCancel: () => void;
 }) {
+    const t = useTranslation();
     if (!visible && status === "idle") return null;
 
     return (
@@ -408,22 +416,21 @@ export function SettingsSaveBar({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm">
                     {status === "success" ? (
-                        <span className="flex items-center gap-2 text-[color:var(--ui-tone-success-text)]"><CheckCircle2 size={15} /> Settings saved.</span>
+                        <span className="flex items-center gap-2 text-[color:var(--ui-tone-success-text)]"><CheckCircle2 size={15} />  {t("Settings saved.")}</span>
                     ) : status === "error" ? (
-                        <span className="flex items-center gap-2 text-[color:var(--ui-form-error-text)]"><AlertCircle size={15} /> {error || "Save failed."}</span>
+                        <span className="flex items-center gap-2 text-[color:var(--ui-form-error-text)]"><AlertCircle size={15} /> {t.error(error)}</span>
                     ) : hasChanges ? (
-                        <span className="text-[color:var(--ui-form-label)]">You have unsaved settings changes.</span>
+                        <span className="text-[color:var(--ui-form-label)]">{t("You have unsaved settings changes.")}</span>
                     ) : (
-                        <span className="text-[color:var(--ui-form-label)]">Editing settings.</span>
+                        <span className="text-[color:var(--ui-form-label)]">{t("Editing settings.")}</span>
                     )}
                 </div>
                 {visible ? (
                     <div className="flex justify-end gap-2">
                         <AppButton variant="quiet" size="sm" onClick={onCancel} disabled={saving} className="min-h-11 lg:min-h-9">
-                            Cancel
-                        </AppButton>
+                            {t("Cancel")}</AppButton>
                         <AppButton variant="primary" size="sm" onClick={onSave} disabled={!hasChanges || saving} isLoading={saving} className="min-h-11 min-w-[110px] lg:min-h-9">
-                            {saving ? "Saving" : "Save changes"}
+                            {saving ? t("Saving") : t("Save changes")}
                         </AppButton>
                     </div>
                 ) : null}

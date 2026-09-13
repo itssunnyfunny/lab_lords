@@ -30,9 +30,9 @@ const variantClasses = {
 };
 
 const sizeClasses = {
-    sm: "h-11 px-2.5 text-xs sm:h-8",
-    md: "h-11 px-3 text-sm sm:h-10",
-    lg: "h-12 px-4 text-base",
+    sm: "min-h-11 px-2.5 py-2 text-xs sm:min-h-8",
+    md: "min-h-11 px-3 py-2 text-sm sm:min-h-10",
+    lg: "min-h-12 px-4 py-2 text-base",
     icon: "h-11 w-11 p-0 sm:h-10 sm:w-10",
 };
 
@@ -73,7 +73,7 @@ export const AppButton = forwardRef<HTMLButtonElement, AppButtonProps>(
                 ) : (
                     Icon && <Icon size={iconSize} className="shrink-0" />
                 )}
-                {children && <span className="inline-flex min-w-0 items-center gap-2 truncate">{children}</span>}
+                {children && <span className="inline-flex min-w-0 items-center gap-2 whitespace-normal break-words">{children}</span>}
                 {RightIcon && !isLoading && (
                     <RightIcon
                         size={iconSize}

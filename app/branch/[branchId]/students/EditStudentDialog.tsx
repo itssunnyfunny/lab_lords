@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
@@ -31,6 +33,7 @@ export function EditStudentDialog({
     onClose,
     onSuccess,
 }: EditStudentDialogProps) {
+    const t = useTranslation();
     const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
     const [monthlyFee, setMonthlyFee] = useState<string>("");
@@ -136,24 +139,23 @@ export function EditStudentDialog({
         <Dialog
             open={isOpen}
             onClose={handleClose}
-            title="Edit student"
-            description="Update profile details."
-            closeLabel="Close edit student dialog"
+            title={t("Edit student")}
+            description={t("Update profile details.")}
+            closeLabel={t("Close edit student dialog")}
             closeDisabled={loading}
             className="max-w-sm"
             footer={(
                 <>
                     <Button variant="ghost" onClick={handleClose} disabled={loading} className="h-11 px-3 text-sm lg:h-8">
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button
                         onClick={handleSave}
                         disabled={loading || !hasChanges}
                         className="h-11 min-w-[90px] justify-center px-4 text-sm lg:h-8"
                     >
                         {loading
-                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" /> Saving...</>
-                            : "Save Changes"
+                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" />  {t("Saving...")}</>
+                            : t("Save Changes")
                         }
                     </Button>
                 </>
@@ -162,7 +164,7 @@ export function EditStudentDialog({
                 <div className="space-y-4" aria-describedby={error ? "edit-student-submit-error" : undefined}>
                     {/* Name */}
                     <div className="space-y-1.5">
-                        <label htmlFor="edit-student-name" className={formCompactLabelClass}>Full Name *</label>
+                        <label htmlFor="edit-student-name" className={formCompactLabelClass}>{t("Full Name *")}</label>
                         <div className="relative">
                             <User size={14} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} aria-hidden="true" />
                             <input
@@ -171,7 +173,7 @@ export function EditStudentDialog({
                                 value={name}
                                 onChange={e => { setName(e.target.value); setError(null); }}
                                 onBlur={() => markTouched("name")}
-                                placeholder="Student's full name"
+                                placeholder={t("Student's full name")}
                                 data-dialog-initial-focus
                                 maxLength={FORM_LIMITS.nameMax}
                                 className={cn(formControlClass, "py-2.5 pl-9 pr-4 text-sm", fieldErrorClass(nameError))}
@@ -183,7 +185,7 @@ export function EditStudentDialog({
 
                     {/* Phone */}
                     <div className="space-y-1.5">
-                        <label htmlFor="edit-student-phone" className={formCompactLabelClass}>Phone Number *</label>
+                        <label htmlFor="edit-student-phone" className={formCompactLabelClass}>{t("Phone Number *")}</label>
                         <div className="relative">
                             <Phone size={14} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} aria-hidden="true" />
                             <input
@@ -205,11 +207,10 @@ export function EditStudentDialog({
                     {/* Monthly Fee */}
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between gap-3">
-                            <label htmlFor="edit-student-monthly-fee" className={formCompactLabelClass}>Monthly Fee</label>
+                            <label htmlFor="edit-student-monthly-fee" className={formCompactLabelClass}>{t("Monthly Fee")}</label>
                             {linkedFeeSource && (
                                 <span className="rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[color:var(--ui-badge-cyan-text)]">
-                                    Linked
-                                </span>
+                                    {t("Linked")}</span>
                             )}
                         </div>
                         <div className="relative">
@@ -235,15 +236,13 @@ export function EditStudentDialog({
                         </div>
                         <FieldError id="edit-student-monthly-fee-error" error={monthlyFeeError} />
                         {linkedFeeSource && (
-                            <p id="edit-student-monthly-fee-help" className={cn("text-[11px] leading-relaxed", formHelpTextClass)}>
-                                Currently linked to {linkedFeeSource}. Editing this amount will switch the student to a manual fee.
-                            </p>
+                            <p id="edit-student-monthly-fee-help" className={cn("text-[11px] leading-relaxed", formHelpTextClass)}>{t("Currently linked to {linkedFeeSource}. Editing this amount will switch the student to a manual fee.", { linkedFeeSource: linkedFeeSource })}</p>
                         )}
                     </div>
 
                     {error && (
                         <div id="edit-student-submit-error" role="alert" className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
-                            <AlertCircle size={13} aria-hidden="true" /> {error}
+                            <AlertCircle size={13} aria-hidden="true" /> <LocalizedError error={error} />
                         </div>
                     )}
                 </div>

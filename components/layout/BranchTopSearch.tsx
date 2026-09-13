@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
@@ -51,14 +53,15 @@ function getBranchId(pathname: string | null) {
 }
 
 function DisabledSearch() {
+    const t = useTranslation();
     return (
         <div className={cn(chromeInputShellClass, "opacity-70")}>
             <Search className={chromeInputIconClass} size={16} />
             <input
                 type="text"
                 disabled
-                aria-label="Branch search unavailable"
-                placeholder="Open a branch to search"
+                aria-label={t("Branch search unavailable")}
+                placeholder={t("Open a branch to search")}
                 className={chromeInputClass}
             />
         </div>
@@ -66,9 +69,10 @@ function DisabledSearch() {
 }
 
 function SearchPopoverSkeleton() {
+    const t = useTranslation();
     return (
         <div role="status" aria-live="polite" className="space-y-2 px-3 py-3">
-            <span className="sr-only">Searching this branch</span>
+            <span className="sr-only">{t("Searching this branch")}</span>
             {Array.from({ length: 4 }, (_, index) => (
                 <div key={index} className="flex items-center gap-3 rounded-[var(--ui-radius-control)] px-1 py-2">
                     <SkeletonBlock className="h-8 w-8" />
@@ -83,6 +87,7 @@ function SearchPopoverSkeleton() {
 }
 
 export function BranchTopSearch() {
+    const t = useTranslation();
     const pathname = usePathname();
     const router = useRouter();
     const branchId = getBranchId(pathname);
@@ -216,14 +221,14 @@ export function BranchTopSearch() {
         <div
             id={mobileListboxId}
             role="listbox"
-            aria-label="Branch search results"
+            aria-label={t("Branch search results")}
             className={chromePopoverScrollClass}
         >
             {loading && <SearchPopoverSkeleton />}
             {loadError && (
                 <div role="alert" className={cn("mx-2 mb-2 flex items-start gap-2 px-3 py-2 text-xs leading-5", formWarningBannerClass)}>
                     <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
-                    <span>{loadError}</span>
+                    <span><LocalizedError error={loadError} /></span>
                 </div>
             )}
             {!loading && indexedGroups.map(group => {
@@ -231,7 +236,7 @@ export function BranchTopSearch() {
                 return (
                     <div key={group.id} role="group" aria-labelledby={groupLabelId} className="py-1">
                         <div id={groupLabelId} className={cn("px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-wider", chromeSubtleTextClass)}>
-                            {group.label}
+                            {t.owned(group.label)}
                         </div>
                         <div className="space-y-0.5 px-1.5">
                             {group.results.map(({ result, index }) => {
@@ -274,16 +279,15 @@ export function BranchTopSearch() {
             {!loading && !loadError && !hasResults && (
                 <div className={chromeEmptyStateClass}>
                     {trimmedQuery.length === 1
-                        ? "Type one more character to search branch records."
+                        ? t("Type one more character to search branch records.")
                         : trimmedQuery
                             ? `No matches for “${trimmedQuery}”.`
-                            : "No searchable actions are available for this branch."}
+                            : t("No searchable actions are available for this branch.")}
                 </div>
             )}
             {!loading && !trimmedQuery && hasResults && (
                 <div className={cn("border-t border-[color:var(--ui-panel-header-border)] px-4 py-2 text-xs", chromeSubtleTextClass)}>
-                    Type at least two characters to search records.
-                </div>
+                    {t("Type at least two characters to search records.")}</div>
             )}
         </div>
     );
@@ -298,7 +302,7 @@ export function BranchTopSearch() {
                 }}
                 disabled={disabled}
                 className={cn("lg:hidden", chromeIconButtonClass)}
-                aria-label="Search current branch"
+                aria-label={t("Search current branch")}
                 aria-haspopup="dialog"
                 aria-expanded={mobileOpen && compactLayout}
             >
@@ -323,7 +327,7 @@ export function BranchTopSearch() {
                         setOpen(true);
                     }}
                     onKeyDown={handleKeyDown}
-                    aria-label="Search current branch"
+                    aria-label={t("Search current branch")}
                     aria-autocomplete="list"
                     aria-haspopup="listbox"
                     aria-expanded={open && !disabled}
@@ -334,7 +338,7 @@ export function BranchTopSearch() {
                     className={cn(chromeInputClass, disabled && "cursor-not-allowed opacity-70")}
                 />
                 <span className="sr-only" role="status" aria-live="polite">
-                    {loading ? "Searching" : `${flatResults.length} search results available`}
+                    {loading ? t("Searching") : `${flatResults.length} search results available`}
                 </span>
             </div>
 
@@ -343,14 +347,14 @@ export function BranchTopSearch() {
                     <div
                         id={listboxId}
                         role="listbox"
-                        aria-label="Branch search results"
+                        aria-label={t("Branch search results")}
                         className={chromePopoverScrollClass}
                     >
                         {loading && <SearchPopoverSkeleton />}
                         {loadError && (
                             <div role="alert" className={cn("mx-2 mb-2 flex items-start gap-2 px-3 py-2 text-xs leading-5", formWarningBannerClass)}>
                                 <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
-                                <span>{loadError}</span>
+                                <span><LocalizedError error={loadError} /></span>
                             </div>
                         )}
 
@@ -359,7 +363,7 @@ export function BranchTopSearch() {
                             return (
                                 <div key={group.id} role="group" aria-labelledby={groupLabelId} className="py-1">
                                     <div id={groupLabelId} className={cn("px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider", chromeSubtleTextClass)}>
-                                        {group.label}
+                                        {t.owned(group.label)}
                                     </div>
                                     <div className="space-y-0.5 px-1.5">
                                         {group.results.map(({ result, index }) => {
@@ -406,16 +410,15 @@ export function BranchTopSearch() {
                         {!loading && !loadError && !hasResults && (
                             <div className={chromeEmptyStateClass}>
                                 {trimmedQuery.length === 1
-                                    ? "Type one more character to search branch records."
+                                    ? t("Type one more character to search branch records.")
                                     : trimmedQuery
                                         ? `No matches for “${trimmedQuery}”.`
-                                        : "No searchable actions are available for this branch."}
+                                        : t("No searchable actions are available for this branch.")}
                             </div>
                         )}
                         {!loading && !trimmedQuery && hasResults && (
                             <div className={cn("border-t border-[color:var(--ui-panel-header-border)] px-4 py-2 text-xs", chromeSubtleTextClass)}>
-                                Type at least two characters to search records.
-                            </div>
+                                {t("Type at least two characters to search records.")}</div>
                         )}
                     </div>
                 </div>
@@ -425,8 +428,8 @@ export function BranchTopSearch() {
             <Dialog
                 open={mobileOpen && compactLayout && !disabled}
                 onClose={() => setMobileOpen(false)}
-                title="Search this branch"
-                description="Find students, payments, seats, shifts, staff, and available actions."
+                title={t("Search this branch")}
+                description={t("Find students, payments, seats, shifts, staff, and available actions.")}
                 placement="bottom"
                 className="max-w-none px-3"
             >
@@ -440,7 +443,7 @@ export function BranchTopSearch() {
                         placeholder={placeholder}
                         onChange={event => setQuery(event.target.value)}
                         onKeyDown={handleKeyDown}
-                        aria-label="Search current branch"
+                        aria-label={t("Search current branch")}
                         aria-autocomplete="list"
                         aria-haspopup="listbox"
                         aria-expanded="true"
@@ -451,7 +454,7 @@ export function BranchTopSearch() {
                         className={cn(chromeInputClass, "min-h-11 text-base")}
                     />
                     <span className="sr-only" role="status" aria-live="polite">
-                        {loading ? "Searching" : `${flatResults.length} search results available`}
+                        {loading ? t("Searching") : `${flatResults.length} search results available`}
                     </span>
                 </div>
                 <div className="mt-3 overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-panel-border)]">

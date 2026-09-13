@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, MessageCircleOff, ShieldCheck } from "lucide-react";
@@ -80,6 +82,7 @@ export function StudentWhatsAppConsentControls({
   initialState,
   onChanged,
 }: StudentWhatsAppConsentControlsProps) {
+    const t = useTranslation();
   const [relationship, setRelationship] = useState<WhatsAppRecipientRelationship>(
     initialState?.recipient?.relationship ?? "SELF"
   );
@@ -197,27 +200,25 @@ export function StudentWhatsAppConsentControls({
         <p className="font-medium text-[color:var(--text-primary)]">{student.name}</p>
         <dl className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
           <div>
-            <dt className="text-[color:var(--text-muted)]">Current student phone</dt>
+            <dt className="text-[color:var(--text-muted)]">{t("Current student phone")}</dt>
             <dd className="mt-0.5 text-[color:var(--text-secondary)]">{currentMaskedPhone}</dd>
           </div>
           <div>
-            <dt className="text-[color:var(--text-muted)]">Assigned sender</dt>
+            <dt className="text-[color:var(--text-muted)]">{t("Assigned sender")}</dt>
             <dd className="mt-0.5 text-[color:var(--text-secondary)]">
               {assignedSender
                 ? `${assignedSender.verifiedName ?? "WhatsApp sender"} · ${assignedSender.maskedPhone ?? "Phone unavailable"}`
-                : loading ? "Loading…" : "No sender assigned"}
+                : loading ? t("Loading…") : t("No sender assigned")}
             </dd>
           </div>
         </dl>
         <p className="mt-2 text-xs text-[color:var(--text-muted)]">
-          The server uses the student’s current branch phone; this screen cannot choose another number.
-        </p>
+          {t("The server uses the student’s current branch phone; this screen cannot choose another number.")}</p>
       </div>
 
       {loading ? (
         <p role="status" className="text-sm text-[color:var(--text-secondary)]">
-          Loading current consent status…
-        </p>
+          {t("Loading current consent status…")}</p>
       ) : null}
 
       {recipient ? (
@@ -236,61 +237,54 @@ export function StudentWhatsAppConsentControls({
             <div className="min-w-0 flex-1">
               <p className="font-medium">
                 {activeRecipient
-                  ? "Operational consent active"
+                  ? t("Operational consent active")
                   : recipient.consentStatus === "OPTED_OUT"
-                    ? "Operational consent opted out"
-                    : "Recipient association needs attention"}
+                    ? t("Operational consent opted out")
+                    : t("Recipient association needs attention")}
               </p>
               <dl className="mt-2 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2">
                 <div>
-                  <dt className="opacity-70">Association</dt>
+                  <dt className="opacity-70">{t("Association")}</dt>
                   <dd>{recipient.status.toLowerCase()} · {relationshipLabel(recipient.relationship)}</dd>
                 </div>
                 <div>
-                  <dt className="opacity-70">Operational consent</dt>
+                  <dt className="opacity-70">{t("Operational consent")}</dt>
                   <dd>{consentStatusLabel(recipient.consentStatus)}</dd>
                 </div>
                 <div>
-                  <dt className="opacity-70">Source and date</dt>
-                  <dd>{CONSENT_SOURCE_LABELS[recipient.consentSource]} · {formatEvidenceDate(recipient.consentRecordedAt)}</dd>
+                  <dt className="opacity-70">{t("Source and date")}</dt>
+                  <dd><OwnedLabel text={CONSENT_SOURCE_LABELS[recipient.consentSource]} /> · {formatEvidenceDate(recipient.consentRecordedAt)}</dd>
                 </div>
                 <div>
-                  <dt className="opacity-70">Phone evidence</dt>
-                  <dd>{recipient.maskedPhone ?? "Unavailable"} · verified {formatEvidenceDate(recipient.verifiedAt)}</dd>
+                  <dt className="opacity-70">{t("Phone evidence")}</dt>
+                  <dd>{t("{value} · verified {formatEvidenceDate}", { value: recipient.maskedPhone ?? "Unavailable", formatEvidenceDate: formatEvidenceDate(recipient.verifiedAt) })}</dd>
                 </div>
               </dl>
-              <p className="mt-2 text-xs">
-                Policy: {recipient.policyVersion ?? "Version unavailable"}
-              </p>
+              <p className="mt-2 text-xs">{t("Policy: {value}", { value: recipient.policyVersion ?? "Version unavailable" })}</p>
             </div>
           </div>
         </div>
       ) : !loading ? (
-        <p className={formHelpTextClass}>No recipient association or operational consent is recorded for this sender.</p>
+        <p className={formHelpTextClass}>{t("No recipient association or operational consent is recorded for this sender.")}</p>
       ) : null}
 
       {recipient && (!recipient.phoneMatchesCurrentStudent || recipient.status === "STALE") ? (
-        <div className={cn("px-3 py-2 text-sm", formWarningBannerClass)} role="status">
-          Stale phone evidence: the saved recipient phone ({recipient.maskedPhone ?? "unavailable"}) does not match the student’s current phone ({currentMaskedPhone}). Record fresh explicit consent before sending.
-          {recipient.staleAt ? ` Marked stale ${formatEvidenceDate(recipient.staleAt)}.` : ""}
-        </div>
+        <div className={cn("px-3 py-2 text-sm", formWarningBannerClass)} role="status">{t("Stale phone evidence: the saved recipient phone ({value}) does not match the student’s current phone ({currentMaskedPhone}). Record fresh explicit consent before sending. {value2}", { value: recipient.maskedPhone ?? t("Unavailable"), currentMaskedPhone: currentMaskedPhone, value2: recipient.staleAt ? t("Marked stale {date}.", { date: formatEvidenceDate(recipient.staleAt) }) : "" })}</div>
       ) : null}
 
       {recipient?.consentStatus === "OPTED_OUT" ? (
         <div className={cn("px-3 py-2 text-sm", formWarningBannerClass)} role="status">
-          Opt-out is active. Operational WhatsApp messages must not be queued for this recipient.
-          {recipient.disabledAt ? ` Association disabled ${formatEvidenceDate(recipient.disabledAt)}.` : ""}
+          {t("Opt-out is active. Operational WhatsApp messages must not be queued for this recipient.")}{" "}{recipient.disabledAt ? t("Association disabled {date}.", { date: formatEvidenceDate(recipient.disabledAt) }) : ""}
         </div>
       ) : null}
 
       {!activeRecipient ? (
         <>
           <label className="block text-sm font-medium text-[color:var(--ui-form-label)]" htmlFor={`whatsapp-relationship-${student.id}`}>
-            Recipient relationship
-          </label>
+            {t("Recipient relationship")}</label>
           <AppSelect
             id={`whatsapp-relationship-${student.id}`}
-            aria-label="Recipient relationship"
+            aria-label={t("Recipient relationship")}
             value={relationship}
             onValueChange={value => setRelationship(value as WhatsAppRecipientRelationship)}
             options={RELATIONSHIP_OPTIONS}
@@ -306,11 +300,10 @@ export function StudentWhatsAppConsentControls({
               className="mt-0.5 h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
             />
             <span>
-              <span className="font-medium">I attest to policy {WHATSAPP_OPERATIONAL_CONSENT_POLICY_VERSION}:</span>{" "}
-              {WHATSAPP_OPERATIONAL_CONSENT_STATEMENT}
+              <span className="font-medium">{t("I attest to policy {WHATSAPP_OPERATIONAL_CONSENT_POLICY_VERSION}:", { WHATSAPP_OPERATIONAL_CONSENT_POLICY_VERSION: WHATSAPP_OPERATIONAL_CONSENT_POLICY_VERSION })}</span>{" "}
+              {t.owned(WHATSAPP_OPERATIONAL_CONSENT_STATEMENT)}
               <span className={cn("mt-1 block text-xs", formHelpTextClass)}>
-                This records consent; it does not send a message. Consent can be withdrawn at any time.
-              </span>
+                {t("This records consent; it does not send a message. Consent can be withdrawn at any time.")}</span>
             </span>
           </label>
         </>
@@ -319,15 +312,15 @@ export function StudentWhatsAppConsentControls({
       {unavailable ? (
         <div className={cn("px-3 py-2 text-sm", formWarningBannerClass)} role="status">
           {student.status !== "ACTIVE"
-            ? "Only active students can be associated with a WhatsApp recipient."
+            ? t("Only active students can be associated with a WhatsApp recipient.")
             : !student.phone
-              ? "Add a valid student phone before recording WhatsApp consent."
-              : "Assign an active WhatsApp sender to this branch before recording consent."}
+              ? t("Add a valid student phone before recording WhatsApp consent.")
+              : t("Assign an active WhatsApp sender to this branch before recording consent.")}
         </div>
       ) : null}
 
       {!canManage ? (
-        <p className={formHelpTextClass}>You need WhatsApp management permission to change consent.</p>
+        <p className={formHelpTextClass}>{t("You need WhatsApp management permission to change consent.")}</p>
       ) : null}
 
       {notice ? (
@@ -338,7 +331,7 @@ export function StudentWhatsAppConsentControls({
             ? "text-sm text-[color:var(--ui-form-error-text)]"
             : "text-sm text-[color:var(--text-secondary)]"}
         >
-          {notice.text}
+          {notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}
         </p>
       ) : null}
 
@@ -352,8 +345,7 @@ export function StudentWhatsAppConsentControls({
             disabled={busy || loading || !canManage}
             isLoading={busy}
           >
-            Withdraw consent
-          </AppButton>
+            {t("Withdraw consent")}</AppButton>
         ) : null}
         {!activeRecipient ? (
           <AppButton
@@ -364,8 +356,7 @@ export function StudentWhatsAppConsentControls({
             disabled={busy || loading || unavailable || !canManage || !attested}
             isLoading={busy}
           >
-            Record operational consent
-          </AppButton>
+            {t("Record operational consent")}</AppButton>
         ) : null}
       </div>
     </div>

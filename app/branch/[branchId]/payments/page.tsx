@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
@@ -84,6 +86,7 @@ function PaymentsContent({
     waiveDecision: CapabilityDecision;
     generateDecision: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const router = useRouter();
     const toast = useToast();
     const { formatDate, formatNumber } = useUserPreferences();
@@ -311,12 +314,12 @@ function PaymentsContent({
 
         return (
             <div className="flex flex-wrap items-center gap-2">
-                {item.collectedAmount > 0 && item.status === "DUE" && <Badge variant="warning">Partially paid</Badge>}
+                {item.collectedAmount > 0 && item.status === "DUE" && <Badge variant="warning">{t("Partially paid")}</Badge>}
                 <span className={cn(overdue ? "text-red-400 font-medium" : "text-textSecondary")}>
                     {formatDate(item.dueDate)}
                 </span>
                 {overdue && (
-                    <Badge variant="danger" className="h-5 px-1 py-0 text-[10px]">OVERDUE</Badge>
+                    <Badge variant="danger" className="h-5 px-1 py-0 text-[10px]">{t("OVERDUE")}</Badge>
                 )}
             </div>
         );
@@ -336,9 +339,7 @@ function PaymentsContent({
 
     const renderFeeAmounts = (item: PaymentRow) => <div className="space-y-1">
         <span className="font-semibold">{formatPaymentAmount(item.status === "DUE" ? remainingFee(item) : item.amount)}</span>
-        {item.ledgerBacked ? <p className={cn("text-xs", pageMutedTextClass)}>
-            Fee ₹{item.amount} · Collected ₹{item.collectedAmount} · Waived ₹{item.waivedAmount} · Remaining ₹{remainingFee(item)}
-        </p> : item.status !== "DUE" ? <p className={cn("text-xs", pageMutedTextClass)}>Historical record · no generated receipt</p> : null}
+        {item.ledgerBacked ? <p className={cn("text-xs", pageMutedTextClass)}>{t("Fee ₹{amount} · Collected ₹{collectedAmount} · Waived ₹{waivedAmount} · Remaining ₹{remainingFee}", { amount: item.amount, collectedAmount: item.collectedAmount, waivedAmount: item.waivedAmount, remainingFee: remainingFee(item) })}</p> : item.status !== "DUE" ? <p className={cn("text-xs", pageMutedTextClass)}>{t("Historical record · no generated receipt")}</p> : null}
     </div>;
 
     const renderPaymentMethod = (item: PaymentRow) => {
@@ -374,8 +375,7 @@ function PaymentsContent({
                         })
                     }
                 >
-                    History
-                </AppButton>
+                    {t("History")}</AppButton>
             )}
 
             {item.status === "DUE" && (showRecordAction || showWaiveAction) && (
@@ -390,8 +390,7 @@ function PaymentsContent({
                             title={recordDecision.allowed ? undefined : recordDecision.reason}
                             onClick={() => handleMarkPaid(item.id)}
                         >
-                            Collect fee
-                        </AppButton>
+                            {t("Collect fee")}</AppButton>
                     )}
 
                     {showWaiveAction && (
@@ -416,11 +415,10 @@ function PaymentsContent({
         return (
             <div className={pageErrorStateClass}>
                 <AlertCircle className={pageErrorIconClass} />
-                <h2 className="text-xl font-semibold">Something went wrong</h2>
-                <p className={pageMutedTextClass}>{error}</p>
+                <h2 className="text-xl font-semibold">{t("Something went wrong")}</h2>
+                <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
                 <AppButton variant="secondary" icon={ArrowLeft} onClick={() => router.push("/org")}>
-                    Back to workspace
-                </AppButton>
+                    {t("Back to workspace")}</AppButton>
             </div>
         );
     }
@@ -429,11 +427,10 @@ function PaymentsContent({
         <PageShell>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>Branch payments</p>
-                    <h1 className={cn(pageTitleClass, "mt-2")}>Payment history</h1>
+                    <p className={pageEyebrowClass}>{t("Branch payments")}</p>
+                    <h1 className={cn(pageTitleClass, "mt-2")}>{t("Payment history")}</h1>
                     <p className={pageDescriptionClass}>
-                        Review dues, record collections, and keep waived payments separate from active follow-up.
-                    </p>
+                        {t("Review dues, record collections, and keep waived payments separate from active follow-up.")}</p>
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -446,20 +443,19 @@ function PaymentsContent({
                         title={generateDecision.allowed ? undefined : generateDecision.reason}
                         onClick={() => void generateMissingPayments()}
                     >
-                        Generate missing dues
-                    </AppButton>
+                        {t("Generate missing dues")}</AppButton>
                 )}
                 <div className={cn("flex items-center justify-between gap-2 p-2 sm:gap-4", pageFilterShellClass)}>
-                    <AppButton variant="quiet" size="icon" onClick={() => handleMonthChange("prev")} aria-label="Previous month">
+                    <AppButton variant="quiet" size="icon" onClick={() => handleMonthChange("prev")} aria-label={t("Previous month")}>
                         <ChevronLeft className="h-4 w-4" />
                     </AppButton>
                     <div className="min-w-[132px] text-center">
                         <div className="font-semibold text-[color:var(--text-primary)]">{formatDate(currentDate, { month: "long", year: "numeric" })}</div>
                         {isCurrentMonth(currentDate) && (
-                            <div className="text-xs font-medium text-[color:var(--ui-form-accent)]">Current month</div>
+                            <div className="text-xs font-medium text-[color:var(--ui-form-accent)]">{t("Current month")}</div>
                         )}
                     </div>
-                    <AppButton variant="quiet" size="icon" onClick={() => handleMonthChange("next")} aria-label="Next month">
+                    <AppButton variant="quiet" size="icon" onClick={() => handleMonthChange("next")} aria-label={t("Next month")}>
                         <ChevronRight className="h-4 w-4" />
                     </AppButton>
                 </div>
@@ -488,21 +484,21 @@ function PaymentsContent({
             <div className={cn("flex flex-col gap-3 border-b pb-2 sm:flex-row sm:items-center sm:justify-between", pageSectionDividerClass)}>
                 <div className="flex max-w-full items-center gap-2 overflow-x-auto">
                     <PaymentTabButton
-                        label="Due"
+                        label={t("Due")}
                         count={dueCount}
                         active={activeTab === "DUE"}
                         tone="warning"
                         onClick={() => setActiveTab("DUE")}
                     />
                     <PaymentTabButton
-                        label="Paid"
+                        label={t("Paid")}
                         count={paidCount}
                         active={activeTab === "PAID"}
                         tone="success"
                         onClick={() => setActiveTab("PAID")}
                     />
                     <PaymentTabButton
-                        label="Waived"
+                        label={t("Waived")}
                         count={waivedCount}
                         active={activeTab === "WAIVED"}
                         tone="neutral"
@@ -531,7 +527,7 @@ function PaymentsContent({
                             : undefined,
                     })}
                     viewMode={viewMode}
-                    emptyMessage="No payments found for this view."
+                    emptyMessage={t("No payments found for this view.")}
                     renderGridCard={(item, actions) => (
                         <div className={cn("relative flex min-h-[245px] flex-col", pageGridCardClass, pageGridCardHoverClass)}>
                             <div className="flex items-start justify-between gap-3">
@@ -545,17 +541,17 @@ function PaymentsContent({
 
                             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                                 <div className={pageInsetMetricClass}>
-                                    <div className={cn("text-xs", pageSubtleTextClass)}>Amount</div>
+                                    <div className={cn("text-xs", pageSubtleTextClass)}>{t("Amount")}</div>
                                     <div className="mt-1 text-[color:var(--text-primary)]">{renderFeeAmounts(item)}</div>
                                 </div>
                                 <div className={pageInsetMetricClass}>
-                                    <div className={cn("text-xs", pageSubtleTextClass)}>Method</div>
+                                    <div className={cn("text-xs", pageSubtleTextClass)}>{t("Method")}</div>
                                     <div className="mt-1">{renderPaymentMethod(item)}</div>
                                 </div>
                             </div>
 
                             <div className={cn("mt-3 p-3 text-sm", pageInsetSurfaceClass)}>
-                                <div className={cn("mb-1 text-xs", pageSubtleTextClass)}>Due date</div>
+                                <div className={cn("mb-1 text-xs", pageSubtleTextClass)}>{t("Due date")}</div>
                                 {renderDueDate(item)}
                             </div>
 
@@ -612,9 +608,7 @@ function PaymentsContent({
 
             {!loading ? (
                 <div className="flex flex-col items-center gap-2" aria-live="polite">
-                    <p className={cn("text-sm", pageMutedTextClass)}>
-                        Showing {data.length} of {paymentTotals[activeTab]} {activeTab.toLowerCase()} payments
-                    </p>
+                    <p className={cn("text-sm", pageMutedTextClass)}>{t("Showing {count} of {value} {toLowerCase} payments", { count: data.length, value: paymentTotals[activeTab], toLowerCase: activeTab.toLowerCase() })}</p>
                     {nextPaymentCursor ? (
                         <AppButton
                             variant="secondary"
@@ -622,8 +616,7 @@ function PaymentsContent({
                             aria-label={`Load more ${activeTab.toLowerCase()} payments; ${data.length} of ${paymentTotals[activeTab]} shown`}
                             onClick={() => void loadPayments(nextPaymentCursor, true)}
                         >
-                            Load more payments
-                        </AppButton>
+                            {t("Load more payments")}</AppButton>
                     ) : null}
                 </div>
             ) : null}
@@ -637,8 +630,8 @@ function PaymentsContent({
                 isOpen={!!paymentToWaive}
                 onClose={() => setPaymentToWaive(null)}
                 onConfirm={confirmWaive}
-                title="Waive Payment"
-                description="Forgive the remaining debt. Existing collections and receipts remain in history. A fully collected fee has no remaining debt to waive."
+                title={t("Waive Payment")}
+                description={t("Forgive the remaining debt. Existing collections and receipts remain in history. A fully collected fee has no remaining debt to waive.")}
                 confirmText="Yes, Waive"
                 loading={waiving}
                 variant="warning"

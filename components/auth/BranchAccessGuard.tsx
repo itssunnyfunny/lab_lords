@@ -1,4 +1,6 @@
 "use client";
+import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -43,6 +45,7 @@ export function BranchNoAccess({
     title?: string;
     description?: string;
 }) {
+    const t = useTranslation();
     const router = useRouter();
 
     return (
@@ -52,16 +55,15 @@ export function BranchNoAccess({
                     <ShieldAlert size={24} />
                 </div>
                 <div className="space-y-2">
-                    <h1 className={entryTitleClass}>{title}</h1>
-                    <p className={cn(entrySubtitleClass, pageMutedTextClass)}>{description}</p>
+                    <h1 className={entryTitleClass}><OwnedLabel text={title} /></h1>
+                    <p className={cn(entrySubtitleClass, pageMutedTextClass)}><OwnedLabel text={description} /></p>
                 </div>
                 <AppButton
                     variant="secondary"
                     icon={ArrowLeft}
                     onClick={() => router.push(branchId ? `/branch/${branchId}` : "/org")}
                 >
-                    Back to dashboard
-                </AppButton>
+                    {t("Back to dashboard")}</AppButton>
             </div>
         </div>
     );

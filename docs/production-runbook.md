@@ -6,6 +6,28 @@ database recovery documentation, or an approved incident-response policy.
 
 Last reconciled with the repository: 2026-09-05 (hardening additions; older operational evidence remains dated).
 
+## Personal language preference migration (2026-09-12)
+
+`20260912120000_user_display_languages` adds non-null `User.interfaceLanguage`
+and `User.documentLanguage`, both defaulting to `en`, with check constraints for
+`en`, `hi` and `hinglish`. Use the established release workflow: apply this
+additive migration before deploying the application that reads these fields,
+and regenerate Prisma Client as part of the normal build. Existing profile and
+communication preferences are preserved. No financial, attendance, receipt,
+messaging or AI history is backfilled or rewritten.
+
+After release, verify personal choices survive refresh and branch navigation;
+check independent users, a read-only branch, a mid-form switch and a Hindi
+receipt with explicit document language. Provider templates and outgoing
+communication language must remain unchanged. No new environment variable,
+service, cron, feature flag or special Preview database is required.
+
+For rollback, deploy the previous application and retain the additive columns
+and saved preferences. Dropping columns is unnecessary and loses user choices.
+This localization work applies migrations only to its disposable local test
+database; it does not access or migrate Production. Implementation and glossary:
+[localization guidance](localization.md).
+
 ## AI ownership and inbound identity migration handoff
 
 ### Subsequent operational tenant migration

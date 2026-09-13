@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -50,6 +52,7 @@ export function AllocateSeatDialog({
     onClose,
     onSuccess,
 }: AllocateSeatDialogProps) {
+    const t = useTranslation();
     // Student picking
     const [students, setStudents] = useState<StudentOption[]>([]);
     const [studentId, setStudentId] = useState(preselectedStudentId ?? "");
@@ -256,21 +259,20 @@ export function AllocateSeatDialog({
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="Allocate seat"
+            title={t("Allocate seat")}
             description={effectiveStudentName
                 ? `Allocate a seat for ${effectiveStudentName}${selectedShiftNames.length > 0 ? ` / ${selectedShiftNames.join(", ")}` : ""}.`
-                : "Select an active student, shifts, and an available seat."}
-            closeLabel="Close allocate seat dialog"
+                : t("Select an active student, shifts, and an available seat.")}
+            closeLabel={t("Close allocate seat dialog")}
             closeDisabled={submitting}
             className="max-w-2xl"
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={submitting} className="h-8 px-4 text-sm">
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button onClick={handleConfirm} disabled={submitting} className="h-8 px-5 text-sm">
                         {submitting
-                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" /> Allocating...</>
+                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" />  {t("Allocating...")}</>
                             : confirmLabel
                         }
                     </Button>
@@ -286,18 +288,18 @@ export function AllocateSeatDialog({
                             aria-labelledby="allocate-seat-student-label"
                             aria-describedby={studentError ? "allocate-seat-student-error" : undefined}
                         >
-                            <p id="allocate-seat-student-label" className={formLabelClass}>Select an active student:</p>
-                            <label htmlFor="allocate-seat-student-search" className="sr-only">Search active students</label>
+                            <p id="allocate-seat-student-label" className={formLabelClass}>{t("Select an active student:")}</p>
+                            <label htmlFor="allocate-seat-student-search" className="sr-only">{t("Search active students")}</label>
                             <input
                                 id="allocate-seat-student-search"
                                 type="text"
-                                placeholder="Search by name or phone..."
+                                placeholder={t("Search by name or phone...")}
                                 value={studentSearch}
                                 onChange={e => setStudentSearch(e.target.value)}
                                 className={cn(formControlClass, "px-3 py-2 text-sm")}
                                 data-dialog-initial-focus
                             />
-                            <div className="max-h-48 space-y-1.5 overflow-y-auto pr-2" role="group" aria-label="Active students">
+                            <div className="max-h-48 space-y-1.5 overflow-y-auto pr-2" role="group" aria-label={t("Active students")}>
                                 {filteredStudents.map(s => (
                                     <button
                                         key={s.id}
@@ -311,7 +313,7 @@ export function AllocateSeatDialog({
                                     </button>
                                 ))}
                                 {filteredStudents.length === 0 && (
-                                    <p className={cn("py-4 text-center text-sm", formHelpTextClass)}>No active students found.</p>
+                                    <p className={cn("py-4 text-center text-sm", formHelpTextClass)}>{t("No active students found.")}</p>
                                 )}
                             </div>
                             <FieldError id="allocate-seat-student-error" error={studentError} />
@@ -322,7 +324,7 @@ export function AllocateSeatDialog({
                         <div
                             className="space-y-4"
                             role="group"
-                            aria-label="Seat and shift selection"
+                            aria-label={t("Seat and shift selection")}
                             aria-describedby={selectionError ? "allocate-seat-selection-error" : undefined}
                         >
                             <SeatPicker
@@ -344,15 +346,13 @@ export function AllocateSeatDialog({
                                         onChange={(e) => setLinkFeeToSelection(e.target.checked)}
                                         className={formCheckboxClass}
                                     />
-                                    <span className="text-sm font-medium text-[color:var(--ui-form-label-strong)] transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]">
-                                        Link monthly fee to {feeLinkLabel} price
-                                    </span>
+                                    <span className="text-sm font-medium text-[color:var(--ui-form-label-strong)] transition-colors group-hover:text-[color:var(--ui-form-accent-hover)]">{t("Link monthly fee to {feeLinkLabel} price", { feeLinkLabel: feeLinkLabel })}</span>
                                 </label>
                             )}
 
                             {submitError && (
                                 <div role="alert" className={cn("p-3 text-sm", formErrorBannerClass)}>
-                                    {submitError}
+                                    <LocalizedError error={submitError} />
                                 </div>
                             )}
                         </div>

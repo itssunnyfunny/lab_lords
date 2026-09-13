@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -156,13 +158,14 @@ function toForm(branch: BranchData): BranchForm {
 }
 
 export default function BranchSettingsPage({ params }: { params: Promise<{ branchId: string }> }) {
+    const t = useTranslation();
     const { branchId } = use(params);
 
     return (
         <BranchAccessGuard
             branchId={branchId}
             permission={BRANCH_PAGE_ACCESS.settings}
-            description="Branch settings require branch-management access. Daily-report recipients need WhatsApp viewing, report receiving, payment viewing, analytics, and the WhatsApp entitlement."
+            description={t("Branch settings require branch-management access. Daily-report recipients need WhatsApp viewing, report receiving, payment viewing, analytics, and the WhatsApp entitlement.")}
         >
             {access => {
                 const reportDecision = getBranchCapabilityDecision(access, "whatsappReportReceive");
@@ -170,7 +173,7 @@ export default function BranchSettingsPage({ params }: { params: Promise<{ branc
                     return (
                         <BranchNoAccess
                             branchId={branchId}
-                            title="WhatsApp reports unavailable"
+                            title={t("WhatsApp reports unavailable")}
                             description={reportDecision.reason || "Your role does not include this action."}
                         />
                     );
@@ -190,6 +193,7 @@ function BranchWhatsAppReportSettingsContent({
     branchId: string;
     access: BranchAccess;
 }) {
+    const t = useTranslation();
     const [activeSection, setActiveSection] = useState("whatsapp");
     const reportDecision = getBranchCapabilityDecision(access, "whatsappReportReceive");
     const reportOperationDecision = getBranchCapabilityDecision(access, "whatsappReportOperate");
@@ -197,7 +201,7 @@ function BranchWhatsAppReportSettingsContent({
 
     return (
         <SettingsWorkspace
-            title="WhatsApp Daily Reports"
+            title={t("WhatsApp Daily Reports")}
             subtitle={`Confirm and review aggregate daily reports for ${access.branchName}. This access does not grant branch settings management.`}
             sections={REPORT_ONLY_SECTIONS}
             activeSection={activeSection}
@@ -231,12 +235,13 @@ interface BranchBillingSummary {
 const SETTINGS_BLOCKER_ID = "branch-settings-manage-blocker";
 
 function SettingsCapabilityNotice({ decision }: { decision: CapabilityDecision }) {
+    const t = useTranslation();
     if (decision.allowed || decision.blocker === "permission") return null;
 
     return (
         <aside
             id={SETTINGS_BLOCKER_ID}
-            aria-label="Settings access restriction"
+            aria-label={t("Settings access restriction")}
             className={cn(
                 "flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between",
                 formWarningBannerClass
@@ -248,14 +253,14 @@ function SettingsCapabilityNotice({ decision }: { decision: CapabilityDecision }
                     href={decision.recoveryHref}
                     className="shrink-0 font-semibold underline underline-offset-4"
                 >
-                    Resolve access
-                </Link>
+                    {t("Resolve access")}</Link>
             )}
         </aside>
     );
 }
 
 function BranchSettingsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
+    const t = useTranslation();
     const router = useRouter();
     const { formatDate, formatDateTime, formatNumber } = useUserPreferences();
     const hasAiAccess = access.entitlements.includes("AI_ACCESS");
@@ -499,7 +504,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
     };
 
     if (loading) {
-        return <PageLoadingSkeleton label="Loading branch settings" variant="settings" maxWidth="content" />;
+        return <PageLoadingSkeleton label={t("Loading branch settings")} variant="settings" maxWidth="content" />;
     }
 
     if (fetchError || !branch || !form) {
@@ -507,7 +512,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
             <div className={pageErrorStateClass}>
                 <AlertCircle className={pageErrorIconClass} />
                 <p className={pageMutedTextClass}>{fetchError || "Branch not found."}</p>
-                <AppButton variant="secondary" onClick={() => router.back()}>Back</AppButton>
+                <AppButton variant="secondary" onClick={() => router.back()}>{t("Back")}</AppButton>
             </div>
         );
     }
@@ -519,8 +524,8 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
     return (
         <>
             <SettingsWorkspace
-                title="Branch Settings"
-                subtitle="Configure the branch profile, billing defaults, reminders, AI, and access overview."
+                title={t("Branch Settings")}
+                subtitle={t("Configure the branch profile, billing defaults, reminders, AI, and access overview.")}
                 sections={whatsAppAvailable ? SECTIONS_WITH_WHATSAPP : SECTIONS}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
@@ -533,106 +538,105 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                         onClick={beginEditing}
                         className="min-h-11 lg:min-h-9"
                     >
-                        Edit settings
-                    </AppButton>
+                        {t("Edit settings")}</AppButton>
                 ) : null}
             >
                 <SettingsCapabilityNotice decision={settingsDecision} />
 
-                <SettingsPanel id="profile" title="Profile" description="Operational identity and public branch contact details." icon={Building2}>
+                <SettingsPanel id="profile" title={t("Profile")} description={t("Operational identity and public branch contact details.")} icon={Building2}>
                     {showMutationControls && isEditing ? (
                         <>
-                            <SettingsField label="Branch name" error={nameError} errorId="branch-name-error">
-                                <SettingsInput required autoComplete="organization" value={form.name} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder="Main Branch" error={nameError} errorId="branch-name-error" />
+                            <SettingsField label={t("Branch name")} error={nameError} errorId="branch-name-error">
+                                <SettingsInput required autoComplete="organization" value={form.name} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder={t("Main Branch")} error={nameError} errorId="branch-name-error" />
                             </SettingsField>
-                            <SettingsField label="City" error={cityError} errorId="branch-city-error">
+                            <SettingsField label={t("City")} error={cityError} errorId="branch-city-error">
                                 <SettingsInput autoComplete="address-level2" value={form.city ?? ""} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("city", e.target.value)} onBlur={() => markTouched("city")} placeholder="Delhi" error={cityError} errorId="branch-city-error" />
                             </SettingsField>
-                            <SettingsField label="Address" error={addressError} errorId="branch-address-error">
-                                <SettingsTextArea autoComplete="street-address" value={form.address ?? ""} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("address", e.target.value)} onBlur={() => markTouched("address")} placeholder="Branch address" error={addressError} errorId="branch-address-error" />
+                            <SettingsField label={t("Address")} error={addressError} errorId="branch-address-error">
+                                <SettingsTextArea autoComplete="street-address" value={form.address ?? ""} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("address", e.target.value)} onBlur={() => markTouched("address")} placeholder={t("Branch address")} error={addressError} errorId="branch-address-error" />
                             </SettingsField>
-                            <SettingsField label="Contact phone" description="Required phone number for branch operations." error={contactPhoneError} errorId="branch-contact-phone-error">
+                            <SettingsField label={t("Contact phone")} description={t("Required phone number for branch operations.")} error={contactPhoneError} errorId="branch-contact-phone-error">
                                 <SettingsInput required type="tel" autoComplete="tel" value={form.contactPhone ?? ""} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("contactPhone", e.target.value)} onBlur={() => markTouched("contactPhone")} placeholder="+91 98765 43210" error={contactPhoneError} errorId="branch-contact-phone-error" />
                             </SettingsField>
-                            <SettingsField label="Operating hours" description="Stored as the branch default opening and closing window." error={openingTimeError || closingTimeError || operatingHoursError} errorId="branch-operating-hours-error">
+                            <SettingsField label={t("Operating hours")} description={t("Stored as the branch default opening and closing window.")} error={openingTimeError || closingTimeError || operatingHoursError} errorId="branch-operating-hours-error">
                                 <div className="grid gap-3 sm:grid-cols-2">
-                                    <SettingsInput aria-label="Opening time" type="time" value={form.openingTime ?? ""} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("openingTime", e.target.value)} onBlur={() => { markTouched("openingTime"); markTouched("operatingHours"); }} error={openingTimeError || operatingHoursError} errorId="branch-operating-hours-error" />
-                                    <SettingsInput id="branch-closing-time" aria-label="Closing time" type="time" value={form.closingTime ?? ""} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("closingTime", e.target.value)} onBlur={() => { markTouched("closingTime"); markTouched("operatingHours"); }} error={closingTimeError || operatingHoursError} errorId="branch-operating-hours-error" />
+                                    <SettingsInput aria-label={t("Opening time")} type="time" value={form.openingTime ?? ""} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("openingTime", e.target.value)} onBlur={() => { markTouched("openingTime"); markTouched("operatingHours"); }} error={openingTimeError || operatingHoursError} errorId="branch-operating-hours-error" />
+                                    <SettingsInput id="branch-closing-time" aria-label={t("Closing time")} type="time" value={form.closingTime ?? ""} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("closingTime", e.target.value)} onBlur={() => { markTouched("closingTime"); markTouched("operatingHours"); }} error={closingTimeError || operatingHoursError} errorId="branch-operating-hours-error" />
                                 </div>
                             </SettingsField>
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Branch name" value={branch.name} />
-                            <ReadOnlyRow label="City" value={branch.city || "Not set"} />
-                            <ReadOnlyRow label="Address" value={branch.address || "Not set"} />
-                            <ReadOnlyRow label="Contact phone" value={branch.contactPhone || "Not set"} />
-                            <ReadOnlyRow label="Operating hours" value={branch.openingTime && branch.closingTime ? `${branch.openingTime} - ${branch.closingTime}` : "Not set"} />
+                            <ReadOnlyRow label={t("Branch name")} value={branch.name} />
+                            <ReadOnlyRow label={t("City")} value={branch.city || "Not set"} />
+                            <ReadOnlyRow label={t("Address")} value={branch.address || "Not set"} />
+                            <ReadOnlyRow label={t("Contact phone")} value={branch.contactPhone || "Not set"} />
+                            <ReadOnlyRow label={t("Operating hours")} value={branch.openingTime && branch.closingTime ? `${branch.openingTime} - ${branch.closingTime}` : "Not set"} />
                         </>
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="defaults" title="Student Defaults" description="Defaults applied when creating new students in this branch." icon={IndianRupee}>
+                <SettingsPanel id="defaults" title={t("Student Defaults")} description={t("Defaults applied when creating new students in this branch.")} icon={IndianRupee}>
                     {showMutationControls && isEditing ? (
                         <>
-                            <SettingsField label="Default monthly fee" description="Used when a new student has no manual fee or shift-linked fee." error={defaultFeeError} errorId="branch-default-fee-error">
+                            <SettingsField label={t("Default monthly fee")} description={t("Used when a new student has no manual fee or shift-linked fee.")} error={defaultFeeError} errorId="branch-default-fee-error">
                                 <SettingsInput type="number" inputMode="numeric" min={0} value={form.defaultFee ?? 0} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("defaultFee", Number(e.target.value))} onBlur={() => markTouched("defaultFee")} error={defaultFeeError} errorId="branch-default-fee-error" />
                             </SettingsField>
-                            <SettingsField label="Default admission fee" description="Pre-fills new student admission fee and is used if no admission fee is supplied." error={defaultAdmissionFeeError} errorId="branch-default-admission-fee-error">
+                            <SettingsField label={t("Default admission fee")} description={t("Pre-fills new student admission fee and is used if no admission fee is supplied.")} error={defaultAdmissionFeeError} errorId="branch-default-admission-fee-error">
                                 <SettingsInput type="number" inputMode="numeric" min={0} value={form.defaultAdmissionFee ?? 0} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("defaultAdmissionFee", Number(e.target.value))} onBlur={() => markTouched("defaultAdmissionFee")} error={defaultAdmissionFeeError} errorId="branch-default-admission-fee-error" />
                             </SettingsField>
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Default monthly fee" value={`Rs ${formatNumber(branch.defaultFee ?? 0)}`} />
-                            <ReadOnlyRow label="Default admission fee" value={`Rs ${formatNumber(branch.defaultAdmissionFee ?? 0)}`} />
+                            <ReadOnlyRow label={t("Default monthly fee")} value={`Rs ${formatNumber(branch.defaultFee ?? 0)}`} />
+                            <ReadOnlyRow label={t("Default admission fee")} value={`Rs ${formatNumber(branch.defaultAdmissionFee ?? 0)}`} />
                         </>
                     )}
                     {access.permissions.students && (
-                        <ReadOnlyRow label="Active students" value={<span className="inline-flex items-center gap-2"><Users size={14} />{counts.students ?? 0}</span>} />
+                        <ReadOnlyRow label={t("Active students")} value={<span className="inline-flex items-center gap-2"><Users size={14} />{counts.students ?? 0}</span>} />
                     )}
                     {(access.permissions.manage_branch || access.permissions.seat_allocation) && (
-                        <ReadOnlyRow label="Seat capacity" value={<span className="inline-flex items-center gap-2"><Armchair size={14} />{counts.seats ?? 0} seats</span>} />
+                        <ReadOnlyRow label={t("Seat capacity")} value={<span className="inline-flex items-center gap-2"><Armchair size={14} />{counts.seats ?? 0}  {t("seats")}</span>} />
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="communication" title="Communication" description="Defaults for manually copied payment reminder drafts." icon={MessageSquare}>
+                <SettingsPanel id="communication" title={t("Communication")} description={t("Defaults for manually copied payment reminder drafts.")} icon={MessageSquare}>
                     {showMutationControls && isEditing ? (
                         <>
-                            <SettingsField label="Default message language">
+                            <SettingsField label={t("Default message language")}>
                                 <fieldset disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} className="min-w-0 border-0 p-0">
                                     <SegmentedControl
                                         value={form.defaultMessageLanguage}
                                         onChange={value => updateForm("defaultMessageLanguage", value)}
                                         options={[
                                             { value: "en", label: "English" },
-                                            { value: "hi", label: "Hindi" },
+                                            { value: "hi", label: t("Hindi") },
                                         ]}
                                     />
                                 </fieldset>
                             </SettingsField>
-                            <SettingsField label="Reminder tone">
+                            <SettingsField label={t("Reminder tone")}>
                                 <SettingsSelect
                                     disabled={mutationsDisabled}
                                     aria-describedby={mutationDescriptionId}
                                     value={form.reminderTone}
                                     onValueChange={value => updateForm("reminderTone", value as BranchForm["reminderTone"])}
                                     options={[
-                                        { value: "polite", label: "Polite" },
-                                        { value: "friendly", label: "Friendly" },
-                                        { value: "firm", label: "Firm" },
+                                        { value: "polite", label: t("Polite") },
+                                        { value: "friendly", label: t("Friendly") },
+                                        { value: "firm", label: t("Firm") },
                                     ]}
                                 />
                             </SettingsField>
                         </>
                     ) : (
                         <>
-                            <ReadOnlyRow label="Default message language" value={branch.defaultMessageLanguage === "hi" ? "Hindi" : "English"} />
-                            <ReadOnlyRow label="Reminder tone" value={`${branch.reminderTone.charAt(0).toUpperCase()}${branch.reminderTone.slice(1)}`} />
+                            <ReadOnlyRow label={t("Default message language")} value={branch.defaultMessageLanguage === "hi" ? "Hindi" : "English"} />
+                            <ReadOnlyRow label={t("Reminder tone")} value={`${branch.reminderTone.charAt(0).toUpperCase()}${branch.reminderTone.slice(1)}`} />
                         </>
                     )}
                     {access.permissions.view_payments && (
-                        <ReadOnlyRow label="Payments due" value={counts.payments ?? 0} />
+                        <ReadOnlyRow label={t("Payments due")} value={counts.payments ?? 0} />
                     )}
                 </SettingsPanel>
 
@@ -649,31 +653,30 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     onAvailabilityChange={setWhatsAppAvailable}
                 />
 
-                <SettingsPanel id="ai" title="AI" description="Control whether this branch can generate AI reports." icon={Bot}>
+                <SettingsPanel id="ai" title="AI" description={t("Control whether this branch can generate AI reports.")} icon={Bot}>
                     {showMutationControls && isEditing ? (
-                        <SettingsField label="AI reports" description={mutationsDisabled ? settingsDecision.reason : undefined}>
+                        <SettingsField label={t("AI reports")} description={mutationsDisabled ? settingsDecision.reason : undefined}>
                             <SettingsToggle
                                 checked={form.aiEnabled}
                                 onChange={value => updateForm("aiEnabled", value)}
                                 disabled={!hasAiAccess || mutationsDisabled}
-                                label={!hasAiAccess ? "AI requires the Standard plan" : form.aiEnabled ? "AI generation enabled" : "AI generation disabled"}
-                                description={!hasAiAccess ? "Upgrade the organization to Standard to enable AI reports and message drafting." : form.aiEnabled ? "Branch AI reports can run using the current branch data." : "AI report generation will return a disabled state for this branch."}
+                                label={!hasAiAccess ? t("AI requires the Standard plan") : form.aiEnabled ? t("AI generation enabled") : t("AI generation disabled")}
+                                description={!hasAiAccess ? t("Upgrade the organization to Standard to enable AI reports and message drafting.") : form.aiEnabled ? t("Branch AI reports can run using the current branch data.") : t("AI report generation will return a disabled state for this branch.")}
                             />
                         </SettingsField>
                     ) : (
-                        <ReadOnlyRow label="AI reports" value={branch.aiEnabled ? "Enabled" : "Disabled"} />
+                        <ReadOnlyRow label={t("AI reports")} value={branch.aiEnabled ? "Enabled" : "Disabled"} />
                     )}
                     {hasAiAccess && !form.aiEnabled && (
                         <div className="px-5 py-4">
                             <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
-                                AI is off for this branch. Existing reports remain visible, but new generation is blocked.
-                            </div>
+                                {t("AI is off for this branch. Existing reports remain visible, but new generation is blocked.")}</div>
                         </div>
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="access" title="Access" description="Team summary for this branch." icon={Shield}>
-                    <ReadOnlyRow label="Staff members" value={counts.staff ?? 0} />
+                <SettingsPanel id="access" title={t("Access")} description={t("Team summary for this branch.")} icon={Shield}>
+                    <ReadOnlyRow label={t("Staff members")} value={counts.staff ?? 0} />
                     <div className="grid gap-2 px-5 py-4 md:grid-cols-2">
                         {staff.map(member => (
                             <SettingsCard key={member.id}>
@@ -685,29 +688,28 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                             </SettingsCard>
                         ))}
                         {staff.length === 0 && (
-                            <SettingsEmptyState>No staff records found.</SettingsEmptyState>
+                            <SettingsEmptyState>{t("No staff records found.")}</SettingsEmptyState>
                         )}
                     </div>
                     <div className="px-5 pb-4">
                         <AppButton variant="secondary" size="sm" onClick={() => router.push(`/branch/${branchId}/staff`)}>
-                            Manage staff
-                        </AppButton>
+                            {t("Manage staff")}</AppButton>
                     </div>
                 </SettingsPanel>
 
-                <SettingsPanel id="billing" title="Billing" description="This branch inherits its organization's billing plan." icon={CreditCard}>
+                <SettingsPanel id="billing" title={t("Billing")} description={t("This branch inherits its organization's billing plan.")} icon={CreditCard}>
                     {billingError && (
                         <div className={cn("mx-5 mt-4 flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)} role="alert">
-                            <span>Billing details are unavailable: {billingError}</span>
+                            <span>{t("Billing details are unavailable:")} <LocalizedError error={billingError} /></span>
                             <AppButton variant="secondary" size="sm" onClick={() => void loadBilling()} disabled={billingLoading}>
-                                {billingLoading ? "Retrying..." : "Retry"}
+                                {billingLoading ? t("Retrying...") : t("Retry")}
                             </AppButton>
                         </div>
                     )}
-                    <ReadOnlyRow label="Inherited plan" value={billingLoading ? "Loading" : billingSummary?.inheritedPlan ?? "Unavailable"} />
-                    <ReadOnlyRow label="Branch billing status" value={billingLoading ? "Loading" : billingSummary?.branchStatus ?? "Unavailable"} />
-                    <ReadOnlyRow label="Billing state" value={billingLoading ? "Loading" : billingSummary?.billingState ?? "Unavailable"} />
-                    <ReadOnlyRow label="Access mode" value={billingLoading ? "Loading" : billingSummary?.accessMode ?? "Unavailable"} />
+                    <ReadOnlyRow label={t("Inherited plan")} value={billingLoading ? "Loading" : billingSummary?.inheritedPlan ?? "Unavailable"} />
+                    <ReadOnlyRow label={t("Branch billing status")} value={billingLoading ? "Loading" : billingSummary?.branchStatus ?? "Unavailable"} />
+                    <ReadOnlyRow label={t("Billing state")} value={billingLoading ? "Loading" : billingSummary?.billingState ?? "Unavailable"} />
+                    <ReadOnlyRow label={t("Access mode")} value={billingLoading ? "Loading" : billingSummary?.accessMode ?? "Unavailable"} />
                     <div className="px-5 py-4">
                         <AppButton
                             variant="secondary"
@@ -715,24 +717,22 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                             disabled={billingLoading || !billingSummary}
                             onClick={() => billingSummary && router.push(billingSummary.billingUrl)}
                         >
-                            Open organization billing
-                        </AppButton>
+                            {t("Open organization billing")}</AppButton>
                     </div>
                 </SettingsPanel>
 
-                <SettingsPanel id="system" title="System Info" description="Read-only branch metadata and active shift summary." icon={Hash}>
-                    <ReadOnlyRow label="Organization" value={<span className="inline-flex items-center gap-2"><GitBranch size={14} />{branch.organization?.name || "N/A"}</span>} />
-                    <ReadOnlyRow label="Branch ID" value={<span className="font-mono">{branch.id}</span>} />
-                    <ReadOnlyRow label="Created" value={<span className="inline-flex items-center gap-2"><Calendar size={14} />{formatDate(branch.createdAt)}</span>} />
-                    <ReadOnlyRow label="Last data change" value={formatDateTime(branch.lastDataChange)} />
+                <SettingsPanel id="system" title={t("System Info")} description={t("Read-only branch metadata and active shift summary.")} icon={Hash}>
+                    <ReadOnlyRow label={t("Organization")} value={<span className="inline-flex items-center gap-2"><GitBranch size={14} />{branch.organization?.name || "N/A"}</span>} />
+                    <ReadOnlyRow label={t("Branch ID")} value={<span className="font-mono">{branch.id}</span>} />
+                    <ReadOnlyRow label={t("Created")} value={<span className="inline-flex items-center gap-2"><Calendar size={14} />{formatDate(branch.createdAt)}</span>} />
+                    <ReadOnlyRow label={t("Last data change")} value={formatDateTime(branch.lastDataChange)} />
                     <div className="px-5 py-4">
                         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
                             <CalendarClock size={15} className="text-[color:var(--ui-form-accent)]" />
-                            Active shifts
-                        </div>
+                            {t("Active shifts")}</div>
                         <div className="grid gap-2 md:grid-cols-2">
                             {shifts.length === 0 ? (
-                                <SettingsEmptyState>No active shifts.</SettingsEmptyState>
+                                <SettingsEmptyState>{t("No active shifts.")}</SettingsEmptyState>
                             ) : shifts.map(shift => (
                                 <SettingsCard key={shift.id}>
                                     <div className="flex items-center justify-between gap-3">
@@ -741,15 +741,15 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                                     </div>
                                     <p className="mt-1 flex items-center gap-1 text-xs text-[color:var(--text-muted)]">
                                         <Clock size={11} />
-                                        {shift.startTime && shift.endTime ? `${shift.startTime} - ${shift.endTime}` : "Flexible"}
-                                        {shift.isReserved ? " / Reserved" : ""}
+                                        {shift.startTime && shift.endTime ? `${shift.startTime} - ${shift.endTime}` : t("Flexible")}
+                                        {shift.isReserved ? t(" / Reserved") : ""}
                                     </p>
                                 </SettingsCard>
                             ))}
                         </div>
                     </div>
-                    <ReadOnlyRow label="Location" value={<span className="inline-flex items-center gap-2"><MapPin size={14} />{branch.city || "Not set"}</span>} />
-                    <ReadOnlyRow label="Contact" value={<span className="inline-flex items-center gap-2"><Phone size={14} />{branch.contactPhone || "Not set"}</span>} />
+                    <ReadOnlyRow label={t("Location")} value={<span className="inline-flex items-center gap-2"><MapPin size={14} />{branch.city || "Not set"}</span>} />
+                    <ReadOnlyRow label={t("Contact")} value={<span className="inline-flex items-center gap-2"><Phone size={14} />{branch.contactPhone || "Not set"}</span>} />
                 </SettingsPanel>
             </SettingsWorkspace>
 
@@ -769,8 +769,8 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                 onClose={() => setDiscardDialogOpen(false)}
                 onConfirm={discardChanges}
                 variant="warning"
-                title="Discard branch changes?"
-                description="Your unsaved branch settings will be restored to their last saved values."
+                title={t("Discard branch changes?")}
+                description={t("Your unsaved branch settings will be restored to their last saved values.")}
                 confirmText="Discard changes"
                 cancelText="Keep editing"
             />

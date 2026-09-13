@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+
+import { useTranslation } from "@/components/settings/LocalizedText";import { useEffect, useRef, useState } from "react";
 import { RotateCcw, UploadCloud } from "lucide-react";
 import { AppButton, AppPanel, AppSelect } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
@@ -49,6 +50,7 @@ export function PreviewStep({
     onRefreshPlan,
     onConfirmImport,
 }: PreviewStepProps) {
+    const t = useTranslation();
     const { formatDate, formatDateTime, formatNumber } = useUserPreferences();
     const [paymentPageIndex, setPaymentPageIndex] = useState(0);
     const [paymentCyclePages, setPaymentCyclePages] = useState<ImportPlanPaymentDetailsResponse[]>([]);
@@ -150,23 +152,22 @@ export function PreviewStep({
     return (
         <div className="space-y-5">
             <AppPanel
-                title="Review & import"
-                description={plan?.planVersion ? `Reviewed plan ${plan.planVersion}` : "Build a plan from your saved changes."}
+                title={t("Review & import")}
+                description={plan?.planVersion ? `Reviewed plan ${plan.planVersion}` : t("Build a plan from your saved changes.")}
                 action={
                     <div className="flex flex-wrap gap-2">
-                        <label htmlFor="import-readiness-policy" className="sr-only">Rows required before import</label>
+                        <label htmlFor="import-readiness-policy" className="sr-only">{t("Rows required before import")}</label>
                         <AppSelect
                             id="import-readiness-policy"
                             value={readinessPolicy}
                             onValueChange={value => onPolicyChange(value as ImportReadinessPolicy)}
                             options={[
-                                { value: "READY_ROWS_ONLY", label: "Import ready rows (recommended)" },
-                                { value: "REQUIRE_ALL_ROWS_READY", label: "Require every row ready" },
+                                { value: "READY_ROWS_ONLY", label: t("Import ready rows (recommended)") },
+                                { value: "REQUIRE_ALL_ROWS_READY", label: t("Require every row ready") },
                             ]}
                         />
                         <AppButton variant="secondary" icon={RotateCcw} onClick={onRefreshPlan} isLoading={saving}>
-                            Refresh plan
-                        </AppButton>
+                            {t("Refresh plan")}</AppButton>
                     </div>
                 }
             >
@@ -175,15 +176,15 @@ export function PreviewStep({
 
                     <div className={cn("p-4 text-xs leading-5", pageInsetSurfaceClass, pageMutedTextClass)}>
                         {readinessPolicy === "READY_ROWS_ONLY"
-                            ? "Ready and warning rows can run; blocked and skipped rows stay in this import workspace for later correction."
-                            : "The import cannot start until every non-skipped row passes. Runtime work is processed in durable batches, so completed records remain if a later item fails."}
+                            ? t("Ready and warning rows can run; blocked and skipped rows stay in this import workspace for later correction.")
+                            : t("The import cannot start until every non-skipped row passes. Runtime work is processed in durable batches, so completed records remain if a later item fails.")}
                     </div>
 
                     {plan && (
                         <>
                             <div className="flex flex-wrap items-center gap-2" aria-live="polite">
-                                <Badge variant={plan.canRun ? "success" : "danger"}>{plan.canRun ? "Ready to start" : "Blocked"}</Badge>
-                                <Badge variant={planFresh ? "success" : "warning"}>{planFresh ? "Current revision" : "Refresh needed"}</Badge>
+                                <Badge variant={plan.canRun ? "success" : "danger"}>{plan.canRun ? t("Ready to start") : t("Blocked")}</Badge>
+                                <Badge variant={planFresh ? "success" : "warning"}>{planFresh ? t("Current revision") : t("Refresh needed")}</Badge>
                                 <Badge variant="cyan">{readyLabel}</Badge>
                                 {plan.createdAt && <span className={cn("text-xs", pageMutedTextClass)}>{formatDateTime(plan.createdAt)}</span>}
                             </div>
@@ -205,7 +206,7 @@ export function PreviewStep({
 
                             {mutations && (
                                 <>
-                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Records this plan will create">
+                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("Records this plan will create")}>
                                         {[
                                             ["Students", mutations.students],
                                             ["Seat links", mutations.allocations],
@@ -220,12 +221,11 @@ export function PreviewStep({
                                     </div>
 
                                     {!paymentsSkipped && mutations.paymentCycles > 0 && (
-                                        <div className="space-y-3" aria-label="Payment totals by cycle and status">
+                                        <div className="space-y-3" aria-label={t("Payment totals by cycle and status")}>
                                             <div>
-                                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">Exact payment totals</p>
+                                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Exact payment totals")}</p>
                                                 <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
-                                                    Historical and current joined-date cycles are counted separately by final payment status.
-                                                </p>
+                                                    {t("Historical and current joined-date cycles are counted separately by final payment status.")}</p>
                                             </div>
                                             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                                 {[
@@ -256,26 +256,23 @@ export function PreviewStep({
                                         }
                                     }}
                                 >
-                                    <summary className="cursor-pointer list-none text-sm font-semibold text-[color:var(--text-primary)]">
-                                        Payment history by student ({formatNumber(paymentBreakdown.length)})
-                                    </summary>
+                                    <summary className="cursor-pointer list-none text-sm font-semibold text-[color:var(--text-primary)]">{t("Payment history by student ({formatNumber})", { formatNumber: formatNumber(paymentBreakdown.length) })}</summary>
                                     <p className={cn("mt-2 text-xs leading-5", pageMutedTextClass)}>
-                                        Aggregate counts per student. Historical cycles run from the joined date; current means the student&apos;s current joined-date cycle.
-                                    </p>
-                                    <AccessibleTableScroll label="Planned payment history by student" className="mt-3 rounded-[8px] border border-[color:var(--ui-table-border)]">
+                                        {t("Aggregate counts per student. Historical cycles run from the joined date; current means the student's current joined-date cycle.")}</p>
+                                    <AccessibleTableScroll label={t("Planned payment history by student")} className="mt-3 rounded-[8px] border border-[color:var(--ui-table-border)]">
                                         <table className="w-full min-w-[940px] text-left text-xs">
-                                            <caption className="sr-only">Remaining historical and current payment records planned for each student</caption>
+                                            <caption className="sr-only">{t("Remaining historical and current payment records planned for each student")}</caption>
                                             <thead className={pageTableHeadClass}>
                                                 <tr className="uppercase tracking-wide text-[color:var(--text-muted)]">
-                                                    <th scope="col" className="p-3">Row</th>
-                                                    <th scope="col" className="p-3">Student</th>
-                                                    <th scope="col" className="p-3">Historical due</th>
-                                                    <th scope="col" className="p-3">Historical paid</th>
-                                                    <th scope="col" className="p-3">Historical waived</th>
-                                                    <th scope="col" className="p-3">Current due</th>
-                                                    <th scope="col" className="p-3">Current paid</th>
-                                                    <th scope="col" className="p-3">Current waived</th>
-                                                    <th scope="col" className="p-3">Total</th>
+                                                    <th scope="col" className="p-3">{t("Row")}</th>
+                                                    <th scope="col" className="p-3">{t("Student")}</th>
+                                                    <th scope="col" className="p-3">{t("Historical due")}</th>
+                                                    <th scope="col" className="p-3">{t("Historical paid")}</th>
+                                                    <th scope="col" className="p-3">{t("Historical waived")}</th>
+                                                    <th scope="col" className="p-3">{t("Current due")}</th>
+                                                    <th scope="col" className="p-3">{t("Current paid")}</th>
+                                                    <th scope="col" className="p-3">{t("Current waived")}</th>
+                                                    <th scope="col" className="p-3">{t("Total")}</th>
                                                 </tr>
                                             </thead>
                                             <tbody className={pageTableBodyDividerClass}>
@@ -296,50 +293,45 @@ export function PreviewStep({
                                         </table>
                                     </AccessibleTableScroll>
                                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                        <span className={cn("text-xs", pageMutedTextClass)} role="status" aria-live="polite">
-                                            Page {formatNumber(paymentPage + 1)} of {formatNumber(paymentPageCount)}
-                                        </span>
+                                        <span className={cn("text-xs", pageMutedTextClass)} role="status" aria-live="polite">{t("Page {formatNumber} of {formatNumber2}", { formatNumber: formatNumber(paymentPage + 1), formatNumber2: formatNumber(paymentPageCount) })}</span>
                                         <div className="flex gap-2">
-                                            <AppButton size="sm" variant="quiet" disabled={paymentPage === 0} onClick={() => setPaymentPageIndex(current => Math.max(0, current - 1))}>Previous</AppButton>
-                                            <AppButton size="sm" variant="quiet" disabled={paymentPage >= paymentPageCount - 1} onClick={() => setPaymentPageIndex(current => Math.min(paymentPageCount - 1, current + 1))}>Next</AppButton>
+                                            <AppButton size="sm" variant="quiet" disabled={paymentPage === 0} onClick={() => setPaymentPageIndex(current => Math.max(0, current - 1))}>{t("Previous")}</AppButton>
+                                            <AppButton size="sm" variant="quiet" disabled={paymentPage >= paymentPageCount - 1} onClick={() => setPaymentPageIndex(current => Math.min(paymentPageCount - 1, current + 1))}>{t("Next")}</AppButton>
                                         </div>
                                     </div>
 
                                     <div className="mt-5 border-t border-[color:var(--ui-form-surface-border)] pt-4">
                                         <div className="flex flex-wrap items-center justify-between gap-2">
                                             <div>
-                                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">Exact payment cycle records</p>
-                                                <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
-                                                    {formatNumber(plan.paymentDetails?.totalCycles ?? mutations?.paymentCycles ?? 0)} immutable cycle records across {formatNumber(plan.paymentDetails?.affectedStudents ?? paymentBreakdown.length)} students.
-                                                </p>
+                                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Exact payment cycle records")}</p>
+                                                <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{t("{formatNumber} immutable cycle records across {formatNumber2} students.", { formatNumber: formatNumber(plan.paymentDetails?.totalCycles ?? mutations?.paymentCycles ?? 0), formatNumber2: formatNumber(plan.paymentDetails?.affectedStudents ?? paymentBreakdown.length) })}</p>
                                             </div>
-                                            {paymentCycleLoading && <span className={cn("text-xs", pageMutedTextClass)} role="status">Loading exact payment records…</span>}
+                                            {paymentCycleLoading && <span className={cn("text-xs", pageMutedTextClass)} role="status">{t("Loading exact payment records…")}</span>}
                                         </div>
 
                                         {paymentCycleError && (
                                             <div className="mt-3" role="alert">
-                                                <StepNotice tone="danger" title="Exact payment records unavailable" message={paymentCycleError} />
+                                                <StepNotice tone="danger" title={t("Exact payment records unavailable")} message={paymentCycleError} />
                                                 <AppButton className="mt-2" size="sm" variant="secondary" disabled={!paymentCycleRetry} onClick={() => paymentCycleRetry && void loadPaymentCyclePage(paymentCycleRetry.cursor, paymentCycleRetry.pageIndex)}>
-                                                    Try again
-                                                </AppButton>
+                                                    {t("Try again")}</AppButton>
                                             </div>
                                         )}
 
                                         {paymentCyclePage && (
                                             <>
-                                                <AccessibleTableScroll label="Exact planned payment cycle records" className="mt-3 rounded-[8px] border border-[color:var(--ui-table-border)]">
+                                                <AccessibleTableScroll label={t("Exact planned payment cycle records")} className="mt-3 rounded-[8px] border border-[color:var(--ui-table-border)]">
                                                     <table className="w-full min-w-[1080px] text-left text-xs">
-                                                        <caption className="sr-only">Exact immutable payment cycle records in this reviewed import plan</caption>
+                                                        <caption className="sr-only">{t("Exact immutable payment cycle records in this reviewed import plan")}</caption>
                                                         <thead className={pageTableHeadClass}>
                                                             <tr className="uppercase tracking-wide text-[color:var(--text-muted)]">
-                                                                <th scope="col" className="p-3">Row</th>
-                                                                <th scope="col" className="p-3">Student</th>
-                                                                <th scope="col" className="p-3">Cycle</th>
-                                                                <th scope="col" className="p-3">Period</th>
-                                                                <th scope="col" className="p-3">Due date</th>
-                                                                <th scope="col" className="p-3">Amount</th>
-                                                                <th scope="col" className="p-3">Status</th>
-                                                                <th scope="col" className="p-3">Method / reference</th>
+                                                                <th scope="col" className="p-3">{t("Row")}</th>
+                                                                <th scope="col" className="p-3">{t("Student")}</th>
+                                                                <th scope="col" className="p-3">{t("Cycle")}</th>
+                                                                <th scope="col" className="p-3">{t("Period")}</th>
+                                                                <th scope="col" className="p-3">{t("Due date")}</th>
+                                                                <th scope="col" className="p-3">{t("Amount")}</th>
+                                                                <th scope="col" className="p-3">{t("Status")}</th>
+                                                                <th scope="col" className="p-3">{t("Method / reference")}</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className={pageTableBodyDividerClass}>
@@ -362,11 +354,9 @@ export function PreviewStep({
                                                     </table>
                                                 </AccessibleTableScroll>
                                                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                                    <span className={cn("text-xs", pageMutedTextClass)} role="status" aria-live="polite">
-                                                        Exact records page {formatNumber(paymentCyclePageIndex + 1)} of {formatNumber(exactPaymentPageCount)}
-                                                    </span>
+                                                    <span className={cn("text-xs", pageMutedTextClass)} role="status" aria-live="polite">{t("Exact records page {formatNumber} of {formatNumber2}", { formatNumber: formatNumber(paymentCyclePageIndex + 1), formatNumber2: formatNumber(exactPaymentPageCount) })}</span>
                                                     <div className="flex gap-2">
-                                                        <AppButton size="sm" variant="quiet" disabled={paymentCyclePageIndex === 0 || paymentCycleLoading} onClick={() => setPaymentCyclePageIndex(current => Math.max(0, current - 1))}>Previous exact records</AppButton>
+                                                        <AppButton size="sm" variant="quiet" disabled={paymentCyclePageIndex === 0 || paymentCycleLoading} onClick={() => setPaymentCyclePageIndex(current => Math.max(0, current - 1))}>{t("Previous exact records")}</AppButton>
                                                         <AppButton
                                                             size="sm"
                                                             variant="quiet"
@@ -377,8 +367,7 @@ export function PreviewStep({
                                                                 else void loadPaymentCyclePage(paymentCyclePage.page.nextCursor, nextIndex);
                                                             }}
                                                         >
-                                                            Next exact records
-                                                        </AppButton>
+                                                            {t("Next exact records")}</AppButton>
                                                     </div>
                                                 </div>
                                             </>
@@ -390,7 +379,7 @@ export function PreviewStep({
                             {configurationApproval?.required && (
                                 <StepNotice
                                     tone={configurationApproval.approved ? "success" : "danger"}
-                                    title={configurationApproval.approved ? "Setup creation approved" : "Setup creation needs approval"}
+                                    title={configurationApproval.approved ? t("Setup creation approved") : t("Setup creation needs approval")}
                                     message={`${formatNumber(configurationApproval.affectedRows)} affected row${configurationApproval.affectedRows === 1 ? "" : "s"} may create missing seats, shifts, or bundles. Review and approve this batch in Decisions.`}
                                 />
                             )}
@@ -410,7 +399,7 @@ export function PreviewStep({
 
                             {permissions.length > 0 && (
                                 <div className={cn("p-3", pageInsetSurfaceClass)}>
-                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">Required access</p>
+                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Required access")}</p>
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {permissions.map(permission => <Badge key={permission} variant="default">{checkLabel(permission)}</Badge>)}
                                     </div>
@@ -427,9 +416,9 @@ export function PreviewStep({
                         aria-describedby={plan && mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                         isLoading={saving}
                     >
-                        {!plan ? "Build reviewed plan" : readinessPolicy === "READY_ROWS_ONLY"
+                        {!plan ? t("Build reviewed plan") : readinessPolicy === "READY_ROWS_ONLY"
                             ? `Import ${formatNumber(plan.readyRows)} ready row${plan.readyRows === 1 ? "" : "s"}${rowsNotImported ? `; keep ${formatNumber(rowsNotImported)} staged` : ""}`
-                            : "Start checked import"}
+                            : t("Start checked import")}
                     </AppButton>
                 </div>
             </AppPanel>

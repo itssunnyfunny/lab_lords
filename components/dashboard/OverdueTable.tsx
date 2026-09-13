@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -42,25 +43,26 @@ interface OverdueTableProps {
 const actionLinkClass = "inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]";
 
 function DashboardPaymentAction({ href, decision }: { href: string; decision: CapabilityDecision }) {
-    if (decision.allowed) return <Link href={href} className={actionLinkClass}>Record payment</Link>;
-    if (decision.blocker === "permission") return <Link href={href} className={actionLinkClass}>View payment</Link>;
+    const t = useTranslation();
+    if (decision.allowed) return <Link href={href} className={actionLinkClass}>{t("Record payment")}</Link>;
+    if (decision.blocker === "permission") return <Link href={href} className={actionLinkClass}>{t("View payment")}</Link>;
 
     return (
         <div className="flex flex-wrap justify-end gap-2">
-            <Link href={href} className={actionLinkClass}>View payment</Link>
+            <Link href={href} className={actionLinkClass}>{t("View payment")}</Link>
             <button
                 type="button"
                 disabled
                 aria-describedby="dashboard-overdue-record-blocker"
                 className="inline-flex min-h-11 cursor-not-allowed items-center gap-1.5 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] opacity-[var(--ui-control-disabled-opacity)]"
             >
-                <LockKeyhole size={13} aria-hidden="true" /> Record payment
-            </button>
+                <LockKeyhole size={13} aria-hidden="true" />  {t("Record payment")}</button>
         </div>
     );
 }
 
 export function OverdueTable({ payments, branchId, recordDecision }: OverdueTableProps) {
+    const t = useTranslation();
     const shown = payments.slice(0, 6);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
     const selectAllRef = useRef<HTMLInputElement>(null);
@@ -87,11 +89,11 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
 
     return (
         <AppPanel
-            title="Payment completion queue"
-            description="Select dues to review, then open each exact payment to record collection."
+            title={t("Payment completion queue")}
+            description={t("Select dues to review, then open each exact payment to record collection.")}
             action={
                 <Link href={`/branch/${encodeURIComponent(branchId)}/overdue`} className={actionLinkClass}>
-                    Full queue <ArrowRight size={13} aria-hidden="true" />
+                    {t("Full queue")} <ArrowRight size={13} aria-hidden="true" />
                 </Link>
             }
             contentClassName="p-0"
@@ -101,10 +103,10 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                 <div id="dashboard-overdue-record-blocker" className={cn("flex flex-col gap-2 border-b px-4 py-3 text-sm", formWarningBannerClass, pageSectionDividerClass)}>
                     <span className="flex items-start gap-2">
                         <LockKeyhole size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
-                        <span><span className="font-semibold">Recording payments is unavailable.</span> {recordDecision.reason}</span>
+                        <span><span className="font-semibold">{t("Recording payments is unavailable.")}</span> {recordDecision.reason}</span>
                     </span>
                     {recordDecision.recoveryHref && (
-                        <Link href={recordDecision.recoveryHref} className="font-semibold underline underline-offset-4">Resolve access</Link>
+                        <Link href={recordDecision.recoveryHref} className="font-semibold underline underline-offset-4">{t("Resolve access")}</Link>
                     )}
                 </div>
             )}
@@ -115,8 +117,8 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                         <CheckCircle2 size={20} className="text-emerald-300" />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-[color:var(--text-primary)]">No overdue payments returned</p>
-                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>The latest dashboard update found no open overdue dues.</p>
+                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{t("No overdue payments returned")}</p>
+                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{t("The latest dashboard update found no open overdue dues.")}</p>
                     </div>
                 </div>
             ) : (
@@ -130,13 +132,12 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                                 onChange={event => setSelectedIds(current => updateQueueSelection(current, shownIds, event.target.checked))}
                                 className="h-5 w-5 rounded accent-cyan-500"
                             />
-                            Select all {formatNumber(shown.length)} shown
-                        </label>
+                            {t("Select all")} {formatNumber(shown.length)}  {t("shown")}</label>
                         <div className="flex flex-wrap items-center gap-3">
-                            <span className={cn("text-sm", pageSubtleTextClass)} aria-live="polite">{formatNumber(selectedPayments.length)} selected</span>
+                            <span className={cn("text-sm", pageSubtleTextClass)} aria-live="polite">{t("{formatNumber} selected", { formatNumber: formatNumber(selectedPayments.length) })}</span>
                             {selectedPayments.length > 0 && (
                                 <Link href={getOverdueBulkReviewHref(branchId, selectedPayments)} className={actionLinkClass}>
-                                    {selectedPayments.length === 1 ? "Review selected payment" : "Open matching due queue"}
+                                    {selectedPayments.length === 1 ? t("Review selected payment") : t("Open matching due queue")}
                                 </Link>
                             )}
                         </div>
@@ -144,14 +145,14 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
 
                     <div className="hidden lg:block">
                         <table className="w-full text-left text-sm">
-                            <caption className="sr-only">Dashboard overdue payment completion queue</caption>
+                            <caption className="sr-only">{t("Dashboard overdue payment completion queue")}</caption>
                             <thead className={cn("border-b text-xs font-medium text-[color:var(--ui-table-muted)]", pageSectionDividerClass, pageTableHeadClass)}>
                                 <tr>
-                                    <th scope="col" className="w-12 px-4 py-3"><span className="sr-only">Select</span></th>
-                                    <th scope="col" className="px-4 py-3 font-medium">Student</th>
-                                    <th scope="col" className="px-4 py-3 font-medium">Due</th>
-                                    <th scope="col" className="px-4 py-3 text-right font-medium">Amount</th>
-                                    <th scope="col" className="px-4 py-3 text-right font-medium">Action</th>
+                                    <th scope="col" className="w-12 px-4 py-3"><span className="sr-only">{t("Select")}</span></th>
+                                    <th scope="col" className="px-4 py-3 font-medium">{t("Student")}</th>
+                                    <th scope="col" className="px-4 py-3 font-medium">{t("Due")}</th>
+                                    <th scope="col" className="px-4 py-3 text-right font-medium">{t("Amount")}</th>
+                                    <th scope="col" className="px-4 py-3 text-right font-medium">{t("Action")}</th>
                                 </tr>
                             </thead>
                             <tbody className={pageTableBodyDividerClass}>
@@ -172,7 +173,7 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                                                 <Link href={getOverdueStudentHref(branchId, payment.studentId)} className="font-medium text-[color:var(--text-primary)] underline-offset-4 hover:underline">
                                                     {payment.studentName}
                                                 </Link>
-                                                <p className="mt-1 text-xs text-rose-300">{overdueDays === 0 ? "Due today" : `${formatNumber(overdueDays)} days overdue`}</p>
+                                                <p className="mt-1 text-xs text-rose-300">{overdueDays === 0 ? t("Due today") : `${formatNumber(overdueDays)} days overdue`}</p>
                                             </td>
                                             <td className="px-4 py-3 text-[color:var(--text-secondary)]">
                                                 <span>{formatDate(payment.dueDate)}</span>
@@ -205,7 +206,7 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                                                 <Link href={getOverdueStudentHref(branchId, payment.studentId)} className="truncate text-sm font-medium text-[color:var(--text-primary)] underline-offset-4 hover:underline">{payment.studentName}</Link>
                                                 <p className="shrink-0 text-sm font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</p>
                                             </div>
-                                            <p className="mt-1 text-xs text-rose-300">{overdueDays === 0 ? "Due today" : `${formatNumber(overdueDays)} days overdue`}</p>
+                                            <p className="mt-1 text-xs text-rose-300">{overdueDays === 0 ? t("Due today") : `${formatNumber(overdueDays)} days overdue`}</p>
                                             <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{formatDate(payment.dueDate)} · {payment.phone ?? "Phone missing"}</p>
                                         </div>
                                     </div>
@@ -220,7 +221,7 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                             href={`/branch/${encodeURIComponent(branchId)}/overdue`}
                             className={cn("flex min-h-11 w-full items-center justify-center gap-1.5 border-t px-4 py-3 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)] hover:text-[color:var(--text-primary)]", pageSectionDividerClass)}
                         >
-                            View {formatNumber(payments.length - shown.length)} more overdue payments <ArrowRight size={13} />
+                            {t("View")} {formatNumber(payments.length - shown.length)}  {t("more overdue payments")} <ArrowRight size={13} />
                         </Link>
                     )}
                 </>

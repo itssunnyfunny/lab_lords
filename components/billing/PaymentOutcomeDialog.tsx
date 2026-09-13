@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AlertCircle, Clock3 } from "lucide-react";
 import { AppButton, Dialog } from "@/components/ui";
@@ -86,6 +87,7 @@ export function getPaymentOutcomeCopy(
 }
 
 export function PaymentOutcomeDialog({ outcome, mode = "AUTHORIZATION", retrying, onRetry, onClose }: PaymentOutcomeDialogProps) {
+    const t = useTranslation();
   const copy = outcome ? getPaymentOutcomeCopy(outcome.status, mode) : null;
   const Icon = outcome?.status === "AWAITING_PROVIDER_CONFIRMATION" ? Clock3 : AlertCircle;
   const isAwaitingConfirmation = outcome?.status === "AWAITING_PROVIDER_CONFIRMATION";
@@ -97,12 +99,12 @@ export function PaymentOutcomeDialog({ outcome, mode = "AUTHORIZATION", retrying
       title={copy ? (
         <>
           <span className="block text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">
-            {mode === "RECOVERY" ? "Payment recovery" : "Payment authorization"}
+            {mode === "RECOVERY" ? t("Payment recovery") : t("Payment authorization")}
           </span>
-          <span className="mt-1 block">{copy.title}</span>
+          <span className="mt-1 block">{t.owned(copy.title)}</span>
         </>
-      ) : "Billing result"}
-      description={copy?.body}
+      ) : t("Billing result")}
+      description={copy ? t.owned(copy.body) : undefined}
       icon={(
         <div
           className={`rounded-full p-2 ${
@@ -115,13 +117,13 @@ export function PaymentOutcomeDialog({ outcome, mode = "AUTHORIZATION", retrying
         </div>
       )}
       role="alertdialog"
-      closeLabel="Close billing result"
+      closeLabel={t("Close billing result")}
       closeDisabled={retrying}
       className="max-w-sm"
       footer={copy ? (
         <>
-          <AppButton variant="quiet" onClick={onClose} disabled={retrying} data-dialog-initial-focus>Continue</AppButton>
-          <AppButton variant="primary" onClick={() => void onRetry()} isLoading={retrying}>{copy.retryLabel}</AppButton>
+          <AppButton variant="quiet" onClick={onClose} disabled={retrying} data-dialog-initial-focus>{t("Continue")}</AppButton>
+          <AppButton variant="primary" onClick={() => void onRetry()} isLoading={retrying}>{t.owned(copy.retryLabel)}</AppButton>
         </>
       ) : undefined}
     >
@@ -129,17 +131,16 @@ export function PaymentOutcomeDialog({ outcome, mode = "AUTHORIZATION", retrying
         <>
           {outcome.message && outcome.message !== copy.body ? (
             <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
-              <p className="text-xs font-semibold text-[color:var(--ui-text)]">Provider detail</p>
-              <p className="mt-1 text-xs leading-5 text-[color:var(--ui-dialog-description)]">{outcome.message}</p>
+              <p className="text-xs font-semibold text-[color:var(--ui-text)]">{t("Provider detail")}</p>
+              <p className="mt-1 text-xs leading-5 text-[color:var(--ui-dialog-description)]">{t.error(outcome.message)}</p>
             </div>
           ) : null}
           <div className="mt-4 border-t border-[color:var(--ui-form-surface-border)] pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-text-muted)]">Next step</p>
-            <p className="mt-1 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{copy.nextStep}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-text-muted)]">{t("Next step")}</p>
+            <p className="mt-1 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{t.owned(copy.nextStep)}</p>
             {outcome.status === "DECLINED" ? (
               <p className="mt-2 text-xs text-[color:var(--ui-text-muted)]">
-                If the provider response was unclear, check recent bank activity before retrying.
-              </p>
+                {t("If the provider response was unclear, check recent bank activity before retrying.")}</p>
             ) : null}
           </div>
         </>

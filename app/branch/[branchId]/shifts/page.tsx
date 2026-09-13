@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -139,6 +141,7 @@ interface ShiftDialogProps {
 }
 
 function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose, onSuccess }: ShiftDialogProps) {
+    const t = useTranslation();
     const [name, setName] = useState("");
     const [startTime, setStartTime] = useState("");
     const [endTime, setEndTime] = useState("");
@@ -270,15 +273,14 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title={mode === "add" ? "Add shift" : "Edit shift"}
-            description={mode === "add" ? "Create a new time window." : "Update this shift's details."}
+            title={mode === "add" ? t("Add shift") : t("Edit shift")}
+            description={mode === "add" ? t("Create a new time window.") : t("Update this shift's details.")}
             closeDisabled={loading}
             className="max-w-sm"
             footer={(
                 <>
                     <Button type="button" variant="ghost" onClick={onClose} disabled={loading} className="h-11 px-4 text-sm">
-                        Cancel
-                    </Button>
+                        {t("Cancel")}</Button>
                     <Button
                         type="button"
                         onClick={handleSubmit}
@@ -286,8 +288,8 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                         className="h-11 min-w-[100px] justify-center px-4 text-sm"
                     >
                         {loading
-                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" /> {mode === "add" ? "Adding..." : "Saving..."}</>
-                            : mode === "add" ? "Add shift" : "Save changes"
+                            ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" /> {mode === "add" ? t("Adding...") : t("Saving...")}</>
+                            : mode === "add" ? t("Add shift") : t("Save changes")
                         }
                     </Button>
                 </>
@@ -295,14 +297,14 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
         >
                 <div className="space-y-4" aria-describedby={error ? "shift-submit-error" : undefined}>
                     <div className="space-y-1.5">
-                        <label htmlFor="shift-name" className={formCompactLabelClass}>Shift name *</label>
+                        <label htmlFor="shift-name" className={formCompactLabelClass}>{t("Shift name *")}</label>
                         <input
                             id="shift-name"
                             type="text"
                             value={name}
                             onChange={e => { setName(e.target.value); setError(null); }}
                             onBlur={() => markTouched("name")}
-                            placeholder="e.g. Morning, Afternoon"
+                            placeholder={t("e.g. Morning, Afternoon")}
                             data-dialog-initial-focus
                             className={cn(formControlClass, "px-4 py-2.5 text-sm", fieldErrorClass(nameError))}
                             {...fieldErrorProps("shift-name-error", nameError)}
@@ -312,7 +314,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
-                            <label htmlFor="shift-start-time" className={formCompactLabelClass}>Start time</label>
+                            <label htmlFor="shift-start-time" className={formCompactLabelClass}>{t("Start time")}</label>
                             <input
                                 id="shift-start-time"
                                 type="time"
@@ -324,7 +326,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <label htmlFor="shift-end-time" className={formCompactLabelClass}>End time</label>
+                            <label htmlFor="shift-end-time" className={formCompactLabelClass}>{t("End time")}</label>
                             <input
                                 id="shift-end-time"
                                 type="time"
@@ -339,7 +341,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                     <FieldError id="shift-time-error" error={timeGroupError} />
 
                     <div className="space-y-1.5">
-                        <label htmlFor="shift-price" className={formCompactLabelClass}>Monthly price</label>
+                        <label htmlFor="shift-price" className={formCompactLabelClass}>{t("Monthly price")}</label>
                         <div className="relative">
                             <IndianRupee size={13} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} aria-hidden="true" />
                             <input
@@ -363,8 +365,8 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                     {/* Reserved toggle */}
                     <div className="flex items-center justify-between py-1">
                         <div>
-                            <p id="shift-reserved-label" className="text-sm font-medium text-[color:var(--text-primary)]">Reserved shift</p>
-                            <p id="shift-reserved-help" className={cn("text-xs", formHelpTextClass)}>Seats in this shift require manual allocation</p>
+                            <p id="shift-reserved-label" className="text-sm font-medium text-[color:var(--text-primary)]">{t("Reserved shift")}</p>
+                            <p id="shift-reserved-help" className={cn("text-xs", formHelpTextClass)}>{t("Seats in this shift require manual allocation")}</p>
                         </div>
                         <button
                             type="button"
@@ -387,7 +389,7 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
 
                     {error && (
                         <div id="shift-submit-error" role="alert" className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
-                            <AlertCircle size={13} aria-hidden="true" /> {error}
+                            <AlertCircle size={13} aria-hidden="true" /> <LocalizedError error={error} />
                         </div>
                     )}
 
@@ -395,15 +397,11 @@ function ShiftDialog({ isOpen, mode, initial, branchId, existingShifts, onClose,
                         <div role="alert" className={cn("mt-2 flex flex-col gap-1.5 px-3 py-2 text-xs", formWarningBannerClass)}>
                             <div className="flex items-center gap-1.5">
                                 <AlertTriangle size={13} aria-hidden="true" />
-                                <span>Time overlaps with &ldquo;{overlapWith.name}&rdquo; ({overlapWith.startTime} - {overlapWith.endTime}).</span>
+                                <span>{t("Time overlaps with “{name}” ({startTime} - {endTime}).", { name: overlapWith.name, startTime: overlapWith.startTime ?? "", endTime: overlapWith.endTime ?? "" })}</span>
                             </div>
                             <div className="flex flex-col gap-1 mt-1">
-                                <button type="button" onClick={() => setEndTime(formatMins(parseNullableTime(overlapWith.startTime)! - 1))} className={cn("px-2 py-1.5 text-left", formWarningActionClass)}>
-                                    Set End Time to {formatMins(parseNullableTime(overlapWith.startTime)! - 1)}
-                                </button>
-                                <button type="button" onClick={() => setStartTime(formatMins(parseNullableTime(overlapWith.endTime)! + 1))} className={cn("px-2 py-1.5 text-left", formWarningActionClass)}>
-                                    Set Start Time to {formatMins(parseNullableTime(overlapWith.endTime)! + 1)}
-                                </button>
+                                <button type="button" onClick={() => setEndTime(formatMins(parseNullableTime(overlapWith.startTime)! - 1))} className={cn("px-2 py-1.5 text-left", formWarningActionClass)}>{t("Set End Time to {formatMins}", { formatMins: formatMins(parseNullableTime(overlapWith.startTime)! - 1) })}</button>
+                                <button type="button" onClick={() => setStartTime(formatMins(parseNullableTime(overlapWith.endTime)! + 1))} className={cn("px-2 py-1.5 text-left", formWarningActionClass)}>{t("Set Start Time to {formatMins}", { formatMins: formatMins(parseNullableTime(overlapWith.endTime)! + 1) })}</button>
                             </div>
                         </div>
                     )}
@@ -426,6 +424,7 @@ interface DeleteShiftDialogProps {
 }
 
 function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted, onRenamed }: DeleteShiftDialogProps) {
+    const t = useTranslation();
     const [step, setStep] = useState<"loading" | "blocked" | "confirm-empty" | "resolve">("loading");
     const [analysis, setAnalysis] = useState<ShiftImpactAnalysis | null>(null);
     const [analyzeError, setAnalyzeError] = useState<string | null>(null);
@@ -614,8 +613,8 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
         <Dialog
             open
             onClose={onClose}
-            title={<>Delete &ldquo;{shift.name}&rdquo;</>}
-            description="Review the impact and choose what happens to active allocations before removing this shift."
+            title={t("Delete “{name}”", { name: shift.name })}
+            description={t("Review the impact and choose what happens to active allocations before removing this shift.")}
             icon={<Trash2 size={20} className="text-red-400" />}
             role="alertdialog"
             closeDisabled={submitting}
@@ -626,7 +625,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                 {step === "loading" && (
                     <div role="status" aria-live="polite" className="flex flex-col items-center justify-center gap-3 py-16 text-[color:var(--ui-form-label)]">
                         <Loader2 size={28} className="animate-spin text-cyan-500" aria-hidden="true" />
-                        <p className="text-sm">Analyzing shift impact...</p>
+                        <p className="text-sm">{t("Analyzing shift impact...")}</p>
                     </div>
                 )}
 
@@ -636,15 +635,13 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                         <div role="alert" className={cn("flex items-start gap-3 p-4", formWarningBannerClass)}>
                             <Ban size={18} className="text-amber-400 mt-0.5 shrink-0" aria-hidden="true" />
                             <div>
-                                <p className="text-sm font-semibold text-amber-300">Cannot delete this shift</p>
+                                <p className="text-sm font-semibold text-amber-300">{t("Cannot delete this shift")}</p>
                                 <p className="text-xs text-amber-400/80 mt-1">
-                                    This is the only active shift in the branch. A branch must have at least one active shift.
-                                    Add another shift first, then you can delete this one.
-                                </p>
+                                    {t("This is the only active shift in the branch. A branch must have at least one active shift. Add another shift first, then you can delete this one.")}</p>
                             </div>
                         </div>
                         <div className="flex justify-end">
-                            <Button type="button" onClick={onClose} variant="ghost" className="h-11 px-4 text-sm">Close</Button>
+                            <Button type="button" onClick={onClose} variant="ghost" className="h-11 px-4 text-sm">{t("Close")}</Button>
                         </div>
                     </div>
                 )}
@@ -653,22 +650,22 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                 {step === "confirm-empty" && (
                     <div className="p-4 space-y-4 sm:p-6">
                         <p className="text-sm text-[color:var(--ui-form-label)]">
-                            This shift has <span className="font-semibold text-[color:var(--text-primary)]">no active students</span>. It will be removed permanently.
+                            {t("This shift has no active students. It will be removed permanently.")}
                         </p>
                         {submitError && (
                             <div role="alert" className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
-                                <AlertCircle size={13} aria-hidden="true" /> {submitError}
+                                <AlertCircle size={13} aria-hidden="true" /> <LocalizedError error={submitError} />
                             </div>
                         )}
                         <div className="flex justify-end gap-3">
-                            <Button type="button" variant="ghost" onClick={onClose} disabled={submitting} className="h-11 px-4 text-sm">Cancel</Button>
+                            <Button type="button" variant="ghost" onClick={onClose} disabled={submitting} className="h-11 px-4 text-sm">{t("Cancel")}</Button>
                             <Button
                                 type="button"
                                 onClick={handleDelete}
                                 disabled={submitting}
                                 className="text-sm h-8 px-4 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 min-w-[100px] justify-center"
                             >
-                                {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" aria-hidden="true" /> Deleting...</> : "Delete Shift"}
+                                {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" aria-hidden="true" />  {t("Deleting...")}</> : t("Delete Shift")}
                             </Button>
                         </div>
                     </div>
@@ -682,16 +679,16 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                         <div className={cn("space-y-2 p-4", formSurfaceClass)}>
                             <div className="flex items-center gap-2 text-sm">
                                 <Users size={14} className="text-cyan-400" />
-                                <span className="font-semibold text-[color:var(--text-primary)]">{analysis.studentsInShift} student{analysis.studentsInShift !== 1 ? "s" : ""}</span>
-                                <span className={formHelpTextClass}>currently in this shift</span>
+                                <span className="font-semibold text-[color:var(--text-primary)]">{t("{studentsInShift} student(s)", { studentsInShift: analysis.studentsInShift })}</span>
+                                <span className={formHelpTextClass}>{t("currently in this shift")}</span>
                             </div>
-                            <p className={cn("text-xs", formHelpTextClass)}>Removing this shift also ends affected bundle allocations on each student&apos;s current seat. Reallocation assigns only the selected target shift.</p>
+                            <p className={cn("text-xs", formHelpTextClass)}>{t("Removing this shift also ends affected bundle allocations on each student's current seat. Reallocation assigns only the selected target shift.")}</p>
                             <div className={cn("flex items-center gap-2 text-xs", formHelpTextClass)}>
                                 <ArrowRight size={12} />
-                                <span>Empty seats elsewhere: <span className="text-[color:var(--text-primary)]">{analysis.totalEmptyElsewhere}</span></span>
+                                <span>{t("Empty seats elsewhere: {count}", { count: analysis.totalEmptyElsewhere })}</span>
                                 {analysis.willOverflowBy > 0 && (
                                     <span className="text-amber-400 flex items-center gap-1">
-                                        <AlertTriangle size={11} /> {analysis.willOverflowBy} cannot be reallocated
+                                        <AlertTriangle size={11} /> {t("{count} cannot be reallocated", { count: analysis.willOverflowBy })}
                                     </span>
                                 )}
                             </div>
@@ -699,7 +696,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
                         {analyzeError && (
                             <div className={cn("flex items-center gap-2 px-3 py-2 text-sm", formWarningBannerClass)}>
-                                <AlertTriangle size={13} /> {analyzeError} — Only &ldquo;End All&rdquo; is available.
+                                <AlertTriangle size={13} /> <LocalizedError error={analyzeError} /> {t("Only “End All” is available.")}
                             </div>
                         )}
 
@@ -711,14 +708,12 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                 selected={mode === "END_ALL"}
                                 onClick={() => setMode("END_ALL")}
                                 icon={<Ban size={15} className="text-red-400" />}
-                                title="End All Allocations"
-                                description="All students become unallocated. They remain in the system — only their seat assignment ends."
+                                title={t("End All Allocations")}
+                                description={t("All students become unallocated. They remain in the system — only their seat assignment ends.")}
                                 variant="danger"
                             >
                                 {mode === "END_ALL" && (
-                                    <p className="text-xs text-red-400/80 mt-2 pl-1">
-                                        {analysis.studentsInShift} student{analysis.studentsInShift !== 1 ? "s" : ""} will be unallocated. Related bundle allocations on their current seat will also end.
-                                    </p>
+                                    <p className="text-xs text-red-400/80 mt-2 pl-1">{t("{studentsInShift} student(s) will be unallocated. Related bundle allocations on their current seat will also end.", { studentsInShift: analysis.studentsInShift })}</p>
                                 )}
                             </OptionCard>
 
@@ -728,18 +723,18 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                     selected={mode === "REALLOCATE_BULK"}
                                     onClick={() => { setMode("REALLOCATE_BULK"); if (!bulkTargetId) setBulkTargetId(analysis.shiftsWithEnoughCapacity[0]); }}
                                     icon={<RefreshCw size={15} className="text-emerald-400" />}
-                                    title="Move All to One Shift"
-                                    description="All students are moved to a single shift in one step."
+                                    title={t("Move All to One Shift")}
+                                    description={t("All students are moved to a single shift in one step.")}
                                     variant="success"
                                 >
                                     {mode === "REALLOCATE_BULK" && (
                                         <div className="mt-3">
-                                            <label htmlFor="delete-shift-bulk-target" className={cn("mb-1.5 block text-xs", formHelpTextClass)}>Select target shift</label>
+                                            <label htmlFor="delete-shift-bulk-target" className={cn("mb-1.5 block text-xs", formHelpTextClass)}>{t("Select target shift")}</label>
                                             <AppSelect
                                                 id="delete-shift-bulk-target"
                                                 value={bulkTargetId}
                                                 onValueChange={setBulkTargetId}
-                                                placeholder="Choose a shift…"
+                                                placeholder={t("Choose a shift…")}
                                                 options={analysis.otherShifts
                                                     .filter(s => analysis.shiftsWithEnoughCapacity.includes(s.shiftId))
                                                     .map(s => ({
@@ -757,8 +752,8 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                 selected={mode === "REALLOCATE_MANUAL"}
                                 onClick={() => setMode("REALLOCATE_MANUAL")}
                                 icon={<Users size={15} className="text-cyan-400" />}
-                                title="Assign Per Student"
-                                description="Choose a target shift individually for each student."
+                                title={t("Assign Per Student")}
+                                description={t("Choose a target shift individually for each student.")}
                             >
                                 {mode === "REALLOCATE_MANUAL" && (
                                     <div className="mt-3 space-y-2">
@@ -772,7 +767,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                 <div key={alloc.allocationId} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                                     <div className="flex-1 min-w-0">
                                                         <p className="truncate text-xs font-medium text-[color:var(--text-primary)]">{alloc.studentName}</p>
-                                                        <p className="text-[10px] text-[color:var(--ui-table-subtle)]">Seat {alloc.seatLabel}</p>
+                                                        <p className="text-[10px] text-[color:var(--ui-table-subtle)]">{t("Seat")} {alloc.seatLabel}</p>
                                                     </div>
                                                     <AppSelect
                                                         aria-label={`Target shift for ${alloc.studentName}`}
@@ -781,7 +776,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                             ...prev,
                                                             [alloc.allocationId]: value,
                                                         }))}
-                                                        placeholder="Select shift…"
+                                                        placeholder={t("Select shift…")}
                                                         options={analysis.otherShifts.map(s => ({
                                                             value: s.shiftId,
                                                             label: `${s.name} (${s.emptySeats} empty)`,
@@ -798,8 +793,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                         })}
                                         {manualOverflow && (
                                             <p role="alert" className="text-xs text-red-400 flex items-center gap-1 mt-1">
-                                                <AlertTriangle size={11} aria-hidden="true" /> One or more shifts would overflow. Reassign those students.
-                                            </p>
+                                                <AlertTriangle size={11} aria-hidden="true" />  {t("One or more shifts would overflow. Reassign those students.")}</p>
                                         )}
                                     </div>
                                 )}
@@ -810,15 +804,15 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                 selected={mode === "RENAME"}
                                 onClick={() => setMode("RENAME")}
                                 icon={<Pencil size={15} className={pageMutedTextClass} />}
-                                title="Rename / Retime Instead"
-                                description="Don't delete — just change the name or time window. Students stay allocated."
+                                title={t("Rename / Retime Instead")}
+                                description={t("Don't delete — just change the name or time window. Students stay allocated.")}
                             >
                                 {mode === "RENAME" && (() => {
                                     const renameOverlapWith = getRenameOverlap();
                                     return (
                                         <div className="mt-3 space-y-3">
                                             <div>
-                                                <label htmlFor="rename-shift-name" className={cn("mb-1 block text-xs", formHelpTextClass)}>New name</label>
+                                                <label htmlFor="rename-shift-name" className={cn("mb-1 block text-xs", formHelpTextClass)}>{t("New name")}</label>
                                                 <input
                                                     id="rename-shift-name"
                                                     type="text"
@@ -832,7 +826,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                             </div>
                                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                                 <div>
-                                                    <label htmlFor="rename-shift-start-time" className={cn("mb-1 block text-xs", formHelpTextClass)}>Start time</label>
+                                                    <label htmlFor="rename-shift-start-time" className={cn("mb-1 block text-xs", formHelpTextClass)}>{t("Start time")}</label>
                                                     <input
                                                         id="rename-shift-start-time"
                                                         type="time"
@@ -844,7 +838,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label htmlFor="rename-shift-end-time" className={cn("mb-1 block text-xs", formHelpTextClass)}>End time</label>
+                                                    <label htmlFor="rename-shift-end-time" className={cn("mb-1 block text-xs", formHelpTextClass)}>{t("End time")}</label>
                                                     <input
                                                         id="rename-shift-end-time"
                                                         type="time"
@@ -860,7 +854,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                             {renameOverlapWith && (
                                                 <div role="alert" className={cn("flex items-center gap-2 px-3 py-2 text-xs", formWarningBannerClass)}>
                                                     <AlertTriangle size={13} aria-hidden="true" />
-                                                    <span>Time overlaps with &ldquo;{renameOverlapWith.name}&rdquo; ({renameOverlapWith.startTime}&nbsp;–&nbsp;{renameOverlapWith.endTime}). Adjust the times before saving.</span>
+                                                    <span>{t("Time overlaps with “{name}” ({startTime} – {endTime}). Adjust the times before saving.", { name: renameOverlapWith.name, startTime: renameOverlapWith.startTime ?? "", endTime: renameOverlapWith.endTime ?? "" })}</span>
                                                 </div>
                                             )}
                                             {/* Expose overlap state to the footer via a data attribute trick:
@@ -874,15 +868,14 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                         {/* Submit error */}
                         {submitError && (
                             <div role="alert" className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
-                                <AlertCircle size={13} aria-hidden="true" /> {submitError}
+                                <AlertCircle size={13} aria-hidden="true" /> <LocalizedError error={submitError} />
                             </div>
                         )}
 
                         {/* Footer actions */}
                         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
                             <Button type="button" variant="ghost" onClick={onClose} disabled={submitting} className="h-11 px-4 text-sm">
-                                Cancel
-                            </Button>
+                                {t("Cancel")}</Button>
                             {mode === "RENAME" ? (
                                 <Button
                                     type="button"
@@ -890,7 +883,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                     disabled={submitting}
                                     className="text-sm h-8 px-4 min-w-[130px] justify-center"
                                 >
-                                    {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" aria-hidden="true" />Saving...</> : "Save Changes"}
+                                    {submitting ? <><Loader2 size={12} className="animate-spin mr-1.5" aria-hidden="true" />{t("Saving...")}</> : t("Save Changes")}
                                 </Button>
                             ) : (
                                 <Button
@@ -907,10 +900,10 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                     )}
                                 >
                                     {submitting
-                                        ? <><Loader2 size={12} className="animate-spin mr-1.5" aria-hidden="true" />Processing...</>
-                                        : mode === "END_ALL" ? "End All & Delete"
-                                            : mode === "REALLOCATE_BULK" ? "Move All & Delete"
-                                                : "Assign & Delete"
+                                        ? <><Loader2 size={12} className="animate-spin mr-1.5" aria-hidden="true" />{t("Processing...")}</>
+                                        : mode === "END_ALL" ? t("End All & Delete")
+                                            : mode === "REALLOCATE_BULK" ? t("Move All & Delete")
+                                                : t("Assign & Delete")
                                     }
                                 </Button>
                             )}
@@ -987,14 +980,15 @@ interface TypePickerDialogProps {
 }
 
 function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) {
+    const t = useTranslation();
     if (!isOpen) return null;
 
     return (
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title="What type of shift?"
-            description="Select the kind of allocation window to create."
+            title={t("What type of shift?")}
+            description={t("Select the kind of allocation window to create.")}
             className="max-w-md"
         >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
@@ -1008,8 +1002,8 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
                             <Clock size={24} aria-hidden="true" />
                         </div>
                         <div className="text-center">
-                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">Primary</p>
-                            <p className={cn("mt-1 text-[10px] font-semibold uppercase tracking-wider", formHelpTextClass)}>Single Time Slot</p>
+                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Primary")}</p>
+                            <p className={cn("mt-1 text-[10px] font-semibold uppercase tracking-wider", formHelpTextClass)}>{t("Single Time Slot")}</p>
                         </div>
                     </button>
 
@@ -1022,8 +1016,8 @@ function TypePickerDialog({ isOpen, onClose, onSelect }: TypePickerDialogProps) 
                             <Layers size={24} aria-hidden="true" />
                         </div>
                         <div className="text-center">
-                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">Multi-shift</p>
-                            <p className={cn("mt-1 text-[10px] font-semibold uppercase tracking-wider", formHelpTextClass)}>Bundle of 2+ Primary</p>
+                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Multi-shift")}</p>
+                            <p className={cn("mt-1 text-[10px] font-semibold uppercase tracking-wider", formHelpTextClass)}>{t("Bundle of 2+ Primary")}</p>
                         </div>
                     </button>
                 </div>
@@ -1045,6 +1039,7 @@ interface MultiShiftDialogProps {
 }
 
 function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, existingMultiShifts, onClose, onSuccess }: MultiShiftDialogProps) {
+    const t = useTranslation();
     const [name, setName] = useState("");
     const [price, setPrice] = useState("0");
     const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
@@ -1149,34 +1144,34 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
         <Dialog
             open={isOpen}
             onClose={onClose}
-            title={mode === "add" ? "Add multi-shift" : "Edit multi-shift"}
-            description="Bundle two or more primary shifts under one monthly price."
+            title={mode === "add" ? t("Add multi-shift") : t("Edit multi-shift")}
+            description={t("Bundle two or more primary shifts under one monthly price.")}
             closeDisabled={loading}
             className="max-w-md"
             footer={(
                 <>
-                    <Button type="button" variant="ghost" onClick={onClose} disabled={loading} className="h-11 px-4 text-sm">Cancel</Button>
+                    <Button type="button" variant="ghost" onClick={onClose} disabled={loading} className="h-11 px-4 text-sm">{t("Cancel")}</Button>
                     <Button
                         type="button"
                         onClick={handleSubmit}
                         disabled={loading}
                         className="h-11 min-w-[100px] justify-center border border-orange-500/30 bg-orange-500/20 px-4 text-sm text-orange-300 hover:bg-orange-500/30"
                     >
-                        {loading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : mode === "add" ? "Create bundle" : "Save changes"}
+                        {loading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : mode === "add" ? t("Create bundle") : t("Save changes")}
                     </Button>
                 </>
             )}
         >
                 <div className="space-y-5" aria-describedby={error ? "multi-shift-submit-error" : undefined}>
                     <div className="space-y-1.5">
-                        <label htmlFor="multi-shift-name" className={formCompactLabelClass}>Bundle name *</label>
+                        <label htmlFor="multi-shift-name" className={formCompactLabelClass}>{t("Bundle name *")}</label>
                         <input
                             id="multi-shift-name"
                             type="text"
                             value={name}
                             onChange={e => { setName(e.target.value); setError(null); }}
                             onBlur={() => markTouched("name")}
-                            placeholder="e.g. Full Time"
+                            placeholder={t("e.g. Full Time")}
                             data-dialog-initial-focus
                             className={cn(formControlClass, "px-4 py-2.5 text-sm focus:border-orange-500/50", fieldErrorClass(nameError))}
                             {...fieldErrorProps("multi-shift-name-error", nameError)}
@@ -1185,7 +1180,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                     </div>
 
                     <div className="space-y-1.5">
-                        <label htmlFor="multi-shift-price" className={formCompactLabelClass}>Bundle monthly price</label>
+                        <label htmlFor="multi-shift-price" className={formCompactLabelClass}>{t("Bundle monthly price")}</label>
                         <div className="relative">
                             <IndianRupee size={13} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} aria-hidden="true" />
                             <input
@@ -1206,7 +1201,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
                     </div>
 
                     <div role="group" aria-labelledby="multi-shift-components-label" aria-describedby={componentsError ? "multi-shift-components-error" : undefined} className="space-y-2.5">
-                        <p id="multi-shift-components-label" className={cn("block", formCompactLabelClass)}>Component shifts *</p>
+                        <p id="multi-shift-components-label" className={cn("block", formCompactLabelClass)}>{t("Component shifts *")}</p>
                         <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto pr-1">
                             {primaryShifts.map(s => (
                                 <button
@@ -1241,7 +1236,7 @@ function MultiShiftDialog({ isOpen, mode, initial, branchId, primaryShifts, exis
 
                     {error && (
                         <div id="multi-shift-submit-error" role="alert" className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
-                            <AlertCircle size={13} aria-hidden="true" /> {error}
+                            <AlertCircle size={13} aria-hidden="true" /> <LocalizedError error={error} />
                         </div>
                     )}
                 </div>
@@ -1274,6 +1269,7 @@ function ShiftsContent({
     branchId: string;
     manageDecision: CapabilityDecision;
 }) {
+    const t = useTranslation();
     const searchParams = useSearchParams();
     const targetShiftId = searchParams.get("shiftId");
     const { formatNumber } = useUserPreferences();
@@ -1379,13 +1375,13 @@ function ShiftsContent({
     };
 
     // ── Loading
-    if (loading) return <PageLoadingSkeleton label="Loading shifts" variant="table" rows={6} />;
+    if (loading) return <PageLoadingSkeleton label={t("Loading shifts")} variant="table" rows={6} />;
 
     // ── Error
     if (error) return (
         <div className={pageErrorStateClass}>
             <AlertCircle className={pageErrorIconClass} />
-            <p className={pageMutedTextClass}>{error}</p>
+            <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
         </div>
     );
 
@@ -1471,32 +1467,30 @@ function ShiftsContent({
                             <p className="truncate font-medium text-[color:var(--text-primary)]">{shift.name}</p>
                             <div className="mt-2">
                                 <Badge variant="warning" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/20 font-bold tracking-wider text-[10px]">
-                                    PRIMARY
-                                </Badge>
+                                    {t("PRIMARY")}</Badge>
                             </div>
                         </div>
                         {showManageActions ? (
                             <RowActions actions={primaryShiftActions(shift)} />
                         ) : (
                             <span className={cn("text-xs", pageSubtleTextClass)} title={shiftManageHelpText}>
-                                View only
-                            </span>
+                                {t("View only")}</span>
                         )}
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                         <div className={pageInsetMetricClass}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>Time Window</div>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Time Window")}</div>
                             <div className={cn("mt-1", pageMutedTextClass)}>
                                 {shift.startTime && shift.endTime ? (
                                     <span className="font-mono text-xs">{shift.startTime} - {shift.endTime}</span>
                                 ) : (
-                                    <span className={cn("text-xs italic", pageSubtleTextClass)}>No time limit</span>
+                                    <span className={cn("text-xs italic", pageSubtleTextClass)}>{t("No time limit")}</span>
                                 )}
                             </div>
                         </div>
                         <div className={pageInsetMetricClass}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>Price</div>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Price")}</div>
                             <div className="mt-1 font-semibold text-[color:var(--text-primary)]">{formatPrice(shift.price)}</div>
                         </div>
                     </div>
@@ -1521,26 +1515,24 @@ function ShiftsContent({
                             <p className="truncate font-medium text-[color:var(--text-primary)]">{ms.name}</p>
                             <div className="mt-2">
                                 <Badge variant="warning" className="bg-orange-500/10 text-orange-300 border-orange-500/20 font-bold tracking-wider text-[10px]">
-                                    MULTI-SHIFT
-                                </Badge>
+                                    {t("MULTI-SHIFT")}</Badge>
                             </div>
                         </div>
                         {showManageActions ? (
                             <RowActions actions={multiShiftActions(ms)} />
                         ) : (
                             <span className={cn("text-xs", pageSubtleTextClass)} title={shiftManageHelpText}>
-                                View only
-                            </span>
+                                {t("View only")}</span>
                         )}
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                         <div className={pageInsetMetricClass}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>Slots</div>
-                            <div className={cn("mt-1 text-xs", pageMutedTextClass)}>{ms.components.length} combined</div>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Slots")}</div>
+                            <div className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("{count} combined", { count: ms.components.length })}</div>
                         </div>
                         <div className={pageInsetMetricClass}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>Price</div>
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Price")}</div>
                             <div className="mt-1 font-semibold text-[color:var(--text-primary)]">{formatPrice(ms.price)}</div>
                         </div>
                     </div>
@@ -1561,16 +1553,13 @@ function ShiftsContent({
         <PageShell className="relative">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>Branch setup</p>
-                    <h1 className={cn(pageTitleClass, "mt-2")}>Shifts</h1>
+                    <p className={pageEyebrowClass}>{t("Branch setup")}</p>
+                    <h1 className={cn(pageTitleClass, "mt-2")}>{t("Shifts")}</h1>
                     <p className={pageDescriptionClass}>
-                        Keep allocation windows simple: primary shifts first, multi-shift bundles only when students need combined access.
-                    </p>
+                        {t("Keep allocation windows simple: primary shifts first, multi-shift bundles only when students need combined access.")}</p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <span className={pageMetaPillClass}>
-                        {shifts.length} primary / {multiShifts.length} bundle{multiShifts.length === 1 ? "" : "s"}
-                    </span>
+                    <span className={pageMetaPillClass}>{t("{count} primary / {count2} bundle(s)", { count: shifts.length, count2: multiShifts.length })}</span>
                     {showManageActions && (
                         <AppButton
                             variant="primary"
@@ -1579,22 +1568,20 @@ function ShiftsContent({
                             disabled={!canManageBranch}
                             title={canManageBranch ? undefined : shiftManageHelpText}
                         >
-                            Add shift
-                        </AppButton>
+                            {t("Add shift")}</AppButton>
                     )}
                 </div>
             </header>
 
             {!canManageBranch && (
                 <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
-                    Shift changes are disabled. {shiftManageHelpText}
+                    {t("Shift changes are disabled.")} {shiftManageHelpText}
                     {manageDecision.recoveryHref ? (
                         <a
                             href={manageDecision.recoveryHref}
                             className="ml-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
                         >
-                            Review billing
-                        </a>
+                            {t("Review billing")}</a>
                     ) : null}
                 </div>
             )}
@@ -1602,7 +1589,7 @@ function ShiftsContent({
             {shifts.length === 0 && multiShifts.length === 0 ? (
                 <div className={pageEmptyStateClass}>
                     <Clock size={36} className="mx-auto mb-3 opacity-30" />
-                    <p>No shifts found.</p>
+                    <p>{t("No shifts found.")}</p>
                     {showManageActions && (
                         <AppButton
                             variant="secondary"
@@ -1613,8 +1600,7 @@ function ShiftsContent({
                             title={canManageBranch ? undefined : shiftManageHelpText}
                             className="mt-3"
                         >
-                            Add your first shift
-                        </AppButton>
+                            {t("Add your first shift")}</AppButton>
                     )}
                 </div>
             ) : (
@@ -1624,18 +1610,18 @@ function ShiftsContent({
                     <div
                         className="w-full overflow-x-auto"
                         role="region"
-                        aria-label="Branch shifts"
+                        aria-label={t("Branch shifts")}
                         tabIndex={0}
                     >
                     <table className="w-full min-w-[54rem] text-left text-sm">
-                        <caption className="sr-only">Primary shifts and multi-shift bundles for this branch</caption>
+                        <caption className="sr-only">{t("Primary shifts and multi-shift bundles for this branch")}</caption>
                         <thead className={pageTableHeadClass}>
                             <tr className="border-b border-[color:var(--ui-table-divider)] text-[color:var(--ui-table-muted)]">
-                                <th scope="col" className="px-6 py-4 font-semibold">Shift Name</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">Type</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">Time Window</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">Price</th>
-                                <th scope="col" className="px-6 py-4 text-right font-semibold">Actions</th>
+                                <th scope="col" className="px-6 py-4 font-semibold">{t("Shift Name")}</th>
+                                <th scope="col" className="px-6 py-4 font-semibold">{t("Type")}</th>
+                                <th scope="col" className="px-6 py-4 font-semibold">{t("Time Window")}</th>
+                                <th scope="col" className="px-6 py-4 font-semibold">{t("Price")}</th>
+                                <th scope="col" className="px-6 py-4 text-right font-semibold">{t("Actions")}</th>
                             </tr>
                         </thead>
                         <tbody className={pageTableBodyDividerClass}>
@@ -1656,8 +1642,7 @@ function ShiftsContent({
                                     <th scope="row" className="px-6 py-4 text-left font-medium text-[color:var(--ui-table-text)]">{shift.name}</th>
                                     <th scope="row" className="px-6 py-4 text-left font-normal">
                                         <Badge variant="warning" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/20 font-bold tracking-wider text-[10px]">
-                                            PRIMARY
-                                        </Badge>
+                                            {t("PRIMARY")}</Badge>
                                     </th>
                                     <td className="px-6 py-4 text-[color:var(--ui-table-muted)]">
                                         {shift.startTime && shift.endTime ? (
@@ -1666,7 +1651,7 @@ function ShiftsContent({
                                                 {shift.startTime} - {shift.endTime}
                                             </span>
                                         ) : (
-                                            <span className="text-xs italic text-[color:var(--ui-table-subtle)]">No time limit</span>
+                                            <span className="text-xs italic text-[color:var(--ui-table-subtle)]">{t("No time limit")}</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">{formatPrice(shift.price)}</td>
@@ -1675,8 +1660,7 @@ function ShiftsContent({
                                             <RowActions actions={primaryShiftActions(shift)} />
                                         ) : (
                                             <span className="text-xs text-[color:var(--ui-table-subtle)]" title={shiftManageHelpText}>
-                                                View only
-                                            </span>
+                                                {t("View only")}</span>
                                         )}
                                     </td>
                                 </tr>
@@ -1710,13 +1694,10 @@ function ShiftsContent({
                                     </td>
                                     <td className="px-6 py-4">
                                         <Badge variant="warning" className="bg-orange-500/10 text-orange-300 border-orange-500/20 font-bold tracking-wider text-[10px]">
-                                            MULTI-SHIFT
-                                        </Badge>
+                                            {t("MULTI-SHIFT")}</Badge>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="text-xs text-[color:var(--ui-table-subtle)]">
-                                            {ms.components.length} slots combined
-                                        </span>
+                                        <span className="text-xs text-[color:var(--ui-table-subtle)]">{t("{count} slots combined", { count: ms.components.length })}</span>
                                     </td>
                                     <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">{formatPrice(ms.price)}</td>
                                     <td className="px-6 py-4 text-right">
@@ -1724,8 +1705,7 @@ function ShiftsContent({
                                             <RowActions actions={multiShiftActions(ms)} />
                                         ) : (
                                             <span className="text-xs text-[color:var(--ui-table-subtle)]" title={shiftManageHelpText}>
-                                                View only
-                                            </span>
+                                                {t("View only")}</span>
                                         )}
                                     </td>
                                 </tr>
@@ -1788,10 +1768,10 @@ function ShiftsContent({
                             if (!deletingMultiShift) setDeleteMultiTarget(null);
                         }}
                         onConfirm={handleDeleteMultiShift}
-                        title="Delete multi-shift bundle?"
+                        title={t("Delete multi-shift bundle?")}
                         description={deleteMultiTarget
-                            ? <>&ldquo;{deleteMultiTarget.name}&rdquo; will be removed. Student allocations remain, but their bundle grouping will be lost.</>
-                            : "This multi-shift bundle will be removed."
+                            ? t("“{name}” will be removed. Student allocations remain, but their bundle grouping will be lost.", { name: deleteMultiTarget.name })
+                            : t("This multi-shift bundle will be removed.")
                         }
                         confirmText="Delete bundle"
                         loading={deletingMultiShift}

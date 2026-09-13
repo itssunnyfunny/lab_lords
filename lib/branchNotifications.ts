@@ -1,4 +1,6 @@
 import type { PagedResult, StaffAction } from "@/types";
+import { translate, type MessageKey, type MessageParams } from "@/lib/i18n";
+import type { InterfaceLanguage } from "@/lib/i18n/language";
 
 export type BranchNotificationSeverity = "critical" | "warning" | "info";
 
@@ -153,7 +155,8 @@ function nextExpiringInvite(invites: StaffInviteNotificationRecord[] = []) {
         .sort((a, b) => a.expiresAtDate!.getTime() - b.expiresAtDate!.getTime())[0];
 }
 
-export function buildBranchNotifications(input: BuildBranchNotificationsInput): BranchNotification[] {
+export function buildBranchNotifications(input: BuildBranchNotificationsInput, language: InterfaceLanguage = "en"): BranchNotification[] {
+    const t = (key: MessageKey, params?: MessageParams) => translate(language, key, params);
     const notifications: BranchNotification[] = [];
 
     if (can(input.access, "view_payments") && input.overdue && input.overdue.total > 0) {
@@ -170,15 +173,15 @@ export function buildBranchNotifications(input: BuildBranchNotificationsInput): 
         const dueDate = formatDate(firstPayment?.dueDate);
         const details = firstPayment?.studentName
             ? `Oldest: ${firstPayment.studentName}, ${formatMoney(firstPayment.amount)}${dueDate ? ` due ${dueDate}` : ""}.`
-            : "Review overdue students and follow up.";
+            : t("Review overdue students and follow up.");
 
         notifications.push({
             id: "overdue-payments",
             readKey: compactKeyParts(["overdue_payments", input.overdue.total, overdueKey]),
             kind: "overdue_payments",
             severity: input.overdue.total >= 5 ? "critical" : "warning",
-            title: `${input.overdue.total} overdue ${plural(input.overdue.total, "payment")}`,
-            message: details,
+            title: language === "en" ? `${input.overdue.total} overdue ${plural(input.overdue.total, "payment")}` : t("{count} overdue payments", { count: input.overdue.total }),
+            message: language === "en" || !firstPayment?.studentName ? details : dueDate ? t("Oldest: {name}, {amount} due {date}.", { name: firstPayment.studentName, amount: formatMoney(firstPayment.amount), date: dueDate }) : t("Oldest: {name}, {amount}.", { name: firstPayment.studentName, amount: formatMoney(firstPayment.amount) }),
             href: paymentHref(input.branchId, firstPayment),
             count: input.overdue.total,
             sort: 100,
@@ -197,10 +200,10 @@ export function buildBranchNotifications(input: BuildBranchNotificationsInput): 
                 ]),
                 kind: "students_without_seats",
                 severity: unseated.length >= 5 ? "warning" : "info",
-                title: unseated.length === 1
+                title: language !== "en" ? t("{count} active students without seats", { count: unseated.length }) : unseated.length === 1
                     ? "1 active student without a seat"
                     : `${unseated.length} active students without seats`,
-                message: "Assign seats to complete active student onboarding.",
+                message: t("Assign seats to complete active student onboarding."),
                 href: `${href(input.branchId, "allocations")}?studentId=${encodeURIComponent(unseated[0].id)}`,
                 count: unseated.length,
                 sort: 80,
@@ -231,8 +234,8 @@ export function buildBranchNotifications(input: BuildBranchNotificationsInput): 
                 ]),
                 kind: "shift_full",
                 severity: "warning",
-                title: `${fullShifts.length} ${plural(fullShifts.length, "shift")} at full capacity`,
-                message: `${first.name ?? "A shift"} has ${first.used ?? 0} used and ${first.available ?? 0} available seats.`,
+                title: language === "en" ? `${fullShifts.length} ${plural(fullShifts.length, "shift")} at full capacity` : t("{count} shifts at full capacity", { count: fullShifts.length }),
+                message: t("{name} has {used} used and {available} available seats.", { name: first.name ?? t("A shift"), used: first.used ?? 0, available: first.available ?? 0 }),
                 href: href(input.branchId, "seats"),
                 count: fullShifts.length,
                 sort: 70,
@@ -252,8 +255,8 @@ export function buildBranchNotifications(input: BuildBranchNotificationsInput): 
                 ]),
                 kind: "shift_near_full",
                 severity: "info",
-                title: `${nearFullShifts.length} ${plural(nearFullShifts.length, "shift")} near capacity`,
-                message: `${first.name ?? "A shift"} is at ${Math.round(first.occupancyPercent ?? 0)}% occupancy.`,
+                title: language === "en" ? `${nearFullShifts.length} ${plural(nearFullShifts.length, "shift")} near capacity` : t("{count} shifts near capacity", { count: nearFullShifts.length }),
+                message: t("{name} is at {percent}% occupancy.", { name: first.name ?? t("A shift"), percent: Math.round(first.occupancyPercent ?? 0) }),
                 href: href(input.branchId, "seats"),
                 count: nearFullShifts.length,
                 sort: 60,
@@ -278,8 +281,8 @@ export function buildBranchNotifications(input: BuildBranchNotificationsInput): 
             ]),
             kind: "active_invites",
             severity: "info",
-            title: `${inviteCount} active staff ${plural(inviteCount, "invite")}`,
-            message: expires ? `Next invite expires ${expires}.` : "Review active invite links.",
+            title: language === "en" ? `${inviteCount} active staff ${plural(inviteCount, "invite")}` : t("{count} active staff invites", { count: inviteCount }),
+            message: expires ? t("Next invite expires {date}.", { date: expires }) : t("Review active invite links."),
             href: href(input.branchId, "staff"),
             count: inviteCount,
             sort: 40,

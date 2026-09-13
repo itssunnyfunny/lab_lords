@@ -1,4 +1,6 @@
 "use client";
+import { LocalizedError } from "@/components/settings/LocalizedText";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
@@ -31,9 +33,10 @@ interface MultiShiftSeatPickerProps {
 }
 
 function MultiShiftSeatSkeleton() {
+    const t = useTranslation();
     return (
         <div role="status" aria-live="polite" className="grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-7">
-            <span className="sr-only">Loading seats</span>
+            <span className="sr-only">{t("Loading seats")}</span>
             {Array.from({ length: 14 }, (_, index) => (
                 <SkeletonBlock key={index} className="aspect-square w-full" />
             ))}
@@ -53,6 +56,7 @@ export function MultiShiftSeatPicker({
     selectedSeatId,
     onSelectSeat,
 }: MultiShiftSeatPickerProps) {
+    const t = useTranslation();
     const [seats, setSeats] = useState<SeatCell[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -87,7 +91,7 @@ export function MultiShiftSeatPicker({
     if (error) {
         return (
             <div className={cn("p-3 text-sm", formErrorBannerClass)}>
-                {error}
+                <LocalizedError error={error} />
             </div>
         );
     }
@@ -97,17 +101,15 @@ export function MultiShiftSeatPicker({
     return (
         <div className={cn("space-y-3 pt-2", pickerDividerClass)}>
             <div className="flex items-center justify-between">
-                <p className={pickerSectionLabelClass}>Select a seat</p>
+                <p className={pickerSectionLabelClass}>{t("Select a seat")}</p>
                 {stats && (
                     <div className="text-[10px] text-[color:var(--text-muted)]">
-                        <span className="font-medium text-[color:var(--ui-tone-success-text)]">{stats.available}</span> free
-                        <span className="mx-1">/</span><span className="text-[color:var(--ui-tone-danger-text)]">{stats.occupied}</span> taken
-                    </div>
+                        <span className="font-medium text-[color:var(--ui-tone-success-text)]">{stats.available}</span>  {t("free")}<span className="mx-1">/</span><span className="text-[color:var(--ui-tone-danger-text)]">{stats.occupied}</span>  {t("taken")}</div>
                 )}
             </div>
 
             <p className={pickerWarningHintClass}>
-                A seat is available only if it is free across <span className="font-medium text-[color:var(--ui-badge-warning-text)]">all component shifts</span>.
+                {t("A seat is available only if it is free across all component shifts.")}
             </p>
 
             <div className="grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-7">
