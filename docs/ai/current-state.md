@@ -696,6 +696,29 @@ Authoritative code: `services/billing*.ts`, `services/ownerTrial.service.ts`, `s
 
 ### Public website and telemetry
 
+- The 2026-09-20 original-brand correction now covers all 17 public routes,
+  following the owner's instruction to extend the initial visual milestone
+  while retaining its sentences. The shared public shell provides Playfair
+  Display/Inter, the supplied palette, an open-book/leaf identity and finished
+  botanical artwork. Public controls explicitly use Inter, and all Features
+  card groups stack at narrow widths. The complete homepage, Features, Pricing, Contact, Support,
+  five policy pages and seven software pages share that presentation. A frozen
+  before/after browser comparison preserves all 39,421 main-text characters,
+  759 content blocks, 17 titles and 737 control records; only the footer wordmark
+  changes visually. Shared account/plan actions, runtime pricing, analytics
+  consent and authenticated surfaces retain their behavior. See the
+  [rollout report](../redesign/public-rollout-report.md) for local verification
+  and remaining limits; this is not deployment evidence.
+- The 2026-09-20 local public redesign uses a scoped warm-paper/forest theme and
+  server-composed marketing shell. The homepage presents features, benefits,
+  setup, synthetic interactive examples and FAQs. Dedicated `/features` and
+  `/pricing` pages join the seven retained software routes; contact, support and
+  policy layouts share the public shell. Pricing still comes from
+  `publicBillingPlans()` and selected-plan continuation still uses the existing
+  billing helpers. Account/provider ordering, authenticated styles, permissions,
+  financial behavior and localization preferences are unchanged. See the
+  [redesign implementation record](../redesign/implementation.md) for scope and
+  validation; this is local implementation, not deployment evidence.
 - Landing, product-specific SEO pages, contact, support, privacy, terms, refund, shipping/delivery, and cookie pages are implemented.
 - Google Analytics loads only when a measurement ID is configured and begins with denied consent. Events require explicit accepted consent.
 - The support/bug-report form opens a pre-filled email through `mailto:`; there is no server-side support-ticket or email-delivery integration.
