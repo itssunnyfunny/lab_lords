@@ -4,6 +4,8 @@ import { getSoftwarePagePath, softwarePageSlugs } from "@/lib/softwarePages";
 
 const staticRoutes = [
   { path: "/", priority: 1 },
+  { path: "/features", priority: 0.9 },
+  { path: "/pricing", priority: 0.9 },
   ...softwarePageSlugs.map(slug => ({
     path: getSoftwarePagePath(slug),
     priority: 0.8,
