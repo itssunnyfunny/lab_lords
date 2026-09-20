@@ -1,11 +1,17 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import ContactPage from "@/app/contact/page";
 import RefundPolicyPage from "@/app/refund-policy/page";
 import ShippingDeliveryPolicyPage from "@/app/shipping-delivery-policy/page";
 import sitemap from "@/app/sitemap";
 import robots from "@/app/robots";
 import { LandingFooter } from "@/components/landing/LandingFooter";
+import { siteConfig } from "@/lib/site";
+
+vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ isLoaded: true, isSignedIn: false }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// Next compiles font imports during its build; this server-markup test needs only the CSS variable.
+vi.mock("next/font/google", () => ({ Playfair_Display: () => ({ variable: "public-display-font" }) }));
 
 describe("Razorpay public review pages", () => {
   it("renders concrete cancellation and refund terms", () => {
@@ -28,28 +34,31 @@ describe("Razorpay public review pages", () => {
   it("renders public business contact details", () => {
     const html = renderToStaticMarkup(<ContactPage />);
 
-    expect(html).toContain("Contact Us");
-    expect(html).toContain("Business and operational address");
-    expect(html).toContain("within one business day");
+    expect(html).toMatch(/Let(?:&#x27;|’|')s talk about your library\./);
+    expect(html).toContain(siteConfig.supportEmail);
+    expect(html).toContain(siteConfig.businessAddress);
+    expect(html).toContain(`href="mailto:${siteConfig.supportEmail}"`);
   });
 
   it("links every required policy from the public footer", () => {
     const html = renderToStaticMarkup(<LandingFooter />);
 
-    for (const path of ["/privacy", "/terms", "/refund-policy", "/shipping-delivery-policy", "/contact"]) {
+    for (const path of ["/privacy", "/terms", "/refund-policy", "/shipping-delivery-policy", "/contact", "/cookies", "/support"]) {
       expect(html).toContain(`href="${path}"`);
     }
   });
 
   it("indexes and allows the public review routes", () => {
     const sitemapUrls = sitemap().map(entry => entry.url);
-    const publicPaths = ["/refund-policy", "/shipping-delivery-policy", "/contact"];
-    const allow = robots().rules;
-    const serializedRules = JSON.stringify(allow);
+    const publicPaths = ["/features", "/pricing", "/refund-policy", "/shipping-delivery-policy", "/contact"];
+    const rules = robots().rules;
+    const publicRule = Array.isArray(rules) ? rules.find(rule => rule.userAgent === "*") : rules;
+    expect(publicRule?.allow).toContain("/");
+    const disallowed = typeof publicRule?.disallow === "string" ? [publicRule.disallow] : publicRule?.disallow ?? [];
 
     for (const path of publicPaths) {
       expect(sitemapUrls.some(url => url.endsWith(path))).toBe(true);
-      expect(serializedRules).toContain(path);
+      expect(disallowed.some(prefix => path.startsWith(prefix)), `${path} is crawlable`).toBe(false);
     }
   });
 });
