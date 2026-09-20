@@ -1,14 +1,4 @@
-import Link from "next/link";
-import { AppLogo } from "@/components/brand/AppLogo";
-import {
-  landingContainerClass,
-  landingDescriptionClass,
-  landingEyebrowClass,
-  landingMutedTextClass,
-  landingNavLinkClass,
-  landingRootClass,
-  landingSubtleTextClass,
-} from "@/components/ui/landingSurface";
+import { MarketingShell } from "@/components/landing/MarketingShell";
 import { siteConfig } from "@/lib/site";
 
 export type LegalSection = {
@@ -35,46 +25,33 @@ export function LegalPage({
   children,
 }: LegalPageProps) {
   return (
-    <main className={landingRootClass}>
-      <header className="border-b border-[color:var(--ui-panel-header-border)]">
-        <div className={`${landingContainerClass} flex min-h-16 items-center justify-between gap-4 py-3`}>
-          <Link href="/" aria-label="Lab Lords home">
-            <AppLogo subtitleClassName="hidden sm:block" />
-          </Link>
-          <nav className="flex items-center gap-5">
-            <Link href="/contact" className={landingNavLinkClass}>Contact Us</Link>
-            <Link href="/sign-in" className={landingNavLinkClass}>Sign in</Link>
-          </nav>
-        </div>
-      </header>
-
-      <div className={`${landingContainerClass} py-12 sm:py-16`}>
-        <div className="max-w-3xl">
-          <p className={landingEyebrowClass}>{eyebrow}</p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-[color:var(--text-primary)] sm:text-5xl">
-            {title}
-          </h1>
-          <p className={`${landingDescriptionClass} mt-5`}>{description}</p>
+    <MarketingShell>
+      <div className="public-reference-page public-legal">
+      <article className="marketing-container public-legal-document py-12 sm:py-16">
+        <header className="public-legal-header mx-auto max-w-3xl">
+          <p className="marketing-eyebrow">{eyebrow}</p>
+          <h1 className="marketing-title mt-4">{title}</h1>
+          <p className="mt-5 text-base leading-8 text-[color:var(--text-secondary)]">{description}</p>
           {updatedAt && (
-            <p className={`${landingSubtleTextClass} mt-4 text-sm`}>Last updated: {updatedAt}</p>
+            <p className="mt-4 text-sm text-[color:var(--text-muted)]">Last updated: {updatedAt}</p>
           )}
-        </div>
+        </header>
 
-        <div className="mt-10 max-w-4xl divide-y divide-[color:var(--ui-panel-header-border)]">
+        <div className="public-legal-sections mx-auto mt-10 max-w-3xl divide-y divide-[color:var(--ui-panel-header-border)]">
           {sections.map(section => (
             <section key={section.title} className="py-8">
               <h2 className="text-xl font-semibold tracking-tight text-[color:var(--text-primary)]">
                 {section.title}
               </h2>
               {section.body && (
-                <p className={`${landingMutedTextClass} mt-3 text-sm leading-7`}>
+                <p className="mt-3 text-base leading-8 text-[color:var(--text-secondary)]">
                   {section.body}
                 </p>
               )}
               {section.items && (
                 <ul className="mt-4 list-disc space-y-3 pl-5">
                   {section.items.map(item => (
-                    <li key={item} className={`${landingMutedTextClass} text-sm leading-7`}>
+                    <li key={item} className="text-base leading-8 text-[color:var(--text-secondary)]">
                       {item}
                     </li>
                   ))}
@@ -84,12 +61,13 @@ export function LegalPage({
           ))}
         </div>
 
-        {children && <div className="mt-4 max-w-4xl">{children}</div>}
+        {children && <div className="mx-auto mt-4 max-w-3xl">{children}</div>}
 
-        <footer className="mt-12 border-t border-[color:var(--ui-panel-header-border)] pt-6 text-sm text-[color:var(--text-muted)]">
+        <footer className="mx-auto mt-12 max-w-3xl border-t border-[color:var(--ui-panel-header-border)] pt-6 text-base leading-8 text-[color:var(--text-muted)]">
           Questions? Contact <a className="text-[color:var(--ui-form-accent)] hover:text-[color:var(--ui-form-accent-hover)]" href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>.
         </footer>
+      </article>
       </div>
-    </main>
+    </MarketingShell>
   );
 }
