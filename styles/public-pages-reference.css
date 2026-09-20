@@ -1,0 +1,192 @@
+/* Public page presentation only. Copy, catalogue values and account actions stay in their existing components. */
+.public-reference-page {
+  color: var(--reference-forest);
+  background: var(--reference-paper);
+  font-family: var(--font-inter), Arial, sans-serif;
+}
+.public-reference-page .marketing-container { width: min(1224px, calc(100% - 80px)); }
+.public-reference-page :is(h1,h2) { font-family: var(--font-public-display), Georgia, serif; font-weight: 600; }
+.public-reference-page h3 { font-family: var(--font-inter), Arial, sans-serif; font-weight: 600; }
+.public-reference-page .marketing-eyebrow { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 650; }
+.public-reference-page .marketing-title { font-size: clamp(32px, 3.05vw, 43px); line-height: 1.22; letter-spacing: -.85px; }
+.public-reference-page .marketing-lead { font-size: 16px; line-height: 1.85; color: var(--reference-body); }
+.public-reference-page .marketing-page-hero { position: relative; padding: 65px 0 50px; background: #FFFCF7; border-bottom: 1px solid #164D3B12; }
+.public-reference-page .marketing-page-hero .marketing-title { font-size: clamp(40px, 4.3vw, 59px); line-height: 1.12; letter-spacing: -1.65px; }
+.public-reference-page:not(.public-software) .marketing-page-hero .marketing-container { position: relative; padding-right: 340px; }
+.public-reference-page:not(.public-software) .marketing-page-hero .marketing-container::after {
+  content: "";
+  position: absolute;
+  top: -16px;
+  right: 15px;
+  width: 275px;
+  height: 280px;
+  background: url("/brand-reference/botanical-accent.webp") center / contain no-repeat;
+  pointer-events: none;
+}
+.public-reference-page .marketing-section { padding: 72px 0; }
+.public-reference-page .marketing-card { border: 1px solid #164D3B1F; border-radius: 15px; background: #FFFEFC; box-shadow: 0 4px 16px #8B6F5605; }
+.public-reference-page .marketing-card h3 { font-size: 17px; line-height: 1.5; letter-spacing: -.2px; }
+.public-reference-page .marketing-card p { color: var(--reference-body); }
+.public-reference-page .marketing-plan-note { background: var(--reference-mist); color: var(--reference-forest); border-radius: 6px; padding: 5px 9px; font-size: 11px; }
+.public-reference-page .marketing-button-secondary { background: #FFFFFFA6; border-color: #164D3B40; border-radius: 12px; }
+.public-reference-page .marketing-button-secondary:hover { background: var(--reference-mist); }
+.public-reference-page a.marketing-card { transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.public-reference-page a.marketing-card:hover { transform: translateY(-2px); border-color: #164D3B55; box-shadow: 0 7px 20px #164D3B0C; }
+.public-reference-page .public-two-column { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px; }
+.public-reference-page .public-two-column > * { min-width: 0; }
+.public-reference-page .public-questions { border-top: 1px solid #164D3B12; background: #FFFCF7; }
+.public-reference-page .public-questions > .marketing-container { max-width: 940px; }
+.public-reference-page .public-questions .marketing-title { max-width: 720px; }
+.public-reference-page .marketing-faq { border: 1px solid #164D3B1F; border-radius: 15px; overflow: hidden; background: #FFFEFC; }
+.public-reference-page .marketing-faq details { padding-inline: 26px; border-color: #164D3B1F; }
+.public-reference-page .marketing-faq details:last-child { border-bottom: 0; }
+.public-reference-page .marketing-faq summary { font-size: 15px; padding-block: 22px; }
+.public-reference-page .marketing-faq details[open] { background: #E8F1EA66; }
+.public-reference-page .marketing-faq p { font-size: 14px; line-height: 1.85; padding-bottom: 23px; color: var(--reference-body); }
+.public-reference-page .public-closing { background: var(--reference-mist); border-top: 1px solid #164D3B12; }
+.public-reference-page .public-closing > .marketing-container { position: relative; padding-right: 320px; }
+.public-reference-page .public-closing > .marketing-container::after { content: ""; position: absolute; top: 50%; right: 30px; transform: translateY(-50%); width: 225px; height: 225px; background: url("/brand-reference/botanical-accent.webp") center / contain no-repeat; pointer-events: none; }
+.public-feature-navigation { position: relative; z-index: 1; width: calc(100% + 340px); margin-top: 38px; }
+.public-feature-navigation a { background: #FFFEFC; border-color: #164D3B26; font-size: 12px; transition: background-color 160ms ease; }
+.public-feature-navigation a:hover { background: var(--reference-mist); }
+.public-reference-page .public-feature-section { border-bottom: 1px solid #164D3B12; }
+.public-reference-page .public-feature-section:nth-of-type(odd) { background: #FFFCF7; }
+.public-feature-layout { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.9fr); gap: 54px; align-items: start; }
+.public-feature-introduction .marketing-title { font-size: 35px; line-height: 1.2; }
+.public-feature-introduction .marketing-lead { font-size: 14px; line-height: 1.85; max-width: 310px; }
+.public-reference-page .public-feature-items { margin-top: 0; gap: 15px; }
+.public-feature-items .marketing-card { padding: 25px 23px; border-top: 3px solid var(--reference-sage); }
+.public-feature-items .marketing-card:nth-child(2) { border-top-color: var(--reference-peach); }
+.public-feature-items .marketing-card:nth-child(3) { border-top-color: var(--reference-sky); }
+.public-feature-items .marketing-card p { font-size: 13px; line-height: 1.85; }
+.public-feature-items:where(:has(> :last-child:nth-child(2))) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.public-pricing #pricing { padding-top: 44px; padding-bottom: 44px; }
+.public-pricing #pricing > .marketing-container { max-width: 1040px; }
+.public-pricing #pricing .marketing-card { padding: 35px; border-top: 4px solid var(--reference-sage); }
+.public-pricing #pricing .marketing-card:nth-child(2) { border-top-color: var(--reference-leaf); background: #FFFFFF; box-shadow: 0 7px 28px #164D3B0B; }
+.public-pricing #pricing h2 { font-size: 34px; line-height: 1.2; letter-spacing: -.5px; }
+.public-pricing #pricing .text-4xl { font-family: var(--font-public-display), Georgia, serif; font-size: 48px; font-weight: 600; line-height: 1.25; }
+.public-pricing #pricing h3 { font-size: 14px; letter-spacing: 0; }
+.public-pricing #pricing li { padding-block: 3px; }
+.public-pricing .public-plan-guidance { padding-top: 30px; padding-bottom: 68px; }
+.public-plan-guidance > .marketing-container { max-width: 1040px; align-items: center; }
+.public-plan-guidance h2 { font-size: 30px; line-height: 1.25; letter-spacing: -.6px; }
+.public-plan-guidance .marketing-lead { font-size: 14px; }
+.public-plan-guidance .marketing-card { background: #E8F1EA80; border-color: #164D3B12; }
+.public-contact-details > .marketing-container { max-width: 1100px; }
+.public-contact-details .marketing-card { padding: 32px; }
+.public-contact-details h2 { font-size: 27px; line-height: 1.3; letter-spacing: -.4px; }
+.public-contact-details .marketing-card > svg { width: 47px; height: 47px; padding: 11px; border-radius: 11px; background: var(--reference-mist); }
+.public-contact-details .marketing-card:nth-child(2) > svg { background: #F4A26124; }
+.public-support-topics .marketing-grid { gap: 16px; }
+.public-support-topics a.marketing-card { min-height: 106px; padding: 27px; }
+.public-support-topics a.marketing-card > svg { color: var(--reference-forest); }
+.public-support .public-bug-report { border-top: 1px solid #164D3B12; background: #FFFCF7; }
+.public-bug-report .public-two-column { gap: 68px; align-items: start; }
+.public-bug-report .marketing-lead { max-width: 480px; }
+.public-bug-report form { padding: 29px; border-radius: 16px; box-shadow: 0 5px 20px #164D3B08; background: #FFFEFC; }
+.public-bug-report form h2 { font-size: 25px; line-height: 1.3; }
+.public-bug-report form input,.public-bug-report form textarea { border-color: #8B9F93; border-radius: 9px; }
+.public-bug-report form :is(input,textarea):focus-visible { outline: 2px solid var(--reference-forest); outline-offset: 3px; }
+.public-bug-report form button { border-radius: 10px; min-height: 48px; }
+.public-software .marketing-page-hero { padding-top: 35px; padding-bottom: 62px; }
+.public-breadcrumb { font-size: 12px; gap: 10px; margin-bottom: 30px; }
+.public-breadcrumb a { display: inline-flex; min-height: 44px; align-items: center; }
+.public-software-hero-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 76px; align-items: center; }
+.public-software .marketing-page-hero .marketing-title { font-size: 51px; }
+.public-software-highlights { position: relative; padding: 34px; border-top: 4px solid var(--reference-sage) !important; }
+.public-software-highlights h2 { font-size: 29px; line-height: 1.3; letter-spacing: -.5px; }
+.public-software-highlights h3 { font-size: 15px !important; }
+.public-software-highlights :is(p, svg) { position: relative; }
+.public-software-features .marketing-card > svg { width: 44px; height: 44px; border-radius: 11px; background: var(--reference-mist); padding: 11px; }
+.public-software-features .marketing-card:nth-child(3n + 2) > svg { background: #A7C95726; }
+.public-software-features .marketing-card:nth-child(3n) > svg { background: #F4A26124; }
+.public-reference-page .public-software-use-cases { background: #E8F1EA66; border-block: 1px solid #164D3B12; }
+.public-software-use-cases .marketing-card { padding: 29px; }
+.public-software-use-cases .marketing-card > .marketing-eyebrow { width: 42px; height: 42px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--reference-mist); font-size: 13px; letter-spacing: 0; }
+.public-software #related-software .marketing-card { background: #FFFEFC; }
+.public-legal { padding-block: 55px 72px; }
+.public-legal .public-legal-document { width: min(1010px, calc(100% - 80px)); padding: 52px 70px; border: 1px solid #164D3B1F; border-radius: 18px; background: #FFFEFC; box-shadow: 0 5px 20px #8B6F5605; }
+.public-legal-header { position: relative; padding-bottom: 25px; border-bottom: 1px solid #164D3B26; }
+.public-legal .marketing-title { font-size: 47px; line-height: 1.15; letter-spacing: -1.2px; }
+.public-legal .public-legal-sections { margin-top: 6px; }
+.public-legal-sections section { padding-block: 29px; }
+.public-legal-sections h2 { font-size: 27px; line-height: 1.3; letter-spacing: -.35px; }
+.public-legal :is(p,li,footer) { color: var(--reference-body); }
+.public-legal li::marker { color: var(--reference-leaf); }
+.public-legal footer a { text-decoration: underline; text-underline-offset: 4px; overflow-wrap: anywhere; }
+@container (max-width: 1100px) {
+  .public-reference-page .marketing-container { width: calc(100% - 56px); }
+  .public-reference-page:not(.public-software) .marketing-page-hero .marketing-container { padding-right: 240px; }
+  .public-reference-page:not(.public-software) .marketing-page-hero .marketing-container::after { width: 205px; height: 235px; top: 0; right: 0; }
+  .public-feature-navigation { width: calc(100% + 240px); }
+  .public-feature-layout { grid-template-columns: minmax(0, .8fr) minmax(0, 1.8fr); gap: 32px; }
+  .public-reference-page .public-feature-items { grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .public-feature-items .marketing-card { padding: 23px; }
+  .public-feature-items .marketing-card p { max-width: 470px; }
+  .public-reference-page .public-closing > .marketing-container { padding-right: 260px; }
+  .public-reference-page .public-closing > .marketing-container::after { width: 205px; height: 205px; right: 0; }
+  .public-software-hero-grid { gap: 35px; }
+  .public-software .marketing-page-hero .marketing-title { font-size: 45px; }
+  .public-software-highlights { padding: 27px; }
+  .public-bug-report .public-two-column { gap: 36px; }
+  .public-legal .public-legal-document { width: calc(100% - 56px); padding: 44px 48px; }
+}
+@container (max-width: 760px) {
+  .public-reference-page .marketing-container { width: calc(100% - 40px); }
+  .public-reference-page .marketing-page-hero { padding: 40px 0 34px; }
+  .public-reference-page:not(.public-software) .marketing-page-hero .marketing-container { padding-right: 0; }
+  .public-reference-page:not(.public-software) .marketing-page-hero .marketing-container::after { content: none; }
+  .public-reference-page .marketing-page-hero .marketing-title { font-size: 41px; letter-spacing: -1.1px; line-height: 1.14; }
+  .public-reference-page .marketing-title { font-size: 32px; letter-spacing: -.55px; }
+  .public-reference-page .marketing-lead { font-size: 14px; line-height: 1.85; }
+  .public-reference-page .marketing-section { padding: 46px 0; }
+  .public-reference-page .marketing-eyebrow { font-size: 10px; letter-spacing: 1.3px; }
+  .public-reference-page .public-two-column,.public-software-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 25px; }
+  .public-reference-page .public-closing > .marketing-container { padding-right: 0; }
+  .public-reference-page .public-closing > .marketing-container::after { content: none; }
+  .public-reference-page .marketing-faq details { padding-inline: 19px; }
+  .public-reference-page .marketing-faq summary { font-size: 14px; line-height: 1.65; padding-block: 18px; }
+  .public-reference-page .marketing-faq p { font-size: 13px; }
+  .public-feature-navigation { width: 100%; gap: 8px; margin-top: 27px; }
+  .public-feature-navigation a { padding-inline: 13px; font-size: 11px; }
+  .public-feature-layout { grid-template-columns: minmax(0, 1fr); gap: 25px; }
+  .public-feature-introduction .marketing-lead { max-width: 550px; }
+  .public-reference-page .public-feature-items { grid-template-columns: minmax(0, 1fr); }
+  .public-pricing #pricing { padding-block: 30px; }
+  .public-pricing #pricing > .marketing-container > .grid { grid-template-columns: minmax(0, 1fr); }
+  .public-pricing #pricing .marketing-card { padding: 26px; }
+  .public-pricing #pricing h2 { font-size: 30px; }
+  .public-pricing #pricing .text-4xl { font-size: 44px; }
+  .public-pricing .public-plan-guidance { padding-top: 12px; padding-bottom: 42px; }
+  .public-plan-guidance h2 { font-size: 28px; }
+  .public-contact-details .marketing-card { padding: 26px; }
+  .public-contact-details h2 { font-size: 25px; }
+  .public-support-topics .marketing-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .public-support-topics a.marketing-card { min-height: 87px; padding: 22px; font-size: 14px; }
+  .public-bug-report form { padding: 22px; }
+  .public-software .marketing-page-hero { padding-top: 18px; }
+  .public-software-highlights { margin-top: 6px; padding: 26px; }
+  .public-software-highlights h2 { font-size: 28px; }
+  .public-software .marketing-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .public-software-use-cases .marketing-card { padding: 25px; }
+  .public-legal { padding-block: 28px 40px; }
+  .public-legal .public-legal-document { width: calc(100% - 32px); padding: 29px 23px; border-radius: 14px; }
+  .public-legal .marketing-title { font-size: 36px; letter-spacing: -.8px; }
+  .public-legal :is(p,li,footer) { font-size: 14px; line-height: 1.9; }
+  .public-legal-header { padding-bottom: 24px; }
+  .public-legal-sections h2 { font-size: 24px; }
+  .public-legal-sections section { padding-block: 25px; }
+}
+@container (max-width: 370px) {
+  .public-reference-page .marketing-container { width: calc(100% - 32px); }
+  .public-reference-page .marketing-page-hero .marketing-title { font-size: 36px; }
+  .public-reference-page .marketing-actions { gap: 10px; }
+  .public-reference-page .marketing-actions :is(.marketing-button,.marketing-button-secondary) { font-size: 12px; padding-inline: 15px; }
+  .public-reference-page .marketing-title { font-size: 30px; }
+  .public-legal .public-legal-document { width: calc(100% - 24px); padding-inline: 20px; }
+  .public-legal .marketing-title { font-size: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-reference-page *, .public-reference-page *::before, .public-reference-page *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
