@@ -1,0 +1,180 @@
+{
+  "hero": {
+    "eyebrow": "Library management software",
+    "title": "Manage your library in one place.",
+    "description": "Keep student records, assign seats and shifts, and track fee payments from one dashboard. Built for study libraries, study halls and coaching centres.",
+    "primaryLabel": "Start free trial",
+    "signedInLabel": "Open workspace",
+    "secondaryLabel": "View features",
+    "secondaryHref": "/features",
+    "trialNote": "30-day Standard trial · No card needed",
+    "previewLabel": "Example data"
+  },
+  "home": {
+    "audience": {
+      "line": "For study libraries, study halls, coaching and tuition centres."
+    },
+    "features": {
+      "title": "Features for daily library management",
+      "description": "From registering a student to checking pending fees, keep your daily work organised with Lab Lords.",
+      "items": [
+        {
+          "id": "students",
+          "title": "Student Management",
+          "description": "Keep student details, seat assignments and fee records together.",
+          "href": "/features#students"
+        },
+        {
+          "id": "seats",
+          "title": "Seat Management",
+          "description": "See available seats and assign them to students for the right shift.",
+          "href": "/features#seats-shifts"
+        },
+        {
+          "id": "shifts",
+          "title": "Shift Management",
+          "description": "Set your shift timings and fees to match how your library runs.",
+          "href": "/features#seats-shifts"
+        },
+        {
+          "id": "fees",
+          "title": "Track Fees",
+          "description": "Record payments and check how much each student has left to pay.",
+          "href": "/features#fees"
+        },
+        {
+          "id": "pending",
+          "title": "Pending Fees",
+          "description": "View unpaid fees and keep notes for your follow-ups.",
+          "href": "/features#fees"
+        },
+        {
+          "id": "imports",
+          "title": "Import Student Records",
+          "description": "Bring in your student list and review the details before adding them.",
+          "href": "/features#imports"
+        },
+        {
+          "id": "branches",
+          "title": "Manage Branches",
+          "description": "Manage your branches from one account, with separate records for each.",
+          "href": "/features#branches"
+        },
+        {
+          "id": "staff",
+          "title": "Staff Access",
+          "description": "Add staff and choose what they can view or change.",
+          "href": "/features#staff",
+          "planNote": "Standard"
+        },
+        {
+          "id": "reports",
+          "title": "Library Reports",
+          "description": "Check seat usage and fee collection with branch reports.",
+          "href": "/features#reports",
+          "planNote": "Standard for advanced reports"
+        }
+      ],
+      "linkLabel": "View all features",
+      "href": "/features"
+    },
+    "benefits": {
+      "title": "Why choose Lab Lords?",
+      "description": "Built around the work you do every day, with room for your next branch.",
+      "items": [
+        {
+          "title": "Made for study libraries",
+          "description": "Manage the students, seats, shifts and fees that are part of your everyday work."
+        },
+        {
+          "title": "Bring your existing records",
+          "description": "Add students yourself or import a list you already use."
+        },
+        {
+          "title": "Manage more than one branch",
+          "description": "Use one account while keeping each branch’s records separate."
+        },
+        {
+          "title": "Try it before you choose",
+          "description": "Explore Standard features with a 30-day trial. No card is needed."
+        }
+      ]
+    },
+    "setup": {
+      "title": "Get started in four steps",
+      "description": "Set up your library, add your students and start using Lab Lords for your daily work.",
+      "steps": [
+        {
+          "title": "Create your account",
+          "description": "Sign up to get started with Lab Lords."
+        },
+        {
+          "title": "Set up your library",
+          "description": "Add your branch, seats and shift timings."
+        },
+        {
+          "title": "Add your students",
+          "description": "Enter student details or import your existing list."
+        },
+        {
+          "title": "Start managing",
+          "description": "Assign seats, record fees and check your library’s daily records."
+        }
+      ],
+      "primaryLabel": "Start free trial"
+    },
+    "proof": {
+      "title": "See how Lab Lords works",
+      "description": "Explore an example library to see how student details, seats and fee records fit together.",
+      "label": "Example data",
+      "tabs": [
+        "Students",
+        "Seats & shifts",
+        "Fees"
+      ]
+    },
+    "questions": {
+      "title": "Common questions",
+      "description": "A few things to know before you get started.",
+      "items": [
+        {
+          "question": "What is Lab Lords?",
+          "answer": "Lab Lords helps you manage students, seats, shifts, fees and branches. It is built for study libraries and study halls, with support for the daily records of coaching and tuition centres."
+        },
+        {
+          "question": "Can I try it before paying?",
+          "answer": "Yes. Eligible new owners get a 30-day trial with Standard features. No card is needed. The trial starts after you set up your first branch."
+        },
+        {
+          "question": "Can I use my existing student list?",
+          "answer": "Yes. Import your student records and review the details before adding them. You can also add students one at a time."
+        },
+        {
+          "question": "Can my staff use Lab Lords?",
+          "answer": "Yes. Standard includes staff access. You choose the permissions each staff member needs."
+        },
+        {
+          "question": "Can I manage more than one branch?",
+          "answer": "Yes. Both plans support multiple branches. Each billable branch has a separate monthly charge."
+        },
+        {
+          "question": "Does Lab Lords work on a phone?",
+          "answer": "You can use Lab Lords in a web browser on your phone or computer. An internet connection is needed."
+        },
+        {
+          "question": "Where can I check the plans?",
+          "answer": "Visit the Pricing page to compare Basic and Standard and see how branch charges work.",
+          "href": "/pricing"
+        }
+      ]
+    },
+    "closing": {
+      "title": "Ready to start with your library?",
+      "description": "Set up your first branch and try Lab Lords with your own records.",
+      "primaryLabel": "Start free trial",
+      "secondaryLabel": "View pricing",
+      "secondaryHref": "/pricing",
+      "trialNote": "30-day Standard trial · No card needed"
+    }
+  }
+}

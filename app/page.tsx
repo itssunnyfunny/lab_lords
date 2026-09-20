@@ -1,124 +1,30 @@
-"use client";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight, BookOpen, Building2, Check, FileInput, ShieldCheck } from "lucide-react";
+import { MarketingShell } from "@/components/landing/MarketingShell";
+import { WorkspaceCTA } from "@/components/landing/MarketingActions";
+import { LibraryExample } from "@/components/landing/LibraryExample";
+import { HomeReferencePreview } from "@/components/landing/HomeReferencePreview";
+import { NatureDetail } from "@/components/landing/NatureDetail";
+import copy from "@/lib/marketingCopy.json";
+import { absoluteUrl, siteConfig } from "@/lib/site";
 
-import { useUser } from "@clerk/nextjs";
-import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
-import { organizations } from "@/lib/api/organizations";
-import type { CheckoutBillingPlanId } from "@/lib/billingPlans";
-import {
-  getBillingOnboardingPath,
-  getBillingSignUpPath,
-  getOrganizationBillingPath,
-} from "@/lib/billingFlow";
-import { trackEvent } from "@/lib/tracking";
-import { LandingNavbar } from "@/components/landing/LandingNavbar";
-import { LandingHero } from "@/components/landing/LandingHero";
-import { LandingMockup } from "@/components/landing/LandingMockup";
-import { LandingFeatures } from "@/components/landing/LandingFeatures";
-import { LandingSoftware } from "@/components/landing/LandingSoftware";
-import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
-import { LandingPricing } from "@/components/landing/LandingPricing";
-import { LandingFooter } from "@/components/landing/LandingFooter";
-import { PageLoadingSkeleton } from "@/components/ui";
-import { landingRootClass } from "@/components/ui/landingSurface";
-
-type LandingContentProps = {
-  isLoaded: boolean;
-  isSignedIn: boolean;
+export const metadata: Metadata = {
+  title: { absolute: siteConfig.homeTitle },
+  description: copy.hero.description,
+  alternates: { canonical: absoluteUrl("/") },
+  openGraph: { title: siteConfig.homeTitle, description: copy.hero.description, url: absoluteUrl("/") },
+  twitter: { card: "summary_large_image", title: siteConfig.homeTitle, description: copy.hero.description },
 };
-
-function LandingContent({ isLoaded, isSignedIn }: LandingContentProps) {
-  const router = useRouter();
-  const [isRedirecting, setIsRedirecting] = useState(false);
-
-  const trackLandingClick = (source: string) => {
-    trackEvent("landing_cta_clicked", {
-      source,
-      signed_in: isSignedIn,
-    });
-  };
-
-  const handleSignInClick = (source = "landing_nav_sign_in") => {
-    if (!isLoaded) return;
-    trackLandingClick(source);
-    router.push(isSignedIn ? "/app" : "/sign-in");
-  };
-
-  const handleWorkspaceClick = (source = "landing_cta") => {
-    if (!isLoaded) return;
-    trackLandingClick(source);
-
-    if (!isSignedIn) {
-      router.push("/sign-up");
-      return;
-    }
-
-    setIsRedirecting(true);
-    router.push("/app");
-  };
-
-  const handleTourClick = (source = "landing_product_tour") => {
-    trackLandingClick(source);
-  };
-
-  const handlePlanPurchase = useCallback(async (planId: CheckoutBillingPlanId, trackClick = true) => {
-    if (!isLoaded) return;
-    if (trackClick) {
-      trackEvent("landing_cta_clicked", {
-        source: `landing_pricing_${planId.toLowerCase()}`,
-        signed_in: isSignedIn,
-      });
-    }
-
-    if (!isSignedIn) {
-      router.push(getBillingSignUpPath(planId));
-      return;
-    }
-
-    setIsRedirecting(true);
-
-    try {
-      const data = await organizations.getAll();
-
-      if (data.length === 0) {
-        router.push(getBillingOnboardingPath(planId));
-      } else {
-        router.push(getOrganizationBillingPath(data[0].id, planId));
-      }
-    } catch {
-      router.push(getBillingOnboardingPath(planId));
-    }
-  }, [isLoaded, isSignedIn, router]);
-
-  if (isRedirecting) {
-    return <PageLoadingSkeleton label="Loading workspace" variant="workspace" />;
-  }
-
-  return (
-    <main className={landingRootClass}>
-      <LandingNavbar
-        isSignedIn={isSignedIn}
-        onSignInClick={handleSignInClick}
-        onWorkspaceClick={handleWorkspaceClick}
-      />
-      <div className="overflow-hidden">
-        <LandingHero
-          isSignedIn={isSignedIn}
-          onWorkspaceClick={handleWorkspaceClick}
-          onTourClick={handleTourClick}
-        />
-        <LandingMockup />
-      </div>
-      <LandingFeatures />
-      <LandingSoftware />
-      <LandingHowItWorks />
-      <LandingPricing onPlanSelect={handlePlanPurchase} />
-      <LandingFooter />
-    </main>
-  );
-}
+const benefitIcons = [BookOpen, FileInput, Building2, ShieldCheck];
 
 export default function RootPage() {
-  const { isLoaded, isSignedIn } = useUser();
-  return <LandingContent isLoaded={isLoaded} isSignedIn={isSignedIn ?? false} />;
+  return <MarketingShell><div className="marketing-home">
+    <HomeReferencePreview />
+    <section className="marketing-section marketing-benefits"><div className="marketing-container marketing-benefits-grid"><div><p className="marketing-eyebrow">Made for your library</p><h2 className="marketing-title">{copy.home.benefits.title}</h2><p className="marketing-lead">{copy.home.benefits.description}</p><NatureDetail className="benefit-nature" variant="books" /></div><div className="marketing-benefit-list">{copy.home.benefits.items.map((item, index) => { const Icon = benefitIcons[index]; return <div key={item.title}><span><Icon size={22} strokeWidth={1.7} aria-hidden="true" /></span><div><h3>{item.title}</h3><p>{item.description}</p></div></div>; })}</div></div></section>
+    <section id="how-it-works" className="marketing-section"><span id="workflow" className="marketing-anchor" /><div className="marketing-container"><div className="marketing-section-heading"><p className="marketing-eyebrow">A simple start</p><h2 className="marketing-title">{copy.home.setup.title}</h2><p className="marketing-lead">{copy.home.setup.description}</p></div><ol className="marketing-steps">{copy.home.setup.steps.map((step, index) => <li key={step.title}><span className="marketing-step-number">0{index + 1}</span><h3>{step.title}</h3><p>{step.description}</p></li>)}</ol><div className="marketing-center-action"><WorkspaceCTA source="landing_setup" /></div></div></section>
+    <section id="product-tour" className="marketing-section marketing-proof"><div className="marketing-container marketing-proof-grid"><div><p className="marketing-eyebrow">A look inside</p><h2 className="marketing-title">{copy.home.proof.title}</h2><p className="marketing-lead">{copy.home.proof.description}</p><p className="marketing-proof-note"><Check size={18} aria-hidden="true" />Choose a view to explore the example.</p><Link href="/features" className="marketing-text-link">Explore the features <ArrowRight size={17} aria-hidden="true" /></Link></div><LibraryExample /></div></section>
+    <section className="marketing-section"><div className="marketing-container marketing-faq-layout"><div><p className="marketing-eyebrow">Here to help</p><h2 className="marketing-title">{copy.home.questions.title}</h2><p className="marketing-lead">{copy.home.questions.description}</p><Link href="/contact" className="marketing-text-link">Have another question? Contact us <ArrowRight size={17} aria-hidden="true" /></Link></div><div className="marketing-faq">{copy.home.questions.items.map(item => <details key={item.question}><summary>{item.question}<span aria-hidden="true">+</span></summary><p>{item.answer}{item.href && <> <Link href={item.href}>Compare plans.</Link></>}</p></details>)}</div></div></section>
+    <section id="pricing" className="marketing-closing"><div className="marketing-container"><NatureDetail /><p className="marketing-eyebrow">Your library, a little simpler.</p><h2>{copy.home.closing.title}</h2><p>{copy.home.closing.description}</p><div className="marketing-actions"><WorkspaceCTA source="landing_closing" /><Link href="/pricing" className="marketing-button-secondary">View pricing <ArrowRight size={16} aria-hidden="true" /></Link></div><p className="marketing-trial-note">{copy.home.closing.trialNote}</p></div></section>
+  </div></MarketingShell>;
 }
