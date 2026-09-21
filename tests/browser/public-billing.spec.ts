@@ -8,7 +8,7 @@ const homepageSections = [
   "Everything you need for everyday library work.",
   "Less paperwork. More clarity.",
   "Ready in four simple steps.",
-  "Choose what your library needs.",
+  "See how it works in your library",
   "A few things you might be wondering.",
   "Give your library a simpler way to work.",
 ];
@@ -97,11 +97,12 @@ test("homepage uses the approved prototype messaging and section progression", a
     await expect(page.locator("#features").getByRole("heading", { name: title, exact: true })).toBeVisible();
     await expect(page.locator("#features").getByText(description, { exact: true })).toBeVisible();
   }
-  const pricing = page.locator("#pricing");
-  await expect(pricing.getByRole("button", { name: "Choose Basic", exact: true })).toBeVisible();
-  await expect(pricing.getByRole("button", { name: "Choose Standard", exact: true })).toBeVisible();
-  await expect(pricing.getByText(/\u20B9299/)).toBeVisible();
-  await expect(pricing.getByText(/\u20B9499/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Choose (Basic|Standard)$/ })).toHaveCount(0);
+  await expect(page.locator("main .marketing-pricing")).toHaveCount(0);
+  const proof = page.getByRole("region", { name: "See how it works in your library" });
+  await expect(proof.getByText("Sample data", { exact: true })).toBeVisible();
+  await expect(proof.getByText("Receipt for the ₹700 recorded payment")).toBeVisible();
+  await expect(proof.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
 });
 
 test("botanical preview loads its headline font and finished illustration assets", async ({ page }) => {
@@ -283,6 +284,7 @@ for (const route of ["/", "/pricing"]) {
     test(`${route} ${label} preserves the signed-out selected-plan continuation`, async ({ page }) => {
       test.skip(!hasClerkCredentials, "Clerk credentials are required to verify the signed-out plan journey.");
       await page.goto(route);
+      if (route === "/") await page.locator("footer").getByRole("link", { name: "Pricing", exact: true }).click();
       const button = page.getByRole("button", { name: label, exact: true });
       await expect(button).toBeEnabled();
       await button.click();
@@ -433,13 +435,27 @@ test("legacy homepage anchors still lead to the matching content", async ({ page
     ["platform", "Everything you need for everyday library work."],
     ["workflow", "Ready in four simple steps."],
     ["product-tour", "See how Lab Lords works"],
-    ["pricing", "Choose what your library needs."],
     ["get-started", "Give your library a simpler way to work."],
   ]) {
     await page.goto(`/#${anchor}`);
     await expect(page.locator(`[id="${anchor}"]`)).toHaveCount(1);
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeInViewport();
   }
+});
+
+test("the old pricing bookmark reaches the footer Pricing link with keyboard access", async ({ page }) => {
+  await page.goto("/#pricing");
+  const link = page.locator("#pricing");
+  await expect(link).toHaveCount(1);
+  await expect(link).toHaveText("Pricing");
+  await expect(link).toHaveAttribute("href", "/pricing");
+  await expect(link).toBeInViewport();
+  await link.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/pricing$/);
+  await expect(page.locator("#pricing")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Choose Basic", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Choose Standard", exact: true })).toBeVisible();
 });
 
 test("standalone pages link to the setup walkthrough with working history", async ({ page }) => {

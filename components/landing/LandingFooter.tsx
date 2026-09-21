@@ -4,7 +4,7 @@ import { NatureDetail } from "./NatureDetail";
 import { CookieSettingsButton } from "@/components/analytics/CookieSettingsButton";
 import { getSoftwarePagePath, activeSoftwarePageSlugs, softwarePages } from "@/lib/softwarePages";
 
-export function LandingFooter() {
+export function LandingFooter({ preservePricingAnchor = false }: { preservePricingAnchor?: boolean }) {
   return <footer className="marketing-footer">
     <div className="marketing-container">
       <div className="marketing-footer-grid">
@@ -16,7 +16,7 @@ export function LandingFooter() {
         </div>
         {/* Native navigation preserves fragment scrolling across public pages (browser regression covered). */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <div className="public-footer-product"><nav aria-label="Product links"><h2>Product</h2><Link href="/features">Features</Link><Link href="/pricing">Pricing</Link><Link href="/how-it-works">How it works</Link><a href="/#product-tour">Explore an example</a></nav><nav aria-label="Resource links" className="mt-6"><h2>Resources</h2><Link href="/about">About Lab Lords</Link><Link href="/faq">FAQs</Link><Link href="/contact">Contact us</Link><Link href="/support">Support</Link></nav></div>
+        <div className="public-footer-product"><nav aria-label="Product links"><h2>Product</h2><Link href="/features">Features</Link><Link id={preservePricingAnchor ? "pricing" : undefined} href="/pricing">Pricing</Link><Link href="/how-it-works">How it works</Link><a href="/#product-tour">Explore an example</a></nav><nav aria-label="Resource links" className="mt-6"><h2>Resources</h2><Link href="/about">About Lab Lords</Link><Link href="/faq">FAQs</Link><Link href="/contact">Contact us</Link><Link href="/support">Support</Link></nav></div>
         <nav aria-label="Software links" id="software"><h2>For your library</h2>{activeSoftwarePageSlugs.map(slug => <Link key={slug} href={getSoftwarePagePath(slug)}>{softwarePages[slug].shortName}</Link>)}</nav>
         <nav aria-label="Policies"><h2>Policies</h2><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms of Service</Link><Link href="/refund-policy">Cancellation and Refund Policy</Link><Link href="/shipping-delivery-policy">Shipping and Delivery Policy</Link><Link href="/cookies">Cookies</Link></nav>
       </div>
