@@ -79,7 +79,7 @@ export function notifyUserPreferencesChanged(
     window.dispatchEvent(new CustomEvent(PREFERENCE_EVENT, { detail: { ...preferences, ownerKey } }));
 }
 
-export function UserPreferencesProvider({ children, signedIn = true, ownerKey = "test" }: { children: ReactNode; signedIn?: boolean; ownerKey?: string }) {
+export function UserPreferencesProvider({ children, signedIn = true, ownerKey = "test", publicLocale }: { children: ReactNode; signedIn?: boolean; ownerKey?: string; publicLocale?: InterfaceLanguage }) {
     const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
     const [profileName, setProfileName] = useState<string | null>(null);
 
@@ -123,9 +123,8 @@ export function UserPreferencesProvider({ children, signedIn = true, ownerKey = 
         root.dataset.locale = preferences.locale;
         root.dataset.timezone = preferences.timezone;
         root.dataset.dateFormat = preferences.dateFormat;
-        root.lang = LANGUAGE_TAGS[preferences.interfaceLanguage];
-        return () => { root.lang = "en"; };
-    }, [preferences]);
+        root.lang = LANGUAGE_TAGS[publicLocale ?? preferences.interfaceLanguage];
+    }, [preferences, publicLocale]);
 
     const formatDate = useCallback((value: Date | string | number, options?: Intl.DateTimeFormatOptions) => {
         const date = value instanceof Date ? value : new Date(value);

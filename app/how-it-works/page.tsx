@@ -1,3 +1,4 @@
+import { publicStrings } from "@/lib/public-i18n/server";
 import Link from "next/link";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { PublicIntro, PublicClosing } from "@/components/landing/PublicPageSections";
@@ -14,12 +15,13 @@ const steps = [
   { title: "Start keeping your daily records", text: "Check seat availability, assign students to suitable shifts, record received fees and review outstanding amounts. Open the correct branch before making changes. Invite your team with the appropriate permissions if you use Standard. Record full or partial payments, retrieve receipts, mark attendance and save the next date to follow up on fees.", prepare: "Use your own records to confirm amounts and assignments. The sample dashboard on this website is an illustration, not your live library. Choose English, Hindi or Hinglish for your interface, and set receipt and report language separately.", href: "/features#fees", link: "Explore fee records" },
 ];
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const { t, href: localHref } = await publicStrings();
   return <MarketingShell><div className="public-reference-page public-setup">
-    <PublicIntro eyebrow="Getting started" title="From your first branch to everyday work." description="Prepare the details you already use at your library. The guided setup brings your branch, seats and shifts together before you add student records." />
-    <section className="marketing-section"><div className="marketing-container"><h2 className="marketing-title">What to have ready</h2><p className="marketing-lead mt-4 max-w-3xl">Your library and branch details, seat numbering, shift timings and fees, and an existing student list if you plan to import one. You can start with a clean workspace and add records individually.</p><Link href="/contact" className="marketing-text-link mt-5">Ask a setup question</Link></div></section>
-    <ol className="public-walkthrough marketing-container">{steps.map((step, index) => <li key={step.title} className="marketing-card p-7 sm:p-9"><span className="marketing-step-number">0{index + 1}</span><div><h2 className="marketing-title">{step.title}</h2><p className="marketing-lead mt-4">{step.text}</p><p className="public-example mt-5">{step.prepare}</p><Link href={step.href} className="marketing-text-link mt-4">{step.link}</Link></div></li>)}</ol>
-    <section className="marketing-section public-questions"><div className="marketing-container"><h2 className="marketing-title mb-8">Before you confirm</h2><PublicFaqList ids={["trial", "import-review", "support"]} /><p className="marketing-lead mt-6">Already started and need help? <Link href="/support" className="underline underline-offset-4">Visit Support</Link>.</p></div></section>
-    <PublicClosing source="setup_close" title="Start with your first branch." />
+    <PublicIntro eyebrow={t("Getting started")} title={t("From your first branch to everyday work.")} description={t("Prepare the details you already use at your library. The guided setup brings your branch, seats and shifts together before you add student records.")} />
+    <section className="marketing-section"><div className="marketing-container"><h2 className="marketing-title">{t("What to have ready")}</h2><p className="marketing-lead mt-4 max-w-3xl">{t("Your library and branch details, seat numbering, shift timings and fees, and an existing student list if you plan to import one. You can start with a clean workspace and add records individually.")}</p><Link href={localHref("/contact")} className="marketing-text-link mt-5">{t("Ask a setup question")}</Link></div></section>
+    <ol className="public-walkthrough marketing-container">{steps.map((step, index) => <li key={step.title} className="marketing-card p-7 sm:p-9"><span className="marketing-step-number">0{index + 1}</span><div><h2 className="marketing-title">{t(step.title)}</h2><p className="marketing-lead mt-4">{t(step.text)}</p><p className="public-example mt-5">{t(step.prepare)}</p><Link href={localHref(step.href)} className="marketing-text-link mt-4">{t(step.link)}</Link></div></li>)}</ol>
+    <section className="marketing-section public-questions"><div className="marketing-container"><h2 className="marketing-title mb-8">{t("Before you confirm")}</h2><PublicFaqList ids={["trial", "import-review", "support"]} /><p className="marketing-lead mt-6">{t("Already started and need help?")} <Link href={localHref("/support")} className="underline underline-offset-4">{t("Visit Support")}</Link>.</p></div></section>
+    <PublicClosing source="setup_close" title={t("Start with your first branch.")} />
   </div></MarketingShell>;
 }

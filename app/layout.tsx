@@ -12,6 +12,9 @@ import Script from "next/script";
 import { Suspense } from "react";
 import { clerkAppAppearance } from "@/components/ui/entrySurface";
 import "./globals.css";
+import { publicStrings } from "@/lib/public-i18n/server";
+import { publicLanguageTags } from "@/lib/public-i18n/routes";
+import { PublicDraftProvider } from "@/components/landing/PublicDraftProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -83,15 +86,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const { locale } = await publicStrings();
 
   return (
-    <html lang="en" className="dark">
+    <html lang={publicLanguageTags[locale]} className="dark">
       <head>
         {measurementId ? (
           <Script
@@ -114,7 +118,7 @@ export default function RootLayout({
           signUpFallbackRedirectUrl="/app"
           afterSignOutUrl="/"
         >
-          <UserPreferencesBoundary><AttendanceCameraBoundary>{children}</AttendanceCameraBoundary></UserPreferencesBoundary>
+          <PublicDraftProvider><UserPreferencesBoundary><AttendanceCameraBoundary>{children}</AttendanceCameraBoundary></UserPreferencesBoundary></PublicDraftProvider>
         </ClerkProvider>
         {measurementId && (
           <Script
