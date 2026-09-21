@@ -5,12 +5,12 @@ import marketingCopy from "../../lib/marketingCopy.json" with { type: "json" };
 import { getSoftwarePagePath, softwarePageSlugs } from "../../lib/softwarePages";
 
 const homepageSections = [
-  "Features for daily library management",
-  "Why choose Lab Lords?",
-  "Get started in four steps",
-  "See how Lab Lords works",
-  "Common questions",
-  "Ready to start with your library?",
+  "Everything you need for everyday library work.",
+  "Less paperwork. More clarity.",
+  "Ready in four simple steps.",
+  "Choose what your library needs.",
+  "A few things you might be wondering.",
+  "Give your library a simpler way to work.",
 ];
 
 const hasClerkCredentials = Boolean(
@@ -72,10 +72,11 @@ test("public landing has no serious or critical accessibility violations", async
   expect(blocking, blocking.map(item => `${item.id}: ${item.help}`).join("\n")).toEqual([]);
 });
 
-test("homepage introduces the library product in the handoff section order", async ({ page }) => {
+test("homepage uses the approved prototype messaging and section progression", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Manage your library in one place.");
-  await expect(page.getByRole("link", { name: "View features", exact: true }).first()).toHaveAttribute("href", "/features");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("A simpler way to manage your library.");
+  await expect(page.locator(".botanical-hero-description")).toHaveText("Students, seats, shifts and fees — all in one place. Keep your library organised with an easy-to-use dashboard.");
+  await expect(page.getByRole("link", { name: "Explore features", exact: true }).first()).toHaveAttribute("href", "/features");
 
   const headings = await page.getByRole("heading", { level: 2 }).allTextContents();
   let previousIndex = -1;
@@ -84,19 +85,28 @@ test("homepage introduces the library product in the handoff section order", asy
     expect(index, `${title} follows the previous homepage section`).toBeGreaterThan(previousIndex);
     previousIndex = index;
   }
-  for (const title of [
-    "Student Management", "Seat Management", "Shift Management", "Track Fees", "Pending Fees",
-    "Import Student Records", "Manage Branches", "Staff Access", "Library Reports",
+  await expect(page.locator("#features").getByRole("heading", { level: 3 })).toHaveCount(6);
+  for (const [title, description] of [
+    ["Student management", "Keep student details, seat assignments and fee records together."],
+    ["Seats & shifts", "See available seats and assign them to students for the right shift."],
+    ["Fees & dues", "Record payments and check how much each student has left to pay."],
+    ["Multiple branches", "Manage your branches from one account, with separate records for each."],
+    ["Student imports", "Bring in your existing student list and review the details before adding it."],
+    ["Staff access", "Add your team and choose what each person can view or change."],
   ]) {
     await expect(page.locator("#features").getByRole("heading", { name: title, exact: true })).toBeVisible();
+    await expect(page.locator("#features").getByText(description, { exact: true })).toBeVisible();
   }
-  await expect(page.getByRole("button", { name: "Choose Basic", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Choose Standard", exact: true })).toHaveCount(0);
+  const pricing = page.locator("#pricing");
+  await expect(pricing.getByRole("button", { name: "Choose Basic", exact: true })).toBeVisible();
+  await expect(pricing.getByRole("button", { name: "Choose Standard", exact: true })).toBeVisible();
+  await expect(pricing.getByText(/\u20B9299/)).toBeVisible();
+  await expect(pricing.getByText(/\u20B9499/)).toBeVisible();
 });
 
-test("reference preview loads its headline font and finished illustration assets", async ({ page }) => {
+test("botanical preview loads its headline font and finished illustration assets", async ({ page }) => {
   await page.goto("/");
-  const hero = page.locator(".reference-hero");
+  const hero = page.locator(".botanical-hero");
   await expect(hero.getByRole("heading", { level: 1 })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 
@@ -117,7 +127,7 @@ test("reference preview loads its headline font and finished illustration assets
   expect(typography.loadedFamilies.some(family => /inter/i.test(family))).toBe(true);
 
   for (const illustration of [
-    hero.locator('img[src*="hero-study-room"]'),
+    hero.locator('img[src*="botanical-accent"]').first(),
     page.locator('.reference-header img[src*="open-book-leaf"]'),
   ]) {
     await expect(illustration).toBeVisible();
@@ -129,10 +139,10 @@ test("reference preview loads its headline font and finished illustration assets
     .toHaveAttribute("href", "/");
 });
 
-test("reference hero trial action preserves the signed-out keyboard journey", async ({ page }) => {
+test("botanical hero trial action preserves the signed-out keyboard journey", async ({ page }) => {
   test.skip(!hasClerkCredentials, "Clerk credentials are required to verify the signed-out trial journey.");
   await page.goto("/");
-  const trial = page.locator(".reference-hero").getByRole("button", { name: "Start free trial", exact: true });
+  const trial = page.locator(".botanical-hero").getByRole("button", { name: "Start your free trial", exact: true });
   await expect(trial).toBeEnabled();
   await trial.focus();
   await expect(trial).toBeFocused();
@@ -140,13 +150,52 @@ test("reference hero trial action preserves the signed-out keyboard journey", as
   await expect(page).toHaveURL(url => url.pathname === "/sign-up");
 });
 
-for (const route of ["/features", "/pricing"]) {
+test("botanical dashboard keeps sample shifts and seats keyboard accessible without product writes", async ({ page }) => {
+  const productWrites: string[] = [];
+  page.on("request", request => {
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method()) &&
+      /^\/api\/(?:branches|students|payments|allocations)(?:\/|$)/.test(new URL(request.url()).pathname)) {
+      productWrites.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    }
+  });
+  await page.goto("/");
+  const sample = page.getByRole("region", { name: "Interactive library dashboard sample" });
+  await expect(sample.getByText("Sample data", { exact: true })).toBeVisible();
+  const shifts = sample.getByRole("group", { name: "Choose a sample shift" });
+  const morning = shifts.getByRole("button", { name: /^Morning/ });
+  const afternoon = shifts.getByRole("button", { name: /^Afternoon/ });
+  await expect(morning).toHaveAttribute("aria-pressed", "true");
+  const seats = sample.getByRole("group", { name: "Morning sample seats" });
+  await expect(seats.getByRole("button")).toHaveCount(30);
+  await expect(seats.getByRole("button", { name: "Sample seat 1, occupied", exact: true })).toBeDisabled();
+  const availableSeat = seats.getByRole("button", { name: "Sample seat 3, available", exact: true });
+  await availableSeat.focus();
+  await page.keyboard.press("Enter");
+  await expect(seats.getByRole("button", { name: "Sample seat 3, selected", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(sample.getByText("Seat 3 selected · morning sample", { exact: true })).toBeVisible();
+  await afternoon.focus();
+  await page.keyboard.press("Enter");
+  await expect(afternoon).toHaveAttribute("aria-pressed", "true");
+  await expect(morning).toHaveAttribute("aria-pressed", "false");
+  const afternoonSeats = sample.getByRole("group", { name: "Afternoon sample seats" });
+  await expect(afternoonSeats.getByRole("button", { name: "Sample seat 3, occupied", exact: true })).toBeDisabled();
+  await expect(afternoonSeats.getByRole("button", { pressed: true })).toHaveCount(0);
+  await expect(sample.getByText("17 seats available · Try a shift or a seat", { exact: true })).toBeVisible();
+  expect(productWrites).toEqual([]);
+});
+
+for (const [route, title, description] of [
+  ["/features", "Tools for everyday library work.", "From your first student record to your next branch, keep the daily details together."],
+  ["/pricing", "Simple plans for your library.", "Start with a 30-day Standard trial. Then choose the plan that fits your everyday work."],
+]) {
   test(`${route} stays accessible and reflows on a narrow phone`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     const response = await page.goto(route);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("main")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+    await expect(page.getByText(description, { exact: true })).toBeVisible();
     await hideDevelopmentOverlays(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
@@ -178,8 +227,11 @@ test("public landing visual regression", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByRole("main")).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
+  await expect.poll(() => page.getByRole("heading", { level: 1 }).evaluate(element =>
+    getComputedStyle(element).fontFamily,
+  )).toMatch(/playfair[ _]display/i);
   if (hasClerkCredentials) {
-    await expect(page.getByRole("button", { name: "Start free trial", exact: true }).first()).toBeEnabled();
+    await expect(page.locator(".botanical-hero").getByRole("button", { name: "Start your free trial", exact: true })).toBeEnabled();
   }
   await hideDevelopmentOverlays(page);
   for (const image of await page.locator(".marketing-root img").all()) {
@@ -201,8 +253,8 @@ test("public pricing exposes only Basic and Standard branch pricing", async ({ p
   await page.goto("/pricing");
   await expect(page.getByText("Basic", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Standard", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/\u20B9299/)).toBeVisible();
-  await expect(page.getByText(/\u20B9499/)).toBeVisible();
+  await expect(page.locator("#pricing").getByText(/\u20B9299/)).toBeVisible();
+  await expect(page.locator("#pricing").getByText(/\u20B9499/)).toBeVisible();
   await expect(page.getByText(/Agent Control/i)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Choose Basic", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Choose Standard", exact: true })).toBeVisible();
@@ -215,7 +267,8 @@ test("public pricing exposes only Basic and Standard branch pricing", async ({ p
     "Branch and cross-branch advanced analytics",
     "AI reports and message drafting",
   ]) {
-    await expect(page.getByText(capability, { exact: false })).toHaveCount(2);
+    await expect(page.locator("#pricing").getByText(capability, { exact: false })).toHaveCount(2);
+    await expect(page.locator("#comparison").getByRole("rowheader", { name: capability, exact: true })).toBeVisible();
   }
   const basic = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Basic", exact: true }) });
   const standard = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Standard", exact: true }) });
@@ -225,15 +278,17 @@ test("public pricing exposes only Basic and Standard branch pricing", async ({ p
   await page.screenshot({ path: testInfo.outputPath("public-pricing.png"), fullPage: true });
 });
 
-for (const [label, planId] of [["Choose Basic", "BASIC"], ["Choose Standard", "PRO"]] as const) {
-  test(`${label} preserves the signed-out selected-plan continuation`, async ({ page }) => {
-    test.skip(!hasClerkCredentials, "Clerk credentials are required to verify the signed-out plan journey.");
-    await page.goto("/pricing");
-    const button = page.getByRole("button", { name: label, exact: true });
-    await expect(button).toBeEnabled();
-    await button.click();
-    await expect(page).toHaveURL(url => `${url.pathname}${url.search}` === getBillingSignUpPath(planId));
-  });
+for (const route of ["/", "/pricing"]) {
+  for (const [label, planId] of [["Choose Basic", "BASIC"], ["Choose Standard", "PRO"]] as const) {
+    test(`${route} ${label} preserves the signed-out selected-plan continuation`, async ({ page }) => {
+      test.skip(!hasClerkCredentials, "Clerk credentials are required to verify the signed-out plan journey.");
+      await page.goto(route);
+      const button = page.getByRole("button", { name: label, exact: true });
+      await expect(button).toBeEnabled();
+      await button.click();
+      await expect(page).toHaveURL(url => `${url.pathname}${url.search}` === getBillingSignUpPath(planId));
+    });
+  }
 }
 
 for (const route of ["/privacy", "/terms", "/refund-policy", "/shipping-delivery-policy", "/contact"]) {
@@ -263,7 +318,7 @@ test("mobile landing navigation exposes every primary section by keyboard", asyn
   await expect(disclosure).toHaveAttribute("open", "");
 
   const mobileNavigation = page.getByRole("navigation", { name: "Mobile navigation" });
-  for (const [label, href] of [["Features", "/features"], ["Pricing", "/pricing"], ["How it works", "/#how-it-works"], ["Contact", "/contact"]]) {
+  for (const [label, href] of [["Features", "/features"], ["Pricing", "/pricing"], ["How it works", "/how-it-works"], ["FAQs", "/faq"], ["Contact us", "/contact"], ["About Lab Lords", "/about"], ["Support", "/support"]]) {
     const link = mobileNavigation.getByRole("link", { name: label, exact: true });
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("href", href);
@@ -278,7 +333,7 @@ test("mobile landing navigation exposes every primary section by keyboard", asyn
 
   await mobileNavigation.getByRole("link", { name: "Features", exact: true }).click();
   await expect(page).toHaveURL(/\/features$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Library tools for your daily work");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Tools for everyday library work.");
 });
 
 test("tablet navigation keeps sign-in discoverable", async ({ page }) => {
@@ -297,7 +352,7 @@ test("example views are labelled, user-controlled and keyboard accessible", asyn
   });
   await page.goto("/");
   const example = page.locator("#product-tour");
-  await expect(example.getByText("Example data", { exact: true }).first()).toBeVisible();
+  await expect(example.getByText("Sample data", { exact: true }).first()).toBeVisible();
   const students = example.getByRole("tab", { name: "Students", exact: true });
   const seats = example.getByRole("tab", { name: "Seats & shifts", exact: true });
   const fees = example.getByRole("tab", { name: "Fees", exact: true });
@@ -335,7 +390,7 @@ test("reduced motion keeps the complete homepage and example controls available"
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  expect(await page.locator(".brand-reference").evaluateAll(roots => roots.flatMap(root =>
+  expect(await page.locator(".marketing-root").evaluateAll(roots => roots.flatMap(root =>
     root.getAnimations({ subtree: true }).filter(animation => animation.pending || animation.playState === "running"),
   ).length)).toBe(0);
   for (const title of homepageSections) {
@@ -370,15 +425,16 @@ test("homepage questions use the checked copy and open with the keyboard", async
     await page.keyboard.press("Enter");
     await expect(disclosure).not.toHaveAttribute("open", "");
   }
-  await expect(page.getByText(/Proposed replacement public copy|Implementation note|verification values/i)).toHaveCount(0);
+  await expect(page.getByText(/Proposed replacement public copy|Implementation note|verification values|standalone design preview|owner-grade control surface|operational intelligence|model the branch|streamline your ecosystem|unlock growth/i)).toHaveCount(0);
 });
 
 test("legacy homepage anchors still lead to the matching content", async ({ page }) => {
   for (const [anchor, title] of [
-    ["platform", "Features for daily library management"],
-    ["workflow", "Get started in four steps"],
+    ["platform", "Everything you need for everyday library work."],
+    ["workflow", "Ready in four simple steps."],
     ["product-tour", "See how Lab Lords works"],
-    ["pricing", "Ready to start with your library?"],
+    ["pricing", "Choose what your library needs."],
+    ["get-started", "Give your library a simpler way to work."],
   ]) {
     await page.goto(`/#${anchor}`);
     await expect(page.locator(`[id="${anchor}"]`)).toHaveCount(1);
@@ -386,14 +442,19 @@ test("legacy homepage anchors still lead to the matching content", async ({ page
   }
 });
 
-test("standalone pages link setup navigation back to the homepage", async ({ page }) => {
+test("standalone pages link to the setup walkthrough with working history", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/pricing");
   const setup = page.getByRole("link", { name: "How it works", exact: true }).first();
-  await expect(setup).toHaveAttribute("href", "/#how-it-works");
+  await expect(setup).toHaveAttribute("href", "/how-it-works");
   await setup.click();
-  await expect(page).toHaveURL(/\/#how-it-works$/);
-  await expect(page.getByRole("heading", { name: "Get started in four steps", exact: true })).toBeInViewport();
+  await expect(page).toHaveURL(/\/how-it-works$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("From your first branch to everyday work.");
+  await expect(page.locator('.reference-desktop-nav a[href="/how-it-works"]')).toHaveAttribute("aria-current", "page");
+  await page.goBack();
+  await expect(page).toHaveURL(/\/pricing$/);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/how-it-works$/);
 });
 
 test("footer legal links keep mobile-sized touch targets", async ({ page }) => {
@@ -438,8 +499,34 @@ test("application routes still require authentication", async ({ page }) => {
   await expect(page).toHaveURL(/\/sign-in/);
 });
 
+for (const route of ["/sign-in", "/sign-up"]) {
+  test(`${route} keeps the public botanical design and reflows with Clerk`, async ({ page }, testInfo) => {
+    test.skip(!hasClerkCredentials, "Clerk credentials are required to verify the public authentication forms.");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const response = await page.goto(route);
+    expect(response?.status()).toBe(200);
+    const shell = page.locator("main.botanical-auth");
+    await expect(shell).toBeVisible();
+    await expect(shell.getByRole("link", { name: "Lab Lords home", exact: true })).toHaveAttribute("href", "/");
+    await expect(shell.getByRole("link", { name: "Back to home", exact: true })).toHaveAttribute("href", "/");
+    await expect(shell.locator(".cl-rootBox")).toBeVisible();
+    await expect(shell.locator(".cl-headerTitle")).toHaveCSS("color", "rgb(23, 60, 50)");
+    await expect(shell.locator(".cl-formButtonPrimary")).toHaveCSS("color", "rgb(255, 255, 255)");
+    await expect(shell.locator(".cl-formButtonPrimary")).toHaveCSS("background-color", "rgb(22, 77, 56)");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    await page.evaluate(() => document.fonts.ready);
+    expect(await shell.locator(".botanical-auth-story h1").evaluate(element => getComputedStyle(element).fontFamily)).toMatch(/playfair[ _]display/i);
+    await hideDevelopmentOverlays(page);
+    await page.screenshot({ path: testInfo.outputPath(`${route.slice(1)}-desktop.png`), fullPage: true });
+    await page.setViewportSize({ width: 320, height: 720 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await expect(shell.locator(".cl-rootBox")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`${route.slice(1)}-mobile.png`), fullPage: true });
+  });
+}
+
 const publicBrandRoutes = [
-  "/", "/features", "/pricing", "/contact", "/support", "/privacy", "/terms",
+  "/", "/features", "/pricing", "/contact", "/support", "/about", "/faq", "/how-it-works", "/privacy", "/terms",
   "/cookies", "/refund-policy", "/shipping-delivery-policy",
   ...softwarePageSlugs.map(getSoftwarePagePath),
 ];
@@ -463,7 +550,7 @@ test("feature groups keep readable full-width cards on narrow screens", async ({
 });
 
 for (const route of publicBrandRoutes) {
-  test(`${route} shares the original public brand and reflows at 320px and 400% zoom`, async ({ page }) => {
+  test(`${route} shares the botanical public brand and reflows at 320px and 400% zoom`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     const response = await page.goto(route);
@@ -471,21 +558,26 @@ for (const route of publicBrandRoutes) {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
 
-    const shell = page.locator('[data-brand="original-reference"]');
+    const shell = page.locator('[data-brand="botanical-reference"]');
     await expect(shell).toHaveCount(1);
     const typography = await shell.evaluate(element => ({
       forest: getComputedStyle(element).getPropertyValue("--reference-forest").trim().toLowerCase(),
       paper: getComputedStyle(element).getPropertyValue("--reference-paper").trim().toLowerCase(),
-      headings: [...element.querySelectorAll("main h1, main h2")].map(heading => getComputedStyle(heading).fontFamily),
+      headings: [...element.querySelectorAll("main h1, main h2")]
+        .filter(heading => !heading.closest(".botanical-audience"))
+        .map(heading => ({ text: heading.textContent, family: getComputedStyle(heading).fontFamily })),
+      audienceHeadings: [...element.querySelectorAll(".botanical-audience h2")].map(heading => getComputedStyle(heading).fontFamily),
       controls: [...element.querySelectorAll("button, input, textarea, select")].map(control => getComputedStyle(control).fontFamily),
       body: getComputedStyle(element).fontFamily,
     }));
-    expect(typography.forest).toBe("#164d3b");
-    expect(typography.paper).toBe("#fff8ee");
+    expect(typography.forest).toBe("#164d38");
+    expect(typography.paper).toBe("#fffbf4");
     expect(typography.body).toMatch(/^"?inter[",]/i);
     for (const family of typography.controls) expect(family).toMatch(/^"?inter[",]/i);
     expect(typography.headings.length).toBeGreaterThan(0);
-    for (const family of typography.headings) expect(family).toMatch(/playfair[ _]display/i);
+    for (const heading of typography.headings) expect(heading.family, heading.text ?? "Public heading").toMatch(/playfair[ _]display/i);
+    if (route === "/") expect(typography.audienceHeadings).toHaveLength(4);
+    for (const family of typography.audienceHeadings) expect(family).toMatch(/^"?inter[",]/i);
 
     const logo = page.locator('.reference-header img[src*="open-book-leaf"]');
     await expect(logo).toBeVisible();
