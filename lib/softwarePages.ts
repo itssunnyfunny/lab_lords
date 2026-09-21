@@ -29,6 +29,8 @@ export type SoftwarePage = {
   eyebrow: string;
   h1: string;
   heroDescription: string;
+  example: string;
+  featureHref: string;
   audience: string[];
   heroHighlights: ContentItem[];
   problemTitle: string;
@@ -49,6 +51,8 @@ export type SoftwarePage = {
 export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
   "study-hall-management": {
     slug: "study-hall-management",
+    example: "A student wants to move from the morning shift to the afternoon. Check the afternoon availability and dates, then update the assignment using the library's actual schedule. The student's fee record remains available for the next collection review.",
+    featureHref: "/features#seats-shifts",
     shortName: "Study hall management",
     metaTitle: "Study Hall Software for Seats, Shifts and Fees",
     metaDescription:
@@ -57,7 +61,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     eyebrow: "Study hall software",
     h1: "Manage your study hall in one place",
     heroDescription:
-      "Keep students, seats, shifts and fees together. Check available seats, add students and see pending fees across your study hall.",
+      "Students, seats, shifts and fees — all in one place. Keep your study hall organised with an easy-to-use dashboard.",
     audience: ["Study hall owners", "Reading room operators", "Multi-branch managers"],
     heroHighlights: [
       {
@@ -66,16 +70,16 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Student records",
-        "description": "Keep contact details, seats and fee information together."
+        "description": "Keep student details, seat assignments and fee records together."
       },
       {
         "title": "Pending fees",
         "description": "Check what is paid and what still needs a follow-up."
       }
     ],
-    problemTitle: "Keep daily records together",
+    problemTitle: "Less paperwork. More clarity.",
     problemDescription:
-      "Check the details you need for students, seats and fees.",
+      "Keep the daily details together, so you can find what you need without checking different notebooks.",
     problems: [
       {
         "title": "Seat availability",
@@ -83,16 +87,16 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Student records",
-        "description": "Keep contact details, seats and fee information together."
+        "description": "Keep student details, seat assignments and fee records together."
       },
       {
         "title": "Pending fees",
         "description": "Check what is paid and what still needs a follow-up."
       }
     ],
-    featureTitle: "Tools for your study hall",
+    featureTitle: "Tools for everyday study hall work.",
     featureDescription:
-      "Set up your seats and timings, then use the same records for admissions and fee collection.",
+      "Simple tools to organise your records, manage your seats and stay on top of fees.",
     features: [
       {
         "title": "Seats by shift",
@@ -107,12 +111,12 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Find contact information, status and fee records in one place."
       },
       {
-        "title": "Fees and payments",
+        "title": "Fees & dues",
         "description": "Record collections and check paid, pending and waived amounts."
       },
       {
         "title": "Staff access",
-        "description": "Choose what your branch staff can view or change with Standard."
+        "description": "Add your team and choose what each person can view or change. Staff access is included in Standard."
       },
       {
         "title": "Reports",
@@ -133,7 +137,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Review pending fees",
-        "description": "Open the dues list and record notes from your follow-ups."
+        "description": "Open the dues list and check recorded payments before following up."
       }
     ],
     faqs: [
@@ -155,16 +159,18 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       }
     ],
     relatedSlugs: ["seat-management", "student-fee-management", "fee-reminder"],
-    ctaTitle: "Get your study hall started",
+    ctaTitle: "Give your study hall a simpler way to work.",
     ctaDescription:
-      "Start a trial and add the seats, shifts and students you manage today.",
+      "Bring students, seats, shifts and fees together. Start with your first branch.",
   },
   "library-management": {
     slug: "library-management",
+    example: "At the reading-room desk, a student asks about their seat and an unpaid fee. Find the student record, check the assigned shift and review the recorded fee details before making a change. This is study-space administration, not book circulation.",
+    featureHref: "/features#students",
     shortName: "Library management",
     metaTitle: "Library Management Software for Reading Rooms",
     metaDescription:
-      "Digitise reading-room and membership operations with seat, shift, student, fee, staff and branch management software.",
+      "Manage students, seats, shifts and fees for your study library or reading room. Keep records together across one or more branches.",
     keywords: [
       "library management software",
       "digital library management",
@@ -173,42 +179,42 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     eyebrow: "Library management software",
     h1: "Manage your library's students, seats and fees",
     heroDescription:
-      "Manage your study library or reading room with student records, seat assignments, shift timings and fee tracking in one place.",
+      "Students, seats, shifts and fees — all in one place. Keep your library organised with an easy-to-use dashboard.",
     audience: ["Reading-room libraries", "Membership libraries", "Study libraries"],
     heroHighlights: [
       {
         "title": "Student details",
-        "description": "Find a student and check their current records."
+        "description": "Find a student and check their details, seat assignment and fee records."
       },
       {
-        "title": "Seats and shifts",
-        "description": "See availability for the timings your library uses."
+        "title": "Seats & shifts",
+        "description": "See available seats and assign them to students for the right shift."
       },
       {
         "title": "Fee records",
-        "description": "Check collections and pending fees without changing screens."
+        "description": "Record payments and check how much each student has left to pay."
       }
     ],
-    problemTitle: "Keep daily records together",
+    problemTitle: "Less paperwork. More clarity.",
     problemDescription:
-      "Check the details you need for students, seats and fees.",
+      "You already have enough to manage. Lab Lords keeps the daily details together, so you can find what you need without checking different notebooks.",
     problems: [
       {
         "title": "Student details",
-        "description": "Find a student and check their current records."
+        "description": "Find a student and check their details, seat assignment and fee records."
       },
       {
-        "title": "Seats and shifts",
-        "description": "See availability for the timings your library uses."
+        "title": "Seats & shifts",
+        "description": "See available seats and assign them to students for the right shift."
       },
       {
         "title": "Fee records",
-        "description": "Check collections and pending fees without changing screens."
+        "description": "Record payments and check how much each student has left to pay."
       }
     ],
-    featureTitle: "Daily tools for study libraries",
+    featureTitle: "Everything you need for everyday library work.",
     featureDescription:
-      "Keep student and fee information alongside the seats and shifts your library offers.",
+      "Simple tools to organise your records, manage your seats and stay on top of fees.",
     features: [
       {
         "title": "Student management",
@@ -216,10 +222,10 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Student imports",
-        "description": "Bring in a supported file and review the rows before confirming."
+        "description": "Bring in your existing student list and review the details before adding it."
       },
       {
-        "title": "Seats and shifts",
+        "title": "Seats & shifts",
         "description": "Set up physical seats, shift timings and fees."
       },
       {
@@ -227,7 +233,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Check assignments for the selected shift before adding a booking."
       },
       {
-        "title": "Fees and payment history",
+        "title": "Fees & dues",
         "description": "Record received fees and review pending, paid or waived amounts."
       },
       {
@@ -259,11 +265,11 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "question": "Does it manage book lending?",
-        "answer": "No. The current product focuses on study-library students, seats, shifts and fees, rather than book catalogues or lending."
+        "answer": "No. Lab Lords manages students, seats, shifts and fees for study libraries. It does not manage book catalogues or lending."
       },
       {
         "question": "Can I use my existing student list?",
-        "answer": "Yes. Upload a supported student file, review the mapped fields and rows, then confirm the import."
+        "answer": "Yes. You can enter students individually or use spreadsheet import. Review your information and resolve any flagged issues before confirming an import."
       },
       {
         "question": "Can I manage several library branches?",
@@ -271,12 +277,14 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       }
     ],
     relatedSlugs: ["study-hall-management", "seat-management", "student-fee-management"],
-    ctaTitle: "Start using Lab Lords in your library",
+    ctaTitle: "Give your library a simpler way to work.",
     ctaDescription:
-      "Try the tools with your own student, seat and fee records.",
+      "Bring students, seats, shifts and fees together. Start with your first branch and see how it feels.",
   },
   "seat-management": {
     slug: "seat-management",
+    example: "Seat 12 is occupied in the morning. Before offering it in the evening, check the evening shift and intended dates. Availability belongs to a time slot and period; a single occupied label cannot describe every use of that seat.",
+    featureHref: "/features#seats-shifts",
     shortName: "Seat management",
     metaTitle: "Seat Management Software for Study Libraries",
     metaDescription:
@@ -286,7 +294,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     h1: "Manage seats across your shifts",
     heroDescription:
       "Set up your library seats, choose your shift timings and check availability before assigning a student.",
-    audience: ["Seat-based study centres", "Library front desks", "Branch operations teams"],
+    audience: ["Library owners", "Front desk staff", "Branch managers"],
     heroHighlights: [
       {
         "title": "Physical seats",
@@ -301,9 +309,9 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Catch overlapping bookings before they are saved."
       }
     ],
-    problemTitle: "Keep daily records together",
+    problemTitle: "Check seats before you assign them.",
     problemDescription:
-      "Check the details you need for students, seats and fees.",
+      "Choose a shift to see which seats are free and which are occupied.",
     problems: [
       {
         "title": "Physical seats",
@@ -318,9 +326,9 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Catch overlapping bookings before they are saved."
       }
     ],
-    featureTitle: "Seat and shift management",
+    featureTitle: "Seats & shifts",
     featureDescription:
-      "Use the seat layout and timings that fit your study library or study hall.",
+      "Use your own seat names, shift timings and fees.",
     features: [
       {
         "title": "Seat setup",
@@ -385,10 +393,12 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     relatedSlugs: ["study-hall-management", "library-management", "coaching-management"],
     ctaTitle: "Set up your library seats",
     ctaDescription:
-      "Start a trial and explore seat assignments with your own shifts.",
+      "Add your seats and shift timings, then check availability before assigning students.",
   },
   "student-fee-management": {
     slug: "student-fee-management",
+    example: "A student asks what they still owe. Review the relevant fee period and payment history, verify money received through your library's usual payment method, and record it against the correct student. This does not process an online charge.",
+    featureHref: "/features#fees",
     shortName: "Student fee management",
     metaTitle: "Student Fee Management and Payment Tracking",
     metaDescription:
@@ -397,7 +407,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     eyebrow: "Student fee management",
     h1: "Track student fees and payments",
     heroDescription:
-      "Keep recurring fees, recorded collections and pending amounts with each student. Review the payment history when you need to check a fee.",
+      "Record payments and check how much each student has left to pay. Keep fee details and payment history together.",
     audience: ["Education business owners", "Fee desk staff", "Branch managers"],
     heroHighlights: [
       {
@@ -413,9 +423,9 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "See dues that still need payment or follow-up."
       }
     ],
-    problemTitle: "Keep daily records together",
+    problemTitle: "A clear fee record.",
     problemDescription:
-      "Check the details you need for students, seats and fees.",
+      "Keep student details, payment records and fee history together.",
     problems: [
       {
         "title": "Student fees",
@@ -430,9 +440,9 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "See dues that still need payment or follow-up."
       }
     ],
-    featureTitle: "Student fee records in one place",
+    featureTitle: "Fees & dues",
     featureDescription:
-      "Keep a clear record of what is due, what was collected and what changed.",
+      "Check what each student owes, what they have paid and any changes to their fee record.",
     features: [
       {
         "title": "Recurring fees",
@@ -456,12 +466,12 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Approved waivers",
-        "description": "Record a waiver through the authorized payment workflow."
+        "description": "Waive a fee when your branch permissions allow it."
       }
     ],
     useCaseTitle: "From admission to monthly collection",
     useCaseDescription:
-      "Keep each fee action connected to the student and branch it belongs to.",
+      "Set student fees, record payments and check pending amounts for each branch.",
     useCases: [
       {
         "title": "Set the student fee",
@@ -473,7 +483,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Review the history",
-        "description": "Check past payments and notes before discussing a pending amount."
+        "description": "Check past payment records before discussing a pending amount."
       }
     ],
     faqs: [
@@ -501,6 +511,8 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
   },
   "fee-reminder": {
     slug: "fee-reminder",
+    example: "Before contacting a student about dues, check whether a recent payment has already been recorded. If you use Standard to prepare an AI draft, verify the amount and wording before using it. A draft does not confirm delivery or payment.",
+    featureHref: "/features#ai-assistance",
     shortName: "Fee reminder",
     metaTitle: "Fee Reminder Software for Education Centres",
     metaDescription:
@@ -509,7 +521,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     eyebrow: "Fee reminder software",
     h1: "Keep track of fee follow-ups",
     heroDescription:
-      "See pending student fees, review collection notes and record what was discussed before the next follow-up.",
+      "See pending student fees, check payment history and prepare a clearer conversation about what is due.",
     audience: ["Owners handling dues", "Fee collection teams", "Branch managers"],
     heroHighlights: [
       {
@@ -517,50 +529,50 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Find the students whose records show an unpaid amount."
       },
       {
-        "title": "Follow-up notes",
-        "description": "Keep a note of the conversation and next follow-up."
+        "title": "Check before contacting",
+        "description": "Review the current fee status before asking about an outstanding amount."
       },
       {
         "title": "Payment history",
         "description": "Check recorded collections before contacting a student."
       }
     ],
-    problemTitle: "Keep daily records together",
+    problemTitle: "Keep your fee follow-ups together.",
     problemDescription:
-      "Check the details you need for students, seats and fees.",
+      "Check pending fees and payment history before contacting a student.",
     problems: [
       {
         "title": "Pending fees",
         "description": "Find the students whose records show an unpaid amount."
       },
       {
-        "title": "Follow-up notes",
-        "description": "Keep a note of the conversation and next follow-up."
+        "title": "Check before contacting",
+        "description": "Review the current fee status before asking about an outstanding amount."
       },
       {
         "title": "Payment history",
         "description": "Check recorded collections before contacting a student."
       }
     ],
-    featureTitle: "Organize your fee follow-ups",
+    featureTitle: "Organise your fee follow-ups",
     featureDescription:
-      "Start with the current dues list and keep your notes beside the payment record.",
+      "Start with the pending-fee list and use the recorded history to check the amount before you follow up.",
     features: [
       {
         "title": "Pending-fee list",
         "description": "Review unpaid fees for the selected branch."
       },
       {
-        "title": "Student context",
-        "description": "Check the student details associated with a pending fee."
+        "title": "Student details",
+        "description": "Find the student and check their details and pending fees."
       },
       {
-        "title": "Collection notes",
-        "description": "Save what was discussed during a fee follow-up."
+        "title": "Recorded fee status",
+        "description": "Check which fees are recorded as paid and which remain due."
       },
       {
-        "title": "Next follow-up",
-        "description": "Record when the payment should be checked again."
+        "title": "Branch context",
+        "description": "Open the correct branch before reviewing a student fee."
       },
       {
         "title": "Payment history",
@@ -573,15 +585,15 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     ],
     useCaseTitle: "A clear follow-up routine",
     useCaseDescription:
-      "Check the record, have the conversation and keep the next step visible.",
+      "Check the fee record, prepare your conversation and update the record when money is received.",
     useCases: [
       {
         "title": "Review dues",
         "description": "Open the pending-fee list and check the latest payment information."
       },
       {
-        "title": "Add a note",
-        "description": "Record what was discussed and when to follow up again."
+        "title": "Prepare the conversation",
+        "description": "Confirm the fee period and amount before contacting the student."
       },
       {
         "title": "Update a received payment",
@@ -591,15 +603,15 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     faqs: [
       {
         "question": "What does fee reminder software help with?",
-        "answer": "It helps you find pending fees, check student payment history and keep track of follow-up notes."
+        "answer": "It helps you find pending fees and check student payment history before preparing a reminder."
       },
       {
         "question": "Does an AI draft send a message automatically?",
-        "answer": "No. AI assistance prepares advisory drafts for review. Creating a draft does not send it."
+        "answer": "No. AI assistance prepares message drafts for you to review. Creating a draft does not send it."
       },
       {
-        "question": "Can I record a promised payment date?",
-        "answer": "You can record follow-up notes and the next follow-up date alongside the payment record."
+        "question": "Does a reminder mean the student has paid?",
+        "answer": "No. Check money actually received and the payment record. Preparing or using a reminder does not confirm collection."
       },
       {
         "question": "Which plan includes AI assistance?",
@@ -609,20 +621,22 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     relatedSlugs: ["student-fee-management", "tuition-management", "coaching-management"],
     ctaTitle: "Make fee follow-ups easier to track",
     ctaDescription:
-      "Start a trial and review your pending fees and collection notes in one place.",
+      "Start a trial and review your pending fees and payment history in one place.",
   },
   "coaching-management": {
     slug: "coaching-management",
+    example: "Two coaching locations share an owner but keep their student and fee records separately. Open the right branch before reviewing dues. With Standard, invite staff for the work they handle and compare the recorded branch figures.",
+    featureHref: "/features#branches",
     shortName: "Coaching management",
     metaTitle: "Coaching Management Software for Branches",
     metaDescription:
-      "Manage coaching centre students, seats, time slots, fees, staff permissions, branches and analytics in one operating system.",
+      "Manage coaching centre students, seats, shifts and fees. Keep branch records together, with staff access and reports on Standard.",
     keywords: ["coaching management software"],
     eyebrow: "Coaching management software",
     h1: "Student and fee records for your coaching centre",
     heroDescription:
       "Keep student details, fees and branch records together. Add staff access with Standard when your team needs to share the daily work.",
-    audience: ["Coaching centre owners", "Branch managers", "Operations staff"],
+    audience: ["Coaching centre owners", "Branch managers", "Centre staff"],
     heroHighlights: [
       {
         "title": "Student records",
@@ -634,12 +648,12 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Branch records",
-        "description": "Keep each location organized in your account."
+        "description": "Manage your branches from one account, with separate records for each."
       }
     ],
-    problemTitle: "Keep daily records together",
+    problemTitle: "Your records, in one place.",
     problemDescription:
-      "Check the details you need for students, seats and fees.",
+      "Find student details and fee records without checking different notebooks.",
     problems: [
       {
         "title": "Student records",
@@ -651,32 +665,32 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Branch records",
-        "description": "Keep each location organized in your account."
+        "description": "Manage your branches from one account, with separate records for each."
       }
     ],
-    featureTitle: "Tools for coaching centre administration",
+    featureTitle: "Tools for everyday coaching centre work.",
     featureDescription:
-      "Manage the student records, fees and physical study spaces around your teaching.",
+      "Keep student details, fee records and branch information together.",
     features: [
       {
         "title": "Student management",
         "description": "Add and find student details, status and fee information."
       },
       {
-        "title": "Spreadsheet import",
-        "description": "Review and import a supported student list."
+        "title": "Student imports",
+        "description": "Bring in your existing student list and review the details before adding it."
       },
       {
         "title": "Fee records",
         "description": "Track admission fees, recurring dues and recorded payments."
       },
       {
-        "title": "Seats and shifts",
+        "title": "Seats & shifts",
         "description": "Manage physical study seats and timings when your centre uses them."
       },
       {
         "title": "Staff access",
-        "description": "Choose branch permissions for your team with Standard."
+        "description": "Add your team and choose what each person can view or change. Staff access is included in Standard."
       },
       {
         "title": "Branch reports",
@@ -707,7 +721,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "question": "Does it include exams or course delivery?",
-        "answer": "No. Lab Lords focuses on administration and physical study-space operations, rather than exams, courses or online teaching."
+        "answer": "No. Lab Lords manages student records, fees, seats and shifts. It does not provide exams, courses or online teaching."
       },
       {
         "question": "Can my staff record fees?",
@@ -719,12 +733,14 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       }
     ],
     relatedSlugs: ["tuition-management", "student-fee-management", "seat-management"],
-    ctaTitle: "Get your coaching centre records together",
+    ctaTitle: "Bring your coaching centre records together.",
     ctaDescription:
-      "Start a trial and explore student and fee management for your centre.",
+      "Start with your first branch and add the students and fees you manage today.",
   },
   "tuition-management": {
     slug: "tuition-management",
+    example: "At the end of a fee period, open the tuition branch's student records and check outstanding amounts before contacting families. Record received fees against the right student. The workspace helps with administration; it does not deliver lessons or manage exams.",
+    featureHref: "/features#fees",
     shortName: "Tuition management",
     metaTitle: "Tuition Management Software for Daily Operations",
     metaDescription:
@@ -749,9 +765,9 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Let your team help with daily records on Standard."
       }
     ],
-    problemTitle: "Keep daily records together",
+    problemTitle: "Less paperwork for your tuition centre.",
     problemDescription:
-      "Check the details you need for students, seats and fees.",
+      "Keep student details and fee records together, so you can find what you need.",
     problems: [
       {
         "title": "Student information",
@@ -766,9 +782,9 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Let your team help with daily records on Standard."
       }
     ],
-    featureTitle: "Daily tools for your tuition centre",
+    featureTitle: "Tools for everyday tuition centre work.",
     featureDescription:
-      "Manage student information, collections and branch records as your centre needs them.",
+      "Add your student records, record payments and check pending fees.",
     features: [
       {
         "title": "Student details",
@@ -783,16 +799,16 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Check collections, dues and approved waivers."
       },
       {
-        "title": "Student import",
-        "description": "Review a supported spreadsheet before adding the student records."
+        "title": "Student imports",
+        "description": "Bring in your existing student list and review the details before adding it."
       },
       {
         "title": "Multiple branches",
         "description": "Keep each location separate; each billable branch is charged separately."
       },
       {
-        "title": "Staff permissions",
-        "description": "Give staff access to the work they need with Standard."
+        "title": "Staff access",
+        "description": "Add your team and choose what each person can view or change. Staff access is included in Standard."
       }
     ],
     useCaseTitle: "Keep up with everyday tuition records",
@@ -809,7 +825,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Review pending fees",
-        "description": "Check unpaid amounts and keep notes from your follow-ups."
+        "description": "Check unpaid amounts before following up with students."
       }
     ],
     faqs: [
@@ -833,7 +849,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     relatedSlugs: ["coaching-management", "student-fee-management", "fee-reminder"],
     ctaTitle: "Start with your tuition centre records",
     ctaDescription:
-      "Try Lab Lords with your students, recurring fees and payment history.",
+      "Start with your first branch and add your students and fee records.",
   },
 };
 

@@ -57,6 +57,7 @@ export function SoftwareLandingPage({ page }: { page: SoftwarePage }) {
             ))}
           </div>
           <p className="mt-6 text-sm leading-7 text-[color:var(--text-secondary)]">Staff access, advanced reports and AI assistance are included in Standard. <Link href="/pricing" className="underline underline-offset-4">Compare all plan features</Link>.</p>
+          <Link href={page.featureHref} className="marketing-text-link mt-4">Read the related feature details</Link>
         </div>
       </section>
       <section className="marketing-section public-software-use-cases">
@@ -73,6 +74,8 @@ export function SoftwareLandingPage({ page }: { page: SoftwarePage }) {
               </li>
             ))}
           </ol>
+          <div className="public-example mt-8"><strong>Illustrative example: </strong>{page.example}</div>
+          <Link href="/how-it-works" className="marketing-text-link mt-5">See how to set up your first branch</Link>
         </div>
       </section>
       <section className="marketing-section public-questions">
