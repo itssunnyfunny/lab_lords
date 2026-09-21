@@ -9,13 +9,13 @@ import type { CheckoutBillingPlanId } from "@/lib/billingPlans";
 import { getBillingOnboardingPath, getBillingSignUpPath, getOrganizationBillingPath } from "@/lib/billingFlow";
 import { trackEvent } from "@/lib/tracking";
 
-export function WorkspaceCTA({ source = "landing_cta", className = "" }: { source?: string; className?: string }) {
+export function WorkspaceCTA({ source = "landing_cta", className = "", label = "Start free trial" }: { source?: string; className?: string; label?: string }) {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   return <button type="button" disabled={!isLoaded} className={`marketing-button ${className}`} onClick={() => {
     trackEvent("landing_cta_clicked", { source, signed_in: Boolean(isSignedIn) });
     router.push(isSignedIn ? "/app" : "/sign-up");
-  }}>{isSignedIn ? "Open workspace" : "Start free trial"}<ArrowRight size={16} aria-hidden="true" /></button>;
+  }}>{isSignedIn ? "Open workspace" : label}<ArrowRight size={16} aria-hidden="true" /></button>;
 }
 
 export function SignInCTA() {

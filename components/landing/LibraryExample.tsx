@@ -3,6 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { BookOpen } from "lucide-react";
 import { SeatExample } from "./LibraryPreview";
+import copy from "@/lib/marketingCopy.json";
 
 const students = [
   { name: "Aditi Sharma", initials: "AS", seat: "A1", shift: "Morning", fee: "₹800", state: "Paid" },
@@ -17,7 +18,7 @@ export function LibraryExample() {
   const id = useId();
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   return <div className="example-dashboard example-interactive">
-    <div className="example-topbar"><span><BookOpen size={19} aria-hidden="true" /> My library</span><span className="example-label">Example data</span></div>
+    <div className="example-topbar"><span><BookOpen size={19} aria-hidden="true" /> My library</span><span className="example-label">{copy.home.proof.label}</span></div>
     <div role="tablist" aria-label="Example library views" className="example-tabs">
       {tabs.map((label, index) => <button key={label} ref={element => { refs.current[index] = element; }} role="tab" id={`${id}-tab-${index}`} aria-controls={`${id}-panel-${index}`} aria-selected={selected === index} tabIndex={selected === index ? 0 : -1} type="button" onClick={() => setSelected(index)} onKeyDown={event => {
         let next: number;

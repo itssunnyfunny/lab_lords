@@ -1,112 +1,90 @@
 {
   "hero": {
-    "eyebrow": "Library management software",
-    "title": "Manage your library in one place.",
-    "description": "Keep student records, assign seats and shifts, and track fee payments from one dashboard. Built for study libraries, study halls and coaching centres.",
-    "primaryLabel": "Start free trial",
+    "eyebrow": "Made for libraries & study spaces",
+    "title": "A simpler way to manage your library.",
+    "description": "Students, seats, shifts and fees — all in one place. Keep your library organised with an easy-to-use dashboard.",
+    "primaryLabel": "Start your free trial",
     "signedInLabel": "Open workspace",
-    "secondaryLabel": "View features",
+    "secondaryLabel": "Explore features",
     "secondaryHref": "/features",
     "trialNote": "30-day Standard trial · No card needed",
-    "previewLabel": "Example data"
+    "previewLabel": "Sample data"
   },
   "home": {
     "audience": {
       "line": "For study libraries, study halls, coaching and tuition centres."
     },
     "features": {
-      "title": "Features for daily library management",
-      "description": "From registering a student to checking pending fees, keep your daily work organised with Lab Lords.",
+      "title": "Everything you need for everyday library work.",
+      "description": "Simple tools to organise your records, manage your seats and stay on top of fees.",
       "items": [
         {
           "id": "students",
-          "title": "Student Management",
+          "title": "Student management",
           "description": "Keep student details, seat assignments and fee records together.",
           "href": "/features#students"
         },
         {
           "id": "seats",
-          "title": "Seat Management",
+          "title": "Seats & shifts",
           "description": "See available seats and assign them to students for the right shift.",
           "href": "/features#seats-shifts"
         },
         {
-          "id": "shifts",
-          "title": "Shift Management",
-          "description": "Set your shift timings and fees to match how your library runs.",
-          "href": "/features#seats-shifts"
-        },
-        {
           "id": "fees",
-          "title": "Track Fees",
+          "title": "Fees & dues",
           "description": "Record payments and check how much each student has left to pay.",
           "href": "/features#fees"
         },
         {
-          "id": "pending",
-          "title": "Pending Fees",
-          "description": "View unpaid fees and keep notes for your follow-ups.",
-          "href": "/features#fees"
+          "id": "branches",
+          "title": "Multiple branches",
+          "description": "Manage your branches from one account, with separate records for each.",
+          "href": "/features#branches",
+          "planNote": "Billed per branch"
         },
         {
           "id": "imports",
-          "title": "Import Student Records",
-          "description": "Bring in your student list and review the details before adding them.",
+          "title": "Student imports",
+          "description": "Bring in your existing student list and review the details before adding it.",
           "href": "/features#imports"
         },
         {
-          "id": "branches",
-          "title": "Manage Branches",
-          "description": "Manage your branches from one account, with separate records for each.",
-          "href": "/features#branches"
-        },
-        {
           "id": "staff",
-          "title": "Staff Access",
-          "description": "Add staff and choose what they can view or change.",
+          "title": "Staff access",
+          "description": "Add your team and choose what each person can view or change.",
           "href": "/features#staff",
           "planNote": "Standard"
-        },
-        {
-          "id": "reports",
-          "title": "Library Reports",
-          "description": "Check seat usage and fee collection with branch reports.",
-          "href": "/features#reports",
-          "planNote": "Standard for advanced reports"
         }
       ],
       "linkLabel": "View all features",
       "href": "/features"
     },
     "benefits": {
-      "title": "Why choose Lab Lords?",
-      "description": "Built around the work you do every day, with room for your next branch.",
+      "title": "Less paperwork. More clarity.",
+      "description": "You already have enough to manage. Lab Lords keeps the daily details together, so you can find what you need without checking different notebooks.",
       "items": [
         {
-          "title": "Made for study libraries",
-          "description": "Manage the students, seats, shifts and fees that are part of your everyday work."
+          "title": "Your records, in one place",
+          "description": "Find students, seats and fee details together."
         },
         {
-          "title": "Bring your existing records",
-          "description": "Add students yourself or import a list you already use."
+          "title": "Set up for the way you work",
+          "description": "Use your own seat names, shift timings and fees."
         },
         {
-          "title": "Manage more than one branch",
-          "description": "Use one account while keeping each branch’s records separate."
-        },
-        {
-          "title": "Try it before you choose",
-          "description": "Explore Standard features with a 30-day trial. No card is needed."
+          "title": "A clearer view of each branch",
+          "description": "Check the records for the branch you need."
         }
       ]
     },
     "setup": {
-      "title": "Get started in four steps",
-      "description": "Set up your library, add your students and start using Lab Lords for your daily work.",
+      "title": "Ready in four simple steps.",
+      "description": "Start with your first branch. Add the details as you go.",
       "steps": [
         {
           "title": "Create your account",
-          "description": "Sign up to get started with Lab Lords."
+          "description": "Sign up for your account. No card is needed."
         },
         {
           "title": "Set up your library",
@@ -118,15 +96,16 @@
         },
         {
           "title": "Start managing",
-          "description": "Assign seats, record fees and check your library’s daily records."
+          "description": "Assign seats, record payments and check pending fees."
         }
       ],
-      "primaryLabel": "Start free trial"
+      "trialNote": "Eligible new owners get a 30-day Standard trial after setting up their first branch.",
+      "primaryLabel": "Start your free trial"
     },
     "proof": {
       "title": "See how Lab Lords works",
       "description": "Explore an example library to see how student details, seats and fee records fit together.",
-      "label": "Example data",
+      "label": "Sample data",
       "tabs": [
         "Students",
         "Seats & shifts",
@@ -134,44 +113,35 @@
       ]
     },
     "questions": {
-      "title": "Common questions",
-      "description": "A few things to know before you get started.",
+      "title": "A few things you might be wondering.",
+      "description": "Here are the basics. For anything else, get in touch with us.",
       "items": [
         {
-          "question": "What is Lab Lords?",
-          "answer": "Lab Lords helps you manage students, seats, shifts, fees and branches. It is built for study libraries and study halls, with support for the daily records of coaching and tuition centres."
+          "question": "Who is Lab Lords for?",
+          "answer": "Lab Lords helps owners and staff at reading libraries, study halls, coaching centres and tuition centres manage students, seats, shifts and fee records."
         },
         {
-          "question": "Can I try it before paying?",
-          "answer": "Yes. Eligible new owners get a 30-day trial with Standard features. No card is needed. The trial starts after you set up your first branch."
+          "question": "Do I need a card for the trial?",
+          "answer": "No. Eligible new owners get one 30-day Standard trial after setting up their first branch. The trial is shared across branches in that workspace. Adding branches does not extend it."
         },
         {
-          "question": "Can I use my existing student list?",
-          "answer": "Yes. Import your student records and review the details before adding them. You can also add students one at a time."
-        },
-        {
-          "question": "Can my staff use Lab Lords?",
-          "answer": "Yes. Standard includes staff access. You choose the permissions each staff member needs."
+          "question": "Can I add my existing student list?",
+          "answer": "Yes. You can enter students individually or use spreadsheet import. Review your information and resolve any flagged issues before confirming an import."
         },
         {
           "question": "Can I manage more than one branch?",
-          "answer": "Yes. Both plans support multiple branches. Each billable branch has a separate monthly charge."
+          "answer": "Yes. Each branch keeps its own operational records. Pricing is per billable branch per month, so the total depends on your plan and billable branch count."
         },
         {
-          "question": "Does Lab Lords work on a phone?",
-          "answer": "You can use Lab Lords in a web browser on your phone or computer. An internet connection is needed."
-        },
-        {
-          "question": "Where can I check the plans?",
-          "answer": "Visit the Pricing page to compare Basic and Standard and see how branch charges work.",
-          "href": "/pricing"
+          "question": "Can my staff use Lab Lords?",
+          "answer": "Standard includes staff invitations and permission controls. Your staff see the branch information and actions they are allowed to access."
         }
       ]
     },
     "closing": {
-      "title": "Ready to start with your library?",
-      "description": "Set up your first branch and try Lab Lords with your own records.",
-      "primaryLabel": "Start free trial",
+      "title": "Give your library a simpler way to work.",
+      "description": "Bring students, seats, shifts and fees together. Start with your first branch and see how it feels.",
+      "primaryLabel": "Start your free trial",
       "secondaryLabel": "View pricing",
       "secondaryHref": "/pricing",
       "trialNote": "30-day Standard trial · No card needed"

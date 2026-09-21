@@ -39,7 +39,9 @@ beforeEach(() => {
 
 describe("public marketing account actions", () => {
   it("takes signed-out trial and sign-in actions to their existing routes", async () => {
-    await activate(WorkspaceCTA({ source: "landing_hero_primary" }));
+    const trial = WorkspaceCTA({ source: "landing_hero_primary", label: "Start your free trial" });
+    expect(trial.props.children).toContain("Start your free trial");
+    await activate(trial);
     expect(mocks.push).toHaveBeenLastCalledWith("/sign-up");
     expect(mocks.trackEvent).toHaveBeenCalledWith("landing_cta_clicked", {
       source: "landing_hero_primary", signed_in: false,
@@ -51,7 +53,7 @@ describe("public marketing account actions", () => {
 
   it("takes both account actions to the workspace for a signed-in visitor", async () => {
     mocks.user.isSignedIn = true;
-    const trial = WorkspaceCTA({});
+    const trial = WorkspaceCTA({ label: "Start your free trial" });
     expect(trial.props.children).toContain("Open workspace");
     await activate(trial);
     await activate(SignInCTA());
