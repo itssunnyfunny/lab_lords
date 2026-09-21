@@ -53,9 +53,28 @@ const groups: FeatureGroup[] = [
     id: "fees", nav: "Fees & dues", title: featureCopy.fees.title, capability: "PAYMENTS_DUES_AUDIT",
     description: featureCopy.fees.description,
     items: [
-      { title: "Record payments", description: "Enter received payments and check the remaining fee balance." },
+      { title: "Record payments", description: "Enter a full or partial payment and check the remaining fee balance." },
       { title: "Pending fees", description: "See unpaid fees and use the remaining balance to decide which student needs a follow-up." },
       { title: "Payment history", description: "Review recorded payments and their details when you need to check an amount." },
+      { title: "Receipts", description: "Download or print a receipt for a recorded payment, and find it again in the student's collection history. Historical imported payments do not get a new receipt." },
+      { title: "Upcoming fees and follow-ups", description: "See today's fees, upcoming fee dates and pending amounts. Save a note, contact outcome and the next date to follow up. Expected fees stay separate from amounts already due; a follow-up date does not change the fee date." },
+    ],
+  },
+  {
+    id: "attendance", nav: "Attendance", title: featureCopy.attendance.title, capability: "ATTENDANCE",
+    description: featureCopy.attendance.description,
+    items: [
+      { title: "Daily attendance", description: "Mark students present or absent, record check-in and check-out, and review their attendance history. A day without a mark stays unmarked." },
+      { title: "Staff-assisted QR", description: "Staff scan a student's QR code, check the displayed name and confirm check-in or check-out. If the camera is unavailable, find the student and record attendance manually." },
+      { title: "Corrections", description: "An owner or staff member with the required permission can correct a mark or visit with a reason. The history keeps the original record and the change." },
+    ],
+  },
+  {
+    id: "languages", nav: "Languages", title: featureCopy.languages.title, capability: "DISPLAY_LANGUAGES",
+    description: featureCopy.languages.description,
+    items: [
+      { title: "Your interface language", description: "Use the interface in English, Hindi or Hinglish. Each person chooses their own language, without changing saved names or notes." },
+      { title: "Receipt and report language", description: "Choose the language for receipt and report labels separately. Existing AI-written text and provider-hosted screens keep their own language; WhatsApp message language is a separate setting." },
     ],
   },
   {
@@ -106,10 +125,12 @@ const examples: Record<string, { text: string; href: string; link: string }> = {
   students: { text: "A student asks which shift they are assigned to. Find their record, check the current seat and shift, and refer to the recorded fee details without searching a separate list.", href: "/software/library-management", link: "For reading-room libraries" },
   "seats-shifts": { text: "A student wants an afternoon seat. Check availability for that shift and the intended dates, then choose an assignment that fits. An occupied morning seat does not by itself tell you whether the afternoon slot is free.", href: "/software/seat-management", link: "Explore seat management" },
   fees: { text: "Before following up on a due fee, open the student's recorded payment details and confirm the amount. Record money actually received through your library's payment method; saving a record does not collect money online.", href: "/software/student-fee-management", link: "Explore student fee records" },
+  attendance: { text: "A student arrives for their shift. Find them in Attendance or scan their QR with staff supervision, check their name and record check-in. Record check-out when they leave. Attendance does not change their fees or seat assignment.", href: "/faq#features", link: "Read about attendance" },
+  languages: { text: "Use Hindi for your daily screen and English for receipt labels, or choose Hinglish for both. Your choice does not change another staff member's preference or the student's saved details.", href: "/faq#help", link: "Read about language choices" },
   imports: { text: "Start with your existing spreadsheet. Match its fields to the import, check names and branch details, and resolve flagged rows before confirmation. After the import runs, review the result and any rows needing attention.", href: "/how-it-works", link: "Prepare for your first import" },
   branches: { text: "Your morning desk handles one location while you review another. Each branch has its own students, seats and fee records. Switch to the right branch before entering information; every billable branch contributes to the subscription charge.", href: "/pricing#branch-billing", link: "Understand branch billing" },
   staff: { text: "Invite a staff member to the branch where they work and choose the allowed actions. Someone who helps with daily student records should not need to share the owner's account or manage organization billing.", href: "/pricing#comparison", link: "Compare Standard with Basic" },
-  reports: { text: "Use recorded collection and seat-usage figures to review a branch, then compare locations where your access allows it. These reports reflect the information entered in Lab Lords; check incomplete records before drawing conclusions.", href: "/software/coaching-management", link: "For centres with branch records" },
+  reports: { text: "Use recorded collection and seat-usage figures to review a branch, then compare locations where your access allows it. These reports reflect the information entered in Lab Lords; check incomplete records before drawing conclusions.", href: "/software/library-management", link: "For libraries with branch records" },
   "ai-assistance": { text: "Ask for a summary of recorded figures or prepare a follow-up draft. Review amounts and wording yourself. AI output can be wrong and remains advisory; a draft does not mean that a message was delivered or a payment confirmed.", href: "/software/fee-reminder", link: "Understand fee follow-up" },
 };
 

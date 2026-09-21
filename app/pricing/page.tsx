@@ -39,6 +39,7 @@ export default function PricingPage() {
           <p className="marketing-eyebrow">Compare the daily tools</p>
           <h2 className="marketing-title mt-3">Choose by the work you need to do.</h2>
           <p className="marketing-lead mt-4">Both plans cover student records, seats and fees. Standard adds tools for your team and a more detailed view of your branches.</p>
+          <p className="marketing-lead mt-4">Both plans include full or partial payments, receipts, fee follow-ups, attendance and language preferences. Staff access still requires Standard, with the permissions needed for each task. Report language preferences do not add access to reports outside your plan.</p>
           <table className="public-comparison">
             <caption className="sr-only">Public plan feature comparison</caption>
             <thead><tr><th scope="col">Feature</th>{plans.map(plan => <th key={plan.id} scope="col">{plan.shortName}</th>)}</tr></thead>

@@ -12,7 +12,7 @@
   },
   "home": {
     "audience": {
-      "line": "For study libraries, study halls, coaching and tuition centres."
+      "line": "For self-study libraries, study halls, reading rooms and study rooms."
     },
     "features": {
       "title": "Everything you need for everyday library work.",
@@ -33,7 +33,7 @@
         {
           "id": "fees",
           "title": "Fees & dues",
-          "description": "Record payments and check how much each student has left to pay.",
+          "description": "Record full or partial payments and check how much each student has left to pay.",
           "href": "/features#fees"
         },
         {
@@ -55,6 +55,24 @@
           "description": "Add your team and choose what each person can view or change.",
           "href": "/features#staff",
           "planNote": "Standard"
+        },
+        {
+          "id": "receipts",
+          "title": "Receipts",
+          "description": "Download a receipt for a recorded payment and find it again in the student's collection history.",
+          "href": "/features#fees"
+        },
+        {
+          "id": "attendance",
+          "title": "Attendance",
+          "description": "Mark daily attendance and record check-in and check-out, with staff-assisted QR scanning.",
+          "href": "/features#attendance"
+        },
+        {
+          "id": "languages",
+          "title": "English, Hindi & Hinglish",
+          "description": "Choose your interface language, and set the receipt and report language separately.",
+          "href": "/features#languages"
         }
       ],
       "linkLabel": "View all features",
@@ -118,7 +136,7 @@
       "items": [
         {
           "question": "Who is Lab Lords for?",
-          "answer": "Lab Lords helps owners and staff at reading libraries, study halls, coaching centres and tuition centres manage students, seats, shifts and fee records."
+          "answer": "Lab Lords helps owners and staff at self-study libraries, study halls, reading rooms and study rooms manage students, seats, shifts and fee records."
         },
         {
           "question": "Do I need a card for the trial?",

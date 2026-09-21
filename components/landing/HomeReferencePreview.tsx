@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Building2, Check, FileInput, GraduationCap, IndianRupee, School, Armchair, Users, UserRoundCog, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpen, Building2, CalendarCheck, Check, FileInput, GraduationCap, IndianRupee, Languages, ReceiptText, School, Armchair, Users, UserRoundCog, type LucideIcon } from "lucide-react";
 import { WorkspaceCTA } from "./MarketingActions";
 import { BotanicalDashboard } from "./BotanicalDashboard";
 import copy from "@/lib/marketingCopy.json";
@@ -13,13 +13,16 @@ const featureIcons: Record<string, LucideIcon> = {
   branches: Building2,
   imports: FileInput,
   staff: UserRoundCog,
+  receipts: ReceiptText,
+  attendance: CalendarCheck,
+  languages: Languages,
 };
 
 const audiences = [
-  { title: "Reading libraries", description: "Keep your space running smoothly", icon: BookOpen },
+  { title: "Self-study libraries", description: "Keep your space running smoothly", icon: BookOpen },
   { title: "Study halls", description: "Manage more students easily", icon: Users },
-  { title: "Coaching centres", description: "Keep students and fees organised", icon: GraduationCap },
-  { title: "Tuition centres", description: "Simple tools for everyday work", icon: School },
+  { title: "Reading rooms", description: "Keep students and fees organised", icon: GraduationCap },
+  { title: "Study rooms", description: "Simple tools for everyday work", icon: School },
 ];
 
 /** Public introduction. The dashboard is an interactive example with no tenant data. */
