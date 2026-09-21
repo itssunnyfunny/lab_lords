@@ -1,5 +1,31 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Public marketing page completion — 2026-09-21
+
+The local botanical public site now includes `/about`, `/faq` and
+`/how-it-works`, with 20 public sitemap destinations. Features and Pricing
+remain dedicated routes; Home has a shorter plan introduction. Navigation
+adds a Resources disclosure and current-page indication while preserving
+legacy homepage fragments. Shared FAQ answers connect the relevant pages.
+
+Pricing and the comparison read `publicBillingPlans()` and retain internal
+plan IDs and existing authentication-aware actions. The setup walkthrough
+matches organization, first branch/seats/shifts, plan and import-choice order.
+Contact handles prospective-customer questions; Support provides practical
+help, existing policy guidance and the same email-draft bug-report mechanism
+with native field validation. No contact backend was added.
+
+The approved palette, fonts, assets, component conventions and motion remain.
+Policy substance and dates are unchanged; policy sharing metadata is now
+page-specific. Solution routes and SEO titles remain stable, with additional
+illustrative examples and crosslinks. Unsupported new follow-up claims were
+removed pending release evidence; attendance, receipt and newer renewal
+workflows are not newly promoted. Authentication, tenancy, billing services,
+schema, migrations and provider operations are unchanged.
+
+See [audit, claim evidence and verification](../redesign/public-site-completion.md).
+This records local implementation, not production deployment.
+
 > Last verified: 2026-09-06 (release verification; older sections retain their original evidence)
 >
 > Repository anchor: consolidation through ac639e9; subsequent release verification is linked in the final dated update
@@ -696,6 +722,22 @@ Authoritative code: `services/billing*.ts`, `services/ownerTrial.service.ts`, `s
 
 ### Public website and telemetry
 
+- The subsequent 2026-09-20 messaging update adopts the supplied HTML prototype
+  in the existing content registries, homepage, Features, Pricing and seven
+  solution pages. Six core feature cards, the four-step setup, FAQs and closing
+  use direct everyday wording. The homepage reuses the catalogue-backed pricing
+  component; no second price list or `/how-it-works` route is introduced (links
+  retain `/#how-it-works`). Trial copy specifies eligibility after first-branch
+  setup. Titles, canonicals, policy wording and application behavior are retained.
+- The 2026-09-20 botanical public-page revision replaces the earlier study-room
+  hero with the supplied dashboard-led composition, forest-green actions,
+  warm-paper surfaces and botanical accents. Its sample seat overview is local
+  UI state only, explicitly labelled as sample data, and performs no tenant read
+  or mutation. The 17 marketing/legal routes, sign-in, sign-up and invitation
+  presentation use the new visual direction. Clerk redirects, explicit invite
+  acceptance, runtime pricing, plan eligibility and consent behavior are
+  preserved. See [the botanical implementation record](../redesign/botanical-public-pages.md)
+  for scope and verification; this is local implementation, not deployment.
 - The 2026-09-20 original-brand correction now covers all 17 public routes,
   following the owner's instruction to extend the initial visual milestone
   while retaining its sentences. The shared public shell provides Playfair
