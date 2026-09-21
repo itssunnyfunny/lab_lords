@@ -1,5 +1,19 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Public proof and identity refresh — 2026-09-21
+
+Home replaces its plan introduction with a labelled sample payment/receipt.
+No customer aggregates, quotes or logos are published without public-use approval;
+the small public-proof registry is empty and renders this product example.
+`/#pricing` targets the footer Pricing link; `/pricing` and its actions remain.
+Public wordmarks now read Lab Lords, with the existing approved symbol reused in
+icons and sharing artwork. Page-specific metadata explicitly includes sharing
+images/alt text, and Home has one WebSite node. The established routes, 18-entry
+sitemap, retired audience notices and protected-route rules are unchanged.
+See the [evidence and validation record](../redesign/public-proof-and-metadata.md)
+and [rendered metadata audit](../redesign/public-metadata-audit.md). This describes
+local implementation, not deployment or a changed Google display.
+
 ## Library-only public content correction — 2026-09-21
 
 Current positioning is self-study libraries, study halls, reading rooms and
