@@ -9,7 +9,7 @@ import { LandingFooter } from "@/components/landing/LandingFooter";
 import { siteConfig } from "@/lib/site";
 
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ isLoaded: true, isSignedIn: false }) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/" }));
 // Next compiles font imports during its build; this server-markup test needs only the CSS variable.
 vi.mock("next/font/google", () => ({ Playfair_Display: () => ({ variable: "public-display-font" }) }));
 

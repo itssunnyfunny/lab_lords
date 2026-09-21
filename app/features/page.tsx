@@ -3,7 +3,10 @@ import Link from "next/link";
 import { ArrowDown } from "lucide-react";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { WorkspaceCTA } from "@/components/landing/MarketingActions";
+import { PublicFaqList } from "@/components/landing/PublicFaqList";
+import { featureFaqIds } from "@/lib/publicFaqs";
 import { publicBillingPlans, type BillingCapabilityId } from "@/lib/billingPlans";
+import copy from "@/lib/marketingCopy.json";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 
 const description = "Explore Lab Lords features for library student records, seats and shifts, fees, imports, branches, staff access and reports.";
@@ -25,10 +28,12 @@ type FeatureGroup = {
   items: { title: string; description: string }[];
 };
 
+const featureCopy = Object.fromEntries(copy.home.features.items.map(item => [item.id, item]));
+
 const groups: FeatureGroup[] = [
   {
-    id: "students", nav: "Students", title: "Student management", capability: "STUDENT_RECORDS_IMPORT",
-    description: "Keep each student's details and library records together.",
+    id: "students", nav: "Students", title: featureCopy.students.title, capability: "STUDENT_RECORDS_IMPORT",
+    description: featureCopy.students.description,
     items: [
       { title: "Student details", description: "Add contact information and find a student's record when you need it." },
       { title: "Seats and fees", description: "Check assigned seats, shifts and fee records from the student's information." },
@@ -36,35 +41,35 @@ const groups: FeatureGroup[] = [
     ],
   },
   {
-    id: "seats-shifts", nav: "Seats & shifts", title: "Seats and shifts", capability: "SEATS_SHIFTS_ALLOCATIONS",
-    description: "Set up the seating and timings that match your library.",
+    id: "seats-shifts", nav: "Seats & shifts", title: featureCopy.seats.title, capability: "SEATS_SHIFTS_ALLOCATIONS",
+    description: featureCopy.seats.description,
     items: [
       { title: "Seat availability", description: "Check which seats are available for the selected shift." },
       { title: "Assign seats", description: "Give students a seat and shift, with checks for overlapping assignments." },
-      { title: "Shift timings and fees", description: "Set your timings and prices, including supported combined shifts." },
+      { title: "Shift timings and fees", description: "Set your shift timings and fees to match how your library runs." },
     ],
   },
   {
-    id: "fees", nav: "Fees", title: "Fees and pending payments", capability: "PAYMENTS_DUES_AUDIT",
-    description: "Keep payment records and pending fees easy to check.",
+    id: "fees", nav: "Fees & dues", title: featureCopy.fees.title, capability: "PAYMENTS_DUES_AUDIT",
+    description: featureCopy.fees.description,
     items: [
       { title: "Record payments", description: "Enter received payments and check the remaining fee balance." },
-      { title: "Pending fees", description: "See unpaid fees and save notes from fee follow-ups." },
+      { title: "Pending fees", description: "See unpaid fees and use the remaining balance to decide which student needs a follow-up." },
       { title: "Payment history", description: "Review recorded payments and their details when you need to check an amount." },
     ],
   },
   {
-    id: "imports", nav: "Imports", title: "Import student records", capability: "STUDENT_RECORDS_IMPORT",
-    description: "Start with the student list you already have.",
+    id: "imports", nav: "Student imports", title: featureCopy.imports.title, capability: "STUDENT_RECORDS_IMPORT",
+    description: featureCopy.imports.description,
     items: [
-      { title: "Bring in your list", description: "Upload a supported student file rather than enter every record again." },
-      { title: "Review before adding", description: "Check the mapped fields and rows before confirming the import." },
+      { title: "Bring in your list", description: "Upload your student spreadsheet to bring in existing records." },
+      { title: "Review before adding", description: "Review your information and resolve any flagged issues before confirming an import." },
       { title: "Track progress", description: "Follow the import result and check any rows that need attention." },
     ],
   },
   {
-    id: "branches", nav: "Branches", title: "Branch management", capability: "MULTIPLE_BRANCHES",
-    description: "Manage more than one location from your account.",
+    id: "branches", nav: "Branches", title: featureCopy.branches.title, capability: "MULTIPLE_BRANCHES",
+    description: featureCopy.branches.description,
     items: [
       { title: "Separate branch records", description: "Keep students, seats, shifts and fees with the correct branch." },
       { title: "Switch branches", description: "Open the location you need without mixing its records with another." },
@@ -72,8 +77,8 @@ const groups: FeatureGroup[] = [
     ],
   },
   {
-    id: "staff", nav: "Staff", title: "Staff access", capability: "STAFF_CONTROLS",
-    description: "Give your team access to the work they need to do.",
+    id: "staff", nav: "Staff", title: featureCopy.staff.title, capability: "STAFF_CONTROLS",
+    description: featureCopy.staff.description,
     items: [
       { title: "Add staff", description: "Invite staff to the appropriate branch." },
       { title: "Choose permissions", description: "Control what each staff member can view or change." },
@@ -97,6 +102,17 @@ const groups: FeatureGroup[] = [
   },
 ];
 
+const examples: Record<string, { text: string; href: string; link: string }> = {
+  students: { text: "A student asks which shift they are assigned to. Find their record, check the current seat and shift, and refer to the recorded fee details without searching a separate list.", href: "/software/library-management", link: "For reading-room libraries" },
+  "seats-shifts": { text: "A student wants an afternoon seat. Check availability for that shift and the intended dates, then choose an assignment that fits. An occupied morning seat does not by itself tell you whether the afternoon slot is free.", href: "/software/seat-management", link: "Explore seat management" },
+  fees: { text: "Before following up on a due fee, open the student's recorded payment details and confirm the amount. Record money actually received through your library's payment method; saving a record does not collect money online.", href: "/software/student-fee-management", link: "Explore student fee records" },
+  imports: { text: "Start with your existing spreadsheet. Match its fields to the import, check names and branch details, and resolve flagged rows before confirmation. After the import runs, review the result and any rows needing attention.", href: "/how-it-works", link: "Prepare for your first import" },
+  branches: { text: "Your morning desk handles one location while you review another. Each branch has its own students, seats and fee records. Switch to the right branch before entering information; every billable branch contributes to the subscription charge.", href: "/pricing#branch-billing", link: "Understand branch billing" },
+  staff: { text: "Invite a staff member to the branch where they work and choose the allowed actions. Someone who helps with daily student records should not need to share the owner's account or manage organization billing.", href: "/pricing#comparison", link: "Compare Standard with Basic" },
+  reports: { text: "Use recorded collection and seat-usage figures to review a branch, then compare locations where your access allows it. These reports reflect the information entered in Lab Lords; check incomplete records before drawing conclusions.", href: "/software/coaching-management", link: "For centres with branch records" },
+  "ai-assistance": { text: "Ask for a summary of recorded figures or prepare a follow-up draft. Review amounts and wording yourself. AI output can be wrong and remains advisory; a draft does not mean that a message was delivered or a payment confirmed.", href: "/software/fee-reminder", link: "Understand fee follow-up" },
+};
+
 export default function FeaturesPage() {
   const plans = publicBillingPlans();
 
@@ -106,8 +122,8 @@ export default function FeaturesPage() {
       <section className="marketing-page-hero">
         <div className="marketing-container">
           <p className="marketing-eyebrow">Features</p>
-          <h1 className="marketing-title mt-4">Library tools for your daily work</h1>
-          <p className="marketing-lead mt-5 max-w-2xl">From student records to fee collection, explore what you can manage with Lab Lords.</p>
+          <h1 className="marketing-title mt-4">Tools for everyday library work.</h1>
+          <p className="marketing-lead mt-5 max-w-2xl">From your first student record to your next branch, keep the daily details together.</p>
           <div className="marketing-actions mt-7">
             <WorkspaceCTA source="features_hero" />
             <Link href="/pricing" className="marketing-button-secondary">View pricing</Link>
@@ -121,16 +137,23 @@ export default function FeaturesPage() {
           </nav>
         </div>
       </section>
-      {groups.map(group => {
+      {groups.map((group, index) => {
         const includedPlans = plans.filter(plan => plan.capabilities.some(capability => capability.id === group.capability && capability.included));
         return (
           <section key={group.id} id={group.id} className="marketing-section public-feature-section scroll-mt-24">
+            {index === 0 && (
+              <header className="marketing-container mb-10">
+                <h2 className="marketing-title">{copy.home.features.title}</h2>
+                <p className="marketing-lead mt-4">{copy.home.features.description}</p>
+              </header>
+            )}
             <div className="marketing-container public-feature-layout">
               <header className="public-feature-introduction">
               <p className="marketing-eyebrow">{group.nav}</p>
               <h2 className="marketing-title mt-3">{group.title}</h2>
               <p className="marketing-lead mt-4">{group.description}</p>
               <p className="marketing-plan-note mt-3">Included in {includedPlans.map(plan => plan.shortName).join(" and ")}.</p>
+              <Link href="/pricing#comparison" className="marketing-text-link mt-4">Compare plan details</Link>
               </header>
               <div className="marketing-grid public-feature-items mt-8">
                 {group.items.map(item => (
@@ -140,23 +163,24 @@ export default function FeaturesPage() {
                   </article>
                 ))}
               </div>
+              <div className="public-feature-example"><p className="public-example"><strong>In everyday work: </strong>{examples[group.id].text}</p><Link href={examples[group.id].href} className="marketing-text-link mt-4">{examples[group.id].link}</Link></div>
             </div>
           </section>
         );
       })}
       <section className="marketing-section public-questions">
         <div className="marketing-container">
-          <h2 className="marketing-title">Common questions</h2>
-          <div className="marketing-faq mt-8">
-            <details><summary>Can I set my own shifts?<span aria-hidden="true">+</span></summary><p>Yes. Set the shift timings and fees that your library uses.</p></details>
-            <details><summary>Where can I compare plans?<span aria-hidden="true">+</span></summary><p>The <Link href="/pricing" className="underline underline-offset-4">Pricing page</Link> shows what Basic and Standard include.</p></details>
+          <h2 className="marketing-title">A closer look at the features</h2>
+          <div className="mt-8">
+            <PublicFaqList ids={featureFaqIds} />
           </div>
+          <div className="marketing-actions mt-6"><Link href="/faq" className="marketing-text-link">Read all FAQs</Link><Link href="/how-it-works" className="marketing-text-link">See how setup works</Link></div>
         </div>
       </section>
       <section className="marketing-section public-closing">
         <div className="marketing-container">
-          <h2 className="marketing-title">Ready to use Lab Lords in your library?</h2>
-          <p className="marketing-lead mt-4">Start a trial and explore the tools with your own records.</p>
+          <h2 className="marketing-title">{copy.home.closing.title}</h2>
+          <p className="marketing-lead mt-4">{copy.home.closing.description}</p>
           <div className="marketing-actions mt-7">
             <WorkspaceCTA source="features_close" />
             <Link href="/pricing" className="marketing-button-secondary">View pricing</Link>
