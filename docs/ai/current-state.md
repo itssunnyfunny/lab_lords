@@ -1,5 +1,18 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Library-only public content correction — 2026-09-21
+
+Current positioning is self-study libraries, study halls, reading rooms and
+study rooms in India. The approved public wording and visual theme are retained.
+Partial payments, receipts, follow-ups, supervised QR attendance and personal
+English/Hindi/Hinglish choices now extend existing public content. Owner-confirmed
+availability and read-only Vercel deployment evidence are recorded separately in
+[public claims](../product/public-claims.md). This is not a fresh production smoke test.
+The two older coaching/tuition URLs remain reachable with a library-focus notice,
+`noindex, follow` and specific library/contact links. Current promotion and the
+18-entry sitemap omit those two audience pages. Historical records below retain
+their original dated scope. Runtime access, prices and entitlements are unchanged.
+
 ## Public marketing page completion — 2026-09-21
 
 The local botanical public site now includes `/about`, `/faq` and
@@ -110,7 +123,7 @@ anchor. Do not turn an environment or provider assumption into deployment truth.
 
 ## Product and architecture
 
-Lab Lords is a multi-tenant SaaS micro-ERP for Indian study halls, reading-room libraries, coaching centres, and tuition centres. It manages organizations and branches, students, seats and shifts, allocations, branch fee collection, staff access, analytics, AI-assisted review, data imports, and Lab Lords subscription billing.
+Lab Lords is a multi-tenant SaaS micro-ERP for self-study libraries, study halls, reading rooms, and study rooms in India. It manages organizations and branches, students, seats and shifts, allocations, branch fee collection, staff access, analytics, AI-assisted review, data imports, and Lab Lords subscription billing.
 
 The dominant application flow is:
 
