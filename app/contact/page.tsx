@@ -6,7 +6,7 @@ import { publicMetadata } from "@/lib/publicMetadata";
 
 export const metadata = publicMetadata("/contact", "Contact Us", "Ask Lab Lords about product fit, plans and getting started with your library. Open an email draft or find help for an existing account.");
 const questions = [
-  { title: "Is it right for my space?", text: "Tell us whether you run a reading library, study hall, coaching centre or tuition centre, and which student, seat or fee tasks you need help with.", href: "/features", link: "Explore the features" },
+  { title: "Is it right for my space?", text: "Tell us whether you run a self-study library, study hall, reading room or study room, and which student, seat or fee tasks you need help with.", href: "/features", link: "Explore the features" },
   { title: "Which plan should I choose?", text: "Share your branch count and whether staff access, detailed reports or AI assistance matter to your work. You do not need to send student records to ask about plans.", href: "/pricing", link: "Compare pricing" },
   { title: "What do I need to get started?", text: "Ask about setting up seats and shifts, bringing in an existing student list or checking a workflow before signup. Tell us where you would like guidance.", href: "/how-it-works", link: "Read the setup walkthrough" },
 ];

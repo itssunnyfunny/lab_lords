@@ -10,6 +10,10 @@ export const softwarePageSlugs = [
 
 export type SoftwarePageSlug = (typeof softwarePageSlugs)[number];
 
+// Keep old URLs reachable, while advertising only the current library focus.
+export const legacySoftwarePageSlugs: readonly SoftwarePageSlug[] = ["coaching-management", "tuition-management"];
+export const activeSoftwarePageSlugs = softwarePageSlugs.filter(slug => !legacySoftwarePageSlugs.includes(slug));
+
 type ContentItem = {
   title: string;
   description: string;
@@ -288,7 +292,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     shortName: "Seat management",
     metaTitle: "Seat Management Software for Study Libraries",
     metaDescription:
-      "Manage physical seats and time-based allocations for study halls, reading rooms and coaching centres without overlap conflicts.",
+      "Manage physical seats and time-based allocations for study halls, reading rooms and study rooms without overlap conflicts.",
     keywords: ["seat management software", "seat booking software for library"],
     eyebrow: "Seat management software",
     h1: "Manage seats across your shifts",
@@ -390,7 +394,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "answer": "Yes. Seats, shifts and allocations are included in both Basic and Standard."
       }
     ],
-    relatedSlugs: ["study-hall-management", "library-management", "coaching-management"],
+    relatedSlugs: ["study-hall-management", "library-management", "student-fee-management"],
     ctaTitle: "Set up your library seats",
     ctaDescription:
       "Add your seats and shift timings, then check availability before assigning students.",
@@ -402,7 +406,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     shortName: "Student fee management",
     metaTitle: "Student Fee Management and Payment Tracking",
     metaDescription:
-      "Track student payments, monthly dues, waived fees and collection history across study halls, libraries and coaching branches.",
+      "Track student payments, monthly dues, waived fees and collection history across study halls, libraries and reading rooms.",
     keywords: ["student fee management", "student payment tracking"],
     eyebrow: "Student fee management",
     h1: "Track student fees and payments",
@@ -454,7 +458,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Payment records",
-        "description": "Record received payments and their payment details."
+        "description": "Record full or partial payments and their payment details."
       },
       {
         "title": "Pending fees",
@@ -462,7 +466,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "title": "Payment history",
-        "description": "Check prior records and changes when reviewing a collection."
+        "description": "Check prior records and changes when reviewing a collection. Find its receipt again to download or print."
       },
       {
         "title": "Approved waivers",
@@ -504,7 +508,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "answer": "Yes. Payments, dues and audit history are included in Basic and Standard."
       }
     ],
-    relatedSlugs: ["fee-reminder", "coaching-management", "tuition-management"],
+    relatedSlugs: ["fee-reminder", "library-management", "study-hall-management"],
     ctaTitle: "Keep your student fees easy to check",
     ctaDescription:
       "Start a trial and explore student fee records and payment history.",
@@ -516,7 +520,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     shortName: "Fee reminder",
     metaTitle: "Fee Reminder Software for Education Centres",
     metaDescription:
-      "Identify overdue student fees and prepare owner-reviewed reminder messages for study halls, libraries, coaching and tuition centres.",
+      "Identify overdue student fees and prepare owner-reviewed reminder messages for study halls, libraries, reading rooms and study rooms.",
     keywords: ["fee reminder software", "student fee reminder"],
     eyebrow: "Fee reminder software",
     h1: "Keep track of fee follow-ups",
@@ -556,11 +560,11 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     ],
     featureTitle: "Organise your fee follow-ups",
     featureDescription:
-      "Start with the pending-fee list and use the recorded history to check the amount before you follow up.",
+      "Start with the pending-fee list and use the recorded history to check the amount before you follow up. Save a note, contact outcome and the next date to follow up.",
     features: [
       {
         "title": "Pending-fee list",
-        "description": "Review unpaid fees for the selected branch."
+        "description": "Review unpaid fees for the selected branch. Check upcoming fee dates separately from recorded dues."
       },
       {
         "title": "Student details",
@@ -618,7 +622,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "answer": "Standard includes AI reports and message drafting. Both plans include payments, dues and audit history."
       }
     ],
-    relatedSlugs: ["student-fee-management", "tuition-management", "coaching-management"],
+    relatedSlugs: ["student-fee-management", "library-management", "study-hall-management"],
     ctaTitle: "Make fee follow-ups easier to track",
     ctaDescription:
       "Start a trial and review your pending fees and payment history in one place.",

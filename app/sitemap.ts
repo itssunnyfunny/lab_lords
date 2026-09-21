@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { absoluteUrl } from "@/lib/site";
-import { getSoftwarePagePath, softwarePageSlugs } from "@/lib/softwarePages";
+import { getSoftwarePagePath, activeSoftwarePageSlugs } from "@/lib/softwarePages";
 
 const staticRoutes = [
   { path: "/", priority: 1 },
@@ -9,7 +9,7 @@ const staticRoutes = [
   { path: "/how-it-works", priority: 0.8 },
   { path: "/faq", priority: 0.7 },
   { path: "/about", priority: 0.6 },
-  ...softwarePageSlugs.map(slug => ({
+  ...activeSoftwarePageSlugs.map(slug => ({
     path: getSoftwarePagePath(slug),
     priority: 0.8,
   })),
