@@ -28,7 +28,7 @@ export function BotanicalDashboard() {
   return <section id="library-preview" className="botanical-dashboard" aria-label="Interactive library dashboard sample">
     <div className="botanical-dashboard-chrome" aria-hidden="true"><i /><i /><i /></div>
     <header className="botanical-dashboard-topbar">
-      <div className="botanical-dashboard-brand"><Image src="/brand-reference/open-book-leaf.svg" alt="" width={32} height={22} /><span>LabLords<span>.in</span></span></div>
+      <div className="botanical-dashboard-brand"><Image src="/brand-reference/open-book-leaf.svg" alt="" width={32} height={22} /><span>Lab Lords</span></div>
       <span className="botanical-dashboard-library">Saraswati Library <ChevronDown size={12} aria-hidden="true" /></span>
       <div className="botanical-dashboard-profile"><span>A</span><div>Amit Kumar<small>Owner</small></div><ChevronDown size={11} aria-hidden="true" /></div>
     </header>
