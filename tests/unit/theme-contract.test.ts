@@ -7,7 +7,8 @@ const projectRoot = resolve(process.cwd());
 const globalsPath = join(projectRoot, "app", "globals.css");
 const tokensPath = join(projectRoot, "styles", "tokens.css");
 const entrySurfacePath = join(projectRoot, "components", "ui", "entrySurface.ts");
-const sourceRoots = ["app", "components", "styles"].map((directory) => join(projectRoot, directory));
+// Shared next/font declarations also live in lib (for example, publicMarketingFonts.ts).
+const sourceRoots = ["app", "components", "lib", "styles"].map((directory) => join(projectRoot, directory));
 const sourceExtensions = new Set([".css", ".ts", ".tsx"]);
 const runtimeRequire = createRequire(import.meta.url);
 
