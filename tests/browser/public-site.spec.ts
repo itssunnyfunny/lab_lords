@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { getSoftwarePagePath, softwarePageSlugs } from "../../lib/softwarePages";
+import { publicRoute } from "../../lib/public-i18n/routes";
 
 const publicRoutes = ["/", "/features", "/pricing", "/about", "/faq", "/how-it-works", "/contact", "/support", "/privacy", "/terms", "/refund-policy", "/shipping-delivery-policy", "/cookies", ...softwarePageSlugs.map(getSoftwarePagePath)];
 
@@ -82,8 +83,10 @@ test("every public destination has unique metadata, valid fragments and no runti
   }
   for (const href of internalLinks) {
     const url = new URL(href, "https://lablords.in");
-    expect(publicRoutes, `${href} destination`).toContain(url.pathname);
-    if (url.hash) expect(idsByPath.get(url.pathname)?.has(decodeURIComponent(url.hash.slice(1))), `${href} fragment`).toBe(true);
+    const destination = publicRoute(url.pathname);
+    expect(destination, `${href} destination`).not.toBeNull();
+    expect(publicRoutes, `${href} base destination`).toContain(destination!.path);
+    if (url.hash) expect(idsByPath.get(destination!.path)?.has(decodeURIComponent(url.hash.slice(1))), `${href} fragment`).toBe(true);
   }
   expect(errors).toEqual([]);
 });

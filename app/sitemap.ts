@@ -1,3 +1,4 @@
+import { publicLocales, publicHref, translatedPublicPaths } from "@/lib/public-i18n/routes";
 import type { MetadataRoute } from "next";
 import { absoluteUrl } from "@/lib/site";
 import { getSoftwarePagePath, activeSoftwarePageSlugs } from "@/lib/softwarePages";
@@ -25,7 +26,9 @@ const staticRoutes = [
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
 
-  return staticRoutes.map(route => ({
+  return staticRoutes.flatMap(route => (translatedPublicPaths as readonly string[]).includes(route.path)
+    ? publicLocales.map(locale => ({ ...route, path: publicHref(locale, route.path) }))
+    : [route]).map(route => ({
     url: absoluteUrl(route.path),
     lastModified,
     changeFrequency: route.path === "/" || route.path.startsWith("/software/") ? "weekly" : "monthly",

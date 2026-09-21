@@ -1,3 +1,5 @@
+import { publicAlternates } from "@/lib/public-i18n/routes";
+import { publicStrings } from "@/lib/public-i18n/server";
 import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -15,7 +17,7 @@ const description = "Explore Lab Lords features for library student records, sea
 export const metadata: Metadata = {
   title: "Library Management Features",
   description,
-  alternates: { canonical: absoluteUrl("/features") },
+  alternates: { canonical: absoluteUrl("/features"), languages: publicAlternates("/features", absoluteUrl) },
   openGraph: { ...publicOpenGraph, type: "website", url: absoluteUrl("/features"), siteName: siteConfig.name, title: "Lab Lords Features", description },
   twitter: { ...publicTwitter, card: "summary_large_image", title: "Lab Lords Features", description },
 };
@@ -135,7 +137,8 @@ const examples: Record<string, { text: string; href: string; link: string }> = {
   "ai-assistance": { text: "Ask for a summary of recorded figures or prepare a follow-up draft. Review amounts and wording yourself. AI output can be wrong and remains advisory; a draft does not mean that a message was delivered or a payment confirmed.", href: "/software/fee-reminder", link: "Understand fee follow-up" },
 };
 
-export default function FeaturesPage() {
+export default async function FeaturesPage() {
+  const { t, href: localHref } = await publicStrings();
   const plans = publicBillingPlans();
 
   return (
@@ -143,17 +146,17 @@ export default function FeaturesPage() {
       <div className="public-reference-page public-features">
       <section className="marketing-page-hero">
         <div className="marketing-container">
-          <p className="marketing-eyebrow">Features</p>
-          <h1 className="marketing-title mt-4">Tools for everyday library work.</h1>
-          <p className="marketing-lead mt-5 max-w-2xl">From your first student record to your next branch, keep the daily details together.</p>
+          <p className="marketing-eyebrow">{t("Features")}</p>
+          <h1 className="marketing-title mt-4">{t("Tools for everyday library work.")}</h1>
+          <p className="marketing-lead mt-5 max-w-2xl">{t("From your first student record to your next branch, keep the daily details together.")}</p>
           <div className="marketing-actions mt-7">
             <WorkspaceCTA source="features_hero" />
-            <Link href="/pricing" className="marketing-button-secondary">View pricing</Link>
+            <Link href={localHref("/pricing")} className="marketing-button-secondary">{t("View pricing")}</Link>
           </div>
-          <nav aria-label="Feature groups" className="public-feature-navigation mt-10 flex flex-wrap gap-2">
+          <nav aria-label={t("Feature groups")} className="public-feature-navigation mt-10 flex flex-wrap gap-2">
             {groups.map(group => (
               <a key={group.id} href={`#${group.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[color:var(--ui-panel-border)] px-4 text-sm hover:bg-[color:var(--ui-form-muted-surface-bg)]">
-                {group.nav}<ArrowDown size={13} aria-hidden="true" />
+                {t(group.nav)}<ArrowDown size={13} aria-hidden="true" />
               </a>
             ))}
           </nav>
@@ -165,47 +168,47 @@ export default function FeaturesPage() {
           <section key={group.id} id={group.id} className="marketing-section public-feature-section scroll-mt-24">
             {index === 0 && (
               <header className="marketing-container mb-10">
-                <h2 className="marketing-title">{copy.home.features.title}</h2>
-                <p className="marketing-lead mt-4">{copy.home.features.description}</p>
+                <h2 className="marketing-title">{t(copy.home.features.title)}</h2>
+                <p className="marketing-lead mt-4">{t(copy.home.features.description)}</p>
               </header>
             )}
             <div className="marketing-container public-feature-layout">
               <header className="public-feature-introduction">
-              <p className="marketing-eyebrow">{group.nav}</p>
-              <h2 className="marketing-title mt-3">{group.title}</h2>
-              <p className="marketing-lead mt-4">{group.description}</p>
-              <p className="marketing-plan-note mt-3">Included in {includedPlans.map(plan => plan.shortName).join(" and ")}.</p>
-              <Link href="/pricing#comparison" className="marketing-text-link mt-4">Compare plan details</Link>
+              <p className="marketing-eyebrow">{t(group.nav)}</p>
+              <h2 className="marketing-title mt-3">{t(group.title)}</h2>
+              <p className="marketing-lead mt-4">{t(group.description)}</p>
+              <p className="marketing-plan-note mt-3">{t("Included in {plans}.", { plans: includedPlans.map(plan => plan.shortName).join(t(" and ")) })}</p>
+              <Link href={localHref("/pricing#comparison")} className="marketing-text-link mt-4">{t("Compare plan details")}</Link>
               </header>
               <div className="marketing-grid public-feature-items mt-8">
                 {group.items.map(item => (
                   <article key={item.title} className="marketing-card p-6">
-                    <h3 className="text-lg font-semibold">{item.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-[color:var(--text-secondary)]">{item.description}</p>
+                    <h3 className="text-lg font-semibold">{t(item.title)}</h3>
+                    <p className="mt-3 text-sm leading-7 text-[color:var(--text-secondary)]">{t(item.description)}</p>
                   </article>
                 ))}
               </div>
-              <div className="public-feature-example"><p className="public-example"><strong>In everyday work: </strong>{examples[group.id].text}</p><Link href={examples[group.id].href} className="marketing-text-link mt-4">{examples[group.id].link}</Link></div>
+              <div className="public-feature-example"><p className="public-example"><strong>{t("In everyday work:")} </strong>{t(examples[group.id].text)}</p><Link href={localHref(examples[group.id].href)} className="marketing-text-link mt-4">{t(examples[group.id].link)}</Link></div>
             </div>
           </section>
         );
       })}
       <section className="marketing-section public-questions">
         <div className="marketing-container">
-          <h2 className="marketing-title">A closer look at the features</h2>
+          <h2 className="marketing-title">{t("A closer look at the features")}</h2>
           <div className="mt-8">
             <PublicFaqList ids={featureFaqIds} />
           </div>
-          <div className="marketing-actions mt-6"><Link href="/faq" className="marketing-text-link">Read all FAQs</Link><Link href="/how-it-works" className="marketing-text-link">See how setup works</Link></div>
+          <div className="marketing-actions mt-6"><Link href={localHref("/faq")} className="marketing-text-link">{t("Read all FAQs")}</Link><Link href={localHref("/how-it-works")} className="marketing-text-link">{t("See how setup works")}</Link></div>
         </div>
       </section>
       <section className="marketing-section public-closing">
         <div className="marketing-container">
-          <h2 className="marketing-title">{copy.home.closing.title}</h2>
-          <p className="marketing-lead mt-4">{copy.home.closing.description}</p>
+          <h2 className="marketing-title">{t(copy.home.closing.title)}</h2>
+          <p className="marketing-lead mt-4">{t(copy.home.closing.description)}</p>
           <div className="marketing-actions mt-7">
             <WorkspaceCTA source="features_close" />
-            <Link href="/pricing" className="marketing-button-secondary">View pricing</Link>
+            <Link href={localHref("/pricing")} className="marketing-button-secondary">{t("View pricing")}</Link>
           </div>
         </div>
       </section>

@@ -1,0 +1,19 @@
+.public-language-menu { position: relative; flex: 0 0 auto; }
+.public-language-menu > summary { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; list-style: none; cursor: pointer; border: 1px solid #164D3826; border-radius: 50%; color: var(--reference-forest); background: transparent; }
+.public-language-menu > summary::-webkit-details-marker { display: none; }
+.public-language-menu > summary:hover, .public-language-menu[open] > summary { background: var(--reference-mist); border-color: #164D3860; }
+.public-language-links { position: absolute; top: calc(100% + 10px); right: 0; z-index: 1; display: grid; gap: 3px; width: 180px; padding: 7px; border: 1px solid #164D3B20; border-radius: 16px; background: #FFFCF7; box-shadow: 0 12px 32px #164D3B18; font-size: 14px; line-height: 1.7; }
+.public-language-links a { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 8px 12px; border-radius: 10px; text-decoration: none; }
+.public-language-links a:hover, .public-language-links a[aria-current="page"] { background: var(--reference-mist); text-decoration: none; }
+.public-language-links a[aria-current="page"] { font-weight: 650; }
+.public-policy-language { padding: .7rem 1.25rem; margin: 0; text-align: center; font-size: .85rem; background: #e8efe3; color: #164d3b; }
+.marketing-root[data-public-locale="hi"] { --font-public-display: var(--font-devanagari); font-family: var(--font-devanagari), sans-serif; }
+.marketing-root[data-public-locale="hi"] :is(h1,h2,h3,h4,p,button,a,summary,small,span,label,input,textarea,th,td,dt,dd) { font-family: var(--font-devanagari), sans-serif; letter-spacing: normal; }
+.marketing-root[data-public-locale="hi"] :is(h1,h2,h3,h4) { line-height: 1.5; }
+.marketing-root[data-public-locale="hi"] :is(p,summary,button,a,label,small) { line-height: 1.8; }
+.marketing-root[data-public-locale="hi"] .botanical-hero-copy em { font-style: normal; }
+.marketing-root[data-public-locale="hi"] .botanical-hero h1 em::after { bottom: .25em; }
+.marketing-root[data-public-locale="hi"] .reference-lockup span { font-family: var(--font-inter), sans-serif; }
+.marketing-root[data-public-locale="hi"] :is(.marketing-button,.marketing-button-secondary,.botanical-button-secondary) { height: auto; min-height: 2.75rem; }
+.marketing-root :is(.marketing-button,.marketing-button-secondary,.botanical-button-secondary) { white-space: normal; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .public-language-links a { transition: none; } }

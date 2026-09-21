@@ -1,3 +1,5 @@
+import { publicStrings } from "@/lib/public-i18n/server";
+import { publicAlternates } from "@/lib/public-i18n/routes";
 import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -45,7 +47,7 @@ export async function generateMetadata({ params }: SoftwarePageProps): Promise<M
     description: page.metaDescription,
     keywords: page.keywords,
     alternates: {
-      canonical: absoluteUrl(canonicalPath),
+      canonical: absoluteUrl(canonicalPath), languages: publicAlternates(canonicalPath, absoluteUrl),
     },
     openGraph: {
       ...publicOpenGraph,
@@ -66,6 +68,7 @@ export async function generateMetadata({ params }: SoftwarePageProps): Promise<M
 }
 
 export default async function SoftwarePageRoute({ params }: SoftwarePageProps) {
+  const { t, href: localHref } = await publicStrings();
   const { slug } = await params;
   const page = getSoftwarePage(slug);
 
@@ -77,19 +80,19 @@ export default async function SoftwarePageRoute({ params }: SoftwarePageProps) {
   if (legacySoftwarePageSlugs.includes(page.slug)) {
     return <LegacyAudiencePage audience={page.slug === "coaching-management" ? "coaching centres" : "tuition centres"} />;
   }
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localHref(path));
   const jsonLd = [
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      name: `Lab Lords ${page.shortName}`,
+      name: `Lab Lords ${t(page.shortName)}`,
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       url,
-      description: page.metaDescription,
+      description: t(page.metaDescription),
       audience: {
         "@type": "BusinessAudience",
-        audienceType: page.audience.join(", "),
+        audienceType: page.audience.map(item => t(item)).join(", "),
       },
       publisher: {
         "@type": "Organization",
@@ -102,10 +105,10 @@ export default async function SoftwarePageRoute({ params }: SoftwarePageProps) {
       "@type": "FAQPage",
       mainEntity: page.faqs.map(faq => ({
         "@type": "Question",
-        name: faq.question,
+        name: t(faq.question),
         acceptedAnswer: {
           "@type": "Answer",
-          text: faq.answer,
+          text: t(faq.answer),
         },
       })),
     },
@@ -116,19 +119,19 @@ export default async function SoftwarePageRoute({ params }: SoftwarePageProps) {
         {
           "@type": "ListItem",
           position: 1,
-          name: "Home",
-          item: absoluteUrl("/"),
+          name: t("Home"),
+          item: absoluteUrl(localHref("/")),
         },
         {
           "@type": "ListItem",
           position: 2,
-          name: "For your library",
-          item: absoluteUrl("/#software"),
+          name: t("For your library"),
+          item: absoluteUrl(localHref("/#software")),
         },
         {
           "@type": "ListItem",
           position: 3,
-          name: page.shortName,
+          name: t(page.shortName),
           item: url,
         },
       ],

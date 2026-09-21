@@ -26,7 +26,8 @@ export function LegalPage({
 }: LegalPageProps) {
   return (
     <MarketingShell>
-      <div className="public-reference-page public-legal">
+      <div className="public-reference-page public-legal" lang="en-IN">
+      <p className="public-policy-language">This policy is available in English.</p>
       <article className="marketing-container public-legal-document py-12 sm:py-16">
         <header className="public-legal-header mx-auto max-w-3xl">
           <p className="marketing-eyebrow">{eyebrow}</p>

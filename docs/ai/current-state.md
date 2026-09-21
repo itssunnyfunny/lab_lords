@@ -1117,3 +1117,21 @@ waiver, acknowledgement and retry semantics. Apply the additive collection
 migration before application code. No new product flags, provider services or
 environment variables are introduced. Implementation status is not deployment
 approval or evidence.
+
+## Public website localization — 2026-09-21
+
+The approved public site now shares its renderers across English (existing
+URLs), Hindi (`/hi`) and Hinglish (`/hinglish`). An explicit 13-page map controls
+localized routes, public navigation, metadata alternates and the 44-URL sitemap.
+Five English policies and two non-indexable retired notices remain unlocalized.
+Prepared server dictionaries provide initial translated HTML; client controls
+receive only their route's messages. No runtime translation provider is used.
+
+Public URL language takes priority in the existing single HTML-language applier;
+the authenticated interface, document and communication preferences keep their
+separate behavior. Support drafts survive language navigation in memory only.
+Clerk protection and auth/billing destinations retain their original behavior.
+See [localization boundaries](../localization.md) and the
+[public implementation and validation report](../redesign/public-localization.md).
+This is local implementation status, not deployment evidence. No schema,
+migration, environment, provider or production-data change is required.

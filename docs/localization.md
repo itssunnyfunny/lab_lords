@@ -1,4 +1,4 @@
-# Interface and document languages
+# Public, interface and document languages
 
 English (`en`), Hindi (`hi`) and Hinglish (`hinglish`) are personal presentation
 preferences. New and existing users default to English. The labels in the
@@ -84,6 +84,83 @@ commands, outcomes, browser evidence and release status.
 - Existing accounting, attendance, import, settings and WhatsApp regressions are
   run against a fresh disposable local PostgreSQL container when available.
 
-No runtime translation service, language routes, new environment variables,
-provider messages or regeneration jobs are introduced. Release uses the normal
-migration-before-application process described in `docs/production-runbook.md`.
+The authenticated localization release uses the normal migration-before-application
+process described in `docs/production-runbook.md`. The public localization below
+adds no migration, environment variables, provider messages or regeneration jobs.
+
+## Public website languages
+
+Public language is determined only by the URL. Existing unprefixed pages remain
+English; `/hi` and `/hinglish` prefix the 13 current marketing destinations in
+`lib/public-i18n/routes.ts`. There is no `/en` duplicate, automatic detection,
+language cookie or account-setting write. The five policies remain English-only,
+with explicit notices and link labels. The two retired solution notices remain
+English and non-indexable. Neither group has translated copies or alternates.
+
+The proxy retains Clerk protection and overwrites the internal public-language
+and public-path request headers from that allowlist. Server-rendered pages and
+the root HTML language use this sanitized request context. The localized route
+reuses the existing page renderers, with a finite generated parameter list and
+`dynamicParams = false`; unknown translated routes cannot render another page.
+Request-scoped dictionary loading does not add a database or account lookup.
+
+The former root loading boundary is scoped to application, invite, onboarding
+and authentication segments, reusing `components/ui/RouteLoading.tsx`. Public
+content can finish server rendering before the response starts, so it remains
+readable without JavaScript and invalid localized paths return HTTP 404 instead
+of a streamed 404 body with status 200. Private loading visuals are unchanged.
+
+`UserPreferencesBoundary` passes the route locale into the existing preference
+provider. Its single HTML-language effect uses that public locale when present,
+otherwise the account's `interfaceLanguage`. Late profile reads and identity
+changes cannot override a public URL. Protected application copy, document
+language, communication language and formatting preferences keep their existing
+owners. Both initial and hydrated markup use `en-IN`, `hi-IN` or `hi-Latn-IN`.
+Only Hindi uses Noto Sans Devanagari styling; Hinglish retains the Latin fonts.
+
+`lib/public-i18n/catalog.ts` contains prepared translations keyed by approved
+English source text. The server loads only the requested language. Interactive
+boundaries receive common control strings plus the home or support messages
+needed by that route, rather than the complete catalog. The persistent consent
+interface has a separate small catalog and selects it from the public URL; its
+choices and storage behavior are unchanged. There is no translation service.
+
+Public links use the shared route map. Language links retain equivalent paths,
+stable fragment IDs and the existing `billingPlan=BASIC|PRO` selection, dropping
+unknown, redirect and personal query parameters. Auth, billing, API, assets,
+external and mailto destinations are never prefixed. Public Support drafts live
+in the root `PublicDraftProvider` only in memory across client navigation; they
+are never saved to browser storage, cookies or URLs. Email drafts translate owned
+labels while preserving entered text, and still require the visitor to send the
+email. Refreshing or closing the tab clears an unsent in-memory draft.
+
+## Maintaining public translations
+
+1. Change approved English only when a factual correction or requested feature
+   requires it. Translate complete sentences, using typed named placeholders for
+   dynamic values and `publicRich` for React elements; never interpolate HTML.
+2. Add both translations and the required-key entry. Keep interactive messages
+   in the applicable `ui-keys.ts` group, and add source/behavior coverage where
+   a new content source or interaction needs it. Required keys may not fall back;
+   unexpected runtime messages defensively retain readable English.
+3. Keep prices, plan IDs/inclusions and proof amounts in their existing source
+   catalogs. Do not translate names, visitor content or stored AI text. Original
+   approved quotes retain their own language annotation.
+4. Add a translated destination to the central map only after its content is
+   complete. The map owns route validation, links, HTML language alternates and
+   the sitemap. Policies and retired URLs must not be multiplied automatically.
+5. Preserve self-referencing canonicals and reciprocal `en-IN`, `hi-IN`,
+   `hi-Latn-IN`, `x-default` HTML alternates. This is the only alternate-link
+   strategy; the sitemap lists URLs without duplicating alternate metadata.
+   Locale-specific sharing images use the approved brand template in
+   `public/public-social`; inspect Hindi glyphs and the built HTML metadata after
+   any change, because file-based Next metadata can take precedence.
+6. Run public catalog/site/proof/action tests, account-localization fixtures,
+   multilingual built-preview browser tests, lint and a production build. Review
+   desktop and narrow-phone screenshots before accepting visual baseline updates.
+
+See [the public localization report](redesign/public-localization.md) for the
+route matrix, translations, evidence, commands and human-review status. Current
+[Google alternate-language guidance](https://developers.google.com/search/docs/specialty/international/localized-versions)
+permits an ISO 15924 script subtag with a regional subtag; `hi-Latn-IN` identifies
+the Latin-script Hindi version without conflating it with `hi-IN`.

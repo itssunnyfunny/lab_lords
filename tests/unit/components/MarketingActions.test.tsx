@@ -2,8 +2,12 @@ import type { ButtonHTMLAttributes, MouseEvent, ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PlanCTA, SignInCTA, WorkspaceCTA } from "@/components/landing/MarketingActions";
 import { getBillingOnboardingPath, getBillingSignUpPath, getOrganizationBillingPath } from "@/lib/billingFlow";
+import { publicCatalog } from "@/lib/public-i18n/catalog";
+import { messagesFor, publicTranslator } from "@/lib/public-i18n/translate";
+import { publicLocales } from "@/lib/public-i18n/routes";
 
 const mocks = vi.hoisted(() => ({
+  locale: "en" as "en" | "hi" | "hinglish",
   user: { isLoaded: true, isSignedIn: false },
   pending: false,
   setPending: vi.fn(),
@@ -12,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   trackEvent: vi.fn(),
 }));
 
+vi.mock("@/components/landing/PublicLanguageProvider", () => ({ usePublicText: () => ({ t: publicTranslator(messagesFor(publicCatalog, mocks.locale)) }) }));
 vi.mock("@clerk/nextjs", () => ({ useUser: () => mocks.user }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/lib/api/organizations", () => ({ organizations: { getAll: mocks.getAll } }));
@@ -30,11 +35,35 @@ async function activate(button: ActionButton) {
 }
 
 beforeEach(() => {
+  mocks.locale = "en";
   vi.clearAllMocks();
   mocks.user.isLoaded = true;
   mocks.user.isSignedIn = false;
   mocks.pending = false;
   mocks.getAll.mockResolvedValue([]);
+});
+
+describe.each(publicLocales)("%s public action language", locale => {
+  it("changes labels without changing anonymous or owner destinations", async () => {
+    mocks.locale = locale;
+    const t = publicTranslator(messagesFor(publicCatalog, locale));
+    const button = WorkspaceCTA({});
+    expect(button.props.children).toContain(t("Start free trial"));
+    await activate(button);
+    expect(mocks.push).toHaveBeenLastCalledWith("/sign-up");
+    for (const planId of ["BASIC", "PRO"] as const) {
+      const label = t("Choose {plan}", { plan: planId === "PRO" ? "Standard" : "Basic" });
+      await activate(PlanCTA({ planId, active: true, label }));
+      expect(mocks.push).toHaveBeenLastCalledWith(getBillingSignUpPath(planId));
+      mocks.user.isSignedIn = true;
+      mocks.getAll.mockResolvedValue([{ id: "org_example" }]);
+      await activate(PlanCTA({ planId, active: true, label }));
+      expect(mocks.push).toHaveBeenLastCalledWith(getOrganizationBillingPath("org_example", planId));
+      mocks.user.isSignedIn = false;
+    }
+    mocks.user.isSignedIn = true;
+    expect(WorkspaceCTA({}).props.children).toContain(t("Open workspace"));
+  });
 });
 
 describe("public marketing account actions", () => {
