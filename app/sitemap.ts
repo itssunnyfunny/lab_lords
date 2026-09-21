@@ -6,6 +6,9 @@ const staticRoutes = [
   { path: "/", priority: 1 },
   { path: "/features", priority: 0.9 },
   { path: "/pricing", priority: 0.9 },
+  { path: "/how-it-works", priority: 0.8 },
+  { path: "/faq", priority: 0.7 },
+  { path: "/about", priority: 0.6 },
   ...softwarePageSlugs.map(slug => ({
     path: getSoftwarePagePath(slug),
     priority: 0.8,

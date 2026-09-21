@@ -1,0 +1,25 @@
+import Link from "next/link";
+import { MarketingShell } from "@/components/landing/MarketingShell";
+import { PublicIntro, PublicClosing } from "@/components/landing/PublicPageSections";
+import { PublicFaqList } from "@/components/landing/PublicFaqList";
+import { publicMetadata } from "@/lib/publicMetadata";
+
+export const metadata = publicMetadata("/how-it-works", "How It Works", "Prepare your first Lab Lords branch, set seats and shifts, review your plan, add students and start keeping everyday library records.");
+const steps = [
+  { title: "Create your account", text: "Sign up, then begin the guided setup for your workspace. An existing user can sign in and continue to the workspace they can access.", prepare: "Use the account you want to use as the owner. Staff can be invited later when your plan includes staff access.", href: "/faq#general", link: "Check whether Lab Lords fits" },
+  { title: "Name your library and first branch", text: "The Organization step asks for your business identity and owner contact. Next, the First branch step asks for the branch name, city and how your space is arranged.", prepare: "Have your library name, owner phone number, business type, branch name and city ready.", href: "/features#branches", link: "How branch records stay separate" },
+  { title: "Set seats, shift timings and fees", text: "Still in the First branch step, enter the seat count and numbering. Add the shifts you offer, their start and end times, and the fee for each. Review these details before continuing.", prepare: "Use your actual seating plan and shift fees. These are student fees for your library, separate from the Lab Lords subscription.", href: "/features#seats-shifts", link: "Explore seats and shifts" },
+  { title: "Review your plan and confirm setup", text: "Choose the plan you expect to use after the Standard trial. Then choose to import existing records or begin with a clean workspace. You can go back to review the earlier steps before confirming.", prepare: "For eligible new owners, confirmation starts the 30-day Standard trial. Selecting the later plan does not charge you; the owner separately authorizes billing from organization settings.", href: "/pricing#trial", link: "Understand the trial and billing" },
+  { title: "Add students and check the details", text: "After setup, add students individually or continue into the guided import workflow. For an import, review the source fields and flagged issues before confirming the records. Check the result before using the imported information.", prepare: "Keep your original student list handy. Check names, contact information and the branch, seat, shift and fee details you are bringing across.", href: "/features#imports", link: "See the import workflow" },
+  { title: "Start keeping your daily records", text: "Check seat availability, assign students to suitable shifts, record received fees and review outstanding amounts. Open the correct branch before making changes. Invite your team with the appropriate permissions if you use Standard.", prepare: "Use your own records to confirm amounts and assignments. The sample dashboard on this website is an illustration, not your live library.", href: "/features#fees", link: "Explore fee records" },
+];
+
+export default function HowItWorksPage() {
+  return <MarketingShell><div className="public-reference-page public-setup">
+    <PublicIntro eyebrow="Getting started" title="From your first branch to everyday work." description="Prepare the details you already use at your library. The guided setup brings your branch, seats and shifts together before you add student records." />
+    <section className="marketing-section"><div className="marketing-container"><h2 className="marketing-title">What to have ready</h2><p className="marketing-lead mt-4 max-w-3xl">Your library and branch details, seat numbering, shift timings and fees, and an existing student list if you plan to import one. You can start with a clean workspace and add records individually.</p><Link href="/contact" className="marketing-text-link mt-5">Ask a setup question</Link></div></section>
+    <ol className="public-walkthrough marketing-container">{steps.map((step, index) => <li key={step.title} className="marketing-card p-7 sm:p-9"><span className="marketing-step-number">0{index + 1}</span><div><h2 className="marketing-title">{step.title}</h2><p className="marketing-lead mt-4">{step.text}</p><p className="public-example mt-5">{step.prepare}</p><Link href={step.href} className="marketing-text-link mt-4">{step.link}</Link></div></li>)}</ol>
+    <section className="marketing-section public-questions"><div className="marketing-container"><h2 className="marketing-title mb-8">Before you confirm</h2><PublicFaqList ids={["trial", "import-review", "support"]} /><p className="marketing-lead mt-6">Already started and need help? <Link href="/support" className="underline underline-offset-4">Visit Support</Link>.</p></div></section>
+    <PublicClosing source="setup_close" title="Start with your first branch." />
+  </div></MarketingShell>;
+}
