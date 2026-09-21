@@ -2,7 +2,8 @@ import { SignIn } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { getSafeRedirectPath } from "@/lib/safeRedirect";
-import { entryClerkAppearance } from "@/components/ui/entrySurface";
+import { publicAuthAppearance } from "@/components/auth/publicAuthAppearance";
+import { publicDisplayFont } from "@/lib/publicMarketingFonts";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -21,12 +22,12 @@ export default async function SignInPage({
   const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/app");
 
   return (
-    <AuthPageShell mode="sign-in">
+    <div className={publicDisplayFont.variable}><AuthPageShell mode="sign-in">
       <SignIn
         fallbackRedirectUrl={fallbackRedirectUrl}
         signUpUrl={`/sign-up?redirect_url=${encodeURIComponent(fallbackRedirectUrl)}`}
-        appearance={entryClerkAppearance}
+        appearance={publicAuthAppearance}
       />
-    </AuthPageShell>
+    </AuthPageShell></div>
   );
 }

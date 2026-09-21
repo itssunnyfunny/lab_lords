@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { LocalizedText, OwnedLabel } from "@/components/settings/LocalizedText";
 import { CheckCircle2, Clock, ShieldAlert, UserPlus } from "lucide-react";
-import { LogoMark } from "@/components/brand/AppLogo";
-import { AmbientBackground } from "@/components/ui/AmbientBackground";
+import Image from "next/image";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { getSessionUser } from "@/lib/auth";
@@ -56,7 +55,6 @@ function InviteState({
 
     return (
         <main className={entryRootClass}>
-            <AmbientBackground />
             <section className={cn(entryContentClass, entryPanelClass, "max-w-lg p-5 sm:p-8")}>
                 <div className={cn(entryIconFrameClass, "mb-5 flex h-12 w-12", variant === "danger" && "text-[color:var(--ui-badge-danger-text)]")}>
                     <Icon size={24} />
@@ -115,10 +113,9 @@ export default async function StaffInvitePage({ params }: InvitePageProps) {
 
     return (
         <main className={entryRootClass}>
-            <AmbientBackground />
             <section className={cn(entryContentClass, entryPanelClass, "max-w-xl p-5 sm:p-8")}>
                 <div className={cn(entryIconFrameClass, "mb-6 h-14 w-14")}>
-                    <LogoMark className="h-11 w-11" title="Lab Lords logo" />
+                    <Image src="/brand-reference/open-book-leaf.svg" width={44} height={44} alt="Lab Lords logo" />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                     <h1 className={entryTitleClass}><LocalizedText text="Join {name}" params={{ name: invite.branch.name }} /></h1>

@@ -1,0 +1,65 @@
+.botanical-auth {
+  --ui-form-accent: #164d38;
+  --ui-form-accent-hover: #16835e;
+  min-height: 100dvh;
+  color: #173c32;
+  color-scheme: light;
+  background: radial-gradient(ellipse at 8% 92%, #e6efdf 0, transparent 42%), #fffbf4;
+  font-family: var(--font-inter), Arial, sans-serif;
+}
+.botanical-auth-header { max-width: 1280px; margin-inline: auto; padding: 30px 40px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.botanical-auth-brand { display: inline-flex; align-items: center; gap: 7px; font-size: 28px; font-weight: 750; letter-spacing: -1px; }
+.botanical-auth-brand img { width: 52px; height: auto; }
+.botanical-auth-brand .reference-wordmark-domain { font-size: .65em; font-weight: 500; }
+.botanical-auth-back { display: inline-flex; min-height: 44px; align-items: center; gap: 9px; font-size: 13px; }
+.botanical-auth a:focus-visible { outline: 2px solid #16835e; outline-offset: 5px; border-radius: 4px; }
+.botanical-auth-layout { display: grid; grid-template-columns: 1.05fr 1fr; gap: 100px; align-items: center; max-width: 1120px; margin: 24px auto 0; padding: 32px 40px 80px; }
+.botanical-auth-story { position: relative; padding-bottom: 140px; }
+.botanical-auth-eyebrow { font-size: 11px; font-weight: 650; letter-spacing: .17em; text-transform: uppercase; }
+.botanical-auth-story h1 { position: relative; z-index: 1; margin: 20px 0; font-family: var(--font-public-display), Georgia, serif; font-size: clamp(38px, 4vw, 54px); font-weight: 500; line-height: 1.15; letter-spacing: -1.5px; }
+.botanical-auth-story > p:not(.botanical-auth-eyebrow) { max-width: 420px; font-size: 15px; line-height: 1.8; color: #53675f; }
+.botanical-auth-story ul { position: relative; z-index: 1; display: grid; gap: 17px; margin-top: 30px; }
+.botanical-auth-story li { display: flex; align-items: flex-start; gap: 11px; font-size: 13px; line-height: 1.7; }
+.botanical-auth-story li svg { flex-shrink: 0; margin-top: 2px; color: #16835e; }
+.botanical-auth-foliage { position: absolute; width: 220px; height: auto; bottom: -44px; right: -55px; opacity: .85; pointer-events: none; }
+.botanical-auth-form { min-width: 0; width: 100%; max-width: 460px; justify-self: center; }
+.botanical-auth-mobile-intro { display: none; }
+.botanical-auth-legal { max-width: 360px; margin: 24px auto 0; font-size: 12px; line-height: 1.8; text-align: center; color: #53675f; }
+.botanical-auth-legal a { text-decoration: underline; text-underline-offset: 3px; }
+.botanical-auth-security { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 24px 0 0; font-size: 11px; line-height: 1.6; text-align: center; color: #53675f; }
+.botanical-auth-security svg { flex-shrink: 0; color: #16835e; }
+/* Clerk merges provider and per-page element classes. Scope these overrides so
+   the authenticated account menu's dark classes cannot win on public forms.
+   Important utility rules are layered, so these overrides must be layered too. */
+@layer base {
+.botanical-auth :is(.cl-card,.cl-cardBox) { background: #fffdf8 !important; border-color: #dae3d8 !important; color: #173c32 !important; box-shadow: 0 8px 26px #164d380a !important; }
+.botanical-auth :is(.cl-headerTitle,.cl-formFieldLabel,.cl-socialButtonsBlockButtonText,.cl-identityPreviewText) { color: #173c32 !important; }
+.botanical-auth :is(.cl-headerSubtitle,.cl-dividerText,.cl-formFieldHintText,.cl-formFieldInfoText,.cl-footerActionText,.cl-footerPages,.cl-footerPageLink,.cl-formFieldInputShowPasswordButton) { color: #53675f !important; }
+.botanical-auth :is(.cl-formFieldInput,.cl-otpCodeFieldInput) { color: #173c32 !important; background: white !important; border-color: #dae3d8 !important; }
+.botanical-auth .cl-formFieldInput::placeholder { color: #65796e !important; }
+.botanical-auth :is(.cl-socialButtonsBlockButton,.cl-alternativeMethodsBlockButton,.cl-identityPreview) { color: #173c32 !important; background: white !important; border-color: #dae3d8 !important; }
+.botanical-auth :is(.cl-socialButtonsBlockButton,.cl-alternativeMethodsBlockButton):hover { background: #e8f1ea !important; }
+.botanical-auth .cl-formButtonPrimary { color: white !important; background: #164d38 !important; border-color: #164d38 !important; box-shadow: none !important; }
+.botanical-auth .cl-formButtonPrimary:hover { background: #103e2f !important; }
+.botanical-auth :is(.cl-footerActionLink,.cl-formFieldAction,.cl-identityPreviewEditButton,.cl-backLink,.cl-formResendCodeLink) { color: #164d38 !important; }
+.botanical-auth .cl-footer { background: #f3f6ed !important; }
+.botanical-auth .cl-dividerLine { background: #dae3d8 !important; }
+.botanical-auth .cl-formFieldErrorText { color: #a52e2e !important; }
+.botanical-auth .cl-formFieldSuccessText { color: #16835e !important; }
+.botanical-auth .cl-formFieldWarningText { color: #805212 !important; }
+.botanical-auth .cl-alert { background: #fff1ed !important; border-color: #a52e2e33 !important; }
+.botanical-auth .cl-alertText { color: #a52e2e !important; }
+}
+@media (max-width: 900px) {
+  .botanical-auth-layout { grid-template-columns: 1fr; gap: 0; padding: 12px 24px 60px; margin-top: 8px; }
+  .botanical-auth-story { display: none; }
+  .botanical-auth-mobile-intro { display: block; margin-bottom: 24px; font-size: 14px; line-height: 1.7; color: #53675f; }
+  .botanical-auth-header { padding: 24px; }
+}
+@media (max-width: 420px) {
+  .botanical-auth-header { padding: 20px 16px; gap: 12px; }
+  .botanical-auth-brand { font-size: 22px; }
+  .botanical-auth-brand img { width: 39px; }
+  .botanical-auth-back { font-size: 11px; gap: 5px; }
+  .botanical-auth-layout { padding-inline: 16px; }
+}

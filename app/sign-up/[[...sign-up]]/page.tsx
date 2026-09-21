@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { getSafeRedirectPath } from "@/lib/safeRedirect";
-import { entryClerkAppearance } from "@/components/ui/entrySurface";
+import { publicAuthAppearance } from "@/components/auth/publicAuthAppearance";
+import { publicDisplayFont } from "@/lib/publicMarketingFonts";
 
 export const metadata: Metadata = {
   title: "Sign up",
@@ -23,7 +24,7 @@ export default async function SignUpPage({
   const fallbackRedirectUrl = getSafeRedirectPath(params?.redirect_url, "/app");
 
   return (
-    <AuthPageShell
+    <div className={publicDisplayFont.variable}><AuthPageShell
       mode="sign-up"
       legal={(
         <p>
@@ -42,8 +43,8 @@ export default async function SignUpPage({
       <SignUp
         fallbackRedirectUrl={fallbackRedirectUrl}
         signInUrl={`/sign-in?redirect_url=${encodeURIComponent(fallbackRedirectUrl)}`}
-        appearance={entryClerkAppearance}
+        appearance={publicAuthAppearance}
       />
-    </AuthPageShell>
+    </AuthPageShell></div>
   );
 }
