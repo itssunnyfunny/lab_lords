@@ -4,6 +4,21 @@ import { getSoftwarePagePath, softwarePageSlugs } from "../../lib/softwarePages"
 
 const publicRoutes = ["/", "/features", "/pricing", "/about", "/faq", "/how-it-works", "/contact", "/support", "/privacy", "/terms", "/refund-policy", "/shipping-delivery-policy", "/cookies", ...softwarePageSlugs.map(getSoftwarePagePath)];
 
+test("library audience and released features stay clear while old audience bookmarks remain useful", async ({ page }) => {
+  await page.goto("/");
+  const audience = page.getByRole("region", { name: "Who Lab Lords is for" });
+  for (const name of ["Self-study libraries", "Study halls", "Reading rooms", "Study rooms"]) await expect(audience.getByRole("heading", { name, exact: true })).toBeVisible();
+  for (const name of ["Receipts", "Attendance", "English, Hindi & Hinglish"]) await expect(page.locator("#features").getByRole("heading", { name, exact: true })).toBeVisible();
+  await expect(page.locator('footer a[href*="coaching"], footer a[href*="tuition"]')).toHaveCount(0);
+  for (const slug of ["coaching-management", "tuition-management"]) {
+    const response = await page.goto(`/software/${slug}`);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, follow");
+    await expect(page.getByText("This older page is here", { exact: false })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Explore library management", exact: true })).toHaveAttribute("href", "/software/library-management");
+  }
+});
+
 test("every public destination has unique metadata, valid fragments and no runtime errors", async ({ page }) => {
   test.setTimeout(180_000);
   const errors: string[] = [];

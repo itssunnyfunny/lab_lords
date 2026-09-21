@@ -85,11 +85,11 @@ test("homepage uses the approved prototype messaging and section progression", a
     expect(index, `${title} follows the previous homepage section`).toBeGreaterThan(previousIndex);
     previousIndex = index;
   }
-  await expect(page.locator("#features").getByRole("heading", { level: 3 })).toHaveCount(6);
+  await expect(page.locator("#features").getByRole("heading", { level: 3 })).toHaveCount(9);
   for (const [title, description] of [
     ["Student management", "Keep student details, seat assignments and fee records together."],
     ["Seats & shifts", "See available seats and assign them to students for the right shift."],
-    ["Fees & dues", "Record payments and check how much each student has left to pay."],
+    ["Fees & dues", "Record full or partial payments and check how much each student has left to pay."],
     ["Multiple branches", "Manage your branches from one account, with separate records for each."],
     ["Student imports", "Bring in your existing student list and review the details before adding it."],
     ["Staff access", "Add your team and choose what each person can view or change."],
@@ -534,7 +534,7 @@ const publicBrandRoutes = [
 test("feature groups keep readable full-width cards on narrow screens", async ({ page }) => {
   await page.goto("/features");
   const groups = page.locator(".public-feature-items");
-  await expect(groups).toHaveCount(8);
+  await expect(groups).toHaveCount(10);
   await expect(groups.first()).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   for (const width of [390, 760, 900, 1100]) {
@@ -545,7 +545,7 @@ test("feature groups keep readable full-width cards on narrow screens", async ({
         card.top >= cards[index - 1].bottom && Math.abs(card.left - cards[index - 1].left) < 1
       )));
     }));
-    expect(layouts, `Every Features group should stack its cards at ${width}px`).toEqual(Array(8).fill(true));
+    expect(layouts, `Every Features group should stack its cards at ${width}px`).toEqual(Array(10).fill(true));
   }
 });
 
