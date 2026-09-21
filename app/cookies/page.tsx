@@ -34,6 +34,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: absoluteUrl("/cookies"),
   },
+  openGraph: { type: "website", url: absoluteUrl("/cookies"), title: "Cookie Policy", description: "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices." },
+  twitter: { card: "summary", title: "Cookie Policy", description: "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices." },
 };
 
 export default function CookiesPage() {

@@ -57,6 +57,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: absoluteUrl("/terms"),
   },
+  openGraph: { type: "website", url: absoluteUrl("/terms"), title: "Terms of Service", description: "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use." },
+  twitter: { card: "summary", title: "Terms of Service", description: "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use." },
 };
 
 export default function TermsPage() {

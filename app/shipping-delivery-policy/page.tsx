@@ -27,6 +27,8 @@ export const metadata: Metadata = {
   title: "Shipping and Delivery Policy",
   description: "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment.",
   alternates: { canonical: absoluteUrl("/shipping-delivery-policy") },
+  openGraph: { type: "website", url: absoluteUrl("/shipping-delivery-policy"), title: "Shipping and Delivery Policy", description: "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment." },
+  twitter: { card: "summary", title: "Shipping and Delivery Policy", description: "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment." },
 };
 
 export default function ShippingDeliveryPolicyPage() {

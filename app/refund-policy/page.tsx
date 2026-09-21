@@ -35,6 +35,8 @@ export const metadata: Metadata = {
   title: "Cancellation and Refund Policy",
   description: "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges.",
   alternates: { canonical: absoluteUrl("/refund-policy") },
+  openGraph: { type: "website", url: absoluteUrl("/refund-policy"), title: "Cancellation and Refund Policy", description: "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges." },
+  twitter: { card: "summary", title: "Cancellation and Refund Policy", description: "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges." },
 };
 
 export default function RefundPolicyPage() {

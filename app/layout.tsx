@@ -59,7 +59,7 @@ export const metadata: Metadata = {
     canonical: absoluteUrl("/"),
   },
   keywords: [
-    "education ERP",
+    "library management software",
     "branch management",
     "seat allocation",
     "fee tracking",
@@ -105,7 +105,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        {measurementId && (
+        {measurementId ? (
           <Script
             id="google-analytics-consent-default"
             strategy="beforeInteractive"
@@ -113,7 +113,7 @@ export default function RootLayout({
               __html: getGoogleAnalyticsBootstrapScript(measurementId),
             }}
           />
-        )}
+        ) : null}
       </head>
       <body
         className={`${inter.variable} ${manrope.variable} ${geistMono.variable} ${devanagari.variable} antialiased`}

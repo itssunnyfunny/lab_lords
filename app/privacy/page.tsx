@@ -55,6 +55,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: absoluteUrl("/privacy"),
   },
+  openGraph: { type: "website", url: absoluteUrl("/privacy"), title: "Privacy Policy", description: "How Lab Lords collects, uses, and protects account, workspace, support, cookie, and analytics data." },
+  twitter: { card: "summary", title: "Privacy Policy", description: "How Lab Lords collects, uses, and protects account, workspace, support, cookie, and analytics data." },
 };
 
 export default function PrivacyPage() {
