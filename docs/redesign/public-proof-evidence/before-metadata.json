@@ -1,0 +1,1197 @@
+[
+  {
+    "route": "/",
+    "status": 200,
+    "title": "Lab Lords — Study Hall & Library Management Software",
+    "description": "Students, seats, shifts and fees — all in one place. Keep your library organised with an easy-to-use dashboard.",
+    "canonical": "https://lablords.in/",
+    "ogTitle": "Lab Lords — Study Hall & Library Management Software",
+    "ogDescription": "Students, seats, shifts and fees — all in one place. Keep your library organised with an easy-to-use dashboard.",
+    "ogUrl": "https://lablords.in",
+    "ogSiteName": null,
+    "ogImage": "https://lablords.in/opengraph-image.png?opengraph-image.16~s8.z.8bnks.png",
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords — Study Hall & Library Management Software",
+    "twitterDescription": "Students, seats, shifts and fees — all in one place. Keep your library organised with an easy-to-use dashboard.",
+    "twitterImage": "https://lablords.in/twitter-image.png?twitter-image.16~s8.z.8bnks.png",
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "A simpler way to manage your library.",
+    "overflow": false
+  },
+  {
+    "route": "/features",
+    "status": 200,
+    "title": "Library Management Features | Lab Lords",
+    "description": "Explore Lab Lords features for library student records, seats and shifts, fees, imports, branches, staff access and reports.",
+    "canonical": "https://lablords.in/features",
+    "ogTitle": "Lab Lords Features",
+    "ogDescription": "Explore Lab Lords features for library student records, seats and shifts, fees, imports, branches, staff access and reports.",
+    "ogUrl": "https://lablords.in/features",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords Features",
+    "twitterDescription": "Explore Lab Lords features for library student records, seats and shifts, fees, imports, branches, staff access and reports.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Tools for everyday library work.",
+    "overflow": false
+  },
+  {
+    "route": "/pricing",
+    "status": 200,
+    "title": "Pricing for Library Management Software | Lab Lords",
+    "description": "Compare Lab Lords Basic and Standard for students, seats, shifts and fees. Monthly pricing for each billable branch, with a 30-day trial for eligible new owners.",
+    "canonical": "https://lablords.in/pricing",
+    "ogTitle": "Lab Lords Pricing",
+    "ogDescription": "Compare Lab Lords Basic and Standard for students, seats, shifts and fees. Monthly pricing for each billable branch, with a 30-day trial for eligible new owners.",
+    "ogUrl": "https://lablords.in/pricing",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords Pricing",
+    "twitterDescription": "Compare Lab Lords Basic and Standard for students, seats, shifts and fees. Monthly pricing for each billable branch, with a 30-day trial for eligible new owners.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Simple plans for your library.",
+    "overflow": false
+  },
+  {
+    "route": "/how-it-works",
+    "status": 200,
+    "title": "How It Works | Lab Lords",
+    "description": "Prepare your first Lab Lords branch, set seats and shifts, review your plan, add students and start keeping everyday library records.",
+    "canonical": "https://lablords.in/how-it-works",
+    "ogTitle": "Lab Lords How It Works",
+    "ogDescription": "Prepare your first Lab Lords branch, set seats and shifts, review your plan, add students and start keeping everyday library records.",
+    "ogUrl": "https://lablords.in/how-it-works",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords How It Works",
+    "twitterDescription": "Prepare your first Lab Lords branch, set seats and shifts, review your plan, add students and start keeping everyday library records.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "From your first branch to everyday work.",
+    "overflow": false
+  },
+  {
+    "route": "/faq",
+    "status": 200,
+    "title": "Frequently Asked Questions | Lab Lords",
+    "description": "Answers about Lab Lords features, plans, trial, setup, imports, branches and support for libraries and study halls.",
+    "canonical": "https://lablords.in/faq",
+    "ogTitle": "Lab Lords Frequently Asked Questions",
+    "ogDescription": "Answers about Lab Lords features, plans, trial, setup, imports, branches and support for libraries and study halls.",
+    "ogUrl": "https://lablords.in/faq",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords Frequently Asked Questions",
+    "twitterDescription": "Answers about Lab Lords features, plans, trial, setup, imports, branches and support for libraries and study halls.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "A little clarity before you start.",
+    "overflow": false
+  },
+  {
+    "route": "/about",
+    "status": 200,
+    "title": "About | Lab Lords",
+    "description": "Lab Lords helps self-study library, study-hall, reading-room and study-room owners keep student records, seats, shifts and fees together.",
+    "canonical": "https://lablords.in/about",
+    "ogTitle": "Lab Lords About",
+    "ogDescription": "Lab Lords helps self-study library, study-hall, reading-room and study-room owners keep student records, seats, shifts and fees together.",
+    "ogUrl": "https://lablords.in/about",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords About",
+    "twitterDescription": "Lab Lords helps self-study library, study-hall, reading-room and study-room owners keep student records, seats, shifts and fees together.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "For the people who keep learning spaces running.",
+    "overflow": false
+  },
+  {
+    "route": "/software/study-hall-management",
+    "status": 200,
+    "title": "Study Hall Software for Seats, Shifts and Fees | Lab Lords",
+    "description": "Manage study hall seats, shifts, students, fee dues and staff across one or more branches with Lab Lords.",
+    "canonical": "https://lablords.in/software/study-hall-management",
+    "ogTitle": "Study Hall Software for Seats, Shifts and Fees | Lab Lords",
+    "ogDescription": "Manage study hall seats, shifts, students, fee dues and staff across one or more branches with Lab Lords.",
+    "ogUrl": "https://lablords.in/software/study-hall-management",
+    "ogSiteName": "Lab Lords",
+    "ogImage": "https://lablords.in/opengraph-image.png",
+    "ogAlt": "Study hall management by Lab Lords",
+    "twitterTitle": "Study Hall Software for Seats, Shifts and Fees | Lab Lords",
+    "twitterDescription": "Manage study hall seats, shifts, students, fee dues and staff across one or more branches with Lab Lords.",
+    "twitterImage": "https://lablords.in/twitter-image.png",
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [
+      [
+        {
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "Lab Lords Study hall management",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://lablords.in/software/study-hall-management",
+          "description": "Manage study hall seats, shifts, students, fee dues and staff across one or more branches with Lab Lords.",
+          "audience": {
+            "@type": "BusinessAudience",
+            "audienceType": "Study hall owners, Reading room operators, Multi-branch managers"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "Lab Lords",
+            "url": "https://lablords.in"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is study hall management software?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "It keeps student details, seats, shifts and fee records together so your team can manage daily work."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can the same seat be used in different shifts?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. A seat can be assigned in compatible time slots, with checks for overlapping bookings."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I manage more than one study hall?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Both plans support multiple branches, with each billable branch charged separately."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I give staff limited access?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Standard lets you invite staff and choose the work they can view or change."
+              }
+            }
+          ]
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://lablords.in/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Software",
+              "item": "https://lablords.in/#software"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Study hall management",
+              "item": "https://lablords.in/software/study-hall-management"
+            }
+          ]
+        }
+      ]
+    ],
+    "heading": "Manage your study hall in one place",
+    "overflow": false
+  },
+  {
+    "route": "/software/library-management",
+    "status": 200,
+    "title": "Library Management Software for Reading Rooms | Lab Lords",
+    "description": "Manage students, seats, shifts and fees for your study library or reading room. Keep records together across one or more branches.",
+    "canonical": "https://lablords.in/software/library-management",
+    "ogTitle": "Library Management Software for Reading Rooms | Lab Lords",
+    "ogDescription": "Manage students, seats, shifts and fees for your study library or reading room. Keep records together across one or more branches.",
+    "ogUrl": "https://lablords.in/software/library-management",
+    "ogSiteName": "Lab Lords",
+    "ogImage": "https://lablords.in/opengraph-image.png",
+    "ogAlt": "Library management by Lab Lords",
+    "twitterTitle": "Library Management Software for Reading Rooms | Lab Lords",
+    "twitterDescription": "Manage students, seats, shifts and fees for your study library or reading room. Keep records together across one or more branches.",
+    "twitterImage": "https://lablords.in/twitter-image.png",
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [
+      [
+        {
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "Lab Lords Library management",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://lablords.in/software/library-management",
+          "description": "Manage students, seats, shifts and fees for your study library or reading room. Keep records together across one or more branches.",
+          "audience": {
+            "@type": "BusinessAudience",
+            "audienceType": "Reading-room libraries, Membership libraries, Study libraries"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "Lab Lords",
+            "url": "https://lablords.in"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What kind of library is Lab Lords for?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Lab Lords supports study libraries and reading rooms that manage student memberships, seats, shifts and fees."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does it manage book lending?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Lab Lords manages students, seats, shifts and fees for study libraries. It does not manage book catalogues or lending."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I use my existing student list?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. You can enter students individually or use spreadsheet import. Review your information and resolve any flagged issues before confirming an import."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I manage several library branches?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Both plans support multiple branches, and each billable branch is charged separately."
+              }
+            }
+          ]
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://lablords.in/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Software",
+              "item": "https://lablords.in/#software"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Library management",
+              "item": "https://lablords.in/software/library-management"
+            }
+          ]
+        }
+      ]
+    ],
+    "heading": "Manage your library's students, seats and fees",
+    "overflow": false
+  },
+  {
+    "route": "/software/seat-management",
+    "status": 200,
+    "title": "Seat Management Software for Study Libraries | Lab Lords",
+    "description": "Manage physical seats and time-based allocations for study halls, reading rooms and study rooms without overlap conflicts.",
+    "canonical": "https://lablords.in/software/seat-management",
+    "ogTitle": "Seat Management Software for Study Libraries | Lab Lords",
+    "ogDescription": "Manage physical seats and time-based allocations for study halls, reading rooms and study rooms without overlap conflicts.",
+    "ogUrl": "https://lablords.in/software/seat-management",
+    "ogSiteName": "Lab Lords",
+    "ogImage": "https://lablords.in/opengraph-image.png",
+    "ogAlt": "Seat management by Lab Lords",
+    "twitterTitle": "Seat Management Software for Study Libraries | Lab Lords",
+    "twitterDescription": "Manage physical seats and time-based allocations for study halls, reading rooms and study rooms without overlap conflicts.",
+    "twitterImage": "https://lablords.in/twitter-image.png",
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [
+      [
+        {
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "Lab Lords Seat management",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://lablords.in/software/seat-management",
+          "description": "Manage physical seats and time-based allocations for study halls, reading rooms and study rooms without overlap conflicts.",
+          "audience": {
+            "@type": "BusinessAudience",
+            "audienceType": "Library owners, Front desk staff, Branch managers"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "Lab Lords",
+            "url": "https://lablords.in"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Can one seat be used by different students?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, in compatible shifts. Overlap checks prevent conflicting bookings for the same seat."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I set my own shift timings?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Configure timings and fees to match your library, including supported combined shifts."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can students book seats themselves?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Lab Lords provides seat assignment tools for the owner and authorized staff. It does not offer public student self-booking."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is seat management available in Basic?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Seats, shifts and allocations are included in both Basic and Standard."
+              }
+            }
+          ]
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://lablords.in/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Software",
+              "item": "https://lablords.in/#software"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Seat management",
+              "item": "https://lablords.in/software/seat-management"
+            }
+          ]
+        }
+      ]
+    ],
+    "heading": "Manage seats across your shifts",
+    "overflow": false
+  },
+  {
+    "route": "/software/student-fee-management",
+    "status": 200,
+    "title": "Student Fee Management and Payment Tracking | Lab Lords",
+    "description": "Track student payments, monthly dues, waived fees and collection history across study halls, libraries and reading rooms.",
+    "canonical": "https://lablords.in/software/student-fee-management",
+    "ogTitle": "Student Fee Management and Payment Tracking | Lab Lords",
+    "ogDescription": "Track student payments, monthly dues, waived fees and collection history across study halls, libraries and reading rooms.",
+    "ogUrl": "https://lablords.in/software/student-fee-management",
+    "ogSiteName": "Lab Lords",
+    "ogImage": "https://lablords.in/opengraph-image.png",
+    "ogAlt": "Student fee management by Lab Lords",
+    "twitterTitle": "Student Fee Management and Payment Tracking | Lab Lords",
+    "twitterDescription": "Track student payments, monthly dues, waived fees and collection history across study halls, libraries and reading rooms.",
+    "twitterImage": "https://lablords.in/twitter-image.png",
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [
+      [
+        {
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "Lab Lords Student fee management",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://lablords.in/software/student-fee-management",
+          "description": "Track student payments, monthly dues, waived fees and collection history across study halls, libraries and reading rooms.",
+          "audience": {
+            "@type": "BusinessAudience",
+            "audienceType": "Education business owners, Fee desk staff, Branch managers"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "Lab Lords",
+            "url": "https://lablords.in"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Does Lab Lords automatically charge students?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. These tools record and track student fees and received payments. Your Lab Lords subscription is billed separately."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I use different fees for different students?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Set a manual recurring fee or use a linked shift or combined-shift price."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I review unpaid and waived fees?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Payment records distinguish pending, paid and waived amounts."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is fee management available in Basic?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Payments, dues and audit history are included in Basic and Standard."
+              }
+            }
+          ]
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://lablords.in/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Software",
+              "item": "https://lablords.in/#software"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Student fee management",
+              "item": "https://lablords.in/software/student-fee-management"
+            }
+          ]
+        }
+      ]
+    ],
+    "heading": "Track student fees and payments",
+    "overflow": false
+  },
+  {
+    "route": "/software/fee-reminder",
+    "status": 200,
+    "title": "Fee Reminder Software for Education Centres | Lab Lords",
+    "description": "Identify overdue student fees and prepare owner-reviewed reminder messages for study halls, libraries, reading rooms and study rooms.",
+    "canonical": "https://lablords.in/software/fee-reminder",
+    "ogTitle": "Fee Reminder Software for Education Centres | Lab Lords",
+    "ogDescription": "Identify overdue student fees and prepare owner-reviewed reminder messages for study halls, libraries, reading rooms and study rooms.",
+    "ogUrl": "https://lablords.in/software/fee-reminder",
+    "ogSiteName": "Lab Lords",
+    "ogImage": "https://lablords.in/opengraph-image.png",
+    "ogAlt": "Fee reminder by Lab Lords",
+    "twitterTitle": "Fee Reminder Software for Education Centres | Lab Lords",
+    "twitterDescription": "Identify overdue student fees and prepare owner-reviewed reminder messages for study halls, libraries, reading rooms and study rooms.",
+    "twitterImage": "https://lablords.in/twitter-image.png",
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [
+      [
+        {
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "Lab Lords Fee reminder",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://lablords.in/software/fee-reminder",
+          "description": "Identify overdue student fees and prepare owner-reviewed reminder messages for study halls, libraries, reading rooms and study rooms.",
+          "audience": {
+            "@type": "BusinessAudience",
+            "audienceType": "Owners handling dues, Fee collection teams, Branch managers"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "Lab Lords",
+            "url": "https://lablords.in"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What does fee reminder software help with?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "It helps you find pending fees and check student payment history before preparing a reminder."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does an AI draft send a message automatically?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. AI assistance prepares message drafts for you to review. Creating a draft does not send it."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does a reminder mean the student has paid?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Check money actually received and the payment record. Preparing or using a reminder does not confirm collection."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which plan includes AI assistance?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Standard includes AI reports and message drafting. Both plans include payments, dues and audit history."
+              }
+            }
+          ]
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://lablords.in/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Software",
+              "item": "https://lablords.in/#software"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Fee reminder",
+              "item": "https://lablords.in/software/fee-reminder"
+            }
+          ]
+        }
+      ]
+    ],
+    "heading": "Keep track of fee follow-ups",
+    "overflow": false
+  },
+  {
+    "route": "/privacy",
+    "status": 200,
+    "title": "Privacy Policy | Lab Lords",
+    "description": "How Lab Lords collects, uses, and protects account, workspace, support, cookie, and analytics data.",
+    "canonical": "https://lablords.in/privacy",
+    "ogTitle": "Privacy Policy",
+    "ogDescription": "How Lab Lords collects, uses, and protects account, workspace, support, cookie, and analytics data.",
+    "ogUrl": "https://lablords.in/privacy",
+    "ogSiteName": null,
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Privacy Policy",
+    "twitterDescription": "How Lab Lords collects, uses, and protects account, workspace, support, cookie, and analytics data.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Privacy Policy",
+    "overflow": false
+  },
+  {
+    "route": "/terms",
+    "status": 200,
+    "title": "Terms of Service | Lab Lords",
+    "description": "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use.",
+    "canonical": "https://lablords.in/terms",
+    "ogTitle": "Terms of Service",
+    "ogDescription": "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use.",
+    "ogUrl": "https://lablords.in/terms",
+    "ogSiteName": null,
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Terms of Service",
+    "twitterDescription": "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Terms of Service",
+    "overflow": false
+  },
+  {
+    "route": "/refund-policy",
+    "status": 200,
+    "title": "Cancellation and Refund Policy | Lab Lords",
+    "description": "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges.",
+    "canonical": "https://lablords.in/refund-policy",
+    "ogTitle": "Cancellation and Refund Policy",
+    "ogDescription": "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges.",
+    "ogUrl": "https://lablords.in/refund-policy",
+    "ogSiteName": null,
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Cancellation and Refund Policy",
+    "twitterDescription": "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Cancellation and Refund Policy",
+    "overflow": false
+  },
+  {
+    "route": "/shipping-delivery-policy",
+    "status": 200,
+    "title": "Shipping and Delivery Policy | Lab Lords",
+    "description": "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment.",
+    "canonical": "https://lablords.in/shipping-delivery-policy",
+    "ogTitle": "Shipping and Delivery Policy",
+    "ogDescription": "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment.",
+    "ogUrl": "https://lablords.in/shipping-delivery-policy",
+    "ogSiteName": null,
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Shipping and Delivery Policy",
+    "twitterDescription": "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Shipping and Delivery Policy",
+    "overflow": false
+  },
+  {
+    "route": "/contact",
+    "status": 200,
+    "title": "Contact Us | Lab Lords",
+    "description": "Ask Lab Lords about product fit, plans and getting started with your library. Open an email draft or find help for an existing account.",
+    "canonical": "https://lablords.in/contact",
+    "ogTitle": "Lab Lords Contact Us",
+    "ogDescription": "Ask Lab Lords about product fit, plans and getting started with your library. Open an email draft or find help for an existing account.",
+    "ogUrl": "https://lablords.in/contact",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords Contact Us",
+    "twitterDescription": "Ask Lab Lords about product fit, plans and getting started with your library. Open an email draft or find help for an existing account.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Let's talk about your library.",
+    "overflow": false
+  },
+  {
+    "route": "/cookies",
+    "status": 200,
+    "title": "Cookie Policy | Lab Lords",
+    "description": "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices.",
+    "canonical": "https://lablords.in/cookies",
+    "ogTitle": "Cookie Policy",
+    "ogDescription": "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices.",
+    "ogUrl": "https://lablords.in/cookies",
+    "ogSiteName": null,
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Cookie Policy",
+    "twitterDescription": "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Cookie Policy",
+    "overflow": false
+  },
+  {
+    "route": "/support",
+    "status": 200,
+    "title": "Support | Lab Lords",
+    "description": "Find help with your Lab Lords account, students, seats, fees and subscription, or prepare a bug-report email draft.",
+    "canonical": "https://lablords.in/support",
+    "ogTitle": "Lab Lords Support",
+    "ogDescription": "Find help with your Lab Lords account, students, seats, fees and subscription, or prepare a bug-report email draft.",
+    "ogUrl": "https://lablords.in/support",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords Support",
+    "twitterDescription": "Find help with your Lab Lords account, students, seats, fees and subscription, or prepare a bug-report email draft.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "index, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Help with Lab Lords.",
+    "overflow": false
+  },
+  {
+    "route": "/software/coaching-management",
+    "status": 200,
+    "title": "Coaching management: our library focus | Lab Lords",
+    "description": "Looking for software for coaching centres? Lab Lords now focuses on self-study libraries, study halls, reading rooms and study rooms.",
+    "canonical": "https://lablords.in/software/coaching-management",
+    "ogTitle": "Lab Lords Coaching management: our library focus",
+    "ogDescription": "Looking for software for coaching centres? Lab Lords now focuses on self-study libraries, study halls, reading rooms and study rooms.",
+    "ogUrl": "https://lablords.in/software/coaching-management",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords Coaching management: our library focus",
+    "twitterDescription": "Looking for software for coaching centres? Lab Lords now focuses on self-study libraries, study halls, reading rooms and study rooms.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "noindex, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Looking for software for coaching centres?",
+    "overflow": false
+  },
+  {
+    "route": "/software/tuition-management",
+    "status": 200,
+    "title": "Tuition management: our library focus | Lab Lords",
+    "description": "Looking for software for tuition centres? Lab Lords now focuses on self-study libraries, study halls, reading rooms and study rooms.",
+    "canonical": "https://lablords.in/software/tuition-management",
+    "ogTitle": "Lab Lords Tuition management: our library focus",
+    "ogDescription": "Looking for software for tuition centres? Lab Lords now focuses on self-study libraries, study halls, reading rooms and study rooms.",
+    "ogUrl": "https://lablords.in/software/tuition-management",
+    "ogSiteName": "Lab Lords",
+    "ogImage": null,
+    "ogAlt": null,
+    "twitterTitle": "Lab Lords Tuition management: our library focus",
+    "twitterDescription": "Looking for software for tuition centres? Lab Lords now focuses on self-study libraries, study halls, reading rooms and study rooms.",
+    "twitterImage": null,
+    "twitterAlt": null,
+    "robots": "noindex, follow",
+    "icons": [
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico?favicon.0dzc16~2dg86u.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/favicon.ico"
+      },
+      {
+        "rel": "icon",
+        "href": "http://localhost:3101/icon.png"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "http://localhost:3101/apple-icon.png"
+      }
+    ],
+    "schema": [],
+    "heading": "Looking for software for tuition centres?",
+    "overflow": false
+  }
+]

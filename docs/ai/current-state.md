@@ -1,5 +1,58 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Public proof and identity refresh — 2026-09-21
+
+Home replaces its plan introduction with a labelled sample payment/receipt.
+No customer aggregates, quotes or logos are published without public-use approval;
+the small public-proof registry is empty and renders this product example.
+`/#pricing` targets the footer Pricing link; `/pricing` and its actions remain.
+Public wordmarks now read Lab Lords, with the existing approved symbol reused in
+icons and sharing artwork. Page-specific metadata explicitly includes sharing
+images/alt text, and Home has one WebSite node. The established routes, 18-entry
+sitemap, retired audience notices and protected-route rules are unchanged.
+See the [evidence and validation record](../redesign/public-proof-and-metadata.md)
+and [rendered metadata audit](../redesign/public-metadata-audit.md). This describes
+local implementation, not deployment or a changed Google display.
+
+## Library-only public content correction — 2026-09-21
+
+Current positioning is self-study libraries, study halls, reading rooms and
+study rooms in India. The approved public wording and visual theme are retained.
+Partial payments, receipts, follow-ups, supervised QR attendance and personal
+English/Hindi/Hinglish choices now extend existing public content. Owner-confirmed
+availability and read-only Vercel deployment evidence are recorded separately in
+[public claims](../product/public-claims.md). This is not a fresh production smoke test.
+The two older coaching/tuition URLs remain reachable with a library-focus notice,
+`noindex, follow` and specific library/contact links. Current promotion and the
+18-entry sitemap omit those two audience pages. Historical records below retain
+their original dated scope. Runtime access, prices and entitlements are unchanged.
+
+## Public marketing page completion — 2026-09-21
+
+The local botanical public site now includes `/about`, `/faq` and
+`/how-it-works`, with 20 public sitemap destinations. Features and Pricing
+remain dedicated routes; Home has a shorter plan introduction. Navigation
+adds a Resources disclosure and current-page indication while preserving
+legacy homepage fragments. Shared FAQ answers connect the relevant pages.
+
+Pricing and the comparison read `publicBillingPlans()` and retain internal
+plan IDs and existing authentication-aware actions. The setup walkthrough
+matches organization, first branch/seats/shifts, plan and import-choice order.
+Contact handles prospective-customer questions; Support provides practical
+help, existing policy guidance and the same email-draft bug-report mechanism
+with native field validation. No contact backend was added.
+
+The approved palette, fonts, assets, component conventions and motion remain.
+Policy substance and dates are unchanged; policy sharing metadata is now
+page-specific. Solution routes and SEO titles remain stable, with additional
+illustrative examples and crosslinks. Unsupported new follow-up claims were
+removed pending release evidence; attendance, receipt and newer renewal
+workflows are not newly promoted. Authentication, tenancy, billing services,
+schema, migrations and provider operations are unchanged.
+
+See [audit, claim evidence and verification](../redesign/public-site-completion.md).
+This records local implementation, not production deployment.
+
 > Last verified: 2026-09-06 (release verification; older sections retain their original evidence)
 >
 > Repository anchor: consolidation through ac639e9; subsequent release verification is linked in the final dated update
@@ -84,7 +137,7 @@ anchor. Do not turn an environment or provider assumption into deployment truth.
 
 ## Product and architecture
 
-Lab Lords is a multi-tenant SaaS micro-ERP for Indian study halls, reading-room libraries, coaching centres, and tuition centres. It manages organizations and branches, students, seats and shifts, allocations, branch fee collection, staff access, analytics, AI-assisted review, data imports, and Lab Lords subscription billing.
+Lab Lords is a multi-tenant SaaS micro-ERP for self-study libraries, study halls, reading rooms, and study rooms in India. It manages organizations and branches, students, seats and shifts, allocations, branch fee collection, staff access, analytics, AI-assisted review, data imports, and Lab Lords subscription billing.
 
 The dominant application flow is:
 
@@ -696,6 +749,45 @@ Authoritative code: `services/billing*.ts`, `services/ownerTrial.service.ts`, `s
 
 ### Public website and telemetry
 
+- The subsequent 2026-09-20 messaging update adopts the supplied HTML prototype
+  in the existing content registries, homepage, Features, Pricing and seven
+  solution pages. Six core feature cards, the four-step setup, FAQs and closing
+  use direct everyday wording. The homepage reuses the catalogue-backed pricing
+  component; no second price list or `/how-it-works` route is introduced (links
+  retain `/#how-it-works`). Trial copy specifies eligibility after first-branch
+  setup. Titles, canonicals, policy wording and application behavior are retained.
+- The 2026-09-20 botanical public-page revision replaces the earlier study-room
+  hero with the supplied dashboard-led composition, forest-green actions,
+  warm-paper surfaces and botanical accents. Its sample seat overview is local
+  UI state only, explicitly labelled as sample data, and performs no tenant read
+  or mutation. The 17 marketing/legal routes, sign-in, sign-up and invitation
+  presentation use the new visual direction. Clerk redirects, explicit invite
+  acceptance, runtime pricing, plan eligibility and consent behavior are
+  preserved. See [the botanical implementation record](../redesign/botanical-public-pages.md)
+  for scope and verification; this is local implementation, not deployment.
+- The 2026-09-20 original-brand correction now covers all 17 public routes,
+  following the owner's instruction to extend the initial visual milestone
+  while retaining its sentences. The shared public shell provides Playfair
+  Display/Inter, the supplied palette, an open-book/leaf identity and finished
+  botanical artwork. Public controls explicitly use Inter, and all Features
+  card groups stack at narrow widths. The complete homepage, Features, Pricing, Contact, Support,
+  five policy pages and seven software pages share that presentation. A frozen
+  before/after browser comparison preserves all 39,421 main-text characters,
+  759 content blocks, 17 titles and 737 control records; only the footer wordmark
+  changes visually. Shared account/plan actions, runtime pricing, analytics
+  consent and authenticated surfaces retain their behavior. See the
+  [rollout report](../redesign/public-rollout-report.md) for local verification
+  and remaining limits; this is not deployment evidence.
+- The 2026-09-20 local public redesign uses a scoped warm-paper/forest theme and
+  server-composed marketing shell. The homepage presents features, benefits,
+  setup, synthetic interactive examples and FAQs. Dedicated `/features` and
+  `/pricing` pages join the seven retained software routes; contact, support and
+  policy layouts share the public shell. Pricing still comes from
+  `publicBillingPlans()` and selected-plan continuation still uses the existing
+  billing helpers. Account/provider ordering, authenticated styles, permissions,
+  financial behavior and localization preferences are unchanged. See the
+  [redesign implementation record](../redesign/implementation.md) for scope and
+  validation; this is local implementation, not deployment evidence.
 - Landing, product-specific SEO pages, contact, support, privacy, terms, refund, shipping/delivery, and cookie pages are implemented.
 - Google Analytics loads only when a measurement ID is configured and begins with denied consent. Events require explicit accepted consent.
 - The support/bug-report form opens a pre-filled email through `mailto:`; there is no server-side support-ticket or email-delivery integration.

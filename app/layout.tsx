@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { UserPreferencesBoundary } from "@/components/settings/UserPreferencesBoundary";
@@ -59,39 +60,26 @@ export const metadata: Metadata = {
     canonical: absoluteUrl("/"),
   },
   keywords: [
-    "education ERP",
+    "library management software",
     "branch management",
     "seat allocation",
     "fee tracking",
     "student management",
   ],
   openGraph: {
+    ...publicOpenGraph,
     type: "website",
     url: absoluteUrl("/"),
     siteName: siteConfig.name,
     title: siteConfig.homeTitle,
     description: siteConfig.description,
-    images: [
-      {
-        url: "/opengraph-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Lab Lords - Study Hall & Library Management Software",
-      },
-    ],
   },
   twitter: {
+    ...publicTwitter,
     card: "summary_large_image",
     title: siteConfig.homeTitle,
     description: siteConfig.description,
-    images: ["/twitter-image.png"],
-  },
-  icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      { url: "/icon.png", type: "image/png" },
-    ],
-    apple: [{ url: "/apple-icon.png" }],
+
   },
 };
 
@@ -105,7 +93,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        {measurementId && (
+        {measurementId ? (
           <Script
             id="google-analytics-consent-default"
             strategy="beforeInteractive"
@@ -113,7 +101,7 @@ export default function RootLayout({
               __html: getGoogleAnalyticsBootstrapScript(measurementId),
             }}
           />
-        )}
+        ) : null}
       </head>
       <body
         className={`${inter.variable} ${manrope.variable} ${geistMono.variable} ${devanagari.variable} antialiased`}

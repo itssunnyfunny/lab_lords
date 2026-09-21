@@ -45,6 +45,10 @@ describe("billing plan catalog", () => {
       "Student records and spreadsheet import",
       "Seats, shifts and allocations",
       "Payments, dues and audit history",
+      "Full or partial payments and receipts",
+      "Upcoming fees and follow-up notes",
+      "Attendance and staff-assisted QR",
+      "English, Hindi and Hinglish preferences",
       "Multiple branches, each billed separately",
       "Staff invitations, roles and permission controls",
       "Branch and cross-branch advanced analytics",
@@ -54,7 +58,7 @@ describe("billing plan catalog", () => {
     expect(basic.capabilities.map(capability => capability.label)).toEqual(labels);
     expect(standard.capabilities.map(capability => capability.label)).toEqual(labels);
     expect(basic.capabilities.map(capability => capability.included)).toEqual([
-      true, true, true, true, false, false, false,
+      true, true, true, true, true, true, true, true, false, false, false,
     ]);
     expect(standard.capabilities.every(capability => capability.included)).toBe(true);
   });

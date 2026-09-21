@@ -1,11 +1,15 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SoftwareLandingPage } from "@/components/software/SoftwareLandingPage";
+import { LegacyAudiencePage } from "@/components/software/LegacyAudiencePage";
+import { publicMetadata } from "@/lib/publicMetadata";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 import {
   getSoftwarePage,
   getSoftwarePagePath,
   softwarePageSlugs,
+  legacySoftwarePageSlugs,
 } from "@/lib/softwarePages";
 
 type SoftwarePageProps = {
@@ -25,6 +29,13 @@ export async function generateMetadata({ params }: SoftwarePageProps): Promise<M
   }
 
   const canonicalPath = getSoftwarePagePath(page.slug);
+  if (legacySoftwarePageSlugs.includes(page.slug)) {
+    const audience = page.slug === "coaching-management" ? "coaching centres" : "tuition centres";
+    return {
+      ...publicMetadata(canonicalPath, `${page.shortName}: our library focus`, `Looking for software for ${audience}? Lab Lords now focuses on self-study libraries, study halls, reading rooms and study rooms.`),
+      robots: { index: false, follow: true },
+    };
+  }
   const title = `${page.metaTitle} | ${siteConfig.name}`;
 
   return {
@@ -37,25 +48,19 @@ export async function generateMetadata({ params }: SoftwarePageProps): Promise<M
       canonical: absoluteUrl(canonicalPath),
     },
     openGraph: {
+      ...publicOpenGraph,
       type: "website",
       url: absoluteUrl(canonicalPath),
       siteName: siteConfig.name,
       title,
       description: page.metaDescription,
-      images: [
-        {
-          url: "/opengraph-image.png",
-          width: 1200,
-          height: 630,
-          alt: `${page.shortName} by Lab Lords`,
-        },
-      ],
     },
     twitter: {
+      ...publicTwitter,
       card: "summary_large_image",
       title,
       description: page.metaDescription,
-      images: ["/twitter-image.png"],
+
     },
   };
 }
@@ -69,6 +74,9 @@ export default async function SoftwarePageRoute({ params }: SoftwarePageProps) {
   }
 
   const path = getSoftwarePagePath(page.slug);
+  if (legacySoftwarePageSlugs.includes(page.slug)) {
+    return <LegacyAudiencePage audience={page.slug === "coaching-management" ? "coaching centres" : "tuition centres"} />;
+  }
   const url = absoluteUrl(path);
   const jsonLd = [
     {
@@ -114,7 +122,7 @@ export default async function SoftwarePageRoute({ params }: SoftwarePageProps) {
         {
           "@type": "ListItem",
           position: 2,
-          name: "Software",
+          name: "For your library",
           item: absoluteUrl("/#software"),
         },
         {

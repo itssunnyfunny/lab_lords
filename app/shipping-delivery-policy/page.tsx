@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/legal/LegalPage";
 import { absoluteUrl, siteConfig } from "@/lib/site";
@@ -27,6 +28,8 @@ export const metadata: Metadata = {
   title: "Shipping and Delivery Policy",
   description: "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment.",
   alternates: { canonical: absoluteUrl("/shipping-delivery-policy") },
+  openGraph: { ...publicOpenGraph, type: "website", url: absoluteUrl("/shipping-delivery-policy"), title: "Shipping and Delivery Policy", description: "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment." },
+  twitter: { ...publicTwitter, card: "summary", title: "Shipping and Delivery Policy", description: "How Lab Lords digital SaaS access is activated and delivered after a successful subscription payment." },
 };
 
 export default function ShippingDeliveryPolicyPage() {

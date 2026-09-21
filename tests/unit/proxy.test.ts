@@ -47,6 +47,8 @@ describe("proxy matcher", () => {
 
   it.each([
     "https://lablords.in/",
+    "https://lablords.in/features",
+    "https://lablords.in/pricing",
     "https://lablords.in/privacy",
     "https://lablords.in/terms",
     "https://lablords.in/refund-policy",

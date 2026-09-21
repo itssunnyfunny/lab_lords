@@ -1,6 +1,6 @@
 # Lab Lords
 
-Lab Lords is a Next.js micro-ERP for offline education businesses such as study halls, coaching centers, and libraries. It manages organizations, branches, seats, shifts, students, staff, payments, analytics, and AI-assisted branch insights.
+Lab Lords is a Next.js micro-ERP for self-study libraries, study halls, reading rooms, and study rooms in India. It manages organizations, branches, seats, shifts, students, staff, payments, analytics, and AI-assisted branch insights.
 
 ## Repository Guidance
 

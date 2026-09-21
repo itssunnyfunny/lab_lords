@@ -5,8 +5,8 @@ work to the durable sources of truth instead of duplicating them.
 
 ## Repository purpose
 
-Lab Lords is a production, multi-tenant SaaS for study halls, libraries,
-coaching centres, and tuition centres in India. It manages organizations,
+Lab Lords is a production, multi-tenant SaaS for self-study libraries,
+study halls, reading rooms, and study rooms in India. It manages organizations,
 branches, students, seats, shifts, staff, payments, analytics, imports, and
 AI-assisted workflows.
 
@@ -37,6 +37,11 @@ AI-assisted workflows.
   Accepted ADRs.
 
 No nested `AGENTS.md` currently overrides these instructions.
+
+Public wording and release evidence: `docs/product/public-claims.md`. For
+customer-visible feature changes, check Home, Features, Pricing and FAQ wording;
+record affected copy or why no marketing change is needed. Preserve the approved
+simple language.
 
 ## Working agreement
 

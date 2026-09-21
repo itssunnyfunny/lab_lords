@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/legal/LegalPage";
 import { absoluteUrl, siteConfig } from "@/lib/site";
@@ -35,6 +36,8 @@ export const metadata: Metadata = {
   title: "Cancellation and Refund Policy",
   description: "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges.",
   alternates: { canonical: absoluteUrl("/refund-policy") },
+  openGraph: { ...publicOpenGraph, type: "website", url: absoluteUrl("/refund-policy"), title: "Cancellation and Refund Policy", description: "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges." },
+  twitter: { ...publicTwitter, card: "summary", title: "Cancellation and Refund Policy", description: "How to cancel Lab Lords subscriptions and request review of duplicate, incorrect, or failed-access charges." },
 };
 
 export default function RefundPolicyPage() {
