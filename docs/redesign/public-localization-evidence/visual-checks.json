@@ -1,0 +1,107 @@
+[
+  {
+    "locale": "en",
+    "menu": "Navigation menu\nFeatures\nPricing\nHow it works\nContact us\n\nRESOURCES\n\nAbout Lab Lords\nFAQs\nSupport\nSolutions for your space\nEnglish\nहिंदी\nHinglish\nSign in\nStart free trial",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "en",
+    "path": "/",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "en",
+    "path": "/pricing",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "en",
+    "path": "/faq",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "en",
+    "path": "/support",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "en",
+    "path": "/software/seat-management",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hi",
+    "menu": "नेविगेशन मेन्यू\nफीचर्स\nकीमतें\nकैसे काम करता है\nसंपर्क करें\n\nजानकारी\n\nLab Lords के बारे में\nसवाल-जवाब\nसपोर्ट\nआपकी जगह के लिए समाधान\nEnglish\nहिंदी\nHinglish\nसाइन इन करें\nमुफ़्त ट्रायल शुरू करें",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hi",
+    "path": "/",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hi",
+    "path": "/pricing",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hi",
+    "path": "/faq",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hi",
+    "path": "/support",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hi",
+    "path": "/software/seat-management",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hinglish",
+    "menu": "Navigation menu\nFeatures\nPricing\nKaise kaam karta hai\nContact karein\n\nJAANKAARI\n\nLab Lords ke baare mein\nSawaal-jawaab\nSupport\nAapki jagah ke liye solutions\nEnglish\nहिंदी\nHinglish\nSign in karein\nFree trial shuru karein",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hinglish",
+    "path": "/",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hinglish",
+    "path": "/pricing",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hinglish",
+    "path": "/faq",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hinglish",
+    "path": "/support",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  },
+  {
+    "locale": "hinglish",
+    "path": "/software/seat-management",
+    "zoom": "400%",
+    "horizontalOverflow": false
+  }
+]
