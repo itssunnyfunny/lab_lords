@@ -1,5 +1,8 @@
 "use client";
 import { useTranslation } from "@/components/settings/LocalizedText";
+import { messagesFor, publicTranslator } from "@/lib/public-i18n/translate";
+import { publicConsentCatalog } from "@/lib/public-i18n/consent";
+import { publicRoute } from "@/lib/public-i18n/routes";
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -18,8 +21,10 @@ type AnalyticsProviderProps = {
 };
 
 export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
-    const t = useTranslation();
+  const appText = useTranslation();
   const pathname = usePathname();
+  const route = publicRoute(pathname);
+  const t = route ? publicTranslator(messagesFor(publicConsentCatalog, route.locale)) : appText.owned;
   const searchParams = useSearchParams();
   const [showPreferences, setShowPreferences] = useState(false);
   const appliedConsent = useRef<CookieConsent | null>(null);
@@ -71,11 +76,11 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
     <>
       {shouldShowBanner && (
         <aside
-          aria-label="Cookie preferences"
+          aria-label={t("Cookie preferences")}
           className="fixed inset-x-4 bottom-4 z-[80] mx-auto max-w-2xl rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--bg-app)]/95 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl sm:left-auto sm:right-5 sm:mx-0 sm:p-5"
         >
           <p className="text-sm leading-6 text-[color:var(--text-secondary)]">
-            We use essential cookies to run Lab Lords and optional analytics to understand website usage.
+            {t("We use essential cookies to run Lab Lords and optional analytics to understand website usage.")}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
@@ -83,21 +88,21 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
               className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-3.5 text-sm font-semibold text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] transition-colors hover:bg-[color:var(--ui-button-primary-hover-bg)]"
               onClick={() => saveConsent("accepted")}
             >
-              Accept analytics
+              {t("Accept analytics")}
             </button>
             <button
               type="button"
               className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3.5 text-sm font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)]"
               onClick={() => saveConsent("rejected")}
             >
-              Reject
+              {t("Reject")}
             </button>
             <Link
               href="/cookies"
               className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] px-3 text-sm font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
               onClick={() => setShowPreferences(false)}
             >
-              {t("Manage")}</Link>
+              {t(route && route.locale !== "en" ? "Manage (English)" : "Manage")}</Link>
           </div>
         </aside>
       )}

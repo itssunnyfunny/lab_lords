@@ -3,7 +3,7 @@
 @plugin "tailwind-scrollbar";
 
 /* Preserve Devanagari shaping and vowel marks at the existing type scale. */
-:lang(hi) { font-family: var(--font-devanagari, "Nirmala UI"), "Noto Sans Devanagari", var(--font-inter, sans-serif), sans-serif; line-height: 1.6; }
+:lang(hi-IN) { font-family: var(--font-devanagari, "Nirmala UI"), "Noto Sans Devanagari", var(--font-inter, sans-serif), sans-serif; line-height: 1.6; }
 
 /* Tailwind v4 no longer discovers JavaScript configuration files automatically.
    Keep the application theme in CSS so the utility contract and design tokens

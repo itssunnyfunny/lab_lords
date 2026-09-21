@@ -1,4 +1,5 @@
 "use client";
+import { usePublicText } from "@/components/landing/PublicLanguageProvider";
 
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -10,24 +11,27 @@ import { getBillingOnboardingPath, getBillingSignUpPath, getOrganizationBillingP
 import { trackEvent } from "@/lib/tracking";
 
 export function WorkspaceCTA({ source = "landing_cta", className = "", label = "Start free trial" }: { source?: string; className?: string; label?: string }) {
+  const { t } = usePublicText();
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   return <button type="button" disabled={!isLoaded} className={`marketing-button ${className}`} onClick={() => {
     trackEvent("landing_cta_clicked", { source, signed_in: Boolean(isSignedIn) });
     router.push(isSignedIn ? "/app" : "/sign-up");
-  }}>{isSignedIn ? "Open workspace" : label}<ArrowRight size={16} aria-hidden="true" /></button>;
+  }}>{t(isSignedIn ? "Open workspace" : label)}<ArrowRight size={16} aria-hidden="true" /></button>;
 }
 
 export function SignInCTA() {
+  const { t } = usePublicText();
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   return <button className="marketing-sign-in" type="button" disabled={!isLoaded} onClick={() => {
     trackEvent("landing_cta_clicked", { source: "landing_nav_sign_in", signed_in: Boolean(isSignedIn) });
     router.push(isSignedIn ? "/app" : "/sign-in");
-  }}>{isSignedIn ? "My workspace" : "Sign in"}</button>;
+  }}>{t(isSignedIn ? "My workspace" : "Sign in")}</button>;
 }
 
 export function PlanCTA({ planId, active, label }: { planId: CheckoutBillingPlanId; active: boolean; label: string }) {
+  const { t } = usePublicText();
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -44,6 +48,6 @@ export function PlanCTA({ planId, active, label }: { planId: CheckoutBillingPlan
     }
   }
   return <button type="button" className="marketing-button w-full" disabled={!isLoaded || !active || pending} aria-busy={pending} onClick={choosePlan}>
-    {pending ? "Opening your plan…" : active ? label : "Coming soon"}<ArrowRight size={16} aria-hidden="true" />
+    {t(pending ? "Opening your plan…" : active ? label : "Coming soon")}<ArrowRight size={16} aria-hidden="true" />
   </button>;
 }
