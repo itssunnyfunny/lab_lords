@@ -36,10 +36,45 @@ test("every public destination has unique metadata, valid fragments and no runti
     expect(canonical.pathname).toBe(route);
     const title = await page.title();
     const description = await page.locator('meta[name="description"]').getAttribute("content");
+    const expectedTitles: Record<string, string> = {
+      "/": "Lab Lords — Library & Study Hall Management Software",
+      "/features": "Library Management Features | Lab Lords",
+      "/pricing": "Plans & Pricing | Lab Lords",
+      "/how-it-works": "How Lab Lords Works | Library Setup Guide",
+      "/contact": "Contact Us | Lab Lords",
+    };
+    if (expectedTitles[route]) expect(title).toBe(expectedTitles[route]);
+    expect(title).not.toContain("Lab Lords | Lab Lords");
     expect(titles.has(title), route).toBe(false); titles.add(title);
     expect(descriptions.has(description!), route).toBe(false); descriptions.add(description!);
     await expect(page.locator('meta[property="og:description"]')).toHaveAttribute("content", description!);
     await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute("content", description!);
+    await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Lab Lords");
+    const ogUrl = new URL((await page.locator('meta[property="og:url"]').getAttribute("content"))!);
+    expect(ogUrl.origin).toBe(canonical.origin);
+    expect(ogUrl.pathname).toBe(route);
+    for (const selector of ['meta[property="og:image"]', 'meta[name="twitter:image"]']) {
+      await expect(page.locator(selector)).toHaveAttribute("content", /^https:\/\/lablords\.in\/(opengraph|twitter)-image\.png/);
+    }
+    for (const selector of ['meta[property="og:image:alt"]', 'meta[name="twitter:image:alt"]']) {
+      await expect(page.locator(selector)).toHaveAttribute("content", /Lab Lords — A simpler way to manage your library\. lablords\.in/);
+    }
+    if (!route.match(/coaching|tuition/)) expect(`${title} ${description}`).not.toMatch(/coaching|tuition|education centres/i);
+    for (const lockup of [page.locator(".reference-header .reference-lockup").first(), page.locator("footer .reference-lockup")]) {
+      await expect(lockup).toHaveText("Lab Lords");
+      await expect(lockup).toHaveAccessibleName("Lab Lords home");
+    }
+    const builtResponse = await page.request.get(route, { headers: { "User-Agent": "Googlebot" } });
+    expect(builtResponse.ok()).toBe(true);
+    const builtHead = await page.evaluate(html => {
+      const head = new DOMParser().parseFromString(html, "text/html").head;
+      const selectors = ['title', 'meta[name="description"]', 'link[rel="canonical"]', 'meta[property="og:url"]', 'meta[property="og:site_name"]', 'meta[property="og:image"]', 'meta[property="og:image:alt"]', 'meta[name="twitter:image"]', 'meta[name="twitter:image:alt"]'];
+      return selectors.map(selector => { const el = head.querySelector(selector); return el?.getAttribute("content") ?? el?.getAttribute("href") ?? el?.textContent ?? null; });
+    }, await builtResponse.text());
+    expect(builtHead[0]).toBe(title);
+    expect(builtHead[1]).toBe(description);
+    expect(new URL(builtHead[2]!).href).toBe(canonical.href);
+    expect(builtHead.every(value => Boolean(value)), `${route} built HTML head`).toBe(true);
     const document = await page.evaluate(() => ({ ids: [...window.document.querySelectorAll('[id]')].map(x => x.id), hrefs: [...window.document.querySelectorAll('a[href]')].map(x => x.getAttribute('href')!) }));
     idsByPath.set(route, new Set(document.ids));
     for (const href of document.hrefs) if (href.startsWith("/") || href.startsWith("#")) internalLinks.add(href.startsWith("#") ? route + href : href);
@@ -51,6 +86,19 @@ test("every public destination has unique metadata, valid fragments and no runti
     if (url.hash) expect(idsByPath.get(url.pathname)?.has(decodeURIComponent(url.hash.slice(1))), `${href} fragment`).toBe(true);
   }
   expect(errors).toEqual([]);
+});
+
+test("homepage site identity and approved public assets are available without review claims", async ({ page }) => {
+  await page.goto("/");
+  const schema = await page.locator('script[type="application/ld+json"]').allTextContents();
+  expect(schema.map(text => JSON.parse(text))).toEqual([{ "@context": "https://schema.org", "@type": "WebSite", name: "Lab Lords", alternateName: "lablords.in", url: "https://lablords.in/" }]);
+  const favicons = await page.locator('link[rel="icon"]').evaluateAll(links => links.filter(link => new URL((link as HTMLLinkElement).href).pathname === "/favicon.ico").length);
+  expect(favicons).toBe(1);
+  for (const path of ["/favicon.ico", "/icon.png", "/apple-icon.png", "/opengraph-image.png", "/twitter-image.png", "/brand-reference/open-book-leaf.svg"]) {
+    const response = await page.request.get(path);
+    expect(response.ok(), path).toBe(true);
+    expect(response.headers()["content-type"], path).toMatch(/^image\//);
+  }
 });
 
 test("desktop Resources works with keyboard, focus, Escape and outside click", async ({ page }) => {
@@ -121,7 +169,7 @@ test("contact offers email drafts while support validates without sending a real
 test("new pages and expanded pricing/contact/support meet accessibility checks", async ({ page }) => {
   test.setTimeout(180_000);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  for (const route of ["/about", "/faq", "/how-it-works", "/features", "/pricing", "/contact", "/support"]) {
+  for (const route of ["/", "/about", "/faq", "/how-it-works", "/features", "/pricing", "/contact", "/support"]) {
     await page.goto(route);
     await expect(page.locator("main h1")).toBeVisible();
     const result = await new AxeBuilder({ page }).include('[data-brand="botanical-reference"]').analyze();

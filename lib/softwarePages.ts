@@ -518,7 +518,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
     example: "Before contacting a student about dues, check whether a recent payment has already been recorded. If you use Standard to prepare an AI draft, verify the amount and wording before using it. A draft does not confirm delivery or payment.",
     featureHref: "/features#ai-assistance",
     shortName: "Fee reminder",
-    metaTitle: "Fee Reminder Software for Education Centres",
+    metaTitle: "Fee Reminder Software for Study Libraries",
     metaDescription:
       "Identify overdue student fees and prepare owner-reviewed reminder messages for study halls, libraries, reading rooms and study rooms.",
     keywords: ["fee reminder software", "student fee reminder"],

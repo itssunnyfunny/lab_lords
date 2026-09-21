@@ -5,7 +5,7 @@ import Faq from "@/app/faq/page";
 import Setup from "@/app/how-it-works/page";
 import Pricing from "@/app/pricing/page";
 import Features from "@/app/features/page";
-import Home from "@/app/page";
+import Home, { metadata as homeMetadata } from "@/app/page";
 import Contact from "@/app/contact/page";
 import SoftwareRoute, { generateMetadata as softwareMetadata } from "@/app/software/[slug]/page";
 import { activeSoftwarePageSlugs, legacySoftwarePageSlugs, softwarePages } from "@/lib/softwarePages";
@@ -101,6 +101,21 @@ describe("complete public marketing journey", () => {
     const metadata = publicMetadata("/faq", "Frequently Asked Questions", "Answers about library work.");
     expect(metadata.alternates?.canonical).toBe("https://lablords.in/faq");
     expect(metadata.openGraph).toMatchObject({ url: "https://lablords.in/faq", title: "Lab Lords Frequently Asked Questions", description: metadata.description });
-    expect(metadata.twitter).toMatchObject({ description: metadata.description });
+    expect(metadata.twitter).toMatchObject({ description: metadata.description, images: [expect.objectContaining({ url: "/twitter-image.png", alt: expect.stringContaining("Lab Lords") })] });
+    expect(metadata.openGraph).toMatchObject({ siteName: "Lab Lords", images: [expect.objectContaining({ url: "/opengraph-image.png", alt: expect.stringContaining("Lab Lords") })] });
+  });
+  it("names the website once without review claims and keeps the homepage pricing bookmark meaningful", () => {
+    const html = renderToStaticMarkup(<Home />);
+    const nodes = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map(match => JSON.parse(match[1]));
+    expect(nodes).toEqual([{ "@context": "https://schema.org", "@type": "WebSite", name: "Lab Lords", alternateName: "lablords.in", url: "https://lablords.in/" }]);
+    expect(html).not.toMatch(/Choose Basic|Choose Standard|Choose what your library needs/);
+    expect(html).toContain('<a id="pricing" href="/pricing">Pricing</a>');
+    expect(homeMetadata.description).toBe("Manage students, seats, attendance and fees for your self-study library. Keep payments, receipts and upcoming fee dates organised with Lab Lords.");
+  });
+  it("allows an exact search title without adding a duplicate brand suffix", () => {
+    const metadata = publicMetadata("/how-it-works", "How It Works", "Setup description.", "How Lab Lords Works | Library Setup Guide");
+    expect(metadata.title).toEqual({ absolute: "How Lab Lords Works | Library Setup Guide" });
+    expect(metadata.openGraph).toMatchObject({ title: "How Lab Lords Works | Library Setup Guide" });
+    expect(metadata.twitter).toMatchObject({ title: "How Lab Lords Works | Library Setup Guide" });
   });
 });

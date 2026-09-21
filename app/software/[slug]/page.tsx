@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SoftwareLandingPage } from "@/components/software/SoftwareLandingPage";
@@ -47,25 +48,19 @@ export async function generateMetadata({ params }: SoftwarePageProps): Promise<M
       canonical: absoluteUrl(canonicalPath),
     },
     openGraph: {
+      ...publicOpenGraph,
       type: "website",
       url: absoluteUrl(canonicalPath),
       siteName: siteConfig.name,
       title,
       description: page.metaDescription,
-      images: [
-        {
-          url: "/opengraph-image.png",
-          width: 1200,
-          height: 630,
-          alt: `${page.shortName} by Lab Lords`,
-        },
-      ],
     },
     twitter: {
+      ...publicTwitter,
       card: "summary_large_image",
       title,
       description: page.metaDescription,
-      images: ["/twitter-image.png"],
+
     },
   };
 }
@@ -127,7 +122,7 @@ export default async function SoftwarePageRoute({ params }: SoftwarePageProps) {
         {
           "@type": "ListItem",
           position: 2,
-          name: "Software",
+          name: "For your library",
           item: absoluteUrl("/#software"),
         },
         {

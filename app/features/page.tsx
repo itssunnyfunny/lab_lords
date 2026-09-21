@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowDown } from "lucide-react";
@@ -15,8 +16,8 @@ export const metadata: Metadata = {
   title: "Library Management Features",
   description,
   alternates: { canonical: absoluteUrl("/features") },
-  openGraph: { type: "website", url: absoluteUrl("/features"), siteName: siteConfig.name, title: "Lab Lords Features", description },
-  twitter: { card: "summary_large_image", title: "Lab Lords Features", description },
+  openGraph: { ...publicOpenGraph, type: "website", url: absoluteUrl("/features"), siteName: siteConfig.name, title: "Lab Lords Features", description },
+  twitter: { ...publicTwitter, card: "summary_large_image", title: "Lab Lords Features", description },
 };
 
 type FeatureGroup = {

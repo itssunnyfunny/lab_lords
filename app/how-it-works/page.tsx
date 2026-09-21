@@ -4,7 +4,7 @@ import { PublicIntro, PublicClosing } from "@/components/landing/PublicPageSecti
 import { PublicFaqList } from "@/components/landing/PublicFaqList";
 import { publicMetadata } from "@/lib/publicMetadata";
 
-export const metadata = publicMetadata("/how-it-works", "How It Works", "Prepare your first Lab Lords branch, set seats and shifts, review your plan, add students and start keeping everyday library records.");
+export const metadata = publicMetadata("/how-it-works", "How It Works", "Prepare your first Lab Lords branch, set seats and shifts, review your plan, add students and start keeping everyday library records.", "How Lab Lords Works | Library Setup Guide");
 const steps = [
   { title: "Create your account", text: "Sign up, then begin the guided setup for your workspace. An existing user can sign in and continue to the workspace they can access.", prepare: "Use the account you want to use as the owner. Staff can be invited later when your plan includes staff access.", href: "/faq#general", link: "Check whether Lab Lords fits" },
   { title: "Name your library and first branch", text: "The Organization step asks for your business identity and owner contact. Next, the First branch step asks for the branch name, city and how your space is arranged.", prepare: "Have your library name, owner phone number, business type, branch name and city ready.", href: "/features#branches", link: "How branch records stay separate" },

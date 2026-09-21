@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { UserPreferencesBoundary } from "@/components/settings/UserPreferencesBoundary";
@@ -66,32 +67,19 @@ export const metadata: Metadata = {
     "student management",
   ],
   openGraph: {
+    ...publicOpenGraph,
     type: "website",
     url: absoluteUrl("/"),
     siteName: siteConfig.name,
     title: siteConfig.homeTitle,
     description: siteConfig.description,
-    images: [
-      {
-        url: "/opengraph-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Lab Lords - Study Hall & Library Management Software",
-      },
-    ],
   },
   twitter: {
+    ...publicTwitter,
     card: "summary_large_image",
     title: siteConfig.homeTitle,
     description: siteConfig.description,
-    images: ["/twitter-image.png"],
-  },
-  icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      { url: "/icon.png", type: "image/png" },
-    ],
-    apple: [{ url: "/apple-icon.png" }],
+
   },
 };
 

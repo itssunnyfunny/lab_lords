@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/legal/LegalPage";
 import { absoluteUrl, siteConfig } from "@/lib/site";
@@ -57,8 +58,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: absoluteUrl("/terms"),
   },
-  openGraph: { type: "website", url: absoluteUrl("/terms"), title: "Terms of Service", description: "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use." },
-  twitter: { card: "summary", title: "Terms of Service", description: "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use." },
+  openGraph: { ...publicOpenGraph, type: "website", url: absoluteUrl("/terms"), title: "Terms of Service", description: "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use." },
+  twitter: { ...publicTwitter, card: "summary", title: "Terms of Service", description: "The terms that govern use of Lab Lords accounts, workspaces, data, AI-assisted features, payments, and acceptable use." },
 };
 
 export default function TermsPage() {

@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LandingPricing } from "@/components/landing/LandingPricing";
@@ -12,11 +13,11 @@ import { absoluteUrl, siteConfig } from "@/lib/site";
 const description = "Compare Lab Lords Basic and Standard for students, seats, shifts and fees. Monthly pricing for each billable branch, with a 30-day trial for eligible new owners.";
 
 export const metadata: Metadata = {
-  title: "Pricing for Library Management Software",
+  title: "Plans & Pricing",
   description,
   alternates: { canonical: absoluteUrl("/pricing") },
-  openGraph: { type: "website", url: absoluteUrl("/pricing"), siteName: siteConfig.name, title: "Lab Lords Pricing", description },
-  twitter: { card: "summary_large_image", title: "Lab Lords Pricing", description },
+  openGraph: { ...publicOpenGraph, type: "website", url: absoluteUrl("/pricing"), siteName: siteConfig.name, title: "Plans & Pricing | Lab Lords", description },
+  twitter: { ...publicTwitter, card: "summary_large_image", title: "Plans & Pricing | Lab Lords", description },
 };
 
 export default function PricingPage() {

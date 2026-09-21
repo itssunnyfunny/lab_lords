@@ -13,7 +13,7 @@ export function SoftwareLandingPage({ page }: { page: SoftwarePage }) {
           <nav aria-label="Breadcrumb" className="public-breadcrumb mb-8 flex flex-wrap items-center gap-2 text-sm text-[color:var(--text-secondary)]">
             <Link href="/" className="underline-offset-4 hover:underline">Home</Link>
             <span aria-hidden="true">/</span>
-            <Link href="/#software" className="underline-offset-4 hover:underline">Software</Link>
+            <Link href="/#software" className="underline-offset-4 hover:underline">For your library</Link>
             <span aria-hidden="true">/</span>
             <span aria-current="page">{page.shortName}</span>
           </nav>

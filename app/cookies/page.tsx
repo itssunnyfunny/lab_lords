@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import { CookieSettingsButton } from "@/components/analytics/CookieSettingsButton";
 import { LegalPage, type LegalSection } from "@/components/legal/LegalPage";
@@ -34,8 +35,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: absoluteUrl("/cookies"),
   },
-  openGraph: { type: "website", url: absoluteUrl("/cookies"), title: "Cookie Policy", description: "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices." },
-  twitter: { card: "summary", title: "Cookie Policy", description: "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices." },
+  openGraph: { ...publicOpenGraph, type: "website", url: absoluteUrl("/cookies"), title: "Cookie Policy", description: "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices." },
+  twitter: { ...publicTwitter, card: "summary", title: "Cookie Policy", description: "How Lab Lords uses essential cookies and optional analytics cookies, and how to manage cookie choices." },
 };
 
 export default function CookiesPage() {

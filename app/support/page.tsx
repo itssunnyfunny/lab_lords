@@ -1,3 +1,4 @@
+import { publicOpenGraph, publicTwitter } from "@/lib/publicSocialMetadata";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Mail } from "lucide-react";
@@ -19,8 +20,8 @@ export const metadata: Metadata = {
   title: "Support",
   description: supportDescription,
   alternates: { canonical: absoluteUrl("/support") },
-  openGraph: { type: "website", url: absoluteUrl("/support"), siteName: siteConfig.name, title: "Lab Lords Support", description: supportDescription },
-  twitter: { card: "summary", title: "Lab Lords Support", description: supportDescription },
+  openGraph: { ...publicOpenGraph, type: "website", url: absoluteUrl("/support"), siteName: siteConfig.name, title: "Lab Lords Support", description: supportDescription },
+  twitter: { ...publicTwitter, card: "summary", title: "Lab Lords Support", description: supportDescription },
 };
 
 export default function SupportPage() {
