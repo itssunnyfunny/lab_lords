@@ -57,6 +57,9 @@ export function BugReportForm({ supportEmail }: BugReportFormProps) {
       <div className="mt-5 grid gap-4">
         <label className="grid gap-2 text-sm font-medium text-[color:var(--text-secondary)]">
           {t("Summary")}<input
+            required
+            maxLength={160}
+            pattern={".*\\S.*"}
             value={summary}
             onChange={event => setSummary(event.target.value)}
             className="h-11 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)] px-3 text-sm text-[color:var(--ui-form-input-text)] outline-none focus:border-[color:var(--ui-form-accent)]"
@@ -66,6 +69,9 @@ export function BugReportForm({ supportEmail }: BugReportFormProps) {
 
         <label className="grid gap-2 text-sm font-medium text-[color:var(--text-secondary)]">
           {t("Details")}<textarea
+            required
+            minLength={10}
+            maxLength={4000}
             value={details}
             onChange={event => setDetails(event.target.value)}
             className="min-h-32 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)] px-3 py-3 text-sm text-[color:var(--ui-form-input-text)] outline-none focus:border-[color:var(--ui-form-accent)]"
@@ -76,6 +82,7 @@ export function BugReportForm({ supportEmail }: BugReportFormProps) {
         <label className="grid gap-2 text-sm font-medium text-[color:var(--text-secondary)]">
           {t("Contact email")}<input
             type="email"
+            maxLength={254}
             value={contact}
             onChange={event => setContact(event.target.value)}
             className="h-11 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)] px-3 text-sm text-[color:var(--ui-form-input-text)] outline-none focus:border-[color:var(--ui-form-accent)]"
