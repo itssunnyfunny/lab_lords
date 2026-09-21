@@ -1,8 +1,8 @@
 /* Public-site palette is scoped; authenticated and provider surfaces retain their theme. */
-[data-brand="original-reference"] {
+[data-brand="botanical-reference"] {
   color-scheme: light;
   container-type: inline-size;
-  --paper: #FFF8EE; --forest: #164D3B; --ink: #164D3B; --muted: #43554D;
+  --paper: #FFFBF4; --forest: #164D38; --ink: #164D38; --muted: #43554D;
   --sage: #E8F1EA; --leaf: #A7C957; --flower: #F4A261; --line: #164D3B24;
   --bg-app: var(--paper); --bg-surface: #fff; --bg-card: #fff; --bg-card-hover: var(--sage);
   --text-primary: var(--ink); --text-secondary: var(--muted); --text-muted: var(--muted);
@@ -20,6 +20,7 @@
   --ui-badge-success-text: #236546; --ui-badge-success-bg: #e7f1e9; --ui-badge-success-border: #b4cdbb;
   --ui-badge-cyan-text: var(--forest); --ui-badge-cyan-bg: var(--sage); --ui-badge-cyan-border: var(--line);
   --ui-badge-warning-text: #775312; --ui-badge-warning-bg: #fcf1d2; --ui-badge-warning-border: #d7bf86;
+  --ui-badge-danger-text: #a52e2e; --ui-badge-danger-bg: #fff1ed; --ui-badge-danger-border: #d8aaa3;
   --ui-radius-panel: 16px; --ui-radius-control: 10px;
   background: var(--paper); color: var(--ink); min-height: 100dvh;
   font-family: var(--font-inter), Arial, sans-serif; font-size: 16px; line-height: 1.6;

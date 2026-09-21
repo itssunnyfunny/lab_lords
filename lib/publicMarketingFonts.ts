@@ -4,5 +4,6 @@ import { Playfair_Display } from "next/font/google";
 export const publicDisplayFont = Playfair_Display({
   subsets: ["latin"],
   display: "swap",
+  style: ["normal", "italic"],
   variable: "--font-public-display",
 });

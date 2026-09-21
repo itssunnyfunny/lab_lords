@@ -1,9 +1,9 @@
-/* Original supplied board: shared public tokens and the approved homepage introduction. */
-.brand-reference, [data-brand="original-reference"] {
-  --reference-forest: #164D3B;
-  --reference-leaf: #22A06B;
+/* Botanical public design: shared palette, navigation and typography. */
+.brand-reference, [data-brand="botanical-reference"] {
+  --reference-forest: #164D38;
+  --reference-leaf: #16835E;
   --reference-sage: #A7C957;
-  --reference-paper: #FFF8EE;
+  --reference-paper: #FFFBF4;
   --reference-bark: #8B6F56;
   --reference-peach: #F4A261;
   --reference-mist: #E8F1EA;
@@ -22,18 +22,28 @@
 .brand-reference :where(a,button,summary) { -webkit-tap-highlight-color: transparent; }
 .brand-reference :where(a,button,summary):focus-visible { outline: 2px solid var(--reference-forest); outline-offset: 5px; }
 .brand-reference ::selection { color: var(--reference-forest); background: var(--reference-sage); }
-.reference-header { position: sticky; top: 0; z-index: 50; border-bottom: 1px solid #164D3B18; background: #FFFCF7; }
-.reference-header-row { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.reference-header { position: sticky; top: 0; z-index: 50; border-bottom: 1px solid #164D3812; background: #FFFBF4F5; backdrop-filter: blur(14px); }
+.reference-header-row { min-height: 98px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .reference-lockup { display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 44px; }
-.reference-lockup > span { font-size: 27px; font-weight: 800; letter-spacing: -1.2px; line-height: 1; }
-.reference-lockup img { width: 61px; height: auto; }
-.reference-wordmark-leaf { color: var(--reference-leaf); }
+.reference-lockup > span { font-size: 30px; font-weight: 750; letter-spacing: -1.3px; line-height: 1; }
+.reference-lockup img { width: 56px; height: auto; }
+.reference-wordmark-leaf { color: var(--reference-forest); }
 .reference-wordmark-domain { font-size: 20px; font-weight: 500; letter-spacing: -1px; }
 .reference-desktop-nav { display: flex; align-items: center; gap: 28px; }
 .reference-desktop-nav a { display: inline-flex; min-height: 44px; align-items: center; font-size: 13px; font-weight: 500; }
 .reference-desktop-nav a:hover { text-decoration: underline; text-underline-offset: 6px; }
+.reference-desktop-nav { gap: 20px; }
+.reference-header a[aria-current="page"], .reference-current-group { text-decoration: underline; text-underline-offset: 6px; font-weight: 650; }
+.reference-resources { position: relative; }
+.reference-resources > summary { display: flex; align-items: center; gap: 6px; min-height: 44px; list-style: none; cursor: pointer; font-size: 13px; }
+.reference-resources > summary::-webkit-details-marker { display: none; }
+.reference-resource-links { position: absolute; top: calc(100% + 12px); left: -16px; width: 245px; padding: 12px; border: 1px solid #164D3B20; border-radius: 16px; background: var(--reference-paper); box-shadow: 0 16px 40px #164D3B18; }
+.reference-resource-links a { display: flex; padding: 10px 12px; border-radius: 8px; }
+.reference-resource-links a:hover { background: var(--reference-mist); }
+.reference-mobile-resources { border-top: 1px solid #164D3B18; margin-top: 6px; padding-top: 10px; }
+.reference-mobile-resources p { padding: 4px 14px; font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--reference-body); }
 .reference-header-actions { display: flex; align-items: center; gap: 15px; }
-.brand-reference .marketing-sign-in { min-height: 44px; padding: 10px 5px; color: var(--reference-forest); font-size: 13px; font-weight: 600; }
+.brand-reference .marketing-sign-in { min-height: 44px; padding: 10px 22px; border: 1px solid #164D3860; border-radius: 10px; color: var(--reference-forest); font-size: 13px; font-weight: 500; }
 .brand-reference .marketing-button,.reference-button-secondary { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 13px 23px; border: 1px solid var(--reference-forest); border-radius: 12px; font-size: 14px; line-height: 1.45; font-weight: 600; text-decoration: none; transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
 .brand-reference .marketing-button { background: var(--reference-forest); color: #FFF; box-shadow: 0 3px 8px #164D3B12; }
 .brand-reference .marketing-button:hover:not(:disabled) { background: #103E2F; box-shadow: 0 5px 12px #164D3B20; transform: translateY(-1px); }
@@ -115,9 +125,16 @@
   .reference-mobile-menu summary::-webkit-details-marker { display: none; }
   .reference-menu-close,.reference-mobile-menu[open] .reference-menu-open { display: none; }
   .reference-mobile-menu[open] .reference-menu-close { display: block; }
-  .reference-mobile-menu nav { position: absolute; top: calc(100% + 8px); right: 28px; width: min(290px, calc(100% - 56px)); background: #FFFCF7; padding: 12px; border: 1px solid #164D3B26; border-radius: 14px; box-shadow: 0 12px 30px #164D3B18; }
-  .reference-mobile-menu nav :is(a,button) { display: flex; width: 100%; min-height: 44px; align-items: center; text-align: left; padding: 11px 14px; border-radius: 7px; font-size: 14px; }
-  .reference-mobile-menu nav :is(a,button):hover { background: var(--reference-mist); }
+  .reference-mobile-menu[open] summary { background: var(--reference-mist); }
+  .reference-mobile-menu nav { position: absolute; top: calc(100% + 8px); right: 28px; width: min(360px, calc(100% - 56px)); max-height: calc(100svh - 122px); overflow-y: auto; overscroll-behavior: contain; background: #FFFCF7; padding: 12px; border: 1px solid #164D3B20; border-radius: 18px; box-shadow: 0 16px 40px #164D3B18; }
+  .reference-mobile-links { display: grid; gap: 2px; }
+  .reference-mobile-links a { display: flex; width: 100%; min-height: 48px; align-items: center; padding: 12px 14px; border-radius: 9px; font-size: 15px; font-weight: 500; line-height: 1.5; }
+  .reference-mobile-links a:hover { background: var(--reference-mist); }
+  .reference-mobile-actions { display: grid; gap: 10px; margin-top: 10px; padding: 14px 4px 4px; border-top: 1px solid #164D3B18; }
+  .reference-mobile-menu .reference-mobile-actions button { display: flex; width: 100%; min-height: 46px; align-items: center; justify-content: center; padding: 12px 16px; border-radius: 10px; font-size: 14px; line-height: 1.5; }
+  .reference-mobile-actions .marketing-sign-in { background: transparent; border-color: #164D3B30; }
+  .reference-mobile-actions .marketing-sign-in:hover:not(:disabled) { background: var(--reference-mist); }
+  .reference-mobile-menu .reference-mobile-actions .marketing-button svg { display: block; }
   .brand-reference h1 { font-size: 43px; }
   .reference-lead { font-size: 14px; }
   .reference-actions { gap: 10px; }
@@ -134,9 +151,11 @@
   .reference-lockup img { width: 43px; }
   .reference-lockup > span { font-size: 22px; }
   .reference-wordmark-domain { font-size: 15px; }
+  .reference-header-actions > .marketing-button { display: none; }
   .reference-header .marketing-button { padding: 11px 12px; font-size: 11px; }
   .reference-header .marketing-button svg { display: none; }
-  .reference-mobile-menu nav { right: 20px; }
+  .reference-mobile-menu summary { border: 0; }
+  .reference-mobile-menu nav { right: 20px; width: min(360px, calc(100% - 40px)); max-height: calc(100svh - 100px); }
   .reference-hero-grid { grid-template-columns: minmax(0,1fr); gap: 13px; padding-top: 37px; padding-bottom: 26px; }
   .reference-hero-copy { padding: 0; }
   .reference-eyebrow { font-size: 10px; letter-spacing: 1.35px; margin-bottom: 18px; }
