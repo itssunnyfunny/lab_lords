@@ -8,6 +8,7 @@ import { RenewalsContent } from "@/components/renewals/RenewalsContent";
 import { AddStudentDialog } from "@/app/branch/[branchId]/students/AddStudentDialog";
 import type { BranchAccess } from "@/types";
 import "@/app/globals.css";
+import type { InterfaceLanguage } from "@/lib/i18n/language";
 
 // Isolated component exercise. There is no Clerk bypass or database connection.
 const access = { branchId: "localization", branchName: "Sample Library", organizationId: "org", isOwner: true,
@@ -17,6 +18,7 @@ const access = { branchId: "localization", branchName: "Sample Library", organiz
 function Fixture() {
     const [user, setUser] = useState(() => sessionStorage.getItem("fixture-user") ?? "one");
     const [view, setView] = useState("renewals");
+    const [publicLocale, setPublicLocale] = useState<InterfaceLanguage | undefined>();
     return <div className="dark min-h-screen bg-slate-950 p-4 text-slate-100">
         <div className="flex flex-wrap gap-4 p-3">
             <button onClick={() => { sessionStorage.setItem("fixture-user", user === "one" ? "two" : "one"); setUser(user === "one" ? "two" : "one"); }}>Switch fixture user</button>
@@ -24,8 +26,12 @@ function Fixture() {
             <button onClick={() => setView("attendance")}>Attendance fixture</button>
             <button onClick={() => setView("renewals")}>Renewal fixture</button>
             <button onClick={() => setView("admission")}>Admission fixture</button>
+            <button onClick={() => setPublicLocale("hi")}>Public Hindi fixture</button>
+            <button onClick={() => setPublicLocale("hinglish")}>Public Hinglish fixture</button>
+            <button onClick={() => setPublicLocale("en")}>Public English fixture</button>
+            <button onClick={() => setPublicLocale(undefined)}>App language fixture</button>
         </div>
-        <UserPreferencesProvider key={user} ownerKey={user}>
+        <UserPreferencesProvider key={user} ownerKey={user} publicLocale={publicLocale}>
             <LanguageControls />
             {view === "collection" ? <CollectFeeDialog branchId="localization" studentId="student" onClose={() => setView("renewals")} onSaved={() => {}} />
                 : view === "admission" ? <AddStudentDialog isOpen branchId="localization" allocationDecision={{ allowed: true, blocker: null, reason: null, recoveryHref: null }} onClose={() => setView("renewals")} onSuccess={() => setView("renewals")} />

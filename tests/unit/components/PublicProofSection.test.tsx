@@ -1,12 +1,15 @@
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { renderPublic } from "../helpers/public-render";
+import { describe, expect, it, vi } from "vitest";
 import { PublicProofSection } from "@/components/landing/PublicProofSection";
 import { approvedPublicProof, type PublicProof } from "@/lib/publicProof";
 
+
+vi.mock("@/lib/public-i18n/server", () => ({ publicStrings: async () => ({ locale: "en", t: (value: string, params?: Record<string, string | number>) => params ? value.replace(/\{(\w+)\}/g, (match, key) => String(params[key] ?? match)) : value, href: (path: string) => path, uiMessages: {} }) }));
+
 describe("public customer proof", () => {
-  it("ships only the labelled product example while customer evidence is unapproved", () => {
+  it("ships only the labelled product example while customer evidence is unapproved", async () => {
     expect(approvedPublicProof).toEqual({ metrics: [], feedback: [] });
-    const html = renderToStaticMarkup(<PublicProofSection />);
+    const html = await renderPublic(<PublicProofSection />);
     expect(html).toContain("See how it works in your library");
     expect(html).toContain("Sample data");
     expect(html).toContain("Sample receipt summary");
@@ -17,19 +20,19 @@ describe("public customer proof", () => {
     expect(html).not.toMatch(/What library owners say|<blockquote|aggregateRating|reviewCount/);
   });
 
-  it("renders explicit approved public fields instead of the fallback (synthetic test fixture only)", () => {
+  it("renders explicit approved public fields instead of the fallback (synthetic test fixture only)", async () => {
     const fixture: PublicProof & { privateConsentNote: string } = {
       metrics: [{ id: "test-metric", value: "12", label: "Active customer organisations", definition: "Paid organisations, excluding trials and test accounts", asOf: "20 September 2026" }],
       feedback: [{ id: "test-quote", quote: "A synthetic quote for this test only.", attribution: "Test owner", library: "Test library", logo: { src: "/brand-reference/open-book-leaf.svg", alt: "Test library logo", width: 64, height: 42 } }],
       privateConsentNote: "PRIVATE_TEST_CONTACT_DO_NOT_PUBLISH",
     };
-    const html = renderToStaticMarkup(<PublicProofSection proof={fixture} />);
+    const html = await renderPublic(<PublicProofSection proof={fixture} />);
     for (const text of ["What library owners say", "12", "Active customer organisations", "Paid organisations, excluding trials and test accounts", "20 September 2026", "A synthetic quote for this test only.", "Test owner", "Test library logo"]) expect(html).toContain(text);
     expect(html).not.toMatch(/Sample data|See how it works in your library|PRIVATE_TEST_CONTACT|aggregateRating|reviewCount/);
   });
 
-  it("does not promise owner feedback when only an approved metric is supplied", () => {
-    const html = renderToStaticMarkup(<PublicProofSection proof={{ metrics: [{ id: "test", value: "2", label: "Paid branches", definition: "Excludes trials", asOf: "20 September 2026" }], feedback: [] }} />);
+  it("does not promise owner feedback when only an approved metric is supplied", async () => {
+    const html = await renderPublic(<PublicProofSection proof={{ metrics: [{ id: "test", value: "2", label: "Paid branches", definition: "Excludes trials", asOf: "20 September 2026" }], feedback: [] }} />);
     expect(html).toContain("Libraries using Lab Lords");
     expect(html).not.toMatch(/What library owners say|<blockquote|Sample data/);
   });

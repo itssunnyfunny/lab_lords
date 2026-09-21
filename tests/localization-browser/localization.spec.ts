@@ -44,6 +44,31 @@ async function fixture(page: Page) {
 const ui = /Interface language|स्क्रीन की भाषा|Screen ki language/;
 const doc = /Document language|रसीद और रिपोर्ट की भाषा|Receipt aur report ki language/;
 
+test("public URL language survives a late account read and app preferences resume afterward", async ({ page }) => {
+    const { patches } = await fixture(page);
+    let finish!: () => void;
+    const held = new Promise<void>(resolve => { finish = resolve; });
+    await page.route("**/api/users/me", async route => {
+        if (route.request().method() !== "GET") return route.fallback();
+        await held;
+        return route.fulfill({ json: { interfaceLanguage: "hinglish", documentLanguage: "hi", locale: "en-IN", timezone: "Asia/Kolkata" } });
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "Public Hindi fixture", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");
+    finish();
+    await expect(page.getByLabel(ui)).toHaveValue("hinglish");
+    await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");
+    await expect(page.getByLabel(doc)).toHaveValue("hi");
+    await page.getByRole("button", { name: "Public English fixture", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en-IN");
+    await page.getByRole("button", { name: "Public Hinglish fixture", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "hi-Latn-IN");
+    await page.getByRole("button", { name: "App language fixture", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "hi-Latn-IN");
+    expect(patches).toEqual([]);
+});
+
 test("an early screen-language save preserves other preferences from a delayed profile read", async ({ page }) => {
     await fixture(page);
     let finishRead!: () => void;
