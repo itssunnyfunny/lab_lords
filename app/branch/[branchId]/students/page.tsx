@@ -65,6 +65,11 @@ import Link from "next/link";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { StudentWhatsAppConsentControls } from "@/components/whatsapp/StudentWhatsAppConsentControls";
 import { BulkWhatsAppConsentControls } from "@/components/whatsapp/BulkWhatsAppConsentControls";
+import {
+    getStudentAllocationHref,
+    getStudentsHrefWithoutAction,
+    mergeStudentRosterUpdate,
+} from "@/lib/studentRoster";
 
 type DueResolution = "PAID" | "WAIVED" | "KEEP";
 type StudentRosterTab = "ACTIVE" | "INACTIVE";
@@ -391,6 +396,7 @@ function StudentsContent({
     const searchParams = useSearchParams();
     const targetStudentId = searchParams.get("studentId");
     const targetStudentStatus = searchParams.get("status");
+    const requestedAction = searchParams.get("action");
     const paymentHelpText = getPermissionHelpText("view_payments");
     const allocationHelpText = getPermissionHelpText("seat_allocation");
 
@@ -438,6 +444,16 @@ function StudentsContent({
     const [activateLoading, setActivateLoading] = useState(false);
     const [whatsAppTarget, setWhatsAppTarget] = useState<Student | null>(null);
     const [whatsAppBulkOpen, setWhatsAppBulkOpen] = useState(false);
+
+    useEffect(() => {
+        if (requestedAction !== "add" || !manageDecision.allowed) return;
+
+        setIsAddModalOpen(true);
+        router.replace(
+            getStudentsHrefWithoutAction(branchId, searchParams.toString()),
+            { scroll: false }
+        );
+    }, [branchId, manageDecision.allowed, requestedAction, router, searchParams]);
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
@@ -724,14 +740,14 @@ function StudentsContent({
                         icon: CheckCircle2,
                         disabled: !allocationDecision.allowed,
                         description: allocationDecision.allowed ? undefined : allocationDecision.reason,
-                        onClick: () => router.push(`/branch/${branchId}/allocations?studentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
+                        onClick: () => router.push(getStudentAllocationHref(branchId, item.id, "allocate")),
                     },
                     {
                         label: "Change Seat",
                         icon: ArrowRightLeft,
                         disabled: !allocationDecision.allowed,
                         description: allocationDecision.allowed ? undefined : allocationDecision.reason,
-                        onClick: () => router.push(`/branch/${branchId}/allocations?changeStudentId=${item.id}&studentName=${encodeURIComponent(item.name)}`),
+                        onClick: () => router.push(getStudentAllocationHref(branchId, item.id, "change")),
                     }]
                     : []
                 ),
@@ -1027,7 +1043,7 @@ function StudentsContent({
             <AddStudentDialog
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                onSuccess={() => { void loadStudentPage(); }}
+                onSuccess={() => { void Promise.all([loadStudentPage(), loadAuxiliaryData()]); }}
                 branchId={branchId}
                 allocationDecision={allocationDecision}
             />
@@ -1039,7 +1055,11 @@ function StudentsContent({
                 branchId={branchId}
                 onClose={() => setEditTarget(null)}
                 onSuccess={(updated) => {
-                    setAllStudents(prev => prev.map(s => s.id === updated.id ? updated : s));
+                    setAllStudents(prev => prev.map(student => (
+                        student.id === updated.id
+                            ? mergeStudentRosterUpdate(student, updated)
+                            : student
+                    )));
                     setEditTarget(null);
                 }}
             />

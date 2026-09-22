@@ -68,8 +68,8 @@ function DashboardUnavailablePanel({
     return (
         <AppPanel title={title} description={description} className="h-full">
             <div className="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
-                <AlertCircle size={22} className="text-amber-300" />
-                <p className="max-w-sm text-sm leading-6 text-gray-400">{description}</p>
+                <AlertCircle size={22} className="text-[color:var(--ui-tone-warning-text)]" />
+                <p className="max-w-sm text-sm leading-6 text-[color:var(--text-secondary)]">{description}</p>
                 {onRetry && (
                     <AppButton onClick={onRetry} variant="secondary" size="sm" icon={RefreshCw}>
                         {t("Try again")}</AppButton>
@@ -217,7 +217,8 @@ export default function BranchDashboardPage({
     }, [access, accessLoading, branchId, refreshKey]);
 
     const snap = data?.snapshot ?? null;
-    const canAddStudents = access?.permissions.students ?? false;
+    const studentManageDecision = getBranchCapabilityDecision(access, "studentsManage");
+    const canShowAddStudent = access?.permissions.students ?? false;
     const canViewPayments = access?.permissions.view_payments ?? false;
     const analyticsStatus = data?.resources.analytics ?? "error";
     const studentsStatus = data?.resources.students ?? "error";
@@ -267,7 +268,7 @@ export default function BranchDashboardPage({
     return (
         <PageShell>
             {error && (
-                <div role="alert" className="flex flex-col gap-3 rounded-[8px] border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200 sm:flex-row sm:items-center">
+                <div role="alert" className="flex flex-col gap-3 rounded-[8px] border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] px-4 py-3 text-sm text-[color:var(--ui-tone-warning-text)] sm:flex-row sm:items-center">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
                         <AlertCircle size={16} className="mt-0.5 shrink-0" />
                         <span><LocalizedError error={error} /></span>
@@ -287,21 +288,21 @@ export default function BranchDashboardPage({
 
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[color:var(--text-secondary)]">
                         <span>{t("Branch overview")}</span>
-                        <span className="h-1 w-1 rounded-full bg-gray-600" />
+                        <span className="h-1 w-1 rounded-full bg-[color:var(--ui-tone-neutral-progress)]" />
                         <span>{formatDate(new Date())}</span>
                         {data?.updatedAt && (
                             <>
-                                <span className="h-1 w-1 rounded-full bg-gray-600" />
+                                <span className="h-1 w-1 rounded-full bg-[color:var(--ui-tone-neutral-progress)]" />
                                 <span>{t("Updated")} {formatDateTime(data.updatedAt)}</span>
                             </>
                         )}
                     </div>
-                    <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                    <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight text-[color:var(--text-primary)] md:text-3xl">
                         {data?.branchName ?? "Dashboard"}
                     </h1>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--text-secondary)]">
                         {t("Monitor collections, occupancy, follow-ups, and student movement from one operating view.")}</p>
                 </div>
 
@@ -321,10 +322,12 @@ export default function BranchDashboardPage({
                         >
                             {t("Review payments")}</AppButton>
                     )}
-                    {canAddStudents && (
+                    {canShowAddStudent && (
                         <AppButton
-                            onClick={() => router.push(`/branch/${branchId}/students`)}
+                            onClick={() => router.push(`/branch/${branchId}/students?action=add`)}
                             variant="primary"
+                            disabled={!studentManageDecision.allowed}
+                            title={studentManageDecision.allowed ? undefined : studentManageDecision.reason}
                         >
                             {t("Add student")}</AppButton>
                     )}
@@ -413,41 +416,41 @@ export default function BranchDashboardPage({
                             <div className="flex flex-col items-start gap-3 min-[380px]:flex-row min-[380px]:items-end min-[380px]:justify-between">
                                 <div>
                                     <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">{t("Collection progress")}</p>
-                                    <p className="mt-2 text-3xl font-semibold tracking-tight text-white">
+                                    <p className="mt-2 text-3xl font-semibold tracking-tight text-[color:var(--text-primary)]">
                                         {snap ? formatNumber(collectionSummary.progress / 100, { style: "percent", maximumFractionDigits: 0 }) : t("Restricted")}
                                     </p>
                                 </div>
                                 {snap && snap.dueAmount === 0 ? (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-200">
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] px-2.5 py-1 text-xs font-medium text-[color:var(--ui-tone-success-text)]">
                                         <CheckCircle2 size={13} />
                                         {t("Clear")}</span>
                                 ) : (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-200">
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] px-2.5 py-1 text-xs font-medium text-[color:var(--ui-tone-warning-text)]">
                                         <AlertTriangle size={13} />
                                         {t("Follow-up")}</span>
                                 )}
                             </div>
-                            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+                            <div className="mt-5 h-2 overflow-hidden rounded-full bg-[color:var(--ui-stat-track)]">
                                 <div
-                                    className="h-full rounded-full bg-emerald-400"
+                                    className="h-full rounded-full bg-[color:var(--ui-tone-success-progress)]"
                                     style={{ width: `${Math.max(0, Math.min(collectionSummary.progress, 100))}%` }}
                                 />
                             </div>
-                            <p className="mt-3 text-sm leading-6 text-gray-400">{collectionSummary.note}</p>
+                            <p className="mt-3 text-sm leading-6 text-[color:var(--text-secondary)]">{collectionSummary.note}</p>
                         </div>
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                            <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.02] p-3">
+                            <div className="min-w-0 rounded-[8px] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
                                 <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Billed")}</p>
-                                <p className="mt-1 break-words text-base font-semibold text-white sm:text-sm">{formatMoney(collectionSummary.billed)}</p>
+                                <p className="mt-1 break-words text-base font-semibold text-[color:var(--text-primary)] sm:text-sm">{formatMoney(collectionSummary.billed)}</p>
                             </div>
-                            <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.02] p-3">
+                            <div className="min-w-0 rounded-[8px] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
                                 <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Collected")}</p>
-                                <p className="mt-1 break-words text-base font-semibold text-emerald-200 sm:text-sm">{formatMoney(collectionSummary.collected)}</p>
+                                <p className="mt-1 break-words text-base font-semibold text-[color:var(--ui-tone-success-text)] sm:text-sm">{formatMoney(collectionSummary.collected)}</p>
                             </div>
-                            <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.02] p-3">
+                            <div className="min-w-0 rounded-[8px] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
                                 <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Pending")}</p>
-                                <p className="mt-1 break-words text-base font-semibold text-amber-200 sm:text-sm">{formatMoney(collectionSummary.pending)}</p>
+                                <p className="mt-1 break-words text-base font-semibold text-[color:var(--ui-tone-warning-text)] sm:text-sm">{formatMoney(collectionSummary.pending)}</p>
                             </div>
                         </div>
                     </div>

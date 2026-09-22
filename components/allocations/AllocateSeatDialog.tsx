@@ -18,6 +18,7 @@ import {
 import { FieldError, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
 import { cn } from "@/lib/utils";
+import { getStudentDisplayName } from "@/lib/studentRoster";
 
 interface StudentOption {
     id: string;
@@ -29,7 +30,6 @@ interface AllocateSeatDialogProps {
     isOpen: boolean;
     branchId: string;
     preselectedStudentId?: string;
-    preselectedStudentName?: string;
     preselectedSeatId?: string;
     preselectedShiftIds?: string[];
     preselectedShiftNames?: string[];
@@ -43,7 +43,6 @@ export function AllocateSeatDialog({
     isOpen,
     branchId,
     preselectedStudentId,
-    preselectedStudentName,
     preselectedSeatId,
     preselectedShiftIds,
     preselectedShiftNames,
@@ -56,7 +55,7 @@ export function AllocateSeatDialog({
     // Student picking
     const [students, setStudents] = useState<StudentOption[]>([]);
     const [studentId, setStudentId] = useState(preselectedStudentId ?? "");
-    const [studentName, setStudentName] = useState(preselectedStudentName ?? "");
+    const [studentName, setStudentName] = useState("");
     const [studentSearch, setStudentSearch] = useState("");
 
     // Shift selection state
@@ -88,7 +87,7 @@ export function AllocateSeatDialog({
         setLinkFeeToSelection(false);
         setSubmitError(null);
         setStudentId(preselectedStudentId ?? "");
-        setStudentName(preselectedStudentName ?? "");
+        setStudentName("");
         setStudentSearch("");
         resetFieldErrors();
     }, [
@@ -99,7 +98,6 @@ export function AllocateSeatDialog({
         preselectedMultiShiftId,
         preselectedMultiShiftName,
         preselectedStudentId,
-        preselectedStudentName,
         resetFieldErrors,
     ]);
 
@@ -114,19 +112,33 @@ export function AllocateSeatDialog({
     }, [feeLinkLabel]);
 
     useEffect(() => {
-        if (!isOpen || preselectedStudentId) return;
+        if (!isOpen) return;
+        let cancelled = false;
+
         fetch(`/api/branches/${branchId}/students?status=ACTIVE&all=true`)
             .then(async response => {
                 const body = await response.json();
                 if (!response.ok || !Array.isArray(body?.items)) {
                     throw new Error(body?.error ?? "Failed to load students");
                 }
+                if (cancelled) return;
                 setStudents(body.items);
+                if (preselectedStudentId) {
+                    const resolvedName = getStudentDisplayName(body.items, preselectedStudentId);
+                    if (!resolvedName) {
+                        throw new Error("The selected student is no longer active in this branch.");
+                    }
+                    setStudentName(resolvedName);
+                }
             })
             .catch(error => {
+                if (cancelled) return;
                 setStudents([]);
+                setStudentName("");
                 setSubmitError(error instanceof Error ? error.message : "Failed to load students");
             });
+
+        return () => { cancelled = true; };
     }, [isOpen, branchId, preselectedStudentId]);
 
     const handleToggleShift = (shift: ShiftCapacity) => {
@@ -238,7 +250,7 @@ export function AllocateSeatDialog({
     if (!isOpen) return null;
 
     const effectiveStudentId = preselectedStudentId ?? studentId;
-    const effectiveStudentName = preselectedStudentName ?? studentName;
+    const effectiveStudentName = studentName;
     const hasStudent = !!effectiveStudentId;
     const validation = validateForm();
     const studentError = visibleError("student", validation.errors);

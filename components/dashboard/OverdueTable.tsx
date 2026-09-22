@@ -113,8 +113,8 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
 
             {payments.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-emerald-400/20 bg-emerald-400/10">
-                        <CheckCircle2 size={20} className="text-emerald-300" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)]">
+                        <CheckCircle2 size={20} className="text-[color:var(--ui-tone-success-text)]" />
                     </div>
                     <div>
                         <p className="text-sm font-medium text-[color:var(--text-primary)]">{t("No overdue payments returned")}</p>
@@ -130,7 +130,7 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                                 type="checkbox"
                                 checked={allShownSelected}
                                 onChange={event => setSelectedIds(current => updateQueueSelection(current, shownIds, event.target.checked))}
-                                className="h-5 w-5 rounded accent-cyan-500"
+                                className="h-5 w-5 rounded accent-[color:var(--ui-form-checkbox-accent)]"
                             />
                             {t("Select all")} {formatNumber(shown.length)}  {t("shown")}</label>
                         <div className="flex flex-wrap items-center gap-3">
@@ -166,14 +166,14 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                                                     checked={selectedIds.has(payment.paymentId)}
                                                     onChange={event => togglePayment(payment.paymentId, event.target.checked)}
                                                     aria-label={`Select ${payment.studentName}'s overdue payment`}
-                                                    className="h-5 w-5 rounded accent-cyan-500"
+                                                    className="h-5 w-5 rounded accent-[color:var(--ui-form-checkbox-accent)]"
                                                 />
                                             </td>
                                             <td className="px-4 py-3">
                                                 <Link href={getOverdueStudentHref(branchId, payment.studentId)} className="font-medium text-[color:var(--text-primary)] underline-offset-4 hover:underline">
                                                     {payment.studentName}
                                                 </Link>
-                                                <p className="mt-1 text-xs text-rose-300">{overdueDays === 0 ? t("Due today") : `${formatNumber(overdueDays)} days overdue`}</p>
+                                                <p className="mt-1 text-xs text-[color:var(--ui-tone-danger-text)]">{overdueDays === 0 ? t("Due today") : `${formatNumber(overdueDays)} days overdue`}</p>
                                             </td>
                                             <td className="px-4 py-3 text-[color:var(--text-secondary)]">
                                                 <span>{formatDate(payment.dueDate)}</span>
@@ -199,14 +199,14 @@ export function OverdueTable({ payments, branchId, recordDecision }: OverdueTabl
                                             checked={selectedIds.has(payment.paymentId)}
                                             onChange={event => togglePayment(payment.paymentId, event.target.checked)}
                                             aria-label={`Select ${payment.studentName}'s overdue payment`}
-                                            className="mt-0.5 h-5 w-5 shrink-0 rounded accent-cyan-500"
+                                            className="mt-0.5 h-5 w-5 shrink-0 rounded accent-[color:var(--ui-form-checkbox-accent)]"
                                         />
                                         <div className="min-w-0 flex-1">
                                             <div className="flex items-start justify-between gap-3">
                                                 <Link href={getOverdueStudentHref(branchId, payment.studentId)} className="truncate text-sm font-medium text-[color:var(--text-primary)] underline-offset-4 hover:underline">{payment.studentName}</Link>
                                                 <p className="shrink-0 text-sm font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</p>
                                             </div>
-                                            <p className="mt-1 text-xs text-rose-300">{overdueDays === 0 ? t("Due today") : `${formatNumber(overdueDays)} days overdue`}</p>
+                                            <p className="mt-1 text-xs text-[color:var(--ui-tone-danger-text)]">{overdueDays === 0 ? t("Due today") : `${formatNumber(overdueDays)} days overdue`}</p>
                                             <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{formatDate(payment.dueDate)} · {payment.phone ?? "Phone missing"}</p>
                                         </div>
                                     </div>

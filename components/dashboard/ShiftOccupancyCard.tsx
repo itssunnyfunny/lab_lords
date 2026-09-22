@@ -32,19 +32,19 @@ const utilizationStyleMap: Record<UtilizationStatus["tone"], {
     badge: string;
 }> = {
     success: {
-        text: "text-emerald-300",
-        bar: "bg-emerald-400",
-        badge: "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+        text: "text-[color:var(--ui-tone-success-text)]",
+        bar: "bg-[color:var(--ui-tone-success-progress)]",
+        badge: "border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] text-[color:var(--ui-tone-success-text)]",
     },
     warning: {
-        text: "text-amber-300",
-        bar: "bg-amber-400",
-        badge: "border-amber-400/20 bg-amber-400/10 text-amber-200",
+        text: "text-[color:var(--ui-tone-warning-text)]",
+        bar: "bg-[color:var(--ui-tone-warning-progress)]",
+        badge: "border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] text-[color:var(--ui-tone-warning-text)]",
     },
     danger: {
-        text: "text-rose-300",
-        bar: "bg-rose-400",
-        badge: "border-rose-400/20 bg-rose-400/10 text-rose-200",
+        text: "text-[color:var(--ui-tone-danger-text)]",
+        bar: "bg-[color:var(--ui-tone-danger-progress)]",
+        badge: "border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] text-[color:var(--ui-tone-danger-text)]",
     },
 };
 

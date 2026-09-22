@@ -34,28 +34,28 @@ function getActivityContent(
         case "allocation":
             return {
                 icon: LayoutGrid,
-                iconClass: "bg-cyan-400/10 text-cyan-300",
+                iconClass: "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]",
                 title: t("Seat {seat} allocated", { seat: item.seat }),
                 description: t("{name} was assigned to a seat.", { name: item.studentName }),
             };
         case "payment":
             return {
                 icon: IndianRupee,
-                iconClass: "bg-emerald-400/10 text-emerald-300",
+                iconClass: "bg-[color:var(--ui-tone-success-bg)] text-[color:var(--ui-tone-success-text)]",
                 title: "Payment received",
                 description: t("{amount} collected from {name}.", { amount: formatMoney(item.amount), name: item.studentName }),
             };
         case "overdue":
             return {
                 icon: TriangleAlert,
-                iconClass: "bg-rose-400/10 text-rose-300",
+                iconClass: "bg-[color:var(--ui-tone-danger-bg)] text-[color:var(--ui-tone-danger-text)]",
                 title: "Overdue payments detected",
                 description: t("{count} students need follow-up.", { count: formatNumber(item.count) }),
             };
         case "enrollment":
             return {
                 icon: UserPlus,
-                iconClass: "bg-violet-400/10 text-violet-300",
+                iconClass: "bg-[color:var(--ui-tone-insight-bg)] text-[color:var(--ui-tone-insight-text)]",
                 title: "New student enrolled",
                 description: t("{name} joined the branch.", { name: item.studentName }),
             };

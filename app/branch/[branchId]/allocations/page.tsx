@@ -122,10 +122,8 @@ function AllocationsContent({
 
     // Optional: pre-selected student passed via query param from students page
     const preselectedStudentId = searchParams.get("studentId") ?? undefined;
-    const preselectedStudentName = searchParams.get("studentName") ?? undefined;
     // Change seat: navigated from students page with existing allocation
     const changeStudentId = searchParams.get("changeStudentId") ?? undefined;
-    const changeStudentName = searchParams.get("studentName") ?? undefined;
     const linkedAllocationId = searchParams.get("allocationId") ?? undefined;
     const linkedStatus = searchParams.get("status");
 
@@ -193,7 +191,7 @@ function AllocationsContent({
         setUpdateTarget({
             ids,
             studentId: changeStudentId,
-            studentName: changeStudentName || studentAllocs[0]?.student?.name || "",
+            studentName: studentAllocs[0]?.student?.name || "",
             currentSeatId: studentAllocs[0]?.seat?.id || "",
             currentFee: studentAllocs[0]?.student?.monthlyFee ?? null,
             currentShiftIds: studentAllocs.map((a) => a.shiftId),
@@ -201,7 +199,7 @@ function AllocationsContent({
         });
         // Clear query param
         router.replace(`/branch/${branchId}/allocations`);
-    }, [allocations, branchId, canManageAllocations, changeStudentId, changeStudentName, router]);
+    }, [allocations, branchId, canManageAllocations, changeStudentId, router]);
 
     const fetchAllocations = useCallback(async () => {
         const sequence = ++loadSequence.current;
@@ -554,7 +552,6 @@ function AllocationsContent({
                     branchId={branchId}
                     isOpen={isDialogOpen}
                     preselectedStudentId={preselectedStudentId}
-                    preselectedStudentName={preselectedStudentName}
                     onClose={handleClose}
                     onSuccess={() => {
                         fetchAllocations();

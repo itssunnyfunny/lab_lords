@@ -29,7 +29,7 @@ const actions: Action[] = [
         description: "Prioritize collection follow-ups",
         icon: TriangleAlert,
         route: "/overdue",
-        tone: "text-rose-300 bg-rose-400/10",
+        tone: "text-[color:var(--ui-tone-danger-text)] bg-[color:var(--ui-tone-danger-bg)]",
         capability: "overdueView",
     },
     {
@@ -37,7 +37,7 @@ const actions: Action[] = [
         description: "Review AI reminder drafts",
         icon: MessageSquareText,
         route: "/ai/messages",
-        tone: "text-indigo-300 bg-indigo-400/10",
+        tone: "text-[color:var(--ui-tone-insight-text)] bg-[color:var(--ui-tone-insight-bg)]",
         capability: "aiUse",
     },
     {
@@ -45,7 +45,7 @@ const actions: Action[] = [
         description: "Mark a due as paid",
         icon: CreditCard,
         route: "/payments",
-        tone: "text-emerald-300 bg-emerald-400/10",
+        tone: "text-[color:var(--ui-tone-success-text)] bg-[color:var(--ui-tone-success-bg)]",
         capability: "paymentsRecord",
     },
     {
@@ -53,7 +53,7 @@ const actions: Action[] = [
         description: "Create a student profile",
         icon: UserPlus,
         route: "/students",
-        tone: "text-cyan-300 bg-cyan-400/10",
+        tone: "text-[color:var(--ui-tone-info-text)] bg-[color:var(--ui-tone-info-bg)]",
         capability: "studentsManage",
     },
     {
@@ -61,7 +61,7 @@ const actions: Action[] = [
         description: "Allocate a student to a slot",
         icon: Grid,
         route: "/allocations",
-        tone: "text-violet-300 bg-violet-400/10",
+        tone: "text-[color:var(--ui-tone-insight-text)] bg-[color:var(--ui-tone-insight-bg)]",
         capability: "allocationsManage",
     },
     {
@@ -69,7 +69,7 @@ const actions: Action[] = [
         description: "Onboard existing data",
         icon: UploadCloud,
         route: "/onboarding/import",
-        tone: "text-sky-300 bg-sky-400/10",
+        tone: "text-[color:var(--ui-tone-info-text)] bg-[color:var(--ui-tone-info-bg)]",
         capability: "importStudents",
     },
     {
@@ -77,7 +77,7 @@ const actions: Action[] = [
         description: "Review capacity and schedules",
         icon: CalendarCheck,
         route: "/shifts",
-        tone: "text-amber-300 bg-amber-400/10",
+        tone: "text-[color:var(--ui-tone-warning-text)] bg-[color:var(--ui-tone-warning-bg)]",
         capability: "shiftsView",
     },
 ];
@@ -151,7 +151,7 @@ export function QuickActions({ branchId }: { branchId: string }) {
                                 {!decision.allowed && decision.recoveryHref && (
                                     <Link
                                         href={decision.recoveryHref}
-                                        className="shrink-0 text-xs font-semibold text-cyan-300 underline-offset-4 hover:underline"
+                                        className="shrink-0 text-xs font-semibold text-[color:var(--ui-form-accent)] underline-offset-4 hover:underline"
                                     >
                                         {t("Restore")}</Link>
                                 )}
