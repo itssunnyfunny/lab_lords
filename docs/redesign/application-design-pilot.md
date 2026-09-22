@@ -10,6 +10,7 @@ Status: **implemented locally; shared design approval pending**. Do not extend t
 - Pilot commits:
   - `2cc4e0b` — scoped botanical application theme, shell mark, branch navigation grouping, portal theme seam, and route/contrast tests.
   - `9a332ac` — dashboard, Students, allocation-link, collection, and receipt workflow refinements.
+  - `b27f79f` — responsive/accessibility hardening, language and focus fixes, synthetic browser harness, and the 53-image review packet.
 - No public route, public copy, pricing, metadata, schema, migration, package, environment, provider, or server-side authorization change is in scope.
 - Public Home, Features, Pricing, FAQ, and multilingual pages remain unchanged. No marketing copy update is needed because this is an authenticated application pilot.
 
@@ -155,4 +156,7 @@ Approval requested at this gate covers the shared application design: shell/navi
 
 Until explicit approval, remaining organization, payments, renewals, attendance, imports, AI, staff, settings, account, and billing route families are intentionally unchanged.
 
-Rollback is local and commit-scoped: revert `9a332ac` for workflow composition and `2cc4e0b` for the scoped theme/shell. Neither rollback touches the completed public website/localization or migration history.
+Rollback is local and commit-scoped: revert `b27f79f` for final hardening and
+evidence, `9a332ac` for workflow composition, and `2cc4e0b` for the scoped
+theme/shell. None of these rollbacks touch the completed public
+website/localization or migration history.
