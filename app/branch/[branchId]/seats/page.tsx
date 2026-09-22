@@ -1066,24 +1066,24 @@ function ShiftFilterChip({
 }) {
     const toneClasses = {
         info: {
-            active: "border-cyan-300/35 bg-cyan-300/10 text-cyan-100",
-            dot: "bg-cyan-300",
-            text: "text-cyan-200",
+            active: "border-[color:var(--ui-tone-info-border)] bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]",
+            dot: "bg-[color:var(--ui-tone-info-progress)]",
+            text: "text-[color:var(--ui-tone-info-text)]",
         },
         success: {
-            active: "border-emerald-300/30 bg-emerald-300/10 text-emerald-100",
-            dot: "bg-emerald-300",
-            text: "text-emerald-200",
+            active: "border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] text-[color:var(--ui-tone-success-text)]",
+            dot: "bg-[color:var(--ui-tone-success-progress)]",
+            text: "text-[color:var(--ui-tone-success-text)]",
         },
         warning: {
-            active: "border-amber-300/30 bg-amber-300/10 text-amber-100",
-            dot: "bg-amber-300",
-            text: "text-amber-200",
+            active: "border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] text-[color:var(--ui-tone-warning-text)]",
+            dot: "bg-[color:var(--ui-tone-warning-progress)]",
+            text: "text-[color:var(--ui-tone-warning-text)]",
         },
         danger: {
-            active: "border-rose-300/30 bg-rose-300/10 text-rose-100",
-            dot: "bg-rose-300",
-            text: "text-rose-200",
+            active: "border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] text-[color:var(--ui-tone-danger-text)]",
+            dot: "bg-[color:var(--ui-tone-danger-progress)]",
+            text: "text-[color:var(--ui-tone-danger-text)]",
         },
     }[tone];
 
@@ -1197,10 +1197,10 @@ function SummaryMetric({
 }) {
     const valueClass = {
         neutral: "text-[color:var(--text-primary)]",
-        success: "text-emerald-200",
-        warning: "text-amber-200",
-        danger: "text-rose-200",
-        info: "text-cyan-200",
+        success: "text-[color:var(--ui-tone-success-text)]",
+        warning: "text-[color:var(--ui-tone-warning-text)]",
+        danger: "text-[color:var(--ui-tone-danger-text)]",
+        info: "text-[color:var(--ui-tone-info-text)]",
     }[tone];
 
     return (
@@ -1225,12 +1225,12 @@ function StatusFilterChip({
 }) {
     const t = useTranslation();
     const tone = filter.value === "ALLOCATED"
-        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+        ? "border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] text-[color:var(--ui-tone-success-text)]"
         : filter.value === "BLOCKED"
-            ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
+            ? "border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] text-[color:var(--ui-tone-danger-text)]"
         : filter.value === "AVAILABLE"
-            ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
-            : "border-cyan-400/30 bg-cyan-400/10 text-cyan-200";
+            ? "border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] text-[color:var(--ui-tone-warning-text)]"
+            : "border-[color:var(--ui-tone-info-border)] bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]";
 
     return (
         <button
@@ -1295,7 +1295,7 @@ function SeatGrid({
                             "flex min-h-[150px] flex-col p-3.5",
                             pageGridCardClass,
                             pageGridCardHoverClass,
-                            selectedSeatId === seat.id || focusedSeatId === seat.id ? "border-cyan-400/40 bg-cyan-400/[0.05]" : "border-[color:var(--ui-card-border)] hover:border-[color:var(--ui-card-hover-border)]",
+                            selectedSeatId === seat.id || focusedSeatId === seat.id ? "border-[color:var(--ui-tone-info-border)] bg-[color:var(--ui-tone-info-bg)]" : "border-[color:var(--ui-card-border)] hover:border-[color:var(--ui-card-hover-border)]",
                             allocated
                                 ? "shadow-[inset_2px_0_0_rgba(52,211,153,0.6)]"
                                 : blocked
@@ -1392,7 +1392,7 @@ function SeatList({
                                     id={`seat-record-${seat.id}`}
                                     tabIndex={-1}
                                     aria-current={focusedSeatId === seat.id ? "true" : undefined}
-                                    className={cn(pageTableRowClass, focusedSeatId === seat.id && "bg-cyan-400/[0.05] outline outline-2 outline-cyan-300/60")}
+                                    className={cn(pageTableRowClass, focusedSeatId === seat.id && "bg-[color:var(--ui-tone-info-bg)] outline outline-2 outline-[color:var(--ui-focus-ring)]")}
                                 >
                                     <th scope="row" className="px-5 py-4 text-left font-normal">
                                         <div className="flex items-center gap-3">
@@ -1599,7 +1599,7 @@ function SeatDetailsDrawer({
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <div className="flex min-w-0 items-center gap-2">
-                                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
+                                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] text-[color:var(--ui-tone-success-text)]">
                                                     <User size={15} />
                                                 </div>
                                                 <div className="min-w-0">
@@ -1609,11 +1609,11 @@ function SeatDetailsDrawer({
                                             </div>
                                             <div className="mt-3 space-y-1.5 text-xs text-textSecondary">
                                                 <div className="flex items-center gap-2">
-                                                    <CalendarClock size={13} className="text-cyan-300" />
+                                                    <CalendarClock size={13} className="text-[color:var(--ui-tone-info-text)]" />
                                                     <span>{getAllocationShiftLabel(allocation)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <Clock size={13} className="text-amber-300" />
+                                                    <Clock size={13} className="text-[color:var(--ui-tone-warning-text)]" />
                                                     <span>{formatTimeRange(allocation.shift?.startTime, allocation.shift?.endTime)}</span>
                                                 </div>
                                             </div>

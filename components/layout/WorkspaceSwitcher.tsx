@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "@/components/settings/LocalizedText";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppSelect, type AppSelectItem } from "@/components/ui";
@@ -101,6 +102,7 @@ export function WorkspaceSwitcherControl({
     className?: string;
     onNavigate: (href: string) => void;
 }) {
+    const t = useTranslation();
     const model = useMemo(
         () => directory ? getWorkspaceSwitcherModel(directory) : null,
         [directory]
@@ -131,9 +133,9 @@ export function WorkspaceSwitcherControl({
             value={currentValue}
             options={selectOptions}
             onValueChange={onNavigate}
-            label={label}
-            aria-label={`Switch ${label.toLowerCase()} or open account settings`}
-            placeholder={statusLabel}
+            label={t.owned(label)}
+            aria-label={t("Switch workspace or open account settings")}
+            placeholder={t.owned(statusLabel)}
             containerClassName={cn("min-w-0", className)}
             labelClassName="mb-0 text-[10px] font-semibold uppercase leading-4 tracking-[0.12em] text-[color:var(--text-muted)]"
             className="max-w-56 px-2 font-semibold sm:px-3"

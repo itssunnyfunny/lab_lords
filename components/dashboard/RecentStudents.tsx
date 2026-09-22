@@ -90,7 +90,7 @@ export function RecentStudents({ students, branchId }: RecentStudentsProps) {
                                     <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{joined}</p>
                                 </div>
                                 <Badge variant={student.status === "ACTIVE" ? "success" : "default"} className="shrink-0 text-[9px]">
-                                    {student.status}
+                                    {t(student.status === "ACTIVE" ? "Active" : "Inactive")}
                                 </Badge>
                             </div>
                         );

@@ -112,15 +112,18 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                     closeLabel={t("Close navigation")}
                     className="max-w-[19rem] lg:hidden"
                 >
-                    <div className="h-[calc(100dvh-7rem)] overflow-hidden">{sidebar}</div>
+                    <div className="h-[calc(100dvh-9rem)] overflow-hidden">{sidebar}</div>
                 </Drawer>
             )}
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 max-w-full relative z-10">
                 {/* Top Header */}
-                <header className={chromeHeaderClass}>
-                    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:max-w-md lg:gap-4">
+                <header className={cn(chromeHeaderClass, designPilot && "max-sm:flex-wrap max-sm:content-center max-sm:py-2")}>
+                    <div className={cn(
+                        "flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:max-w-md lg:gap-4",
+                        designPilot && "max-sm:w-full max-sm:flex-none"
+                    )}>
                         <button
                             type="button"
                             onClick={() => setMobileNavOpen(true)}
@@ -134,7 +137,10 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                         {showBranchChrome && <BranchTopSearch />}
                     </div>
 
-                    <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3 md:gap-4">
+                    <div className={cn(
+                        "flex flex-shrink-0 items-center gap-1.5 sm:gap-3 md:gap-4",
+                        designPilot && "max-sm:w-full max-sm:justify-end"
+                    )}>
                         {showBranchChrome && (
                             <>
                                 <BranchNotifications />

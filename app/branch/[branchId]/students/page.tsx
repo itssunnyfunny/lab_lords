@@ -250,7 +250,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
             label: "Keep as Due",
             sublabel: "Still expecting payment. Stays in overdue.",
             icon: Clock,
-            color: "text-red-400",
+            color: "text-[color:var(--ui-tone-danger-text)]",
         },
     ];
 
@@ -583,10 +583,10 @@ function StudentsContent({
     }, [multiShifts, shiftOptionsLoaded, shiftScope, toast]);
 
     const shiftFilterOptions = useMemo(() => [
-        { value: "all", label: "All Shifts" },
+        { value: "all", label: t("All Shifts") },
         ...shifts.map(shift => ({ value: `primary:${shift.id}`, label: shift.name })),
         ...multiShifts.map(multiShift => ({ value: `multi:${multiShift.id}`, label: multiShift.name })),
-    ], [multiShifts, shifts]);
+    ], [multiShifts, shifts, t]);
 
     useEffect(() => {
         if (targetStudentStatus === "ACTIVE" || targetStudentStatus === "INACTIVE") {
@@ -688,7 +688,7 @@ function StudentsContent({
 
         return (
             <div className="text-xs space-y-0.5">
-                <div className={cn("font-medium", fin.totalDue > 0 ? "text-red-400" : "text-textMuted")}>{t("Due: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalDue) })}</div>
+                <div className={cn("font-medium", fin.totalDue > 0 ? "text-[color:var(--ui-tone-danger-text)]" : "text-textMuted")}>{t("Due: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalDue) })}</div>
                 <div className="text-textSecondary">{t("Paid: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalPaid) })}</div>
                 {fin.totalWaived > 0 && (
                     <div className="text-amber-500/70">{t("Waived: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalWaived) })}</div>
@@ -949,7 +949,11 @@ function StudentsContent({
                         : undefined,
                 })}
                 viewMode={viewMode}
-                emptyMessage={t("No students found for this view.")}
+                emptyMessage={t(
+                    debouncedSearchQuery || shiftScope.kind !== "all"
+                        ? "No students match this search or shift filter."
+                        : "No students in this view yet."
+                )}
                 renderGridCard={(item, actions) => (
                     <div className={cn("relative flex min-h-[230px] flex-col", pageGridCardClass, pageGridCardHoverClass)}>
                         <div className="flex items-start justify-between gap-3">
@@ -961,7 +965,9 @@ function StudentsContent({
                                 </div>
                             </div>
                             <div className="flex flex-shrink-0 items-start gap-2">
-                                <Badge variant={item.status === "ACTIVE" ? "success" : "default"}>{item.status}</Badge>
+                                <Badge variant={item.status === "ACTIVE" ? "success" : "default"}>
+                                    {t(item.status === "ACTIVE" ? "Active" : "Inactive")}
+                                </Badge>
                                 {actions?.(item)}
                             </div>
                         </div>
@@ -1007,7 +1013,9 @@ function StudentsContent({
                     {
                         header: "Status",
                         accessor: (item) => (
-                            <Badge variant={item.status === "ACTIVE" ? "success" : "default"}>{item.status}</Badge>
+                            <Badge variant={item.status === "ACTIVE" ? "success" : "default"}>
+                                {t(item.status === "ACTIVE" ? "Active" : "Inactive")}
+                            </Badge>
                         )
                     },
                     {
@@ -1171,7 +1179,11 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
                 <div className="space-y-6">
                     <div>
                         {student ? <div className="text-sm text-textMuted">{t("Joined")} {formatDate(student.joinedAt)}</div> : null}
-                        {student ? <Badge className="mt-2" variant={student.status === "ACTIVE" ? "success" : "default"}>{student.status}</Badge> : null}
+                        {student ? (
+                            <Badge className="mt-2" variant={student.status === "ACTIVE" ? "success" : "default"}>
+                                {t(student.status === "ACTIVE" ? "Active" : "Inactive")}
+                            </Badge>
+                        ) : null}
                     </div>
 
                     {student && <><AppButton variant="primary" disabled={!canRecordFees} onClick={() => setCollecting(true)}>{t("Collect fee")}</AppButton>
@@ -1188,7 +1200,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
                             </div>
                             <div className={cn("p-3 text-center", formSurfaceClass)}>
                                 <div className="text-xs text-textSecondary">{t("Total Due")}</div>
-                                <div className="text-lg font-bold text-red-400">{formatCurrency(financials?.totalDue || 0)}</div>
+                                <div className="text-lg font-bold text-[color:var(--ui-tone-danger-text)]">{formatCurrency(financials?.totalDue || 0)}</div>
                             </div>
                         </div>
 

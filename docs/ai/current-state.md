@@ -1,5 +1,29 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Authenticated application design pilot — 2026-09-22
+
+A local, approval-gated design pilot now applies the approved botanical public
+identity to the branch dashboard, Students, Seats, and the shared collection
+dialog only. Route-scoped tokens keep all other authenticated routes on their
+existing theme, while an explicit dialog overlay class carries the same tokens
+through the existing body portal. The branch sidebar uses task-oriented groups
+on pilot routes and retains every route, permission check, entitlement lock,
+owner return path, activation state, and billing/read-only banner.
+
+The pilot also makes the dashboard Add Student action capability-aware, retains
+student allocation projections after a scalar edit, removes student names from
+allocation query strings, and clarifies partial-payment review, uncertain
+same-request recovery, and immutable receipt presentation. Server-side tenant,
+permission, seat/allocation, finance, receipt, and provider behavior is
+unchanged. A Clerk/DB/provider-free component harness supplies visibly labelled
+synthetic desktop/mobile and language evidence; it is not a production auth
+bypass or connected-environment verification.
+
+See [the implementation and approval note](../redesign/application-design-pilot.md).
+The shared design is not approved yet, and no application-wide rollout should
+start until explicit owner approval. This records local implementation only,
+not deployment.
+
 ## Public proof and identity refresh — 2026-09-21
 
 Home replaces its plan introduction with a labelled sample payment/receipt.

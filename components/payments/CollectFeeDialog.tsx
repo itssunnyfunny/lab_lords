@@ -18,8 +18,8 @@ import type { PaymentListItem } from "@/lib/api/payments";
 import { cn } from "@/lib/utils";
 import { FeeReceipt } from "./FeeReceipt";
 
-export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSaved }: {
-    branchId: string; studentId: string; paymentId?: string; onClose: () => void; onSaved: () => void;
+export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSaved, usePilotTheme = true }: {
+    branchId: string; studentId: string; paymentId?: string; onClose: () => void; onSaved: () => void; usePilotTheme?: boolean;
 }) {
     const t = useTranslation();
     const [dues, setDues] = useState<PaymentListItem[]>([]);
@@ -97,13 +97,27 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
         title={receipt ? t("Collection recorded") : t("Collect fee")}
         description={name}
         className="max-w-4xl"
-        overlayClassName="app-design-pilot-overlay"
-        footer={!receipt ? <>
-            <AppButton variant="quiet" onClick={onClose} disabled={busy}>{t("Close")}</AppButton>
-            <AppButton variant="primary" onClick={() => void confirm()} isLoading={busy} disabled={loading || (!pending && !valid)}>
-                {pending ? t("Retry same collection") : t("Confirm collection")}
-            </AppButton>
-        </> : undefined}
+        overlayClassName={usePilotTheme ? "app-design-pilot-overlay" : undefined}
+        footer={!receipt ? (
+            <div className="flex w-full flex-col gap-3">
+                {pending && error ? (
+                    <div className="space-y-2">
+                        <p role="alert" className={cn("p-3 text-sm font-medium", formErrorBannerClass)}>
+                            {t.error(error, "Unable to confirm the result. Retry the same request.")}
+                        </p>
+                        <p role="status" className={cn("p-3 text-sm leading-6", formWarningBannerClass)}>
+                            {t("This request may already be recorded. Retry to retrieve its receipt safely. Its amount and selections are locked until confirmed.")}
+                        </p>
+                    </div>
+                ) : null}
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <AppButton variant="quiet" onClick={onClose} disabled={busy}>{t("Close")}</AppButton>
+                    <AppButton variant="primary" onClick={() => void confirm()} isLoading={busy} disabled={loading || (!pending && !valid)}>
+                        {pending ? t("Retry same collection") : t("Confirm collection")}
+                    </AppButton>
+                </div>
+            </div>
+        ) : undefined}
     >
         {receipt ? <FeeReceipt branchId={branchId} collection={receipt} /> : <div className="space-y-4">
             {loading && (
@@ -111,12 +125,12 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
                     {t("Loading outstanding dues…")}
                 </p>
             )}
-            {error && (
+            {error && !pending && (
                 <p role="alert" className={cn("p-3 text-sm font-medium", formErrorBannerClass)}>
-                    {t.error(error, pending ? "Unable to confirm the result. Retry the same request." : "Something went wrong. Try again.")}
+                    {t.error(error, "Something went wrong. Try again.")}
                 </p>
             )}
-            {pending && (
+            {pending && !error && (
                 <p role="status" className={cn("p-3 text-sm leading-6", formWarningBannerClass)}>
                     {t("This request may already be recorded. Retry to retrieve its receipt safely. Its amount and selections are locked until confirmed.")}
                 </p>

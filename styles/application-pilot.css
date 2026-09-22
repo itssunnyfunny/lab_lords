@@ -33,7 +33,7 @@ html:has([data-app-design-pilot="workspace"]),
 
   --text-primary: #183e30;
   --text-secondary: #43554d;
-  --text-muted: #687970;
+  --text-muted: #607168;
 
   --accent-primary: var(--pilot-forest);
   --accent-secondary: var(--pilot-leaf);
@@ -61,7 +61,7 @@ html:has([data-app-design-pilot="workspace"]),
 
   --ui-stat-title: #52635b;
   --ui-stat-value: #183e30;
-  --ui-stat-subtitle: #687970;
+  --ui-stat-subtitle: #607168;
   --ui-stat-track: #e8efe9;
   --ui-stat-alert: #923b3b;
   --ui-stat-alert-dot: #b64949;
@@ -140,7 +140,7 @@ html:has([data-app-design-pilot="workspace"]),
   --ui-table-divider: #e3eae5;
   --ui-table-text: #183e30;
   --ui-table-muted: #52635b;
-  --ui-table-subtle: #687970;
+  --ui-table-subtle: #607168;
   --ui-table-empty-border: #c8d6cc;
   --ui-table-cell-bg: #fbfdf9;
   --ui-table-action-bg: #eff4ef;
@@ -153,7 +153,7 @@ html:has([data-app-design-pilot="workspace"]),
   --ui-view-toggle-border: #d6e0d8;
   --ui-view-toggle-hover-bg: #e8f1ea;
   --ui-view-toggle-hover-text: var(--pilot-forest);
-  --ui-view-toggle-text: #687970;
+  --ui-view-toggle-text: #607168;
   --ui-view-toggle-table-active-bg: #e8f1ea;
   --ui-view-toggle-table-active-text: var(--pilot-forest);
   --ui-view-toggle-table-ring: #9fbaa9;
@@ -215,8 +215,8 @@ html:has([data-app-design-pilot="workspace"]),
   --ui-form-dialog-shadow: var(--ui-dialog-shadow);
   --ui-form-label: #43554d;
   --ui-form-label-strong: #183e30;
-  --ui-form-help: #687970;
-  --ui-form-icon: #687970;
+  --ui-form-help: #607168;
+  --ui-form-icon: #607168;
   --ui-form-accent: #166f50;
   --ui-form-accent-hover: #0f513a;
   --ui-form-required: #a63f3f;
@@ -265,7 +265,7 @@ html:has([data-app-design-pilot="workspace"]),
   --ui-menu-item-danger-hover-bg: #fbedec;
   --ui-menu-item-warning-text: #7a4b0d;
   --ui-menu-item-warning-hover-bg: #fff4d6;
-  --ui-menu-trigger-text: #687970;
+  --ui-menu-trigger-text: #607168;
   --ui-menu-trigger-hover-bg: #eff4ef;
   --ui-menu-trigger-hover-text: var(--pilot-forest);
   --ui-menu-trigger-active-bg: #e8f1ea;
