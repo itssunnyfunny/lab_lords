@@ -398,9 +398,9 @@ function ImportAssistantContent({
                                         <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{file ? `${(file.size / 1024).toFixed(1)} KiB selected` : t("CSV, XLSX, XLS, or PDF up to 4 MiB")}</p>
                                     </div>
                                     <div className="flex flex-wrap justify-center gap-2">
-                                        <label className={cn("inline-flex", mutationsDisabled || loading || pdfReview ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
-                                            <input type="file" className="sr-only" accept=".csv,.xlsx,.xls,.pdf" disabled={mutationsDisabled || loading || Boolean(pdfReview)} aria-describedby="import-source-limits" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} />
-                                            <span className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 py-2 text-sm font-semibold text-[color:var(--ui-button-secondary-text)]">{t("Choose file")}</span>
+                                        <label className={cn("relative inline-flex shrink-0 overflow-hidden rounded-[var(--ui-radius-control)] focus-within:ring-2 focus-within:ring-[color:var(--ui-focus-ring)]", mutationsDisabled || loading || pdfReview ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
+                                            <input type="file" className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" accept=".csv,.xlsx,.xls,.pdf" disabled={mutationsDisabled || loading || Boolean(pdfReview)} aria-describedby="import-source-limits" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} />
+                                            <span className="pointer-events-none rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 py-2 text-sm font-semibold text-[color:var(--ui-button-secondary-text)]">{t("Choose file")}</span>
                                         </label>
                                         {file && <AppButton size="sm" variant="quiet" onClick={() => chooseFile(null)} disabled={loading || Boolean(pdfReview)}>{t("Clear")}</AppButton>}
                                     </div>
