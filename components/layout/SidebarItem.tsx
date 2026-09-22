@@ -21,7 +21,7 @@ interface SidebarItemProps {
 export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isCollapsed, density = "default", locked = false, badge }: SidebarItemProps) => {
     const t = useTranslation();
     const className = cn(
-            "group relative flex w-full items-center text-left transition-all duration-300",
+            "group relative flex w-full items-center text-left transition-all duration-150",
             density === "compact"
                 ? "min-h-11 gap-2.5 rounded-lg border px-2.5 py-2 lg:min-h-9"
                 : "min-h-11 gap-3 rounded-xl border px-3 py-2.5",
@@ -37,7 +37,7 @@ export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isColl
         <Icon
             size={density === "compact" ? 17 : 20}
             className={cn(
-                "shrink-0 transition-colors duration-300",
+                "shrink-0 transition-colors duration-150",
                 isActive
                     ? "text-[color:var(--ui-form-accent)]"
                     : "group-hover:text-[color:var(--ui-form-accent-hover)]"
@@ -55,8 +55,8 @@ export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isColl
             "absolute left-0 top-1/2 w-0.5 -translate-y-1/2",
             density === "compact" ? "h-4 bg-[color:var(--ui-form-accent)]" : "h-6 bg-[color:var(--ui-form-accent)]"
         )} />}
-        {!isCollapsed && locked && <LockKeyhole size={13} className="shrink-0 text-amber-500" aria-label="Standard plan required" />}
-        {!isCollapsed && badge && <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600">{badge}</span>}
+        {!isCollapsed && locked && <LockKeyhole size={13} className="shrink-0 text-[color:var(--ui-tone-warning-text)]" aria-label={t.owned("Standard plan required")} />}
+        {!isCollapsed && badge && <span className="rounded-full border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[color:var(--ui-tone-warning-text)]">{badge}</span>}
     </>;
 
     if (href) {

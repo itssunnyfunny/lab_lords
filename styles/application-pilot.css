@@ -1,0 +1,356 @@
+/*
+ * Authenticated application design pilot.
+ *
+ * Keep the botanical palette opt-in: the workspace marker is only rendered on
+ * the approved dashboard, students, and seats routes. The collection dialog is
+ * portalled to document.body, so it receives the same tokens through its
+ * explicit overlay class rather than a page-wide theme switch.
+ */
+html:has([data-app-design-pilot="workspace"]),
+[data-app-design-pilot="workspace"],
+.app-design-pilot-overlay {
+  color-scheme: light;
+  color: var(--text-primary);
+  font-family: var(--font-inter), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+
+  --pilot-forest: #164d38;
+  --pilot-leaf: #16835e;
+  --pilot-sage: #a7c957;
+  --pilot-paper: #fffbf4;
+  --pilot-bark: #8b6f56;
+  --pilot-peach: #f4a261;
+  --pilot-cream: #fffefb;
+
+  /* Brand foundations */
+  --bg-app: var(--pilot-paper);
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #fbfdf9;
+  --glass-border: #164d381f;
+  --glass-surface: #ffffff;
+  --glass-highlight: #ffffff;
+  --border-subtle: #164d381f;
+
+  --text-primary: #183e30;
+  --text-secondary: #43554d;
+  --text-muted: #687970;
+
+  --accent-primary: var(--pilot-forest);
+  --accent-secondary: var(--pilot-leaf);
+  --accent-glow: transparent;
+  --accent-success: #2f8456;
+  --accent-warning: #c17b13;
+  --accent-danger: #b64949;
+  --accent-cyan: var(--pilot-leaf);
+
+  --shadow-card: 0 8px 24px rgb(22 77 56 / 7%);
+  --shadow-glow: none;
+
+  /* Shared application surfaces */
+  --ui-focus-ring: var(--pilot-forest);
+  --ui-text: var(--text-primary);
+  --ui-text-muted: var(--text-muted);
+  --ui-accent: var(--pilot-leaf);
+
+  --ui-panel-bg: #ffffff;
+  --ui-panel-border: #dce5de;
+  --ui-panel-header-border: #e2e9e4;
+  --ui-panel-title: #183e30;
+  --ui-panel-description: #52635b;
+  --ui-panel-shadow: 0 1px 2px rgb(22 77 56 / 4%), 0 8px 24px rgb(22 77 56 / 5%);
+
+  --ui-stat-title: #52635b;
+  --ui-stat-value: #183e30;
+  --ui-stat-subtitle: #687970;
+  --ui-stat-track: #e8efe9;
+  --ui-stat-alert: #923b3b;
+  --ui-stat-alert-dot: #b64949;
+
+  /* Semantic accents stay restrained and never carry meaning by color alone. */
+  --ui-tone-neutral-bg: #eff2f0;
+  --ui-tone-neutral-text: #53635b;
+  --ui-tone-neutral-progress: #77867e;
+  --ui-tone-neutral-border: #d6ded9;
+  --ui-tone-success-bg: #eaf4ed;
+  --ui-tone-success-text: #21653f;
+  --ui-tone-success-progress: #2f8456;
+  --ui-tone-success-border: var(--pilot-sage);
+  --ui-tone-warning-bg: #fff4d6;
+  --ui-tone-warning-text: #7a4b0d;
+  --ui-tone-warning-progress: var(--pilot-peach);
+  --ui-tone-warning-border: #e7c77e;
+  --ui-tone-danger-bg: #fbedec;
+  --ui-tone-danger-text: #923b3b;
+  --ui-tone-danger-progress: #b64949;
+  --ui-tone-danger-border: #e5b9b5;
+  --ui-tone-info-bg: #eaf3f9;
+  --ui-tone-info-text: #285d7d;
+  --ui-tone-info-progress: #397b9f;
+  --ui-tone-info-border: #bdd4e3;
+  --ui-tone-insight-bg: #f2edf8;
+  --ui-tone-insight-text: #665092;
+  --ui-tone-insight-progress: #8067a8;
+  --ui-tone-insight-border: #d8cce7;
+
+  /* Buttons */
+  --ui-button-primary-bg: var(--pilot-forest);
+  --ui-button-primary-hover-bg: #0f3f2d;
+  --ui-button-primary-text: #ffffff;
+  --ui-button-primary-border: var(--pilot-forest);
+  --ui-button-primary-hover-border: #0f3f2d;
+  --ui-button-primary-shadow: 0 2px 5px rgb(22 77 56 / 16%);
+
+  --ui-button-secondary-bg: #ffffff;
+  --ui-button-secondary-hover-bg: #f3f7f3;
+  --ui-button-secondary-text: var(--pilot-forest);
+  --ui-button-secondary-border: #b8c9be;
+  --ui-button-secondary-hover-border: #779b89;
+  --ui-button-secondary-shadow: 0 1px 2px rgb(22 77 56 / 5%);
+
+  --ui-button-quiet-bg: transparent;
+  --ui-button-quiet-hover-bg: #eef4ef;
+  --ui-button-quiet-text: #43554d;
+  --ui-button-quiet-hover-text: var(--pilot-forest);
+  --ui-button-quiet-border: #dce5de;
+  --ui-button-quiet-hover-border: #b8c9be;
+
+  --ui-button-danger-bg: #fbedec;
+  --ui-button-danger-hover-bg: #f6dedc;
+  --ui-button-danger-text: #873434;
+  --ui-button-danger-border: #e5b9b5;
+  --ui-button-danger-hover-border: #d99590;
+
+  /* Cards and tables */
+  --ui-card-bg: #ffffff;
+  --ui-card-hover-bg: #fbfdf9;
+  --ui-card-border: #dce5de;
+  --ui-card-hover-border: #b8c9be;
+  --ui-card-radius: 14px;
+  --ui-card-shadow: 0 2px 8px rgb(22 77 56 / 5%);
+  --ui-card-hover-shadow: 0 8px 22px rgb(22 77 56 / 8%);
+  --ui-card-highlight: #ffffff;
+  --ui-card-title: #183e30;
+
+  --ui-table-bg: #ffffff;
+  --ui-table-border: #dce5de;
+  --ui-table-radius: 12px;
+  --ui-table-shadow: 0 2px 8px rgb(22 77 56 / 4%);
+  --ui-table-head-bg: #f4f7f2;
+  --ui-table-row-hover-bg: #f7faf6;
+  --ui-table-divider: #e3eae5;
+  --ui-table-text: #183e30;
+  --ui-table-muted: #52635b;
+  --ui-table-subtle: #687970;
+  --ui-table-empty-border: #c8d6cc;
+  --ui-table-cell-bg: #fbfdf9;
+  --ui-table-action-bg: #eff4ef;
+  --ui-table-action-hover-bg: #e5eee7;
+  --ui-table-action-text: #43554d;
+  --ui-table-action-hover-text: var(--pilot-forest);
+
+  /* List and grid controls */
+  --ui-view-toggle-bg: #f4f7f2;
+  --ui-view-toggle-border: #d6e0d8;
+  --ui-view-toggle-hover-bg: #e8f1ea;
+  --ui-view-toggle-hover-text: var(--pilot-forest);
+  --ui-view-toggle-text: #687970;
+  --ui-view-toggle-table-active-bg: #e8f1ea;
+  --ui-view-toggle-table-active-text: var(--pilot-forest);
+  --ui-view-toggle-table-ring: #9fbaa9;
+  --ui-view-toggle-table-dot: var(--pilot-leaf);
+  --ui-view-toggle-table-dot-shadow: none;
+  --ui-view-toggle-grid-active-bg: #f2edf8;
+  --ui-view-toggle-grid-active-text: #665092;
+  --ui-view-toggle-grid-ring: #d8cce7;
+  --ui-view-toggle-grid-dot: #8067a8;
+  --ui-view-toggle-grid-dot-shadow: none;
+
+  /* Status badges */
+  --ui-badge-default-bg: #eff2f0;
+  --ui-badge-default-text: #53635b;
+  --ui-badge-default-border: #d6ded9;
+  --ui-badge-default-shadow: none;
+  --ui-badge-success-bg: #eaf4ed;
+  --ui-badge-success-text: #21653f;
+  --ui-badge-success-border: var(--pilot-sage);
+  --ui-badge-success-shadow: none;
+  --ui-badge-warning-bg: #fff4d6;
+  --ui-badge-warning-text: #7a4b0d;
+  --ui-badge-warning-border: #e7c77e;
+  --ui-badge-warning-shadow: none;
+  --ui-badge-purple-bg: #f2edf8;
+  --ui-badge-purple-text: #665092;
+  --ui-badge-purple-border: #d8cce7;
+  --ui-badge-purple-shadow: none;
+  --ui-badge-cyan-bg: #eaf3f9;
+  --ui-badge-cyan-text: #285d7d;
+  --ui-badge-cyan-border: #bdd4e3;
+  --ui-badge-cyan-shadow: none;
+  --ui-badge-danger-bg: #fbedec;
+  --ui-badge-danger-text: #923b3b;
+  --ui-badge-danger-border: #e5b9b5;
+  --ui-badge-danger-shadow: none;
+
+  /* Dialogs, forms, and menus */
+  --ui-backdrop-bg: rgb(20 54 42 / 38%);
+  --ui-dialog-bg: var(--pilot-cream);
+  --ui-dialog-border: #d6e0d8;
+  --ui-dialog-radius: 16px;
+  --ui-dialog-shadow: 0 24px 64px rgb(20 54 42 / 22%);
+  --ui-dialog-title: #183e30;
+  --ui-dialog-description: #52635b;
+  --ui-dialog-icon-danger-bg: #fbedec;
+  --ui-dialog-icon-danger-text: #923b3b;
+  --ui-dialog-icon-warning-bg: #fff4d6;
+  --ui-dialog-icon-warning-text: #7a4b0d;
+  --ui-dialog-icon-info-bg: #eaf3f9;
+  --ui-dialog-icon-info-text: #285d7d;
+  --ui-dialog-icon-default-bg: #e8f1ea;
+  --ui-dialog-icon-default-text: var(--pilot-forest);
+
+  --ui-form-overlay-bg: var(--ui-backdrop-bg);
+  --ui-form-dialog-bg: var(--ui-dialog-bg);
+  --ui-form-dialog-border: var(--ui-dialog-border);
+  --ui-form-dialog-radius: var(--ui-dialog-radius);
+  --ui-form-dialog-shadow: var(--ui-dialog-shadow);
+  --ui-form-label: #43554d;
+  --ui-form-label-strong: #183e30;
+  --ui-form-help: #687970;
+  --ui-form-icon: #687970;
+  --ui-form-accent: #166f50;
+  --ui-form-accent-hover: #0f513a;
+  --ui-form-required: #a63f3f;
+  --ui-form-input-bg: #ffffff;
+  --ui-form-input-select-bg: #ffffff;
+  --ui-form-input-border: #bfcfc4;
+  --ui-form-input-text: #183e30;
+  --ui-form-input-placeholder: #7b8981;
+  --ui-form-input-focus-border: var(--pilot-leaf);
+  --ui-form-input-focus-ring: rgb(22 131 94 / 18%);
+  --ui-form-bg: #f6f8f4;
+  --ui-form-field-bg: #ffffff;
+  --ui-form-field-border: #bfcfc4;
+  --ui-form-field-focus-border: var(--pilot-leaf);
+  --ui-form-surface-bg: #fbfdf9;
+  --ui-form-surface-hover-bg: #f0f5f0;
+  --ui-form-surface-border: #dce5de;
+  --ui-form-muted-surface-bg: #f4f7f2;
+  --ui-form-section-divider: #e2e9e4;
+  --ui-form-checkbox-accent: var(--pilot-leaf);
+  --ui-form-toggle-bg: #d4ded7;
+  --ui-form-toggle-checked-bg: var(--pilot-leaf);
+  --ui-form-toggle-thumb: #ffffff;
+  --ui-form-savebar-bg: var(--pilot-cream);
+  --ui-form-error-text: #923b3b;
+  --ui-form-error-bg: #fbedec;
+  --ui-form-error-border: #e5b9b5;
+  --ui-form-error-focus-border: #b64949;
+  --ui-form-error-ring: rgb(182 73 73 / 16%);
+  --ui-form-warning-bg: #fff4d6;
+  --ui-form-warning-hover-bg: #f9e9bc;
+  --ui-form-warning-border: #e7c77e;
+  --ui-form-warning-text: #7a4b0d;
+  --ui-form-warning-action-text: #684007;
+  --ui-form-info-bg: #eaf3f9;
+  --ui-form-info-border: #bdd4e3;
+  --ui-form-info-text: #285d7d;
+
+  --ui-menu-bg: #ffffff;
+  --ui-menu-border: #d6e0d8;
+  --ui-menu-shadow: 0 18px 42px rgb(20 54 42 / 16%);
+  --ui-menu-item-text: #43554d;
+  --ui-menu-item-hover-bg: #eff4ef;
+  --ui-menu-item-hover-text: var(--pilot-forest);
+  --ui-menu-item-danger-text: #923b3b;
+  --ui-menu-item-danger-hover-bg: #fbedec;
+  --ui-menu-item-warning-text: #7a4b0d;
+  --ui-menu-item-warning-hover-bg: #fff4d6;
+  --ui-menu-trigger-text: #687970;
+  --ui-menu-trigger-hover-bg: #eff4ef;
+  --ui-menu-trigger-hover-text: var(--pilot-forest);
+  --ui-menu-trigger-active-bg: #e8f1ea;
+  --ui-menu-trigger-active-text: var(--pilot-forest);
+
+  /* The pilot deliberately removes the legacy neon ambient glow. */
+  --ui-ambient-bg: var(--pilot-paper);
+  --ui-ambient-primary-glow: transparent;
+  --ui-ambient-secondary-glow: transparent;
+}
+
+/* Keep body-level popovers and toasts in the route-scoped palette. */
+html.dark:has([data-app-design-pilot="workspace"]) {
+  color-scheme: light;
+}
+
+[data-app-design-pilot="workspace"] {
+  background: var(--bg-app);
+}
+
+[data-app-design-pilot="workspace"] :where(a, button, input, select, textarea) {
+  transition-duration: 160ms;
+}
+
+[data-app-design-pilot="workspace"] h1,
+[data-app-design-pilot="workspace"] .font-display,
+.app-design-pilot-overlay h1,
+.app-design-pilot-overlay h2,
+.app-design-pilot-overlay .font-display {
+  font-family: var(--font-public-display), Georgia, "Times New Roman", serif;
+}
+
+/* Hindi keeps its Devanagari shaping font even where Latin headings use serif. */
+html[lang="hi-IN"] [data-app-design-pilot="workspace"] h1,
+html[lang="hi-IN"] [data-app-design-pilot="workspace"] .font-display,
+html[lang="hi-IN"] .app-design-pilot-overlay h1,
+html[lang="hi-IN"] .app-design-pilot-overlay h2,
+html[lang="hi-IN"] .app-design-pilot-overlay .font-display {
+  font-family: var(--font-devanagari, "Nirmala UI"), "Noto Sans Devanagari", var(--font-inter), sans-serif;
+}
+
+[data-app-design-pilot="workspace"] select,
+.app-design-pilot-overlay select {
+  color-scheme: light;
+}
+
+[data-app-design-pilot="workspace"]
+  :where(a[href], button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible,
+.app-design-pilot-overlay
+  :where(a[href], button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--ui-focus-ring);
+  outline-offset: 2px;
+}
+
+[data-app-design-pilot="workspace"]::selection,
+[data-app-design-pilot="workspace"] *::selection,
+.app-design-pilot-overlay::selection,
+.app-design-pilot-overlay *::selection {
+  color: #ffffff;
+  background: #16835e;
+}
+
+:where(
+  [data-app-design-pilot="workspace"],
+  [data-app-design-pilot="workspace"] *,
+  .app-design-pilot-overlay,
+  .app-design-pilot-overlay *
+) {
+  scrollbar-color: #9fb2a6 transparent;
+}
+
+:where(
+  [data-app-design-pilot="workspace"],
+  [data-app-design-pilot="workspace"] *,
+  .app-design-pilot-overlay,
+  .app-design-pilot-overlay *
+)::-webkit-scrollbar-thumb {
+  background-color: #9fb2a6;
+}
+
+:where(
+  [data-app-design-pilot="workspace"],
+  [data-app-design-pilot="workspace"] *,
+  .app-design-pilot-overlay,
+  .app-design-pilot-overlay *
+)::-webkit-scrollbar-thumb:hover {
+  background-color: #16835e;
+}

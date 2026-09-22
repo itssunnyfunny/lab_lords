@@ -31,6 +31,8 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { RouteTitleUpdater } from "@/components/layout/RouteTitleUpdater";
 import { Drawer } from "@/components/ui/Drawer";
 import { ContextualBackLink } from "@/components/layout/ContextualBackLink";
+import { publicDisplayFont } from "@/lib/publicMarketingFonts";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface User {
     name: string;
@@ -42,6 +44,7 @@ interface AppShellProps {
     children: ReactNode;
     sidebar: ReactNode;
     user?: User;
+    designPilot?: boolean;
 }
 
 function AccountSummary({ user }: { user?: User }) {
@@ -62,7 +65,7 @@ function AccountSummary({ user }: { user?: User }) {
     );
 }
 
-export function AppShell({ children, sidebar, user }: AppShellProps) {
+export function AppShell({ children, sidebar, user, designPilot = false }: AppShellProps) {
     const t = useTranslation();
     const router = useRouter();
     const pathname = usePathname();
@@ -70,6 +73,7 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
     const previousPathname = useRef(pathname);
     const showBranchChrome = /^\/branch\/[^/]+/.test(pathname ?? "");
     const billing = useBillingExperience();
+    const compactLayout = useMediaQuery("(max-width: 1023px)");
 
     useEffect(() => {
         if (previousPathname.current === pathname) return;
@@ -81,29 +85,36 @@ export function AppShell({ children, sidebar, user }: AppShellProps) {
 
     return (
         <ToastProvider>
-        <div className={chromeAppRootClass}>
+        <div
+            className={cn(chromeAppRootClass, designPilot && publicDisplayFont.variable)}
+            data-app-design-pilot={designPilot ? "workspace" : undefined}
+        >
             <RouteTitleUpdater />
             <a
                 href="#main-content"
-                className="fixed left-4 top-3 z-[120] -translate-y-20 rounded-[var(--ui-radius-control)] bg-cyan-200 px-4 py-2 text-sm font-bold text-slate-950 shadow-lg transition-transform focus:translate-y-0"
+                className="fixed left-4 top-3 z-[120] -translate-y-20 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-4 py-2 text-sm font-bold text-[color:var(--ui-button-primary-text)] shadow-lg transition-transform focus:translate-y-0"
             >
                 {t("Skip to main content")}</a>
             <AmbientBackground />
 
-            {/* Sidebar Area - Glassmorphic */}
-            <div className="relative z-30 hidden lg:block">
-                {sidebar}
-            </div>
+            {/* Desktop and mobile navigation are mutually exclusive to avoid duplicate hidden controls and reads. */}
+            {!compactLayout && (
+                <div className="relative z-30 hidden lg:block">
+                    {sidebar}
+                </div>
+            )}
 
-            <Drawer
-                open={mobileNavOpen}
-                onClose={() => setMobileNavOpen(false)}
-                title={t("Workspace navigation")}
-                closeLabel={t("Close navigation")}
-                className="max-w-[19rem] lg:hidden"
-            >
-                <div className="h-[calc(100dvh-7rem)] overflow-hidden">{sidebar}</div>
-            </Drawer>
+            {compactLayout && (
+                <Drawer
+                    open={mobileNavOpen}
+                    onClose={() => setMobileNavOpen(false)}
+                    title={t("Workspace navigation")}
+                    closeLabel={t("Close navigation")}
+                    className="max-w-[19rem] lg:hidden"
+                >
+                    <div className="h-[calc(100dvh-7rem)] overflow-hidden">{sidebar}</div>
+                </Drawer>
+            )}
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 max-w-full relative z-10">

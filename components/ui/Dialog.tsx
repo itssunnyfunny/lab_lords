@@ -64,6 +64,7 @@ export interface DialogProps {
   showCloseButton?: boolean;
   placement?: "center" | "right" | "bottom";
   className?: string;
+  overlayClassName?: string;
 }
 
 /**
@@ -88,6 +89,7 @@ export function Dialog({
   showCloseButton = true,
   placement = "center",
   className,
+  overlayClassName,
 }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -205,7 +207,8 @@ export function Dialog({
           ? "items-stretch justify-end"
           : placement === "bottom"
             ? "items-end justify-center p-0 sm:p-4"
-            : "items-end justify-center p-3 sm:items-center sm:p-4"
+            : "items-end justify-center p-3 sm:items-center sm:p-4",
+        overlayClassName
       )}
       data-dialog-overlay="true"
     >

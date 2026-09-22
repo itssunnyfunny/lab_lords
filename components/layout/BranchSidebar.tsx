@@ -33,6 +33,7 @@ import {
     chromeSidebarHeaderClass,
     chromeSidebarSectionLabelClass,
 } from "@/components/ui/chromeSurface";
+import { isApplicationDesignPilotPath } from "@/lib/applicationDesignPilot";
 
 type BranchNavItem = {
     icon: LucideIcon;
@@ -49,6 +50,7 @@ export function BranchSidebar() {
     const segments = pathname?.split("/") || [];
     const branchId = segments[2];
     const basePath = `/branch/${branchId}`;
+    const designPilot = isApplicationDesignPilotPath(pathname);
     const { access, loading } = useBranchAccess(branchId);
 
     if (!branchId) return null;
@@ -90,6 +92,29 @@ export function BranchSidebar() {
         { icon: MessageSquare, label: "AI Messages", href: `${basePath}/ai/messages`, permission: ["analytics", "view_payments"], feature: "AI_MESSAGES", active: current => current === `${basePath}/ai/messages` },
     ];
 
+    const pilotSections = [
+        {
+            label: "Daily work",
+            items: [overviewItems[0], operationItems[0], operationItems[1]],
+        },
+        {
+            label: "Seats and shifts",
+            items: [operationItems[3], operationItems[4], operationItems[5]],
+        },
+        {
+            label: "Fees",
+            items: [operationItems[6], operationItems[7], operationItems[8]],
+        },
+        {
+            label: "Reports",
+            items: [overviewItems[1], ...intelligenceItems],
+        },
+        {
+            label: "Setup and access",
+            items: [operationItems[2], operationItems[9]],
+        },
+    ];
+
     const renderItems = (items: BranchNavItem[]) => items.map(item => (
         <SidebarItem
             key={item.href}
@@ -109,7 +134,7 @@ export function BranchSidebar() {
 
         return (
             <div className="space-y-2">
-                <div className={chromeSidebarSectionLabelClass}>{label}</div>
+                <div className={chromeSidebarSectionLabelClass}>{t.owned(label)}</div>
                 {renderItems(visibleItems)}
             </div>
         );
@@ -120,10 +145,14 @@ export function BranchSidebar() {
             <div className={chromeSidebarHeaderClass}>
                 <Link
                     href="/app"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
+                    className="flex h-10 w-12 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
                     aria-label={t("Open workspace home")}
                 >
-                    <LogoMark className="h-10 w-10" title="" />
+                    <LogoMark
+                        className={designPilot ? "h-8 w-12" : "h-10 w-10"}
+                        title=""
+                        variant={designPilot ? "botanical" : "legacy"}
+                    />
                 </Link>
                 <div className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]">{access?.branchName ?? "Loading..."}</span>
@@ -135,9 +164,17 @@ export function BranchSidebar() {
 
             <div className="flex-1 overflow-y-auto px-3 py-3 scrollbar-none">
                 <div className="space-y-4">
-                    {renderSection("Overview", overviewItems)}
-                    {renderSection("Operations", operationItems)}
-                    {renderSection("Intelligence", intelligenceItems)}
+                    {designPilot
+                        ? pilotSections.map(section => (
+                            <div key={section.label}>{renderSection(section.label, section.items)}</div>
+                        ))
+                        : (
+                            <>
+                                {renderSection("Overview", overviewItems)}
+                                {renderSection("Operations", operationItems)}
+                                {renderSection("Intelligence", intelligenceItems)}
+                            </>
+                        )}
                 </div>
             </div>
 
