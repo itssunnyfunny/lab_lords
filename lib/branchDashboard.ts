@@ -1,16 +1,23 @@
-import type { BranchSnapshot } from "@/lib/api/analytics";
+import type { BranchSnapshot, TrendData } from "@/lib/api/analytics";
 import { analytics } from "@/lib/api/analytics";
 import { branches } from "@/lib/api/branches";
 import type { BranchAccess } from "@/types";
+import type { AttendancePage } from "@/lib/attendance";
+import type { RenewalPage } from "@/lib/renewals";
+import type { FeeCollectionView } from "@/lib/feeCollections";
 
 export type DashboardResourceStatus = "success" | "restricted" | "error";
 
 export type DashboardResourceStatuses = {
     analytics: DashboardResourceStatus;
+    collectionsTrend: DashboardResourceStatus;
     students: DashboardResourceStatus;
     allocations: DashboardResourceStatus;
     payments: DashboardResourceStatus;
     overdue: DashboardResourceStatus;
+    attendance: DashboardResourceStatus;
+    followUps: DashboardResourceStatus;
+    upcoming: DashboardResourceStatus;
 };
 
 export interface DashboardStudent {
@@ -39,6 +46,7 @@ export interface DashboardAllocation {
     seat?: { label?: string | null } | null;
     student?: { name?: string | null } | null;
     startDate?: string | Date | null;
+    createdAt?: string | Date | null;
 }
 
 export interface DashboardOverduePayment {
@@ -52,10 +60,14 @@ export interface DashboardOverduePayment {
 
 export interface BranchDashboardSources {
     snapshot: BranchSnapshot | null;
+    collectionsTrend: TrendData | null;
     students: DashboardStudent[];
     allocations: DashboardAllocation[];
-    monthPayments: DashboardPayment[];
+    collections: FeeCollectionView[];
     overduePayments: DashboardOverduePayment[];
+    attendance: AttendancePage | null;
+    followUps: RenewalPage | null;
+    upcoming: RenewalPage | null;
     resources: DashboardResourceStatuses;
     updatedAt: string;
 }
@@ -101,18 +113,17 @@ function fulfilledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
     return result.status === "fulfilled" ? result.value : fallback;
 }
 
-function formatMonth(date: Date) {
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    return `${date.getFullYear()}-${month}`;
-}
-
 export async function loadBranchDashboardSources(
     branchId: string,
     permissions: DashboardPermissions,
     now = new Date()
 ): Promise<BranchDashboardSources> {
-    const month = formatMonth(now);
-    const [snapshotResult, studentsResult, allocationsResult, paymentsResult, overdueResult] =
+    const base = `/api/branches/${encodeURIComponent(branchId)}`;
+    const trendFrom = new Date(now);
+    trendFrom.setDate(trendFrom.getDate() - 14);
+    // Fifteen cumulative observations yield fourteen real daily changes. The
+    // existing month-mode endpoint repeats month totals, so do not chart it as days.
+    const [snapshotResult, studentsResult, allocationsResult, paymentsResult, overdueResult, attendanceResult, followUpsResult, upcomingResult, trendResult] =
         await Promise.allSettled([
             permissions.analytics
                 ? analytics.getSnapshot(branchId, { period: "month" })
@@ -122,34 +133,54 @@ export async function loadBranchDashboardSources(
                 : Promise.resolve([] as DashboardStudent[]),
             permissions.seat_allocation
                 ? fetchDashboardItems<DashboardAllocation>(
-                    `/api/branches/${branchId}/seat-allocations?activeOnly=true&all=true`
+                    `${base}/seat-allocations?activeOnly=true&all=true`
                 )
                 : Promise.resolve([] as DashboardAllocation[]),
             permissions.view_payments
-                ? fetchDashboardItems<DashboardPayment>(
-                    `/api/branches/${branchId}/payments?month=${month}&all=true`
+                ? fetchDashboardItems<FeeCollectionView>(
+                    `${base}/collections`
                 )
-                : Promise.resolve([] as DashboardPayment[]),
+                : Promise.resolve([] as FeeCollectionView[]),
             permissions.view_payments
                 ? fetchDashboardItems<DashboardOverduePayment>(
-                    `/api/branches/${branchId}/payments/overdue?all=true`,
+                    `${base}/payments/overdue?all=true`,
                     "payments"
                 )
                 : Promise.resolve([] as DashboardOverduePayment[]),
+            permissions.students
+                ? fetchDashboardJson<AttendancePage>(`${base}/attendance?limit=1`)
+                : Promise.resolve(null),
+            permissions.view_payments
+                ? fetchDashboardJson<RenewalPage>(`${base}/renewals?filter=OVERDUE&days=7&search=&limit=6`)
+                : Promise.resolve(null),
+            permissions.view_payments
+                ? fetchDashboardJson<RenewalPage>(`${base}/renewals?filter=UPCOMING&days=7&search=&limit=4`)
+                : Promise.resolve(null),
+            permissions.analytics
+                ? analytics.getTrends(branchId, { from: trendFrom.toISOString(), to: now.toISOString(), type: "payment", period: "all" })
+                : Promise.resolve(null),
         ] as const);
 
     return {
         snapshot: fulfilledValue(snapshotResult, null),
+        collectionsTrend: fulfilledValue(trendResult, null),
         students: fulfilledValue(studentsResult, []),
         allocations: fulfilledValue(allocationsResult, []),
-        monthPayments: fulfilledValue(paymentsResult, []),
+        collections: fulfilledValue(paymentsResult, []),
         overduePayments: fulfilledValue(overdueResult, []),
+        attendance: fulfilledValue(attendanceResult, null),
+        followUps: fulfilledValue(followUpsResult, null),
+        upcoming: fulfilledValue(upcomingResult, null),
         resources: {
             analytics: resourceStatus(permissions.analytics, snapshotResult),
+            collectionsTrend: resourceStatus(permissions.analytics, trendResult),
             students: resourceStatus(permissions.students, studentsResult),
             allocations: resourceStatus(permissions.seat_allocation, allocationsResult),
             payments: resourceStatus(permissions.view_payments, paymentsResult),
             overdue: resourceStatus(permissions.view_payments, overdueResult),
+            attendance: resourceStatus(permissions.students, attendanceResult),
+            followUps: resourceStatus(permissions.view_payments, followUpsResult),
+            upcoming: resourceStatus(permissions.view_payments, upcomingResult),
         },
         updatedAt: now.toISOString(),
     };

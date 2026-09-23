@@ -1,533 +1,176 @@
 "use client";
-import { LocalizedError } from "@/components/settings/LocalizedText";
-import { useTranslation } from "@/components/settings/LocalizedText";
 
+import { use, useCallback, useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Bell, CalendarCheck, CheckCircle2, IndianRupee, LayoutGrid, Plus, RefreshCw, Users } from "lucide-react";
+import { useTranslation } from "@/components/settings/LocalizedText";
+import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { AppButton, AppPanel, PageLoadingSkeleton, PageShell } from "@/components/ui";
-import { OverdueTable } from "@/components/dashboard/OverdueTable";
-import { QuickActions } from "@/components/dashboard/QuickActions";
-import { RecentActivity, ActivityItem } from "@/components/dashboard/RecentActivity";
-import { RecentStudents } from "@/components/dashboard/RecentStudents";
-import { ShiftOccupancyCard } from "@/components/dashboard/ShiftOccupancyCard";
+import { useToast } from "@/components/ui/Toast";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { OverdueTable } from "@/components/dashboard/OverdueTable";
+import { DashboardSourceNote, DashboardSnapshots, UpcomingFees, DashboardShortcuts } from "@/components/dashboard/DashboardPanels";
+import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
-import { getUtilizationStatus } from "@/lib/utilizationStatus";
-import {
-    loadBranchDashboardSources,
-    type DashboardOverduePayment,
-    type DashboardResourceStatuses,
-    type DashboardStudent,
-} from "@/lib/branchDashboard";
-import type { BranchSnapshot } from "@/lib/api/analytics";
-import {
-    AlertCircle,
-    AlertTriangle,
-    ArrowRight,
-    CheckCircle2,
-    IndianRupee,
-    LayoutGrid,
-    RefreshCw,
-    Users,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { use, useEffect, useMemo, useState } from "react";
-import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
+import { loadBranchDashboardSources, type BranchDashboardSources } from "@/lib/branchDashboard";
+import { dashboardActivity, dashboardPriorities } from "@/lib/dashboardPresentation";
 
-interface DashboardData {
-    snapshot: BranchSnapshot | null;
-    overduePayments: DashboardOverduePayment[];
-    recentStudents: DashboardStudent[];
-    activeStudentCount: number;
-    activityItems: ActivityItem[];
-    branchName: string;
-    resources: DashboardResourceStatuses;
-    updatedAt: string;
-}
-
-function DashboardSkeleton() {
-    const t = useTranslation();
-    return <PageLoadingSkeleton label={t("Loading branch dashboard")} variant="dashboard" rows={6} />;
-}
-
-function toneForCollection(rate: number, dueAmount: number): "success" | "warning" | "danger" {
-    if (dueAmount === 0 || rate >= 85) return "success";
-    if (rate >= 60) return "warning";
-    return "danger";
-}
-
-function DashboardUnavailablePanel({
-    title,
-    description,
-    onRetry,
-}: {
-    title: string;
-    description: string;
-    onRetry?: () => void;
-}) {
-    const t = useTranslation();
-    return (
-        <AppPanel title={title} description={description} className="h-full">
-            <div className="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
-                <AlertCircle size={22} className="text-[color:var(--ui-tone-warning-text)]" />
-                <p className="max-w-sm text-sm leading-6 text-[color:var(--text-secondary)]">{description}</p>
-                {onRetry && (
-                    <AppButton onClick={onRetry} variant="secondary" size="sm" icon={RefreshCw}>
-                        {t("Try again")}</AppButton>
-                )}
-            </div>
-        </AppPanel>
-    );
-}
-
-export default function BranchDashboardPage({
-    params,
-}: {
-    params: Promise<{ branchId: string }>;
-}) {
-    const t = useTranslation();
+export default function BranchDashboardPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+    const { user } = useUser();
+    // Reset private values, queue selection and dialogs only when the security scope changes.
+    return <DashboardWorkspace key={`${user?.id ?? "anonymous"}:${branchId}`} branchId={branchId} />;
+}
+
+function DashboardWorkspace({ branchId }: { branchId: string }) {
+    const t = useTranslation();
     const router = useRouter();
-    const [data, setData] = useState<DashboardData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [refreshKey, setRefreshKey] = useState(0);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
     const { access, loading: accessLoading } = useBranchAccess(branchId);
-    const { formatDate, formatDateTime, formatNumber } = useUserPreferences();
-    const formatMoney = useMemo(
-        () => (value: number) => formatNumber(value, {
-            style: "currency",
-            currency: "INR",
-            maximumFractionDigits: 0,
-        }),
-        [formatNumber]
-    );
+    const { formatNumber, formatDateTime } = useUserPreferences();
+    const [data, setData] = useState<BranchDashboardSources | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [completedRefreshKey, setCompletedRefreshKey] = useState(-1);
+    const refreshing = refreshKey !== completedRefreshKey;
+    const [error, setError] = useState(false);
+    const [collect, setCollect] = useState<{ studentId: string; paymentId: string } | null>(null);
+    const refresh = useCallback(() => { setError(false); setRefreshKey(key => key + 1); }, []);
+    const money = (value: number) => formatNumber(value, { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+    const base = `/branch/${encodeURIComponent(branchId)}`;
 
     useEffect(() => {
+        if (accessLoading || !access) return;
         let cancelled = false;
-
-        const load = async () => {
-            if (accessLoading) return;
-            if (!access) {
-                setData(null);
-                setLoading(false);
-                setError("You do not have access to this branch.");
-                return;
-            }
-
-            if (refreshKey === 0) {
-                setLoading(true);
-            } else {
-                setRefreshing(true);
-            }
-            setError(null);
-
-            try {
-                const sources = await loadBranchDashboardSources(branchId, access.permissions);
-
-                if (cancelled) return;
-
-                const allocations = [...sources.allocations].sort((a, b) => {
-                    const left = new Date(a.startDate ?? 0).getTime();
-                    const right = new Date(b.startDate ?? 0).getTime();
-                    return right - left;
-                });
-                const paidPayments = [...sources.monthPayments]
-                    .filter((payment) => payment.status === "PAID")
-                    .sort((a, b) => {
-                        const left = new Date(a.paidAt ?? a.updatedAt ?? 0).getTime();
-                        const right = new Date(b.paidAt ?? b.updatedAt ?? 0).getTime();
-                        return right - left;
-                    });
-                const overduePayments = sources.overduePayments;
-                const sortedStudents = [...sources.students].sort((a, b) => {
-                    const left = new Date(a.joinedAt ?? a.createdAt ?? 0).getTime();
-                    const right = new Date(b.joinedAt ?? b.createdAt ?? 0).getTime();
-                    return right - left;
-                });
-
-                const activityItems: ActivityItem[] = [
-                    ...allocations.slice(0, 5).map((allocation) => ({
-                        type: "allocation" as const,
-                        seat: allocation.seat?.label ?? "Seat",
-                        studentName: allocation.student?.name ?? "Unknown student",
-                        ts: new Date(allocation.startDate ?? new Date()).toISOString(),
-                    })),
-                    ...paidPayments.slice(0, 5).map((payment) => ({
-                        type: "payment" as const,
-                        amount: payment.amount,
-                        studentName: payment.student?.name ?? "Unknown student",
-                        ts: new Date(payment.paidAt ?? payment.updatedAt ?? new Date()).toISOString(),
-                    })),
-                    ...(overduePayments.length > 0
-                        ? [
-                            {
-                                type: "overdue" as const,
-                                count: overduePayments.length,
-                                ts: sources.updatedAt,
-                            },
-                        ]
-                        : []),
-                    ...sortedStudents.slice(0, 5).map((student) => ({
-                        type: "enrollment" as const,
-                        studentName: student.name,
-                        ts: new Date(student.joinedAt ?? student.createdAt ?? new Date()).toISOString(),
-                    })),
-                ]
-                    .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-                    .slice(0, 10);
-
-                setData({
-                    snapshot: sources.snapshot,
-                    overduePayments,
-                    recentStudents: sortedStudents.slice(0, 6),
-                    activeStudentCount: sources.students.filter(student => student.status === "ACTIVE").length,
-                    activityItems,
-                    branchName: access.branchName,
-                    resources: sources.resources,
-                    updatedAt: sources.updatedAt,
-                });
-
-                const failedResources = Object.entries(sources.resources)
-                    .filter(([, status]) => status === "error")
-                    .map(([resource]) => resource);
-                if (failedResources.length > 0) {
-                    setError(
-                        `${failedResources.join(", ")} data could not be refreshed. Unavailable sections are labelled below.`
-                    );
-                }
-            } catch (loadError) {
-                console.error("[Dashboard] load failed", loadError);
-                if (!cancelled) {
-                    setError("The dashboard could not be refreshed. Previously loaded values may be stale.");
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                    setRefreshing(false);
-                }
-            }
-        };
-
-        load();
-
-        return () => {
-            cancelled = true;
-        };
+        loadBranchDashboardSources(branchId, {
+            ...access.permissions,
+            analytics: getBranchCapabilityDecision(access, "analyticsView").allowed,
+        }).then(sources => {
+            if (!cancelled) setData({ ...sources, updatedAt: new Date().toISOString() });
+        }).catch(() => {
+            if (!cancelled) setError(true);
+        }).finally(() => {
+            if (!cancelled) setCompletedRefreshKey(refreshKey);
+        });
+        return () => { cancelled = true; };
     }, [access, accessLoading, branchId, refreshKey]);
 
-    const snap = data?.snapshot ?? null;
-    const studentManageDecision = getBranchCapabilityDecision(access, "studentsManage");
-    const canShowAddStudent = access?.permissions.students ?? false;
-    const canViewPayments = access?.permissions.view_payments ?? false;
-    const analyticsStatus = data?.resources.analytics ?? "error";
-    const studentsStatus = data?.resources.students ?? "error";
-    const overdueStatus = data?.resources.overdue ?? "error";
-    const activityHasError = data
-        ? [
-            data.resources.students,
-            data.resources.allocations,
-            data.resources.payments,
-            data.resources.overdue,
-        ].some(status => status === "error")
-        : true;
-    const refreshDashboard = () => setRefreshKey(key => key + 1);
-
-    const collectionSummary = useMemo(() => {
-        if (!snap) {
-            return {
-                billed: 0,
-                collected: 0,
-                pending: 0,
-                progress: 0,
-                note: analyticsStatus === "restricted"
-                    ? "Analytics access is required for revenue metrics."
-                    : "Revenue metrics could not be refreshed.",
-            };
-        }
-
-        const billed = Math.max(snap.monthlyRevenue, snap.paidAmount + snap.dueAmount);
-        const progress = billed > 0 ? (snap.paidAmount / billed) * 100 : 0;
-        const pending = Math.max(billed - snap.paidAmount, 0);
-        const note = snap.dueAmount === 0
-            ? "All billed payments are clear."
-            : `${formatMoney(snap.dueAmount)} still needs collection follow-up.`;
-
-        return {
-            billed,
-            collected: snap.paidAmount,
-            pending,
-            progress,
-            note,
+    // Re-read on returning from an operation or another tab. No polling.
+    useEffect(() => {
+        const onReturn = () => { if (document.visibilityState === "visible" && !collect) refresh(); };
+        window.addEventListener("focus", onReturn);
+        window.addEventListener("pageshow", onReturn);
+        return () => {
+            window.removeEventListener("focus", onReturn);
+            window.removeEventListener("pageshow", onReturn);
         };
-    }, [analyticsStatus, formatMoney, snap]);
-    const utilizationStatus = snap ? getUtilizationStatus(snap.occupancyRate) : null;
+    }, [collect, refresh]);
 
-    if (loading) return <DashboardSkeleton />;
+    if (accessLoading || (!data && !error && access)) {
+        return <PageShell data-dashboard-refinement="true"><PageLoadingSkeleton label={t("Loading branch dashboard")} variant="dashboard" rows={4} /></PageShell>;
+    }
+    if (!access) return <PageShell><p role="alert">{t("You do not have access to this branch.")}</p></PageShell>;
+    if (!data) return <PageShell><DashboardSourceNote status="error" label={t("Dashboard")} onRetry={refresh} /></PageShell>;
+
+    const priorities = dashboardPriorities(data);
+    const snap = data.snapshot;
+    const attendance = data.attendance;
+    const addDecision = getBranchCapabilityDecision(access, "studentsManage");
+    const activity = dashboardActivity(data);
+    const failed = Object.values(data.resources).some(status => status === "error");
+    const attentionUnknown = [data.resources.overdue, data.resources.upcoming].includes("error");
+    const attentionRestricted = data.resources.overdue === "restricted";
+    const unavailable = (status: string) => status === "restricted" ? t("Restricted") : t("Unavailable");
+    const activityErrors = ["students", "allocations", "payments"] as const;
 
     return (
-        <PageShell>
-            {error && (
-                <div role="alert" className="flex flex-col gap-3 rounded-[8px] border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] px-4 py-3 text-sm text-[color:var(--ui-tone-warning-text)] sm:flex-row sm:items-center">
-                    <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                        <span><LocalizedError error={error} /></span>
-                    </div>
-                    {access && (
-                        <AppButton
-                            onClick={refreshDashboard}
-                            variant="secondary"
-                            size="sm"
-                            icon={RefreshCw}
-                            isLoading={refreshing}
-                        >
-                            {t("Retry")}</AppButton>
-                    )}
+        <PageShell data-dashboard-refinement="true" aria-busy={refreshing}>
+            <header className="dashboard-heading">
+                <div>
+                    <p className="dashboard-eyebrow">{t("Branch overview")}</p>
+                    <h1>{access.branchName}</h1>
                 </div>
-            )}
-
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-[color:var(--text-secondary)]">
-                        <span>{t("Branch overview")}</span>
-                        <span className="h-1 w-1 rounded-full bg-[color:var(--ui-tone-neutral-progress)]" />
-                        <span>{formatDate(new Date())}</span>
-                        {data?.updatedAt && (
-                            <>
-                                <span className="h-1 w-1 rounded-full bg-[color:var(--ui-tone-neutral-progress)]" />
-                                <span>{t("Updated")} {formatDateTime(data.updatedAt)}</span>
-                            </>
-                        )}
-                    </div>
-                    <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight text-[color:var(--text-primary)] md:text-3xl">
-                        {data?.branchName ?? "Dashboard"}
-                    </h1>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--text-secondary)]">
-                        {t("Monitor collections, occupancy, follow-ups, and student movement from one operating view.")}</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <AppButton
-                        onClick={refreshDashboard}
-                        variant="quiet"
-                        icon={RefreshCw}
-                        isLoading={refreshing}
-                    >
-                        {t("Refresh")}</AppButton>
-                    {canViewPayments && (
-                        <AppButton
-                            onClick={() => router.push(`/branch/${branchId}/payments`)}
-                            variant="secondary"
-                            rightIcon={ArrowRight}
-                        >
-                            {t("Review payments")}</AppButton>
-                    )}
-                    {canShowAddStudent && (
-                        <AppButton
-                            onClick={() => router.push(`/branch/${branchId}/students?action=add`)}
-                            variant="primary"
-                            disabled={!studentManageDecision.allowed}
-                            title={studentManageDecision.allowed ? undefined : studentManageDecision.reason}
-                        >
-                            {t("Add student")}</AppButton>
-                    )}
+                <div className="dashboard-primary-actions">
+                    <AppButton variant="quiet" size="sm" icon={RefreshCw} isLoading={refreshing} onClick={refresh}>{t("Refresh")}</AppButton>
+                    {access.permissions.view_payments && <AppButton variant="secondary" size="sm" onClick={() => router.push(`${base}/payments`)}>{t("Review payments")}</AppButton>}
+                    {access.permissions.students && <AppButton variant="primary" size="sm" icon={Plus} disabled={!addDecision.allowed}
+                        title={addDecision.allowed ? undefined : t.owned(addDecision.reason ?? "")}
+                        onClick={() => router.push(`${base}/students?action=add`)}>{t("Add student")}</AppButton>}
                 </div>
             </header>
+            <div className="dashboard-freshness" role="status">
+                <span>{refreshing ? t("Refreshing dashboard…") : t("Updated {time}", { time: formatDateTime(data.updatedAt) })}</span>
+                {(failed || error) && <span className="text-[color:var(--ui-tone-warning-text)]">{t("Some sources are unavailable. See the affected sections below.")}</span>}
+                {error && <span>{t("Previously loaded values may be stale.")}</span>}
+            </div>
 
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard
-                    title={t("Collected this month")}
-                    value={snap ? formatMoney(snap.paidAmount) : analyticsStatus === "restricted" ? "Restricted" : "Unavailable"}
-                    sub={snap ? `${formatNumber(snap.collectionRate / 100, { style: "percent", maximumFractionDigits: 0 })} collection rate` : collectionSummary.note}
-                    icon={IndianRupee}
-                    accent="emerald"
-                    tone={snap ? toneForCollection(snap.collectionRate, snap.dueAmount) : "neutral"}
-                    progress={snap ? collectionSummary.progress : undefined}
-                    footer={snap ? `${formatMoney(collectionSummary.pending)} pending` : undefined}
-                />
-                <StatCard
-                    title={t("Pending dues")}
-                    value={snap ? formatMoney(snap.dueAmount) : analyticsStatus === "restricted" ? "Restricted" : "Unavailable"}
-                    sub={
-                        overdueStatus === "success"
-                            ? `${formatNumber(data?.overduePayments.length ?? 0)} overdue follow-ups`
-                            : overdueStatus === "restricted"
-                                ? "Payment access is required"
-                                : "Follow-up data unavailable"
-                    }
-                    icon={AlertTriangle}
-                    accent="rose"
-                    tone={snap ? (snap.dueAmount > 0 ? "danger" : "success") : "neutral"}
-                    alert={!!snap && snap.dueAmount > 0}
-                />
-                <StatCard
-                    title={t("Active students")}
-                    value={
-                        snap
-                            ? formatNumber(snap.activeStudents)
-                            : studentsStatus === "success"
-                                ? formatNumber(data?.activeStudentCount ?? 0)
-                                : studentsStatus === "restricted"
-                                    ? "Restricted"
-                                    : "Unavailable"
-                    }
-                    sub={
-                        snap
-                            ? `${formatNumber(snap.totalStudents)} total profiles`
-                            : studentsStatus === "success"
-                                ? "Calculated from student records"
-                                : studentsStatus === "restricted"
-                                    ? "Student access is required"
-                                    : "Student records unavailable"
-                    }
-                    icon={Users}
-                    accent="cyan"
-                    tone="info"
-                />
-                <StatCard
-                    title={t("Seat utilization")}
-                    value={snap ? formatNumber(snap.occupancyRate / 100, { style: "percent", maximumFractionDigits: 0 }) : analyticsStatus === "restricted" ? "Restricted" : "Unavailable"}
-                    sub={
-                        snap?.seatDetails
-                            ? `${formatNumber(snap.seatDetails.totalUsedSlots)} of ${formatNumber(snap.seatDetails.totalShiftCapacity)} shift slots`
-                            : snap
-                                ? `${formatNumber(snap.assignedSeats)} of ${formatNumber(snap.totalSeats)} seats`
-                                : analyticsStatus === "restricted"
-                                    ? "Analytics access is required"
-                                    : "Utilization data unavailable"
-                    }
-                    icon={LayoutGrid}
-                    accent="violet"
-                    tone={utilizationStatus?.tone ?? "neutral"}
-                    progress={snap ? snap.occupancyRate : undefined}
-                    footer={utilizationStatus?.label}
-                />
+            <section className="dashboard-action-center" aria-labelledby="action-center-title">
+                <div className="dashboard-section-heading">
+                    <div className="flex items-center gap-2"><Bell size={18} aria-hidden="true" /><h2 id="action-center-title">{t("Action Center")}</h2></div>
+                </div>
+                <div className="dashboard-priorities">
+                    {priorities.map(group => <article className="dashboard-priority" data-priority={group.kind} key={group.kind}>
+                        <div className="dashboard-priority-icon" aria-hidden="true">{group.kind === "overdue" ? <IndianRupee size={20} /> : <CalendarCheck size={20} />}</div>
+                        <div className="min-w-0 flex-1">
+                            <h3>{group.kind === "overdue" ? t("Overdue fees") : t("Fees due today")}</h3>
+                            <p className="dashboard-priority-value">{group.kind === "overdue" ? money(group.amount!) : formatNumber(group.count)}</p>
+                            <p className="dashboard-priority-description">{group.kind === "overdue"
+                                ? t("{count} fee periods", { count: formatNumber(group.count) })
+                                : t("Includes expected fees · review first")}</p>
+                        </div>
+                        <Link href={`${base}${group.href}`} className="dashboard-text-link">{group.kind === "overdue" ? t("Review overdue") : t("Open fee queue")} <span aria-hidden="true">→</span></Link>
+                    </article>)}
+                    {priorities.length === 0 && <div className="dashboard-calm-state">
+                        <CheckCircle2 size={20} aria-hidden="true" />
+                        <div><p className="font-semibold">{attentionUnknown ? t("Priorities could not be confirmed") : attentionRestricted ? t("Your available workspace") : t("Nothing needs attention in these queues")}</p>
+                            <p>{attentionUnknown ? t("Retry the unavailable sources to check current work.") : attentionRestricted ? t("Fee priorities are not included in your access.") : t("No recorded overdue fees or fees due today. Upcoming dates remain below.")}</p></div>
+                    </div>}
+                </div>
+                {data.resources.overdue === "error" && <DashboardSourceNote status="error" label={t("Recorded overdue fees")} onRetry={refresh} />}
+                {data.resources.upcoming === "error" && <DashboardSourceNote status="error" label={t("Fees due today")} onRetry={refresh} />}
             </section>
 
-            <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.75fr)]">
-                {snap ? (
-                    <AppPanel
-                        title={t("Monthly collections")}
-                        description={t("Billed, collected, and pending revenue for the active billing month.")}
-                        className="h-full"
-                    >
-                    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
-                        <div>
-                            <div className="flex flex-col items-start gap-3 min-[380px]:flex-row min-[380px]:items-end min-[380px]:justify-between">
-                                <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">{t("Collection progress")}</p>
-                                    <p className="mt-2 text-3xl font-semibold tracking-tight text-[color:var(--text-primary)]">
-                                        {snap ? formatNumber(collectionSummary.progress / 100, { style: "percent", maximumFractionDigits: 0 }) : t("Restricted")}
-                                    </p>
-                                </div>
-                                {snap && snap.dueAmount === 0 ? (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] px-2.5 py-1 text-xs font-medium text-[color:var(--ui-tone-success-text)]">
-                                        <CheckCircle2 size={13} />
-                                        {t("Clear")}</span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] px-2.5 py-1 text-xs font-medium text-[color:var(--ui-tone-warning-text)]">
-                                        <AlertTriangle size={13} />
-                                        {t("Follow-up")}</span>
-                                )}
-                            </div>
-                            <div className="mt-5 h-2 overflow-hidden rounded-full bg-[color:var(--ui-stat-track)]">
-                                <div
-                                    className="h-full rounded-full bg-[color:var(--ui-tone-success-progress)]"
-                                    style={{ width: `${Math.max(0, Math.min(collectionSummary.progress, 100))}%` }}
-                                />
-                            </div>
-                            <p className="mt-3 text-sm leading-6 text-[color:var(--text-secondary)]">{collectionSummary.note}</p>
-                        </div>
+            <section className="dashboard-summary" aria-label={t("Current branch summary")}>
+                <StatCard title={t("Collected this month")} value={snap ? money(snap.paidAmount) : unavailable(data.resources.analytics)}
+                    sub="" icon={IndianRupee} accent="emerald" />
+                <StatCard title={t("Active students")} value={snap ? formatNumber(snap.activeStudents) : data.resources.students === "success" ? formatNumber(data.students.filter(row => row.status === "ACTIVE").length) : unavailable(data.resources.students)}
+                    sub="" icon={Users} accent="cyan" />
+                <StatCard title={t("Shift slot utilization")} value={snap ? formatNumber(snap.occupancyRate / 100, { style: "percent", maximumFractionDigits: 0 }) : unavailable(data.resources.analytics)}
+                    sub=""
+                    icon={LayoutGrid} accent="violet" />
+                <StatCard title={t("Present today")} value={attendance ? formatNumber(attendance.counts.attended) : unavailable(data.resources.attendance)}
+                    sub="" icon={CalendarCheck} accent="neutral" />
+            </section>
 
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                            <div className="min-w-0 rounded-[8px] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
-                                <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Billed")}</p>
-                                <p className="mt-1 break-words text-base font-semibold text-[color:var(--text-primary)] sm:text-sm">{formatMoney(collectionSummary.billed)}</p>
-                            </div>
-                            <div className="min-w-0 rounded-[8px] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
-                                <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Collected")}</p>
-                                <p className="mt-1 break-words text-base font-semibold text-[color:var(--ui-tone-success-text)] sm:text-sm">{formatMoney(collectionSummary.collected)}</p>
-                            </div>
-                            <div className="min-w-0 rounded-[8px] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
-                                <p className="text-xs text-[color:var(--ui-text-muted)]">{t("Pending")}</p>
-                                <p className="mt-1 break-words text-base font-semibold text-[color:var(--ui-tone-warning-text)] sm:text-sm">{formatMoney(collectionSummary.pending)}</p>
-                            </div>
-                        </div>
+            <div className="dashboard-workspace-grid">
+                <div className="dashboard-main-column">
+                    <DashboardSnapshots data={data} branchId={branchId} access={access} onRetry={refresh} />
+                    <div className="dashboard-worklists">
+                    <UpcomingFees data={data} branchId={branchId} onRetry={refresh} />
+                    {data.resources.overdue === "success" ? <OverdueTable payments={data.overduePayments} branchId={branchId}
+                        recordDecision={getBranchCapabilityDecision(access, "paymentsRecord")} canViewStudents={access.permissions.students}
+                        followUps={data.followUps?.items} followUpsStatus={data.resources.followUps}
+                        onCollect={payment => setCollect({ studentId: payment.studentId, paymentId: payment.paymentId })} />
+                        : <AppPanel title={t("Follow-ups")}><DashboardSourceNote status={data.resources.overdue} label={t("Recorded overdue fees")} onRetry={refresh} /></AppPanel>}
                     </div>
-                    </AppPanel>
-                ) : (
-                    <DashboardUnavailablePanel
-                        title={t("Monthly collections")}
-                        description={
-                            analyticsStatus === "restricted"
-                                ? t("Your role does not include analytics access.")
-                                : t("Collection analytics could not be refreshed.")
-                        }
-                        onRetry={analyticsStatus === "error" ? refreshDashboard : undefined}
-                    />
-                )}
-
-                <QuickActions branchId={branchId} />
-            </section>
-
-            <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
-                {overdueStatus === "success" ? (
-                    <OverdueTable
-                        key={data?.updatedAt ?? "overdue"}
-                        payments={data?.overduePayments ?? []}
-                        branchId={branchId}
-                        recordDecision={getBranchCapabilityDecision(access, "paymentsRecord")}
-                    />
-                ) : (
-                    <DashboardUnavailablePanel
-                        title={t("Payment follow-ups")}
-                        description={
-                            overdueStatus === "restricted"
-                                ? t("Your role does not include payment access.")
-                                : t("Overdue payment data could not be refreshed.")
-                        }
-                        onRetry={overdueStatus === "error" ? refreshDashboard : undefined}
-                    />
-                )}
-                {snap ? (
-                    <ShiftOccupancyCard shifts={snap.seatDetails?.shifts ?? []} branchId={branchId} />
-                ) : (
-                    <DashboardUnavailablePanel
-                        title={t("Shift occupancy")}
-                        description={
-                            analyticsStatus === "restricted"
-                                ? t("Your role does not include occupancy analytics.")
-                                : t("Occupancy data could not be refreshed.")
-                        }
-                        onRetry={analyticsStatus === "error" ? refreshDashboard : undefined}
-                    />
-                )}
-            </section>
-
-            <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-                {(data?.activityItems.length ?? 0) > 0 || !activityHasError ? (
-                    <RecentActivity items={data?.activityItems ?? []} branchId={branchId} />
-                ) : (
-                    <DashboardUnavailablePanel
-                        title={t("Activity stream")}
-                        description={t("Recent activity could not be verified because one or more data sources failed.")}
-                        onRetry={refreshDashboard}
-                    />
-                )}
-                {studentsStatus === "success" ? (
-                    <RecentStudents students={data?.recentStudents ?? []} branchId={branchId} />
-                ) : (
-                    <DashboardUnavailablePanel
-                        title={t("New enrollments")}
-                        description={
-                            studentsStatus === "restricted"
-                                ? t("Your role does not include student access.")
-                                : t("Recent student records could not be refreshed.")
-                        }
-                        onRetry={studentsStatus === "error" ? refreshDashboard : undefined}
-                    />
-                )}
-            </section>
+                </div>
+                <div className="dashboard-side-column">
+                    {activity.length || !activityErrors.some(source => data.resources[source] === "error")
+                        ? <RecentActivity items={activity} branchId={branchId} />
+                        : <AppPanel title={t("Recent activity")}><p className="text-sm">{t("Recent activity could not be verified because one or more data sources failed.")}</p></AppPanel>}
+                    {activityErrors.filter(source => data.resources[source] === "error").map(source => <DashboardSourceNote key={source} status="error"
+                        label={t.owned(source === "payments" ? "Collection activity" : source === "students" ? "Student activity" : "Allocation activity")} onRetry={refresh} />)}
+                    <DashboardShortcuts branchId={branchId} access={access} />
+                </div>
+            </div>
+            {collect && <CollectFeeDialog branchId={branchId} studentId={collect.studentId} paymentId={collect.paymentId}
+                onClose={() => setCollect(null)} onSaved={() => {
+                    refresh();
+                    toast.show({ title: "Payment recorded. Updating dashboard…", tone: "success" });
+                }} />}
         </PageShell>
     );
 }

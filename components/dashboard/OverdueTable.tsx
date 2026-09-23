@@ -1,231 +1,97 @@
 "use client";
-import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, CheckCircle2, LockKeyhole } from "lucide-react";
 import { AppPanel } from "@/components/ui";
-import {
-    pageInsetSurfaceClass,
-    pageSectionDividerClass,
-    pageSubtleTextClass,
-    pageTableBodyDividerClass,
-    pageTableHeadClass,
-    pageTableRowClass,
-} from "@/components/ui/pageSurface";
-import { formWarningBannerClass } from "@/components/ui/formSurface";
-import {
-    getOverdueBulkReviewHref,
-    getOverduePaymentHref,
-    getOverdueStudentHref,
-    updateQueueSelection,
-} from "@/lib/overdueQueue";
-import { cn } from "@/lib/utils";
-import { daysPastDue } from "@/lib/utils/paymentStatus";
-import type { CapabilityDecision } from "@/types";
-import { ArrowRight, CheckCircle2, LockKeyhole, Phone } from "lucide-react";
+import { useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
+import { getOverdueBulkReviewHref, getOverduePaymentHref, getOverdueStudentHref, updateQueueSelection } from "@/lib/overdueQueue";
+import { followUpOutcomes, type RenewalRow } from "@/lib/renewals";
+import type { DashboardResourceStatus } from "@/lib/branchDashboard";
+import type { CapabilityDecision } from "@/types";
 
 interface OverduePayment {
-    paymentId: string;
-    studentId: string;
-    studentName: string;
-    phone: string | null;
-    dueDate: string;
-    amount: number;
+    paymentId: string; studentId: string; studentName: string; phone: string | null; dueDate: string; amount: number;
 }
-
 interface OverdueTableProps {
-    payments: OverduePayment[];
-    branchId: string;
-    recordDecision: CapabilityDecision;
+    payments: OverduePayment[]; branchId: string; recordDecision: CapabilityDecision;
+    canViewStudents?: boolean; followUps?: RenewalRow[]; followUpsStatus?: DashboardResourceStatus;
+    onCollect?: (payment: OverduePayment) => void;
 }
-
 const actionLinkClass = "inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]";
 
-function DashboardPaymentAction({ href, decision }: { href: string; decision: CapabilityDecision }) {
+function DashboardPaymentAction({ href, decision, onCollect }: { href: string; decision: CapabilityDecision; onCollect?: () => void }) {
     const t = useTranslation();
-    if (decision.allowed) return <Link href={href} className={actionLinkClass}>{t("Record payment")}</Link>;
+    if (decision.allowed) return onCollect
+        ? <button type="button" onClick={onCollect} className={actionLinkClass}>{t("Record payment")}</button>
+        : <Link href={href} className={actionLinkClass}>{t("Record payment")}</Link>;
     if (decision.blocker === "permission") return <Link href={href} className={actionLinkClass}>{t("View payment")}</Link>;
-
-    return (
-        <div className="flex flex-wrap justify-end gap-2">
-            <Link href={href} className={actionLinkClass}>{t("View payment")}</Link>
-            <button
-                type="button"
-                disabled
-                aria-describedby="dashboard-overdue-record-blocker"
-                className="inline-flex min-h-11 cursor-not-allowed items-center gap-1.5 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] opacity-[var(--ui-control-disabled-opacity)]"
-            >
-                <LockKeyhole size={13} aria-hidden="true" />  {t("Record payment")}</button>
-        </div>
-    );
+    return <div className="flex flex-wrap justify-end gap-2">
+        <Link href={href} className={actionLinkClass}>{t("View payment")}</Link>
+        <button type="button" disabled aria-describedby="dashboard-overdue-record-blocker" className={actionLinkClass}>
+            <LockKeyhole size={13} aria-hidden="true" /> {t("Record payment")}
+        </button>
+    </div>;
 }
 
-export function OverdueTable({ payments, branchId, recordDecision }: OverdueTableProps) {
+export function OverdueTable({ payments, branchId, recordDecision, canViewStudents = true, followUps, followUpsStatus, onCollect }: OverdueTableProps) {
     const t = useTranslation();
-    const shown = payments.slice(0, 6);
+    const shown = payments.slice(0, 4);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
     const selectAllRef = useRef<HTMLInputElement>(null);
     const { formatDate, formatNumber } = useUserPreferences();
-    const formatMoney = (amount: number) => formatNumber(amount, {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0,
-    });
-
     const selectedPayments = shown.filter(payment => selectedIds.has(payment.paymentId));
     const shownIds = shown.map(payment => payment.paymentId);
-    const selectedShownCount = shownIds.filter(paymentId => selectedIds.has(paymentId)).length;
+    const selectedShownCount = selectedPayments.length;
     const allShownSelected = shown.length > 0 && selectedShownCount === shown.length;
     const someShownSelected = selectedShownCount > 0 && !allShownSelected;
-
-    useEffect(() => {
-        if (selectAllRef.current) selectAllRef.current.indeterminate = someShownSelected;
-    }, [someShownSelected]);
-
-    const togglePayment = (paymentId: string, checked: boolean) => {
-        setSelectedIds(current => updateQueueSelection(current, [paymentId], checked));
+    const base = `/branch/${encodeURIComponent(branchId)}`;
+    useEffect(() => { if (selectAllRef.current) selectAllRef.current.indeterminate = someShownSelected; }, [someShownSelected]);
+    const contact = (paymentId: string) => {
+        const row = followUps?.find(item => item.paymentId === paymentId);
+        if (followUpsStatus === "error") return t("Contact details unavailable");
+        if (!row) return t("Contact details in fee queue");
+        const outcome = t.owned(followUpOutcomes[row.followUp?.outcome ?? "NOT_CONTACTED"]);
+        return row.followUp?.nextFollowUpAt
+            ? t("{outcome} · next contact {date}", { outcome, date: formatDate(row.followUp.nextFollowUpAt, { day: "numeric", month: "short" }) }) : outcome;
     };
-
-    return (
-        <AppPanel
-            title={t("Payment completion queue")}
-            description={t("Select dues to review, then open each exact payment to record collection.")}
-            action={
-                <Link href={`/branch/${encodeURIComponent(branchId)}/overdue`} className={actionLinkClass}>
-                    {t("Full queue")} <ArrowRight size={13} aria-hidden="true" />
-                </Link>
-            }
-            contentClassName="p-0"
-            className="h-full"
-        >
-            {!recordDecision.allowed && recordDecision.blocker !== "permission" && (
-                <div id="dashboard-overdue-record-blocker" className={cn("flex flex-col gap-2 border-b px-4 py-3 text-sm", formWarningBannerClass, pageSectionDividerClass)}>
-                    <span className="flex items-start gap-2">
-                        <LockKeyhole size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
-                        <span><span className="font-semibold">{t("Recording payments is unavailable.")}</span> {recordDecision.reason}</span>
-                    </span>
-                    {recordDecision.recoveryHref && (
-                        <Link href={recordDecision.recoveryHref} className="font-semibold underline underline-offset-4">{t("Resolve access")}</Link>
-                    )}
+    return <AppPanel title={t("Follow-ups")} description={t("Overdue fees · oldest first")} className="dashboard-overdue-queue" contentClassName="p-0"
+        action={<Link href={`${base}/renewals`} className="dashboard-text-link">{t("View all")} <ArrowRight size={13} /></Link>}>
+        {!recordDecision.allowed && recordDecision.blocker !== "permission" && <div id="dashboard-overdue-record-blocker" className="border-b bg-[color:var(--ui-tone-warning-bg)] px-4 py-3 text-sm">
+            <p>{t("Recording payments is unavailable.")} {t.owned(recordDecision.reason ?? "")}</p>
+            {recordDecision.recoveryHref && <Link href={recordDecision.recoveryHref} className="font-semibold underline">{t("Resolve access")}</Link>}
+        </div>}
+        {payments.length === 0 ? <div className="flex items-start gap-3 px-4 py-6">
+            <CheckCircle2 size={20} className="shrink-0 text-[color:var(--ui-tone-success-text)]" />
+            <p className="text-sm">{t("No overdue payments returned")}</p>
+        </div> : <>
+            <div className="dashboard-queue-toolbar">
+                <label><input ref={selectAllRef} type="checkbox" checked={allShownSelected}
+                    onChange={event => setSelectedIds(current => updateQueueSelection(current, shownIds, event.target.checked))}
+                    className="h-4 w-4 accent-[color:var(--ui-form-checkbox-accent)]" />
+                    {t("Select all")} {formatNumber(shown.length)}
+                </label>
+                <span aria-live="polite">{t("{formatNumber} selected", { formatNumber: formatNumber(selectedShownCount) })}</span>
+                {selectedPayments.length > 0 && <Link href={getOverdueBulkReviewHref(branchId, selectedPayments)} className="dashboard-text-link">
+                    {selectedPayments.length === 1 ? t("Review selected payment") : t("Open matching due queue")}
+                </Link>}
+            </div>
+            <ul className="dashboard-followup-list">{shown.map(payment => <li key={payment.paymentId}>
+                <input type="checkbox" checked={selectedIds.has(payment.paymentId)}
+                    onChange={event => setSelectedIds(current => updateQueueSelection(current, [payment.paymentId], event.target.checked))}
+                    aria-label={t("Select {name}'s overdue payment", { name: payment.studentName })} />
+                <div className="dashboard-followup-person">
+                    {canViewStudents ? <Link href={getOverdueStudentHref(branchId, payment.studentId)}>{payment.studentName}</Link> : <span className="font-semibold">{payment.studentName}</span>}
+                    <p className="dashboard-footnote">{t("Due {date}", { date: formatDate(payment.dueDate, { day: "numeric", month: "short" }) })}</p>
+                    <p className="dashboard-footnote">{contact(payment.paymentId)}</p>
                 </div>
-            )}
-
-            {payments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)]">
-                        <CheckCircle2 size={20} className="text-[color:var(--ui-tone-success-text)]" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{t("No overdue payments returned")}</p>
-                        <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{t("The latest dashboard update found no open overdue dues.")}</p>
-                    </div>
+                <div className="dashboard-followup-action">
+                    <span className="font-semibold">{formatNumber(payment.amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span>
+                    <DashboardPaymentAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} onCollect={onCollect ? () => onCollect(payment) : undefined} />
                 </div>
-            ) : (
-                <>
-                    <div className={cn("flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between", pageInsetSurfaceClass, pageSectionDividerClass)}>
-                        <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-[color:var(--text-primary)]">
-                            <input
-                                ref={selectAllRef}
-                                type="checkbox"
-                                checked={allShownSelected}
-                                onChange={event => setSelectedIds(current => updateQueueSelection(current, shownIds, event.target.checked))}
-                                className="h-5 w-5 rounded accent-[color:var(--ui-form-checkbox-accent)]"
-                            />
-                            {t("Select all")} {formatNumber(shown.length)}  {t("shown")}</label>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <span className={cn("text-sm", pageSubtleTextClass)} aria-live="polite">{t("{formatNumber} selected", { formatNumber: formatNumber(selectedPayments.length) })}</span>
-                            {selectedPayments.length > 0 && (
-                                <Link href={getOverdueBulkReviewHref(branchId, selectedPayments)} className={actionLinkClass}>
-                                    {selectedPayments.length === 1 ? t("Review selected payment") : t("Open matching due queue")}
-                                </Link>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="hidden lg:block">
-                        <table className="w-full text-left text-sm">
-                            <caption className="sr-only">{t("Dashboard overdue payment completion queue")}</caption>
-                            <thead className={cn("border-b text-xs font-medium text-[color:var(--ui-table-muted)]", pageSectionDividerClass, pageTableHeadClass)}>
-                                <tr>
-                                    <th scope="col" className="w-12 px-4 py-3"><span className="sr-only">{t("Select")}</span></th>
-                                    <th scope="col" className="px-4 py-3 font-medium">{t("Student")}</th>
-                                    <th scope="col" className="px-4 py-3 font-medium">{t("Due")}</th>
-                                    <th scope="col" className="px-4 py-3 text-right font-medium">{t("Amount")}</th>
-                                    <th scope="col" className="px-4 py-3 text-right font-medium">{t("Action")}</th>
-                                </tr>
-                            </thead>
-                            <tbody className={pageTableBodyDividerClass}>
-                                {shown.map(payment => {
-                                    const overdueDays = daysPastDue(payment.dueDate);
-                                    return (
-                                        <tr key={payment.paymentId} className={pageTableRowClass}>
-                                            <td className="px-4 py-3">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedIds.has(payment.paymentId)}
-                                                    onChange={event => togglePayment(payment.paymentId, event.target.checked)}
-                                                    aria-label={`Select ${payment.studentName}'s overdue payment`}
-                                                    className="h-5 w-5 rounded accent-[color:var(--ui-form-checkbox-accent)]"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Link href={getOverdueStudentHref(branchId, payment.studentId)} className="font-medium text-[color:var(--text-primary)] underline-offset-4 hover:underline">
-                                                    {payment.studentName}
-                                                </Link>
-                                                <p className="mt-1 text-xs text-[color:var(--ui-tone-danger-text)]">{overdueDays === 0 ? t("Due today") : `${formatNumber(overdueDays)} days overdue`}</p>
-                                            </td>
-                                            <td className="px-4 py-3 text-[color:var(--text-secondary)]">
-                                                <span>{formatDate(payment.dueDate)}</span>
-                                                <span className="mt-1 flex items-center gap-1 text-xs"><Phone size={12} /> {payment.phone ?? "Phone missing"}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</td>
-                                            <td className="px-4 py-3 text-right"><DashboardPaymentAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} /></td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className={cn("divide-y lg:hidden", pageSectionDividerClass)}>
-                        {shown.map(payment => {
-                            const overdueDays = daysPastDue(payment.dueDate);
-                            return (
-                                <div key={payment.paymentId} className="space-y-3 px-4 py-4">
-                                    <div className="flex items-start gap-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.has(payment.paymentId)}
-                                            onChange={event => togglePayment(payment.paymentId, event.target.checked)}
-                                            aria-label={`Select ${payment.studentName}'s overdue payment`}
-                                            className="mt-0.5 h-5 w-5 shrink-0 rounded accent-[color:var(--ui-form-checkbox-accent)]"
-                                        />
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <Link href={getOverdueStudentHref(branchId, payment.studentId)} className="truncate text-sm font-medium text-[color:var(--text-primary)] underline-offset-4 hover:underline">{payment.studentName}</Link>
-                                                <p className="shrink-0 text-sm font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</p>
-                                            </div>
-                                            <p className="mt-1 text-xs text-[color:var(--ui-tone-danger-text)]">{overdueDays === 0 ? t("Due today") : `${formatNumber(overdueDays)} days overdue`}</p>
-                                            <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{formatDate(payment.dueDate)} · {payment.phone ?? "Phone missing"}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end"><DashboardPaymentAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} /></div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {payments.length > shown.length && (
-                        <Link
-                            href={`/branch/${encodeURIComponent(branchId)}/overdue`}
-                            className={cn("flex min-h-11 w-full items-center justify-center gap-1.5 border-t px-4 py-3 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)] hover:text-[color:var(--text-primary)]", pageSectionDividerClass)}
-                        >
-                            {t("View")} {formatNumber(payments.length - shown.length)}  {t("more overdue payments")} <ArrowRight size={13} />
-                        </Link>
-                    )}
-                </>
-            )}
-        </AppPanel>
-    );
+            </li>)}</ul>
+            <Link href={`${base}/overdue`} className="dashboard-text-link px-4 py-2">{t("Full overdue queue")} <ArrowRight size={13} /></Link>
+        </>}
+    </AppPanel>;
 }

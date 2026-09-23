@@ -51,6 +51,7 @@ export function BranchSidebar() {
     const branchId = segments[2];
     const basePath = `/branch/${branchId}`;
     const designPilot = isApplicationDesignPilotPath(pathname);
+    const dashboardPilot = designPilot && pathname === basePath;
     const { access, loading } = useBranchAccess(branchId);
 
     if (!branchId) return null;
@@ -141,7 +142,7 @@ export function BranchSidebar() {
     };
 
     return (
-        <aside className={chromeSidebarClass} aria-label={t("Branch navigation")}>
+        <aside className={chromeSidebarClass} aria-label={t("Branch navigation")} data-dashboard-navigation={dashboardPilot ? "true" : undefined}>
             <div className={chromeSidebarHeaderClass}>
                 <Link
                     href="/app"
@@ -155,7 +156,7 @@ export function BranchSidebar() {
                     />
                 </Link>
                 <div className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]">{access?.branchName ?? "Loading..."}</span>
+                    <span className="block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]">{dashboardPilot ? "Lab Lords" : access?.branchName ?? "Loading..."}</span>
                     <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-form-accent)]">
                         {access?.role ?? (loading ? "Checking access" : "Branch Connected")}
                     </span>

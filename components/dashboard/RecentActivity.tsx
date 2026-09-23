@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { AppButton, AppPanel } from "@/components/ui";
+import { AppPanel } from "@/components/ui";
 import {
     pageInsetSurfaceClass,
     pageMutedTextClass,
@@ -10,13 +10,11 @@ import {
 } from "@/components/ui/pageSurface";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { cn } from "@/lib/utils";
-import { Activity, ArrowRight, IndianRupee, LayoutGrid, TriangleAlert, UserPlus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Activity, IndianRupee, LayoutGrid, UserPlus } from "lucide-react";
 
 export type ActivityItem =
     | { type: "allocation"; seat: string; studentName: string; ts: string }
     | { type: "payment"; amount: number; studentName: string; ts: string }
-    | { type: "overdue"; count: number; ts: string }
     | { type: "enrollment"; studentName: string; ts: string };
 
 interface RecentActivityProps {
@@ -27,7 +25,6 @@ interface RecentActivityProps {
 function getActivityContent(
     item: ActivityItem,
     formatMoney: (amount: number) => string,
-    formatNumber: (value: number) => string,
     t: ReturnType<typeof useTranslation>,
 ) {
     switch (item.type) {
@@ -45,19 +42,12 @@ function getActivityContent(
                 title: "Payment received",
                 description: t("{amount} collected from {name}.", { amount: formatMoney(item.amount), name: item.studentName }),
             };
-        case "overdue":
-            return {
-                icon: TriangleAlert,
-                iconClass: "bg-[color:var(--ui-tone-danger-bg)] text-[color:var(--ui-tone-danger-text)]",
-                title: "Overdue payments detected",
-                description: t("{count} students need follow-up.", { count: formatNumber(item.count) }),
-            };
         case "enrollment":
             return {
                 icon: UserPlus,
                 iconClass: "bg-[color:var(--ui-tone-insight-bg)] text-[color:var(--ui-tone-insight-text)]",
-                title: "New student enrolled",
-                description: t("{name} joined the branch.", { name: item.studentName }),
+                title: "Student profile added",
+                description: item.studentName,
             };
     }
 }
@@ -77,9 +67,8 @@ function EmptyActivity() {
     );
 }
 
-export function RecentActivity({ items, branchId }: RecentActivityProps) {
+export function RecentActivity({ items }: RecentActivityProps) {
     const t = useTranslation();
-    const router = useRouter();
     const visibleItems = items.slice(0, 7);
     const { formatDateTime, formatNumber } = useUserPreferences();
     const formatMoney = (amount: number) => formatNumber(amount, {
@@ -90,26 +79,16 @@ export function RecentActivity({ items, branchId }: RecentActivityProps) {
 
     return (
         <AppPanel
-            title={t("Activity stream")}
-            description={t("Latest movement across branch operations.")}
-            action={
-                <AppButton
-                    onClick={() => router.push(`/branch/${branchId}/payments`)}
-                    variant="quiet"
-                    size="sm"
-                    rightIcon={ArrowRight}
-                >
-                    {t("Audit")}</AppButton>
-            }
+            title={t("Recent activity")}
             contentClassName="p-0"
-            className="h-full"
+            className="dashboard-activity"
         >
             {visibleItems.length === 0 ? (
                 <EmptyActivity />
             ) : (
                 <div className={cn("divide-y", pageSectionDividerClass)}>
                     {visibleItems.map((item, index) => {
-                        const content = getActivityContent(item, formatMoney, formatNumber, t);
+                        const content = getActivityContent(item, formatMoney, t);
                         const Icon = content.icon;
 
                         return (

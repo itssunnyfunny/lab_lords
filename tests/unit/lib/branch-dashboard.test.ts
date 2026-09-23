@@ -3,11 +3,12 @@ import { loadBranchDashboardSources } from "@/lib/branchDashboard";
 
 const mocks = vi.hoisted(() => ({
   getSnapshot: vi.fn(),
+  getTrends: vi.fn(),
   getStudents: vi.fn(),
 }));
 
 vi.mock("@/lib/api/analytics", () => ({
-  analytics: { getSnapshot: mocks.getSnapshot },
+  analytics: { getSnapshot: mocks.getSnapshot, getTrends: mocks.getTrends },
 }));
 
 vi.mock("@/lib/api/branches", () => ({
@@ -55,11 +56,14 @@ describe("loadBranchDashboardSources", () => {
     expect(result.resources.students).toBe("success");
     expect(mocks.getSnapshot).not.toHaveBeenCalled();
     expect(mocks.getStudents).toHaveBeenCalledWith("branch_1");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     expect(fetchMock.mock.calls.map(call => String(call[0]))).toEqual([
       "/api/branches/branch_1/seat-allocations?activeOnly=true&all=true",
-      "/api/branches/branch_1/payments?month=2026-08&all=true",
+      "/api/branches/branch_1/collections",
       "/api/branches/branch_1/payments/overdue?all=true",
+      "/api/branches/branch_1/attendance?limit=1",
+      "/api/branches/branch_1/renewals?filter=OVERDUE&days=7&search=&limit=6",
+      "/api/branches/branch_1/renewals?filter=UPCOMING&days=7&search=&limit=4",
     ]);
     expect(fetchMock.mock.calls.every(call => call[1]?.method === undefined)).toBe(true);
     expect(fetchMock.mock.calls.some(call => String(call[0]).includes("payments/ensure"))).toBe(false);
@@ -96,7 +100,7 @@ describe("loadBranchDashboardSources", () => {
 
   it("accepts legacy list payloads while pagination contracts roll out", async () => {
     const allocation = { startDate: "2026-08-01T00:00:00.000Z" };
-    const payment = { id: "payment_1", status: "PAID", dueDate: "2026-08-01", amount: 299 };
+    const payment = { id: "collection_1", collectedAt: "2026-08-01", amount: 299, voidedAt: null, snapshot: { studentName: "Asha" } };
     const overdue = {
       paymentId: "payment_2",
       studentId: "student_1",
@@ -123,7 +127,7 @@ describe("loadBranchDashboardSources", () => {
     });
 
     expect(result.allocations).toEqual([allocation]);
-    expect(result.monthPayments).toEqual([payment]);
+    expect(result.collections).toEqual([payment]);
     expect(result.overduePayments).toEqual([overdue]);
     expect(result.resources.allocations).toBe("success");
     expect(result.resources.payments).toBe("success");
@@ -147,10 +151,38 @@ describe("loadBranchDashboardSources", () => {
     expect(mocks.getStudents).not.toHaveBeenCalled();
     expect(result.resources).toEqual({
       analytics: "restricted",
+      collectionsTrend: "restricted",
       students: "restricted",
       allocations: "restricted",
       payments: "restricted",
       overdue: "restricted",
+      attendance: "restricted",
+      followUps: "restricted",
+      upcoming: "restricted",
+    });
+  });
+
+  it("keeps attendance failure separate from successful financial and follow-up sources", async () => {
+    vi.mocked(fetch).mockImplementation(async url => {
+      if (String(url).includes("/attendance?")) return Response.json({ error: "unavailable" }, { status: 503 });
+      if (String(url).includes("/renewals?")) return Response.json({ items: [], counts: { TODAY: 2, UPCOMING: 5 }, nextCursor: "more" });
+      return Response.json({ items: [], nextCursor: null, total: 0 });
+    });
+    const result = await loadBranchDashboardSources("branch_1", { analytics: false, students: true, seat_allocation: false, view_payments: true });
+    expect(result.attendance).toBeNull();
+    expect(result.resources.attendance).toBe("error");
+    expect(result.resources.upcoming).toBe("success");
+    expect(result.resources.payments).toBe("success");
+    expect(result.upcoming?.counts.TODAY).toBe(2);
+    expect(result.upcoming?.counts.UPCOMING).toBe(5);
+  });
+
+  it("requests a bounded all-time cumulative series only with analytics access", async () => {
+    mocks.getSnapshot.mockResolvedValue(null);
+    mocks.getTrends.mockResolvedValue([]);
+    await loadBranchDashboardSources("branch_1", { analytics: true, students: false, seat_allocation: false, view_payments: false }, new Date("2026-09-23T08:30:00Z"));
+    expect(mocks.getTrends).toHaveBeenCalledWith("branch_1", {
+      from: "2026-09-09T08:30:00.000Z", to: "2026-09-23T08:30:00.000Z", type: "payment", period: "all",
     });
   });
 });
