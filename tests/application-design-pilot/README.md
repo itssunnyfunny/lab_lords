@@ -8,6 +8,10 @@ Every screen carries a **Synthetic design pilot** badge. Names, phone numbers, r
 
 From the repository root:
 
+The preview now serves the actual self-hosted fonts from `.next/static`. Run
+`pnpm build` first if a successful local build is not available. Font assets are
+loaded into memory when the preview starts; restart it after changing fonts.
+
 ```powershell
 pnpm exec node tests/application-design-pilot/server.mjs
 ```
@@ -25,20 +29,40 @@ Additional query controls:
 
 - `lang=en|hi|hinglish` selects the saved interface preference; browser locale remains `en-IN`.
 - `role=owner|restricted|readonly` selects owner, permission-restricted staff, or read-only billing state.
-- `state=populated|empty|error` selects the page data state.
+- `state=populated|empty|error` selects the page data state. The dashboard also supports `busy|calm|loading|attendance-error|trend-error`.
+- `scenario=dashboard-collection` updates dashboard figures after a confirmed synthetic partial payment.
 - `scenario=uncertain` makes the first collection response fail after the in-memory record is committed; retrying uses the same idempotency key and returns the one receipt.
 
 ## Focused verification
 
 ```powershell
-pnpm run test:browser --config tests/application-design-pilot/playwright.config.ts tests/application-design-pilot/pilot.spec.ts
+pnpm exec node node_modules/vitest/vitest.mjs run --config tests/application-design-pilot/vitest.config.ts
+pnpm exec node node_modules/@playwright/test/cli.js test --config tests/application-design-pilot/playwright.config.ts tests/application-design-pilot/dashboard.spec.ts tests/application-design-pilot/pilot.spec.ts
 ```
 
-Pass the config directly as shown; do not insert a standalone `--`, because that makes Playwright treat the remaining flags as test paths instead of selecting this isolated config.
+Use these explicit configs. The unit config allowlists eight unit files and has
+no database setup. Do not substitute the broad repository test command. The direct
+Node entry points also avoid this Windows environment's executable-shim issue.
+
+Current dashboard evidence and results are in
+[`docs/redesign/dashboard-refinement.md`](../../docs/redesign/dashboard-refinement.md).
+Its current correction screenshots and 12 actual-font JSON records cover all four viewports and
+three languages plus conditional states. The new suite checks real loaded glyph
+fonts, source semantics, source errors, refresh without receipt/selection loss,
+late-response isolation, identity changes, keyboard controls and reduced motion.
+Unimplemented preview destinations show an explicit boundary page; they do not
+silently render a dashboard in place of the requested route.
+
+The correction's final checks passed: 44 scoped unit tests and 44 dashboard browser
+scenarios. The earlier combined run also passed all 34 existing pilot scenarios
+(10 intentional viewport-specific skips); one timing-dependent loading test was
+replaced with deterministic response gating before the clean dashboard rerun.
+Four targeted collection/seat/busy-fixture scenarios passed after the final
+in-memory fixture consistency adjustment.
 
 The dedicated config covers 1440px desktop, an 834px tablet, plus 390px and 320px phones. The suite exercises both theme modes, the four representative surfaces, student search/edit/details context, seat shift/allocation interaction, partial-payment uncertainty recovery, receipt rendering, EN/HI/Hinglish, and empty/error/restricted/read-only states.
 
-The acceptance run records 34 passing scenarios and 10 intentional
+The earlier September 22 acceptance run recorded 34 passing scenarios and 10 intentional
 viewport-specific skips. The compact-navigation follow-up records three passing
 compact viewports and one intentional desktop skip, including an assertion that
 the settings footer is inside the initial viewport. The focused theme,

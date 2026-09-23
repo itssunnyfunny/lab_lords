@@ -1,5 +1,6 @@
 import path from "node:path";
 import { createSyntheticApiMiddleware } from "./synthetic-api";
+import { pilotFonts } from "./fonts";
 
 const root = path.resolve("tests/application-design-pilot");
 const sourceRoot = process.env.PILOT_SOURCE_ROOT
@@ -25,6 +26,7 @@ const config = {
         name: "lab-lords-synthetic-design-pilot",
         configureServer(server: { middlewares: { use: (middleware: ReturnType<typeof createSyntheticApiMiddleware>) => void } }) {
             // Register before Vite's HTML fallback so an unhandled API can never reach Next, a DB, or a provider.
+            server.middlewares.use(pilotFonts());
             server.middlewares.use(createSyntheticApiMiddleware());
         },
     }],

@@ -9,6 +9,7 @@ export default defineConfig({
         include: [
             "tests/unit/lib/branch-dashboard.test.ts",
             "tests/unit/lib/dashboard-presentation.test.ts",
+            "tests/unit/lib/dashboard-fixture.test.ts",
             "tests/unit/lib/application-design-pilot.test.ts",
             "tests/unit/lib/localization.test.ts",
             "tests/unit/application-pilot-theme.test.ts",

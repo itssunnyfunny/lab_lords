@@ -1,0 +1,46 @@
+[
+  {
+    "selector": "main h1",
+    "fonts": [
+      {
+        "familyName": "Playfair Display",
+        "postScriptName": "Playfair-Display-SemiBold",
+        "isCustomFont": true,
+        "glyphCount": 20
+      }
+    ]
+  },
+  {
+    "selector": ".dashboard-primary-actions button span",
+    "fonts": [
+      {
+        "familyName": "Manrope ExtraLight",
+        "postScriptName": "Manrope-ExtraLight-SemiBold",
+        "isCustomFont": true,
+        "glyphCount": 18
+      }
+    ]
+  },
+  {
+    "selector": "#action-center-title",
+    "fonts": [
+      {
+        "familyName": "Manrope ExtraLight",
+        "postScriptName": "Manrope-ExtraLight-Bold",
+        "isCustomFont": true,
+        "glyphCount": 12
+      }
+    ]
+  },
+  {
+    "selector": ".dashboard-summary [data-accent] p:nth-child(2)",
+    "fonts": [
+      {
+        "familyName": "Inter",
+        "postScriptName": "Inter-SemiBold",
+        "isCustomFont": true,
+        "glyphCount": 6
+      }
+    ]
+  }
+]

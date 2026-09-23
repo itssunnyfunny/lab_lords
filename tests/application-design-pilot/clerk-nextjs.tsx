@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 
 const syntheticUser = {
     id: "pilot-owner",
@@ -33,7 +34,8 @@ export function UserButton() {
 }
 
 export function useUser() {
-    return { isLoaded: true, isSignedIn: true, user: syntheticUser };
+    const params = useSearchParams();
+    return { isLoaded: true, isSignedIn: true, user: { ...syntheticUser, id: params.get("identity") ?? syntheticUser.id } };
 }
 
 export function useAuth() {

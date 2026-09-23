@@ -1,5 +1,6 @@
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { createRoot } from "react-dom/client";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { BranchWorkspaceShell } from "@/components/layout/BranchWorkspaceShell";
 import { UserPreferencesProvider } from "@/components/settings/UserPreferencesApplier";
@@ -37,12 +38,16 @@ function CollectionScenario({ usePilotTheme }: { usePilotTheme: boolean }) {
 function PilotSurface() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const currentBranchId = pathname.split("/")[2] ?? BRANCH_ID;
+    const dashboardParams = useMemo(() => Promise.resolve({ branchId: currentBranchId }), [currentBranchId]);
     const collection = searchParams.get("surface") === "collection";
 
     if (collection) return <CollectionScenario usePilotTheme={searchParams.get("mode") !== "baseline"} />;
     if (pathname.endsWith("/students")) return <StudentsPage params={BRANCH_PARAMS} />;
     if (pathname.endsWith("/seats")) return <SeatsPage params={BRANCH_PARAMS} />;
-    return <BranchDashboardPage params={BRANCH_PARAMS} />;
+    if (pathname === `/branch/${currentBranchId}`) return <BranchDashboardPage params={dashboardParams} />;
+    return <PageShell><h1>This route is outside the design pilot</h1><p>The link targets the existing application route: {pathname}.</p>
+        <Link href="/branch/pilot?mode=after&lang=en" className="underline">Return to the synthetic dashboard</Link></PageShell>;
 }
 
 function FixtureLabel() {
@@ -78,10 +83,12 @@ function FixtureLabel() {
 }
 
 function ApplicationDesignPilot() {
+    const pathname = usePathname();
+    const branchId = pathname.split("/")[2] ?? BRANCH_ID;
     return (
         <UserPreferencesProvider ownerKey="application-design-pilot">
             <FixtureLabel />
-            <BranchWorkspaceShell branchId={BRANCH_ID}>
+            <BranchWorkspaceShell branchId={branchId}>
                 <Suspense fallback={<PageLoadingSkeleton label="Loading pilot surface" variant="workspace" />}>
                     <PilotSurface />
                 </Suspense>

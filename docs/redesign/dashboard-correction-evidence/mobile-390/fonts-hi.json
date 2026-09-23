@@ -1,0 +1,46 @@
+[
+  {
+    "selector": "main h1",
+    "fonts": [
+      {
+        "familyName": "Noto Sans Devanagari",
+        "postScriptName": "Noto-Sans-Devanagari-SemiBold",
+        "isCustomFont": true,
+        "glyphCount": 20
+      }
+    ]
+  },
+  {
+    "selector": ".dashboard-primary-actions button span",
+    "fonts": [
+      {
+        "familyName": "Noto Sans Devanagari",
+        "postScriptName": "Noto-Sans-Devanagari-SemiBold",
+        "isCustomFont": true,
+        "glyphCount": 11
+      }
+    ]
+  },
+  {
+    "selector": "#action-center-title",
+    "fonts": [
+      {
+        "familyName": "Noto Sans Devanagari",
+        "postScriptName": "Noto-Sans-Devanagari-Bold",
+        "isCustomFont": true,
+        "glyphCount": 8
+      }
+    ]
+  },
+  {
+    "selector": ".dashboard-summary [data-accent] p:nth-child(2)",
+    "fonts": [
+      {
+        "familyName": "Noto Sans Devanagari",
+        "postScriptName": "Noto-Sans-Devanagari-SemiBold",
+        "isCustomFont": true,
+        "glyphCount": 6
+      }
+    ]
+  }
+]

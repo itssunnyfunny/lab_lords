@@ -1,5 +1,26 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Dashboard-only operational refinement — 2026-09-23
+
+The existing dashboard pilot now has one compact ordered Action Center, four
+summaries, a 5/4/3 collections-chart/slot-attendance/activity grid, and upcoming fees
+and follow-ups beneath the main panels. Mobile puts worklists before supporting
+visuals. The daily chart differences consecutive all-time cumulative observations
+from the existing authorized payment-trend endpoint; it does not split a monthly
+total into invented bars. Longer definitions use accessible disclosures.
+Monthly billing, collections and
+all-period outstanding amounts are explicitly different. Slot utilization is not
+physical-seat attendance; missing attendance is not inferred absence. All data
+comes from existing authorized reads; no server/domain or provider behavior changed.
+
+Confirmed collection refreshes the dashboard without remounting its receipt or
+same-request workflow. Branch/user changes reset private state and cancel stale
+publications; language changes preserve workflow state. The synthetic harness now
+uses actual built fonts with browser glyph evidence and a four-viewport dashboard
+matrix. No public copy or additional application route family was redesigned.
+See [the refinement, metric definitions and evidence](../redesign/dashboard-refinement.md).
+This remains local and approval-gated, not deployed or approved for wider rollout.
+
 ## Authenticated application design pilot — 2026-09-22
 
 A local, approval-gated design pilot now applies the approved botanical public

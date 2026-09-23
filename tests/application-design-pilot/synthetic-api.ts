@@ -4,7 +4,7 @@ type PilotRequest = IncomingMessage & { originalUrl?: string };
 type Next = () => void;
 
 const BRANCH_ID = "pilot";
-const NOW = "2026-09-22T08:30:00.000Z";
+const NOW = "2026-09-23T08:30:00.000Z";
 
 const shifts = [
     {
@@ -214,6 +214,23 @@ const seats = ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4"].map((label) => ({
     seatAllocations: label === "A1" ? [allocationOne] : label === "B2" ? [allocationTwo] : [],
 }));
 
+// Busy fixtures stay in this isolated adapter. Every displayed total is derived
+// from these student, allocation, fee and collection records.
+const busyNames = ["Rohan Shah", "Priya Singh", "Aman Khan", "Sneha Yadav", "Karan Patel", "Neha Sharma", "Isha Rao", "Dev Joshi"];
+const busyPaid = [1000, 1000, 1000, 800, 600, 400, 200, 0];
+const busyStudents = busyNames.map((name, i) => ({ ...students[0], id: `busy-student-${i}`, name, monthlyFee: 1000,
+    createdAt: `2026-08-${String(i + 10).padStart(2, "0")}T08:00:00.000Z`, joinedAt: "2026-08-01T00:00:00.000Z", seatAllocations: [] }));
+const busyAllocations = busyStudents.map((student, i) => {
+    const label = (i % 2 ? ["A1", "A2", "A3", "A4"] : ["A2", "A3", "A4", "B1"])[Math.floor(i / 2)];
+    return { ...allocationOne, id: `busy-allocation-${i}`, studentId: student.id,
+        seatId: `seat-${label.toLowerCase()}`, shiftId: shifts[i % 2].id, shift: shifts[i % 2],
+        seat: { id: `seat-${label.toLowerCase()}`, label }, student,
+        createdAt: student.createdAt, startDate: student.createdAt };
+});
+const busyFees = busyStudents.map((student, i) => ({ ...payments[0], id: `busy-fee-${i}`, studentId: student.id,
+    amount: 1000, collectedAmount: busyPaid[i], status: busyPaid[i] === 1000 ? "PAID" : "DUE",
+    dueDate: "2026-09-01T00:00:00.000Z", periodStart: "2026-08-01T00:00:00.000Z", periodEnd: "2026-08-31T00:00:00.000Z", student }));
+
 type CollectionInput = {
     studentId: string;
     paymentIds: string[];
@@ -263,9 +280,9 @@ const collectionsByKey = new Map<string, CollectionView>();
 const collectionsById = new Map<string, CollectionView>();
 const uncertainKeys = new Set<string>();
 
-function buildCollection(input: CollectionInput): CollectionView {
+function buildCollection(input: CollectionInput, fees = payments, roster = students): CollectionView {
     let remainingAmount = input.amount;
-    const allocations = payments
+    const allocations = fees
         .filter((payment) => input.paymentIds.includes(payment.id))
         .map((payment) => {
             const outstanding = Math.max(payment.amount - payment.collectedAmount - payment.waivedAmount, 0);
@@ -298,7 +315,7 @@ function buildCollection(input: CollectionInput): CollectionView {
             organizationName: "Shanti Learning Spaces",
             address: "Vijay Nagar, Indore, Madhya Pradesh",
             contactPhone: "+91 70000 12345",
-            studentName: "Aarav Mehta",
+            studentName: roster.find(student => student.id === input.studentId)?.name ?? "Aarav Mehta",
             studentId: input.studentId,
             recordedBy: "Ananya Sharma",
             recordedById: "pilot-owner",
@@ -311,6 +328,20 @@ function buildCollection(input: CollectionInput): CollectionView {
             allocations,
         },
     };
+}
+
+function existingCollections(busy: boolean): CollectionView[] {
+    const template = buildCollection({ studentId: "student-aarav", paymentIds: ["payment-july"], amount: 400,
+        method: "UPI", reference: "SYNTHETIC-PAST", note: "Synthetic existing collection", idempotencyKey: "synthetic-prior-collection" });
+    const records = [payments[0], payments[2], ...(busy ? busyFees : [])].filter(fee => fee.collectedAmount > 0);
+    return records.map((fee, i) => {
+        const collectedAt = i === 0 ? NOW : i === 1 ? "2026-09-04T08:00:00.000Z" : `2026-09-${String(10 + (i - 2) * 2).padStart(2, "0")}T08:00:00.000Z`;
+        const amount = fee.collectedAmount;
+        const remaining = fee.amount - amount;
+        return { ...template, id: `existing-${fee.id}`, amount, collectedAt,
+            snapshot: { ...template.snapshot, studentId: fee.studentId, studentName: fee.student.name, amount, collectedAt,
+                remainingBalance: remaining, allocations: [{ paymentId: fee.id, type: fee.type, periodStart: fee.periodStart, periodEnd: fee.periodEnd, amount, remaining }] } };
+    });
 }
 
 function contextFor(request: PilotRequest) {
@@ -413,9 +444,9 @@ function paged<T>(items: T[]) {
     return { items, nextCursor: null, total: items.length };
 }
 
-function seatMap(shiftId: string) {
+function seatMap(shiftId: string, rows = seats) {
     const shift = shifts.find((item) => item.id === shiftId) ?? shifts[0];
-    const cells = seats.map((seat) => {
+    const cells = rows.map((seat) => {
         const allocation = seat.seatAllocations.find((item) => item.shiftId === shift.id);
         return {
             seatId: seat.id,
@@ -435,8 +466,8 @@ function seatMap(shiftId: string) {
     };
 }
 
-function multiShiftMap() {
-    const cells = seats.map((seat) => {
+function multiShiftMap(rows = seats) {
+    const cells = rows.map((seat) => {
         const allocation = seat.seatAllocations[0];
         return {
             seatId: seat.id,
@@ -486,8 +517,35 @@ export function createSyntheticApiMiddleware() {
         const context = contextFor(request);
         const empty = context.state === "empty";
         const fail = context.state === "error";
+        const calm = context.state === "calm";
+        const busy = context.state === "busy";
+        const roster = busy ? [...students, ...busyStudents] : students;
+        const feeRows = busy ? [...payments, ...busyFees] : payments;
+        const allocationRows = busy ? [allocationOne, allocationTwo, ...busyAllocations] : [allocationOne, allocationTwo];
+        const seatRows = busy ? seats.map(seat => ({ ...seat, seatAllocations: allocationRows.filter(row => row.seatId === seat.id) })) : seats;
+        const busyCollected = busy ? busyPaid.reduce((sum, amount) => sum + amount, 0) : 0;
+        const busyOutstanding = busy ? busyFees.reduce((sum, fee) => sum + fee.amount - fee.collectedAmount, 0) : 0;
+        const dashboardCollections = context.scenario === "dashboard-collection" || busy;
+        const received = dashboardCollections ? Array.from(collectionsById.values()) : [];
+        const currentFees = feeRows.map(fee => {
+            const collectedAmount = fee.collectedAmount + received.flatMap(record => record.snapshot.allocations)
+                .filter(allocation => allocation.paymentId === fee.id).reduce((sum, allocation) => sum + allocation.amount, 0);
+            return { ...fee, collectedAmount, status: collectedAmount >= fee.amount ? "PAID" : fee.status };
+        });
+        const extraCollected = received.reduce((sum, item) => sum + item.amount, 0);
+        const dashboardOverdue = [...overdueRows(), ...(busy ? busyFees.filter(fee => fee.status === "DUE").map(fee => ({
+            paymentId: fee.id, studentId: fee.studentId, studentName: fee.student.name, phone: fee.student.phone, dueDate: fee.dueDate, amount: fee.amount - fee.collectedAmount,
+        })) : [])].map(row => ({ ...row, amount: row.amount - received.flatMap(item => item.snapshot.allocations)
+            .filter(item => item.paymentId === row.paymentId).reduce((sum, item) => sum + item.amount, 0) })).filter(row => row.amount > 0);
 
         try {
+            if (path === "/api/pilot/reset" && method === "POST") {
+                collectionsById.clear(); collectionsByKey.clear(); uncertainKeys.clear();
+                sendJson(response, 200, { reset: true }); return;
+            }
+            if (context.state === "loading" && !["/api/users/me", "/api/workspaces"].includes(path) && !path.endsWith("/access")) {
+                await new Promise(resolve => setTimeout(resolve, 2500));
+            }
             if (path === "/api/users/me") {
                 if (method === "PATCH") {
                     sendJson(response, 200, await readJson(request));
@@ -560,25 +618,70 @@ export function createSyntheticApiMiddleware() {
                     seatDetails: { totalUsedSlots: 0, totalShiftCapacity: 0, shifts: [] },
                 } : {
                     period: "month",
-                    totalStudents: 4,
-                    activeStudents: 3,
-                    assignedSeats: 2,
+                    totalStudents: roster.length,
+                    activeStudents: roster.filter(student => student.status === "ACTIVE").length,
+                    assignedSeats: allocationRows.length,
                     totalSeats: 16,
-                    occupancyRate: 13,
-                    monthlyRevenue: 4300,
-                    dueAmount: 2400,
-                    paidAmount: 1900,
-                    collectionRate: 44,
+                    occupancyRate: Math.round(allocationRows.length / 16 * 100),
+                    monthlyRevenue: 1500 + (busy ? 8000 : 0),
+                    dueAmount: calm ? 0 : 2400 + busyOutstanding - extraCollected,
+                    paidAmount: 1900 + busyCollected + extraCollected,
+                    collectionRate: (1900 + busyCollected + extraCollected) / (busy ? 9500 : 1500) * 100,
                     seatDetails: {
-                        totalUsedSlots: 2,
+                        totalUsedSlots: allocationRows.length,
                         totalShiftCapacity: 16,
                         shifts: [
-                            { shiftId: "shift-morning", shiftName: "Morning", used: 1, capacity: 8, occupancyPercent: 13 },
-                            { shiftId: "shift-evening", shiftName: "Evening", used: 1, capacity: 8, occupancyPercent: 13 },
+                            { shiftId: "shift-morning", shiftName: "Morning", used: busy ? 5 : 1, capacity: 8, occupancyPercent: busy ? 63 : 13 },
+                            { shiftId: "shift-evening", shiftName: "Evening", used: busy ? 5 : 1, capacity: 8, occupancyPercent: busy ? 63 : 13 },
                         ],
                     },
                 });
                 return;
+            }
+
+            if (path === `/api/analytics/branch/${BRANCH_ID}/trends`) {
+                if (fail || context.state === "trend-error") { sendJson(response, 503, { error: "Synthetic trend failure" }); return; }
+                const from = new Date(url.searchParams.get("from")!);
+                const to = new Date(url.searchParams.get("to")!);
+                const records = empty ? [] : [...existingCollections(busy), ...received];
+                const points = [];
+                for (const day = new Date(from); day <= to; day.setDate(day.getDate() + 1)) {
+                    const value = records.filter(record => record.collectedAt.slice(0, 10) <= day.toISOString().slice(0, 10)).reduce((sum, record) => sum + record.amount, 0);
+                    points.push({ date: day.toISOString(), value, category: "Collected" });
+                }
+                sendJson(response, 200, points); return;
+            }
+
+            if (path === `/api/branches/${BRANCH_ID}/attendance` && method === "GET") {
+                if (fail || context.state === "attendance-error") { sendJson(response, 503, { error: "Synthetic attendance failure" }); return; }
+                sendJson(response, 200, { items: [], total: empty ? 0 : busy ? 11 : 3, nextCursor: null,
+                    date: "2026-09-23", today: "2026-09-23", timezone: "Asia/Kolkata", shifts: [],
+                    counts: { attended: empty ? 0 : busy ? 9 : 2, absent: busy ? 1 : 0, notMarked: empty ? 0 : 1, open: empty ? 0 : busy ? 3 : 1 } }); return;
+            }
+
+            if (path === `/api/branches/${BRANCH_ID}/renewals`) {
+                if (fail) { sendJson(response, 503, { error: "Synthetic renewal failure" }); return; }
+                const upcoming = url.searchParams.get("filter") === "UPCOMING";
+                const baseRows = dashboardOverdue.map(row => ({ key: row.paymentId, paymentId: row.paymentId,
+                    studentId: row.studentId, studentName: row.studentName, phone: row.phone, studentStatus: "ACTIVE",
+                    type: "MONTHLY", periodStart: row.dueDate, periodEnd: row.dueDate, dueDate: row.dueDate,
+                    amount: row.amount, expected: false, allocations: [], followUp: { note: "Synthetic follow-up",
+                        outcome: "PROMISED_PAYMENT", nextFollowUpAt: "2026-09-23T00:00:00.000Z", updatedAt: NOW, author: { name: "Ananya Sharma" } } }));
+                const futureRows = [
+                    { ...baseRows[0], key: "future-nisha", studentId: "student-nisha", studentName: "Nisha Verma", paymentId: null,
+                        dueDate: "2026-09-25T00:00:00.000Z", amount: 1500, expected: true, followUp: null },
+                    { ...baseRows[0], key: "future-meera", studentId: "student-meera", studentName: "Meera Singh", paymentId: null,
+                        dueDate: "2026-09-28T00:00:00.000Z", amount: 1400, expected: true, followUp: null },
+                ];
+                if (busy) futureRows.push(...busyStudents.slice(0, 4).map((student, i) => ({ ...futureRows[0], key: `future-${student.id}`, studentId: student.id, studentName: student.name,
+                    dueDate: `2026-09-${24 + i}T00:00:00.000Z`, amount: 1000 })));
+                futureRows.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+                const rows = empty ? [] : upcoming ? futureRows : calm ? [] : baseRows;
+                const limit = Number(url.searchParams.get("limit") ?? 25);
+                sendJson(response, 200, { items: rows.slice(0, limit),
+                    counts: { ALL: empty ? 0 : (calm ? 0 : baseRows.length + 1) + futureRows.length, TODAY: empty || calm ? 0 : 1, UPCOMING: empty ? 0 : futureRows.length, OUTSTANDING: empty || calm ? 0 : baseRows.length, OVERDUE: empty || calm ? 0 : baseRows.length },
+                    outstandingAmount: empty || calm ? 0 : 2400 + busyOutstanding - extraCollected, expectedAmount: empty ? 0 : futureRows.reduce((sum, row) => sum + row.amount, calm ? 0 : 1400),
+                    nextCursor: rows.length > limit ? "synthetic-next-page" : null, asOf: NOW }); return;
             }
 
             if (path === `/api/branches/${BRANCH_ID}/students`) {
@@ -599,7 +702,7 @@ export function createSyntheticApiMiddleware() {
                 }
                 const status = url.searchParams.get("status");
                 const query = (url.searchParams.get("q") ?? "").trim().toLowerCase();
-                const result = empty ? [] : students.filter((student) => (
+                const result = empty ? [] : roster.filter((student) => (
                     (!status || student.status === status)
                     && (!query || `${student.name} ${student.phone}`.toLowerCase().includes(query))
                 ));
@@ -636,7 +739,7 @@ export function createSyntheticApiMiddleware() {
                     componentShiftIds?: string[];
                     componentShiftNames?: string[];
                 }> = shifts.map((shift) => {
-                    const used = seats.filter((seat) => seat.seatAllocations.some((allocation) => allocation.shiftId === shift.id)).length;
+                    const used = seatRows.filter((seat) => seat.seatAllocations.some((allocation) => allocation.shiftId === shift.id)).length;
                     return {
                         type: "PRIMARY",
                         shiftId: shift.id,
@@ -663,9 +766,9 @@ export function createSyntheticApiMiddleware() {
                     price: 2500,
                     isReserved: false,
                     totalSeats: seats.length,
-                    used: 2,
-                    available: seats.length - 2,
-                    occupancyPercent: 25,
+                    used: seatRows.filter(seat => seat.seatAllocations.length).length,
+                    available: seatRows.filter(seat => !seat.seatAllocations.length).length,
+                    occupancyPercent: Math.round(seatRows.filter(seat => seat.seatAllocations.length).length / seatRows.length * 100),
                     isFull: false,
                     studentAlreadyAllocated: false,
                     componentShiftIds: ["shift-morning", "shift-evening"],
@@ -677,12 +780,12 @@ export function createSyntheticApiMiddleware() {
 
             if (path.match(new RegExp(`^/api/branches/${BRANCH_ID}/shifts/[^/]+/seat-map$`))) {
                 const shiftId = path.split("/").at(-2) ?? "shift-morning";
-                sendJson(response, 200, empty ? { ...seatMap(shiftId), totalSeats: 0, occupiedCount: 0, availableCount: 0, seats: [] } : seatMap(shiftId));
+                sendJson(response, 200, empty ? { ...seatMap(shiftId), totalSeats: 0, occupiedCount: 0, availableCount: 0, seats: [] } : seatMap(shiftId, seatRows));
                 return;
             }
 
             if (path === `/api/branches/${BRANCH_ID}/multi-shifts/multi-full-day/seat-map`) {
-                sendJson(response, 200, multiShiftMap());
+                sendJson(response, 200, multiShiftMap(seatRows));
                 return;
             }
 
@@ -696,7 +799,7 @@ export function createSyntheticApiMiddleware() {
                     sendJson(response, 503, { error: "Synthetic seat map failure" });
                     return;
                 }
-                sendJson(response, 200, paged(empty ? [] : seats));
+                sendJson(response, 200, paged(empty ? [] : seatRows));
                 return;
             }
 
@@ -706,7 +809,7 @@ export function createSyntheticApiMiddleware() {
                     sendJson(response, 201, { id: "allocation-new", branchId: BRANCH_ID, ...body, startDate: NOW, endDate: null });
                     return;
                 }
-                sendJson(response, 200, paged(empty ? [] : [allocationOne, allocationTwo]));
+                sendJson(response, 200, paged(empty ? [] : allocationRows));
                 return;
             }
 
@@ -720,7 +823,7 @@ export function createSyntheticApiMiddleware() {
                     sendJson(response, 503, { error: "Synthetic overdue list failure" });
                     return;
                 }
-                sendJson(response, 200, paged(empty ? [] : overdueRows()));
+                sendJson(response, 200, paged(empty || calm ? [] : dashboardOverdue));
                 return;
             }
 
@@ -730,7 +833,7 @@ export function createSyntheticApiMiddleware() {
                     return;
                 }
                 const status = url.searchParams.get("status");
-                const rows = empty ? [] : payments.filter((payment) => !status || payment.status === status);
+                const rows = empty ? [] : currentFees.filter((payment) => !status || payment.status === status);
                 sendJson(response, 200, paged(rows));
                 return;
             }
@@ -742,12 +845,13 @@ export function createSyntheticApiMiddleware() {
 
             if (path === `/api/branches/${BRANCH_ID}/collections` && method === "GET") {
                 if (url.searchParams.get("dues") !== "true") {
-                    sendJson(response, 200, paged(Array.from(collectionsById.values())));
+                    if (fail) { sendJson(response, 503, { error: "Synthetic collection failure" }); return; }
+                    sendJson(response, 200, paged(empty ? [] : [...received, ...existingCollections(busy)]));
                     return;
                 }
                 sendJson(response, 200, {
-                    student: { id: "student-aarav", name: "Aarav Mehta" },
-                    payments: empty ? [] : payments.filter((payment) => payment.studentId === "student-aarav" && payment.status === "DUE"),
+                    student: roster.find(student => student.id === (url.searchParams.get("studentId") ?? "student-aarav")),
+                    payments: empty ? [] : currentFees.filter((payment) => payment.studentId === (url.searchParams.get("studentId") ?? "student-aarav") && payment.status === "DUE"),
                 });
                 return;
             }
@@ -756,7 +860,7 @@ export function createSyntheticApiMiddleware() {
                 const input = await readJson(request) as unknown as CollectionInput;
                 let collection = collectionsByKey.get(input.idempotencyKey);
                 if (!collection) {
-                    collection = buildCollection(input);
+                    collection = buildCollection(input, currentFees, roster);
                     collectionsByKey.set(input.idempotencyKey, collection);
                     collectionsById.set(collection.id, collection);
                 }

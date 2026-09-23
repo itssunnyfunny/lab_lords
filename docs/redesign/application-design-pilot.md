@@ -2,6 +2,11 @@
 
 Status: **implemented locally; shared design approval pending**. Do not extend this design to other route families until the owner explicitly approves it.
 
+The dashboard-only September 23 refinement is documented in
+[dashboard-refinement.md](dashboard-refinement.md), including current metric
+meanings, actual-font screenshots and validation. The original pilot record and
+its earlier evidence below remain historical; they are not the refined dashboard.
+
 ## Baseline and working scope
 
 - Approved starting point: `main` at `a3c6ed1337907e936a3ae2d77537ccb2e33415f0`.
