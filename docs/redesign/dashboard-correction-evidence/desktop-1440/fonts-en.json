@@ -25,8 +25,8 @@
     "selector": "#action-center-title",
     "fonts": [
       {
-        "familyName": "Manrope ExtraLight",
-        "postScriptName": "Manrope-ExtraLight-Bold",
+        "familyName": "Playfair Display",
+        "postScriptName": "Playfair-Display-Bold",
         "isCustomFont": true,
         "glyphCount": 13
       }

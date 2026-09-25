@@ -1,5 +1,25 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Dashboard reference geometry correction — 2026-09-25
+
+The local dashboard pilot now uses a direct responsive grid for collections,
+seating/attendance, the activity rail, and the two record worklists. At a 1440px
+desktop viewport the dashboard-only sidebar is 232px, the main columns follow a
+2 : 1.35 : 1 ratio, and the worklists begin within the first viewport. The
+Action Center uses compact cards for the two supported priority groups, while
+the four summary cards stay concise. Current slot allocation is visualized
+from existing snapshot counts; the collections bars remain the authorized
+14-day daily series. Phone layouts put worklists before supporting charts.
+The DOM and keyboard order follow that responsive placement; keyed panels keep
+fee selections through a viewport change. Missing shift-slot detail is shown
+as unavailable, not inferred from physical-seat counts.
+
+This is presentation work on the existing dashboard reads and actions. Source
+meanings, tenant checks, permissions, language preferences, collection recovery,
+and public pages are unchanged. The browser comparison, exceptions, and checks
+are recorded in [the dashboard refinement](../redesign/dashboard-refinement.md).
+The design remains local and approval-gated; it has not been rolled out.
+
 ## Dashboard-only operational refinement — 2026-09-23
 
 The existing dashboard pilot now has one compact ordered Action Center, four

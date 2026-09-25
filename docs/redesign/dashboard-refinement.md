@@ -1,4 +1,76 @@
-# Dashboard visual correction — 2026-09-23
+# Dashboard visual correction
+
+## 2026-09-25 reference-matching pass
+
+Status: implemented locally on `codex/application-design-pilot`; design approval
+is still pending. No other application route family or public page was changed.
+
+The supplied target is 1491 × 1055. The latest browser captures use a native
+1440 × 1024 viewport and include the synthetic preview's 21px ribbon. The
+comparison presents both dashboards at the same 1440px width, scales the target
+proportionally without cropping, and labels the different illustrative and
+coherent synthetic data. It is a visual review, not a pixel-difference score.
+
+The dashboard now has a dashboard-only 232px desktop sidebar, 22px workspace
+padding, 12px main gaps, and an explicit 2 : 1.35 : 1 collections / seating /
+activity grid. Collections is the widest panel; activity is the narrowest. Two
+worklists occupy the row below the left and middle panels. On phones, attention
+and summaries lead, then the record worklists precede the chart and activity.
+
+Browser-measured busy-state geometry at 1440px: Action Center 585 × 157px,
+summary row 1164 × 83px, collections 524px wide, seating 354px, activity 262px,
+and worklists starting at y=836px. These are rendered bounds, not CSS estimates;
+[the measurements](dashboard-correction-evidence/desktop-1440/busy-geometry.json)
+are committed with the capture. Compact priority and summary cards, restrained
+serif section headings, wider top search, tighter activity rows, and earlier
+record-level work replace the prior explanatory layout. The seating panel shows
+the exact current allocated/total shift slots, accurate per-shift fill, and a
+separate attendance section. If a snapshot omits shift-slot detail, the panel
+shows it as unavailable instead of relabelling physical seats as shift slots.
+All fee and activity figures still come from the existing authorized sources
+described below. At compact widths, keyed panels change DOM order to follow the
+visible reading and keyboard order without discarding a selected fee record.
+
+Review evidence:
+
+- [Reference beside current populated dashboard](dashboard-correction-evidence/target-current-desktop.png)
+- [Before beside current small-library dashboard](dashboard-correction-evidence/before-after-desktop.png)
+- [Full populated view with both worklists](dashboard-correction-evidence/desktop-1440/busy-full.png)
+- [Current small-library view](dashboard-correction-evidence/desktop-1440/dashboard-en.png) and [empty view](dashboard-correction-evidence/desktop-1440/empty.png)
+- [390px English](dashboard-correction-evidence/mobile-390/dashboard-en.png) and [390px Hindi operations](dashboard-correction-evidence/mobile-390/dashboard-hi-operations.png)
+
+Remaining deliberate differences: the owner excluded the reference photo and
+quotations; only two priority groups and four distinct summary metrics have
+complete, reliable sources; the chart is real 14-day daily collections rather
+than invented stacked or comparison series; seating shows current shift slots
+rather than unsupported historical occupancy; and Quick Actions contains the
+two authorized secondary actions. The generated Tasks, membership expiry,
+optimization, inferred absence, and extra export controls remain unsupported.
+The two priority cards deliberately form a short strip, not half-width banners;
+the open horizontal area is not filled with fabricated alerts. This is a visible
+departure from the target's five-card Action Center.
+
+## 2026-09-25 validation
+
+The safe synthetic browser suite passed all 48 dashboard cases across 1440px,
+834px, 390px and 320px viewports. Two additional desktop checks passed for
+selection persistence across the responsive reordering and an absent
+shift-slot breakdown. The broader pilot desktop suite passed 10 cases with
+one intentional mobile-only skip. The allowlisted unit suite passed 44 tests
+in eight files. `pnpm lint` passed with zero errors and two existing warnings;
+targeted changed-file lint passed without warnings. The production build passed,
+including TypeScript, 74 static pages and verification of both import workflow
+manifests. The first sandboxed build attempt could not read a workflow bundler
+path; rerunning the same command with filesystem permission passed. No database
+suite, production data, provider operation or deployment was involved.
+
+Direct `pnpm exec tsc --noEmit` still reports the pre-existing, unchanged
+`tests/browser/public-localization.spec.ts:60` argument-type error. The
+production build's TypeScript step passed. The comparison generator completed
+and preserved the target's aspect ratio at an equal displayed 1440px width.
+The dashboard remains unapproved for wider rollout.
+
+## 2026-09-23 initial correction
 
 Status: implemented locally on `codex/application-design-pilot`; explicit design
 approval is still required before extending this direction to other route families.
