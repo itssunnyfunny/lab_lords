@@ -1,0 +1,10 @@
+[
+  { "key": "action-center", "selector": ".dashboard-action-center", "target": { "x": 248, "y": 214, "width": 1221, "height": 190 } },
+  { "key": "summary", "selector": ".dashboard-summary", "target": { "x": 248, "y": 415, "width": 1221, "height": 106 } },
+  { "key": "collections", "selector": ".dashboard-collections", "target": { "x": 248, "y": 532, "width": 555, "height": 324 } },
+  { "key": "seating", "selector": ".dashboard-seating", "target": { "x": 813, "y": 532, "width": 368, "height": 324 } },
+  { "key": "activity", "selector": ".dashboard-activity", "target": { "x": 1190, "y": 532, "width": 279, "height": 260 } },
+  { "key": "quick-actions", "selector": ".dashboard-shortcuts", "target": { "x": 1190, "y": 800, "width": 279, "height": 169 } },
+  { "key": "upcoming", "selector": ".dashboard-upcoming", "target": { "x": 248, "y": 865, "width": 477, "height": 178 } },
+  { "key": "follow-ups", "selector": ".dashboard-overdue-queue", "target": { "x": 735, "y": 865, "width": 446, "height": 178 } }
+]

@@ -132,7 +132,12 @@ function DashboardWorkspace({ branchId }: { branchId: string }) {
 
             <section className="dashboard-action-center" aria-labelledby="action-center-title">
                 <div className="dashboard-section-heading">
-                    <div className="flex items-center gap-2"><Bell size={18} aria-hidden="true" /><h2 id="action-center-title">{t("Action Center")}</h2></div>
+                    <div className="dashboard-section-title">
+                        <Bell size={19} aria-hidden="true" />
+                        <h2 id="action-center-title">{t("Action Center")}</h2>
+                        {priorities.length > 0 && <span className="dashboard-priority-count" aria-label={t("{count} priority groups", { count: formatNumber(priorities.length) })}>{formatNumber(priorities.length)}</span>}
+                        {priorities.length === 2 && <span className="dashboard-section-context">{t("Recorded overdue fees first, then fees due today.")}</span>}
+                    </div>
                 </div>
                 <div className="dashboard-priorities">
                     {priorities.map(group => <article className="dashboard-priority" data-priority={group.kind} key={group.kind}>
@@ -158,14 +163,14 @@ function DashboardWorkspace({ branchId }: { branchId: string }) {
 
             <section className="dashboard-summary" aria-label={t("Current branch summary")}>
                 <StatCard title={t("Collected this month")} value={snap ? money(snap.paidAmount) : unavailable(data.resources.analytics)}
-                    sub="" icon={IndianRupee} accent="emerald" />
+                    sub="By collection date, including older fees" icon={IndianRupee} accent="emerald" />
                 <StatCard title={t("Active students")} value={snap ? formatNumber(snap.activeStudents) : data.resources.students === "success" ? formatNumber(data.students.filter(row => row.status === "ACTIVE").length) : unavailable(data.resources.students)}
-                    sub="" icon={Users} accent="cyan" />
+                    sub="Student profiles with active status" icon={Users} accent="cyan" />
                 <StatCard title={t("Shift slot utilization")} value={snap ? formatNumber(snap.occupancyRate / 100, { style: "percent", maximumFractionDigits: 0 }) : unavailable(data.resources.analytics)}
-                    sub=""
+                    sub={snap ? t("{used} of {total} shift slots", { used: formatNumber(snap.assignedSeats), total: formatNumber(snap.totalSeats) }) : ""}
                     icon={LayoutGrid} accent="violet" />
                 <StatCard title={t("Present today")} value={attendance ? formatNumber(attendance.counts.attended) : unavailable(data.resources.attendance)}
-                    sub="" icon={CalendarCheck} accent="neutral" />
+                    sub="Students with a mark or recorded visit" icon={CalendarCheck} accent="neutral" />
             </section>
 
             <div className="dashboard-workspace-grid">

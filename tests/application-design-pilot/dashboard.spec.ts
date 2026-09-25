@@ -79,7 +79,7 @@ test("calm, empty and failed sources never invent urgency", async ({ page }, inf
     await open(page, { state: "calm" });
     await expect(page.getByText("Nothing needs attention in these queues")).toBeVisible();
     await expect(page.locator(".dashboard-priority")).toHaveCount(0);
-    await expect(page.locator(".dashboard-upcoming-list li")).toHaveCount(2);
+    await expect(page.locator(".dashboard-upcoming-table tbody tr")).toHaveCount(2);
     await capture(page, info, "calm");
     await open(page, { state: "empty" });
     await expect(page.locator(".dashboard-priority")).toHaveCount(0);
@@ -210,6 +210,66 @@ test("missing shift-slot details are not relabelled physical seats", async ({ pa
     await expect(page.locator(".dashboard-slot-overview")).toHaveCount(0);
 });
 
+test("a zero-capacity shift does not look like available slots", async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop-1440");
+    await page.route("**/api/analytics/branch/pilot/snapshot?**", async route => {
+        const response = await route.fetch();
+        const snapshot = await response.json();
+        snapshot.seatDetails.shifts[0] = { ...snapshot.seatDetails.shifts[0], used: 0, capacity: 0, occupancyPercent: 0 };
+        await route.fulfill({ response, json: snapshot });
+    });
+    await open(page, { state: "busy" });
+    const noCapacity = page.locator(".dashboard-shift-list > li").first();
+    await expect(noCapacity).toContainText("0 / 0 slots");
+    await expect(noCapacity).toContainText("No capacity");
+    await expect(noCapacity.locator(".dashboard-slot-bins > span")).toHaveCount(0);
+    await expect(page.locator(".dashboard-shift-list > li").last().locator(".dashboard-slot-bins > span")).toHaveCount(8);
+});
+
+test("reconstructed components retain the agreed facts and controls", async ({ page }, info) => {
+    await open(page, { state: "busy" });
+    await expect(page.locator(".dashboard-priority")).toHaveCount(2);
+    await expect(page.locator(".dashboard-summary [data-accent]")).toHaveCount(4);
+    await expect(page.locator(".dashboard-shift-list > li")).toHaveCount(2);
+    await expect(page.locator(".dashboard-shift .dashboard-slot-bins > span")).toHaveCount(16);
+    await expect(page.locator(".dashboard-upcoming-table tbody tr")).toHaveCount(4);
+    await expect(page.locator(".dashboard-followup-row")).toHaveCount(4);
+    await expect(page.getByRole("table", { name: "Upcoming fees" })).toBeVisible();
+    await expect(page.getByRole("table", { name: "Overdue fees · oldest first" })).toBeVisible();
+    await expect(page.locator(".dashboard-shortcuts-grid > *")).toHaveCount(2);
+    await expect(page.locator(".dashboard-shortcuts-grid")).toContainText("Assign seat");
+    await expect(page.locator(".dashboard-shortcuts-grid")).toContainText("Review shifts");
+    const firstUpcoming = page.locator(".dashboard-upcoming-table tbody tr").first();
+    await expect(firstUpcoming).toContainText("Rohan Shah");
+    await expect(firstUpcoming).toContainText("Monthly");
+    await expect(firstUpcoming).toContainText("₹1,000");
+    await expect(firstUpcoming).toContainText("Expected fee");
+    for (const cell of await firstUpcoming.locator("td").all()) await expect(cell).toBeVisible();
+    const firstFollowup = page.locator(".dashboard-followup-row").first();
+    await expect(firstFollowup).toContainText("Aarav Mehta");
+    await expect(firstFollowup).toContainText("₹1,000");
+    for (const cell of await firstFollowup.locator("th, td").all()) await expect(cell).toBeVisible();
+    if (info.project.name === "desktop-1440") {
+        await expect(page.locator(".dashboard-upcoming-table thead th")).toHaveText(["Student", "Fee type", "Due date", "Amount", "Status"]);
+        const quickGrid = await page.locator(".dashboard-shortcuts-grid").evaluate(element => ({
+            display: getComputedStyle(element).display,
+            columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+        }));
+        expect(quickGrid).toEqual({ display: "grid", columns: 2 });
+        const period = page.getByRole("combobox", { name: "Collection period" });
+        await expect(page.locator(".dashboard-chart-bars > div")).toHaveCount(14);
+        await period.selectOption("7");
+        await expect(page.locator(".dashboard-chart-bars > div")).toHaveCount(7);
+        await period.selectOption("14");
+        await expect(page.locator(".dashboard-chart-bars > div")).toHaveCount(14);
+        const contactDisclosure = page.locator(".dashboard-contact-disclosure").first();
+        await contactDisclosure.locator("summary").focus();
+        await contactDisclosure.locator("summary").press("Enter");
+        await expect(contactDisclosure).toHaveAttribute("open", "");
+        await expect(contactDisclosure.locator(".dashboard-contact-reveal")).toBeVisible();
+    }
+});
+
 test("a late old-branch response cannot restore old values or selections", async ({ page }) => {
     await open(page);
     await page.getByRole("checkbox", { name: "Select Aarav Mehta's overdue payment" }).filter({ visible: true }).first().check();
@@ -268,8 +328,8 @@ test("busy library keeps the target proportions, honest chart and visible workli
     await expect(page.locator(".dashboard-financial-facts")).toContainText("₹9,500");
     await expect(page.locator('[data-priority="overdue"]')).toContainText("₹5,400");
     await expect(page.locator(".dashboard-attendance-facts dd")).toHaveText(["1", "1", "3"]);
-    await expect(page.locator(".dashboard-followup-list li")).toHaveCount(4);
-    await expect(page.locator(".dashboard-upcoming-list li")).toHaveCount(4);
+    await expect(page.locator(".dashboard-followup-row")).toHaveCount(4);
+    await expect(page.locator(".dashboard-upcoming-table tbody tr")).toHaveCount(4);
     await expect(page.locator(".dashboard-chart-bars > div")).toHaveCount(14);
     const boxes = await page.evaluate(() => Object.fromEntries(
         ["collections", "seating", "activity", "worklists", "overdue-queue", "action-center", "summary"].map(name => {

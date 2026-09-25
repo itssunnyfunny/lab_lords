@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { AppPanel } from "@/components/ui";
@@ -22,6 +23,17 @@ interface RecentActivityProps {
     branchId: string;
 }
 
+function activityTimeLabel(timestamp: string, now: number, relative: Intl.RelativeTimeFormat, formatDate: (value: string, options: Intl.DateTimeFormatOptions) => string) {
+    const distance = new Date(timestamp).getTime() - now;
+    if (!Number.isFinite(distance)) return timestamp;
+    const absolute = Math.abs(distance);
+    if (absolute < 60_000) return relative.format(0, "minute");
+    if (absolute < 3_600_000) return relative.format(Math.round(distance / 60_000), "minute");
+    if (absolute < 86_400_000) return relative.format(Math.round(distance / 3_600_000), "hour");
+    if (absolute < 604_800_000) return relative.format(Math.round(distance / 86_400_000), "day");
+    return formatDate(timestamp, { day: "numeric", month: "short" });
+}
+
 function getActivityContent(
     item: ActivityItem,
     formatMoney: (amount: number) => string,
@@ -33,14 +45,14 @@ function getActivityContent(
                 icon: LayoutGrid,
                 iconClass: "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]",
                 title: t("Seat {seat} allocated", { seat: item.seat }),
-                description: t("{name} was assigned to a seat.", { name: item.studentName }),
+                description: item.studentName,
             };
         case "payment":
             return {
                 icon: IndianRupee,
                 iconClass: "bg-[color:var(--ui-tone-success-bg)] text-[color:var(--ui-tone-success-text)]",
                 title: "Payment received",
-                description: t("{amount} collected from {name}.", { amount: formatMoney(item.amount), name: item.studentName }),
+                description: `${formatMoney(item.amount)} · ${item.studentName}`,
             };
         case "enrollment":
             return {
@@ -70,7 +82,13 @@ function EmptyActivity() {
 export function RecentActivity({ items }: RecentActivityProps) {
     const t = useTranslation();
     const visibleItems = items.slice(0, 7);
-    const { formatDateTime, formatNumber } = useUserPreferences();
+    const { formatDate, formatDateTime, formatNumber, locale } = useUserPreferences();
+    const [now, setNow] = useState(() => Date.now());
+    const relative = useMemo(() => new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "short" }), [locale]);
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+        return () => window.clearInterval(timer);
+    }, []);
     const formatMoney = (amount: number) => formatNumber(amount, {
         style: "currency",
         currency: "INR",
@@ -90,21 +108,21 @@ export function RecentActivity({ items }: RecentActivityProps) {
                     {visibleItems.map((item, index) => {
                         const content = getActivityContent(item, formatMoney, t);
                         const Icon = content.icon;
+                        const exactTime = formatDateTime(item.ts);
 
                         return (
                             <div key={`${item.type}-${item.ts}-${index}`} className="dashboard-activity-row">
-                                <div className={`dashboard-activity-icon flex shrink-0 items-center justify-center ${content.iconClass}`}>
-                                    <Icon size={14} aria-hidden="true" />
+                                <div className={`dashboard-activity-icon ${content.iconClass}`}>
+                                    <Icon size={16} aria-hidden="true" />
                                 </div>
                                 <div className="dashboard-activity-content">
-                                    <div className="dashboard-activity-meta">
-                                        <p className="dashboard-activity-title font-medium text-[color:var(--text-primary)]">{t.owned(content.title)}</p>
-                                        <time dateTime={item.ts} className={cn("dashboard-activity-time", pageSubtleTextClass)}>
-                                            {formatDateTime(item.ts)}
-                                        </time>
-                                    </div>
+                                    <p className="dashboard-activity-title">{t.owned(content.title)}</p>
                                     <p className={cn("dashboard-activity-description", pageMutedTextClass)}>{content.description}</p>
                                 </div>
+                                <time dateTime={item.ts} title={exactTime} aria-label={exactTime}
+                                    className={cn("dashboard-activity-time", pageSubtleTextClass)}>
+                                    {activityTimeLabel(item.ts, now, relative, formatDate)}
+                                </time>
                             </div>
                         );
                     })}

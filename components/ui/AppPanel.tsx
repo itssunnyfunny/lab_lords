@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 
 interface AppPanelProps {
-    title?: string;
+    title?: ReactNode;
     description?: string;
     action?: ReactNode;
     children: ReactNode;

@@ -3,6 +3,7 @@
 @import "../styles/application-pilot.css";
 @import "../styles/dashboard-refinement.css";
 @import "../styles/dashboard-seating-visual.css";
+@import "../styles/dashboard-worklists-actions.css";
 @import "../styles/dashboard-records-density.css";
 @plugin "tailwind-scrollbar";
 

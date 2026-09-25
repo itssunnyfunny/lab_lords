@@ -7,7 +7,7 @@ import { AppPanel } from "@/components/ui";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { getOverdueBulkReviewHref, getOverduePaymentHref, getOverdueStudentHref, updateQueueSelection } from "@/lib/overdueQueue";
-import { followUpOutcomes, type RenewalRow } from "@/lib/renewals";
+import { followUpOutcomes, type FollowUpOutcome, type RenewalRow } from "@/lib/renewals";
 import type { DashboardResourceStatus } from "@/lib/branchDashboard";
 import type { CapabilityDecision } from "@/types";
 
@@ -19,7 +19,11 @@ interface OverdueTableProps {
     canViewStudents?: boolean; followUps?: RenewalRow[]; followUpsStatus?: DashboardResourceStatus;
     onCollect?: (payment: OverduePayment) => void;
 }
-const actionLinkClass = "inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]";
+const actionLinkClass = "dashboard-record-action inline-flex items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-2 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]";
+const compactOutcomes: Partial<Record<FollowUpOutcome, string>> = {
+    ATTEMPTED: "Attempted",
+    PROMISED_PAYMENT: "Promised",
+};
 
 function DashboardPaymentAction({ href, decision, onCollect }: { href: string; decision: CapabilityDecision; onCollect?: () => void }) {
     const t = useTranslation();
@@ -27,7 +31,7 @@ function DashboardPaymentAction({ href, decision, onCollect }: { href: string; d
         ? <button type="button" onClick={onCollect} className={actionLinkClass}>{t("Record payment")}</button>
         : <Link href={href} className={actionLinkClass}>{t("Record payment")}</Link>;
     if (decision.blocker === "permission") return <Link href={href} className={actionLinkClass}>{t("View payment")}</Link>;
-    return <div className="flex flex-wrap justify-end gap-2">
+    return <div className="dashboard-record-action-group">
         <Link href={href} className={actionLinkClass}>{t("View payment")}</Link>
         <button type="button" disabled aria-describedby="dashboard-overdue-record-blocker" className={actionLinkClass}>
             <LockKeyhole size={13} aria-hidden="true" /> {t("Record payment")}
@@ -50,11 +54,17 @@ export function OverdueTable({ payments, branchId, recordDecision, canViewStuden
     useEffect(() => { if (selectAllRef.current) selectAllRef.current.indeterminate = someShownSelected; }, [someShownSelected]);
     const contact = (paymentId: string) => {
         const row = followUps?.find(item => item.paymentId === paymentId);
-        if (followUpsStatus === "error") return t("Contact details unavailable");
-        if (!row) return t("Contact details in fee queue");
+        if (followUpsStatus === "error") return { full: t("Contact details unavailable"), compact: t("Unavailable") };
+        if (!row) return { full: t("Contact details in fee queue"), compact: t("Fee queue") };
         const outcome = t.owned(followUpOutcomes[row.followUp?.outcome ?? "NOT_CONTACTED"]);
-        return row.followUp?.nextFollowUpAt
-            ? t("{outcome} · next contact {date}", { outcome, date: formatDate(row.followUp.nextFollowUpAt, { day: "numeric", month: "short" }) }) : outcome;
+        const shorter = compactOutcomes[row.followUp?.outcome ?? "NOT_CONTACTED"];
+        const compactOutcome = shorter ? t.owned(shorter) : outcome;
+        const nextDate = row.followUp?.nextFollowUpAt;
+        const date = nextDate ? formatDate(nextDate, { day: "numeric", month: "short" }) : null;
+        return {
+            full: date ? t("{outcome} · next contact {date}", { outcome, date }) : outcome,
+            compact: date ? `${compactOutcome} · ${date}` : compactOutcome,
+        };
     };
     return <AppPanel title={t("Follow-ups")} description={t("Overdue fees · oldest first")} className="dashboard-overdue-queue" contentClassName="p-0"
         action={<Link href={`${base}/renewals`} className="dashboard-text-link">{t("View all")} <ArrowRight size={13} /></Link>}>
@@ -76,24 +86,55 @@ export function OverdueTable({ payments, branchId, recordDecision, canViewStuden
                 {selectedPayments.length > 0 && <Link href={getOverdueBulkReviewHref(branchId, selectedPayments)} className="dashboard-text-link">
                     {selectedPayments.length === 1 ? t("Review selected payment") : t("Open matching due queue")}
                 </Link>}
+                <Link href={`${base}/overdue`} className="dashboard-text-link dashboard-full-queue-link">
+                    {t("Full overdue queue")} <ArrowRight size={12} aria-hidden="true" />
+                </Link>
             </div>
-            <ul className="dashboard-followup-list">{shown.map(payment => <li key={payment.paymentId}>
-                <input className="dashboard-followup-checkbox" type="checkbox" checked={selectedIds.has(payment.paymentId)}
-                    onChange={event => setSelectedIds(current => updateQueueSelection(current, [payment.paymentId], event.target.checked))}
-                    aria-label={t("Select {name}'s overdue payment", { name: payment.studentName })} />
-                <div className="dashboard-followup-person">
-                    {canViewStudents ? <Link href={getOverdueStudentHref(branchId, payment.studentId)}>{payment.studentName}</Link> : <span className="font-semibold">{payment.studentName}</span>}
-                    <div className="dashboard-followup-meta">
-                        <p className="dashboard-footnote">{t("Due {date}", { date: formatDate(payment.dueDate, { day: "numeric", month: "short" }) })}</p>
-                        <p className="dashboard-footnote">{contact(payment.paymentId)}</p>
-                    </div>
-                </div>
-                <div className="dashboard-followup-action">
-                    <span className="dashboard-followup-amount font-semibold">{formatNumber(payment.amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span>
-                    <DashboardPaymentAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} onCollect={onCollect ? () => onCollect(payment) : undefined} />
-                </div>
-            </li>)}</ul>
-            <Link href={`${base}/overdue`} className="dashboard-text-link px-4 py-2">{t("Full overdue queue")} <ArrowRight size={13} /></Link>
+            <table className="dashboard-record-table dashboard-followup-table">
+                <caption className="sr-only">{t("Overdue fees · oldest first")}</caption>
+                <thead><tr>
+                    <th scope="col"><span className="sr-only">{t("Select")}</span></th>
+                    <th scope="col">{t("Student")}</th>
+                    <th scope="col">{t("Due date")}</th>
+                    <th scope="col">{t("Remaining balance")}</th>
+                    <th scope="col">{t("Contact")}</th>
+                    <th scope="col">{t("Action")}</th>
+                </tr></thead>
+                <tbody>{shown.map(payment => {
+                    const contactInfo = contact(payment.paymentId);
+                    return <tr className="dashboard-followup-row" key={payment.paymentId}>
+                    <td className="dashboard-followup-select">
+                        <input className="dashboard-followup-checkbox" type="checkbox" checked={selectedIds.has(payment.paymentId)}
+                            onChange={event => setSelectedIds(current => updateQueueSelection(current, [payment.paymentId], event.target.checked))}
+                            aria-label={t("Select {name}'s overdue payment", { name: payment.studentName })} />
+                    </td>
+                    <th scope="row" className="dashboard-followup-student">
+                        <span className="dashboard-record-mobile-label">{t("Student")}</span>
+                        {canViewStudents ? <Link href={getOverdueStudentHref(branchId, payment.studentId)}>{payment.studentName}</Link> : <span>{payment.studentName}</span>}
+                    </th>
+                    <td className="dashboard-followup-due">
+                        <span className="dashboard-record-mobile-label">{t("Due date")}</span>
+                        <time dateTime={payment.dueDate}>{formatDate(payment.dueDate, { day: "numeric", month: "short" })}</time>
+                    </td>
+                    <td className="dashboard-followup-amount tabular-nums">
+                        <span className="dashboard-record-mobile-label">{t("Remaining balance")}</span>
+                        {formatNumber(payment.amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+                    </td>
+                    <td className="dashboard-followup-contact" title={contactInfo.full} aria-label={contactInfo.full}>
+                        <span className="dashboard-record-mobile-label">{t("Contact")}</span>
+                        {contactInfo.full !== contactInfo.compact
+                            ? <details className="dashboard-contact-disclosure">
+                                <summary className="dashboard-contact-compact" aria-label={contactInfo.full}>{contactInfo.compact}</summary>
+                                <span className="dashboard-contact-reveal">{contactInfo.full}</span>
+                            </details>
+                            : <span className="dashboard-contact-compact">{contactInfo.compact}</span>}
+                        <span className="dashboard-contact-full">{contactInfo.full}</span>
+                    </td>
+                    <td className="dashboard-followup-action">
+                        <DashboardPaymentAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} onCollect={onCollect ? () => onCollect(payment) : undefined} />
+                    </td>
+                </tr>; })}</tbody>
+            </table>
         </>}
     </AppPanel>;
 }
