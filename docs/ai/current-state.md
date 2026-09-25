@@ -1,5 +1,25 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Dashboard component reconstruction — 2026-09-25
+
+The approval-gated dashboard pilot now has two source-backed Action Center
+groups in one full-width low-count section, four distinct summary metrics, a
+14-day actual daily-collections bar series with a seven-day filter of those
+same observations, and independent billed/collected/outstanding facts. Current
+shift allocation is an eight-bin scaled share per shift with exact counts;
+attendance remains separate, and missing or zero-capacity shift data is not
+presented as available seats. Upcoming fees and Follow-ups are semantic
+desktop tables with compact mobile reflow of the same records. Activity shows
+only actual recorded events, and the two secondary Quick Actions remain
+capability-gated. The photo and quotations remain removed.
+
+Only pilot presentation, localization strings, synthetic tests and visual
+evidence changed. Existing authorized reads, tenant checks, monetary meanings,
+payment idempotency/recovery, public pages, schema and environment did not.
+See the [frozen component specification](../redesign/dashboard-component-spec.md)
+and [native-scale target/render comparisons](../redesign/dashboard-component-evidence/README.md).
+This direction still requires explicit visual approval before wider rollout.
+
 ## Dashboard reference geometry correction — 2026-09-25
 
 The local dashboard pilot now uses a direct responsive grid for collections,

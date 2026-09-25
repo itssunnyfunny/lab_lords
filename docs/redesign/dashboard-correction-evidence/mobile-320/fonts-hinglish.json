@@ -37,7 +37,7 @@
     "fonts": [
       {
         "familyName": "Inter",
-        "postScriptName": "Inter-SemiBold",
+        "postScriptName": "Inter-Bold",
         "isCustomFont": true,
         "glyphCount": 6
       }

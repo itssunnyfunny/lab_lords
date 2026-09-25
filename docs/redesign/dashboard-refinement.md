@@ -1,6 +1,70 @@
 # Dashboard visual correction
 
-## 2026-09-25 reference-matching pass
+## 2026-09-25 component reconstruction (current local pilot)
+
+The owner asked to keep the established grid and reconstruct individual
+components against the **original** 1491 × 1055 reference. The
+[frozen component specification](dashboard-component-spec.md) records the
+data-backed decision for each panel before implementation. The photo and
+quotation stay absent. The work is limited to the dashboard pilot and its
+synthetic harness; branding, other app routes, public pages, existing reads,
+authorizations and payment recovery have not been expanded or propagated.
+Home, Features, Pricing and FAQ copy needs no change because this is an
+unapproved authenticated pilot presentation, not a customer-visible feature
+or public claim.
+
+The Action Center is now one full-width section with two equal, shallow cards
+for the only complete priority groups; zero groups still render the calm,
+restricted or unknown state. Four distinct summaries use reference-like value,
+icon and padding hierarchy. Collections has an outlined 14/7-day control,
+framed single-series bars, grid and legend; seven days filters the **same real
+14-day observations**. Its billed, collected and outstanding values are
+independent facts, not a stacked monthly total. Seating now uses eight scaled
+share tiles per current shift with exact allocated/capacity counts; a
+zero-capacity shift shows no availability tiles. Attendance is separately
+labelled, and missing shift detail remains unavailable.
+
+Upcoming fees and Follow-ups now use compact semantic desktop tables rather
+than multiline record cards. They retain meaningful fee type/date/amount/state
+and due/remaining/contact/action fields; mobile reflows the same table DOM
+without hiding those fields. Follow-ups keeps selection, full-queue access and
+the exact-payment action. Short desktop contact labels disclose the full
+recorded outcome/next date by keyboard; mobile shows it directly. Activity
+uses 32px icons and concise title/detail/time rows from actual events. Quick
+Actions is a two-column grid containing only Assign seat and Review shifts,
+subject to the existing capability decisions.
+
+[Native-scale component pairs and measurements](dashboard-component-evidence/README.md)
+are the primary visual evidence. The final [desktop busy
+view](dashboard-correction-evidence/desktop-1440/busy-full.png), [390px mobile
+busy view](dashboard-correction-evidence/mobile-390/busy-full.png), [320px mobile
+busy view](dashboard-correction-evidence/mobile-320/busy-full.png), [Hindi
+mobile view](dashboard-correction-evidence/mobile-390/dashboard-hi-operations.png),
+[small-library view](dashboard-correction-evidence/desktop-1440/dashboard-en.png),
+and [empty view](dashboard-correction-evidence/desktop-1440/empty.png) show
+responsive and low-count behavior. Crops and page captures are synthetic, not
+production data. The synthetic ribbon is measured separately from app geometry.
+
+Deliberate differences from the illustration: two genuine priorities instead
+of five, four independent summaries instead of six, no photo/quotes, no
+historical weekday occupancy, no collection-rate line or pending stack, no
+membership-expiry or scheduled-contact claims, no invented alerts/events,
+four real rows and selection/payment controls in Follow-ups, and two permitted
+Quick Actions instead of six. The Follow-ups panel is consequently taller than
+the illustration. The existing dashboard shell still gives the content about
+15px less horizontal space at 1440px than the proportionally displayed
+reference. No "reference matched" claim is made from passing tests or similar
+colour alone. Visual approval is still pending; no push, PR or deployment.
+
+Current validation (safe synthetic fixture only):
+
+- `node node_modules/@playwright/test/cli.js test dashboard.spec.ts --config=tests/application-design-pilot/playwright.config.ts`: 54 passed, 6 desktop-only skips across four viewports. After the final zero-capacity and keyboard-contact fixes, the focused cross-viewport rerun passed 5 with 3 intentional skips; the full desktop pilot suite passed 27 with 2 intentional skips. Final 390px busy/Hindi/calm/empty captures and 320px busy capture also passed.
+- `node node_modules/@playwright/test/cli.js test dashboard-components.spec.ts --config=tests/application-design-pilot/playwright.config.ts --project=desktop-1440`: 1 passed. The original-resolution comparison generator completed successfully.
+- `node node_modules/vitest/vitest.mjs run tests/unit/lib/dashboard-presentation.test.ts tests/unit/lib/branch-dashboard.test.ts tests/unit/lib/overdue-queue.test.ts tests/unit/lib/localization.test.ts tests/unit/lib/application-design-pilot.test.ts`: 33 passed in five files; no database test ran.
+- `node node_modules/eslint/bin/eslint.js .`: zero errors, two pre-existing warnings in the generated Workflow route and coverage file.
+- `node node_modules/next/dist/bin/next build`: passed TypeScript and 74 static pages with escalated filesystem permission after the sandboxed attempt could not read the workflow bundler parent path. `node scripts/verify-import-workflow-manifest.mjs`: verified two import workflows. No schema, migration, environment, provider or production-data operation ran.
+
+## 2026-09-25 earlier grid correction
 
 Status: implemented locally on `codex/application-design-pilot`; design approval
 is still pending. No other application route family or public page was changed.

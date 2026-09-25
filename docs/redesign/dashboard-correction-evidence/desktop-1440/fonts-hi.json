@@ -36,8 +36,8 @@
     "selector": ".dashboard-summary [data-accent] p:nth-child(2)",
     "fonts": [
       {
-        "familyName": "Noto Sans Devanagari",
-        "postScriptName": "Noto-Sans-Devanagari-SemiBold",
+        "familyName": "Inter",
+        "postScriptName": "Inter-Bold",
         "isCustomFont": true,
         "glyphCount": 6
       }
