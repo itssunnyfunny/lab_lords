@@ -86,24 +86,24 @@ export function RecentActivity({ items }: RecentActivityProps) {
             {visibleItems.length === 0 ? (
                 <EmptyActivity />
             ) : (
-                <div className={cn("divide-y", pageSectionDividerClass)}>
+                <div className={cn("dashboard-activity-list divide-y", pageSectionDividerClass)}>
                     {visibleItems.map((item, index) => {
                         const content = getActivityContent(item, formatMoney, t);
                         const Icon = content.icon;
 
                         return (
-                            <div key={`${item.type}-${item.ts}-${index}`} className="flex gap-3 px-4 py-3">
-                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] ${content.iconClass}`}>
-                                    <Icon size={15} />
+                            <div key={`${item.type}-${item.ts}-${index}`} className="dashboard-activity-row">
+                                <div className={`dashboard-activity-icon flex shrink-0 items-center justify-center ${content.iconClass}`}>
+                                    <Icon size={14} aria-hidden="true" />
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                                        <p className="text-sm font-medium text-[color:var(--text-primary)]">{t.owned(content.title)}</p>
-                                        <time dateTime={item.ts} className={cn("shrink-0 text-xs", pageSubtleTextClass)}>
+                                <div className="dashboard-activity-content">
+                                    <div className="dashboard-activity-meta">
+                                        <p className="dashboard-activity-title font-medium text-[color:var(--text-primary)]">{t.owned(content.title)}</p>
+                                        <time dateTime={item.ts} className={cn("dashboard-activity-time", pageSubtleTextClass)}>
                                             {formatDateTime(item.ts)}
                                         </time>
                                     </div>
-                                    <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{content.description}</p>
+                                    <p className={cn("dashboard-activity-description", pageMutedTextClass)}>{content.description}</p>
                                 </div>
                             </div>
                         );

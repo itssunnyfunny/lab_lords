@@ -20,7 +20,7 @@ export default defineConfig({
     projects: [
         {
             name: "desktop-1440",
-            use: { viewport: { width: 1440, height: 1000 } },
+            use: { viewport: { width: 1440, height: 1024 } },
         },
         {
             name: "tablet-834",

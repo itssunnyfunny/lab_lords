@@ -2,6 +2,8 @@
 @import "../styles/tokens.css";
 @import "../styles/application-pilot.css";
 @import "../styles/dashboard-refinement.css";
+@import "../styles/dashboard-seating-visual.css";
+@import "../styles/dashboard-records-density.css";
 @plugin "tailwind-scrollbar";
 
 /* Preserve Devanagari shaping and vowel marks at the existing type scale. */

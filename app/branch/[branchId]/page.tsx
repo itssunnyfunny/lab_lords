@@ -12,9 +12,11 @@ import { useToast } from "@/components/ui/Toast";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { OverdueTable } from "@/components/dashboard/OverdueTable";
-import { DashboardSourceNote, DashboardSnapshots, UpcomingFees, DashboardShortcuts } from "@/components/dashboard/DashboardPanels";
+import { DashboardSourceNote, DashboardSeating, UpcomingFees, DashboardShortcuts } from "@/components/dashboard/DashboardPanels";
+import { DashboardCollections } from "@/components/dashboard/DashboardCollections";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
 import { loadBranchDashboardSources, type BranchDashboardSources } from "@/lib/branchDashboard";
 import { dashboardActivity, dashboardPriorities } from "@/lib/dashboardPresentation";
@@ -32,6 +34,7 @@ function DashboardWorkspace({ branchId }: { branchId: string }) {
     const toast = useToast();
     const { access, loading: accessLoading } = useBranchAccess(branchId);
     const { formatNumber, formatDateTime } = useUserPreferences();
+    const compactLayout = useMediaQuery("(max-width: 1023px)");
     const [data, setData] = useState<BranchDashboardSources | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [completedRefreshKey, setCompletedRefreshKey] = useState(-1);
@@ -85,6 +88,26 @@ function DashboardWorkspace({ branchId }: { branchId: string }) {
     const attentionRestricted = data.resources.overdue === "restricted";
     const unavailable = (status: string) => status === "restricted" ? t("Restricted") : t("Unavailable");
     const activityErrors = ["students", "allocations", "payments"] as const;
+    const upcomingPanel = <UpcomingFees key="upcoming" data={data} branchId={branchId} onRetry={refresh} />;
+    const followUpPanel = data.resources.overdue === "success"
+        ? <OverdueTable key="followups" payments={data.overduePayments} branchId={branchId}
+            recordDecision={getBranchCapabilityDecision(access, "paymentsRecord")} canViewStudents={access.permissions.students}
+            followUps={data.followUps?.items} followUpsStatus={data.resources.followUps}
+            onCollect={payment => setCollect({ studentId: payment.studentId, paymentId: payment.paymentId })} />
+        : <AppPanel key="followups" title={t("Follow-ups")}><DashboardSourceNote status={data.resources.overdue} label={t("Recorded overdue fees")} onRetry={refresh} /></AppPanel>;
+    const worklists = <div className="dashboard-worklists" key="worklists">
+        {compactLayout ? [followUpPanel, upcomingPanel] : [upcomingPanel, followUpPanel]}
+    </div>;
+    const collections = <DashboardCollections key="collections" data={data} onRetry={refresh} />;
+    const seating = <DashboardSeating key="seating" data={data} branchId={branchId} access={access} onRetry={refresh} />;
+    const side = <div className="dashboard-side-column" key="side">
+        {activity.length || !activityErrors.some(source => data.resources[source] === "error")
+            ? <RecentActivity items={activity} branchId={branchId} />
+            : <AppPanel title={t("Recent activity")}><p className="text-sm">{t("Recent activity could not be verified because one or more data sources failed.")}</p></AppPanel>}
+        {activityErrors.filter(source => data.resources[source] === "error").map(source => <DashboardSourceNote key={source} status="error"
+            label={t.owned(source === "payments" ? "Collection activity" : source === "students" ? "Student activity" : "Allocation activity")} onRetry={refresh} />)}
+        <DashboardShortcuts branchId={branchId} access={access} />
+    </div>;
 
     return (
         <PageShell data-dashboard-refinement="true" aria-busy={refreshing}>
@@ -115,8 +138,8 @@ function DashboardWorkspace({ branchId }: { branchId: string }) {
                     {priorities.map(group => <article className="dashboard-priority" data-priority={group.kind} key={group.kind}>
                         <div className="dashboard-priority-icon" aria-hidden="true">{group.kind === "overdue" ? <IndianRupee size={20} /> : <CalendarCheck size={20} />}</div>
                         <div className="min-w-0 flex-1">
-                            <h3>{group.kind === "overdue" ? t("Overdue fees") : t("Fees due today")}</h3>
                             <p className="dashboard-priority-value">{group.kind === "overdue" ? money(group.amount!) : formatNumber(group.count)}</p>
+                            <h3>{group.kind === "overdue" ? t("Overdue fees") : t("Fees due today")}</h3>
                             <p className="dashboard-priority-description">{group.kind === "overdue"
                                 ? t("{count} fee periods", { count: formatNumber(group.count) })
                                 : t("Includes expected fees · review first")}</p>
@@ -146,25 +169,7 @@ function DashboardWorkspace({ branchId }: { branchId: string }) {
             </section>
 
             <div className="dashboard-workspace-grid">
-                <div className="dashboard-main-column">
-                    <DashboardSnapshots data={data} branchId={branchId} access={access} onRetry={refresh} />
-                    <div className="dashboard-worklists">
-                    <UpcomingFees data={data} branchId={branchId} onRetry={refresh} />
-                    {data.resources.overdue === "success" ? <OverdueTable payments={data.overduePayments} branchId={branchId}
-                        recordDecision={getBranchCapabilityDecision(access, "paymentsRecord")} canViewStudents={access.permissions.students}
-                        followUps={data.followUps?.items} followUpsStatus={data.resources.followUps}
-                        onCollect={payment => setCollect({ studentId: payment.studentId, paymentId: payment.paymentId })} />
-                        : <AppPanel title={t("Follow-ups")}><DashboardSourceNote status={data.resources.overdue} label={t("Recorded overdue fees")} onRetry={refresh} /></AppPanel>}
-                    </div>
-                </div>
-                <div className="dashboard-side-column">
-                    {activity.length || !activityErrors.some(source => data.resources[source] === "error")
-                        ? <RecentActivity items={activity} branchId={branchId} />
-                        : <AppPanel title={t("Recent activity")}><p className="text-sm">{t("Recent activity could not be verified because one or more data sources failed.")}</p></AppPanel>}
-                    {activityErrors.filter(source => data.resources[source] === "error").map(source => <DashboardSourceNote key={source} status="error"
-                        label={t.owned(source === "payments" ? "Collection activity" : source === "students" ? "Student activity" : "Allocation activity")} onRetry={refresh} />)}
-                    <DashboardShortcuts branchId={branchId} access={access} />
-                </div>
+                {compactLayout ? [worklists, collections, seating, side] : [collections, seating, side, worklists]}
             </div>
             {collect && <CollectFeeDialog branchId={branchId} studentId={collect.studentId} paymentId={collect.paymentId}
                 onClose={() => setCollect(null)} onSaved={() => {

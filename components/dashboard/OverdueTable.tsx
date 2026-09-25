@@ -78,16 +78,18 @@ export function OverdueTable({ payments, branchId, recordDecision, canViewStuden
                 </Link>}
             </div>
             <ul className="dashboard-followup-list">{shown.map(payment => <li key={payment.paymentId}>
-                <input type="checkbox" checked={selectedIds.has(payment.paymentId)}
+                <input className="dashboard-followup-checkbox" type="checkbox" checked={selectedIds.has(payment.paymentId)}
                     onChange={event => setSelectedIds(current => updateQueueSelection(current, [payment.paymentId], event.target.checked))}
                     aria-label={t("Select {name}'s overdue payment", { name: payment.studentName })} />
                 <div className="dashboard-followup-person">
                     {canViewStudents ? <Link href={getOverdueStudentHref(branchId, payment.studentId)}>{payment.studentName}</Link> : <span className="font-semibold">{payment.studentName}</span>}
-                    <p className="dashboard-footnote">{t("Due {date}", { date: formatDate(payment.dueDate, { day: "numeric", month: "short" }) })}</p>
-                    <p className="dashboard-footnote">{contact(payment.paymentId)}</p>
+                    <div className="dashboard-followup-meta">
+                        <p className="dashboard-footnote">{t("Due {date}", { date: formatDate(payment.dueDate, { day: "numeric", month: "short" }) })}</p>
+                        <p className="dashboard-footnote">{contact(payment.paymentId)}</p>
+                    </div>
                 </div>
                 <div className="dashboard-followup-action">
-                    <span className="font-semibold">{formatNumber(payment.amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span>
+                    <span className="dashboard-followup-amount font-semibold">{formatNumber(payment.amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</span>
                     <DashboardPaymentAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} onCollect={onCollect ? () => onCollect(payment) : undefined} />
                 </div>
             </li>)}</ul>

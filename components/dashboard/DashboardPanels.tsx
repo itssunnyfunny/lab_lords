@@ -8,7 +8,6 @@ import { useUserPreferences } from "@/components/settings/UserPreferencesApplier
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
 import type { BranchDashboardSources, DashboardResourceStatus } from "@/lib/branchDashboard";
 import type { BranchAccess } from "@/types";
-import { DashboardCollections } from "./DashboardCollections";
 
 export function DashboardSourceNote({ status, label, onRetry }: { status: DashboardResourceStatus; label: string; onRetry: () => void }) {
     const t = useTranslation();
@@ -20,44 +19,60 @@ export function DashboardSourceNote({ status, label, onRetry }: { status: Dashbo
 
 type PanelProps = { data: BranchDashboardSources; branchId: string; onRetry: () => void };
 
-export function DashboardSnapshots({ data, branchId, access, onRetry }: PanelProps & { access: BranchAccess }) {
+function slotFillPercent(used: number, capacity: number) {
+    return capacity > 0 ? Math.min(100, Math.max(0, (used / capacity) * 100)) : 0;
+}
+
+export function DashboardSeating({ data, branchId, access, onRetry }: PanelProps & { access: BranchAccess }) {
     const t = useTranslation();
     const { formatNumber, formatDate } = useUserPreferences();
     const snap = data.snapshot;
     const attendance = data.attendance;
     const base = `/branch/${encodeURIComponent(branchId)}`;
-    return <div className="dashboard-snapshots">
-        <DashboardCollections data={data} onRetry={onRetry} />
-        <AppPanel title={t("Seating & attendance")} className="dashboard-seating">
+    const seatDetails = snap?.seatDetails;
+    const usedSlots = seatDetails?.totalUsedSlots ?? 0;
+    const totalSlots = seatDetails?.totalShiftCapacity ?? 0;
+    return <AppPanel title={t("Seating & attendance")} className="dashboard-seating" contentClassName="dashboard-seating-content">
             <div className="dashboard-seating-section">
                 <div className="dashboard-seating-heading"><h3>{t("Shift slots")}</h3><span>{t("Allocated / capacity")}</span></div>
-                {snap ? <>
-                    {(snap.seatDetails?.shifts ?? []).map(shift => <div key={shift.shiftId} className="dashboard-shift">
-                        <div><span>{shift.shiftName}</span><span>{t("{used} / {total} slots", { used: formatNumber(shift.used), total: formatNumber(shift.capacity) })}</span></div>
-                        <meter min={0} max={Math.max(shift.capacity, 1)} value={shift.used} aria-label={t("{shift}: allocated shift slots", { shift: shift.shiftName })} />
-                    </div>)}
-                    {!snap.seatDetails?.shifts.length && <p className="dashboard-footnote">{t("No shifts configured")}</p>}
-                </> : <DashboardSourceNote status={data.resources.analytics} label={t("Shift slots")} onRetry={onRetry} />}
+                {seatDetails ? <>
+                    <div className="dashboard-slot-overview">
+                        <p className="dashboard-slot-overview-number">
+                            <span className="sr-only">{t("{used} of {total} shift slots", { used: formatNumber(usedSlots), total: formatNumber(totalSlots) })}</span>
+                            <span aria-hidden="true"><strong>{formatNumber(usedSlots)}</strong><span> / {formatNumber(totalSlots)}</span></span>
+                        </p>
+                        <div className="dashboard-slot-track dashboard-slot-track-total" aria-hidden="true"><span style={{ width: `${slotFillPercent(usedSlots, totalSlots)}%` }} /></div>
+                    </div>
+                    {seatDetails.shifts.length ? <ul className="dashboard-shift-list">{seatDetails.shifts.map(shift => <li key={shift.shiftId} className="dashboard-shift">
+                        <div className="dashboard-shift-label"><span>{shift.shiftName}</span><strong>{t("{used} / {total} slots", { used: formatNumber(shift.used), total: formatNumber(shift.capacity) })}</strong></div>
+                        <div className="dashboard-slot-track" aria-hidden="true">
+                            <span style={{ width: `${slotFillPercent(shift.used, shift.capacity)}%` }} />
+                        </div>
+                    </li>)}</ul> : <p className="dashboard-footnote dashboard-no-shifts">{t("No shifts configured")}</p>}
+                </> : snap ? <p className="dashboard-footnote">{t("Shift slots")}: {t("Unavailable")}</p>
+                    : <DashboardSourceNote status={data.resources.analytics} label={t("Shift slots")} onRetry={onRetry} />}
             </div>
             <div className="dashboard-attendance-section">
-                <h3>{t("Attendance today")}</h3>
+                <div className="dashboard-attendance-heading"><h3>{t("Attendance today")}</h3>
+                    {attendance && <span>{formatDate(`${attendance.date}T12:00:00`, { day: "numeric", month: "short" })} · {attendance.timezone}</span>}
+                </div>
                 {attendance ? <>
-                    <p className="dashboard-footnote">{formatDate(`${attendance.date}T12:00:00`, { day: "numeric", month: "short" })} · {attendance.timezone}</p>
                     <dl className="dashboard-attendance-facts">
                         <div><dt>{t("Not marked")}</dt><dd>{attendance.counts.notMarked === null ? "—" : formatNumber(attendance.counts.notMarked)}</dd></div>
                         <div><dt>{t("Marked absent")}</dt><dd>{formatNumber(attendance.counts.absent)}</dd></div>
                         <div><dt>{t("Open visits")}</dt><dd>{formatNumber(attendance.counts.open)}</dd></div>
                     </dl>
                 </> : <DashboardSourceNote status={data.resources.attendance} label={t("Attendance today")} onRetry={onRetry} />}
-                {access.permissions.students && <Link className="dashboard-text-link" href={`${base}/attendance`}>{t("Open attendance")} <ArrowRight size={13} /></Link>}
             </div>
-            <details className="dashboard-details"><summary>{t("About slots & attendance")}</summary>
-                <p>{t("A physical seat may contribute a slot in more than one shift.")}</p>
-                <p>{t("Not marked does not mean absent. Open visits can include earlier dates.")}</p>
-                <p>{t("Present today counts students with a present mark or recorded visit.")}</p>
-            </details>
-        </AppPanel>
-    </div>;
+            <div className="dashboard-seating-footer">
+                {access.permissions.students && <Link className="dashboard-text-link" href={`${base}/attendance`}>{t("Open attendance")} <ArrowRight size={13} /></Link>}
+                <details className="dashboard-details"><summary>{t("About slots & attendance")}</summary>
+                    <p>{t("A physical seat may contribute a slot in more than one shift.")}</p>
+                    <p>{t("Not marked does not mean absent. Open visits can include earlier dates.")}</p>
+                    <p>{t("Present today counts students with a present mark or recorded visit.")}</p>
+                </details>
+            </div>
+        </AppPanel>;
 }
 
 export function UpcomingFees({ data, branchId, onRetry }: PanelProps) {
