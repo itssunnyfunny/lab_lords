@@ -6,6 +6,7 @@ import {
     BarChart2,
     CalendarCheck,
     CalendarClock,
+    ClipboardList,
     CreditCard,
     FileText,
     Grid,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { SidebarItem } from "./SidebarItem";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import type { StaffAction } from "@/types";
@@ -51,7 +53,7 @@ export function BranchSidebar() {
     const branchId = segments[2];
     const basePath = `/branch/${branchId}`;
     const designPilot = isApplicationDesignPilotPath(pathname);
-    const dashboardPilot = designPilot && pathname === basePath;
+    const dashboardPilot = designPilot;
     const { access, loading } = useBranchAccess(branchId);
 
     if (!branchId) return null;
@@ -93,10 +95,15 @@ export function BranchSidebar() {
         { icon: MessageSquare, label: "AI Messages", href: `${basePath}/ai/messages`, permission: ["analytics", "view_payments"], feature: "AI_MESSAGES", active: current => current === `${basePath}/ai/messages` },
     ];
 
+    const followUpsItem: BranchNavItem = { icon: CalendarClock, label: "Follow-ups", href: `${basePath}/follow-ups`, permission: "view_payments", active: current => current === `${basePath}/follow-ups` };
+    const tasksItem: BranchNavItem = { icon: ClipboardList, label: "Tasks", href: `${basePath}/tasks`, active: current => current === `${basePath}/tasks` };
+    const reportsItem: BranchNavItem = { icon: FileText, label: "Exports & Reports", href: `${basePath}/reports`, active: current => current === `${basePath}/reports` };
+    const settingsItem: BranchNavItem = { icon: Settings, label: canManageBranchSettings ? "Branch Settings" : "WhatsApp Reports", href: `${basePath}/settings`, active: current => current === `${basePath}/settings` || current === `${basePath}/dashboard-settings` };
+
     const pilotSections = [
         {
             label: "Daily work",
-            items: [overviewItems[0], operationItems[0], operationItems[1]],
+            items: [overviewItems[0], operationItems[0], operationItems[1], followUpsItem, tasksItem],
         },
         {
             label: "Seats and shifts",
@@ -108,11 +115,11 @@ export function BranchSidebar() {
         },
         {
             label: "Reports",
-            items: [overviewItems[1], ...intelligenceItems],
+            items: [overviewItems[1], intelligenceItems[0], ...(canSee("view_payments") || canSee("students") ? [reportsItem] : [])],
         },
         {
             label: "Setup and access",
-            items: [operationItems[2], operationItems[9]],
+            items: [...(canOpenSettings ? [settingsItem] : []), operationItems[2], { ...operationItems[9], label: "Staff & Permissions" }],
         },
     ];
 
@@ -156,9 +163,9 @@ export function BranchSidebar() {
                     />
                 </Link>
                 <div className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]">{dashboardPilot ? "Lab Lords" : access?.branchName ?? "Loading..."}</span>
+                    <span className={dashboardPilot ? "reference-sidebar-wordmark block text-[27px] font-bold leading-tight tracking-tight text-[#104d38]" : "block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]"}>{dashboardPilot ? <>Lab<span className="text-[#37863b]">Lords</span><small className="text-[12px]">.in</small></> : access?.branchName ?? "Loading..."}</span>
                     <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-form-accent)]">
-                        {access?.role ?? (loading ? "Checking access" : "Branch Connected")}
+                        {dashboardPilot ? t("Spaces for brighter minds") : access?.role ?? (loading ? "Checking access" : "Branch Connected")}
                     </span>
                 </div>
             </div>
@@ -172,14 +179,16 @@ export function BranchSidebar() {
                         : (
                             <>
                                 {renderSection("Overview", overviewItems)}
-                                {renderSection("Operations", operationItems)}
-                                {renderSection("Intelligence", intelligenceItems)}
+                                {renderSection("Operations", [...operationItems, followUpsItem, tasksItem])}
+                                {renderSection("Intelligence", [...intelligenceItems, ...(canSee("view_payments") || canSee("students") ? [reportsItem] : [])])}
                             </>
                         )}
                 </div>
             </div>
 
-            {(access?.isOwner || canOpenSettings) && (
+            {designPilot && <div className="reference-sidebar-quote" aria-hidden="true"><Image src="/images/dashboard/botanical-sprig.png" width={150} height={188} alt="" /><p>{t("Better students.")}<br />{t("Brighter futures.")}</p></div>}
+
+            {!designPilot && (access?.isOwner || canOpenSettings) && (
                 <div className={chromeSidebarFooterClass}>
                     <div className="space-y-2">
                         {access?.isOwner && (

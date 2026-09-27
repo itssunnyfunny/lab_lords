@@ -11,10 +11,12 @@ import type { BranchAccess } from "@/types";
 import { AttendanceActionDialog } from "./AttendanceActionDialog";
 import { AttendanceScanner } from "./AttendanceScanner";
 import { StudentAttendance, VisitFacts } from "./StudentAttendance";
+import { useSearchParams } from "next/navigation";
 
 export function AttendanceContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
     const t = useTranslation();
-    const [date, setDate] = useState(""), [search, setSearch] = useState(""), [query, setQuery] = useState("");
+    const searchParams = useSearchParams();
+    const [date, setDate] = useState(""), [search, setSearch] = useState(searchParams.get("search")?.slice(0, 100) ?? ""), [query, setQuery] = useState(searchParams.get("search")?.slice(0, 100) ?? "");
     const [status, setStatus] = useState("ALL"), [shift, setShift] = useState(""), [open, setOpen] = useState(false);
     const [page, setPage] = useState<AttendancePage | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState(""), [notice, setNotice] = useState("");
     const [selected, setSelected] = useState<string[]>([]), [student, setStudent] = useState<AttendanceRow | null>(null);

@@ -6,6 +6,10 @@ describe("application design pilot route scope", () => {
     "/branch/branch_1",
     "/branch/branch_1/students",
     "/branch/branch_1/seats",
+    "/branch/branch_1/follow-ups",
+    "/branch/branch_1/tasks",
+    "/branch/branch_1/reports",
+    "/branch/branch_1/dashboard-settings",
   ])("includes %s", (pathname) => {
     expect(isApplicationDesignPilotPath(pathname)).toBe(true);
   });

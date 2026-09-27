@@ -9,8 +9,10 @@ const sourceRoot = process.env.PILOT_SOURCE_ROOT
 
 const config = {
     root,
+    publicDir: path.resolve("public"),
     resolve: {
         alias: [
+            { find: "next/image", replacement: path.resolve(root, "next-image.tsx") },
             { find: "@/lib/applicationDesignPilot", replacement: path.resolve(root, "pilot-design-mode.ts") },
             { find: "next/link", replacement: path.resolve(root, "next-link.tsx") },
             { find: "next/navigation", replacement: path.resolve(root, "next-navigation.ts") },

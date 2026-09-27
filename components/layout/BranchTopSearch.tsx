@@ -93,6 +93,7 @@ export function BranchTopSearch() {
     const branchId = getBranchId(pathname);
     const { access, loading: accessLoading, error: accessError } = useBranchAccess(branchId);
     const rootRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const loadSeq = useRef(0);
     const listboxId = `branch-search-${useId().replace(/:/g, "")}`;
     const mobileListboxId = `${listboxId}-mobile`;
@@ -104,6 +105,17 @@ export function BranchTopSearch() {
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(-1);
+
+    useEffect(() => {
+        const shortcut = (event: globalThis.KeyboardEvent) => {
+            if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k" || !access || accessLoading) return;
+            event.preventDefault();
+            if (compactLayout) setMobileOpen(true);
+            else { setOpen(true); inputRef.current?.focus(); }
+        };
+        document.addEventListener("keydown", shortcut);
+        return () => document.removeEventListener("keydown", shortcut);
+    }, [access, accessLoading, compactLayout]);
 
     const indexedGroups = useMemo(() => {
         let index = 0;
@@ -213,7 +225,7 @@ export function BranchTopSearch() {
         ? "Checking branch access..."
         : accessError
             ? "Search unavailable"
-            : "Search branch...";
+            : "Search students, payments, seats, etc...";
     const hasResults = flatResults.length > 0;
     const trimmedQuery = query.trim();
 
@@ -262,8 +274,8 @@ export function BranchTopSearch() {
                                             <Icon size={15} />
                                         </span>
                                         <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm font-semibold">{result.title}</span>
-                                            <span className={cn("block truncate text-xs", chromeSubtleTextClass)}>{result.subtitle}</span>
+                                            <span className="block truncate text-sm font-semibold">{result.type === "action" ? t.owned(result.title) : result.title}</span>
+                                            <span className={cn("block truncate text-xs", chromeSubtleTextClass)}>{result.type === "action" ? t.owned(result.subtitle) : result.subtitle}</span>
                                         </span>
                                         <ArrowRight size={14} className={cn(
                                             "flex-shrink-0 transition-opacity",
@@ -293,7 +305,7 @@ export function BranchTopSearch() {
     );
 
     return (
-        <div ref={rootRef} className="min-w-0">
+        <div ref={rootRef} className="reference-search min-w-0 lg:flex-1 lg:max-w-[425px]">
             <button
                 type="button"
                 onClick={() => {
@@ -316,11 +328,12 @@ export function BranchTopSearch() {
                     size={16}
                 />
                 <input
+                    ref={inputRef}
                     role="combobox"
                     type="search"
                     value={query}
                     disabled={disabled}
-                    placeholder={placeholder}
+                    placeholder={t.owned(placeholder)}
                     onFocus={() => setOpen(true)}
                     onChange={event => {
                         setQuery(event.target.value);
@@ -335,8 +348,9 @@ export function BranchTopSearch() {
                     aria-activedescendant={selectedIndex >= 0 && flatResults[selectedIndex]
                         ? optionId(flatResults[selectedIndex])
                         : undefined}
-                    className={cn(chromeInputClass, disabled && "cursor-not-allowed opacity-70")}
+                    className={cn(chromeInputClass, "pr-12", disabled && "cursor-not-allowed opacity-70")}
                 />
+                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[color:var(--ui-panel-border)] px-1.5 py-0.5 text-[10px] text-[color:var(--text-muted)]">⌘ K</kbd>
                 <span className="sr-only" role="status" aria-live="polite">
                     {loading ? t("Searching") : `${flatResults.length} search results available`}
                 </span>
@@ -392,8 +406,8 @@ export function BranchTopSearch() {
                                                         <Icon size={15} />
                                                     </span>
                                                     <span className="min-w-0 flex-1">
-                                                        <span className="block truncate text-sm font-semibold">{result.title}</span>
-                                                        <span className={cn("block truncate text-xs", chromeSubtleTextClass)}>{result.subtitle}</span>
+                                                        <span className="block truncate text-sm font-semibold">{result.type === "action" ? t.owned(result.title) : result.title}</span>
+                                                        <span className={cn("block truncate text-xs", chromeSubtleTextClass)}>{result.type === "action" ? t.owned(result.subtitle) : result.subtitle}</span>
                                                     </span>
                                                     <ArrowRight size={14} className={cn(
                                                         "flex-shrink-0 transition-opacity",
@@ -440,7 +454,7 @@ export function BranchTopSearch() {
                         role="combobox"
                         type="search"
                         value={query}
-                        placeholder={placeholder}
+                        placeholder={t.owned(placeholder)}
                         onChange={event => setQuery(event.target.value)}
                         onKeyDown={handleKeyDown}
                         aria-label={t("Search current branch")}

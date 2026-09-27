@@ -4,6 +4,7 @@ import {
   getWorkspaceSwitcherOptions,
   getWorkspaceSwitcherModel,
   WorkspaceSwitcherControl,
+  BranchWorkspaceControls,
 } from "@/components/layout/WorkspaceSwitcher";
 import { flattenAppSelectOptions } from "@/components/ui/AppSelect";
 import type { WorkspaceDirectory, WorkspaceDirectoryBranch } from "@/types";
@@ -28,6 +29,14 @@ function branch(overrides: Partial<WorkspaceDirectoryBranch> = {}): WorkspaceDir
 }
 
 describe("WorkspaceSwitcher", () => {
+  it("shows separate authorized organization and branch controls on dashboard routes", () => {
+    const directory: WorkspaceDirectory = { organizations: [], staffBranches: [branch(), branch({ id: "branch_2", name: "Second", organizationId: "org_2", organizationName: "Other organization", href: "/branch/branch_2" })], defaultHref: "/branch/branch_1" };
+    const markup = renderToStaticMarkup(<BranchWorkspaceControls directory={directory} pathname="/branch/branch_1/tasks" onNavigate={() => undefined} />);
+    expect(markup).toContain('aria-label="Switch organization"');
+    expect(markup).toContain('aria-label="Switch branch"');
+    expect(markup).toContain("North Star Labs"); expect(markup).toContain("Central Branch");
+    expect(markup).not.toContain('value="branch_2"');
+  });
   it("labels owner destinations as Org / Branch and includes Account settings", () => {
     const ownerBranch = branch({ role: "OWNER" });
     const directory: WorkspaceDirectory = {

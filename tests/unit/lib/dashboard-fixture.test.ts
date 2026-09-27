@@ -2,6 +2,7 @@ import { Readable } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createSyntheticApiMiddleware } from "../../application-design-pilot/synthetic-api";
+import { referenceDashboardFixture } from "../../application-design-pilot/reference-fixture";
 
 // In-process adapter only: no server, environment loading, provider or database.
 const adapter = createSyntheticApiMiddleware();
@@ -43,5 +44,33 @@ describe("busy dashboard fixture reconciliation", () => {
         const snapshot = await request("/api/analytics/branch/pilot/snapshot");
         expect(snapshot.paidAmount).toBe(7600);
         expect(snapshot.dueAmount).toBe(4700);
+    });
+});
+
+describe("selected reference fixture uses production definitions", () => {
+    it("reconciles the cohort while excluding future and recent fees from overdue work", () => {
+        const data = referenceDashboardFixture();
+        const chart = data.collections.data!;
+        expect(chart.billed).toBe(chart.collected + chart.pending + chart.waived);
+        expect(chart.points.reduce((sum, row) => sum + row.billed, 0)).toBe(chart.billed);
+        expect(chart.points.reduce((sum, row) => sum + row.collected, 0)).toBe(chart.collected);
+        expect(data.money.data!.pendingDues).toBe(chart.points.filter(row => row.date <= data.today).reduce((sum, row) => sum + row.pending, 0));
+        expect(data.money.data!.overdueAmount).toBe(chart.points.filter(row => row.date < "2026-09-15").reduce((sum, row) => sum + row.pending, 0));
+        expect(data.money.data!.overdueAmount).toBeLessThan(data.money.data!.pendingDues);
+        expect(data.money.data!.pendingDues).toBeLessThan(chart.pending);
+        expect(data.seating.data!.occupied).toBe(data.seating.data!.seatsPreview.reduce((sum, seat) => sum + seat.occupiedShifts, 0));
+        expect(data.seating.data!.rows.reduce((sum, row) => sum + row.cells.at(-1)!.occupied!, 0)).toBe(data.seating.data!.occupied);
+        expect(data.attendance.data!.expectedToday).toBe(data.attendance.data!.attendedToday + data.attendance.data!.gaps);
+    });
+    it("represents no-action, unknown schedules, sparse history and locked data distinctly", () => {
+        const calm = referenceDashboardFixture("calm");
+        expect(calm.money.data!.overdueAmount + calm.followUps.data!.dueToday + calm.attendance.data!.gaps + calm.terms.data!.renewalsThisWeek).toBe(0);
+        expect(calm.seating.data!.lowUtilization).toBe(false);
+        const unconfigured = referenceDashboardFixture("unconfigured");
+        expect(unconfigured.attendance.data!).toMatchObject({ configured: false, expectedToday: 0, gaps: 0 });
+        expect(unconfigured.terms.data!.items).toEqual([]);
+        expect(referenceDashboardFixture("sparse").seating.data!.rows[0].cells[0].occupied).toBeNull();
+        expect(referenceDashboardFixture("empty").seating.data!.rows[0].cells[0].occupied).toBe(0);
+        expect(referenceDashboardFixture("locked").collections).toEqual({ status: "locked", data: null });
     });
 });

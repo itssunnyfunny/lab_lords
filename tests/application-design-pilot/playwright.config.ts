@@ -5,7 +5,9 @@ const repositoryRoot = path.resolve(import.meta.dirname, "../..");
 
 export default defineConfig({
     testDir: import.meta.dirname,
-    testMatch: ["*.spec.ts"],
+    // Original pilot composition/capture specs remain historical evidence only.
+    // The selected full dashboard is verified by the reference suite.
+    testMatch: ["pilot.spec.ts", "reference.spec.ts", "reference-regression.spec.ts"],
     outputDir: path.join(repositoryRoot, "test-results/application-design-pilot"),
     workers: 1,
     timeout: 60_000,

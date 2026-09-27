@@ -1,6 +1,10 @@
 import type { BranchDashboardSources } from "@/lib/branchDashboard";
-import type { ActivityItem } from "@/components/dashboard/RecentActivity";
 import type { TrendData } from "@/lib/api/analytics";
+
+export type ActivityItem =
+    | { type: "allocation"; seat: string; studentName: string; ts: string }
+    | { type: "payment"; amount: number; studentName: string; ts: string }
+    | { type: "enrollment"; studentName: string; ts: string };
 
 /** Difference existing all-time cumulative observations; never split a total. */
 export function dailyDashboardCollections(trend: TrendData | null) {

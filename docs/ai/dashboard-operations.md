@@ -114,3 +114,52 @@ connected verification report. No Production counts were measured here.
 Application rollback can retain the additive schema and all new evidence while
 returning to the prior collection-compatible application. Do not drop history,
 reset fees or revert to pre-collection writers. No down migration is supplied.
+
+## Destinations, search and exports
+
+The branch shell exposes Follow-ups, Tasks, Exports & Reports and source setup.
+Follow-ups edits the canonical renewal contact record; the Tasks page separates
+manual management tasks from unresolved source work. Members with operational
+permissions can review their authorized source work without gaining manual-task
+management permission. `tasks?view=activity` opens the bounded recorded-activity
+feed. `dashboard-settings?section=expectations`, `section=terms` and
+`section=utilization` open the corresponding setup/review tab; student query
+parameters focus an existing record. Read-only members can inspect permitted
+records while mutation controls remain disabled or absent.
+
+`payments?action=collect` opens a chooser backed by the canonical outstanding
+fee query. Selection opens the existing collection dialog and preserves its
+confirmation, balance, idempotency, receipt and recovery behavior. It does not
+collect on navigation. `renewals?filter=OVERDUE` initializes the actual overdue
+filter, and attendance student links initialize the roster search. Attendance
+links use document navigation to preserve the camera permission-policy boundary.
+
+Global branch search continues to use the existing server-scoped search service,
+with permission-filtered Follow-ups, Tasks and report destinations added. Ctrl-K
+or Command-K focuses the search control. Organization and branch menus are built
+from the signed-in user's authorized directory; neither a menu nor a search hit
+grants destination access. Notifications persist acknowledgement only and link
+back to their source work. Call links open the device dialer; contact notes and
+completion never claim a provider delivery.
+
+`GET /api/branches/:branchId/reports` previews or exports authorized student,
+fee and attendance records. The service checks `students` or `view_payments`
+before reading and scopes every query by organization and branch. Filters are
+validated, the inclusive period is limited to 93 days, and exports exceeding
+10,000 matching rows are rejected with a request to narrow the period. The
+browser previews the first 50 rows and downloads the complete bounded result.
+Fee reports expose original amount, collected, waived and remaining separately;
+legacy non-ledger PAID/WAIVED rows use their recorded full-settlement status,
+while ledger-backed rows use the stored collected and waived amounts. This
+projection does not create a receipt or invent a collection timestamp.
+Fee reports are not a cash collection-date ledger. Local-day boundaries use the
+organization timezone; attendance uses its existing stored calendar date.
+
+CSV headers follow the independent document-language preference. Cells with
+spreadsheet formula prefixes, including prefixes after leading whitespace or
+control characters, are quoted as literal text; embedded quotes and newlines are
+escaped. Reports omit phone numbers and freeform notes, use private no-store
+responses and do not require a paid analytics entitlement for otherwise
+authorized basic records. The new destinations add no external provider calls,
+environment keys, public marketing copy or database writes beyond the explicitly
+documented operational commands.

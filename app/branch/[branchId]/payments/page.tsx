@@ -28,6 +28,7 @@ import {
     pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
+import { PaymentCollectionPicker } from "@/components/payments/PaymentCollectionPicker";
 import { CollectionHistory } from "@/components/payments/CollectionHistory";
 import { remainingFee } from "@/lib/feeBalance";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
@@ -61,6 +62,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ branchId: s
                 const generateDecision = getBranchCapabilityDecision(access, "paymentsGenerate");
                 return (
                     <PaymentsContent
+                        key={branchId}
                         branchId={branchId}
                         owner={access.isOwner}
                         recordDecision={recordDecision}
@@ -95,6 +97,8 @@ function PaymentsContent({
     const targetStatus = searchParams.get("status");
     const targetMonth = searchParams.get("month");
     const generationRequested = searchParams.get("generate") === "1";
+    const collectionRequested = searchParams.get("action") === "collect";
+    const [pickerClosed, setPickerClosed] = useState(false);
     const paymentActionHelpText = getAnyPermissionHelpText(["mark_payment_paid", "waive_payments"]);
     const canMarkPaid = recordDecision.allowed;
     const canWaivePayments = waiveDecision.allowed;
@@ -621,6 +625,7 @@ function PaymentsContent({
                 </div>
             ) : null}
 
+            {collectionRequested && !pickerClosed && recordDecision.allowed && <PaymentCollectionPicker branchId={branchId} onClose={() => setPickerClosed(true)} onSelect={(studentId, paymentId) => { setPickerClosed(true); setCollectStudentId(studentId); setPaymentToMark(paymentId); }} />}
             {paymentToMark && collectStudentId && <CollectFeeDialog
                 key={paymentToMark} branchId={branchId} studentId={collectStudentId}
                 paymentId={paymentToMark} onClose={() => setPaymentToMark(null)} onSaved={() => { void loadPayments(); }} />}

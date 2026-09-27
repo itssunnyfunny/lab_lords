@@ -139,7 +139,8 @@ test("compact shell mounts one reachable navigation drawer", async ({ page }, te
     test.skip(testInfo.project.name.startsWith("desktop"), "Compact-shell-only assertion");
     await openPilot(page, "/branch/pilot");
     const trigger = page.getByRole("button", { name: /Open navigation|नेविगेशन खोलें|Navigation kholein/ });
-    const switcher = page.getByRole("combobox", { name: "Org / Branch" });
+    const organization = page.getByRole("combobox", { name: "Switch organization", exact: true });
+    const switcher = page.getByRole("combobox", { name: "Switch branch", exact: true });
     const search = page.getByRole("button", { name: "Search current branch" });
     const [triggerBox, switcherBox, searchBox] = await Promise.all([
         trigger.boundingBox(),
@@ -149,14 +150,25 @@ test("compact shell mounts one reachable navigation drawer", async ({ page }, te
     expect(triggerBox).not.toBeNull();
     expect(switcherBox).not.toBeNull();
     expect(searchBox).not.toBeNull();
-    expect(switcherBox!.width).toBeGreaterThanOrEqual(120);
+    await expect(organization).toBeVisible();
+    expect(switcherBox!.width).toBeGreaterThanOrEqual(85);
     expect(triggerBox!.x + triggerBox!.width).toBeLessThanOrEqual(switcherBox!.x);
     expect(switcherBox!.x + switcherBox!.width).toBeLessThanOrEqual(searchBox!.x);
+    await search.click();
+    const searchDialog = page.getByRole("dialog", { name: "Search this branch" });
+    await expect(searchDialog).toBeVisible();
+    await expect(searchDialog.getByRole("combobox", { name: "Search current branch" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(searchDialog).toHaveCount(0);
+    await expect(search).toBeFocused();
     await trigger.click();
     const drawer = page.getByRole("dialog", { name: /Workspace navigation|वर्कस्पेस मेन्यू|Workspace navigation/ });
     await expect(drawer).toBeVisible();
     await expect(page.getByLabel("Branch navigation")).toHaveCount(1);
     const settings = drawer.getByRole("link", { name: "Branch Settings" });
+    // The full navigation has more destinations than fit on a phone: verify
+    // its scroll region can expose the lower links without moving the dialog.
+    await settings.scrollIntoViewIfNeeded();
     await expect(settings).toBeVisible();
     const settingsBox = await settings.boundingBox();
     expect(settingsBox).not.toBeNull();

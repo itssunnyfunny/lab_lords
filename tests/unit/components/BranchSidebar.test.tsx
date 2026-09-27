@@ -79,7 +79,8 @@ describe("BranchSidebar", () => {
     expect(existing).not.toContain("Daily work");
   });
 
-  it("shows the organization control for owners", () => {
+  it("keeps the organization footer on non-dashboard routes for owners", () => {
+    mocks.pathname = "/branch/branch_1/payments";
     mocks.access = {
       branchId: "branch_1",
       branchName: "Main Branch",
@@ -123,7 +124,7 @@ describe("BranchSidebar", () => {
     expect(mocks.sidebarItems.map(item => item.label)).toContain("Branch Settings");
   });
 
-  it("keeps AI reports and messages but removes AI Insights", () => {
+  it("uses the approved report group and supporting destinations", () => {
     mocks.access = {
       branchId: "branch_1",
       branchName: "Main Branch",
@@ -144,7 +145,11 @@ describe("BranchSidebar", () => {
     const labels = mocks.sidebarItems.map(item => item.label);
     expect(labels).not.toContain("AI Insights");
     expect(labels).toContain("AI Reports");
-    expect(labels).toContain("AI Messages");
+    expect(labels).toContain("Follow-ups");
+    expect(labels).toContain("Tasks");
+    expect(labels).toContain("Exports & Reports");
+    expect(labels).not.toContain("AI Messages");
+    expect(labels).not.toContain("Back to organization");
   });
 
   it("hides AI reports and messages when payment visibility is denied", () => {

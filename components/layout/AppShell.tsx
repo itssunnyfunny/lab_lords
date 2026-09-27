@@ -8,7 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BranchTopSearch } from "@/components/layout/BranchTopSearch";
 import { BranchNotifications } from "@/components/layout/BranchNotifications";
 import { LanguageControls } from "@/components/settings/LanguageControls";
-import { Menu } from "lucide-react";
+import { ChevronDown, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     chromeAppRootClass,
@@ -34,6 +34,7 @@ import { ContextualBackLink } from "@/components/layout/ContextualBackLink";
 import { publicDisplayFont } from "@/lib/publicMarketingFonts";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
+
 interface User {
     name: string;
     role: string;
@@ -48,6 +49,7 @@ interface AppShellProps {
 }
 
 function AccountSummary({ user }: { user?: User }) {
+    const t = useTranslation();
     const { user: clerkUser } = useUser();
     const { profileName } = useUserPreferences();
     const displayName = profileName
@@ -60,7 +62,7 @@ function AccountSummary({ user }: { user?: User }) {
     return (
         <div className="text-right hidden sm:block">
             <p className="text-xs font-bold tracking-wide text-[color:var(--text-primary)]">{displayName}</p>
-            <p className={cn("text-[10px] uppercase tracking-wider", chromeMutedTextClass)}>{displayRole}</p>
+            <p className={cn("text-[10px]", chromeMutedTextClass)}>{t.owned(displayRole)}</p>
         </div>
     );
 }
@@ -119,9 +121,10 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 max-w-full relative z-10">
                 {/* Top Header */}
-                <header className={cn(chromeHeaderClass, designPilot && "max-sm:flex-wrap max-sm:content-center max-sm:py-2")}>
+                <header className={cn(chromeHeaderClass, designPilot && "reference-topbar max-sm:flex-wrap max-sm:content-center max-sm:py-2")}>
                     <div className={cn(
-                        "flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:max-w-md lg:gap-4",
+                        "flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:gap-5",
+                        !designPilot && "lg:max-w-md",
                         designPilot && "max-sm:w-full max-sm:flex-none"
                     )}>
                         <button
@@ -133,7 +136,7 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                         >
                             <Menu size={18} />
                         </button>
-                        <WorkspaceSwitcher className="min-w-0 flex-1 lg:w-48 lg:flex-none" />
+                        <WorkspaceSwitcher separated={designPilot && showBranchChrome} className={designPilot ? "min-w-0 flex-1 lg:flex-none" : "min-w-0 flex-1 lg:w-48 lg:flex-none"} />
                         {showBranchChrome && <BranchTopSearch />}
                     </div>
 
@@ -147,19 +150,20 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                                 <div className={cn("hidden h-6 w-[1px] sm:block md:mx-2", chromeDividerClass)} />
                             </>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => router.push('/account')}
-                            className={cn("hidden items-center gap-3 rounded-full border border-transparent py-1 pl-2 pr-1 transition-colors lg:flex", chromeInlineCardHoverClass)}
-                        >
-                            <AccountSummary user={user} />
-                        </button>
                         <LanguageControls compact />
                         <UserButton
                             appearance={accountMenuClerkAppearance}
                             userProfileMode="modal"
                             userProfileProps={{ appearance: accountProfileClerkAppearance }}
                         />
+                        <button
+                            type="button"
+                            onClick={() => router.push('/account')}
+                            className={cn("hidden items-center gap-3 rounded-full border border-transparent py-1 pl-2 pr-1 transition-colors lg:flex", chromeInlineCardHoverClass)}
+                        >
+                            <AccountSummary user={user} />
+                            <ChevronDown size={14} aria-hidden="true" />
+                        </button>
                     </div>
                 </header>
 

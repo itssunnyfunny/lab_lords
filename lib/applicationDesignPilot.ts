@@ -1,7 +1,7 @@
-const PILOT_BRANCH_SEGMENTS = new Set(["students", "seats"]);
+const PILOT_BRANCH_SEGMENTS = new Set(["students", "seats", "follow-ups", "tasks", "reports", "dashboard-settings"]);
 
 /**
- * Keeps the unapproved application theme on the representative pilot routes.
+ * Approved dashboard visual scope and its supporting branch destinations.
  * Collection owns its overlay scope separately because it can open elsewhere.
  */
 export function isApplicationDesignPilotPath(pathname: string | null | undefined) {

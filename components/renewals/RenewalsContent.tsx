@@ -3,6 +3,7 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { AppButton, AppPanel, AppSelect, Dialog, PageShell } from "@/components/ui";
@@ -21,14 +22,15 @@ import type { BranchAccess } from "@/types";
 
 export function RenewalsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
     const t = useTranslation();
+    const searchParams = useSearchParams();
     const { formatDate, formatDateTime, formatNumber } = useUserPreferences();
     const money = (amount: number) => formatNumber(amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 });
     const record = getBranchCapabilityDecision(access, "paymentsRecord");
     const send = getBranchCapabilityDecision(access, "whatsappSend");
-    const [filter, setFilter] = useState<RenewalFilter>("ALL");
+    const [filter, setFilter] = useState<RenewalFilter>(() => renewalFilters.includes(searchParams.get("filter") as RenewalFilter) ? searchParams.get("filter") as RenewalFilter : "ALL");
     const [days, setDays] = useState<3 | 7>(7);
-    const [search, setSearch] = useState("");
-    const [querySearch, setQuerySearch] = useState("");
+    const [search, setSearch] = useState(searchParams.get("search")?.slice(0, 100) ?? "");
+    const [querySearch, setQuerySearch] = useState(searchParams.get("search")?.slice(0, 100) ?? "");
     const [page, setPage] = useState<RenewalPage | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

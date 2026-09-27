@@ -7,6 +7,7 @@ import { AppSelect, type AppSelectItem } from "@/components/ui";
 import { workspaces } from "@/lib/api/workspaces";
 import type { WorkspaceDirectory } from "@/types";
 import { cn } from "@/lib/utils";
+import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 
 function currentWorkspaceHref(pathname: string | null) {
     const branchMatch = pathname?.match(/^\/branch\/([^/]+)/);
@@ -143,10 +144,12 @@ export function WorkspaceSwitcherControl({
     );
 }
 
-export function WorkspaceSwitcher({ className }: { className?: string }) {
+export function WorkspaceSwitcher({ className, separated = false }: { className?: string; separated?: boolean }) {
     const pathname = usePathname();
     const router = useRouter();
+    const { ownerKey } = useUserPreferences();
     const [directory, setDirectory] = useState<WorkspaceDirectory | null>(null);
+    const [directoryOwner, setDirectoryOwner] = useState<string | null>(null);
     const [error, setError] = useState(false);
 
     useEffect(() => {
@@ -155,6 +158,7 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
             .then(result => {
                 if (!cancelled) {
                     setDirectory(result);
+                    setDirectoryOwner(ownerKey);
                     setError(false);
                 }
             })
@@ -164,15 +168,45 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [ownerKey]);
+
+    const visibleDirectory = directoryOwner === ownerKey ? directory : null;
+    if (separated) return <BranchWorkspaceControls directory={visibleDirectory} error={error} pathname={pathname} className={className} onNavigate={href => router.push(href)} />;
 
     return (
         <WorkspaceSwitcherControl
-            directory={directory}
+            directory={visibleDirectory}
             error={error}
             pathname={pathname}
             className={className}
             onNavigate={href => router.push(href)}
         />
     );
+}
+
+export function BranchWorkspaceControls({ directory, error, pathname, className, onNavigate }: {
+    directory: WorkspaceDirectory | null; error?: boolean; pathname: string | null; className?: string; onNavigate: (href: string) => void;
+}) {
+    const t = useTranslation();
+    const currentId = pathname?.match(/^\/branch\/([^/]+)/)?.[1];
+    const branches = [...(directory?.organizations.flatMap(organization => organization.branches) ?? []), ...(directory?.staffBranches ?? [])];
+    const current = branches.find(branch => branch.id === currentId);
+    const organizations = [...(directory?.organizations.map(organization => ({ id: organization.id, name: organization.name, href: organization.href })) ?? [])];
+    for (const branch of directory?.staffBranches ?? []) if (!organizations.some(organization => organization.id === branch.organizationId)) organizations.push({ id: branch.organizationId, name: branch.organizationName, href: branch.href });
+    const selectedOrganization = current?.organizationId ?? organizations[0]?.id ?? "";
+    const branchOptions = branches.filter(branch => branch.organizationId === selectedOrganization);
+    const status = t.owned(error ? "Workspaces unavailable" : "Loading workspaces");
+    return <div className={cn("reference-workspace-switcher flex min-w-0 items-center gap-4", className)}>
+        <label className="min-w-0 text-[10px] text-[color:var(--text-muted)]">{t("Organization")}<select aria-label={t("Switch organization")} value={selectedOrganization} disabled={!directory || Boolean(error)}
+            className="mt-0.5 block h-[29px] w-[138px] max-w-full rounded-md border border-[color:var(--ui-panel-border)] bg-white px-2 text-[11px] font-semibold text-[color:var(--text-primary)]"
+            onChange={event => { const value = event.target.value.replace(/^overview:/, ""); const org = organizations.find(item => item.id === value); if (org) onNavigate(org.href); }}>
+            {!organizations.length && <option value="">{status}</option>}{organizations.map(organization => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
+            {directory?.organizations.some(organization => organization.id === selectedOrganization) && <option value={`overview:${selectedOrganization}`}>{t("Organization overview")}</option>}
+        </select></label>
+        <label className="min-w-0 text-[10px] text-[color:var(--text-muted)]">{t("Branch")}<select aria-label={t("Switch branch")} value={current?.id ?? ""} disabled={!directory || Boolean(error)}
+            className="mt-0.5 block h-[29px] w-[180px] max-w-full rounded-md border border-[color:var(--ui-panel-border)] bg-white px-2 text-[11px] font-semibold text-[color:var(--text-primary)]"
+            onChange={event => { const branch = branchOptions.find(item => item.id === event.target.value); if (branch) onNavigate(branch.href); }}>
+            {!current && <option value="">{directory ? t("Choose branch") : status}</option>}{branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+        </select></label>
+    </div>;
 }

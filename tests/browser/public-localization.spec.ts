@@ -57,7 +57,10 @@ test("all 39 language pages render complete initial HTML with reciprocal metadat
     expect(result.siteName).toBe("Lab Lords");
     expect(result.title).not.toContain("Lab Lords | Lab Lords");
     expect(titles.has(`${locale}:${result.title}`), path).toBe(false); titles.add(`${locale}:${result.title}`);
-    expect(Object.fromEntries(Object.entries(result.languages).map(([lang, url]) => [lang, new URL(url!).href]))).toEqual({ "en-IN": `https://lablords.in${basePath}`, "hi-IN": `https://lablords.in${publicHref("hi", basePath)}`, "hi-Latn-IN": `https://lablords.in${publicHref("hinglish", basePath)}`, "x-default": `https://lablords.in${basePath}` });
+    expect(Object.fromEntries(Object.entries(result.languages).map(([lang, url]) => {
+      if (typeof url !== "string") throw new Error(`Missing alternate URL for ${lang}`);
+      return [lang, new URL(url).href];
+    }))).toEqual({ "en-IN": `https://lablords.in${basePath}`, "hi-IN": `https://lablords.in${publicHref("hi", basePath)}`, "hi-Latn-IN": `https://lablords.in${publicHref("hinglish", basePath)}`, "x-default": `https://lablords.in${basePath}` });
     expect(result.image).toBe(`https://lablords.in${locale === "en" ? "/opengraph-image.png" : `/public-social/${locale}.png`}`);
     expect(result.imageAlt).toBe(publicTranslator(messagesFor(publicCatalog, locale))("Lab Lords — A simpler way to manage your library. lablords.in"));
     expect(result.twitterImage).toBe(`https://lablords.in${locale === "en" ? "/twitter-image.png" : `/public-social/${locale}.png`}`);

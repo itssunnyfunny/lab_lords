@@ -15,9 +15,11 @@ import { operations } from "./operations";
 import { documentMessages } from "./documents";
 import { attendanceMessages } from "./attendance";
 import { dashboardMessages } from "./dashboard";
+import { referenceDashboardMessages } from "./referenceDashboard";
+import { dashboardFeatureMessages } from "./dashboardFeatures";
 import type { InterfaceLanguage } from "./language";
 
-export const messages = { ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes } as const;
+export const messages = { ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes } as const;
 export type MessageKey = keyof typeof messages;
 const lookup: Readonly<Record<string, readonly [string, string]>> = messages;
 const localizedMessages = new Set<string>(Object.values(lookup).flat());

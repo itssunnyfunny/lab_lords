@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { referenceDashboardFixture } from "./reference-fixture";
 
 type PilotRequest = IncomingMessage & { originalUrl?: string };
 type Next = () => void;
@@ -513,6 +514,13 @@ export function createSyntheticApiMiddleware() {
 
         const url = new URL(requestUrl, "http://127.0.0.1");
         const path = url.pathname;
+        if (path === `/api/branches/${BRANCH_ID}/dashboard`) {
+            if (request.method === "POST") return sendJson(response, 200, { captured: true });
+            const ref = new URL(request.headers.referer ?? "http://127.0.0.1");
+            const fixture = referenceDashboardFixture(ref.searchParams.get("state") ?? "populated", BRANCH_ID, url.searchParams.get("month") ?? "2026-09");
+            return sendJson(response, 200, fixture);
+        }
+        if (path === `/api/branches/${BRANCH_ID}/dashboard/notifications`) return sendJson(response, 200, { items: [] });
         const method = request.method ?? "GET";
         const context = contextFor(request);
         const empty = context.state === "empty";

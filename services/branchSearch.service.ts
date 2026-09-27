@@ -23,6 +23,9 @@ export const BRANCH_SEARCH_TYPES = [
 export type BranchSearchType = typeof BRANCH_SEARCH_TYPES[number];
 
 const ACTION_CAPABILITIES: Record<string, BranchCapabilityKey> = {
+    "action:follow-ups": "paymentsView",
+    "action:tasks": "dashboard",
+    "action:reports": "paymentsView",
     "action:add-student": "studentsManage",
     "action:assign-seat": "allocationsManage",
     "action:seats-map": "seatsView",

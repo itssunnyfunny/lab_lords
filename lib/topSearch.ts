@@ -127,6 +127,9 @@ type ActionDefinition = {
 };
 
 const ACTIONS: ActionDefinition[] = [
+    { id: "follow-ups", title: "Follow-ups", subtitle: "Review scheduled contact work", path: "follow-ups", permissions: ["view_payments"], keywords: ["follow", "contact", "call", "reminder"] },
+    { id: "tasks", title: "Tasks", subtitle: "Manage branch tasks and source work", path: "tasks", permissions: ["manage_branch"], keywords: ["task", "work", "todo"] },
+    { id: "reports", title: "Exports & Reports", subtitle: "Preview and export branch records", path: "reports", permissions: ["view_payments"], keywords: ["export", "csv", "reports", "download"] },
     {
         id: "add-student",
         title: "Add Student",
