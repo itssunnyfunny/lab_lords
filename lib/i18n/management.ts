@@ -201,6 +201,7 @@ export const management = {
     "No payment access": ["पेमेंट की अनुमति नहीं", "Payment access nahi"],
     "Loading students": ["छात्र लोड हो रहे हैं", "Students load ho rahe hain"],
     "Student roster": ["छात्र सूची", "Student roster"],
+    "View students, their seats and fee details.": ["छात्रों, उनकी सीटों और फीस की जानकारी देखें।", "Students, unki seats aur fee details dekhein."],
     "Keep profiles, allocation context, and fee signals easy to scan without crowding the roster.": ["छात्र की प्रोफाइल, सीट और फीस की जानकारी एक नज़र में देखें।", "Student profiles, seats aur fee details ek nazar mein dekhein."],
     "Search name or phone...": ["नाम या फोन खोजें…", "Naam ya phone khojein…"],
     "Search students by name or phone": ["छात्रों को नाम या फोन से खोजें", "Students ko naam ya phone se khojein"],

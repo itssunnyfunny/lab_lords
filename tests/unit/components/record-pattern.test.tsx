@@ -6,6 +6,8 @@ import { AppPanel } from "@/components/ui/AppPanel";
 import { FormField } from "@/components/ui/FormField";
 import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
 import { DataTable } from "@/components/tables/DataTable";
+import { StudentRecordCard, type StudentRecordCardProps } from "@/app/branch/[branchId]/students/StudentRecordCard";
+import { Avatar } from "@/components/ui/Avatar";
 
 describe("shared record presentation contracts", () => {
     it("retains semantic row/column headings, caption and a keyboard scroll region at both densities", () => {
@@ -45,5 +47,37 @@ describe("shared record presentation contracts", () => {
     it("retains the direct body shape needed by specialized dashboard panels", () => {
         const html = renderToStaticMarkup(<AppPanel density="compact" padding="none" aria-labelledby="title"><h2 id="title">Collections</h2></AppPanel>);
         expect(html).toMatch(/<section[^>]+aria-labelledby="title"><h2/);
+    });
+});
+
+describe("Students card values and interaction boundaries", () => {
+    const student: StudentRecordCardProps["student"] = { name: "Literal <student>", phone: null, status: "ACTIVE", monthlyFee: 1400, joinedAt: new Date("2026-09-01T00:00:00+05:30"), seatAllocations: [] };
+    const props = { student, canViewPayments: true, onDetails: () => undefined, detailsLabel: "Edit Details" };
+    it("distinguishes unknown and restricted finances from a known zero balance", () => {
+        const unknown = renderToStaticMarkup(<StudentRecordCard {...props} />);
+        const restricted = renderToStaticMarkup(<StudentRecordCard {...props} canViewPayments={false} financials={{ totalDue: 2400, totalPaid: 400, totalWaived: 0 }} />);
+        expect(unknown).toContain("Not recorded"); expect(unknown).not.toContain("Due:"); expect(unknown).not.toContain("Paid:");
+        expect(restricted).toContain("No payment access"); expect(restricted).not.toContain("2,400"); expect(restricted).not.toContain("Paid:");
+        const zero = renderToStaticMarkup(<StudentRecordCard {...props} financials={{ totalDue: 0, totalPaid: 0, totalWaived: 0 }} />);
+        expect(zero).toContain("Due:"); expect(zero).toContain("Paid:"); expect(zero).toContain("Monthly fee");
+        expect(zero).not.toContain("Payment received"); expect(zero).not.toContain("clean financial record");
+        expect(zero).toContain("No phone"); expect(zero).toContain("No seat assigned");
+    });
+    it("retains every allocation pair, including bundle and component names", () => {
+        const allocation = { id: "1", seatId: "seat", shiftId: "shift", multiShiftId: "multi", endDate: null, seat: { id: "seat", label: "A1" }, shift: { id: "shift", name: "Morning", startTime: null, endTime: null }, multiShift: { id: "multi", name: "Full day" } };
+        const html = renderToStaticMarkup(<StudentRecordCard {...props} student={{ ...student, seatAllocations: [allocation, { ...allocation, id: "2", shift: { ...allocation.shift, name: "Evening" } }] }} />);
+        expect(html).toContain("Full day (Morning)"); expect(html).toContain("Full day (Evening)"); expect(html.match(/<li>/g)).toHaveLength(2);
+    });
+    it("keeps the name/details and menu separate, with no card-wide action or nested field boxes", () => {
+        const html = renderToStaticMarkup(<StudentRecordCard {...props} actions={<button aria-label="Actions">Menu</button>} />);
+        expect(html).toMatch(/<article[^>]+data-student-record-card/); expect(html).toContain('aria-label="Edit Details · Literal &lt;student&gt;"');
+        expect(html).toContain('aria-label="Actions"'); expect(html).not.toContain("ui-form-muted-surface"); expect(html).not.toContain("grid-cols-2");
+        expect(html.match(/<button/g)).toHaveLength(2);
+    });
+    it("uses quiet initials only when requested, preserving existing avatar consumers", () => {
+        const quiet = renderToStaticMarkup(<Avatar name="Aarav Mehta" tone="quiet" />);
+        const original = renderToStaticMarkup(<Avatar name="Aarav Mehta" />);
+        expect(quiet).toContain("ui-avatar--quiet"); expect(quiet).not.toContain("gradient"); expect(quiet).toContain('aria-hidden="true"');
+        expect(original).toContain("bg-gradient-to-br"); expect(original).toContain("radial-gradient");
     });
 });

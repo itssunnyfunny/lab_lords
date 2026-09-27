@@ -66,6 +66,7 @@ export interface DialogProps {
   className?: string;
   overlayClassName?: string;
   density?: "comfortable" | "compact";
+  languagePlacement?: "below" | "header";
 }
 
 /**
@@ -92,6 +93,7 @@ export function Dialog({
   className,
   overlayClassName,
   density = "comfortable",
+  languagePlacement = "below",
 }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -216,7 +218,7 @@ export function Dialog({
     >
       <button
         type="button"
-        className="absolute inset-0 cursor-default bg-[color:var(--ui-backdrop-bg)] backdrop-blur-sm"
+        className="ui-dialog-backdrop absolute inset-0 cursor-default bg-[color:var(--ui-backdrop-bg)] backdrop-blur-sm"
         onClick={requestBackdropClose}
         disabled={closeDisabled}
         tabIndex={-1}
@@ -239,21 +241,23 @@ export function Dialog({
         aria-busy={closeDisabled || undefined}
         tabIndex={-1}
       >
-        <div className="flex items-start gap-3 pr-10">
+        <div className={cn("flex items-start gap-3 pr-10", languagePlacement === "header" && "ui-dialog-header-language")}>
           {icon ? <div className="shrink-0" aria-hidden="true">{icon}</div> : null}
           <div className="min-w-0">
             <h2 id={titleId} className="text-lg font-bold leading-tight text-[color:var(--ui-dialog-title)]">
               {title}
             </h2>
-            {description ? (
+            {description && languagePlacement === "below" ? (
               <div id={descriptionId} className="mt-1.5 text-sm leading-6 text-[color:var(--ui-dialog-description)]">
                 {description}
               </div>
             ) : null}
           </div>
+          {languagePlacement === "header" && <LanguageControls compact />}
         </div>
 
-        <div className="mt-3"><LanguageControls compact /></div>
+        {languagePlacement === "header" && description ? <div id={descriptionId} className="mt-1.5 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{description}</div> : null}
+        {languagePlacement === "below" && <div className="mt-3"><LanguageControls compact /></div>}
         {showCloseButton ? (
           <button
             type="button"

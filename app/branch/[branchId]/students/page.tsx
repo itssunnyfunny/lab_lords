@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { EditStudentDialog } from "./EditStudentDialog";
+import { StudentRecordCard } from "./StudentRecordCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
     formControlClass,
@@ -39,9 +40,6 @@ import {
 } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
-    pageGridCardClass,
-    pageGridCardHoverClass,
-    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageMutedTextClass,
     pageSubtleTextClass,
@@ -834,7 +832,7 @@ function StudentsContent({
         <RecordListPage
             title={t("Students")}
             eyebrow={t("Student roster")}
-            description={t("Keep profiles, allocation context, and fee signals easy to scan without crowding the roster.")}
+            description={t("View students, their seats and fee details.")}
             actions={<>
                     <AppButton density="compact" variant="secondary" icon={Download} onClick={() => void handleExportStudents()} isLoading={exporting} disabled={rosterBusy || Boolean(readError)}>
                         {t("Export")}</AppButton>
@@ -957,45 +955,18 @@ function StudentsContent({
                         : "No students in this view yet."
                 )}
                 renderGridCard={(item, actions) => (
-                    <div className={cn("relative flex flex-col", pageGridCardClass, pageGridCardHoverClass)}>
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-3">
-                                <Avatar name={item.name} size="md" />
-                                <div className="min-w-0">
-                                    <p className="break-words font-medium text-[color:var(--text-primary)]">{item.name}</p>
-                                    <p className={cn("break-all text-xs", pageSubtleTextClass)}>{item.phone || t("No phone")}</p>
-                                    <Badge className="mt-2" variant={item.status === "ACTIVE" ? "success" : "default"}>{t(item.status === "ACTIVE" ? "Active" : "Inactive")}</Badge>
-                                </div>
-                            </div>
-                            <div className="flex flex-shrink-0 items-start gap-2">
-                                {actions?.(item)}
-                            </div>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                            <div className={pageInsetMetricClass}>
-                                <div className={cn("text-xs", pageSubtleTextClass)}>{t("Joined")}</div>
-                                <div className={cn("mt-1 break-words", pageMutedTextClass)}>{formatDate(item.joinedAt)}</div>
-                            </div>
-                            <div className={pageInsetMetricClass}>
-                                <div className={cn("text-xs", pageSubtleTextClass)}>{t("Monthly fee")}</div>
-                                <div className="mt-1 break-words font-semibold text-[color:var(--text-primary)]">
-                                    {typeof item.monthlyFee === "number" ? formatCurrency(item.monthlyFee) : t("Not set")}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-3">
-                            <div className={cn("min-w-0", pageInsetMetricClass)}>
-                                <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{t("Seat & shift")}</div>
-                                <StudentSeatShiftSummary student={item} />
-                            </div>
-                            <div className={cn("min-w-0", pageInsetMetricClass)}>
-                                <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{t("Fee summary")}</div>
-                                {renderFeeSummary(item)}
-                            </div>
-                        </div>
-                    </div>
+                    <StudentRecordCard student={item}
+                        canViewPayments={canViewPayments}
+                        financials={studentFinancials.get(item.id) ?? (canViewPayments ? { totalDue: 0, totalPaid: 0, totalWaived: 0 } : undefined)}
+                        actions={actions?.(item)}
+                        detailsLabel={manageDecision.allowed ? "Edit Details" : "View Fees"}
+                        detailsDisabled={!manageDecision.allowed && !canViewPayments}
+                        detailsReason={!manageDecision.allowed && !canViewPayments ? manageDecision.reason : undefined}
+                        onDetails={() => {
+                            if (manageDecision.allowed) setEditTarget(item);
+                            else if (canViewPayments) { setSelectedStudent(item); setIsDrawerOpen(true); }
+                        }}
+                    />
                 )}
                 columns={[
                     {

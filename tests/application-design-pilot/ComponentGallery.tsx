@@ -8,6 +8,7 @@ import { DataTable, type DataViewMode } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { formControlClass } from "@/components/ui/formSurface";
+import { StudentRecordCard } from "@/app/branch/[branchId]/students/StudentRecordCard";
 
 /** A development-only consumer, not a component replica or an application route. */
 export function ComponentGallery() {
@@ -39,7 +40,11 @@ export function ComponentGallery() {
                 <ViewToggle value={view} onChange={setView} />
             </div>
         </>} footer={<p className="text-xs">RecordListPage → RecordListSurface → DataTable / RecordListState; Dialog retains body portals.</p>} busy={state === "loading"}>
-            {state !== "ready" ? <RecordListState kind={state as "loading" | "empty" | "error" | "restricted"} title={state === "loading" ? "Loading students" : state === "empty" ? "No students in this view yet." : state === "restricted" ? "Not included in your access" : "Something went wrong"} onRetry={state === "error" ? () => setState("ready") : undefined} /> : <DataTable density={density} caption="Students" data={rows} columns={[{ header: "Student", accessor: "name", rowHeader: true }, { header: "Status", accessor: row => <Badge variant={row.status === "Active" ? "success" : "default"}>{t.owned(row.status)}</Badge> }]} actions={() => <RowActionsMenu buttonLabel={t("Actions")} actions={[{ label: t("Edit Details"), icon: Pencil, onClick: () => setDialog(true) }, { label: t("Deactivate"), icon: PowerOff, disabled: true, onClick: () => undefined }]} />} viewMode={view} renderGridCard={row => <AppPanel title={row.name}><Badge>{t.owned(row.status)}</Badge><AppButton size="sm" className="mt-3" onClick={() => setDialog(true)}>{t("Edit Details")}</AppButton></AppPanel>} />}
+            {state !== "ready" ? <RecordListState kind={state as "loading" | "empty" | "error" | "restricted"} title={state === "loading" ? "Loading students" : state === "empty" ? "No students in this view yet." : state === "restricted" ? "Not included in your access" : "Something went wrong"} onRetry={state === "error" ? () => setState("ready") : undefined} /> : <DataTable density={density} caption="Students" data={rows} columns={[{ header: "Student", accessor: "name", rowHeader: true }, { header: "Status", accessor: row => <Badge variant={row.status === "Active" ? "success" : "default"}>{t.owned(row.status)}</Badge> }]} actions={() => <RowActionsMenu buttonLabel={t("Actions")} actions={[{ label: t("Edit Details"), icon: Pencil, onClick: () => setDialog(true) }, { label: t("Deactivate"), icon: PowerOff, disabled: true, onClick: () => undefined }]} />} viewMode={view} renderGridCard={(row, actions) => <StudentRecordCard
+                student={{ name: row.name, status: row.status === "Active" ? "ACTIVE" : "INACTIVE", phone: null, monthlyFee: 1500, joinedAt: new Date("2026-09-01T00:00:00+05:30"), seatAllocations: [] }}
+                financials={{ totalDue: row.id === "gallery-1" ? 2400 : 0, totalPaid: row.id === "gallery-2" ? 1500 : 0, totalWaived: 0 }}
+                canViewPayments actions={actions?.(row)} onDetails={() => setDialog(true)} detailsLabel="Edit Details"
+            />} />}
         </RecordListSurface>
         <Dialog density="compact" open={dialog} title={t("Edit student")} description={t("Update profile details.")} onClose={() => setDialog(false)} footer={<><AppButton onClick={() => setDialog(false)}>{t("Cancel")}</AppButton><AppButton variant="primary" onClick={() => { setInvalid(!draft.trim()); if (draft.trim()) setNested(true); }}>{t("Save Changes")}</AppButton></>}>
             <FormField id="gallery-name" label={t("Full Name")} error={invalid ? t.error("Name is required.") : undefined} required><input data-dialog-initial-focus className={`${formControlClass} px-3 py-2`} value={draft} onChange={event => setDraft(event.target.value)} /></FormField>

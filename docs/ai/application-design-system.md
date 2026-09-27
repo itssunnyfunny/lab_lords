@@ -15,6 +15,8 @@ reusable record-family consumer. Other page families await a focused owner revie
 | Dashboard chart, matrix, card counts, artwork and panel geometry | `Reference*.tsx` / `reference-dashboard.css` | Feature-specific; never turn these into generic list or chart generators |
 | Record header, notices, toolbar, results and pagination | existing UI layer, record pattern | Students supplies real data/actions; no API or business logic in the pattern |
 | Field validation, menus, nested overlays and focus recovery | existing FormField, RowActionsMenu, Dialog/Drawer | Keep body portals and request/component identity; no parallel overlay owner |
+| Compact Students identity / allocation / financial card | feature-owned `students/StudentRecordCard.tsx`, `.ui-record-card*` in `shared-ui.css` | Students and gallery import the same card; fee arithmetic, permissions and commands stay in the feature |
+| Quiet initials and integrated modal language control | `Avatar tone="quiet"`, `Dialog languagePlacement="header"` | Explicit opt-ins; default avatars/modal headers stay compatible. Edit uses its scoped backdrop variant |
 
 The frozen fixture packet is `docs/redesign/shared-system-evidence/before`.
 It uses actual production components, loaded fonts, scale 1 and the fixed
@@ -64,6 +66,21 @@ wrap in Students cards. Preserve 44px touch controls, visible focus, loading,
 no-results, error/retry, restricted and readonly states. Use existing reduced
 motion handling; the selected theme's fast duration is a semantic token.
 
+The refined Students card uses one surface and identity, allocation and financial
+sections. Pass authorized aggregate values into the feature-owned card; undefined
+financials mean unknown and `canViewPayments=false` means restricted. Known zero
+due and zero paid remain separate facts. Keep every allocation's seat, shift and
+bundle/component pair. The name is a labelled entry to an existing permitted
+edit/details workflow; its overflow menu is separate. Do not make the container
+clickable or add field boxes/full-width action footers. `.ui-record-card-actions`
+enlarges only these menu triggers to 44px; desktop menus retain their composition.
+
+`Avatar tone="quiet"` uses the existing muted surface/text tokens and does not
+encode status. `Dialog languagePlacement="header"` integrates the existing
+LanguageControls with wrapping, without changing portals, inertness, focus,
+Escape or save behavior. Edit additionally opts into `ui-record-edit-overlay`
+for less backdrop tint/blur; other consumers keep their existing backdrop.
+
 `Dialog` / `Drawer` own inertness, focus restoration, Escape and scroll lock. The
 compact detail treatment changes presentation only. They still portal to body;
 the existing `html:has(workspace)` theme inheritance handles body-level overlays,
@@ -83,12 +100,14 @@ Open `http://127.0.0.1:4187/branch/pilot/gallery?mode=after&lang=en`, replacing
 `en` with `hi` or `hinglish` as needed. This is a local harness path only. It imports
 AppButton/AppPanel/FormField/AppSelect/Badge/RowActionsMenu/DataTable/ViewToggle,
 Dialog and the exact RecordList pattern used by Students. State/density controls
+and the actual `StudentRecordCard` renderer
 demonstrate the components; they are not product APIs. Synthetic names and examples
 never reach a database or provider. No production gallery route or auth bypass exists.
 
 - Scoped UI/workflow units: `pnpm exec node node_modules/vitest/vitest.mjs run --config tests/shared-system/vitest.config.ts` (explicit allowlist, throwing DB/network guard).
 - Scoped fixture browsers: `pnpm exec node node_modules/@playwright/test/cli.js test --config tests/shared-system/playwright.config.ts`.
 - Final dashboard evidence: `pnpm exec node tests/application-design-pilot/system-capture.mjs after`, then `pnpm exec node tests/application-design-pilot/system-compare.mjs after`. The frozen `before` packet is never overwritten.
+- Focused card refinement: `pnpm exec node tests/application-design-pilot/student-card-capture.mjs after`, then `pnpm exec node tests/application-design-pilot/student-card-compare.mjs`. The separate frozen card baseline is `docs/redesign/student-card-evidence/before`; this checks one native dashboard/table frame without regenerating historical packets.
 - Palette guard: `pnpm exec node tests/shared-system/check-presentation.mjs 3d58864`.
 - Connected build/test: `pnpm exec node tests/dashboard-connected/start-local.mjs build`, `... start`, `... students-test`. The existing runner proves container ID/image/loopback binding/database identity. Build additionally proves transaction read-only mode. Tests use only the existing synthetic fixture and development sessions; external business providers are held. No reset/seed/migration runs here.
 - Shared changes also require lint, production build and representative existing consumers. See the exact results in the local handoff. Never run the broad database-connected repository Vitest config for a presentation change.
