@@ -1,5 +1,22 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Full selected dashboard implementation — 2026-09-27
+
+The owner's new scope replaces the earlier dashboard-pilot composition limits
+below. The branch dashboard now uses the full selected image composition and a
+permission-shaped `DashboardService` aggregate. The additive operations include
+explicit attendance expectations, independent membership terms, first-observed
+occupancy history, manual tasks, focused fee follow-ups and persistent personal
+notification acknowledgement. Existing collection, anniversary fee, attendance,
+provider, localization and tenant boundaries remain authoritative; public pages
+remain unchanged. Visual acceptance is reserved for the owner.
+
+The chart shows current settlement of the selected month's due-date cohort;
+cash collected this month is a separate measure. Historical occupancy begins
+only at actual snapshots. See [dashboard operations](dashboard-operations.md)
+for source definitions, authorization, sparse states and migration requirements.
+The dated pilot sections below are historical records, not current design gates.
+
 ## Dashboard component reconstruction — 2026-09-25
 
 The approval-gated dashboard pilot now has two source-backed Action Center

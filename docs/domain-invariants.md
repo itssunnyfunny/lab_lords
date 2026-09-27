@@ -16,6 +16,34 @@ Every statement uses one of these labels:
   incomplete, or likely defective. Do not encode it as a product guarantee;
   resolve it deliberately with tests before depending on it.
 
+## Dashboard operations
+
+- **Must preserve—enforced:** Dashboard responses omit forbidden data sources;
+  advanced collections charts additionally require payment-view permission and
+  ADVANCED_ANALYTICS. Failed reads are unavailable, never a fabricated zero.
+  Financial sums preserve partial balances, waivers, legacy statuses and voids.
+  The chart's rate uses collected and collectible billed values from the same
+  fee cohort; calendar-month cash receipts are a separate metric.
+- **Service-layer contract—not DB-enforced:** Attendance expectations are
+  explicitly configured weekdays and local deadlines. Gaps do not create
+  absences or visits. Independent membership terms neither generate monthly
+  fees nor deactivate students nor grant SaaS access. Configuration requires
+  manage_branch and students; existing anniversary billing remains unchanged.
+- **Must preserve—enforced:** New operational evidence starts empty. Occupancy
+  snapshots are first-observed branch/day/shift counts with a recorded timezone
+  and observation time, and snapshots/events reject updates and deletes.
+  Missing historical observations stay unknown. Current utilization divides
+  active allocations by all physical seats times active shifts.
+- **Service-layer contract—not DB-enforced:** Completing a task or follow-up
+  does not settle debt, send a message or mark attendance. Explicit saving of a
+  completed contact through the original renewals flow reopens contact work.
+  Notification read/snooze/dismiss state is private to user and branch, does not
+  resolve source work and is re-authorized at mutation time.
+
+See [dashboard operations](ai/dashboard-operations.md),
+`services/dashboard.service.ts`, `services/renewals.service.ts`, and dashboard
+unit/API/integration coverage.
+
 ## Tenant and identity boundaries
 
 - **Must preserve—enforced:** Interface and document language are independent

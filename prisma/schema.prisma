@@ -9,6 +9,10 @@ datasource db {
 }
 
 model User {
+  dashboardTasksCreated DashboardTask[] @relation("DashboardTaskCreator")
+  dashboardTasksAssigned DashboardTask[] @relation("DashboardTaskAssignee")
+  dashboardNotificationStates DashboardNotificationState[]
+  dashboardEvents DashboardEvent[]
   attendanceMarks AttendanceMark[]
   attendanceVisits AttendanceVisit[]
   attendanceCommands AttendanceCommand[]
@@ -106,6 +110,13 @@ model Organization {
 }
 
 model Branch {
+  dashboardSettings DashboardSettings?
+  attendanceExpectations AttendanceExpectation[]
+  membershipTerms MembershipTerm[]
+  occupancySnapshots OccupancySnapshot[]
+  dashboardTasks DashboardTask[]
+  dashboardNotificationStates DashboardNotificationState[]
+  dashboardEvents DashboardEvent[]
   attendanceMarks AttendanceMark[]
   attendanceVisits AttendanceVisit[]
   attendanceCredentials AttendanceCredential[]
@@ -164,6 +175,8 @@ model Branch {
 }
 
 model Student {
+  attendanceExpectation AttendanceExpectation?
+  membershipTerms MembershipTerm[]
   attendanceMarks AttendanceMark[]
   attendanceVisits AttendanceVisit[]
   attendanceCredential AttendanceCredential?
@@ -297,6 +310,7 @@ model RenewalFollowUp {
   note           String   @default("")
   outcome        RenewalFollowUpOutcome @default(NOT_CONTACTED)
   nextFollowUpAt  DateTime?
+  completedAt    DateTime?
   authorId       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -306,6 +320,102 @@ model RenewalFollowUp {
 
   @@unique([studentId, type, periodStart])
   @@index([branchId, nextFollowUpAt])
+}
+
+model DashboardSettings {
+  branchId String @id
+  utilizationThreshold Int @default(35)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+}
+
+model AttendanceExpectation {
+  id String @id @default(cuid())
+  branchId String
+  studentId String @unique
+  weekdays Int[]
+  expectedBy String
+  enabled Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [studentId, branchId], references: [id, branchId], onDelete: Restrict)
+  @@index([branchId, enabled])
+  @@unique([studentId, branchId])
+}
+
+model MembershipTerm {
+  id String @id @default(cuid())
+  branchId String
+  studentId String
+  label String
+  startDate String
+  endDate String
+  createdAt DateTime @default(now())
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [studentId, branchId], references: [id, branchId], onDelete: Restrict)
+  @@unique([studentId, startDate, endDate])
+  @@index([branchId, endDate])
+}
+
+model OccupancySnapshot {
+  id String @id @default(cuid())
+  branchId String
+  date String
+  timezone String
+  shiftId String
+  shiftName String
+  startTime String?
+  endTime String?
+  capacity Int
+  occupied Int
+  recordedAt DateTime @default(now())
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  @@unique([branchId, date, shiftId])
+  @@index([branchId, recordedAt])
+}
+
+model DashboardTask {
+  id String @id @default(cuid())
+  branchId String
+  title String
+  status String @default("OPEN")
+  dueAt DateTime?
+  assigneeId String?
+  creatorId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  creator User @relation("DashboardTaskCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  assignee User? @relation("DashboardTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  @@index([branchId, status, dueAt])
+}
+
+model DashboardNotificationState {
+  id String @id @default(cuid())
+  branchId String
+  userId String
+  key String
+  readAt DateTime?
+  snoozedUntil DateTime?
+  dismissedAt DateTime?
+  updatedAt DateTime @updatedAt
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, branchId, key])
+  @@index([branchId, userId])
+}
+
+model DashboardEvent {
+  id String @id @default(cuid())
+  branchId String
+  actorId String
+  kind String
+  sourceId String
+  detail String
+  occurredAt DateTime @default(now())
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  @@index([branchId, occurredAt])
 }
 
 enum RenewalFollowUpOutcome {
