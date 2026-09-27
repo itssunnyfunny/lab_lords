@@ -3,7 +3,9 @@
 Working base: `3d58864`, clean worktree, local branch
 `codex/shared-students-pattern`. This scope supersedes the historical dashboard
 pilot restrictions. The selected dashboard is frozen; Students is the first
-reusable record-family consumer. Other page families await a focused owner review.
+reusable record-family consumer. The owner approved its refined card comparison
+on 2026-09-27 for Batch 2, Staff then Tasks. Reuse its hierarchy and shared owners;
+keep Students/dashboard/public presentation frozen. Later batches remain out of scope.
 
 | Selected rule | Shared owner | Consumers / boundary |
 | --- | --- | --- |

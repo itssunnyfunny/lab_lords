@@ -9,8 +9,11 @@ fee/paid values and joining metadata. The gallery imports this same renderer.
 Edit opts into an integrated, wrapping language header and softer backdrop, with
 primary Save / secondary Cancel. Default shared consumers and desktop table
 composition remain compatible. No read, command, validation or financial rules
-change. This refined record-card pattern still awaits the owner's approval;
-Staff and Tasks have not started. See the [focused review](../redesign/student-card-refinement.md).
+change. The owner approved this refined presentation on 2026-09-27 for Batch 2,
+Staff then Tasks. That approval is distinct from local tests and production
+release; this local migration has not been released. See the
+[approval ledger](../redesign/page-family-migration.md) and
+[focused evidence](../redesign/student-card-refinement.md).
 
 The selected dashboard's recurring palette, compact panels/actions and font
 roles now extend the existing semantic token and UI owners. Its full composition

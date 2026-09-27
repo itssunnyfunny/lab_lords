@@ -1,8 +1,10 @@
 # Remaining application families
 
-The selected dashboard remains the visual baseline. This run implements only
-the Students family and shared presentation. Subsequent batches begin after one
-focused owner review of the Students pattern. Each batch needs scoped workflow,
+The selected dashboard remains the visual baseline. On 2026-09-27 the owner
+explicitly approved the refined Students presentation shown in the comparison
+as the pattern for Batch 2: Staff first, then Tasks. Keep that implementation;
+this authorizes presentation migration only, not backend features or release.
+Stop after Batch 2. Each batch needs scoped workflow,
 authorization, three-language, keyboard, narrow-screen and affected-consumer
 checks; it must not change the public theme or request identities.
 
@@ -10,10 +12,21 @@ checks; it must not change the public theme or request identities.
 current application page; grouped paths share one review boundary. These are
 proposed migration batches, not new product or architectural approvals.
 
+## Presentation approval and release ledger
+
+These columns describe this local migration revision, not historical production
+availability of each feature. Test success is not owner approval or deployment.
+
+| Family | Local verification evidence | Owner presentation approval | Production release |
+| --- | --- | --- | --- |
+| Students | `36d0d0d` implementation; `b102af3` [local evidence](student-card-refinement.md) | **Approved 2026-09-27** in this chat: refined comparison retained as the next batch's visual pattern | Local migration not released; no release operation authorized |
+| Staff | Batch 2 in progress | Reuse approved Students hierarchy; completed family review pending | Not released |
+| Tasks | Starts after Staff verification | Reuse approved hierarchy; completed family review pending | Not released |
+
 | Route / family | Pattern / batch | Bespoke work retained | Risk | Required checks | Status | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | `/branch/b` | Selected dashboard | Chart, seating matrix, artwork, five priorities/six figures | High source/access | Pixel/crops, source freshness, notifications, sparse history, finance/access | Preserved | `95a589a` |
-| `/branch/b/students` | Record list/detail / 1 | Admission, status resolution, consent, fee/attendance overlays | High mutation/recovery | Scalar merge, filter context, readonly/staff, nested dialogs, fees, three languages | Refined cards; owner review pending | `6e423ae`, `36d0d0d`; [review](student-card-refinement.md) |
+| `/branch/b/students` | Record list/detail / 1 | Admission, status resolution, consent, fee/attendance overlays | High mutation/recovery | Scalar merge, filter context, readonly/staff, nested dialogs, fees, three languages | Refined; locally verified; presentation approved in ledger | `6e423ae`, `36d0d0d`, `b102af3`; [review](student-card-refinement.md) |
 | `/branch/b/staff` | Record list/detail / 2 | Invites, permission overrides, role controls | High authorization | Invite/permission/server scope, disabled actions, confirmation focus | Planned | — |
 | `/branch/b/tasks` | Record list/detail / 2 | Assignment, task state, evidence/activity tab | Medium | Reload persistence, assignee scope, source-state boundaries | Planned | — |
 | `/branch/b/follow-ups`, `/branch/b/renewals`, `/branch/b/overdue` | Work queue / 3 | Due cohorts, promises, completion, reminders and uncertainty | High finance/provider | Partial/waived/legacy balances, contact consent, no automatic provider action | Planned | — |
