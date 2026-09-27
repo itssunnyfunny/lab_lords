@@ -1,0 +1,127 @@
+{
+  "nativeWidth": 1491,
+  "nativeHeight": 1055,
+  "ribbonRemoved": 21,
+  "comparisons": [
+    {
+      "key": "header",
+      "target": {
+        "x": 247,
+        "y": 75,
+        "width": 1222,
+        "height": 126
+      },
+      "actual": {
+        "x": 247,
+        "y": 75,
+        "width": 1222,
+        "height": 126
+      }
+    },
+    {
+      "key": "actions",
+      "target": {
+        "x": 247,
+        "y": 214,
+        "width": 1222,
+        "height": 190
+      },
+      "actual": {
+        "x": 247,
+        "y": 214,
+        "width": 1222,
+        "height": 190.640625
+      }
+    },
+    {
+      "key": "metrics",
+      "target": {
+        "x": 247,
+        "y": 415,
+        "width": 1222,
+        "height": 106
+      },
+      "actual": {
+        "x": 247,
+        "y": 415.640625,
+        "width": 1222,
+        "height": 106
+      }
+    },
+    {
+      "key": "collections",
+      "target": {
+        "x": 247,
+        "y": 532,
+        "width": 556,
+        "height": 323
+      },
+      "actual": {
+        "x": 247,
+        "y": 532.640625,
+        "width": 555.875,
+        "height": 326.03125
+      }
+    },
+    {
+      "key": "seating",
+      "target": {
+        "x": 813,
+        "y": 532,
+        "width": 367,
+        "height": 323
+      },
+      "actual": {
+        "x": 812.875,
+        "y": 532.640625,
+        "width": 366.375,
+        "height": 323
+      }
+    },
+    {
+      "key": "activity",
+      "target": {
+        "x": 1190,
+        "y": 532,
+        "width": 279,
+        "height": 259
+      },
+      "actual": {
+        "x": 1189.25,
+        "y": 532.640625,
+        "width": 279.75,
+        "height": 257
+      }
+    },
+    {
+      "key": "quick",
+      "target": {
+        "x": 1190,
+        "y": 799,
+        "width": 279,
+        "height": 241
+      },
+      "actual": {
+        "x": 1189.25,
+        "y": 797.640625,
+        "width": 279.75,
+        "height": 245
+      }
+    },
+    {
+      "key": "worklists",
+      "target": {
+        "x": 247,
+        "y": 865,
+        "width": 932,
+        "height": 179
+      },
+      "actual": {
+        "x": 247,
+        "y": 868.671875,
+        "width": 932.25,
+        "height": 183.1875
+      }
+    }
+  ]
+}

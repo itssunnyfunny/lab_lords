@@ -95,6 +95,12 @@ writability. The API retains unresolved conditions with their acknowledgement
 flags, so the task/source worklists still expose them. No browser push, provider
 send, charge or external action is performed.
 
+Opening the notification center refreshes its current source conditions.
+Acknowledgement controls are disabled while that refresh is pending or failed.
+If a condition changes after the list was displayed, the server still rejects
+its obsolete key. The UI then refreshes the list and requires another explicit
+action; it never automatically acknowledges the replacement condition.
+
 ## Migration and rollout
 
 `20260927120000_dashboard_operations` adds seven empty tables and nullable
@@ -118,6 +124,10 @@ reset fees or revert to pre-collection writers. No down migration is supplied.
 ## Destinations, search and exports
 
 The branch shell exposes Follow-ups, Tasks, Exports & Reports and source setup.
+It waits for the initial Clerk client identity before mounting interactive
+branch content. The existing identity-keyed preferences reset remains intact;
+forms cannot open in the unresolved identity and then lose input on hydration.
+This readiness guard does not replace server authorization or affect public pages.
 Follow-ups edits the canonical renewal contact record; the Tasks page separates
 manual management tasks from unresolved source work. Members with operational
 permissions can review their authorized source work without gaining manual-task

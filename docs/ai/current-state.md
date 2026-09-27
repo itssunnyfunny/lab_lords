@@ -15,6 +15,8 @@ The chart shows current settlement of the selected month's due-date cohort;
 cash collected this month is a separate measure. Historical occupancy begins
 only at actual snapshots. See [dashboard operations](dashboard-operations.md)
 for source definitions, authorization, sparse states and migration requirements.
+The [local handoff](../redesign/reference-dashboard-handoff.md) contains the
+native reference comparisons, connected preview instructions and exact checks.
 The dated pilot sections below are historical records, not current design gates.
 
 ## Dashboard component reconstruction — 2026-09-25
@@ -1153,7 +1155,7 @@ The uncalled V1 import executor and two obsolete unscoped AI scripts are removed
 Active imports retain Workflow and atomic item/domain finalization. Analysis
 now adds session token/expiry fencing (migration 47) to existing revision CAS.
 See [access/worker contracts](access-and-worker-contracts.md), the complete
-[166-relationship catalog](tenant-relationship-coverage.md), and the
+[complete relationship catalog](tenant-relationship-coverage.md), and the
 [execution matrix](architecture-consolidation-2026-09-05.md). The isolated
 bootstrap applies all maintained migrations and required billing identity;
 Production migration versus fresh cutover remains an evidence-dependent choice

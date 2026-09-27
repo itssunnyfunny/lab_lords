@@ -10,6 +10,7 @@ export default defineConfig({ plugins: [tsconfigPaths()], test: {
         "tests/unit/lib/branch-dashboard.test.ts", "tests/unit/lib/dashboard-presentation.test.ts", "tests/unit/lib/dashboard-fixture.test.ts",
         "tests/unit/lib/application-design-pilot.test.ts", "tests/unit/application-pilot-theme.test.ts",
         "tests/unit/components/BranchSidebar.test.tsx", "tests/unit/components/WorkspaceSwitcher.test.tsx", "tests/unit/components/StatCard.test.tsx",
+        "tests/unit/components/BranchWorkspaceShell.test.tsx",
         "tests/unit/components/reference-dashboard.test.tsx", "tests/unit/lib/branch-capabilities.test.ts",
         "tests/unit/lib/localization.test.ts", "tests/unit/lib/public-localization.test.ts",
         "tests/unit/lib/topSearch.test.ts", "tests/unit/services/branch-search.test.ts",

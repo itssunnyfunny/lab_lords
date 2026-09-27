@@ -8,6 +8,19 @@ Global User references record actors/owners and do not assert current membership
 
 | Relationship | PostgreSQL parent key | Tenant proof | Nullable reference |
 | --- | --- | --- | --- |
+| DashboardSettings.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| AttendanceExpectation.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| AttendanceExpectation.student (studentId, branchId) | Student (id, branchId) | Composite branchId | No |
+| MembershipTerm.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| MembershipTerm.student (studentId, branchId) | Student (id, branchId) | Composite branchId | No |
+| OccupancySnapshot.branch (branchId) | Branch (id) | Single scoped parent chain; shift identifier is immutable historical evidence | No |
+| DashboardTask.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| DashboardTask.creator (creatorId) | User (id) | Historical recording actor; current access is rechecked | No |
+| DashboardTask.assignee (assigneeId) | User (id) | Current branch membership and task access checked by service | Yes |
+| DashboardNotificationState.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| DashboardNotificationState.user (userId) | User (id) | Authenticated personal-state owner; source permission rechecked | No |
+| DashboardEvent.branch (branchId) | Branch (id) | Single scoped parent chain | No |
+| DashboardEvent.actor (actorId) | User (id) | Historical recording actor; current access is rechecked | No |
 | FeeCollection.branch (branchId) | Branch (id) | Single scoped parent chain | No |
 | FeeCollection.student (studentId, branchId) | Student (id, branchId) | Composite branchId | No |
 | FeeCollection.actor (actorId) | User (id) | Historical recording actor; current access is rechecked | No |
@@ -195,6 +208,6 @@ Global User references record actors/owners and do not assert current membership
 | BillingProviderAction.organization (organizationId) | Organization (id) | Organization ownership chain | No |
 | BillingProviderAction.change (changeId, organizationId) | OrganizationBillingChange (id, organizationId) | Composite organizationId | Yes; deletion semantics in SQL |
 
-Frozen migration-specific details: [billing/WhatsApp](../../prisma/tenant-relationship-contracts.json), [import](../../prisma/import-relationship-contracts.json). The full [machine-readable inventory](../../prisma/relationship-coverage.json) includes 169 owning relationships. No new tenant columns were added to single-parent or global identity chains.
+Frozen migration-specific details: [billing/WhatsApp](../../prisma/tenant-relationship-contracts.json), [import](../../prisma/import-relationship-contracts.json). The full [machine-readable inventory](../../prisma/relationship-coverage.json) includes 199 owning relationships after the 13 additive dashboard-operation links (2026-09-27). No new tenant columns were added to single-parent or global identity chains.
 
 Retained retry-plan `snapshot.items[].payload.studentId` is also maintained in the typed ledger by migration 48; runtime foreign/missing targets reject, historical missing targets detach, and foreign history blocks atomically. Other plan JSON is reviewed staging/description, not a second executable target map.

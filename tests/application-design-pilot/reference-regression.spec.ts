@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { referenceDashboardFixture } from "./reference-fixture";
 
 test("dashboard refresh reloads the selected historical month with an honest pending state", async ({ page }) => {
@@ -75,4 +75,72 @@ test("calendar labels keep their day when browser and saved display timezones di
         // True event timestamps still use the existing persisted preference.
         await expect(page.locator(".rd-activity time").first()).toHaveAttribute("title", /03:41 pm/);
     } finally { await context.close(); }
+});
+
+async function notificationFixture(page: Page) {
+    const state = { version: 1, reads: 0, hold: false, failRead: false, release: undefined as (() => void) | undefined, patched: [] as string[], acknowledged: new Set<string>() };
+    await page.route("**/api/branches/pilot/dashboard/notifications", async route => {
+        const key = `follow-up-v${state.version}`;
+        if (route.request().method() === "PATCH") {
+            const command = route.request().postDataJSON() as { key: string };
+            state.patched.push(command.key);
+            if (command.key !== key) return route.fulfill({ status: 404, json: { error: "Not found" } });
+            state.acknowledged.add(key);
+            return route.fulfill({ json: { success: true } });
+        }
+        state.reads++;
+        if (state.hold) await new Promise<void>(resolve => { state.release = resolve; });
+        if (state.failRead) return route.fulfill({ status: 503, json: { error: "Source unavailable" } });
+        const currentKey = `follow-up-v${state.version}`;
+        const read = state.acknowledged.has(currentKey);
+        return route.fulfill({ json: { items: [{ key: currentKey, kind: "FOLLOW_UP", count: state.version, href: "/branch/pilot/follow-ups", read, snoozedUntil: null, dismissed: false }], unreadCount: read ? 0 : 1 } });
+    });
+    return state;
+}
+
+test("reopening notifications refreshes changed source keys before any acknowledgement", async ({ page }) => {
+    const state = await notificationFixture(page);
+    await page.goto("/branch/pilot?mode=after&lang=en");
+    await expect.poll(() => state.reads).toBeGreaterThanOrEqual(1);
+    const bell = page.getByRole("button", { name: "Notifications", exact: true });
+    await bell.click();
+    const dialog = page.getByRole("dialog", { name: "Notifications", exact: true });
+    await expect(dialog.getByRole("link", { name: "Follow-ups due · 1" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Close dialog" }).click();
+
+    // A confirmed source update changes the derived condition key while closed.
+    state.version = 2; state.hold = true;
+    await bell.click();
+    await expect(dialog.getByRole("status")).toHaveText("Loading notifications");
+    for (const name of ["Mark all read", "Mark read", "Snooze 24 hours", "Dismiss"]) {
+        await expect(dialog.getByRole("button", { name, exact: true })).toBeDisabled();
+    }
+    await expect.poll(() => Boolean(state.release)).toBe(true);
+    state.hold = false; state.release?.();
+    await expect(dialog.getByRole("link", { name: "Follow-ups due · 2" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Mark all read" }).click();
+    await expect.poll(() => state.patched).toEqual(["follow-up-v2"]);
+    await expect(page.locator(".reference-notification-bell span")).toHaveCount(0);
+});
+
+test("an obsolete notification key refreshes the list without acknowledging its replacement", async ({ page }) => {
+    const state = await notificationFixture(page);
+    await page.goto("/branch/pilot?mode=after&lang=en");
+    await page.getByRole("button", { name: "Notifications", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Notifications", exact: true });
+    await expect(dialog.getByRole("button", { name: "Mark all read" })).toBeEnabled();
+    state.version = 2;
+    await dialog.getByRole("button", { name: "Mark all read" }).click();
+    await expect(dialog.getByRole("alert")).toContainText("Review the refreshed list and try again.");
+    await expect(dialog.getByRole("link", { name: "Follow-ups due · 2" })).toBeVisible();
+    expect(state.patched).toEqual(["follow-up-v1"]);
+    expect(state.acknowledged.size).toBe(0);
+    await dialog.getByRole("button", { name: "Mark all read" }).click();
+    await expect.poll(() => state.patched).toEqual(["follow-up-v1", "follow-up-v2"]);
+    await expect(page.locator(".reference-notification-bell span")).toHaveCount(0);
+    state.failRead = true;
+    await dialog.getByRole("button", { name: "Refresh", exact: true }).click();
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Snooze 24 hours" })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "Dismiss", exact: true })).toBeDisabled();
 });

@@ -1,4 +1,5 @@
 export const dashboardFeatureMessages = {
+"Alerts changed or could not be updated. Review the refreshed list and try again.": ["सूचनाएँ बदल गई हैं या अपडेट नहीं हो सकीं। नई सूची देखकर फिर कोशिश करें।", "Alerts badal gaye ya update nahi hue. Nayi list dekhkar phir try karein."],
 "Organization overview": ["संगठन का सारांश", "Organization overview"],
 "Created": ["जोड़ा गया", "Created"], "Updated": ["अपडेट हुआ", "Updated"], "Reopened": ["फिर खोला गया", "Reopened"],
 "Fees due in selected month · current settlement": ["चुने महीने की फीस · अभी का हिसाब", "Selected month ki fees · current settlement"],
