@@ -70,6 +70,18 @@ second terminal, use `start-local.mjs test`, `start-local.mjs capture`, or
 `start-local.mjs counts` for guarded verification. Then open the normal review
 window with `pnpm exec node tests/dashboard-connected/open-preview.mjs`.
 
+For the bounded shared-presentation/Students run, use `start-local.mjs build`
+to build with the same exact verified target and enforced read-only transactions,
+then `start-local.mjs students-test` for the dedicated three-test configuration.
+This avoids the repository integration setup and its truncation. The Students
+test confirms a scalar edit through the actual route/API and PostgreSQL, preserves
+allocation context and financial aggregates, captures all three languages, and
+checks readonly/staff/foreign access plus public and unmigrated routes. It holds
+external business providers. It restores only its known synthetic student's name,
+phone and interface preference; restoring the original null phone uses scoped SQL
+because the existing edit form requires a nonblank phone. No schema, migration,
+seed, saved environment or production authentication changes are involved.
+
 The remaining instructions support independently recreated fixtures:
 
 `pnpm exec node tests/dashboard-connected/server.mjs` starts webpack development

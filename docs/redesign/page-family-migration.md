@@ -13,7 +13,7 @@ proposed migration batches, not new product or architectural approvals.
 | Route / family | Pattern / batch | Bespoke work retained | Risk | Required checks | Status | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | `/branch/b` | Selected dashboard | Chart, seating matrix, artwork, five priorities/six figures | High source/access | Pixel/crops, source freshness, notifications, sparse history, finance/access | Preserved | `95a589a` |
-| `/branch/b/students` | Record list/detail / 1 | Admission, status resolution, consent, fee/attendance overlays | High mutation/recovery | Scalar merge, filter context, readonly/staff, nested dialogs, fees, three languages | Implemented; review pending | See local handoff |
+| `/branch/b/students` | Record list/detail / 1 | Admission, status resolution, consent, fee/attendance overlays | High mutation/recovery | Scalar merge, filter context, readonly/staff, nested dialogs, fees, three languages | Implemented; review pending | `6e423ae` |
 | `/branch/b/staff` | Record list/detail / 2 | Invites, permission overrides, role controls | High authorization | Invite/permission/server scope, disabled actions, confirmation focus | Planned | — |
 | `/branch/b/tasks` | Record list/detail / 2 | Assignment, task state, evidence/activity tab | Medium | Reload persistence, assignee scope, source-state boundaries | Planned | — |
 | `/branch/b/follow-ups`, `/branch/b/renewals`, `/branch/b/overdue` | Work queue / 3 | Due cohorts, promises, completion, reminders and uncertainty | High finance/provider | Partial/waived/legacy balances, contact consent, no automatic provider action | Planned | — |

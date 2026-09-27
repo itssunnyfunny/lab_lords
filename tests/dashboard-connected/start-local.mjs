@@ -42,8 +42,10 @@ const commands = {
     test: ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/dashboard-connected/playwright.config.ts"],
     capture: ["tests/dashboard-connected/capture.mjs"],
     counts: ["tests/dashboard-connected/counts.mjs"],
+    build: ["tests/dashboard-connected/build.mjs"],
+    "students-test": ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/shared-system/connected.playwright.config.ts"],
 };
-if (!Object.hasOwn(commands, mode)) throw new Error("Choose start, test, capture or counts");
+if (!Object.hasOwn(commands, mode)) throw new Error("Choose start, test, capture, counts, build or students-test");
 console.log("Verified the exact disposable container and local fixture. No saved application environment or shared database is used.");
 const child = spawn(process.execPath, commands[mode], { env: { ...process.env, TEST_DATABASE_URL: connectionString,
     TEST_DATABASE_RESET_CONFIRM: config.database, DASHBOARD_CONNECTED_MODE: "start" }, stdio: "inherit", windowsHide: true });

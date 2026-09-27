@@ -16,6 +16,7 @@ async function open(route, query = '') {
     for (const [key, value] of new URLSearchParams(query)) params.set(key, value);
     await page.goto(`http://127.0.0.1:4187/branch/pilot${route}?${params}`, { waitUntil: 'domcontentloaded', timeout: 90000 });
     await expect(page.locator(route ? '[data-record-list], main p' : '.rd-priorities article').first()).toBeVisible({ timeout: 60000 });
+    if (route === '/students' && !['empty', 'error', 'loading'].includes(params.get('state'))) await expect(page.locator('p:visible').filter({ hasText: /^Aarav Mehta$/ }).first()).toBeVisible();
     await page.evaluate(async () => {
         await document.fonts.ready;
         await Promise.all(Array.from(document.images).map(img => img.decode().catch(() => {})));
@@ -39,6 +40,10 @@ if (phase !== 'extracted') {
             await open('/students', `&lang=${language}`);
             await expect(page.locator('button[aria-label]:visible').first()).toBeVisible();
             await page.screenshot({ path: path.join(output, `students-${language}-${width}.png`), fullPage: true });
+            if (phase === 'after' && width < 1491) {
+                await page.locator('#student-grid-student-aarav').scrollIntoViewIfNeeded();
+                await page.screenshot({ path: path.join(output, `students-${language}-${width}-records.png`) });
+            }
         }
     }
     await page.setViewportSize({ width: 1491, height: 1076 });
@@ -52,6 +57,41 @@ if (phase !== 'extracted') {
     await page.getByRole('menuitem', { name: /View Fees/ }).click();
     await expect(page.getByText('Payment history', { exact: true })).toBeVisible();
     await page.screenshot({ path: path.join(output, 'students-fees.png') });
+    if (phase === 'after') {
+        await page.getByRole('dialog').getByRole('button', { name: 'Collect fee', exact: true }).click();
+        await expect(page.getByRole('dialog', { name: 'Collect fee', exact: true }).getByLabel('Amount received (whole ₹)')).toBeVisible();
+        await page.screenshot({ path: path.join(output, 'students-nested-fees.png') });
+        for (const language of ['en', 'hi', 'hinglish']) {
+            for (const width of [1491, 320]) {
+                await page.setViewportSize({ width, height: width === 1491 ? 1076 : 844 });
+                await open('/gallery', `&lang=${language}`);
+                await expect(page.getByRole('heading', { name: 'Shared component gallery' })).toBeVisible();
+                await page.screenshot({ path: path.join(output, `gallery-${language}-${width}.png`) });
+                if (width < 1491) {
+                    await page.locator('.ui-record-results').scrollIntoViewIfNeeded();
+                    await page.screenshot({ path: path.join(output, `gallery-${language}-${width}-records.png`) });
+                }
+            }
+        }
+        await page.setViewportSize({ width: 1491, height: 1076 });
+        await open('/gallery');
+        await page.getByRole('combobox', { name: 'Gallery density' }).click();
+        await page.getByRole('option', { name: 'comfortable', exact: true }).click();
+        await page.screenshot({ path: path.join(output, 'gallery-comfortable.png') });
+        await page.getByRole('button', { name: 'Edit student', exact: true }).first().click();
+        const dialog = page.getByRole('dialog', { name: 'Edit student' });
+        await dialog.getByRole('button', { name: 'Save Changes' }).click();
+        await expect(dialog.getByLabel('Full Name')).toHaveAttribute('aria-invalid', 'true');
+        await page.screenshot({ path: path.join(output, 'gallery-invalid.png') });
+        await dialog.getByRole('button', { name: 'View Fees' }).click();
+        await page.screenshot({ path: path.join(output, 'gallery-nested.png') });
+        for (const state of ['empty', 'error', 'restricted', 'readonly', 'loading']) {
+            await open('/students', `&state=${state === 'readonly' || state === 'restricted' ? 'populated' : state}&role=${state === 'readonly' || state === 'restricted' ? state : 'owner'}`);
+            if (state === 'error') await expect(page.getByRole('heading', { name: 'Something went wrong' })).toBeVisible();
+            if (state === 'empty') await expect(page.getByText('No students in this view yet.')).toBeVisible();
+            await page.screenshot({ path: path.join(output, `students-state-${state}.png`) });
+        }
+    }
 }
 fs.writeFileSync(path.join(output, 'measurements.json'), JSON.stringify({ phase, fixture: 'isolated production-component harness; fixed September 22 fixture; scale 1', width: 1491, height: 1055, regions, fonts, errors }, null, 2));
 await browser.close();
