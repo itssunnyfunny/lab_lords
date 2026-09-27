@@ -2,6 +2,16 @@
 
 ## Shared selected presentation and Students family — 2026-09-27
 
+The focused Students refinement replaces its four-box grid renderer with one
+feature-owned `StudentRecordCard`: quiet initials, labelled name workflow entry,
+separate 44px menu, all seat/shift pairs, primary due amount, secondary monthly
+fee/paid values and joining metadata. The gallery imports this same renderer.
+Edit opts into an integrated, wrapping language header and softer backdrop, with
+primary Save / secondary Cancel. Default shared consumers and desktop table
+composition remain compatible. No read, command, validation or financial rules
+change. This refined record-card pattern still awaits the owner's approval;
+Staff and Tasks have not started. See the [focused review](../redesign/student-card-refinement.md).
+
 The selected dashboard's recurring palette, compact panels/actions and font
 roles now extend the existing semantic token and UI owners. Its full composition
 and eight crops match the frozen `3d58864` fixture exactly. The real Students page

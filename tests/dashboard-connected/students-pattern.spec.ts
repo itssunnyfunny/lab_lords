@@ -7,7 +7,7 @@ import { refreshDevelopmentSession } from "../browser/helpers/development-sessio
 const fixture = JSON.parse(readFileSync(".clerk/dashboard-fixture.json", "utf8"));
 const target = assertDisposableTestDatabaseTarget(process.env.TEST_DATABASE_URL, process.env);
 if (target.databaseName !== fixture.databaseName || !target.databaseName.includes("browser_test")) throw new Error("Connected fixture identity mismatch");
-const output = "docs/redesign/shared-system-evidence/connected";
+const output = process.env.STUDENTS_REVIEW_OUTPUT ?? "docs/redesign/shared-system-evidence/connected";
 mkdirSync(output, { recursive: true });
 async function request(page: Page, path: string, method = "GET", data?: unknown) {
     const token = await page.evaluate(async () => (window as unknown as { Clerk: { session: { getToken(options: { skipCache: boolean }): Promise<string> } } }).Clerk.session.getToken({ skipCache: true }));

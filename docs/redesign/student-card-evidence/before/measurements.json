@@ -1,0 +1,23 @@
+{
+  "phase": "before",
+  "viewport": {
+    "width": 390,
+    "height": 2000,
+    "scale": 1
+  },
+  "cards": [
+    {
+      "name": "AM",
+      "height": 283
+    },
+    {
+      "name": "NV",
+      "height": 283
+    },
+    {
+      "name": "MS",
+      "height": 293
+    }
+  ],
+  "errors": []
+}
