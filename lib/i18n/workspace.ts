@@ -1,5 +1,6 @@
 /** Workspace navigation, queues and shared operational feedback. */
 export const workspaceMessages = {
+    "Clear filters": ["फ़िल्टर हटाएँ", "Filters hataein"],
     "Collected ₹{collected} · Waived ₹{waived} · Remaining ₹{remaining}": ["मिली ₹{collected} · माफ़ ₹{waived} · बाकी ₹{remaining}", "Mili ₹{collected} · Maaf ₹{waived} · Baaki ₹{remaining}"],
     " · Partially paid": [" · कुछ फीस मिली है", " · Kuch fee mili hai"],
     "Hindi / Hinglish": ["हिंदी / हिंग्लिश", "Hindi / Hinglish"],

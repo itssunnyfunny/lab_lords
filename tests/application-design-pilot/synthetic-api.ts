@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { referenceDashboardFixture } from "./reference-fixture";
+import type { AttendanceHistory } from "@/lib/attendance";
 
 type PilotRequest = IncomingMessage & { originalUrl?: string };
 type Next = () => void;
@@ -662,6 +663,13 @@ export function createSyntheticApiMiddleware() {
 
             if (path === `/api/branches/${BRANCH_ID}/attendance` && method === "GET") {
                 if (fail || context.state === "attendance-error") { sendJson(response, 503, { error: "Synthetic attendance failure" }); return; }
+                if (url.searchParams.has("studentId")) {
+                    const student = roster.find(row => row.id === url.searchParams.get("studentId")) ?? roster[0];
+                    const history: AttendanceHistory = { student: { id: student.id, name: student.name, status: student.status },
+                        today: "2026-09-23", from: "2026-09-23", to: "2026-09-23", timezone: "Asia/Kolkata",
+                        marks: [], visits: [], audits: [], nextCursor: null, auditNextCursor: null, qr: null };
+                    sendJson(response, 200, history); return;
+                }
                 sendJson(response, 200, { items: [], total: empty ? 0 : busy ? 11 : 3, nextCursor: null,
                     date: "2026-09-23", today: "2026-09-23", timezone: "Asia/Kolkata", shifts: [],
                     counts: { attended: empty ? 0 : busy ? 9 : 2, absent: busy ? 1 : 0, notMarked: empty ? 0 : 1, open: empty ? 0 : busy ? 3 : 1 } }); return;

@@ -137,6 +137,7 @@ export function EditStudentDialog({
 
     return (
         <Dialog
+            density="compact"
             open={isOpen}
             onClose={handleClose}
             title={t("Edit student")}

@@ -1,5 +1,5 @@
 "use client";
-import { LocalizedError } from "@/components/settings/LocalizedText";
+import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { CollectionHistory } from "@/components/payments/CollectionHistory";
@@ -11,16 +11,15 @@ import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
-import { AppButton, AppSelect, Dialog, Drawer, PageLoadingSkeleton, PageShell, useToast } from "@/components/ui";
+import { AppButton, AppSelect, Dialog, Drawer, useToast } from "@/components/ui";
 import { Button } from "@/components/ui/Button";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
-    AlertCircle, ArrowLeft,
     Eye, Pencil, PowerOff, Power,
     AlertTriangle, CheckCircle2, MinusCircle, Clock, ArrowRightLeft, Armchair, Download, Search, UserPlus, MessageCircle,
     Users,
 } from "lucide-react";
-import { useCallback, useEffect, useState, use, useMemo } from "react";
+import { useCallback, useEffect, useState, use, useMemo, useRef } from "react";
 import { students, type StudentListItem } from "@/lib/api/students";
 import { payments } from "@/lib/api/payments";
 import { branches } from "@/lib/api/branches";
@@ -40,19 +39,12 @@ import {
 } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
-    pageDescriptionClass,
-    pageEyebrowClass,
-    pageErrorIconClass,
-    pageErrorStateClass,
-    pageFilterShellClass,
     pageGridCardClass,
     pageGridCardHoverClass,
     pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageMutedTextClass,
-    pageSectionDividerClass,
     pageSubtleTextClass,
-    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
@@ -150,11 +142,11 @@ function StudentSeatShiftSummary({ student }: { student: StudentListItem }) {
     return (
         <div className="min-w-0 space-y-1 text-xs" title={`${seatText} - ${shiftText}`}>
             <div className="flex min-w-0 items-center gap-1.5 text-[color:var(--text-primary)]">
-                <Armchair size={13} className="flex-shrink-0 text-cyan-300" />
+                <Armchair size={13} className="flex-shrink-0 text-[color:var(--ui-tone-info-text)]" />
                 <span className="truncate font-medium">{seatText}</span>
             </div>
             <div className="flex min-w-0 items-center gap-1.5 text-textSecondary">
-                <Clock size={13} className="flex-shrink-0 text-amber-300" />
+                <Clock size={13} className="flex-shrink-0 text-[color:var(--ui-tone-warning-text)]" />
                 <span className="truncate">{shiftText}</span>
             </div>
         </div>
@@ -177,7 +169,7 @@ function StudentTabButton({
 }: {
     tab: StudentRosterTab;
     active: boolean;
-    count: number;
+    count?: number;
     onClick: () => void;
 }) {
     const t = useTranslation();
@@ -202,7 +194,7 @@ function StudentTabButton({
         >
             {active && <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", dotClassName)} />}
             {tab === "ACTIVE" ? t("Active") : t("Inactive")}
-            <span className={pageCountBadgeClass}>{count}</span>
+            {count !== undefined && <span className={pageCountBadgeClass}>{count}</span>}
         </button>
     );
 }
@@ -236,14 +228,14 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
             label: "Collect remaining fees in Cash",
             sublabel: "Records a cash collection per due. Use Collect fee first for UPI, bank transfer or partial amounts.",
             icon: CheckCircle2,
-            color: "text-green-400",
+            color: "text-[color:var(--ui-tone-success-text)]",
         },
         {
             value: "WAIVED",
             label: "Mark as Waived",
             sublabel: "Owner chose not to pursue. Cleans analytics.",
             icon: MinusCircle,
-            color: "text-amber-400",
+            color: "text-[color:var(--ui-tone-warning-text)]",
         },
         {
             value: "KEEP",
@@ -283,8 +275,8 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                 {/* Due payments summary */}
                 {hasDues ? (
                     <div className={cn("mb-5 p-4", formWarningBannerClass)}>
-                        <p className="text-amber-300 text-sm font-medium mb-1">{t("{count} unpaid billing cycle(s) - {formatCurrency} total", { count: duePayments.length, formatCurrency: formatCurrency(totalDue) })}</p>
-                        <p className="text-amber-200/60 text-xs">{t("How should these be resolved?")}</p>
+                        <p className="text-[color:var(--ui-tone-warning-text)] text-sm font-medium mb-1">{t("{count} unpaid billing cycle(s) - {formatCurrency} total", { count: duePayments.length, formatCurrency: formatCurrency(totalDue) })}</p>
+                        <p className="text-[color:var(--ui-tone-warning-text)] text-xs">{t("How should these be resolved?")}</p>
 
                         <div className="mt-3 space-y-2">
                             {resolutionOptions.map(opt => {
@@ -322,7 +314,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                     </div>
                 ) : (
                     <div className={cn("mb-5 p-4", formSuccessBannerClass)}>
-                        <p className="text-green-400 text-sm font-medium">{t("No outstanding payments")}</p>
+                        <p className="text-[color:var(--ui-tone-success-text)] text-sm font-medium">{t("No outstanding payments")}</p>
                         <p className={cn("mt-0.5 text-xs", pageSubtleTextClass)}>{t("This student has a clean financial record.")}</p>
                     </div>
                 )}
@@ -340,9 +332,10 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
 
 export default function StudentsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
+    const { ownerKey } = useUserPreferences();
 
     return (
-        <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.students}>
+        <BranchAccessGuard key={`${ownerKey}:${branchId}`} branchId={branchId} permission={BRANCH_PAGE_ACCESS.students}>
             {access => (
                 <StudentsContent
                     access={access}
@@ -423,6 +416,9 @@ function StudentsContent({
     const [loadingMore, setLoadingMore] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [auxiliaryError, setAuxiliaryError] = useState<string | null>(null);
+    const rosterRequest = useRef(0);
+    const auxiliaryRequest = useRef(0);
 
     // Add dialog
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -463,6 +459,7 @@ function StudentsContent({
     }, [searchQuery]);
 
     const loadAuxiliaryData = useCallback(async () => {
+        const request = ++auxiliaryRequest.current;
         try {
             const paymentListPromise = canViewPayments
                 ? Promise.all([
@@ -476,16 +473,19 @@ function StudentsContent({
                 canViewAllocations ? branches.getShifts(branchId) : Promise.resolve([]),
                 canViewAllocations ? branches.getMultiShifts(branchId) : Promise.resolve([]),
             ]);
+            if (request !== auxiliaryRequest.current) return;
+            setAuxiliaryError(null);
             setAllPayments(paymentsList);
             setShifts(shiftsList);
             setMultiShifts(multiShiftList);
             setShiftOptionsLoaded(true);
         } catch {
-            setError("Failed to load students data.");
+            if (request === auxiliaryRequest.current) setAuxiliaryError("Failed to load students data.");
         }
     }, [branchId, canViewAllocations, canViewPayments]);
 
     const loadStudentPage = useCallback(async (cursor?: string, append = false) => {
+        const request = ++rosterRequest.current;
         if (append) setLoadingMore(true);
         else setLoading(true);
 
@@ -504,6 +504,7 @@ function StudentsContent({
                     cursor,
                     limit: 50,
                 });
+                if (request !== rosterRequest.current) return;
                 setAllStudents(previous => [...previous, ...page.items]);
                 setNextStudentCursor(page.nextCursor);
                 setStudentTotals(previous => ({ ...previous, [activeTab]: page.total }));
@@ -525,6 +526,7 @@ function StudentsContent({
                 });
                 const [page, otherPage] = await Promise.all([currentPagePromise, otherCountPromise]);
 
+                if (request !== rosterRequest.current) return;
                 setAllStudents(page.items);
                 setNextStudentCursor(page.nextCursor);
                 setStudentTotals({
@@ -534,6 +536,7 @@ function StudentsContent({
             }
             setError(null);
         } catch (loadError) {
+            if (request !== rosterRequest.current) return;
             if (
                 shiftScope.kind === "multi"
                 && loadError instanceof Error
@@ -557,8 +560,10 @@ function StudentsContent({
                 setError("Failed to load students data.");
             }
         } finally {
-            if (append) setLoadingMore(false);
-            else setLoading(false);
+            if (request === rosterRequest.current) {
+                setLoadingMore(false);
+                setLoading(false);
+            }
         }
     }, [activeTab, branchId, debouncedSearchQuery, shiftScope, targetStudentId, targetStudentStatus, toast]);
 
@@ -620,8 +625,7 @@ function StudentsContent({
 
     useEffect(() => {
         if (loading || !targetStudentId) return;
-        const target = document.getElementById(`student-table-${targetStudentId}`)
-            ?? document.getElementById(`student-grid-${targetStudentId}`);
+        const target = [document.getElementById(`student-table-${targetStudentId}`), document.getElementById(`student-grid-${targetStudentId}`)].find(element => element && element.getClientRects().length > 0);
         if (!target) return;
         const focusFrame = window.requestAnimationFrame(() => {
             const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -629,7 +633,7 @@ function StudentsContent({
             target.focus({ preventScroll: true });
         });
         return () => window.cancelAnimationFrame(focusFrame);
-    }, [activeTab, allStudents, loading, targetStudentId]);
+    }, [activeTab, allStudents, loading, targetStudentId, viewMode]);
 
     const handleExportStudents = async () => {
         setExporting(true);
@@ -691,7 +695,7 @@ function StudentsContent({
                 <div className={cn("font-medium", fin.totalDue > 0 ? "text-[color:var(--ui-tone-danger-text)]" : "text-textMuted")}>{t("Due: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalDue) })}</div>
                 <div className="text-textSecondary">{t("Paid: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalPaid) })}</div>
                 {fin.totalWaived > 0 && (
-                    <div className="text-amber-500/70">{t("Waived: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalWaived) })}</div>
+                    <div className="text-[color:var(--ui-tone-warning-text)]">{t("Waived: {formatCurrency}", { formatCurrency: formatCurrency(fin.totalWaived) })}</div>
                 )}
             </div>
         );
@@ -823,46 +827,19 @@ function StudentsContent({
         }
     };
 
-    if (loading) return <PageLoadingSkeleton label={t("Loading students")} variant="table" rows={7} />;
-
-    if (error) {
-        return (
-            <div className={pageErrorStateClass}>
-                <AlertCircle className={pageErrorIconClass} />
-                <h2 className="text-xl font-semibold">{t("Something went wrong")}</h2>
-                <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
-                <AppButton variant="secondary" icon={ArrowLeft} onClick={() => router.push("/org")}>
-                    {t("Back to workspace")}</AppButton>
-            </div>
-        );
-    }
+    const rosterBusy = loading || (!shiftOptionsLoaded && !auxiliaryError);
+    const readError = error ?? auxiliaryError;
 
     return (
-        <PageShell>
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="min-w-0">
-                    <p className={pageEyebrowClass}>{t("Student roster")}</p>
-                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Students")}</h1>
-                    <p className={pageDescriptionClass}>
-                        {t("Keep profiles, allocation context, and fee signals easy to scan without crowding the roster.")}</p>
-                </div>
-
-                <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-                    <div className="relative min-w-0 sm:w-72">
-                        <Search className={cn("absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", pageSubtleTextClass)} />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder={t("Search name or phone...")}
-                            aria-label={t("Search students by name or phone")}
-                            className={cn(formControlClass, "h-11 pl-9 pr-3 text-base sm:text-sm")}
-                        />
-                    </div>
-                    <AppButton variant="secondary" icon={Download} onClick={() => void handleExportStudents()} isLoading={exporting}>
+        <RecordListPage
+            title={t("Students")}
+            eyebrow={t("Student roster")}
+            description={t("Keep profiles, allocation context, and fee signals easy to scan without crowding the roster.")}
+            actions={<>
+                    <AppButton density="compact" variant="secondary" icon={Download} onClick={() => void handleExportStudents()} isLoading={exporting} disabled={rosterBusy || Boolean(readError)}>
                         {t("Export")}</AppButton>
                     {canViewWhatsApp ? (
-                        <AppButton
+                        <AppButton density="compact"
                             variant="secondary"
                             icon={Users}
                             onClick={() => setWhatsAppBulkOpen(true)}
@@ -871,7 +848,7 @@ function StudentsContent({
                         >
                             {t("Bulk WhatsApp consent")}</AppButton>
                     ) : null}
-                    <AppButton
+                    <AppButton density="compact"
                         variant="primary"
                         icon={UserPlus}
                         onClick={() => setIsAddModalOpen(true)}
@@ -879,8 +856,8 @@ function StudentsContent({
                         title={manageDecision.allowed ? undefined : manageDecision.reason}
                     >
                         {t("Add student")}</AppButton>
-                </div>
-            </header>
+            </>}
+        >
 
             {!manageDecision.allowed && manageDecision.blocker !== "permission" && (
                 <div className={cn("px-4 py-3 text-sm", formWarningBannerClass)} role="status">
@@ -907,8 +884,19 @@ function StudentsContent({
                 </div>
             )}
 
-            <div className={cn("flex flex-col gap-4 border-b pb-4 md:flex-row md:items-center md:justify-between", pageSectionDividerClass)}>
-                <div className={cn("flex items-center gap-3 px-3 py-2", pageFilterShellClass)}>
+            <RecordListSurface label={t("Students")} busy={rosterBusy} toolbar={<>
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
+                    <div className="relative min-w-0 w-full sm:w-64">
+                        <Search className={cn("absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", pageSubtleTextClass)} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder={t("Search name or phone...")}
+                            aria-label={t("Search students by name or phone")}
+                            className={cn(formControlClass, "h-11 pl-9 pr-3 text-base sm:text-sm")}
+                        />
+                    </div>
                     <label htmlFor="student-shift-filter" className={cn("text-sm", pageSubtleTextClass)}>{t("Shift")}</label>
                     <AppSelect
                         id="student-shift-filter"
@@ -927,7 +915,7 @@ function StudentsContent({
                                 key={tab}
                                 tab={tab}
                                 active={activeTab === tab}
-                                count={studentTotals[tab]}
+                                count={loading || error ? undefined : studentTotals[tab]}
                                 onClick={() => setActiveTab(tab)}
                             />
                         ))}
@@ -935,17 +923,31 @@ function StudentsContent({
 
                     <ViewToggle value={viewMode} onChange={setViewMode} className="hidden lg:inline-flex" />
                 </div>
-            </div>
-
-            <DataTable
+            </>} footer={!rosterBusy && !readError ? <div className="flex flex-wrap items-center justify-between gap-2" aria-live="polite">
+                <p className={cn("text-sm", pageMutedTextClass)}>{t("Showing {count} of {value} {toLowerCase} students", { count: allStudents.length, value: studentTotals[activeTab], toLowerCase: activeTab.toLowerCase() })}</p>
+                {nextStudentCursor ? (
+                    <AppButton
+                        variant="secondary"
+                        isLoading={loadingMore}
+                        aria-label={t("Load more students")}
+                        onClick={() => void loadStudentPage(nextStudentCursor, true)}
+                    >
+                        {t("Load more students")}</AppButton>
+                ) : null}
+            </div> : undefined}>
+                {rosterBusy ? <RecordListState kind="loading" title="Loading students" />
+                    : readError ? <RecordListState kind="error" title="Something went wrong" description={readError} onRetry={() => void Promise.all([loadStudentPage(), loadAuxiliaryData()])} />
+                    : !filteredStudents.length ? <RecordListState kind="empty" title={debouncedSearchQuery || shiftScope.kind !== "all" ? "No students match this search or shift filter." : "No students in this view yet."} action={debouncedSearchQuery || shiftScope.kind !== "all" ? <AppButton onClick={() => { setSearchQuery(""); setShiftScope({ kind: "all" }); }}>{t("Clear filters")}</AppButton> : undefined} />
+                    : <DataTable
+                density="compact"
                 caption="Students"
                 data={filteredStudents}
                 getRowAttributes={(item, view) => ({
                     id: `student-${view}-${item.id}`,
                     tabIndex: -1,
-                    "aria-label": item.id === targetStudentId ? `${item.name}, selected search result` : undefined,
+                    "aria-label": item.id === targetStudentId ? item.name : undefined,
                     className: item.id === targetStudentId
-                        ? "rounded-[var(--ui-radius-control)] bg-cyan-400/10 ring-2 ring-cyan-300/70"
+                        ? "rounded-[var(--ui-radius-control)] bg-[color:var(--ui-tone-info-bg)] ring-2 ring-[color:var(--ui-focus-ring)]"
                         : undefined,
                 })}
                 viewMode={viewMode}
@@ -955,37 +957,35 @@ function StudentsContent({
                         : "No students in this view yet."
                 )}
                 renderGridCard={(item, actions) => (
-                    <div className={cn("relative flex min-h-[230px] flex-col", pageGridCardClass, pageGridCardHoverClass)}>
+                    <div className={cn("relative flex flex-col", pageGridCardClass, pageGridCardHoverClass)}>
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-3">
-                                <Avatar name={item.name} size="lg" />
+                                <Avatar name={item.name} size="md" />
                                 <div className="min-w-0">
-                                    <p className="truncate font-medium text-[color:var(--text-primary)]">{item.name}</p>
-                                    <p className={cn("truncate text-xs", pageSubtleTextClass)}>{item.phone || "No phone"}</p>
+                                    <p className="break-words font-medium text-[color:var(--text-primary)]">{item.name}</p>
+                                    <p className={cn("break-all text-xs", pageSubtleTextClass)}>{item.phone || t("No phone")}</p>
+                                    <Badge className="mt-2" variant={item.status === "ACTIVE" ? "success" : "default"}>{t(item.status === "ACTIVE" ? "Active" : "Inactive")}</Badge>
                                 </div>
                             </div>
                             <div className="flex flex-shrink-0 items-start gap-2">
-                                <Badge variant={item.status === "ACTIVE" ? "success" : "default"}>
-                                    {t(item.status === "ACTIVE" ? "Active" : "Inactive")}
-                                </Badge>
                                 {actions?.(item)}
                             </div>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                             <div className={pageInsetMetricClass}>
                                 <div className={cn("text-xs", pageSubtleTextClass)}>{t("Joined")}</div>
-                                <div className={cn("mt-1 truncate", pageMutedTextClass)}>{formatDate(item.joinedAt)}</div>
+                                <div className={cn("mt-1 break-words", pageMutedTextClass)}>{formatDate(item.joinedAt)}</div>
                             </div>
                             <div className={pageInsetMetricClass}>
                                 <div className={cn("text-xs", pageSubtleTextClass)}>{t("Monthly fee")}</div>
-                                <div className="mt-1 truncate font-semibold text-[color:var(--text-primary)]">
+                                <div className="mt-1 break-words font-semibold text-[color:var(--text-primary)]">
                                     {typeof item.monthlyFee === "number" ? formatCurrency(item.monthlyFee) : t("Not set")}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div className="mt-3 grid grid-cols-2 gap-3">
                             <div className={cn("min-w-0", pageInsetMetricClass)}>
                                 <div className={cn("mb-2 text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{t("Seat & shift")}</div>
                                 <StudentSeatShiftSummary student={item} />
@@ -1000,12 +1000,13 @@ function StudentsContent({
                 columns={[
                     {
                         header: "Student",
+                        rowHeader: true,
                         accessor: (item) => (
                             <div className="flex items-center gap-3">
                                 <Avatar name={item.name} size="sm" />
                                 <div>
                                     <p className="font-medium text-[color:var(--text-primary)]">{item.name}</p>
-                                    <p className={cn("text-xs", pageSubtleTextClass)}>{item.phone || "No phone"}</p>
+                                    <p className={cn("text-xs", pageSubtleTextClass)}>{item.phone || t("No phone")}</p>
                                 </div>
                             </div>
                         )
@@ -1032,20 +1033,8 @@ function StudentsContent({
                     },
                 ]}
                 actions={renderStudentActions}
-            />
-
-            <div className="flex flex-col items-center gap-2" aria-live="polite">
-                <p className={cn("text-sm", pageMutedTextClass)}>{t("Showing {count} of {value} {toLowerCase} students", { count: allStudents.length, value: studentTotals[activeTab], toLowerCase: activeTab.toLowerCase() })}</p>
-                {nextStudentCursor ? (
-                    <AppButton
-                        variant="secondary"
-                        isLoading={loadingMore}
-                        aria-label={`Load more ${activeTab.toLowerCase()} students; ${allStudents.length} of ${studentTotals[activeTab]} shown`}
-                        onClick={() => void loadStudentPage(nextStudentCursor, true)}
-                    >
-                        {t("Load more students")}</AppButton>
-                ) : null}
-            </div>
+            />}
+            </RecordListSurface>
 
             {/* Add dialog */}
             <AddStudentDialog
@@ -1125,7 +1114,7 @@ function StudentsContent({
             />
 
             {/* Fee drawer */}
-            <Drawer open={!!attendanceStudent} title={attendanceStudent?.name ?? "Attendance"} onClose={() => setAttendanceStudent(null)}>
+            <Drawer density="compact" open={!!attendanceStudent} title={attendanceStudent?.name ?? "Attendance"} onClose={() => setAttendanceStudent(null)}>
                 {attendanceStudent && <StudentAttendance key={attendanceStudent.id} branchId={branchId} studentId={attendanceStudent.id} access={access} />}
             </Drawer>
             <FeeDetailsDrawer
@@ -1135,7 +1124,7 @@ function StudentsContent({
                 student={selectedStudent}
                 financials={selectedStudent ? studentFinancials.get(selectedStudent.id) : undefined}
             />
-        </PageShell>
+        </RecordListPage>
     );
 }
 
@@ -1162,7 +1151,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
         if (status === "PAID") return <Badge variant="success" className="text-[10px] h-5 px-1.5">{t("PAID")}</Badge>;
         if (status === "DUE") return <Badge variant="warning" className="text-[10px] h-5 px-1.5">{t("DUE")}</Badge>;
         if (status === "WAIVED") return (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[color:var(--ui-form-warning-bg)] text-[color:var(--ui-tone-warning-text)] border border-[color:var(--ui-form-warning-border)]">
                 {t("WAIVED")}</span>
         );
         return <Badge className="text-[10px] h-5 px-1.5">{status}</Badge>;
@@ -1170,6 +1159,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
 
     return (
         <Drawer
+            density="compact"
             open={isOpen && Boolean(student)}
             onClose={onClose}
             title={student?.name ?? "Student fees"}
@@ -1196,7 +1186,7 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
                         <div className="grid grid-cols-2 gap-3 mb-1">
                             <div className={cn("p-3 text-center", formSurfaceClass)}>
                                 <div className="text-xs text-textSecondary">{t("Total Paid")}</div>
-                                <div className="text-lg font-bold text-green-400">{formatCurrency(financials?.totalPaid || 0)}</div>
+                                <div className="text-lg font-bold text-[color:var(--ui-tone-success-text)]">{formatCurrency(financials?.totalPaid || 0)}</div>
                             </div>
                             <div className={cn("p-3 text-center", formSurfaceClass)}>
                                 <div className="text-xs text-textSecondary">{t("Total Due")}</div>
@@ -1206,9 +1196,9 @@ function FeeDetailsDrawer({ isOpen, onClose, student, financials, branchId, canR
 
                         {/* Waived summary only shows if there is a resolved amount. */}
                         {(financials?.totalWaived || 0) > 0 && (
-                            <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-3 text-center">
-                                <div className="text-xs text-amber-400/70">{t("Waived (resolved, not pursued)")}</div>
-                                <div className="text-base font-bold text-amber-400">{formatCurrency(financials?.totalWaived || 0)}</div>
+                            <div className="bg-[color:var(--ui-form-warning-bg)] border border-[color:var(--ui-form-warning-border)] rounded-lg p-3 text-center">
+                                <div className="text-xs text-[color:var(--ui-tone-warning-text)]">{t("Waived (resolved, not pursued)")}</div>
+                                <div className="text-base font-bold text-[color:var(--ui-tone-warning-text)]">{formatCurrency(financials?.totalWaived || 0)}</div>
                             </div>
                         )}
 

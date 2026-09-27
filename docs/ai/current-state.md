@@ -1,5 +1,23 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Shared selected presentation and Students family — 2026-09-27
+
+The selected dashboard's recurring palette, compact panels/actions and font
+roles now extend the existing semantic token and UI owners. Its full composition
+and eight crops match the frozen `3d58864` fixture exactly. The real Students page
+uses the reusable RecordList presentation, compact table/detail variants and
+stable result-state regions. Existing admission, editing, consent, allocation,
+attendance and financial command logic remain feature-owned. Latest-request
+guards protect roster/supporting reads; branch/account identity clears local
+state, while language changes retain drafts and command identity.
+
+The existing isolated harness has a gallery importing these production owners.
+There is no application gallery route, new API, dependency, schema or migration.
+Public pages and their separate language/theme system remain unchanged. See
+[shared presentation guidance](application-design-system.md) and the
+[planned page families](../redesign/page-family-migration.md). Only Students is
+migrated in this run; its focused visual review is reserved for the owner.
+
 ## Full selected dashboard implementation — 2026-09-27
 
 The owner's new scope replaces the earlier dashboard-pilot composition limits

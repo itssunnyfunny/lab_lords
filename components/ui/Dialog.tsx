@@ -65,6 +65,7 @@ export interface DialogProps {
   placement?: "center" | "right" | "bottom";
   className?: string;
   overlayClassName?: string;
+  density?: "comfortable" | "compact";
 }
 
 /**
@@ -90,6 +91,7 @@ export function Dialog({
   placement = "center",
   className,
   overlayClassName,
+  density = "comfortable",
 }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -227,6 +229,7 @@ export function Dialog({
           placement === "right" && "h-full max-h-none max-w-md rounded-none border-y-0 border-r-0 [padding-top:max(1rem,env(safe-area-inset-top))]",
           placement === "bottom" && "max-h-[90dvh] rounded-b-none [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:rounded-[var(--ui-dialog-radius)]",
           "ui-dialog-enter",
+          density === "compact" && "ui-record-detail",
           className
         )}
         role={role}
@@ -265,7 +268,7 @@ export function Dialog({
 
         {children ? <div className="mt-5">{children}</div> : null}
         {footer ? (
-          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <div className={cn("mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end", density === "compact" && "ui-record-detail-footer")}>
             {footer}
           </div>
         ) : null}

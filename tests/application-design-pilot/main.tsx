@@ -3,12 +3,13 @@ import { createRoot } from "react-dom/client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { BranchWorkspaceShell } from "@/components/layout/BranchWorkspaceShell";
-import { UserPreferencesProvider } from "@/components/settings/UserPreferencesApplier";
+import { UserPreferencesBoundary } from "@/components/settings/UserPreferencesBoundary";
 import { PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import BranchDashboardPage from "@/app/branch/[branchId]/page";
 import StudentsPage from "@/app/branch/[branchId]/students/page";
 import SeatsPage from "@/app/branch/[branchId]/seats/page";
+import { ComponentGallery } from "./ComponentGallery";
 import "@/app/globals.css";
 
 const BRANCH_ID = "pilot";
@@ -43,7 +44,8 @@ function PilotSurface() {
     const collection = searchParams.get("surface") === "collection";
 
     if (collection) return <CollectionScenario usePilotTheme={searchParams.get("mode") !== "baseline"} />;
-    if (pathname.endsWith("/students")) return <StudentsPage params={BRANCH_PARAMS} />;
+    if (pathname.endsWith("/gallery")) return <ComponentGallery />;
+    if (pathname.endsWith("/students")) return <StudentsPage params={dashboardParams} />;
     if (pathname.endsWith("/seats")) return <SeatsPage params={BRANCH_PARAMS} />;
     if (pathname === `/branch/${currentBranchId}`) return <BranchDashboardPage params={dashboardParams} />;
     return <PageShell><h1>This route is outside the design pilot</h1><p>The link targets the existing application route: {pathname}.</p>
@@ -86,14 +88,14 @@ function ApplicationDesignPilot() {
     const pathname = usePathname();
     const branchId = pathname.split("/")[2] ?? BRANCH_ID;
     return (
-        <UserPreferencesProvider ownerKey="application-design-pilot">
+        <UserPreferencesBoundary>
             <FixtureLabel />
             <BranchWorkspaceShell branchId={branchId}>
                 <Suspense fallback={<PageLoadingSkeleton label="Loading pilot surface" variant="workspace" />}>
                     <PilotSurface />
                 </Suspense>
             </BranchWorkspaceShell>
-        </UserPreferencesProvider>
+        </UserPreferencesBoundary>
     );
 }
 

@@ -16,6 +16,7 @@ interface DataTableProps<T> {
     gridClassName?: string;
     emptyMessage?: string;
     getRowAttributes?: (item: T, view: "grid" | "table") => HTMLAttributes<HTMLElement>;
+    density?: "comfortable" | "compact";
 }
 
 export function DataTable<T extends { id: string | number }>({
@@ -28,6 +29,7 @@ export function DataTable<T extends { id: string | number }>({
     gridClassName,
     emptyMessage = "No data available.",
     getRowAttributes,
+    density = "comfortable",
 }: DataTableProps<T>) {
     const t = useTranslation();
     const cardGrid = renderGridCard ? (
@@ -58,7 +60,7 @@ export function DataTable<T extends { id: string | number }>({
             role="region"
             aria-label={t.owned(caption)}
             tabIndex={0}
-            className="w-full overflow-x-auto overflow-y-hidden rounded-[var(--ui-table-radius)] border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-bg)] shadow-[var(--ui-table-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
+            className={cn("w-full overflow-x-auto overflow-y-hidden rounded-[var(--ui-table-radius)] border border-[color:var(--ui-table-border)] bg-[color:var(--ui-table-bg)] shadow-[var(--ui-table-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]", density === "compact" && "ui-table--compact")}
         >
             <table className="w-full text-left text-sm" style={{ minWidth: tableMinWidth }}>
                 <caption className="sr-only">{t.owned(caption)}</caption>

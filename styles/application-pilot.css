@@ -16,7 +16,7 @@ html.dark:has([data-app-design-pilot="workspace"]) {
 }
 
 [data-app-design-pilot="workspace"] :where(a, button, input, select, textarea) {
-  transition-duration: 160ms;
+  transition-duration: var(--ui-motion-fast);
 }
 
 [data-app-design-pilot="workspace"] h1,
@@ -82,4 +82,13 @@ html[lang="hi-IN"] .app-design-pilot-overlay .font-display {
   .app-design-pilot-overlay *
 )::-webkit-scrollbar-thumb:hover {
   background-color: #16835e;
+}
+
+/* The tablet search is an icon button, so it needs no desktop search width.
+   Retain useful organization/branch controls in the same application bar. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  [data-app-design-pilot="workspace"] .reference-search {
+    flex: 0 0 auto;
+    min-width: auto;
+  }
 }

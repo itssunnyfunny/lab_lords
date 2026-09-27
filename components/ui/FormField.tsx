@@ -10,7 +10,7 @@ import {
     type ReactNode,
 } from "react";
 import { FieldError } from "./InlineFieldError";
-import { formHelpTextClass, formLabelClass } from "./formSurface";
+import { formHelpTextClass, formLabelClass, formRequiredClass } from "./formSurface";
 
 type FieldControlProps = {
     id?: string;
@@ -69,7 +69,7 @@ export function FormField({
         <div className={cn("space-y-1.5", className)}>
             <label htmlFor={controlId} className={formLabelClass}>
                 {typeof label === "string" ? <OwnedLabel text={label} /> : label}
-                {required ? <span aria-hidden="true" className="ml-1 text-red-300">*</span> : null}
+                {required ? <span aria-hidden="true" className={cn("ml-1", formRequiredClass)}>*</span> : null}
             </label>
             {description ? (
                 <p id={descriptionId} className={cn("text-xs leading-5", formHelpTextClass)}>

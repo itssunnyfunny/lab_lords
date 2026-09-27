@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { LayoutGrid, List, type LucideIcon } from "lucide-react";
 import type { DataViewMode } from "./DataTable";
+import { useTranslation } from "@/components/settings/LocalizedText";
 
 interface ViewToggleProps {
     value: DataViewMode;
@@ -34,6 +35,7 @@ const options: {
 ];
 
 export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
+    const t = useTranslation();
     return (
         <div className={cn("inline-flex items-center gap-1 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-view-toggle-border)] bg-[color:var(--ui-view-toggle-bg)] p-1", className)}>
             {options.map(({ value: optionValue, label, Icon, activeClassName, dotClassName }) => {
@@ -43,9 +45,9 @@ export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
                     <button
                         key={optionValue}
                         type="button"
-                        aria-label={label}
+                        aria-label={t.owned(label)}
                         aria-pressed={active}
-                        title={label}
+                        title={t.owned(label)}
                         onClick={() => onChange(optionValue)}
                         className={cn(
                             "relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-[calc(var(--ui-radius-control)-2px)] text-[color:var(--ui-view-toggle-text)] transition-colors lg:h-8 lg:w-8",

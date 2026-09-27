@@ -20,3 +20,27 @@
 .ui-action--compact:disabled { cursor: not-allowed; opacity: var(--ui-control-disabled-opacity); }
 .ui-action--compact:focus-visible { outline: 2px solid var(--ui-focus-ring); outline-offset: 3px; }
 @media (max-width: 639px) { .ui-action--compact { min-height: 44px; white-space: normal; } }
+
+.ui-record-page { --ui-page-gap: var(--ui-space-comfortable); font-variant-numeric: tabular-nums; }
+.ui-record-header { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.ui-record-header h1 { margin: 5px 0 8px; font: 650 30px/1.2 var(--ui-font-heading), Georgia, serif; color: var(--text-primary); }
+.ui-record-eyebrow { font-size: 11px; color: var(--text-muted); letter-spacing: .06em; }
+.ui-record-description { max-width: 620px; font-size: 13px; line-height: 1.7; color: var(--text-secondary); }
+.ui-record-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
+.ui-record-surface { overflow: hidden; }
+.ui-record-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--ui-panel-compact-border); background: var(--ui-form-muted-surface-bg); }
+.ui-record-results { min-width: 0; }
+.ui-record-footer { padding: 12px 16px; border-top: 1px solid var(--ui-panel-compact-border); color: var(--text-secondary); }
+.ui-record-empty { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; gap: 10px; text-align: center; color: var(--text-muted); }
+.ui-record-empty h2 { font-size: 15px; color: var(--text-primary); }
+.ui-record-empty p { font-size: 13px; max-width: 440px; }
+.ui-table--compact { border: 0; border-radius: 0; box-shadow: none; }
+.ui-table--compact :is(th,td) { padding: 12px 16px; font-size: 12px; }
+.ui-table--compact thead th { font-weight: 600; text-transform: none; letter-spacing: 0; background: var(--ui-panel-bg); }
+.ui-table--compact tbody th { font-weight: 400; }
+.ui-record-results > :is(.grid,.lg\:hidden) { padding: 16px; }
+.ui-record-detail h2:first-child { font-family: var(--ui-font-heading), Georgia, serif; font-size: 21px; font-weight: 650; }
+.ui-record-detail-footer { border-top: 1px solid var(--ui-form-section-divider); padding-top: 16px; }
+html[lang="hi-IN"] :is(.ui-record-header h1,.ui-record-detail h2:first-child) { font-family: var(--font-devanagari), sans-serif; }
+@media (max-width: 1023px) { .ui-record-header { align-items: start; flex-direction: column; gap: 16px; }.ui-record-actions { justify-content: start; } }
+@media (max-width: 639px) { .ui-record-actions { width: 100%; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }.ui-record-actions > :last-child { grid-column: 1 / -1; }.ui-record-header h1 { font-size: 26px; }.ui-record-toolbar { padding: 12px; }.ui-record-toolbar > * { min-width: 0; width: 100%; } }

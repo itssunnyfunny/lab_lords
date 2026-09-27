@@ -27,6 +27,10 @@ AI-assisted workflows.
 
 ## Read before changing
 
+- Application presentation: `docs/ai/application-design-system.md`. Reuse its
+  shared owners and safe scoped checks; later page batches await the focused
+  Students pattern review in `docs/redesign/page-family-migration.md`.
+
 - Domain behavior: `docs/domain-invariants.md`.
 - Authentication, authorization, tenancy, billing, imports, secrets, or AI data
   handling: `SECURITY.md`.
