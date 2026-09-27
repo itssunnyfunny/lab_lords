@@ -3,12 +3,12 @@ import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useState, use } from "react";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
+import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { Dialog, PageLoadingSkeleton, useToast } from "@/components/ui";
+import { AppPanel, Dialog, useToast } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Loader2, AlertCircle,
@@ -29,12 +29,8 @@ import {
     formWarningBannerClass,
 } from "@/components/ui/formSurface";
 import {
-    pageEmptyStateClass,
-    pageErrorIconClass,
-    pageErrorStateClass,
     pageGridCardClass,
     pageGridCardHoverClass,
-    pageInsetSurfaceClass,
     pageMutedTextClass,
     pageSubtleTextClass,
 } from "@/components/ui/pageSurface";
@@ -186,22 +182,23 @@ function AccessSummary({ member }: { member: StaffMember }) {
 }
 
 function RolePermissionSummary({ role }: { role: StaffRoleOption }) {
+    const t = useTranslation();
     const details = ROLE_DETAILS[role];
 
     return (
         <div className="mt-2 space-y-2">
-            <p className={cn("text-xs", formHelpTextClass)}>{details.summary}</p>
+            <p className={cn("text-xs", formHelpTextClass)}>{t.owned(details.summary)}</p>
             <div className="grid gap-1.5">
                 {details.can.map(item => (
-                    <div key={item} className="flex items-start gap-2 text-xs text-emerald-300/90">
+                    <div key={item} className="flex items-start gap-2 text-xs text-[color:var(--ui-tone-success-text)]">
                         <CheckCircle2 size={12} className="mt-0.5 flex-shrink-0" />
-                        <span>{item}</span>
+                        <span>{t.owned(item)}</span>
                     </div>
                 ))}
                 {details.cannot.map(item => (
-                    <div key={item} className="flex items-start gap-2 text-xs text-rose-300/90">
+                    <div key={item} className="flex items-start gap-2 text-xs text-[color:var(--ui-tone-danger-text)]">
                         <X size={12} className="mt-0.5 flex-shrink-0" />
-                        <span>{item}</span>
+                        <span>{t.owned(item)}</span>
                     </div>
                 ))}
             </div>
@@ -240,7 +237,7 @@ function PermissionModeButton({
             className={cn(
                 "inline-flex h-11 min-w-0 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors lg:h-8 lg:text-[11px]",
                 active
-                    ? "bg-cyan-500/15 text-cyan-200"
+                    ? "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-form-accent)]"
                     : "text-[color:var(--ui-form-help)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--ui-table-text)]"
             )}
         >
@@ -261,8 +258,8 @@ function PermissionControls({
     const t = useTranslation();
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                <SlidersHorizontal size={15} className="text-cyan-300" />
+            <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]">
+                <SlidersHorizontal size={15} className="text-[color:var(--ui-form-accent)]" />
                 {t("Access controls")}</div>
             <div className="grid gap-2">
                 {PERMISSION_OPTIONS.map(option => {
@@ -272,16 +269,18 @@ function PermissionControls({
                     return (
                         <div
                             key={option.action}
+                            role="group"
+                            aria-label={t.owned(option.label)}
                             className={cn("grid gap-3 p-3 md:grid-cols-[minmax(0,1fr)_260px]", formSurfaceClass)}
                         >
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-sm font-semibold text-white">{t.owned(option.label)}</p>
+                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t.owned(option.label)}</p>
                                     <Badge variant={effective ? "success" : "danger"} className="shrink-0">
                                         {effective ? t("Allowed") : t("Blocked")}
                                     </Badge>
                                 </div>
-                                <p className={cn("mt-1 text-xs", formHelpTextClass)}>{option.summary}</p>
+                                <p className={cn("mt-1 text-xs", formHelpTextClass)}>{t.owned(option.summary)}</p>
                             </div>
 
                             <div className={cn("grid grid-cols-3 gap-1 p-1", formSurfaceClass)}>
@@ -368,6 +367,9 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess, capabili
 
     return (
         <Dialog
+            density="compact"
+            languagePlacement="header"
+            overlayClassName="ui-record-edit-overlay"
             open={isOpen}
             onClose={onClose}
             title={t("Staff Access")}
@@ -377,9 +379,9 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess, capabili
             className="max-w-3xl"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose} disabled={loading} className="min-h-11 px-3 text-sm">
+                    <Button variant="secondary" onClick={onClose} disabled={loading} className="min-h-11 px-3 text-sm">
                         {t("Cancel")}</Button>
-                    <Button onClick={handleSave} disabled={loading || !hasChanges} className="min-h-11 min-w-[120px] justify-center px-4 text-sm">
+                    <Button variant="primary" onClick={handleSave} disabled={loading || !hasChanges} className="min-h-11 min-w-[120px] justify-center px-4 text-sm">
                         {loading
                             ? <><Loader2 size={12} className="mr-1.5 animate-spin" />  {t("Saving...")}</>
                             : t("Save Access")
@@ -399,23 +401,23 @@ function EditRoleDialog({ isOpen, member, branchId, onClose, onSuccess, capabili
                             className={cn(
                                 "flex min-h-11 w-full items-start gap-4 rounded-xl border p-4 text-left transition-all",
                                 role === r
-                                    ? "border-cyan-500/40 bg-cyan-500/5"
+                                    ? "border-[color:var(--ui-form-accent)] bg-[color:var(--ui-tone-info-bg)]"
                                     : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] hover:border-[color:var(--ui-form-input-border)]"
                             )}
                         >
                             <div className={cn(
                                 "mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
-                                role === r ? "bg-cyan-500/20" : "bg-[color:var(--ui-form-input-bg)]"
+                                role === r ? "bg-[color:var(--ui-tone-info-bg)]" : "bg-[color:var(--ui-form-input-bg)]"
                             )}>
                                 {r === "MANAGER"
-                                    ? <Shield size={15} className={role === r ? "text-cyan-400" : formIconClass} aria-hidden="true" />
-                                    : <UserCog size={15} className={role === r ? "text-cyan-400" : formIconClass} aria-hidden="true" />}
+                                    ? <Shield size={15} className={role === r ? "text-[color:var(--ui-form-accent)]" : formIconClass} aria-hidden="true" />
+                                    : <UserCog size={15} className={role === r ? "text-[color:var(--ui-form-accent)]" : formIconClass} aria-hidden="true" />}
                             </div>
                             <div className="flex-1">
-                                <p className={cn("text-sm font-semibold", role === r ? "text-[color:var(--ui-form-label-strong)]" : "text-[color:var(--ui-form-label)]")}>{ROLE_DETAILS[r].label}</p>
+                                <p className={cn("text-sm font-semibold", role === r ? "text-[color:var(--ui-form-label-strong)]" : "text-[color:var(--ui-form-label)]")}>{t.owned(ROLE_DETAILS[r].label)}</p>
                                 <RolePermissionSummary role={r} />
                             </div>
-                            {role === r ? <div className="mt-1 h-4 w-4 flex-shrink-0 rounded-full border-2 border-cyan-500 bg-cyan-500/30" aria-hidden="true" /> : null}
+                            {role === r ? <div className="mt-1 h-4 w-4 flex-shrink-0 rounded-full border-2 border-[color:var(--ui-form-accent)] bg-[color:var(--ui-tone-info-bg)]" aria-hidden="true" /> : null}
                         </button>
                     ))}
                 </div>
@@ -501,6 +503,9 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
 
     return (
         <Dialog
+            density="compact"
+            languagePlacement="header"
+            overlayClassName="ui-record-edit-overlay"
             open={isOpen}
             onClose={onClose}
             title={t("Add Staff Member")}
@@ -510,9 +515,9 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
             className="max-w-md"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose} disabled={loading} className="min-h-11 px-3 text-sm">
+                    <Button variant="secondary" onClick={onClose} disabled={loading} className="min-h-11 px-3 text-sm">
                         {t("Cancel")}</Button>
-                    <Button onClick={handleAdd} disabled={loading} className="min-h-11 min-w-[100px] justify-center px-4 text-sm">
+                    <Button variant="primary" onClick={handleAdd} disabled={loading} className="min-h-11 min-w-[100px] justify-center px-4 text-sm">
                         {loading
                             ? <><Loader2 size={12} className="mr-1.5 animate-spin" />  {t("Adding...")}</>
                             : t("Add Staff")
@@ -554,7 +559,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
                                 className={cn(
                                     "min-h-11 rounded-[var(--ui-radius-control)] border p-3 text-left transition-all",
                                     role === r
-                                        ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400"
+                                        ? "border-[color:var(--ui-form-accent)] bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-form-accent)]"
                                         : cn("text-[color:var(--ui-form-label)]", formSurfaceClass, formSurfaceHoverClass)
                                 )}
                             >
@@ -562,7 +567,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
                                     {r === "MANAGER"
                                         ? <Shield size={14} aria-hidden="true" />
                                         : <UserCog size={14} aria-hidden="true" />}
-                                    {ROLE_DETAILS[r].label}
+                                    {t.owned(ROLE_DETAILS[r].label)}
                                 </div>
                                 {role === r ? <RolePermissionSummary role={r} /> : null}
                             </button>
@@ -620,11 +625,11 @@ function InviteLinkPanel({
     const olderInvites = activeInvites.filter(item => item.id !== invite?.id);
 
     return (
-        <Card noHover className="p-5">
+        <AppPanel density="compact">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                        <Link2 size={16} className="text-cyan-300" />
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]">
+                        <Link2 size={16} className="text-[color:var(--ui-form-accent)]" />
                         {t("Invite by link")}</div>
                     <p className={cn("mt-1 text-xs", formHelpTextClass)}>
                         {t("Create a one-use, account-restricted link. Links expire in 7 days.")}</p>
@@ -660,17 +665,19 @@ function InviteLinkPanel({
                                 disabled={!capability.allowed}
                                 aria-pressed={inviteRole === role}
                                 className={cn(
-                                    "h-8 rounded-lg px-3 text-xs font-semibold transition-colors",
+                                    "min-h-11 rounded-[var(--ui-radius-control)] px-3 text-xs font-semibold transition-colors",
                                     inviteRole === role
-                                        ? "bg-cyan-500/15 text-cyan-200"
+                                        ? "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-form-accent)]"
                                         : "text-[color:var(--ui-form-help)] hover:text-[color:var(--ui-table-text)]"
                                 )}
                             >
-                                {ROLE_DETAILS[role].label}
+                                {t.owned(ROLE_DETAILS[role].label)}
                             </button>
                         ))}
                     </div>
                     <Button
+                        variant="primary"
+                        density="compact"
                         onClick={onCreateInvite}
                         isLoading={loading}
                         disabled={loading || !capability.allowed}
@@ -682,9 +689,9 @@ function InviteLinkPanel({
             </div>
 
             {invite && (
-                <div className="mt-4 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.04] p-3">
+                <div className="mt-4 rounded-xl border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3">
                     <div className="mb-2 flex items-center justify-between gap-3">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-cyan-200">{t("Latest invite")}</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-[color:var(--ui-form-accent)]">{t("Latest invite")}</span>
                         <span className={cn("text-xs", formHelpTextClass)}>{t("Expires")} {formatDateTime(invite.expiresAt)}</span>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row">
@@ -713,7 +720,7 @@ function InviteLinkPanel({
             <div className="mt-4 border-t border-[color:var(--ui-form-section-divider)] pt-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
-                        <h3 className="text-sm font-semibold text-white">{t("Active invite links")}</h3>
+                        <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Active invite links")}</h3>
                         <p className={cn("text-xs", formHelpTextClass)}>{t("Copy an existing link or revoke it when it should no longer be used.")}</p>
                     </div>
                     {invitesLoading && <Loader2 size={14} className={cn("animate-spin", formHelpTextClass)} />}
@@ -731,7 +738,7 @@ function InviteLinkPanel({
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Badge variant={item.role === "MANAGER" ? "cyan" : "default"}>
-                                            {ROLE_DETAILS[item.role].label}
+                                            {t.owned(ROLE_DETAILS[item.role].label)}
                                         </Badge>
                                         <span className={cn("text-xs", formHelpTextClass)}>{t("Expires")} {formatDateTime(item.expiresAt)}</span>
                                     </div>
@@ -758,11 +765,11 @@ function InviteLinkPanel({
             </div>
 
             {error && (
-                <div className={cn("mt-3 flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
+                <div className={cn("mt-3 flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)} role="alert">
                     <AlertCircle size={13} /> <LocalizedError error={error} />
                 </div>
             )}
-        </Card>
+        </AppPanel>
     );
 }
 
@@ -807,7 +814,7 @@ function DisabledStaffAction() {
             type="button"
             disabled
             aria-describedby="staff-manage-blocker"
-            className="inline-flex items-center gap-1.5 text-xs text-[color:var(--ui-table-subtle)] disabled:cursor-not-allowed"
+            className="inline-flex min-h-11 items-center gap-1.5 text-xs text-[color:var(--ui-table-subtle)] disabled:cursor-not-allowed"
         >
             <LockKeyhole size={13} aria-hidden="true" />
             {t("Changes locked")}</button>
@@ -919,7 +926,7 @@ function StaffContent({
     useEffect(() => {
         if (loading || !targetStaffId) return;
 
-        const desktop = window.matchMedia("(min-width: 768px)").matches;
+        const desktop = window.matchMedia("(min-width: 1024px)").matches;
         const destinationIds = desktop
             ? [`staff-row-${targetStaffId}`, `staff-card-${targetStaffId}`]
             : [`staff-card-${targetStaffId}`, `staff-row-${targetStaffId}`];
@@ -1048,15 +1055,6 @@ function StaffContent({
         }
     };
 
-    if (loading) return <PageLoadingSkeleton label={t("Loading staff")} variant="table" rows={5} />;
-
-    if (error) return (
-        <div className={pageErrorStateClass}>
-            <AlertCircle className={pageErrorIconClass} />
-            <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
-        </div>
-    );
-
     const staffMemberActions = (member: StaffMember): RowAction[] => [
         {
             label: hasPermissionOverrides(member) ? "Edit Access" : "Set Access",
@@ -1073,83 +1071,18 @@ function StaffContent({
         },
     ];
 
-    const staffCards = (
-        <div className="grid gap-4">
-            {data.map(member => (
-                <div
-                    key={member.id}
-                    id={`staff-card-${member.id}`}
-                    tabIndex={targetStaffId === member.id ? -1 : undefined}
-                    aria-current={targetStaffId === member.id ? "true" : undefined}
-                    aria-label={targetStaffId === member.id ? `${member.user?.name || member.user?.email || "Staff member"}, selected search result` : undefined}
-                    className={cn(
-                        pageGridCardClass,
-                        pageGridCardHoverClass,
-                        targetStaffId === member.id && "border-cyan-400/50 bg-cyan-400/[0.05] outline outline-2 outline-cyan-300/60"
-                    )}
-                >
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                            <Avatar name={member.user?.name || member.user?.email || "Staff member"} />
-                            <div className="min-w-0">
-                                <p className="truncate font-medium text-[color:var(--ui-table-text)]">{member.user?.name || <span className={cn("italic text-xs", pageSubtleTextClass)}>{t("No name")}</span>}</p>
-                                <p className={cn("mt-1 flex min-w-0 items-center gap-1 truncate text-xs", pageSubtleTextClass)}>
-                                    <Mail size={10} className="flex-shrink-0" />{member.user?.email}
-                                </p>
-                            </div>
-                        </div>
-                        {canMutateStaff ? (
-                            <RowActions actions={staffMemberActions(member)} />
-                        ) : showMutationControls ? <DisabledStaffAction /> : null}
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className={cn("p-3", pageInsetSurfaceClass)}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Role")}</div>
-                            <div className="mt-2">
-                                <Badge variant={member.role === "MANAGER" ? "cyan" : "default"}>
-                                    {member.role === "MANAGER"
-                                        ? <><Shield size={10} className="mr-1" />{t("Manager")}</>
-                                        : <><UserCog size={10} className="mr-1" />{t("Staff")}</>
-                                    }
-                                </Badge>
-                            </div>
-                        </div>
-                        <div className={cn("p-3", pageInsetSurfaceClass)}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Added")}</div>
-                            <div className={cn("mt-2 text-xs", pageMutedTextClass)}>{formatDate(member.createdAt)}</div>
-                        </div>
-                    </div>
-
-                    <div className={cn("mt-3 p-3", pageInsetSurfaceClass)}>
-                        <div className={cn("mb-2 text-xs", pageSubtleTextClass)}>{t("Access")}</div>
-                        <AccessSummary member={member} />
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
+    const renderActions = (member: StaffMember) => canMutateStaff
+        ? <RowActions actions={staffMemberActions(member)} />
+        : showMutationControls ? <DisabledStaffAction /> : null;
+    const renderRole = (member: StaffMember) => <Badge variant={member.role === "MANAGER" ? "cyan" : "default"}>{t(member.role === "MANAGER" ? "Manager" : "Staff")}</Badge>;
+    const memberName = (member: StaffMember) => member.user?.name || member.user?.email || t("No name");
 
     return (
-        <div className="relative space-y-6">
-            <PageHeader
-                title={t("Staff")}
-                subtitle={t("Manage team members and their access roles.")}
-                onAdd={canMutateStaff ? () => setAddOpen(true) : undefined}
-                extraActions={showMutationControls && !canMutateStaff ? (
-                    <Button
-                        disabled
-                        icon={UserPlus}
-                        aria-describedby="staff-manage-blocker"
-                        className="flex-shrink-0 whitespace-nowrap"
-                    >
-                        {t("Add Staff")}</Button>
-                ) : undefined}
-                actionLabel="Add Staff"
-            />
-
-            <StaffCapabilityNotice decision={staffManageDecision} />
-
+        <RecordListPage title={t("Staff")} description={t("Manage team members and their access roles.")}
+            actions={showMutationControls ? <Button density="compact" variant="primary" icon={UserPlus}
+                onClick={() => setAddOpen(true)} disabled={!canMutateStaff}
+                aria-describedby={!canMutateStaff ? "staff-manage-blocker" : undefined}>{t("Add Staff")}</Button> : undefined}
+            notices={<StaffCapabilityNotice decision={staffManageDecision} />}>
             {showMutationControls && (
                 <InviteLinkPanel
                     inviteRole={inviteRole}
@@ -1178,100 +1111,10 @@ function StaffContent({
                 />
             )}
 
-            {staffManageDecision.blocker === "entitlement" ? (
-                <div className={cn("space-y-2", pageEmptyStateClass)} role="status">
-                    <LockKeyhole size={32} className="mx-auto opacity-50" aria-hidden="true" />
-                    <p className="font-medium text-[color:var(--text-primary)]">{t("Staff directory is restricted")}</p>
-                    <p className={cn("mx-auto max-w-md text-sm", pageMutedTextClass)}>{staffManageDecision.reason}</p>
-                </div>
-            ) : data.length === 0 ? (
-                <div className={cn("space-y-3", pageEmptyStateClass)}>
-                    <UserPlus size={36} className="mx-auto opacity-30" />
-                    <p>{t("No staff members yet.")}</p>
-                    {canMutateStaff && (
-                        <button onClick={() => setAddOpen(true)} className="text-sm text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]">
-                            {t("+ Add your first staff member")}</button>
-                    )}
-                </div>
-            ) : (
-                <>
-                <div className="lg:hidden">{staffCards}</div>
-                <Card noHover className="hidden overflow-visible p-0 lg:block lg:p-0">
-                    <div
-                        className="w-full overflow-x-auto"
-                        role="region"
-                        aria-label={t("Branch staff directory")}
-                        tabIndex={0}
-                    >
-                    <table className="w-full min-w-[54rem] text-left text-sm">
-                        <caption className="sr-only">{t("Branch staff directory")}</caption>
-                        <thead>
-                            <tr className="border-b border-[color:var(--ui-table-divider)] bg-[color:var(--ui-table-head-bg)] text-[color:var(--ui-table-muted)]">
-                                <th scope="col" className="px-6 py-4 font-medium">{t("Member")}</th>
-                                <th scope="col" className="px-6 py-4 font-medium">{t("Role")}</th>
-                                <th scope="col" className="px-6 py-4 font-medium">{t("Access")}</th>
-                                <th scope="col" className="px-6 py-4 font-medium">{t("Added")}</th>
-                                <th scope="col" className="px-6 py-4 font-medium w-14"><span className="sr-only">{t("Actions")}</span></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
-                            {data.map(member => (
-                                <tr
-                                    key={member.id}
-                                    id={`staff-row-${member.id}`}
-                                    tabIndex={targetStaffId === member.id ? -1 : undefined}
-                                    aria-current={targetStaffId === member.id ? "true" : undefined}
-                                    aria-label={targetStaffId === member.id ? `${member.user?.name || member.user?.email || "Staff member"}, selected search result` : undefined}
-                                    className={cn(
-                                        "group transition-colors hover:bg-[color:var(--ui-table-row-hover-bg)]",
-                                        targetStaffId === member.id && "bg-cyan-400/[0.05] outline outline-2 outline-cyan-300/60"
-                                    )}
-                                >
-                                    {/* Member */}
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar name={member.user?.name || member.user?.email || "Staff member"} size="sm" />
-                                            <div>
-                                                <p className="font-medium text-[color:var(--ui-table-text)]">{member.user?.name || <span className="text-xs italic text-[color:var(--ui-table-subtle)]">{t("No name")}</span>}</p>
-                                                <p className="flex items-center gap-1 text-xs text-[color:var(--ui-table-subtle)]">
-                                                    <Mail size={10} />{member.user?.email}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    {/* Role */}
-                                    <td className="px-6 py-4">
-                                        <Badge variant={member.role === "MANAGER" ? "cyan" : "default"}>
-                                            {member.role === "MANAGER"
-                                                ? <><Shield size={10} className="mr-1" />{t("Manager")}</>
-                                                : <><UserCog size={10} className="mr-1" />{t("Staff")}</>
-                                            }
-                                        </Badge>
-                                    </td>
-                                    {/* Access */}
-                                    <td className="px-6 py-4">
-                                        <AccessSummary member={member} />
-                                    </td>
-                                    {/* Date */}
-                                    <td className="px-6 py-4 text-xs text-[color:var(--ui-table-subtle)]">
-                                        {formatDate(member.createdAt)}
-                                    </td>
-                                    {/* Actions */}
-                                    <td className="px-6 py-4">
-                                        {canMutateStaff ? (
-                                            <RowActions actions={staffMemberActions(member)} />
-                                        ) : showMutationControls ? <DisabledStaffAction /> : null}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    </div>
-                </Card>
-                </>
-            )}
 
-            {data.length > 0 && staffManageDecision.blocker !== "entitlement" && (
+            <RecordListSurface label={t("Branch staff directory")} busy={loading}
+                toolbar={<h2 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Branch staff directory")}</h2>}
+                footer={!loading && !error ? (data.length > 0 && staffManageDecision.blocker !== "entitlement" && (
                 <div className="flex flex-col items-center gap-3 text-center">
                     <p id="staff-pagination-status" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">{t("Showing {count} of {total} staff member(s)", { count: data.length, total: total })}</p>
                     {nextCursor && (
@@ -1294,7 +1137,33 @@ function StaffContent({
                         </div>
                     )}
                 </div>
-            )}
+            )) : undefined}>
+                {staffManageDecision.blocker === "entitlement" ? <RecordListState kind="restricted" title="Staff directory is restricted" description={staffManageDecision.reason} />
+                    : loading ? <RecordListState kind="loading" title="Loading staff" />
+                    : error ? <RecordListState kind="error" title="Something went wrong" description={error} onRetry={() => void loadStaff()} />
+                    : !data.length ? <RecordListState kind="empty" title="No staff members yet." action={canMutateStaff ? <Button density="compact" variant="primary" onClick={() => setAddOpen(true)}>{t("+ Add your first staff member")}</Button> : undefined} />
+                    : <DataTable density="compact" caption="Branch staff directory" data={data} actions={renderActions}
+                        getRowAttributes={(member, view) => ({ id: "staff-" + (view === "table" ? "row" : "card") + "-" + member.id,
+                            tabIndex: targetStaffId === member.id ? -1 : undefined,
+                            "aria-current": targetStaffId === member.id ? "true" : undefined,
+                            "aria-label": targetStaffId === member.id ? memberName(member) : undefined,
+                            className: targetStaffId === member.id ? "bg-[color:var(--ui-tone-info-bg)] outline outline-2 outline-[color:var(--ui-focus-ring)]" : undefined })}
+                        columns={[
+                            { header: "Member", rowHeader: true, accessor: member => <div className="flex items-center gap-3"><Avatar name={memberName(member)} size="sm" tone="quiet" /><div className="min-w-0"><p className="font-medium">{member.user?.name || t("No name")}</p><p className={cn("break-all text-xs", pageSubtleTextClass)}>{member.user?.email}</p></div></div> },
+                            { header: "Role", accessor: renderRole },
+                            { header: "Access", accessor: member => <AccessSummary member={member} /> },
+                            { header: "Added", accessor: member => formatDate(member.createdAt) },
+                        ]}
+                        renderGridCard={(member, actions) => <article data-staff-record-card className={cn(pageGridCardClass, pageGridCardHoverClass, "ui-record-card")}>
+                            <div className="ui-record-card-identity"><Avatar name={memberName(member)} size="sm" tone="quiet" />
+                                <div className="min-w-0 flex-1"><p className="ui-record-card-name">{canMutateStaff ? <button className="ui-record-card-details" type="button" aria-label={t("Set Access") + " · " + memberName(member)} onClick={() => setEditTarget(member)}>{memberName(member)}</button> : memberName(member)}</p>
+                                    <p className="ui-record-card-meta break-all">{member.user?.email}</p></div>
+                                <div className="ui-record-card-actions">{actions?.(member)}</div>
+                            </div>
+                            <div className="ui-record-card-context"><Shield size={14} aria-hidden="true" /><span>{t("Role")}: {renderRole(member)}</span></div>
+                            <div className="ui-record-card-summary"><div className="mb-1 flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">{t("Access")}</span><AccessSummary member={member} /></div><p className="ui-record-card-joined">{t("Added")}: {formatDate(member.createdAt)}</p></div>
+                        </article>} />}
+            </RecordListSurface>
 
             {/* Edit role dialog */}
             {canMutateStaff && (
@@ -1340,6 +1209,6 @@ function StaffContent({
                     loading={removeLoading}
                 />
             )}
-        </div>
+        </RecordListPage>
     );
 }

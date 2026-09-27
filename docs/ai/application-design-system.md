@@ -19,6 +19,7 @@ keep Students/dashboard/public presentation frozen. Later batches remain out of 
 | Field validation, menus, nested overlays and focus recovery | existing FormField, RowActionsMenu, Dialog/Drawer | Keep body portals and request/component identity; no parallel overlay owner |
 | Compact Students identity / allocation / financial card | feature-owned `students/StudentRecordCard.tsx`, `.ui-record-card*` in `shared-ui.css` | Students and gallery import the same card; fee arithmetic, permissions and commands stay in the feature |
 | Quiet initials and integrated modal language control | `Avatar tone="quiet"`, `Dialog languagePlacement="header"` | Explicit opt-ins; default avatars/modal headers stay compatible. Edit uses its scoped backdrop variant |
+| Staff roster and access/invitation overlays | `staff/page.tsx` composing RecordList, compact DataTable, AppPanel and Dialog | Feature-owned role, override, invitation and removal workflows; mobile context is role, important state is access, secondary detail is added date |
 
 The frozen fixture packet is `docs/redesign/shared-system-evidence/before`.
 It uses actual production components, loaded fonts, scale 1 and the fixed
@@ -77,6 +78,12 @@ edit/details workflow; its overflow menu is separate. Do not make the container
 clickable or add field boxes/full-width action footers. `.ui-record-card-actions`
 enlarges only these menu triggers to 44px; desktop menus retain their composition.
 
+Other record families reuse that structural hierarchy, not `StudentRecordCard`.
+Staff supplies member identity/email, role, access summary and added date. Keep
+its authorized commands in the Staff feature. No financial Student fields belong
+in a Staff card. The same `.ui-record-card*` classes can compose feature-owned
+records without adding another shared component or changing primitive defaults.
+
 `Avatar tone="quiet"` uses the existing muted surface/text tokens and does not
 encode status. `Dialog languagePlacement="header"` integrates the existing
 LanguageControls with wrapping, without changing portals, inertness, focus,
@@ -112,6 +119,7 @@ never reach a database or provider. No production gallery route or auth bypass e
 - Focused card refinement: `pnpm exec node tests/application-design-pilot/student-card-capture.mjs after`, then `pnpm exec node tests/application-design-pilot/student-card-compare.mjs`. The separate frozen card baseline is `docs/redesign/student-card-evidence/before`; this checks one native dashboard/table frame without regenerating historical packets.
 - Palette guard: `pnpm exec node tests/shared-system/check-presentation.mjs 3d58864`.
 - Connected build/test: `pnpm exec node tests/dashboard-connected/start-local.mjs build`, `... start`, `... students-test`. The existing runner proves container ID/image/loopback binding/database identity. Build additionally proves transaction read-only mode. Tests use only the existing synthetic fixture and development sessions; external business providers are held. No reset/seed/migration runs here.
+- Batch 2 only: `... batch-two-test Staff` or `... batch-two-test Tasks` uses an explicit connected spec and family filter. Fixture browser specs are `staff-family.spec.ts` and `tasks-family.spec.ts`. Choose explicit files with the scoped configurations; unchanged historical packets need not be regenerated.
 - Shared changes also require lint, production build and representative existing consumers. See the exact results in the local handoff. Never run the broad database-connected repository Vitest config for a presentation change.
 
 Palette additions belong in `styles/tokens.css`. `shared-ui.css` owns primitive

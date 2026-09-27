@@ -44,8 +44,13 @@ const commands = {
     counts: ["tests/dashboard-connected/counts.mjs"],
     build: ["tests/dashboard-connected/build.mjs"],
     "students-test": ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/shared-system/connected.playwright.config.ts"],
+    "batch-two-test": ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/shared-system/batch-two.connected.playwright.config.ts"],
 };
-if (!Object.hasOwn(commands, mode)) throw new Error("Choose start, test, capture, counts, build or students-test");
+if (!Object.hasOwn(commands, mode)) throw new Error("Choose start, test, capture, counts, build, students-test or batch-two-test");
+if (mode === "batch-two-test" && process.argv[3]) {
+    if (!["Staff", "Tasks"].includes(process.argv[3])) throw new Error("Choose the Staff or Tasks verification family");
+    commands[mode].push("--grep", `${process.argv[3]} actual`);
+}
 console.log("Verified the exact disposable container and local fixture. No saved application environment or shared database is used.");
 const child = spawn(process.execPath, commands[mode], { env: { ...process.env, TEST_DATABASE_URL: connectionString,
     TEST_DATABASE_RESET_CONFIRM: config.database, DASHBOARD_CONNECTED_MODE: "start" }, stdio: "inherit", windowsHide: true });

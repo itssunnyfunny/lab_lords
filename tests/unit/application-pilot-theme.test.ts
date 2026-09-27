@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { isApplicationDesignPilotPath } from "@/lib/applicationDesignPilot";
 
 const projectRoot = resolve(process.cwd());
 const pilotPath = join(projectRoot, "styles", "application-pilot.css");
@@ -29,6 +30,10 @@ function contrast(foreground: string, background: string) {
 }
 
 describe("application design pilot theme", () => {
+  it("includes Staff while preserving existing selected and excluded route boundaries", () => {
+    for (const path of ["/branch/test", ...["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings"].map(page => `/branch/test/${page}`)]) expect(isApplicationDesignPilotPath(path)).toBe(true);
+    for (const path of ["/", "/hi", "/features", "/pricing", "/faq", "/account", "/branch/test/payments", "/branch/test/attendance", "/branch/test/staff/nested", null]) expect(isApplicationDesignPilotPath(path)).toBe(false);
+  });
   it("stays opt-in to the pilot workspace and collection overlay", () => {
     const globals = readFileSync(join(projectRoot, "app", "globals.css"), "utf8");
 

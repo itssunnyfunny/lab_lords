@@ -1,4 +1,4 @@
-const PILOT_BRANCH_SEGMENTS = new Set(["students", "seats", "follow-ups", "tasks", "reports", "dashboard-settings"]);
+const PILOT_BRANCH_SEGMENTS = new Set(["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings"]);
 
 /**
  * Approved dashboard visual scope and its supporting branch destinations.

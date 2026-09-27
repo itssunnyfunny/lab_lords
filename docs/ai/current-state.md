@@ -1,5 +1,23 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Batch 2 Staff presentation — 2026-09-27
+
+Staff now composes the existing RecordList page/surface/states, compact DataTable,
+quiet Avatar and compact panels/overlays. Its mobile cards retain identity/email,
+role, access summary and added date. Role/invitation/override/removal commands,
+validation and owner/entitlement/writability boundaries remain feature-owned.
+Local verification: 15 fixture browser checks, 33 scoped service/route checks,
+12 localization checks, lint/build and two actual connected checks passed. The
+connected checks restore the synthetic member's access and language preference;
+financial aggregates remain unchanged. Legacy Staff GET returns the same generic
+500 for foreign and missing branch IDs; backend correction is outside this
+presentation scope. See the Batch 2 review handoff when complete. Owner approval
+of the reused Students hierarchy is separate from Staff review and release.
+Staff is also enabled in the existing selected-theme route allowlist. Its shared
+consumers passed 28 scoped checks and two unchanged Students narrow-screen checks;
+tokens, primitive defaults, Students/dashboard code and public presentation are
+unchanged. Historical screenshots are reused rather than regenerated.
+
 ## Shared selected presentation and Students family — 2026-09-27
 
 The focused Students refinement replaces its four-box grid renderer with one
@@ -28,8 +46,8 @@ The existing isolated harness has a gallery importing these production owners.
 There is no application gallery route, new API, dependency, schema or migration.
 Public pages and their separate language/theme system remain unchanged. See
 [shared presentation guidance](application-design-system.md) and the
-[planned page families](../redesign/page-family-migration.md). Only Students is
-migrated in this run; its focused visual review is reserved for the owner.
+[planned page families](../redesign/page-family-migration.md). This historical
+foundation run migrated Students; Batch 2 advances Staff and Tasks only.
 
 ## Full selected dashboard implementation — 2026-09-27
 
