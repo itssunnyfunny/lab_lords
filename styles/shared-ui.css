@@ -1,0 +1,22 @@
+/* Presentation variants owned by the existing AppPanel and AppButton. */
+.ui-panel--compact {
+  background: var(--ui-panel-bg);
+  border: 1px solid var(--ui-panel-compact-border);
+  border-radius: var(--ui-panel-compact-radius);
+  box-shadow: var(--ui-panel-compact-shadow);
+  min-width: 0;
+}
+.ui-action--compact {
+  display: inline-flex; justify-content: center; align-items: center; gap: 8px;
+  padding: 9px 12px; border: 1px solid var(--ui-action-compact-border);
+  border-radius: var(--ui-action-compact-radius); background: var(--ui-action-compact-bg);
+  color: var(--ui-action-compact-text); box-shadow: var(--ui-action-compact-shadow);
+  white-space: nowrap; font-family: var(--ui-font-heading), Georgia, serif;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.ui-action--primary { background: var(--ui-action-compact-primary-bg); color: var(--ui-button-primary-text); border-color: var(--ui-action-compact-primary-border); }
+.ui-action--danger { background: var(--ui-button-danger-bg); color: var(--ui-button-danger-text); border-color: var(--ui-button-danger-border); }
+.ui-action--quiet { background: var(--ui-button-quiet-bg); color: var(--ui-button-quiet-text); border-color: var(--ui-button-quiet-border); box-shadow: none; }
+.ui-action--compact:disabled { cursor: not-allowed; opacity: var(--ui-control-disabled-opacity); }
+.ui-action--compact:focus-visible { outline: 2px solid var(--ui-focus-ring); outline-offset: 3px; }
+@media (max-width: 639px) { .ui-action--compact { min-height: 44px; white-space: normal; } }

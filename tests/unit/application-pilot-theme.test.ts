@@ -5,9 +5,10 @@ import { describe, expect, it } from "vitest";
 const projectRoot = resolve(process.cwd());
 const pilotPath = join(projectRoot, "styles", "application-pilot.css");
 const pilot = readFileSync(pilotPath, "utf8");
+const tokens = readFileSync(join(projectRoot, "styles", "tokens.css"), "utf8").split("/* Selected application theme;")[1];
 
 function tokenHex(name: string) {
-  const match = pilot.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6});`, "i"));
+  const match = tokens.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6});`, "i"));
   if (!match) throw new Error(`Missing six-digit pilot color token: ${name}`);
   return match[1];
 }

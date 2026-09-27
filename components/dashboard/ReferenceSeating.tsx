@@ -1,4 +1,5 @@
 "use client";
+import { AppPanel } from "@/components/ui/AppPanel";
 import { useId, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Users } from "lucide-react";
@@ -13,7 +14,7 @@ export function ReferenceSeating({ seating, attendance, base, retry }: { seating
     const panelId = `seating-${useId().replaceAll(":", "")}`;
     const data = seating.data; const a = attendance.data;
     const tone = (used: number | null, capacity: number | null) => used == null || capacity == null ? "unknown" : !used ? "empty" : used / Math.max(1, capacity) >= .65 ? "full" : "partial";
-    return <section className="rd-panel rd-seating"><div className="rd-panel-heading"><div><Users size={19} fill="currentColor" /><h2>{t.owned("Attendance & Seat Occupancy")}</h2></div>{seating.status !== "restricted" && <Link href={`${base}/seats`} aria-label={t.owned("Review seats")}><ArrowRight size={14} /></Link>}</div>
+    return <AppPanel density="compact" padding="none" className="rd-panel rd-seating"><div className="rd-panel-heading"><div><Users size={19} fill="currentColor" /><h2>{t.owned("Attendance & Seat Occupancy")}</h2></div>{seating.status !== "restricted" && <Link href={`${base}/seats`} aria-label={t.owned("Review seats")}><ArrowRight size={14} /></Link>}</div>
         <div className="rd-tabs" role="tablist" aria-label={t.owned("Seating view")}>{[["today", "Today"], ["week", "This week"], ["map", "Seat map"]].map(([key, label], index) => <button key={key} role="tab" aria-selected={tab === key} aria-controls={panelId} id={`${panelId}-${key}`} tabIndex={tab === key ? 0 : -1} type="button" onClick={() => { setTab(key); setDetail(null); }} onKeyDown={event => {
             if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
             event.preventDefault(); const tabs = ["today", "week", "map"];
@@ -27,5 +28,5 @@ export function ReferenceSeating({ seating, attendance, base, retry }: { seating
         {detail && <p className="rd-cell-detail" role="status">{detail}</p>}
         <dl className="rd-seating-summary"><div><dd>{data ? `${formatNumber(data.physicalSeatsInUse)} / ${formatNumber(data.seats)}` : "—"}</dd><dt>{t.owned("Physical seats in use")}</dt></div><div><dd>{a?.configured ? formatNumber(a.expectedToday) : "—"}</dd><dt>{t.owned("Expected today")}</dt></div><div><dd>{a ? formatNumber(a.attendedToday) : "—"}</dd><dt>{attendance.status === "restricted" ? t.owned("Attended today") : <a href={`${base}/attendance`}>{t.owned("Attended today")}</a>}</dt></div></dl>
         <details className="rd-chart-details"><summary>{t.owned("About this view")}</summary><p>{t.owned("Today uses current allocations. Past cells use the first recorded observation that day; unobserved days stay blank. Allocations are not attendance.")}</p>{data?.coverageStartedAt && <p>{t.owned("Recorded coverage begins")}: {formatDate(data.coverageStartedAt, { day: "numeric", month: "short", year: "numeric" })}</p>}</details>
-    </section>;
+    </AppPanel>;
 }

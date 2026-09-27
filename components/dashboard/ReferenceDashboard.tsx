@@ -1,4 +1,5 @@
 "use client";
+import { appActionClassName } from "@/components/ui/AppButton";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
@@ -84,14 +85,14 @@ export function ReferenceDashboard({ branchId }: { branchId: string }) {
             <div className="rd-illustration"><Image src="/images/dashboard/study-library.png" alt={t.owned("Illustration of a peaceful study library")} width={110} height={128} priority /><div><span>{t.owned("Good focus.")}<br />{t.owned("Brighter tomorrows.")}</span><Image src="/images/dashboard/botanical-sprig.png" alt="" width={65} height={70} /></div></div>
             <div className="rd-heading-main"><h1>{access.branchName}</h1><div className="rd-meta"><span><MapPin size={12} />{t("Branch overview")}</span><i /><button type="button" onClick={refresh} title={t("Refresh")}><RefreshCw size={11} className={refreshing ? "rd-spinning" : ""} />{t("Updated {time}", { time: formatDateTime(data.updatedAt) })}</button></div><p>{t.owned("Monitor collections, occupancy, follow-ups and student movement — all in one place.")}</p></div>
             <div className="rd-heading-aside"><blockquote>“{t.owned("A well-managed space helps dreams take shape.")}”<Image src="/images/dashboard/botanical-sprig.png" alt="" width={70} height={72} /></blockquote><Image className="rd-header-leaves" src="/images/dashboard/botanical-sprig.png" alt="" width={120} height={120} /><div className="rd-primary-actions">
-                {getBranchCapabilityDecision(access, "studentsManage").allowed && <Link className="rd-button rd-primary" href={`${base}/students?action=add`}><Plus size={17} />{t("Add student")}</Link>}
-                {getBranchCapabilityDecision(access, "paymentsRecord").allowed && <Link className="rd-button" href={`${base}/payments?action=collect`}><CreditCard size={16} />{t.owned("Record payment")}</Link>}
-                {access.permissions.view_payments && <Link className="rd-button" href={`${base}/renewals?filter=OVERDUE`}><CalendarCheck size={16} />{t.owned("Review dues")}</Link>}
+                {getBranchCapabilityDecision(access, "studentsManage").allowed && <Link className={`rd-button rd-primary ${appActionClassName("primary")}`} href={`${base}/students?action=add`}><Plus size={17} />{t("Add student")}</Link>}
+                {getBranchCapabilityDecision(access, "paymentsRecord").allowed && <Link className={`rd-button ${appActionClassName()}`} href={`${base}/payments?action=collect`}><CreditCard size={16} />{t.owned("Record payment")}</Link>}
+                {access.permissions.view_payments && <Link className={`rd-button ${appActionClassName()}`} href={`${base}/renewals?filter=OVERDUE`}><CalendarCheck size={16} />{t.owned("Review dues")}</Link>}
             </div></div>
         </header>
         {error && <div className="rd-error" role="status">{t("Previously loaded values may be stale.")} <button onClick={refresh}>{t("Retry")}</button></div>}
         <ActionCenter data={data} base={base} refresh={refresh} />
-        <section className="rd-metrics" aria-label={t("Current branch summary")}>{metrics.map(metric => <article key={metric.label} data-tone={metric.tone}><div><strong>{metric.value}</strong><metric.icon size={21} aria-hidden="true" /></div><h2>{t.owned(metric.label)}</h2><p>{metric.note}</p></article>)}</section>
+        <section className="rd-metrics" aria-label={t("Current branch summary")}>{metrics.map(metric => <article className="ui-panel--compact" key={metric.label} data-tone={metric.tone}><div><strong>{metric.value}</strong><metric.icon size={21} aria-hidden="true" /></div><h2>{t.owned(metric.label)}</h2><p>{metric.note}</p></article>)}</section>
         <div className="rd-grid"><ReferenceCollections source={data.collections} branchId={branchId} retry={refresh} /><ReferenceSeating seating={data.seating} attendance={data.attendance} base={base} retry={refresh} /><aside className="rd-rail"><DashboardActivity data={data} base={base} /><DashboardQuickActions access={access} base={base} /></aside><DashboardWorklists data={data} base={base} retry={refresh} /></div>
     </PageShell>;
 }

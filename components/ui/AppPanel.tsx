@@ -1,13 +1,15 @@
 import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
+import { ComponentPropsWithoutRef, ReactNode } from "react";
 
-interface AppPanelProps {
+interface AppPanelProps extends Omit<ComponentPropsWithoutRef<"section">, "title"> {
     title?: ReactNode;
     description?: string;
     action?: ReactNode;
     children: ReactNode;
     className?: string;
     contentClassName?: string;
+    density?: "comfortable" | "compact";
+    padding?: "default" | "none";
 }
 
 export function AppPanel({
@@ -17,15 +19,19 @@ export function AppPanel({
     children,
     className,
     contentClassName,
+    density = "comfortable",
+    padding = "default",
+    ...props
 }: AppPanelProps) {
     const hasHeader = title || description || action;
 
     return (
         <section
             className={cn(
-                "overflow-hidden rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] shadow-[var(--ui-panel-shadow)]",
+                density === "compact" ? "ui-panel--compact" : "overflow-hidden rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] shadow-[var(--ui-panel-shadow)]",
                 className
             )}
+            {...props}
         >
             {hasHeader && (
                 <div className="flex flex-col gap-3 border-b border-[color:var(--ui-panel-header-border)] px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
@@ -40,7 +46,7 @@ export function AppPanel({
                     {action && <div className="shrink-0">{action}</div>}
                 </div>
             )}
-            <div className={cn("p-4", contentClassName)}>{children}</div>
+            {padding === "none" ? children : <div className={cn("p-4", contentClassName)}>{children}</div>}
         </section>
     );
 }

@@ -1,6 +1,6 @@
 /* Native reference composition, confined to the authenticated workspace. */
 @font-face { font-family: "Dashboard Caveat"; src: url("/fonts/dashboard/Caveat.ttf") format("truetype"); font-weight: 400 700; font-style: normal; font-display: swap; }
-[data-app-design-pilot="workspace"] { --font-dashboard-script: "Dashboard Caveat"; --font-dashboard-display: Georgia; }
+/* Dashboard font aliases are owned by styles/tokens.css. */
 [data-app-design-pilot="workspace"] [data-dashboard-navigation="true"] { width: 230px; background: #f4f8f2; }
 [data-app-design-pilot="workspace"] [data-dashboard-navigation="true"] > div:first-child { height: 64px; min-height: 64px; border: 0; background: transparent; padding: 0 21px; gap: 4px; }
 [data-app-design-pilot="workspace"] [data-dashboard-navigation="true"] > div:first-child > div > span:last-child { font-size: 5px; letter-spacing: 1.6px; }
@@ -55,9 +55,8 @@
 .rd-heading blockquote img { position: absolute; width: 56px; height: 60px; object-fit: contain; right: 1px; bottom: 0; }
 .rd-header-leaves { position: absolute; right: -8px; top: 0; height: 91px; width: 125px; object-fit: contain; opacity: .65; transform: rotate(-22deg); }
 .rd-primary-actions { display: flex; justify-content: flex-end; gap: 8px; position: relative; }
-.rd-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid #dbe4df; border-radius: 9px; background: #fff; color: #144534; box-shadow: 0 3px 8px #193e2110; white-space: nowrap; font-family: var(--font-dashboard-display),Georgia,serif; font-size: 12px; font-weight: 600; }
-.rd-button.rd-primary { background: linear-gradient(110deg,#054c37,#18784e); color: white; border-color: #176549; }
-.rd-panel,.rd-action-center,.rd-metrics article { background: #fff; border: 1px solid var(--rd-line); border-radius: 10px; box-shadow: 0 3px 10px #14301c02; min-width: 0; }
+/* Compact action presentation is owned by AppButton/shared-ui.css. */
+/* Compact panel presentation is owned by AppPanel/shared-ui.css. */
 .rd-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rd-panel-heading > div:first-child { display: flex; align-items: center; min-width: 0; gap: 10px; }
 .rd-panel-heading svg { flex: none; color: var(--rd-green); }
@@ -69,11 +68,11 @@
 .rd-action-center > .rd-panel-heading p { font-size: 11px; margin: 0; }
 .rd-count { background: #c84b0c; color: white; min-width: 17px; padding: 0 4px; height: 17px; font-size: 11px; border-radius: 50%; text-align: center; }
 .rd-priorities { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; }
-.reference-dashboard [data-tone="green"] { --rd-tone: #00623e; --rd-tint: #f2faf6; --rd-icon: #e4f4eb; --rd-border: #d3eee0; }
-.reference-dashboard [data-tone="red"] { --rd-tone: #b11127; --rd-tint: #fff5f5; --rd-icon: #fde6e8; --rd-border: #f8d9de; }
-.reference-dashboard [data-tone="amber"] { --rd-tone: #a65200; --rd-tint: #fffbf2; --rd-icon: #fff2d4; --rd-border: #f8e6c1; }
-.reference-dashboard [data-tone="blue"] { --rd-tone: #004794; --rd-tint: #f1f7ff; --rd-icon: #e2efff; --rd-border: #d6e7ff; }
-.reference-dashboard [data-tone="purple"] { --rd-tone: #381b9c; --rd-tint: #f8f4ff; --rd-icon: #eee5ff; --rd-border: #e3d6fc; }
+.reference-dashboard [data-tone="green"] { --rd-tone: var(--ui-tone-success-emphasis); --rd-tint: var(--ui-tone-success-subtle); --rd-icon: var(--ui-tone-success-icon); --rd-border: var(--ui-tone-success-outline); }
+.reference-dashboard [data-tone="red"] { --rd-tone: var(--ui-tone-danger-emphasis); --rd-tint: var(--ui-tone-danger-subtle); --rd-icon: var(--ui-tone-danger-icon); --rd-border: var(--ui-tone-danger-outline); }
+.reference-dashboard [data-tone="amber"] { --rd-tone: var(--ui-tone-warning-emphasis); --rd-tint: var(--ui-tone-warning-subtle); --rd-icon: var(--ui-tone-warning-icon); --rd-border: var(--ui-tone-warning-outline); }
+.reference-dashboard [data-tone="blue"] { --rd-tone: var(--ui-tone-info-emphasis); --rd-tint: var(--ui-tone-info-subtle); --rd-icon: var(--ui-tone-info-icon); --rd-border: var(--ui-tone-info-outline); }
+.reference-dashboard [data-tone="purple"] { --rd-tone: var(--ui-tone-insight-emphasis); --rd-tint: var(--ui-tone-insight-subtle); --rd-icon: var(--ui-tone-insight-icon); --rd-border: var(--ui-tone-insight-outline); }
 .rd-priorities article { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 14px; padding: 12px 11px 11px; border: 1px solid var(--rd-border); background: var(--rd-tint); border-radius: 8px; min-height: 128px; }
 .rd-priority-icon { display: grid; place-items: center; height: 44px; width: 44px; border-radius: 12px; color: var(--rd-tone); background: var(--rd-icon); }
 .rd-priorities strong { display: block; color: var(--rd-tone); font-family: var(--font-dashboard-display),Georgia,serif; font-size: 24px; line-height: 1; font-weight: 700; }
