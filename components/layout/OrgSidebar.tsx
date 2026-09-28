@@ -30,7 +30,8 @@ export function OrgSidebar() {
                 <Link href="/app" aria-label={t("Open workspace home")}>
                     <AppLogo
                         subtitle={t("Operations")}
-                        markClassName="h-10 w-10"
+                        markVariant="botanical"
+                        markClassName="h-10 w-[62px]"
                         titleClassName="text-lg font-bold sm:text-lg"
                         subtitleClassName="tracking-widest"
                     />

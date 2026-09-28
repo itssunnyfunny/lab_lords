@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { installSettingsFixture } from "./settings-family-fixture";
+import { installSettingsRouteFixture } from "./settings-route-closeout-fixture";
 
 const output = "docs/redesign/application-rollout-evidence/settings";
 test("dashboard settings keeps compact composition and saved threshold across languages", async ({ page }, info) => {
@@ -53,4 +54,95 @@ test("expectations and terms retain their original commands and mobile cards", a
         await page.locator(".ui-record-card").first().scrollIntoViewIfNeeded();
         await page.screenshot({ path: `${output}/membership-mobile-390.png`, animations: "disabled" });
     }
+});
+
+const closeoutOutput = "docs/redesign/application-closeout-evidence";
+
+test("real account settings keeps the application chrome, edit identity, language, and discard overlay", async ({ page }, info) => {
+    const fixture = await installSettingsRouteFixture(page);
+    const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+    await page.goto("/account?mode=after&lang=en");
+    await expect(page.getByRole("heading", { name: "Account Settings" })).toBeVisible();
+    if (info.project.name === "desktop-1440") {
+        await expect(page.getByRole("complementary", { name: "Account navigation" })).toBeVisible();
+        fs.mkdirSync(closeoutOutput, { recursive: true });
+        await page.evaluate(() => document.fonts.ready);
+        await page.screenshot({ path: `${closeoutOutput}/account-desktop-1440.png`, animations: "disabled" });
+    }
+    if (info.project.name === "mobile-390") {
+        await page.getByRole("button", { name: "Open navigation" }).click();
+        await expect(page.getByRole("complementary", { name: "Account navigation" })).toBeVisible();
+        fs.mkdirSync(closeoutOutput, { recursive: true });
+        await page.evaluate(() => document.fonts.ready);
+        await page.screenshot({ path: `${closeoutOutput}/account-navigation-mobile-390.png`, animations: "disabled" });
+        await page.getByRole("button", { name: "Close navigation" }).click();
+    }
+    await page.getByRole("button", { name: "Edit settings" }).click();
+    await page.getByRole("textbox", { name: "Display name" }).fill("Ananya Review");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Settings saved" })).toBeVisible();
+    expect(fixture.commands.at(-1)).toMatchObject({ method: "PATCH", path: "/api/users/me", body: { name: "Ananya Review" } });
+    await page.getByRole("button", { name: "Edit settings" }).click();
+    await page.getByRole("textbox", { name: "Display name" }).fill("Unsaved name");
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("alertdialog", { name: "Discard account changes?" })).toBeVisible();
+    if (info.project.name === "mobile-390") await page.screenshot({ path: `${closeoutOutput}/account-discard-mobile-390.png`, animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("alertdialog", { name: "Discard account changes?" })).toHaveCount(0);
+    for (const [language, htmlLang] of [["hi", "hi-IN"], ["hinglish", "hi-Latn-IN"]]) {
+        await page.locator('select[id$="interfaceLanguage"]').first().selectOption(language);
+        await expect(page.locator("html")).toHaveAttribute("lang", htmlLang);
+        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    expect(errors).toEqual([]);
+});
+
+test("real branch settings shows writable details and preserves read-only access", async ({ page }, info) => {
+    await installSettingsRouteFixture(page);
+    const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+    await page.goto("/branch/pilot/settings?mode=after&lang=en");
+    await expect(page.getByRole("heading", { name: "Branch Settings" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Edit settings" })).toBeEnabled();
+    await expect(page.locator("#profile")).toContainText("Shanti Study Library");
+    if (info.project.name === "mobile-390") {
+        fs.mkdirSync(closeoutOutput, { recursive: true });
+        await page.evaluate(() => document.fonts.ready);
+        await page.screenshot({ path: `${closeoutOutput}/branch-settings-mobile-390.png`, animations: "disabled" });
+    }
+    await page.goto("/branch/pilot/settings?mode=after&lang=en&role=readonly");
+    await expect(page.getByRole("heading", { name: "Branch Settings" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Edit settings" })).toBeDisabled();
+    await expect(page.locator('aside[aria-label="Settings access restriction"]')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    expect(errors).toEqual([]);
+});
+
+test("real organization settings and billing processing keep provider status presentation", async ({ page }, info) => {
+    await installSettingsRouteFixture(page);
+    const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+    await page.goto("/org/org-pilot/settings?mode=after&lang=en");
+    await expect(page.getByRole("heading", { name: "Organization Settings" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Current subscription" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Edit settings" })).toBeEnabled();
+    if (info.project.name === "desktop-1440") {
+        fs.mkdirSync(closeoutOutput, { recursive: true });
+        await page.evaluate(() => document.fonts.ready);
+        await page.screenshot({ path: `${closeoutOutput}/organization-settings-desktop-1440.png`, animations: "disabled" });
+    }
+    await page.getByRole("button", { name: "Cancel at cycle end" }).click();
+    await expect(page.getByRole("alertdialog", { name: "Cancel at cycle end?" })).toBeVisible();
+    if (info.project.name === "mobile-390") await page.screenshot({ path: `${closeoutOutput}/billing-confirmation-mobile-390.png`, animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("alertdialog", { name: "Cancel at cycle end?" })).toHaveCount(0);
+    await page.goto("/org/org-pilot/billing/processing/change-pilot?mode=after&lang=en");
+    await expect(page.getByRole("heading", { name: "Billing confirmation" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Billing update confirmed" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Continue" })).toHaveAttribute("href", "/org/org-pilot/settings#billing");
+    if (info.project.name === "mobile-390") await page.screenshot({ path: `${closeoutOutput}/billing-processing-mobile-390.png`, animations: "disabled" });
+    await page.goto("/org/org-pilot/billing/processing/change-pilot?mode=after&lang=hi&outcome=declined");
+    await expect(page.getByRole("status")).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    expect(errors).toEqual([]);
 });

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isApplicationDesignPilotPath } from "@/lib/applicationDesignPilot";
+import { isApplicationDesignPilotPath, isSelectedApplicationSurfacePath } from "@/lib/applicationDesignPilot";
 
 const projectRoot = resolve(process.cwd());
 const pilotPath = join(projectRoot, "styles", "application-pilot.css");
@@ -33,6 +33,18 @@ describe("application design pilot theme", () => {
   it("selects migrated branch routes while excluding public and legacy AI Messages", () => {
     for (const path of ["/branch/test", ...["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue", "allocations", "shifts", "payments", "attendance", "analytics"].map(page => `/branch/test/${page}`), "/branch/test/ai/reports", "/branch/test/onboarding/import", "/branch/test/onboarding/import/session-1"]) expect(isApplicationDesignPilotPath(path)).toBe(true);
     for (const path of ["/", "/hi", "/features", "/pricing", "/faq", "/account", "/branch/test/ai/messages", "/branch/test/staff/nested", "/branch/test/onboarding/import/session-1/nested", null]) expect(isApplicationDesignPilotPath(path)).toBe(false);
+  });
+  it("scopes route boundaries to the complete migrated application inventory", () => {
+    for (const path of [
+      "/app", "/account", "/org", "/org/org_1", "/org/org_1/analytics", "/org/org_1/settings",
+      "/org/org_1/billing/processing/change_1", "/onboarding", "/invite/token_1",
+      "/branch/branch_1", "/branch/branch_1/tasks", "/branch/branch_1/ai/reports",
+      "/branch/branch_1/onboarding/import/session_1",
+    ]) expect(isSelectedApplicationSurfacePath(path), path).toBe(true);
+    for (const path of [
+      "/", "/hi", "/features", "/sign-in", "/sign-up", "/branch/branch_1/ai/messages",
+      "/branch/branch_1/tasks/nested", "/org/org_1/billing", "/invite", null,
+    ]) expect(isSelectedApplicationSurfacePath(path), String(path)).toBe(false);
   });
   it("stays opt-in to the pilot workspace and collection overlay", () => {
     const globals = readFileSync(join(projectRoot, "app", "globals.css"), "utf8");

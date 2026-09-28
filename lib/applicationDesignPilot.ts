@@ -13,3 +13,15 @@ export function isApplicationDesignPilotPath(pathname: string | null | undefined
     if (segments.length === 4 && segments[2] === "ai" && segments[3] === "reports") return true;
     return segments[2] === "onboarding" && segments[3] === "import" && (segments.length === 4 || segments.length === 5);
 }
+
+/** Selected authenticated routes, including entry and organization surfaces. */
+export function isSelectedApplicationSurfacePath(pathname: string | null | undefined) {
+    if (isApplicationDesignPilotPath(pathname)) return true;
+    const segments = pathname?.split("/").filter(Boolean) ?? [];
+    if (segments.length === 1) return ["app", "account", "org", "onboarding"].includes(segments[0]);
+    if (segments[0] === "invite") return segments.length === 2;
+    if (segments[0] !== "org" || !segments[1]) return false;
+    if (segments.length === 2) return true;
+    if (segments.length === 3) return ["analytics", "settings"].includes(segments[2]);
+    return segments.length === 5 && segments[2] === "billing" && segments[3] === "processing";
+}

@@ -21,6 +21,8 @@ import {
 import {
     accountMenuClerkAppearance,
     accountProfileClerkAppearance,
+    workspaceAccountMenuClerkAppearance,
+    workspaceAccountProfileClerkAppearance,
 } from "@/components/ui/entrySurface";
 import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
 import { BillingBanner } from "@/components/billing/BillingBanner";
@@ -152,9 +154,9 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                         )}
                         <LanguageControls compact />
                         <UserButton
-                            appearance={accountMenuClerkAppearance}
+                            appearance={designPilot ? workspaceAccountMenuClerkAppearance : accountMenuClerkAppearance}
                             userProfileMode="modal"
-                            userProfileProps={{ appearance: accountProfileClerkAppearance }}
+                            userProfileProps={{ appearance: designPilot ? workspaceAccountProfileClerkAppearance : accountProfileClerkAppearance }}
                         />
                         <button
                             type="button"

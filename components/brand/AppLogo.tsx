@@ -75,6 +75,7 @@ export function LogoMark({ className, title = "Lab Lords", variant = "legacy", .
 type AppLogoProps = {
     subtitle?: string;
     showSubtitle?: boolean;
+    markVariant?: LogoMarkProps["variant"];
     className?: string;
     markClassName?: string;
     titleClassName?: string;
@@ -84,6 +85,7 @@ type AppLogoProps = {
 export function AppLogo({
     subtitle = "Branch OS",
     showSubtitle = true,
+    markVariant = "legacy",
     className,
     markClassName,
     titleClassName,
@@ -91,7 +93,11 @@ export function AppLogo({
 }: AppLogoProps) {
     return (
         <div className={cn("flex min-w-0 items-center gap-3", className)}>
-            <LogoMark className={cn("h-9 w-9", markClassName)} title="Lab Lords logo" />
+            <LogoMark
+                className={cn(markVariant === "botanical" ? "h-9 w-[56px]" : "h-9 w-9", markClassName)}
+                title="Lab Lords logo"
+                variant={markVariant}
+            />
             <div className="min-w-0">
                 <span className={cn("block truncate text-base font-semibold tracking-tight text-[color:var(--text-primary)] sm:text-lg", titleClassName)}>
                     Lab Lords

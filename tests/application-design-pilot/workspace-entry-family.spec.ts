@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { expect, test, type Page, type Route } from "@playwright/test";
 
 const evidence = "test-results/workspace-entry-evidence";
+const closeoutEvidence = "docs/redesign/application-closeout-evidence";
 function screenshotPath(name: string) {
     fs.mkdirSync(evidence, { recursive: true });
     return `${evidence}/${name}`;
@@ -80,10 +81,15 @@ test("real organization selection enters the selected overview and preserves bra
     await page.goto("/org?mode=after&lang=en");
     await expect(page.locator('[data-app-design-pilot="workspace"]').last()).toBeVisible();
     await expect(page.getByRole("heading", { level: 1, name: "Select workspace" })).toBeVisible();
+    await expect(page.locator('[data-app-design-pilot="workspace"] svg[viewBox="0 0 180 116"]').last()).toBeVisible();
     const organization = page.getByRole("button", { name: /Shanti Learning Spaces/ });
     await expect(organization).toBeVisible();
     await expect(page.getByRole("button", { name: /Second Reading Room/ })).toBeVisible();
     await expectNoHorizontalOverflow(page);
+    if (info.project.name === "desktop-1440") {
+        fs.mkdirSync(closeoutEvidence, { recursive: true });
+        await page.screenshot({ path: `${closeoutEvidence}/org-selection-desktop-1440.png`, fullPage: true, animations: "disabled" });
+    }
     if (info.project.name === "desktop-1440" || info.project.name === "mobile-390") {
         await organization.screenshot({ path: screenshotPath(`org-selection-card-${info.project.name}.png`), animations: "disabled" });
     }
@@ -91,6 +97,13 @@ test("real organization selection enters the selected overview and preserves bra
     await organization.click();
     await expect(page).toHaveURL(/\/org\/org-pilot$/);
     await expect(page.getByRole("heading", { level: 1, name: "Open a branch dashboard" })).toBeVisible();
+    if (info.project.name === "desktop-1440") {
+        await expect(page.locator('aside[aria-label="Organization navigation"] svg[viewBox="0 0 180 116"]')).toBeVisible();
+    } else {
+        await page.getByRole("button", { name: "Open navigation" }).click();
+        await expect(page.locator('aside[aria-label="Organization navigation"] svg[viewBox="0 0 180 116"]')).toBeVisible();
+        await page.getByRole("button", { name: "Close navigation" }).click();
+    }
     const branch = page.getByRole("link", { name: "Open Shanti Study Library dashboard" });
     await expect(branch).toHaveAttribute("href", "/branch/pilot");
     await expect(branch).toContainText("Shanti Study Library");

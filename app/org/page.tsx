@@ -62,7 +62,7 @@ export default function OrgSelectionPage() {
 
             <div className={cn(entryContentClass, "max-w-4xl")}>
                 <div className="mb-6 text-center sm:mb-8">
-                    <AppLogo className="mb-5 justify-center" subtitle={t("Workspace")} />
+                    <AppLogo className="mb-5 justify-center" subtitle={t("Workspace")} markVariant="botanical" />
                     <h1 className={cn(entryTitleClass, "mb-2")}>{t("Select workspace")}</h1>
                     <p className={entrySubtitleClass}>{t("Choose the organization you want to work in.")}</p>
                 </div>
