@@ -14,8 +14,9 @@ import {
   RazorpayCheckoutScript,
   type RazorpayCheckoutEventResult,
 } from "@/components/billing/RazorpayCheckoutLauncher";
-import { AppButton, PageShell } from "@/components/ui";
-import { Card } from "@/components/ui/Card";
+import { AppButton, AppPanel } from "@/components/ui";
+import { appActionClassName } from "@/components/ui/AppButton";
+import { RecordListPage } from "@/components/ui/RecordList";
 
 const PROVIDER_CONFIRMED = new Set<BillingOperationDto["operationStatus"]>(["APPLIED", "SCHEDULED"]);
 const TERMINAL_OPERATION_STATUSES = new Set<BillingOperationDto["operationStatus"]>([
@@ -257,29 +258,26 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
   };
 
   return (
-    <PageShell aria-label={t("Billing confirmation")}>
+    <RecordListPage title={t("Billing confirmation")} description={t("Provider-confirmed subscription processing")}>
       <RazorpayCheckoutScript
         onReady={() => setCheckoutReady(true)}
         onError={() => setError("Razorpay Checkout could not be loaded. Check your connection and try again.")}
       />
-      <div>
-        <h1 className="text-2xl font-bold text-[color:var(--ui-text)]">{t("Billing confirmation")}</h1>
-        <p className="text-sm text-[color:var(--ui-text-muted)]">{t("Provider-confirmed subscription processing")}</p>
-      </div>
-      <Card className="mx-auto max-w-2xl" noHover>
+      <AppPanel density="compact" className="mx-auto w-full max-w-2xl">
         <div
           className="flex flex-col items-center gap-5 py-8 text-center"
           aria-busy={!successful && !failed && !timedOut}
         >
-          {successful ? <CheckCircle2 className="h-12 w-12 text-emerald-500" /> : failed ? <AlertCircle className="h-12 w-12 text-amber-500" /> : timedOut ? <Clock3 className="h-12 w-12 text-amber-500" /> : <Loader2 className="h-12 w-12 animate-spin text-[color:var(--ui-accent)]" />}
+          {successful ? <CheckCircle2 className="h-12 w-12 text-[color:var(--ui-tone-success-emphasis)]" /> : failed ? <AlertCircle className="h-12 w-12 text-[color:var(--ui-tone-warning-emphasis)]" /> : timedOut ? <Clock3 className="h-12 w-12 text-[color:var(--ui-tone-warning-emphasis)]" /> : <Loader2 className="h-12 w-12 animate-spin text-[color:var(--ui-accent)]" />}
           <div className="space-y-2" role="status" aria-live="polite" aria-atomic="true">
             <h2 className="text-xl font-bold text-[color:var(--ui-text)]">{t.owned(content.title)}</h2>
             <p className="max-w-lg text-sm text-[color:var(--ui-text-muted)]">{t.error(content.body)}</p>
           </div>
-          {error && <p className="text-sm text-red-500" role="alert"><LocalizedError error={error} /></p>}
+          {error && <p className="text-sm text-[color:var(--ui-tone-danger-text)]" role="alert"><LocalizedError error={error} /></p>}
           <div className="flex flex-wrap justify-center gap-3">
             {failed && (
               <AppButton
+                density="compact"
                 icon={RotateCcw}
                 isLoading={retrying}
                 disabled={operation.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady}
@@ -289,12 +287,12 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
               </AppButton>
             )}
             {(successful || failed || timedOut) && (
-              <Link className="inline-flex h-10 items-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] px-3 text-sm font-semibold text-[color:var(--ui-text)]" href={returnPath}>
+              <Link className={appActionClassName("secondary")} href={returnPath}>
                 {t("Continue")}</Link>
             )}
           </div>
         </div>
-      </Card>
-    </PageShell>
+      </AppPanel>
+    </RecordListPage>
   );
 }

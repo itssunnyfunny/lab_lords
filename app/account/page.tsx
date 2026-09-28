@@ -279,19 +279,19 @@ export default function AccountPage() {
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 actions={!isEditing ? (
-                    <AppButton variant="primary" size="sm" onClick={beginEditing} className="min-h-11 lg:min-h-9">
+                    <AppButton variant="primary" density="compact" size="sm" onClick={beginEditing} className="min-h-11 lg:min-h-9">
                         {t("Edit settings")}</AppButton>
                 ) : null}
             >
                 <SettingsPanel id="profile" title={t("Profile")} description={t("These details identify you across the workspace.")} icon={User}>
-                    <div className="mb-2 flex items-center gap-4 rounded-[var(--ui-radius-control)] border border-cyan-300/15 bg-gradient-to-r from-cyan-400/[0.08] to-violet-400/[0.05] p-4">
-                        <Avatar name={profile.name || profile.email} size="xl" />
+                    <div className="mb-2 flex items-center gap-4 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-4">
+                        <Avatar name={profile.name || profile.email} size="xl" tone="quiet" />
                         <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-300">{t("Workspace identity")}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--ui-form-accent)]">{t("Workspace identity")}</p>
                             <p className="mt-1 truncate font-semibold text-[color:var(--text-primary)]">{profile.name || t.owned("Add your display name")}</p>
                             <p className="truncate text-xs text-[color:var(--text-secondary)]">{profile.email}</p>
                         </div>
-                        <span className="hidden rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-200 sm:inline-flex">
+                        <span className="hidden rounded-full border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--ui-tone-success-text)] sm:inline-flex">
                             {t("Active")}</span>
                     </div>
                     {isEditing ? (

@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
-    return <AppShell sidebar={<AccountSidebar />}>{children}</AppShell>;
+    return <AppShell sidebar={<AccountSidebar />} designPilot>{children}</AppShell>;
 }

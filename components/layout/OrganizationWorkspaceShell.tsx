@@ -8,7 +8,7 @@ import { BillingExperienceProvider } from "@/components/billing/BillingExperienc
 export function OrganizationWorkspaceShell({ organizationId, children }: { organizationId: string; children: ReactNode }) {
     return (
         <BillingExperienceProvider organizationId={organizationId}>
-            <AppShell sidebar={<OrgSidebar />}>{children}</AppShell>
+            <AppShell sidebar={<OrgSidebar />} designPilot>{children}</AppShell>
         </BillingExperienceProvider>
     );
 }

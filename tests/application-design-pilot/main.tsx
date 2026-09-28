@@ -10,6 +10,7 @@ import BranchDashboardPage from "@/app/branch/[branchId]/page";
 import StudentsPage from "@/app/branch/[branchId]/students/page";
 import StaffPage from "@/app/branch/[branchId]/staff/page";
 import TasksPage from "@/app/branch/[branchId]/tasks/page";
+import DashboardSettingsPage from "@/app/branch/[branchId]/dashboard-settings/page";
 import SeatsPage from "@/app/branch/[branchId]/seats/page";
 import { ComponentGallery } from "./ComponentGallery";
 import "@/app/globals.css";
@@ -50,6 +51,7 @@ function PilotSurface() {
     if (pathname.endsWith("/students")) return <StudentsPage params={dashboardParams} />;
     if (pathname.endsWith("/staff")) return <StaffPage params={dashboardParams} />;
     if (pathname.endsWith("/tasks")) return <TasksPage params={dashboardParams} />;
+    if (pathname.endsWith("/dashboard-settings")) return <DashboardSettingsPage params={dashboardParams} />;
     if (pathname.endsWith("/seats")) return <SeatsPage params={BRANCH_PARAMS} />;
     if (pathname === `/branch/${currentBranchId}`) return <BranchDashboardPage params={dashboardParams} />;
     return <PageShell><h1>This route is outside the design pilot</h1><p>The link targets the existing application route: {pathname}.</p>

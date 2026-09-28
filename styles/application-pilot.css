@@ -1,10 +1,9 @@
 /*
- * Authenticated application design pilot.
+ * Selected authenticated application presentation.
  *
- * Keep the botanical palette opt-in: the workspace marker is only rendered on
- * the approved dashboard, students, and seats routes. The collection dialog is
- * portalled to document.body, so it receives the same tokens through its
- * explicit overlay class rather than a page-wide theme switch.
+ * Keep the botanical palette opt-in to migrated application routes. The
+ * collection dialog can open outside those routes, so its body portal retains
+ * an explicit overlay scope.
  */
 /* Keep body-level popovers and toasts in the route-scoped palette. */
 html.dark:has([data-app-design-pilot="workspace"]) {
