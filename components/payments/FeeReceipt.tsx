@@ -113,7 +113,7 @@ export function FeeReceipt({ branchId, collection }: { branchId: string; collect
         </article>
         <div className="flex flex-wrap gap-2">
             {(["print", "download", "share", "copy"] as const).map(kind => (
-                <AppButton key={kind} variant="secondary" disabled={busy} onClick={() => void action(kind)}>
+                <AppButton key={kind} variant="secondary" density="compact" disabled={busy} onClick={() => void action(kind)}>
                     {t.owned({ print: "Print", download: "Download PDF", share: "Share", copy: "Copy summary" }[kind])}
                 </AppButton>
             ))}

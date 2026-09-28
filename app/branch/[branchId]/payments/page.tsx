@@ -1,31 +1,24 @@
 "use client";
-import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, LoadingTableSkeleton, PageShell, useToast } from "@/components/ui";
+import { AppButton, useToast } from "@/components/ui";
+import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import {
     formWarningBannerClass,
 } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
-    pageDescriptionClass,
-    pageEyebrowClass,
-    pageErrorIconClass,
-    pageErrorStateClass,
     pageFilterShellClass,
     pageGridCardClass,
     pageGridCardHoverClass,
-    pageInsetMetricClass,
-    pageInsetSurfaceClass,
     pageMutedTextClass,
-    pageSectionDividerClass,
     pageSubtleTextClass,
-    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { PaymentCollectionPicker } from "@/components/payments/PaymentCollectionPicker";
@@ -33,12 +26,12 @@ import { CollectionHistory } from "@/components/payments/CollectionHistory";
 import { remainingFee } from "@/lib/feeBalance";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
-import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal } from "lucide-react";
 import { useCallback, useEffect, useState, use } from "react";
 import { payments, type PaymentListItem } from "@/lib/api/payments";
 import { format, addMonths, subMonths } from "date-fns";
 import { isOverdue } from "@/lib/utils/paymentStatus";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getAnyPermissionHelpText } from "@/lib/permissionMessages";
@@ -89,7 +82,6 @@ function PaymentsContent({
     generateDecision: CapabilityDecision;
 }) {
     const t = useTranslation();
-    const router = useRouter();
     const toast = useToast();
     const { formatDate, formatNumber } = useUserPreferences();
     const searchParams = useSearchParams();
@@ -314,12 +306,12 @@ function PaymentsContent({
         });
 
     const renderDueDate = (item: PaymentRow) => {
-        const overdue = isOverdue(item.dueDate);
+        const overdue = item.status === "DUE" && isOverdue(item.dueDate);
 
         return (
             <div className="flex flex-wrap items-center gap-2">
                 {item.collectedAmount > 0 && item.status === "DUE" && <Badge variant="warning">{t("Partially paid")}</Badge>}
-                <span className={cn(overdue ? "text-red-400 font-medium" : "text-textSecondary")}>
+                <span className={cn(overdue ? "font-medium text-[color:var(--ui-tone-danger-text)]" : pageMutedTextClass)}>
                     {formatDate(item.dueDate)}
                 </span>
                 {overdue && (
@@ -337,7 +329,7 @@ function PaymentsContent({
                         "purple"
             }
         >
-            {item.status}
+            {t.owned({ DUE: "Due", PAID: "Paid", WAIVED: "Waived" }[item.status])}
         </Badge>
     );
 
@@ -348,20 +340,9 @@ function PaymentsContent({
 
     const renderPaymentMethod = (item: PaymentRow) => {
         const m = item.paymentMethod ?? null;
-        if (!m) return <span className="text-xs text-textSecondary">-</span>;
-
-        const map = {
-            CASH: { label: "Cash", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-            UPI: { label: "UPI", cls: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
-            BANK_TRANSFER: { label: "Bank", cls: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
-        };
-        const { label, cls } = map[m];
-
-        return (
-            <span className={cn("rounded border px-2 py-0.5 text-[11px] font-medium", cls)}>
-                {label}
-            </span>
-        );
+        if (!m) return <span className={cn("text-xs", pageMutedTextClass)}>—</span>;
+        const label = { CASH: "Cash", UPI: "UPI", BANK_TRANSFER: "Bank Transfer" }[m];
+        return <span className={cn("text-xs font-medium", pageMutedTextClass)}>{t.owned(label)}</span>;
     };
 
     const renderPaymentActions = (item: PaymentRow) => (
@@ -370,6 +351,7 @@ function PaymentsContent({
                 <AppButton
                     variant="quiet"
                     size="sm"
+                    density="compact"
                     icon={History}
                     className={cn("text-xs", pageSubtleTextClass)}
                     onClick={() =>
@@ -388,6 +370,7 @@ function PaymentsContent({
                         <AppButton
                             variant="secondary"
                             size="sm"
+                            density="compact"
                             icon={Check}
                             className="text-xs"
                             disabled={!canMarkPaid}
@@ -415,32 +398,16 @@ function PaymentsContent({
         </div>
     );
 
-    if (error) {
-        return (
-            <div className={pageErrorStateClass}>
-                <AlertCircle className={pageErrorIconClass} />
-                <h2 className="text-xl font-semibold">{t("Something went wrong")}</h2>
-                <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
-                <AppButton variant="secondary" icon={ArrowLeft} onClick={() => router.push("/org")}>
-                    {t("Back to workspace")}</AppButton>
-            </div>
-        );
-    }
-
     return (
-        <PageShell>
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="min-w-0">
-                    <p className={pageEyebrowClass}>{t("Branch payments")}</p>
-                    <h1 className={cn(pageTitleClass, "mt-2")}>{t("Payment history")}</h1>
-                    <p className={pageDescriptionClass}>
-                        {t("Review dues, record collections, and keep waived payments separate from active follow-up.")}</p>
-                </div>
-
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+        <RecordListPage
+            eyebrow={t("Branch payments")}
+            title={t("Payment history")}
+            description={t("Review dues, record collections, and keep waived payments separate from active follow-up.")}
+            actions={<>
                 {showGenerateAction && (
                     <AppButton
                         variant="secondary"
+                        density="compact"
                         isLoading={generating}
                         autoFocus={generationRequested}
                         disabled={!canGeneratePayments}
@@ -449,7 +416,7 @@ function PaymentsContent({
                     >
                         {t("Generate missing dues")}</AppButton>
                 )}
-                <div className={cn("flex items-center justify-between gap-2 p-2 sm:gap-4", pageFilterShellClass)}>
+                <div className={cn("flex items-center justify-between gap-2 p-1.5 sm:gap-3", pageFilterShellClass)}>
                     <AppButton variant="quiet" size="icon" onClick={() => handleMonthChange("prev")} aria-label={t("Previous month")}>
                         <ChevronLeft className="h-4 w-4" />
                     </AppButton>
@@ -463,29 +430,30 @@ function PaymentsContent({
                         <ChevronRight className="h-4 w-4" />
                     </AppButton>
                 </div>
-                </div>
-            </header>
-
-            {generationRequested && !canGeneratePayments && generateBlockedReason && (
+            </>}
+            notices={<>
+                {generationRequested && !canGeneratePayments && generateBlockedReason && (
                 <div role="alert" className={cn("px-4 py-3 text-sm", formWarningBannerClass)}>
                     {generateBlockedReason}
                 </div>
-            )}
-            {generationMessage && (
+                )}
+                {generationMessage && (
                 <div
                     role={generationMessage.tone === "error" ? "alert" : "status"}
                     className={cn(
                         "rounded-[var(--ui-radius-control)] border px-4 py-3 text-sm",
                         generationMessage.tone === "error"
-                            ? "border-red-400/30 bg-red-400/10 text-red-200"
-                            : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                            ? "border-[color:var(--ui-badge-danger-border)] bg-[color:var(--ui-badge-danger-bg)] text-[color:var(--ui-badge-danger-text)]"
+                            : "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]"
                     )}
                 >
                     {generationMessage.text}
                 </div>
-            )}
-
-            <div className={cn("flex flex-col gap-3 border-b pb-2 sm:flex-row sm:items-center sm:justify-between", pageSectionDividerClass)}>
+                )}
+            </>}
+        >
+            <RecordListSurface label={t("Payments")} busy={loading}
+                toolbar={<>
                 <div className="flex max-w-full items-center gap-2 overflow-x-auto">
                     <PaymentTabButton
                         label={t("Due")}
@@ -511,12 +479,23 @@ function PaymentsContent({
                 </div>
 
                 <ViewToggle value={viewMode} onChange={setViewMode} className="hidden lg:inline-flex" />
-            </div>
-
-            {loading ? (
-                <LoadingTableSkeleton rows={7} />
-            ) : (
+                </>}
+                footer={!loading && !error && data.length > 0 ? (
+                    <div className="flex flex-col items-center gap-2 text-center" aria-live="polite">
+                        <p id="payments-pagination-status" className="text-sm">{t("Showing {count} of {value} {toLowerCase} payments", { count: data.length, value: paymentTotals[activeTab], toLowerCase: activeTab.toLowerCase() })}</p>
+                        {nextPaymentCursor && <AppButton variant="secondary" density="compact" isLoading={loadingMore}
+                            aria-describedby="payments-pagination-status"
+                            onClick={() => void loadPayments(nextPaymentCursor, true)}>
+                            {t("Load more payments")}</AppButton>}
+                    </div>
+                ) : undefined}
+            >
+            {loading ? <RecordListState kind="loading" title="Loading payment history" />
+            : error ? <RecordListState kind="error" title="Something went wrong" description={t.error(error)} onRetry={() => void loadPayments()} />
+            : !filteredData.length ? <RecordListState kind="empty" title="No payments found for this view." />
+            : (
                 <DataTable
+                    density="compact"
                     caption="Payments"
                     data={filteredData}
                     getRowAttributes={(item, view) => ({
@@ -527,51 +506,45 @@ function PaymentsContent({
                             : undefined,
                         "aria-current": item.id === targetPaymentId ? "true" : undefined,
                         className: item.id === targetPaymentId
-                            ? "rounded-[var(--ui-radius-control)] bg-cyan-400/10 ring-2 ring-cyan-300/70"
+                            ? "rounded-[var(--ui-radius-control)] bg-[color:var(--ui-tone-info-bg)] outline outline-2 outline-[color:var(--ui-focus-ring)]"
                             : undefined,
                     })}
                     viewMode={viewMode}
-                    emptyMessage={t("No payments found for this view.")}
                     renderGridCard={(item, actions) => (
-                        <div className={cn("relative flex min-h-[245px] flex-col", pageGridCardClass, pageGridCardHoverClass)}>
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <div className={cn("font-mono text-xs", pageSubtleTextClass)}>#{item.id.slice(-6)}</div>
-                                    <div className="mt-1 truncate font-medium text-[color:var(--text-primary)]">{item.student?.name || "Unknown"}</div>
-                                    <div className={cn("truncate text-xs", pageMutedTextClass)}>{item.student?.phone || "No phone"}</div>
+                        <article data-payment-record-card className={cn(pageGridCardClass, pageGridCardHoverClass, "ui-record-card")}>
+                            <div className="ui-record-card-identity">
+                                <Avatar name={item.student?.name || "Unknown"} size="sm" tone="quiet" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="ui-record-card-name">{item.student?.name || "Unknown"}</p>
+                                    <p className="ui-record-card-meta">
+                                        <span className="break-all">{item.student?.phone || t("No phone")}</span>
+                                        <span className="font-mono">#{item.id.slice(-6)}</span>
+                                    </p>
                                 </div>
-                                <div className="flex-shrink-0">{renderPaymentStatus(item)}</div>
+                                <div className="shrink-0">{renderPaymentStatus(item)}</div>
                             </div>
-
-                            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                <div className={pageInsetMetricClass}>
-                                    <div className={cn("text-xs", pageSubtleTextClass)}>{t("Amount")}</div>
-                                    <div className="mt-1 text-[color:var(--text-primary)]">{renderFeeAmounts(item)}</div>
-                                </div>
-                                <div className={pageInsetMetricClass}>
-                                    <div className={cn("text-xs", pageSubtleTextClass)}>{t("Method")}</div>
-                                    <div className="mt-1">{renderPaymentMethod(item)}</div>
-                                </div>
+                            <div className="ui-record-card-context">
+                                <CalendarDays size={14} aria-hidden="true" />
+                                <div className="flex flex-wrap items-center gap-1">{t("Due date")}: {renderDueDate(item)}</div>
                             </div>
-
-                            <div className={cn("mt-3 p-3 text-sm", pageInsetSurfaceClass)}>
-                                <div className={cn("mb-1 text-xs", pageSubtleTextClass)}>{t("Due date")}</div>
-                                {renderDueDate(item)}
+                            <div className="ui-record-card-summary">
+                                <p className="ui-record-card-due">{t(item.status === "DUE" ? "Remaining balance" : "Amount")}: {formatPaymentAmount(item.status === "DUE" ? remainingFee(item) : item.amount)}</p>
+                                {item.ledgerBacked ? <p>{t("Fee ₹{amount} · Collected ₹{collectedAmount} · Waived ₹{waivedAmount} · Remaining ₹{remainingFee}", { amount: item.amount, collectedAmount: item.collectedAmount, waivedAmount: item.waivedAmount, remainingFee: remainingFee(item) })}</p>
+                                    : item.status !== "DUE" ? <p>{t("Historical record · no generated receipt")}</p> : null}
+                                <p className="ui-record-card-joined">{t("Method")}: {renderPaymentMethod(item)}</p>
+                                <div className="ui-record-card-actions mt-3 flex flex-wrap items-center gap-2">{actions?.(item)}</div>
                             </div>
-
-                            <div className={cn("mt-auto border-t pt-4", pageSectionDividerClass)}>
-                                {actions?.(item)}
-                            </div>
-                        </div>
+                        </article>
                     )}
                     columns={[
-                        { header: "Transaction ID", accessor: (item) => <span className="font-mono text-xs text-textSecondary">#{item.id.slice(-6)}</span> },
                         {
                             header: "Student",
+                            rowHeader: true,
                             accessor: (item) => (
                                 <div>
                                     <div className="font-medium text-[color:var(--text-primary)]">{item.student?.name || "Unknown"}</div>
-                                    <div className={cn("text-xs", pageMutedTextClass)}>{item.student?.phone}</div>
+                                    <div className={cn("break-all text-xs", pageMutedTextClass)}>{item.student?.phone}</div>
+                                    <div className={cn("font-mono text-xs", pageSubtleTextClass)}>#{item.id.slice(-6)}</div>
                                 </div>
                             )
                         },
@@ -589,41 +562,13 @@ function PaymentsContent({
                         },
                         {
                             header: "Method",
-                            accessor: (item) => {
-                                const m = item.paymentMethod ?? null;
-                                if (!m) return <span className={cn("text-xs", pageMutedTextClass)}>-</span>;
-                                const map = {
-                                    CASH: { label: "Cash", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-                                    UPI:  { label: "UPI",  cls: "text-blue-400  bg-blue-500/10  border-blue-500/20"  },
-                                    BANK_TRANSFER: { label: "Bank", cls: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
-                                };
-                                const { label, cls } = map[m];
-                                return (
-                                    <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded border", cls)}>
-                                        {label}
-                                    </span>
-                                );
-                            }
+                            accessor: renderPaymentMethod
                         },
                     ]}
                     actions={renderPaymentActions}
                 />
             )}
-
-            {!loading ? (
-                <div className="flex flex-col items-center gap-2" aria-live="polite">
-                    <p className={cn("text-sm", pageMutedTextClass)}>{t("Showing {count} of {value} {toLowerCase} payments", { count: data.length, value: paymentTotals[activeTab], toLowerCase: activeTab.toLowerCase() })}</p>
-                    {nextPaymentCursor ? (
-                        <AppButton
-                            variant="secondary"
-                            isLoading={loadingMore}
-                            aria-label={`Load more ${activeTab.toLowerCase()} payments; ${data.length} of ${paymentTotals[activeTab]} shown`}
-                            onClick={() => void loadPayments(nextPaymentCursor, true)}
-                        >
-                            {t("Load more payments")}</AppButton>
-                    ) : null}
-                </div>
-            ) : null}
+            </RecordListSurface>
 
             {collectionRequested && !pickerClosed && recordDecision.allowed && <PaymentCollectionPicker branchId={branchId} onClose={() => setPickerClosed(true)} onSelect={(studentId, paymentId) => { setPickerClosed(true); setCollectStudentId(studentId); setPaymentToMark(paymentId); }} />}
             {paymentToMark && collectStudentId && <CollectFeeDialog
@@ -648,7 +593,7 @@ function PaymentsContent({
                 paymentId={auditLog?.paymentId ?? ""}
                 studentName={auditLog?.studentName ?? ""}
             />
-        </PageShell>
+        </RecordListPage>
     );
 }
 

@@ -5,7 +5,8 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { useEffect, useState } from "react";
 import { payments, AuditLogEntry } from "@/lib/api/payments";
 import { ShieldCheck, AlertCircle, History } from "lucide-react";
-import { Dialog, SkeletonBlock } from "@/components/ui";
+import { AppButton, Dialog, SkeletonBlock } from "@/components/ui";
+import { Badge } from "@/components/ui/Badge";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import {
     formErrorBannerClass,
@@ -22,11 +23,11 @@ const ACTION_LABEL: Record<AuditLogEntry["action"], string> = {
     FEE_COLLECTION_VOIDED: "Collection voided",
 };
 
-const ACTION_COLOR: Record<AuditLogEntry["action"], string> = {
-    PAYMENT_MARKED_PAID: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    PAYMENT_WAIVED: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-    FEE_COLLECTED: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    FEE_COLLECTION_VOIDED: "text-red-400 bg-red-500/10 border-red-500/20",
+const ACTION_TONE: Record<AuditLogEntry["action"], "success" | "warning" | "danger"> = {
+    PAYMENT_MARKED_PAID: "success",
+    PAYMENT_WAIVED: "warning",
+    FEE_COLLECTED: "success",
+    FEE_COLLECTION_VOIDED: "danger",
 };
 
 interface PaymentAuditLogProps {
@@ -47,20 +48,25 @@ export function PaymentAuditLog({
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
     useEffect(() => {
         if (!isOpen) return;
+        let active = true;
 
         queueMicrotask(() => {
+            if (!active) return;
             setLoading(true);
             setError(null);
+            setLogs([]);
         });
 
         payments
             .getAuditLog(paymentId)
-            .then(setLogs)
-            .catch(() => setError("Failed to load audit log."))
-            .finally(() => setLoading(false));
-    }, [isOpen, paymentId]);
+            .then(entries => { if (active) setLogs(entries); })
+            .catch(() => { if (active) setError("Failed to load audit log."); })
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [isOpen, paymentId, refreshKey]);
 
     const formatCurrency = (amount: number) =>
         formatNumber(amount, {
@@ -72,14 +78,16 @@ export function PaymentAuditLog({
     return (
         <Dialog
             open={isOpen}
+            density="compact"
+            languagePlacement="header"
             onClose={onClose}
             title={t("Payment history")}
             description={studentName}
             closeLabel={t("Close payment history")}
-            className="max-w-md"
+            className="max-w-lg"
             icon={(
-                <div className="rounded-full bg-violet-500/10 p-2">
-                    <History className="h-4 w-4 text-violet-400" aria-hidden="true" />
+                <div className="rounded-full bg-[color:var(--ui-dialog-icon-info-bg)] p-2">
+                    <History className="h-4 w-4 text-[color:var(--ui-dialog-icon-info-text)]" aria-hidden="true" />
                 </div>
             )}
         >
@@ -104,9 +112,10 @@ export function PaymentAuditLog({
                     )}
 
                     {error && !loading && (
-                        <div role="alert" className={cn("flex items-center justify-center gap-2 px-3 py-6 text-sm", formErrorBannerClass)}>
+                        <div role="alert" className={cn("flex flex-wrap items-center justify-center gap-2 px-3 py-6 text-sm", formErrorBannerClass)}>
                             <AlertCircle className="h-4 w-4" aria-hidden="true" />
                             <LocalizedError error={error} />
+                            <AppButton variant="secondary" density="compact" onClick={() => setRefreshKey(key => key + 1)}>{t("Retry")}</AppButton>
                         </div>
                     )}
 
@@ -126,20 +135,13 @@ export function PaymentAuditLog({
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span
-                                        className={cn(
-                                            "text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border",
-                                            ACTION_COLOR[log.action]
-                                        )}
-                                    >
-                                        <OwnedLabel text={ACTION_LABEL[log.action]} />
-                                    </span>
+                                    <Badge variant={ACTION_TONE[log.action]}><OwnedLabel text={ACTION_LABEL[log.action]} /></Badge>
                                     <span className={cn("text-xs", formHelpTextClass)}>
                                         {formatCurrency(log.details.amount)}
                                     </span>
                                     {log.details.method && (
                                         <span className="rounded border border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)] px-1.5 py-0.5 text-xs font-medium text-[color:var(--ui-form-label)]">
-                                            {log.details.method}
+                                            {t.owned(log.details.method.replaceAll("_", " "))}
                                         </span>
                                     )}
                                 </div>
@@ -153,7 +155,7 @@ export function PaymentAuditLog({
                                     </span>
                                 </div>
                                 <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-[color:var(--ui-table-subtle)]">
-                                    <span>{log.details.from} → {log.details.to}</span>
+                                    <span>{t.owned(log.details.from)} → {t.owned(log.details.to)}</span>
                                     {log.details.reason && <span>{t("Reason:")} {log.details.reason}</span>}
                                     {log.details.referenceId && (
                                         <span className={cn("font-mono", formHelpTextClass)}>

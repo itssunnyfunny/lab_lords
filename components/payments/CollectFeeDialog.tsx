@@ -92,6 +92,8 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
     }
     return <Dialog
         open
+        density="compact"
+        languagePlacement="header"
         onClose={onClose}
         closeDisabled={busy}
         title={receipt ? t("Collection recorded") : t("Collect fee")}
@@ -111,8 +113,8 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
                     </div>
                 ) : null}
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                    <AppButton variant="quiet" onClick={onClose} disabled={busy}>{t("Close")}</AppButton>
-                    <AppButton variant="primary" onClick={() => void confirm()} isLoading={busy} disabled={loading || (!pending && !valid)}>
+                    <AppButton variant="quiet" density="compact" onClick={onClose} disabled={busy}>{t("Close")}</AppButton>
+                    <AppButton variant="primary" density="compact" onClick={() => void confirm()} isLoading={busy} disabled={loading || (!pending && !valid)}>
                         {pending ? t("Retry same collection") : t("Confirm collection")}
                     </AppButton>
                 </div>
