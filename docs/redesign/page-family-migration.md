@@ -31,7 +31,7 @@ availability of each feature. Test success is not owner approval or deployment.
 | G · Guided | `6dd008c` local implementation; [fixture packet](application-rollout-evidence/guided), 15/15 scoped browser checks across desktop/390/320. | Pending family review | Not released by this rollout |
 | H · Workspace | `8b69d4a` local implementation; [fixture packet](application-rollout-evidence/workspace), 8/8 applicable scoped browser checks with four viewport-independent skips. `/app` remains its existing redirect. | Pending family review | Not released by this rollout |
 | Bounded closeout | `15094ff` fixes selected cold boundaries, authenticated botanical marks and opened account appearance; [one compact review packet](application-closeout-review.md) maps route inventory, family evidence, exceptions and current checks. | **Pending owner review**; Students approval remains separate | Not released |
-| Connected handoff | `0cd0bcc` corrects scoped Clerk contrast and adds guarded connected checks on a new independently identified disposable loopback fixture; 23/23 actual-route/database cases pass on the final local build. | **Pending owner review**; no new presentation approval inferred from tests | Not released |
+| Connected handoff | `0cd0bcc` corrects scoped Clerk contrast and adds guarded connected checks on a new independently identified disposable loopback fixture; 23/23 full actual-route/database cases pass, followed by 4/4 focused recovery cases including the migrated correction dialog. | **Pending owner review**; no new presentation approval inferred from tests | Not released |
 
 Fixture packets record local presentation only; no connected/database or
 deployment claim follows from screenshots. The exact scoped checks below are
@@ -146,9 +146,12 @@ activation. The subsequent prepared run reached 15/16 and revealed one further
 duplicate desktop/mobile note selector. These test assertions were corrected;
 the final expanded guarded run passed **23/23** on the final built tree.
 
-Focused actual-route/database checks already passed 3/3 for seat/allocation
+Focused actual-route/database checks passed 3/3 for seat/allocation
 conflicts, attendance check-in/out/void idempotency and durable audit, and a
-₹500 follow-up remaining balance. A separate focused set passed 3/3 for account
+₹500 follow-up remaining balance. After the full run, one focused case opened
+the migrated collection correction dialog, voided only its new synthetic
+receipt and restored the balance; the expanded recovery file passed 4/4.
+A separate focused set passed 3/3 for account
 language persistence, workspace navigation and branch isolation, settings
 read-only behavior, authorized branch CSV with staff denial, and onboarding
 validation without an unintended write. The real Clerk-rendered account menu
@@ -160,15 +163,18 @@ isolated screenshot fixtures remain presentation evidence only.
 
 The final guarded commands `node tests/dashboard-connected/start-local.mjs
 build` and `node tests/dashboard-connected/start-local.mjs test` passed (74
-static pages/two workflow manifests; 23/23 real-route cases). Both affected safe
+static pages/two workflow manifests; 23/23 real-route cases). The later
+`node tests/dashboard-connected/start-local.mjs test rollout-recovery.spec.ts`
+passed 4/4, with no application-code change after the full run. Both affected safe
 Vitest suites passed 142/142 and 169/169; the changed-file presentation guard
 passed; `pnpm lint` had zero errors and two pre-existing generated/coverage
 warnings. Post-test financial totals stayed ₹4,300 billed, ₹1,900 collected,
 ₹0 waived and ₹2,400 pending with 19 live receipts totaling ₹1,900. Deliberate
 test-created immutable history is counted in the [compact closeout
 packet](application-closeout-review.md). The focused verification and theme
-fix is local commit `0cd0bcc`; the evidence/documentation commit is identified
-by the final handoff log. Live camera
+fix is local commit `0cd0bcc`; the initial evidence/documentation commit is
+`f709292`. The final correction-check commit is at `HEAD` in the handoff log.
+Live camera
 hardware and held external payment, messaging, AI and import providers remain
 outside this isolated verification. Current connected evidence does not confer
 owner presentation approval or production release; the refined Students card

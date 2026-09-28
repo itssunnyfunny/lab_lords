@@ -171,3 +171,47 @@ test("real renewal API and page show the partial remaining fee alongside follow-
     const panel = page.getByRole("heading", { name: fixture.students[0].name, exact: true }).locator("xpath=ancestor::section[1]");
     await expect(panel).toContainText(/₹\s*500/);
 });
+
+test("real collection correction dialog voids a synthetic receipt and restores the balance", async ({ page }) => {
+    const collections = `${branchApi}/collections`;
+    const before = await finances();
+    const reference = `Closeout correction ${randomUUID()}`;
+    const created = await request(page, collections, "POST", {
+        studentId: fixture.students[0].id, paymentIds: ["dashboard-payment-0"], amount: 50,
+        method: "CASH", reference, note: "Synthetic correction verification", idempotencyKey: randomUUID(),
+    });
+    expect(created.status()).toBe(200);
+    const receipt = await created.json() as { id: string; snapshot: unknown };
+    try {
+        await page.goto(`/branch/${fixture.branchId}/payments`, { waitUntil: "domcontentloaded" });
+        await page.waitForFunction(() => {
+            const clerk = (window as unknown as { Clerk?: { loaded?: boolean; user?: unknown; session?: unknown } }).Clerk;
+            return Boolean(clerk?.loaded && clerk.user && clerk.session);
+        });
+        await page.getByLabel("Search student, receipt or reference", { exact: true }).fill(reference);
+        const card = page.locator("article").filter({ hasText: reference });
+        await expect(card).toBeVisible();
+        await card.getByRole("button", { name: "Correct / void", exact: true }).click();
+        const dialog = page.getByRole("dialog", { name: "Void mistaken collection" });
+        await expect(dialog).toContainText("does not return cash or initiate a provider refund");
+        await expect(dialog.getByRole("button", { name: "Void collection" })).toBeDisabled();
+        await dialog.getByLabel("Required reason").fill("Correct disposable verification collection");
+        const voidResponse = page.waitForResponse(response => response.request().method() === "PATCH"
+            && response.url().endsWith(`${collections}/${receipt.id}`));
+        await dialog.getByRole("button", { name: "Void collection" }).click();
+        expect((await voidResponse).status()).toBe(200);
+        await expect(dialog).toHaveCount(0);
+        await expect(card.getByText("VOID", { exact: true })).toBeVisible();
+        await expect(card.getByRole("button", { name: "Correct / void", exact: true })).toHaveCount(0);
+        const persisted = await db.feeCollection.findUniqueOrThrow({ where: { id: receipt.id } });
+        expect(persisted.voidedAt).not.toBeNull();
+        expect(persisted.snapshot).toEqual(receipt.snapshot);
+        expect(await finances()).toEqual(before);
+    } finally {
+        const persisted = await db.feeCollection.findUnique({ where: { id: receipt.id } });
+        if (persisted && !persisted.voidedAt) {
+            const cleanup = await request(page, `${collections}/${receipt.id}`, "PATCH", { reason: "Restore disposable verification balance" });
+            expect(cleanup.status()).toBe(200);
+        }
+    }
+});

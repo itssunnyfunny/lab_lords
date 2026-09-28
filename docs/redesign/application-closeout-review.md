@@ -51,12 +51,16 @@ Important overlays and exceptions: [Students edit in Hindi](student-card-evidenc
 [account discard](application-closeout-evidence/account-discard-mobile-390.png),
 [billing confirmation dialog](application-closeout-evidence/billing-confirmation-mobile-390.png),
 [billing processing](application-closeout-evidence/billing-processing-mobile-390.png),
+[actual collection correction desktop](application-closeout-evidence/connected-correction-desktop-1491.png),
+[actual collection correction 390px](application-closeout-evidence/connected-correction-mobile-390.png),
 [Hindi cold loading](application-closeout-evidence/selected-route-loading-hi-mobile-390.png),
 [Hindi root error](application-closeout-evidence/selected-route-error-hi-mobile-390.png),
 and [dashboard restricted source](reference-dashboard-evidence/mobile-390/restricted.png).
 The new organization/account/settings/boundary captures use actual application
 components and loaded fonts with a synthetic adapter; their top ribbon labels
 that isolation.
+The new correction close-ups use the authenticated application and mask the
+synthetic student identity.
 
 Actual Clerk provider close-ups, with account identity masked:
 [desktop menu](application-closeout-evidence/provider-actual/account-menu-desktop-1491.png),
@@ -73,7 +77,7 @@ and [390px profile](application-closeout-evidence/provider-actual/account-profil
 | Staff | Fifteen fixture cases cover three languages, narrow cards, menus/focus, invite/role/access/read-only/error; service/API and pagination units. | Real access-command persistence/restoration, permission and branch boundaries passed. External invitation delivery was held. |
 | Tasks | Twenty fixture cases cover create/edit identity, assignment, due/state/activity, source links, filters, languages, focus and access; dashboard source/route units. | Real assignment, due/state persistence, prospective activity, source-only/readonly/foreign boundaries passed. |
 | A · Queues | Desktop/390px fixture worklists; renewal/overdue/fee-source units. | Real follow-up save/reload and ₹500 partial remaining balance passed. Waived/legacy arithmetic remains safe-unit evidence; no message was sent. |
-| B · Payments | Fixture records/cards; fee arithmetic, payment status and billing-cycle units. | Real same-key collection retry, one immutable receipt, owner void and restored balance passed. Live payment provider/callback and correction flow remain outside this isolated run. |
+| B · Payments | Fixture records/cards; fee arithmetic, payment status and billing-cycle units. | Real same-key collection retry, immutable receipt, owner correction dialog/void and restored balance passed. Live payment provider/callback remained held. |
 | C · Seats/Shifts | Fixture maps/allocations/shifts; seat-view and pagination units distinguish loaded/exact totals. | Real seat and student allocation conflicts rejected without changing capacity or finances; occupancy API/matrix passed. |
 | D · Attendance | Fixture list/cards; attendance/QR/camera lifecycle units. | Real check-in/out/void exact-key replay, conflict response, one visit and durable command/audit passed. Physical camera remains unverified. |
 | E · Settings | Dashboard setup and real-component account/branch/organization/billing-processing fixture cases; settings/access units. | Real account language preferences persisted/restored; setup settings saved; owner/read-only settings access and workspace account menu/profile passed. Provider callback and billing pending recovery remain held. |
@@ -124,8 +128,8 @@ database was involved.
 | Exact command | Current outcome |
 | --- | --- |
 | `node tests/dashboard-connected/start-local.mjs build` | **PASS** on the final changed application tree: TypeScript, 74 static pages, two import-workflow manifests; read-only guarded database and held business providers. Builds were sequential while resolving the provider visual defect. |
-| `node tests/dashboard-connected/start-local.mjs test` | **PASS**, 23/23 actual authenticated Next-route and PostgreSQL cases, one worker, no intercepted application success responses. Includes the provider desktop/mobile visual check. |
-| `node tests/dashboard-connected/start-local.mjs test rollout-recovery.spec.ts` | **PASS**, 3/3 focused seat, attendance replay/void and remaining-balance checks before the final full run. |
+| `node tests/dashboard-connected/start-local.mjs test` | **PASS**, 23/23 actual authenticated Next-route and PostgreSQL cases, one worker, no intercepted application success responses. Includes the provider desktop/mobile visual check. The later correction-dialog case was added after this full run, with no application-code change. |
+| `node tests/dashboard-connected/start-local.mjs test rollout-recovery.spec.ts` | **PASS**, initial 3/3 focused seat, attendance replay/void and remaining-balance checks; then **4/4** after adding the real collection-correction dialog case. |
 | `node tests/dashboard-connected/start-local.mjs test rollout-closeout.spec.ts` | **PASS**, 3/3 focused account/workspace, reporting and guided-validation checks before the final full run. |
 | `node tests/dashboard-connected/start-local.mjs test account-provider.spec.ts` | **PASS**, 1/1 actual Clerk-rendered menu/profile desktop/mobile after the base-layer fix; the final full run also passed the mobile compact-header assertion. |
 | `node node_modules/vitest/vitest.mjs run --config tests/shared-system/vitest.config.ts --testTimeout=20000` | **PASS**, 25 files/142 tests; safe DB/network guard. |
@@ -142,7 +146,11 @@ contrast defect: root-provider dark utility colors won over the selected light
 workspace palette. A route-scoped base-layer CSS fix corrected the menu,
 profile and mobile compact header without changing public authentication or
 dashboard composition. Final affected checks above passed. The existing
-auto-focused onboarding field can consume an immediate first pointer click via
+correction API was already covered by the prepared suite's void/replay case;
+the subsequent focused case also opened the migrated correction dialog,
+confirmed its required reason and no-refund wording, voided only a newly
+created synthetic receipt through the UI and verified the original balance.
+The existing auto-focused onboarding field can consume an immediate first pointer click via
 its blur render; this predates the presentation rollout, so the connected
 validation test settles focus before pressing Continue. It remains a separate
 observed UX issue, not silently treated as a rollout fix.
@@ -152,22 +160,23 @@ observed UX issue, not silently treated as a rollout fix.
 | Public tables / completed migrations | 80 / 53 | 80 / 53 |
 | Users / organizations / branches | 3 / 3 / 4 | 3 / 3 / 4 |
 | Students / seats / shifts / fee rows | 8 / 16 / 3 / 5 | 8 / 16 / 3 / 5 |
-| Live / voided immutable receipts | 19 / 0 | 19 / 3 |
+| Live / voided immutable receipts | 19 / 0 | 19 / 4 |
 | Tasks / membership terms / prospective events | 1 / 3 / 1 | 7 / 6 / 36 |
 | Occupancy snapshots / unresolved follow-ups / expectations | 18 / 2 / 6 | 21 / 2 / 6 |
-| Active / voided visits; attendance commands / audits | 0 / 0; 0 / 0 | 0 / 2; 6 / 6 |
+| Active / voided visits; attendance commands / audits | 0 / 0; 0 / 0 | 0 / 3; 9 / 9 |
 | Billed / collected / waived / pending | ₹4,300 / ₹1,900 / ₹0 / ₹2,400 | ₹4,300 / ₹1,900 / ₹0 / ₹2,400 |
 | Live receipt amount | ₹1,900 | ₹1,900 |
 
 The expected deltas are test-created history across the prepared runs and their
 focused reruns: six tasks, three independent terms, 35 prospective events,
-three occupancy snapshots, three voided receipts and two voided attendance
-visits with six commands/audits. No active visit, allocation or financial total
+three occupancy snapshots, four voided receipts and three voided attendance
+visits with nine commands/audits. No active visit, allocation or financial total
 changed. Tests restored only their known mutable synthetic access, student,
 task and language fields; immutable receipt, command and audit evidence was
 retained. A known synthetic follow-up note was updated through the real form.
 The original fixture was re-inspected after testing and remained exited on
-its original loopback binding.
+its original loopback binding. The new fixture was also stopped after the
+checks; the existing guard can restart that exact preserved container.
 
 Physical camera capture and external payment, messaging, AI and import
 providers remained held or unavailable; no live callback, charge, message or
@@ -177,7 +186,7 @@ presentation. Nothing here is a production release.
 
 ## Local migration commit sequence
 
-Chronological implementation and verification commits through `0cd0bcc` on
+Chronological implementation and verification commits through `f709292` on
 this branch:
 
 ```text
@@ -207,7 +216,9 @@ d2bf1a2 Use selected botanical logo in onboarding
 15094ff Close selected application route and shell presentation gaps
 43fe867 Record bounded application rollout closeout evidence
 0cd0bcc Verify connected rollout and correct Clerk workspace contrast
+f709292 Record guarded connected closeout and visual evidence
 ```
 
-This packet is the final local evidence commit at `HEAD`; `git log --reverse
+The focused correction check and updated packet are the final local commit at
+`HEAD`; `git log --reverse
 --oneline c71e9e3^..HEAD` includes its exact ID and the full sequence.

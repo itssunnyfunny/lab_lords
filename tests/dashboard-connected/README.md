@@ -96,6 +96,9 @@ fixed allowlist; it cannot supply another database or bypass the container,
 binding, fixture or live database identity checks. Run the prepared `test`
 suite before additional focused cases, with the built application running under
 normal development authentication and business providers held.
+The focused recovery file also covers a newly created synthetic receipt's
+owner correction dialog and void; it retains the voided receipt and restores
+the fee balance without a refund or provider call.
 
 For the bounded shared-presentation/Students run, use `start-local.mjs build`
 to build with the same exact verified target and enforced read-only transactions,
