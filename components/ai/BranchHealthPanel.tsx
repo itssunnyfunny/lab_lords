@@ -172,7 +172,7 @@ export function BranchHealthPanel({
 
     if (isLoading) {
         return (
-            <AppPanel title={t("Executive report")}>
+            <AppPanel density="compact" title={t("Executive report")}>
                 <div className="grid gap-3 md:grid-cols-3">
                     {Array.from({ length: 3 }, (_, index) => (
                         <div key={index} className="space-y-3 rounded-[var(--ui-card-radius)] border border-[color:var(--ui-card-border)] bg-[color:var(--ui-card-bg)] p-4">
@@ -188,7 +188,7 @@ export function BranchHealthPanel({
 
     if (!report) {
         return (
-            <AppPanel title={t("Executive report")}>
+            <AppPanel density="compact" title={t("Executive report")}>
                 <div className={pageEmptyStateClass}>{t("No health report generated.")}</div>
             </AppPanel>
         );
@@ -243,7 +243,7 @@ export function BranchHealthPanel({
                     ) : (
                         <AppButton
                             variant="quiet"
-                            size="sm"
+                            density="compact"
                             onClick={onRefresh}
                             disabled={!onRefresh}
                             className={formWarningActionClass}
@@ -254,6 +254,7 @@ export function BranchHealthPanel({
             )}
 
             <AppPanel
+                density="compact"
                 title={t("Executive report")}
                 description={t("A one-page read of the branch condition, priority focus, and strongest operating signals.")}
                 action={generatedTag}

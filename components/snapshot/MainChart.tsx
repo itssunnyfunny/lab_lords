@@ -86,6 +86,7 @@ export function MainChart({
     if (chartData.length === 0) {
         return (
             <AppPanel
+                density="compact"
                 className="col-span-1 flex min-h-[400px] flex-col lg:col-span-2"
                 title={t.owned(title)}
                 description={chartSummary}
@@ -106,6 +107,7 @@ export function MainChart({
 
     return (
         <AppPanel
+            density="compact"
             className="col-span-1 flex min-h-[400px] flex-col lg:col-span-2"
             title={t.owned(title)}
             description={chartSummary}

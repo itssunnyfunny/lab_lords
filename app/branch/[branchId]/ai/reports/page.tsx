@@ -10,10 +10,10 @@ import { useParams } from "next/navigation";
 import {
     AlertTriangle,
     CheckCircle2,
+    Download,
     Printer,
     RefreshCw,
 } from "lucide-react";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { AppButton, AppPanel, ErrorState, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
@@ -294,7 +294,7 @@ export default function AIReportsPage() {
                         description={decision.reason}
                         restricted
                         action={decision.recoveryHref ? (
-                            <a href={decision.recoveryHref} className="inline-flex min-h-11 items-center font-semibold text-cyan-200 underline underline-offset-4">
+                            <a href={decision.recoveryHref} className="inline-flex min-h-11 items-center font-semibold text-[color:var(--ui-form-accent)] underline underline-offset-4">
                                 {t("Review billing")}</a>
                         ) : undefined}
                     />
@@ -388,27 +388,28 @@ function AIReportsContent({ branchId }: { branchId: string }) {
     return (
         <>
             <div className="ai-report-screen">
-                <LanguageControls documentOnly />
-                <PageShell maxWidth="content">
-                    <PageHeader
-                        title={t("AI Branch Report")}
-                        subtitle={t("A clearer one-page read of health, risks, numbers, and next actions.")}
-                        onExport={report ? handleDownloadReport : undefined}
-                        exportLabel="Download report"
-                        exportAriaLabel="Download AI report file"
-                        extraActions={
-                            report ? (
-                                <AppButton variant="secondary" icon={Printer} onClick={handlePrintReport}>
+                <PageShell maxWidth="content" className="ui-record-page">
+                    <header className="ui-record-header">
+                        <div className="min-w-0">
+                            <h1>{t("AI Branch Report")}</h1>
+                            <p className="ui-record-description">{t("A clearer one-page read of health, risks, numbers, and next actions.")}</p>
+                        </div>
+                        <div className="ui-record-actions items-center">
+                            <LanguageControls documentOnly />
+                            {report && <>
+                                <AppButton variant="secondary" density="compact" icon={Download} onClick={handleDownloadReport}
+                                    aria-label={`${t("Download")} ${t("AI Branch Report")}`}>{t("Download")}</AppButton>
+                                <AppButton variant="secondary" density="compact" icon={Printer} onClick={handlePrintReport}>
                                     {t("Print report")}</AppButton>
-                            ) : undefined
-                        }
-                    />
+                            </>}
+                        </div>
+                    </header>
 
                     {error && (
-                        <AppPanel title={t("Report unavailable")} description={t("The AI report could not be loaded right now.")}>
+                        <AppPanel density="compact" title={t("Report unavailable")} description={t("The AI report could not be loaded right now.")}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <p className={cn("text-sm leading-6", pageMutedTextClass)}><LocalizedError error={error} /></p>
-                                <AppButton variant="secondary" icon={RefreshCw} onClick={fetchData}>
+                                <AppButton variant="secondary" density="compact" icon={RefreshCw} onClick={fetchData}>
                                     {t("Try again")}</AppButton>
                             </div>
                         </AppPanel>
@@ -426,6 +427,7 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                     {report && (
                         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]">
                             <AppPanel
+                                density="compact"
                                 title={t("Action plan")}
                                 description={t("The next steps the owner can act on immediately.")}
                                 contentClassName="space-y-3"
@@ -456,6 +458,7 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                             </AppPanel>
 
                             <AppPanel
+                                density="compact"
                                 title={t("Score drivers")}
                                 description={t("The deterministic signals behind the AI narrative.")}
                                 contentClassName="space-y-3"
@@ -478,7 +481,7 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                                             <div className="mb-2 flex items-start justify-between gap-3">
                                                 <div className="flex min-w-0 items-center gap-2">
                                                     <AlertTriangle size={15} className="shrink-0 text-[color:var(--ui-tone-warning-text)]" />
-                                                    <h3 className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
+                                                    <h3 className="break-words text-sm font-semibold text-[color:var(--text-primary)]">
                                                         {formatLabel(risk.type)}
                                                     </h3>
                                                 </div>

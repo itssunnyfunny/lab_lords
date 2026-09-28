@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { BranchWorkspaceShell } from "@/components/layout/BranchWorkspaceShell";
+import { OrganizationWorkspaceShell } from "@/components/layout/OrganizationWorkspaceShell";
 import { UserPreferencesBoundary } from "@/components/settings/UserPreferencesBoundary";
 import { PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
@@ -19,6 +20,12 @@ import AllocationsPage from "@/app/branch/[branchId]/allocations/page";
 import ShiftsPage from "@/app/branch/[branchId]/shifts/page";
 import PaymentsPage from "@/app/branch/[branchId]/payments/page";
 import AttendancePage from "@/app/branch/[branchId]/attendance/page";
+import ReportsPage from "@/app/branch/[branchId]/reports/page";
+import BranchAnalyticsPage from "@/app/branch/[branchId]/analytics/page";
+import AIReportsPage from "@/app/branch/[branchId]/ai/reports/page";
+import OrgAnalyticsPage from "@/app/org/[orgId]/analytics/page";
+import OrgOverviewPage from "@/app/org/[orgId]/page";
+import OrgSelectionPage from "@/app/org/page";
 import { ComponentGallery } from "./ComponentGallery";
 import "@/app/globals.css";
 
@@ -67,6 +74,9 @@ function PilotSurface() {
     if (pathname.endsWith("/shifts")) return <ShiftsPage />;
     if (pathname.endsWith("/payments")) return <PaymentsPage params={dashboardParams} />;
     if (pathname.endsWith("/attendance")) return <AttendancePage params={dashboardParams} />;
+    if (pathname.endsWith("/reports") && !pathname.includes("/ai/")) return <ReportsPage params={dashboardParams} />;
+    if (pathname.endsWith("/analytics")) return <BranchAnalyticsPage params={dashboardParams} />;
+    if (pathname.endsWith("/ai/reports")) return <AIReportsPage />;
     if (pathname === `/branch/${currentBranchId}`) return <BranchDashboardPage params={dashboardParams} />;
     return <PageShell><h1>This route is outside the design pilot</h1><p>The link targets the existing application route: {pathname}.</p>
         <Link href="/branch/pilot?mode=after&lang=en" className="underline">Return to the synthetic dashboard</Link></PageShell>;
@@ -107,6 +117,13 @@ function FixtureLabel() {
 function ApplicationDesignPilot() {
     const pathname = usePathname();
     const branchId = pathname.split("/")[2] ?? BRANCH_ID;
+    const orgId = pathname.split("/")[2] ?? "org-pilot";
+    if (pathname === "/org") return <UserPreferencesBoundary><FixtureLabel /><div data-app-design-pilot="workspace"><OrgSelectionPage /></div></UserPreferencesBoundary>;
+    if (pathname.startsWith("/org/")) return <UserPreferencesBoundary><FixtureLabel /><OrganizationWorkspaceShell organizationId={orgId}>
+        <Suspense fallback={<PageLoadingSkeleton label="Loading organization surface" variant="workspace" />}>
+            {pathname.endsWith("/analytics") ? <OrgAnalyticsPage params={Promise.resolve({ orgId })} /> : <OrgOverviewPage params={Promise.resolve({ orgId })} />}
+        </Suspense>
+    </OrganizationWorkspaceShell></UserPreferencesBoundary>;
     return (
         <UserPreferencesBoundary>
             <FixtureLabel />

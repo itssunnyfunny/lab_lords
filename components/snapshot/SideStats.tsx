@@ -24,7 +24,7 @@ export function SideStats({
 
     if (!snapshot) {
         return (
-            <AppPanel className="col-span-1 flex h-[400px] flex-col" title={t("Revenue Summary")} contentClassName="min-h-0 flex-1">
+            <AppPanel density="compact" className="col-span-1 flex h-[400px] flex-col" title={t("Revenue Summary")} contentClassName="min-h-0 flex-1">
                 <div className="flex h-full items-center justify-center text-sm text-[color:var(--text-secondary)]">{t("Loading...")}</div>
             </AppPanel>
         );
@@ -33,7 +33,7 @@ export function SideStats({
     const periodLabel = period === "month" ? "This month" : "All time";
 
     return (
-        <AppPanel className="col-span-1 flex h-[400px] flex-col" title={t("Revenue Summary")} contentClassName="min-h-0 flex-1">
+        <AppPanel density="compact" className="col-span-1 flex h-[400px] flex-col" title={t("Revenue Summary")} contentClassName="min-h-0 flex-1">
             <div className="flex h-full flex-col gap-4">
                 <div className="relative flex flex-1 flex-col justify-center overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-4">
                     <div className="absolute right-0 top-0 p-3 opacity-10">

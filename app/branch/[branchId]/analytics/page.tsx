@@ -4,7 +4,6 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { KpiRow } from "@/components/snapshot/KpiRow";
 import { MainChart } from "@/components/snapshot/MainChart";
 import { SideStats } from "@/components/snapshot/SideStats";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { AppButton, AppPanel, ErrorState, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
@@ -58,11 +57,11 @@ const PERIODS: { key: AnalyticsPeriod; label: string }[] = [
 ];
 
 const CHARTS: { key: ChartKey; label: string; color: string }[] = [
-    { key: "revenue", label: "Revenue", color: "#8b5cf6" },
-    { key: "collected", label: "Collected", color: "#10b981" },
-    { key: "due", label: "Due", color: "#ef4444" },
-    { key: "utilization", label: "Utilization", color: "#06b6d4" },
-    { key: "students", label: "Students", color: "#6366f1" },
+    { key: "revenue", label: "Revenue", color: "var(--ui-tone-insight-progress)" },
+    { key: "collected", label: "Collected", color: "var(--ui-tone-success-progress)" },
+    { key: "due", label: "Due", color: "var(--ui-tone-danger-progress)" },
+    { key: "utilization", label: "Utilization", color: "var(--ui-tone-info-progress)" },
+    { key: "students", label: "Students", color: "var(--ui-tone-insight-progress)" },
 ];
 
 function getTrendWindow(period: AnalyticsPeriod, chart: ChartKey) {
@@ -219,25 +218,24 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
     }
 
     return (
-        <PageShell>
-            <PageHeader
-                title={t("Analytics & Trends")}
-                subtitle={t("Branch performance with corrected revenue, collections, dues, and utilization.")}
-            />
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className={pageMutedTextClass}>
-                    {t("Updated")} {updatedAt ? formatDateTime(updatedAt) : t("recently")}
-                </span>
+        <PageShell className="ui-record-page">
+            <header className="ui-record-header">
+                <div className="min-w-0">
+                    <h1>{t("Analytics & Trends")}</h1>
+                    <p className="ui-record-description">{t("Branch performance with corrected revenue, collections, dues, and utilization.")}</p>
+                </div>
+                <div className="ui-record-actions items-center">
+                    <span className={pageMutedTextClass}>{t("Updated")} {updatedAt ? formatDateTime(updatedAt) : t("recently")}</span>
                 <AppButton
                     variant="quiet"
-                    size="sm"
+                    density="compact"
                     icon={RefreshCw}
                     isLoading={resource.status === "loading"}
                     onClick={() => setRefreshKey(key => key + 1)}
                 >
                     {t("Refresh")}</AppButton>
-            </div>
+                </div>
+            </header>
 
             {(resource.status === "stale" || (resource.status === "loading" && resource.previous)) && (
                 <div role="status" className={cn("flex items-start gap-2 px-4 py-3 text-sm", formWarningBannerClass)}>
@@ -249,7 +247,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
             )}
 
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div role="group" aria-label={t("Analytics period")} className={cn("inline-flex w-fit p-1", pageFilterShellClass)}>
+                <div role="group" aria-label={t("Analytics period")} className={cn("inline-flex w-fit flex-wrap p-1", pageFilterShellClass)}>
                     {PERIODS.map(item => (
                         <button
                             key={item.key}
@@ -257,10 +255,10 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                             aria-pressed={period === item.key}
                             onClick={() => setPeriod(item.key)}
                             className={cn(
-                                "rounded-[var(--ui-radius-control)] px-4 py-2 text-sm font-medium transition-colors",
+                                "min-h-11 rounded-[var(--ui-radius-control)] px-4 py-2 text-sm font-medium transition-colors",
                                 period === item.key
-                                    ? "bg-[color:var(--ui-form-input-bg)] text-white"
-                                    : "text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-white"
+                                    ? "bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)] shadow-[var(--ui-panel-compact-shadow)]"
+                                    : "text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
                             )}
                         >
                             {t.owned(item.label)}
@@ -276,10 +274,10 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                             aria-pressed={activeChart === item.key}
                             onClick={() => setActiveChart(item.key)}
                             className={cn(
-                                "rounded-[var(--ui-radius-control)] border px-3 py-2 text-xs font-semibold transition-colors",
+                                "min-h-11 rounded-[var(--ui-radius-control)] border px-3 py-2 text-xs font-semibold transition-colors",
                                 activeChart === item.key
-                                    ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-white"
-                                    : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--ui-form-input-border)] hover:text-white"
+                                    ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
+                                    : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--ui-form-input-border)] hover:text-[color:var(--text-primary)]"
                             )}
                         >
                             {t.owned(item.label)}
@@ -305,6 +303,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
             </div>
 
             <AppPanel
+                density="compact"
                 title={t("Branch Summary")}
                 description={t("A compact snapshot of the current branch numbers.")}
                 contentClassName="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
@@ -328,6 +327,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
 
             {snapshot?.seatDetails && (
                 <AppPanel
+                    density="compact"
                     title={t("Shift Breakdown")}
                     description={t("Capacity and utilization by shift.")}
                     contentClassName="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
@@ -367,8 +367,8 @@ function BranchSummaryCard({
                 <p className={cn("text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
                 {badge && <Badge variant="default" className="shrink-0">{badge}</Badge>}
             </div>
-            <p className={cn("mt-3 truncate text-xl font-semibold tracking-tight", toneValueClass(tone))}>{value}</p>
-            <p className={cn("mt-1 truncate text-xs", pageMutedTextClass)}>{detail}</p>
+            <p className={cn("mt-3 break-words text-xl font-semibold tracking-tight", toneValueClass(tone))}>{value}</p>
+            <p className={cn("mt-1 break-words text-xs", pageMutedTextClass)}>{detail}</p>
         </div>
     );
 }
@@ -397,7 +397,7 @@ function ShiftBreakdownCard({
         <div className={cn(pageGridCardClass, pageGridCardHoverClass)}>
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <h3 className="truncate text-sm font-semibold text-white">{shift.shiftName}</h3>
+                    <h3 className="break-words text-sm font-semibold text-[color:var(--text-primary)]">{shift.shiftName}</h3>
                     <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{t("{formatNumber} available of {formatNumber2}", { formatNumber: formatNumber(available), formatNumber2: formatNumber(shift.capacity) })}</p>
                 </div>
                 <Badge variant={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "success"}>
@@ -407,7 +407,7 @@ function ShiftBreakdownCard({
 
             <div className="mt-5 flex items-end justify-between gap-4">
                 <div>
-                    <p className="text-2xl font-semibold tracking-tight text-white">
+                    <p className="text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">
                         {formatNumber(shift.used)}
                         <span className={cn("text-sm font-medium", pageMutedTextClass)}> / {formatNumber(shift.capacity)}</span>
                     </p>

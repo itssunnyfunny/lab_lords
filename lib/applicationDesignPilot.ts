@@ -1,4 +1,4 @@
-const SELECTED_BRANCH_SEGMENTS = new Set(["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue", "allocations", "shifts", "payments", "attendance"]);
+const SELECTED_BRANCH_SEGMENTS = new Set(["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue", "allocations", "shifts", "payments", "attendance", "analytics"]);
 
 /**
  * Selected application routes adopted so far. Keep the public surface and
@@ -9,5 +9,6 @@ export function isApplicationDesignPilotPath(pathname: string | null | undefined
     const segments = pathname?.split("/").filter(Boolean) ?? [];
     if (segments[0] !== "branch" || !segments[1]) return false;
     if (segments.length === 2) return true;
-    return segments.length === 3 && SELECTED_BRANCH_SEGMENTS.has(segments[2]);
+    if (segments.length === 3) return SELECTED_BRANCH_SEGMENTS.has(segments[2]);
+    return segments.length === 4 && segments[2] === "ai" && segments[3] === "reports";
 }
