@@ -22,6 +22,9 @@ dashboard, Students baseline and public presentation stable.
 | Quiet initials and integrated modal language control | `Avatar tone="quiet"`, `Dialog languagePlacement="header"` | Explicit opt-ins; default avatars/modal headers stay compatible. Edit uses its scoped backdrop variant |
 | Staff roster and access/invitation overlays | `staff/page.tsx` composing RecordList, compact DataTable, AppPanel and Dialog | Feature-owned role, override, invitation and removal workflows; mobile context is role, important state is access, secondary detail is added date |
 | Tasks list, source work and activity | `TasksContent.tsx`, `TaskRecordCard.tsx` and `ActivityContent.tsx` composing the same RecordList, compact DataTable, AppPanel and Dialog | Feature-owned assignment, due date, state and evidence links; mobile context is assignee, important values are due date/state, secondary detail is update time |
+| Botanical mark on selected account/organization entry | existing `AppLogo markVariant="botanical"` using `LogoMark`; selected org/account callers opt in | Preserve the dashboard's existing avatar and the public/legacy logo defaults |
+| Selected account popover/profile | token-backed workspace appearances in `entrySurface.ts`, chosen by `AppShell` only when `designPilot` | Clerk's public and excluded-route appearance stays separate; live provider visual check awaits the guarded fixture |
+| Cold loading and root error | `RouteLoading`, `app/error.tsx` and `isSelectedApplicationSurfacePath` | Exact selected authenticated routes only; public/auth/legacy AI Messages remain excluded; owned error copy uses interface language |
 
 ## Rollout source map
 
@@ -120,6 +123,15 @@ compact detail treatment changes presentation only. They still portal to body;
 the existing `html:has(workspace)` theme inheritance handles body-level overlays,
 menus and toasts. Collection's explicit overlay scope remains supported wherever
 it opens. Never move portals to make CSS inheritance convenient.
+
+When adding a selected authenticated route, update the exact route inventory in
+`lib/applicationDesignPilot.ts` so a cold loading/error boundary can opt in to
+the same theme. The branch gate remains separate from the account/organization
+entry selector. Do not activate public, Clerk-hosted sign-in/up, or legacy AI
+Messages by prefix match. Use the existing `AppLogo` botanical option on a
+selected entry/sidebar; its default is intentionally compatible with public
+callers. The [bounded closeout packet](../redesign/application-closeout-review.md)
+records the route and overlay audit.
 
 Use `useTranslation()` for app-owned interface strings, `useTranslation("document")`
 for output, and the public URL dictionary for marketing. Preserve stored names,

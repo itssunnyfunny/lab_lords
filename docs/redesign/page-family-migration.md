@@ -30,6 +30,7 @@ availability of each feature. Test success is not owner approval or deployment.
 | F · Reporting | `c39b252` local implementation; [fixture packet](application-rollout-evidence/reporting) covers branch reports, analytics, AI reports and organization analytics. | Pending family review | Not released by this rollout |
 | G · Guided | `6dd008c` local implementation; [fixture packet](application-rollout-evidence/guided), 15/15 scoped browser checks across desktop/390/320. | Pending family review | Not released by this rollout |
 | H · Workspace | `8b69d4a` local implementation; [fixture packet](application-rollout-evidence/workspace), 8/8 applicable scoped browser checks with four viewport-independent skips. `/app` remains its existing redirect. | Pending family review | Not released by this rollout |
+| Bounded closeout | `15094ff` fixes selected cold boundaries, authenticated botanical marks and opened account appearance; [one compact review packet](application-closeout-review.md) maps route inventory, family evidence, exceptions and current checks. | **Pending owner review**; Students approval remains separate | Not released |
 
 Fixture packets record local presentation only; no connected/database or
 deployment claim follows from screenshots. The exact scoped checks below are
@@ -66,3 +67,51 @@ The scoped browser command was `pnpm exec node node_modules/@playwright/test/cli
 Final combined checks: `pnpm exec node node_modules/vitest/vitest.mjs run --config tests/shared-system/vitest.config.ts --testTimeout=20000` passed 20 files and 121 tests; sidebar assertions were updated in `0973c71` after Payments became selected. `pnpm exec node node_modules/@playwright/test/cli.js test tests/application-design-pilot/reference-regression.spec.ts --config tests/shared-system/playwright.config.ts --project=desktop-1440 --project=mobile-390` passed 14/14 dashboard regression checks. `pnpm exec node tests/shared-system/check-presentation.mjs 3d58864` passed. `pnpm exec node test-results/batch-two-offline-build.mjs` passed the production compile and verified two import-workflow manifests against an unreachable local database URL with external providers held.
 
 The guarded connected fixture remains **blocked** because Windows reserves its configured loopback port 55447. The exact target was checked once; no alternate database, migration, seed, or shared/production access was attempted. Local fixtures do not prove actual-route persistence or server authorization. The public site, provider-hosted authentication flow, and legacy AI Messages surface remain excluded and unchanged.
+
+## Bounded closeout — 2026-09-28
+
+The current `app/**/page.tsx` inventory has 29 application paths: the 28
+selected routes grouped above and the excluded legacy AI Messages route.
+Sign-in/sign-up and public/localized routes are outside that inventory. The
+branch theme gate already matched every selected branch route, including the
+nested import session and AI report. The entry, account and organization shells
+opt in explicitly. The actual shared loading and root-error boundaries were the
+missing cold-state theme consumers; `15094ff` added a route-exact selector for
+those states without activating sign-in/up, public or AI Messages routes. It
+also aligned selected organization/account marks and the opened account menu
+with the approved theme while retaining the dashboard avatar and public skin.
+Dialogs, drawers and menus keep their existing portal/focus owners. The live
+Clerk popover/profile is not rendered by the isolated no-Clerk fixture, so its
+new token skin remains a provider visual review item.
+
+The [closeout packet](application-closeout-review.md) maps each family's
+workflow, language, keyboard, narrow-screen, access and affected-consumer
+evidence to its required checks; it distinguishes old valid evidence, current
+fixture/unit results and connected checks still blocked. In particular, Family
+E now has six new cases mounting the actual account, branch settings,
+organization settings and nested billing-processing components. Ten seat
+pagination and two organization-access unit cases fill previously unmapped
+safe checks. Historical screenshot packets were not regenerated. Onboarding's
+selected botanical mark correction is `d2bf1a2`; this closeout adds its cold
+boundary treatment.
+
+Final changed-tree commands and results: `node node_modules/vitest/vitest.mjs
+run --config tests/shared-system/vitest.config.ts --testTimeout=20000` passed 25
+files/142 tests; the analogous `tests/reference-dashboard/vitest.config.ts`
+command passed 28 files/169 tests. The affected desktop/390px browser command
+for `route-boundaries.spec.ts`, `workspace-entry-family.spec.ts` and
+`reference-regression.spec.ts` passed 24 with two intentional mobile skips; a
+separate 320px workspace-entry case passed. Six new real-component Settings
+desktop/mobile cases passed. The presentation guard passed; full ESLint had
+zero errors and two pre-existing generated/coverage warnings; the offline
+production build passed TypeScript, 74 static pages and both import-workflow
+manifests with providers held and an unreachable local DB address. Exact
+commands appear in the packet.
+
+**Connected verification remains BLOCKED.** The current Windows TCP exclusion
+`55371–55470` contains the guarded fixture's port `55447`. The separate
+[fixture-port repair proposal](local-fixture-port-repair-proposal.md) requires a
+new disposable loopback container and independent identity proof before the
+existing connected runner may be used. No fallback target, schema operation,
+production/shared access or provider action occurred. Local verification is
+not owner presentation approval or a production release.
