@@ -537,7 +537,7 @@ html:has([data-app-design-pilot="workspace"]),
   --ui-form-input-select-bg: #ffffff;
   --ui-form-input-border: #bfcfc4;
   --ui-form-input-text: #183e30;
-  --ui-form-input-placeholder: #7b8981;
+  --ui-form-input-placeholder: #66756d;
   --ui-form-input-focus-border: var(--pilot-leaf);
   --ui-form-input-focus-ring: rgb(22 131 94 / 18%);
   --ui-form-bg: #f6f8f4;
