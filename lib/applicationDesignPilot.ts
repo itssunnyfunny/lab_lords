@@ -1,4 +1,4 @@
-const SELECTED_BRANCH_SEGMENTS = new Set(["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue"]);
+const SELECTED_BRANCH_SEGMENTS = new Set(["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue", "allocations", "shifts"]);
 
 /**
  * Selected application routes adopted so far. Keep the public surface and

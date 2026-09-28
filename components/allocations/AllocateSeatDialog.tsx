@@ -278,11 +278,13 @@ export function AllocateSeatDialog({
             closeLabel={t("Close allocate seat dialog")}
             closeDisabled={submitting}
             className="max-w-2xl"
+            density="compact"
+            languagePlacement="header"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose} disabled={submitting} className="h-8 px-4 text-sm">
+                    <Button density="compact" variant="ghost" onClick={onClose} disabled={submitting}>
                         {t("Cancel")}</Button>
-                    <Button onClick={handleConfirm} disabled={submitting} className="h-8 px-5 text-sm">
+                    <Button density="compact" variant="primary" onClick={handleConfirm} disabled={submitting}>
                         {submitting
                             ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" />  {t("Allocating...")}</>
                             : confirmLabel

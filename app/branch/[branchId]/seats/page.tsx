@@ -20,8 +20,6 @@ import {
     pageErrorIconClass,
     pageErrorStateClass,
     pageFilterShellClass,
-    pageGridCardClass,
-    pageGridCardHoverClass,
     pageInsetHoverClass,
     pageInsetMetricClass,
     pageInsetSurfaceClass,
@@ -31,7 +29,6 @@ import {
     pageTableBodyDividerClass,
     pageTableHeadClass,
     pageTableRowClass,
-    pageTableShellClass,
     pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { ViewToggle } from "@/components/tables/ViewToggle";
@@ -669,7 +666,7 @@ function SeatsContent({
 
     return (
         <PageShell>
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <header className="ui-record-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                     <p className={pageEyebrowClass}>{t("Seat map")}</p>
                     <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Seats")}</h1>
@@ -691,6 +688,7 @@ function SeatsContent({
                     </div>
                     {showSeatManageActions && (
                         <AppButton
+                            density="compact"
                             variant="primary"
                             icon={UserPlus}
                             onClick={() => setIsAddModalOpen(true)}
@@ -737,7 +735,7 @@ function SeatsContent({
                 </div>
             )}
 
-            <AppPanel contentClassName="space-y-4">
+            <AppPanel density="compact" contentClassName="space-y-4">
                 <ShiftFilterPanel
                     selectedScope={shiftScope}
                     summaries={shiftSummaries}
@@ -1292,27 +1290,25 @@ function SeatGrid({
                         aria-label={`Seat ${seat.label}`}
                         aria-current={focusedSeatId === seat.id ? "true" : undefined}
                         className={cn(
-                            "flex min-h-[150px] flex-col p-3.5",
-                            pageGridCardClass,
-                            pageGridCardHoverClass,
-                            selectedSeatId === seat.id || focusedSeatId === seat.id ? "border-[color:var(--ui-tone-info-border)] bg-[color:var(--ui-tone-info-bg)]" : "border-[color:var(--ui-card-border)] hover:border-[color:var(--ui-card-hover-border)]",
+                            "ui-panel--compact flex min-h-[150px] flex-col border-l-[3px] p-4 transition-colors hover:border-[color:var(--ui-card-hover-border)]",
+                            selectedSeatId === seat.id || focusedSeatId === seat.id ? "bg-[color:var(--ui-tone-info-bg)] outline outline-2 outline-[color:var(--ui-focus-ring)]" : undefined,
                             allocated
-                                ? "shadow-[inset_2px_0_0_rgba(52,211,153,0.6)]"
+                                ? "border-l-[color:var(--ui-tone-success-border)]"
                                 : blocked
-                                    ? "shadow-[inset_2px_0_0_rgba(248,113,113,0.6)]"
-                                    : "border-dashed shadow-[inset_2px_0_0_rgba(251,191,36,0.45)]"
+                                    ? "border-l-[color:var(--ui-tone-danger-border)]"
+                                    : "border-dashed border-l-[color:var(--ui-tone-warning-border)]"
                         )}
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="truncate text-base font-semibold text-[color:var(--text-primary)]">{seat.label}</p>
-                                <p className={cn("mt-1 truncate text-xs", pageSubtleTextClass)}>{shiftText}</p>
+                                <p className="break-words text-base font-semibold text-[color:var(--text-primary)]">{seat.label}</p>
+                                <p className={cn("mt-1 break-words text-xs", pageSubtleTextClass)}>{shiftText}</p>
                             </div>
                             <SeatStatusBadge status={seat.status} />
                         </div>
 
                         <div className="mt-3 min-h-[42px] flex-1">
-                            <p className={cn("truncate text-sm font-medium", allocated ? "text-[color:var(--text-primary)]" : blocked ? "text-[color:var(--ui-tone-danger-text)]" : "text-[color:var(--ui-tone-warning-text)]")}>
+                            <p className={cn("break-words text-sm font-medium", allocated ? "text-[color:var(--text-primary)]" : blocked ? "text-[color:var(--ui-tone-danger-text)]" : "text-[color:var(--ui-tone-warning-text)]")}>
                                 {allocated ? studentNames.join(", ") || "Student" : blocked ? seat.blockedBy ?? "Conflict" : t("Available")}
                             </p>
                             <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
@@ -1367,9 +1363,9 @@ function SeatList({
 }) {
     const t = useTranslation();
     return (
-        <div className={pageTableShellClass}>
+        <AppPanel density="compact" padding="none">
             <div className="overflow-x-auto" role="region" aria-label={t("Loaded seat inventory")} tabIndex={0}>
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="ui-table--compact w-full min-w-[760px] text-left text-sm">
                     <caption className="sr-only">{t("Loaded seat inventory and active allocations")}</caption>
                     <thead className={pageTableHeadClass}>
                         <tr>
@@ -1438,7 +1434,7 @@ function SeatList({
                     </tbody>
                 </table>
             </div>
-        </div>
+        </AppPanel>
     );
 }
 
@@ -1603,7 +1599,7 @@ function SeatDetailsDrawer({
                                                     <User size={15} />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="truncate font-medium text-[color:var(--text-primary)]">{allocation.student?.name ?? "Student"}</p>
+                                                    <p className="break-words font-medium text-[color:var(--text-primary)]">{allocation.student?.name ?? "Student"}</p>
                                                     <p className="truncate text-xs text-textMuted">{allocation.student?.phone ?? "No phone"}</p>
                                                 </div>
                                             </div>
