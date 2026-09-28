@@ -61,11 +61,11 @@ export function PaymentsStep({
 
     return (
         <div className="space-y-5">
-            <AppPanel
+            <AppPanel density="compact"
                 title={t("Payments")}
                 description={t("Payment import is opt-in. Student onboarding can continue without creating or marking payments.")}
                 action={
-                    <AppButton
+                    <AppButton density="compact"
                         variant={skipPayments ? "secondary" : "primary"}
                         icon={CheckCircle2}
                         onClick={() => onUpdateOptions(paymentSkipOptions())}
@@ -126,7 +126,7 @@ export function PaymentsStep({
                     {showPaymentWords && (
                         <div className={cn("space-y-3 p-4", pageInsetSurfaceClass)}>
                             <div className="flex items-center gap-2">
-                                <CreditCard className="h-4 w-4 text-cyan-300" />
+                                <CreditCard className="h-4 w-4 text-[color:var(--ui-tone-info-text)]" />
                                 <p className={pickerGroupLabelClass}>{t("Paid/unpaid words")}</p>
                             </div>
                             <div className="grid gap-3 lg:grid-cols-3">
@@ -157,7 +157,7 @@ export function PaymentsStep({
                                         ]}
                                     />
                                 </label>
-                                <AppButton
+                                <AppButton density="compact"
                                     variant="primary"
                                     icon={CheckCircle2}
                                     disabled={mutationsDisabled || !paymentWordDraftHasValues || saving}
@@ -202,7 +202,7 @@ export function PaymentsStep({
                 </div>
             </AppPanel>
 
-            <AppPanel title={t("Current payment mapping")} description={t("Saved payment word groups.")}>
+            <AppPanel density="compact" title={t("Current payment mapping")} description={t("Saved payment word groups.")}>
                 <div className="grid gap-3 md:grid-cols-3">
                     {[
                         ["Paid", joinImportValues(options.paymentMapping?.paidValues)],

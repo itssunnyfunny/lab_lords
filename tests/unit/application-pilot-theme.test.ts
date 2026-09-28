@@ -31,8 +31,8 @@ function contrast(foreground: string, background: string) {
 
 describe("application design pilot theme", () => {
   it("selects migrated branch routes while excluding public and legacy AI Messages", () => {
-    for (const path of ["/branch/test", ...["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue", "allocations", "shifts", "payments", "attendance", "analytics"].map(page => `/branch/test/${page}`), "/branch/test/ai/reports"]) expect(isApplicationDesignPilotPath(path)).toBe(true);
-    for (const path of ["/", "/hi", "/features", "/pricing", "/faq", "/account", "/branch/test/ai/messages", "/branch/test/staff/nested", null]) expect(isApplicationDesignPilotPath(path)).toBe(false);
+    for (const path of ["/branch/test", ...["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue", "allocations", "shifts", "payments", "attendance", "analytics"].map(page => `/branch/test/${page}`), "/branch/test/ai/reports", "/branch/test/onboarding/import", "/branch/test/onboarding/import/session-1"]) expect(isApplicationDesignPilotPath(path)).toBe(true);
+    for (const path of ["/", "/hi", "/features", "/pricing", "/faq", "/account", "/branch/test/ai/messages", "/branch/test/staff/nested", "/branch/test/onboarding/import/session-1/nested", null]) expect(isApplicationDesignPilotPath(path)).toBe(false);
   });
   it("stays opt-in to the pilot workspace and collection overlay", () => {
     const globals = readFileSync(join(projectRoot, "app", "globals.css"), "utf8");

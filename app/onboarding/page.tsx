@@ -443,7 +443,7 @@ export default function OnboardingPage({
     const canAddMultiShift = formData.shifts.length >= 2;
 
     return (
-        <div className={cn(entryRootClass, "items-start py-8 sm:items-center")}>
+        <div data-app-design-pilot="workspace" className={cn(entryRootClass, "items-start py-8 sm:items-center")}>
             <div className={cn(entryContentClass, "max-w-5xl")}>
                 <div className={cn(entryPanelClass, "grid overflow-hidden lg:grid-cols-[320px_minmax(0,1fr)]")}>
                     <aside className="border-b border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] p-5 lg:border-b-0 lg:border-r lg:p-6">
@@ -472,7 +472,7 @@ export default function OnboardingPage({
                                         </div>
                                         <div>
                                             <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t.owned(item.label)}</p>
-                                            <p className={cn("mt-1 text-xs leading-5", entryMutedTextClass)}>{item.description}</p>
+                                            <p className={cn("mt-1 text-xs leading-5", entryMutedTextClass)}>{t.owned(item.description)}</p>
                                         </div>
                                     </div>
                                 );
@@ -484,10 +484,10 @@ export default function OnboardingPage({
                         <div className="mb-6">
                             <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-form-accent)]">{t("Step {step} of 4", { step: step })}</p>
                             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">
-                                {stepHeadings[step]}
+                                {t.owned(stepHeadings[step])}
                             </h2>
                             <p className={cn("mt-2 text-sm leading-6", entryMutedTextClass)}>
-                                {stepDescriptions[step]}
+                                {t.owned(stepDescriptions[step])}
                             </p>
                         </div>
 
@@ -563,7 +563,7 @@ export default function OnboardingPage({
                                     <FieldError id="onboarding-business-type-error" error={businessTypeError} />
                                 </div>
 
-                                <AppButton onClick={handleNext} rightIcon={ArrowRight} className="mt-2 w-full justify-center">
+                                <AppButton density="compact" onClick={handleNext} rightIcon={ArrowRight} className="mt-2 w-full justify-center">
                                     {t("Continue")}</AppButton>
                             </div>
                         )}
@@ -834,7 +834,7 @@ export default function OnboardingPage({
                                 </div>
 
                                 <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-                                    <AppButton
+                                    <AppButton density="compact"
                                         variant="quiet"
                                         icon={ArrowLeft}
                                         onClick={() => {
@@ -844,7 +844,7 @@ export default function OnboardingPage({
                                         disabled={loading}
                                     >
                                         {t("Back")}</AppButton>
-                                    <AppButton
+                                    <AppButton density="compact"
                                         onClick={continueToPlan}
                                         disabled={loading}
                                         rightIcon={ArrowRight}
@@ -922,8 +922,8 @@ export default function OnboardingPage({
                                 </div>
 
                                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <AppButton variant="quiet" icon={ArrowLeft} onClick={() => setStep(2)} disabled={loading}>{t("Back")}</AppButton>
-                                    <AppButton onClick={continueToTrial} disabled={!selectedPostTrialPlan || loading} rightIcon={ArrowRight} className="sm:min-w-40">
+                                    <AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={() => setStep(2)} disabled={loading}>{t("Back")}</AppButton>
+                                    <AppButton density="compact" onClick={continueToTrial} disabled={!selectedPostTrialPlan || loading} rightIcon={ArrowRight} className="sm:min-w-40">
                                         {t("Continue")}</AppButton>
                                 </div>
                             </div>
@@ -1003,8 +1003,8 @@ export default function OnboardingPage({
                                 <p className={cn("text-xs leading-5", formHelpTextClass)}>{t("Staff controls, advanced analytics, and AI are available throughout the trial. Billing begins only after the owner separately authorizes {shortName} from organization billing settings.", { shortName: selectedPlan?.shortName ?? "" })}</p>
 
                                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <AppButton variant="quiet" icon={ArrowLeft} onClick={() => setStep(3)} disabled={loading}>{t("Back")}</AppButton>
-                                    <AppButton onClick={handleSubmit} disabled={loading || !startingPoint || !selectedPostTrialPlan} isLoading={loading} rightIcon={loading ? undefined : ArrowRight} className="sm:min-w-48">
+                                    <AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={() => setStep(3)} disabled={loading}>{t("Back")}</AppButton>
+                                    <AppButton density="compact" onClick={handleSubmit} disabled={loading || !startingPoint || !selectedPostTrialPlan} isLoading={loading} rightIcon={loading ? undefined : ArrowRight} className="sm:min-w-48">
                                         {loading ? t("Starting trial...") : t("Start Standard trial")}
                                     </AppButton>
                                 </div>

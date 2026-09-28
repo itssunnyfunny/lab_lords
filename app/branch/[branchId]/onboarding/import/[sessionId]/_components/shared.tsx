@@ -2,6 +2,7 @@ import { OwnedLabel, LocalizedError } from "@/components/settings/LocalizedText"
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { formControlClass } from "@/components/ui/formSurface";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { cn } from "@/lib/utils";
 import {
@@ -19,9 +20,9 @@ import {
 import type { ImportIssue } from "@/importing/contracts/import-session.contract";
 
 export const importFieldClass =
-    "rounded-[8px] border border-[color:var(--ui-form-field-border)] bg-[color:var(--ui-form-field-bg)] p-2 text-sm text-[color:var(--text-primary)] outline-none transition-colors placeholder:text-[color:var(--text-muted)] focus:border-[color:var(--ui-form-input-focus-border)] focus:ring-2 focus:ring-[color:var(--ui-form-input-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60";
+    `${formControlClass} min-h-11 p-2 text-sm`;
 
-export const importSelectClass = `${importFieldClass} [color-scheme:dark]`;
+export const importSelectClass = importFieldClass;
 
 export const importOptionClass =
     "bg-[color:var(--ui-form-input-select-bg)] text-[color:var(--ui-form-input-text)]";
@@ -120,7 +121,7 @@ export function IssueList({ issues, emptyText = "Clean" }: { issues: ImportIssue
     if (issues.length === 0) {
         return (
             <div className={cn("p-3", pageInsetSurfaceClass)}>
-                <div className="flex items-center gap-2 text-sm text-emerald-200">
+                <div className="flex items-center gap-2 text-sm text-[color:var(--ui-tone-success-text)]">
                     <CheckCircle2 className="h-4 w-4" />
                     <OwnedLabel text={emptyText} />
                 </div>
@@ -160,10 +161,10 @@ export function StepNotice({
         <div className={cn("flex items-start gap-3 p-3", pageInsetSurfaceClass)}>
             <Icon className={cn(
                 "mt-0.5 h-4 w-4 shrink-0",
-                tone === "danger" && "text-red-300",
-                tone === "warning" && "text-amber-300",
-                tone === "success" && "text-emerald-300",
-                tone === "cyan" && "text-cyan-300",
+                tone === "danger" && "text-[color:var(--ui-tone-danger-text)]",
+                tone === "warning" && "text-[color:var(--ui-tone-warning-text)]",
+                tone === "success" && "text-[color:var(--ui-tone-success-text)]",
+                tone === "cyan" && "text-[color:var(--ui-tone-info-text)]",
                 tone === "default" && pageSubtleTextClass
             )} />
             <div className="min-w-0">

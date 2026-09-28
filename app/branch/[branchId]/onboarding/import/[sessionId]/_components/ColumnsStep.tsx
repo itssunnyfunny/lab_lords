@@ -155,11 +155,11 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
 
     return (
         <div className="space-y-5">
-            <AppPanel
+            <AppPanel density="compact"
                 title={t("Column meanings")}
                 description={t("Confirm how each source column maps into the ERP. AI is only a suggestion layer.")}
                 action={
-                    <AppButton
+                    <AppButton density="compact"
                         variant="primary"
                         icon={Save}
                         onClick={() => onSave(draft.map(item => ({ ...item, needsReview: false })))}
@@ -184,7 +184,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                                 <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
                                     {t("The headers match a recipe used before. Apply its field meanings, then review every column before confirming.")}</p>
                             </div>
-                            <AppButton variant="secondary" onClick={applySuggestedRecipe} disabled={mutationsDisabled || saving}>
+                            <AppButton density="compact" variant="secondary" onClick={applySuggestedRecipe} disabled={mutationsDisabled || saving}>
                                 {t("Use recipe, then review")}</AppButton>
                         </div>
                     )}
@@ -273,7 +273,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
 
                     <AccessibleTableScroll
                         label={t("Column mappings")}
-                        className="hidden rounded-[8px] border border-[color:var(--ui-table-border)] md:block"
+                        className="hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-table-border)] md:block"
                     >
                         <table className="w-full min-w-[760px] text-left text-sm">
                             <caption className="sr-only">{t("Source columns mapped to Lab Lords ERP fields")}</caption>
@@ -326,7 +326,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                 </div>
             </AppPanel>
 
-            <AppPanel title={t("Manual-first fallback")} description={t("The import does not depend on AI being available.")}>
+            <AppPanel density="compact" title={t("Manual-first fallback")} description={t("The import does not depend on AI being available.")}>
                 <div className="grid gap-3 md:grid-cols-3">
                     {[
                         ["AI suggests", "Column meanings and likely payment words are only suggestions."],
@@ -335,7 +335,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                     ].map(([title, text]) => (
                         <div key={title} className={cn("p-3", pageInsetSurfaceClass)}>
                             <div className="flex items-center gap-2">
-                                <Brain className="h-4 w-4 text-cyan-300" />
+                                <Brain className="h-4 w-4 text-[color:var(--ui-tone-info-text)]" />
                                 <p className="text-sm font-semibold text-[color:var(--text-primary)]">{title}</p>
                             </div>
                             <p className={cn("mt-2 text-xs leading-5", pageMutedTextClass)}>{text}</p>

@@ -26,11 +26,16 @@ import AIReportsPage from "@/app/branch/[branchId]/ai/reports/page";
 import OrgAnalyticsPage from "@/app/org/[orgId]/analytics/page";
 import OrgOverviewPage from "@/app/org/[orgId]/page";
 import OrgSelectionPage from "@/app/org/page";
+import OnboardingPage from "@/app/onboarding/page";
+import ImportAssistantPage from "@/app/branch/[branchId]/onboarding/import/page";
+import ImportSessionPage from "@/app/branch/[branchId]/onboarding/import/[sessionId]/page";
+import { InvitePreviewSurface, InviteStateSurface } from "@/app/invite/[token]/InvitePreviewSurface";
 import { ComponentGallery } from "./ComponentGallery";
 import "@/app/globals.css";
 
 const BRANCH_ID = "pilot";
 const BRANCH_PARAMS = Promise.resolve({ branchId: BRANCH_ID });
+const ONBOARDING_SEARCH_PARAMS = Promise.resolve({});
 
 function CollectionScenario({ usePilotTheme }: { usePilotTheme: boolean }) {
     return (
@@ -77,6 +82,8 @@ function PilotSurface() {
     if (pathname.endsWith("/reports") && !pathname.includes("/ai/")) return <ReportsPage params={dashboardParams} />;
     if (pathname.endsWith("/analytics")) return <BranchAnalyticsPage params={dashboardParams} />;
     if (pathname.endsWith("/ai/reports")) return <AIReportsPage />;
+    if (pathname.endsWith("/onboarding/import")) return <ImportAssistantPage params={dashboardParams} />;
+    if (pathname.includes("/onboarding/import/")) return <ImportSessionPage params={Promise.resolve({ branchId: currentBranchId, sessionId: pathname.split("/").at(-1) ?? "session-pilot" })} />;
     if (pathname === `/branch/${currentBranchId}`) return <BranchDashboardPage params={dashboardParams} />;
     return <PageShell><h1>This route is outside the design pilot</h1><p>The link targets the existing application route: {pathname}.</p>
         <Link href="/branch/pilot?mode=after&lang=en" className="underline">Return to the synthetic dashboard</Link></PageShell>;
@@ -118,6 +125,10 @@ function ApplicationDesignPilot() {
     const pathname = usePathname();
     const branchId = pathname.split("/")[2] ?? BRANCH_ID;
     const orgId = pathname.split("/")[2] ?? "org-pilot";
+    if (pathname === "/onboarding") return <UserPreferencesBoundary><FixtureLabel /><OnboardingPage searchParams={ONBOARDING_SEARCH_PARAMS} /></UserPreferencesBoundary>;
+    if (pathname.startsWith("/invite/")) return <UserPreferencesBoundary><FixtureLabel />{pathname.endsWith("/invalid")
+        ? <InviteStateSurface title="Invite not found" message="This invite link is invalid, has been removed, or uses an older format. Ask the branch owner to send a fresh link." variant="danger" />
+        : <InvitePreviewSurface token="invite-pilot" branchName="Shanti Study Library" organizationName="Shanti Learning Spaces" role="STAFF" expiresAt={new Date("2026-10-15T00:00:00+05:30")} signedInEmail={pathname.endsWith("/signed-out") ? null : pathname.endsWith("/empty-email") ? "" : "staff@example.test"} />}</UserPreferencesBoundary>;
     if (pathname === "/org") return <UserPreferencesBoundary><FixtureLabel /><div data-app-design-pilot="workspace"><OrgSelectionPage /></div></UserPreferencesBoundary>;
     if (pathname.startsWith("/org/")) return <UserPreferencesBoundary><FixtureLabel /><OrganizationWorkspaceShell organizationId={orgId}>
         <Suspense fallback={<PageLoadingSkeleton label="Loading organization surface" variant="workspace" />}>

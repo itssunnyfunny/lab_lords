@@ -1070,22 +1070,22 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                 <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="cyan">{importGoalLabel(goal)}</Badge>
                     {detail?.status && <Badge variant={statusTone(detail.status)}>{labelImportStatus(detail.status)}</Badge>}
-                    <AppButton variant="quiet" icon={ArrowLeft} onClick={() => requestNavigation({ kind: "imports" })}>
+                    <AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={() => requestNavigation({ kind: "imports" })}>
                         {t("All imports")}</AppButton>
                 </div>
             </div>
 
             {error && (
-                <div className="flex flex-col gap-3 rounded-[8px] border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200 sm:flex-row sm:items-center sm:justify-between" role="alert">
+                <div className="flex flex-col gap-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] p-3 text-sm text-[color:var(--ui-tone-danger-text)] sm:flex-row sm:items-center sm:justify-between" role="alert">
                     <span><LocalizedError error={error} /></span>
                     {detail?.status === "UPLOADED" && !analyzing && !waitingForPdfConfirmation && (
-                        <AppButton size="sm" variant="secondary" onClick={retryAnalysis}>{t("Retry analysis")}</AppButton>
+                        <AppButton density="compact" size="sm" variant="secondary" onClick={retryAnalysis}>{t("Retry analysis")}</AppButton>
                     )}
                 </div>
             )}
 
             {mutationBlockReason && importDecision.blocker !== "permission" && (
-                <div id="import-session-mutation-blocker" className="flex flex-col gap-2 rounded-[8px] border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between" role="status">
+                <div id="import-session-mutation-blocker" className="flex flex-col gap-2 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] px-4 py-3 text-sm text-[color:var(--ui-tone-warning-text)] sm:flex-row sm:items-center sm:justify-between" role="status">
                     <span>{t("Import changes are disabled.")} {mutationBlockReason}</span>
                     {importDecision.recoveryHref ? (
                         <Link href={importDecision.recoveryHref} className="shrink-0 font-semibold underline underline-offset-4">
@@ -1095,23 +1095,23 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
             )}
 
             {notice && !error && (
-                <div className="rounded-[8px] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] p-3 text-sm text-[color:var(--ui-badge-cyan-text)]" role="status" aria-live="polite">
+                <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] p-3 text-sm text-[color:var(--ui-badge-cyan-text)]" role="status" aria-live="polite">
                     {notice}
                 </div>
             )}
 
             {analyzing && (
-                <div className="flex items-center gap-3 rounded-[8px] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] p-3 text-sm text-[color:var(--ui-badge-cyan-text)]" role="status" aria-live="polite">
+                <div className="flex items-center gap-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] p-3 text-sm text-[color:var(--ui-badge-cyan-text)]" role="status" aria-live="polite">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t("Analyzing source data. Manual fallback remains available if AI is unavailable.")}</div>
             )}
 
             {detail && waitingForPdfConfirmation && (
-                <AppPanel title={t("Review PDF extraction")} description={t("PDF table extraction is beta. Confirm the persisted text rows before analysis starts.")}>
+                <AppPanel density="compact" title={t("Review PDF extraction")} description={t("PDF table extraction is beta. Confirm the persisted text rows before analysis starts.")}>
                     <div ref={pdfReviewRef} tabIndex={-1} aria-label={t("PDF extraction review")} className="space-y-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]">
                         <div className={cn("p-4 text-xs leading-5", pageInsetMetricClass)}>
                             {t("Compare this sample with the original PDF. Scanned images are not read because OCR is not enabled.")}</div>
-                        <div className="overflow-x-auto rounded-[8px] border border-[color:var(--ui-table-border)]" tabIndex={0} aria-label={t("Persisted PDF extraction preview")}>
+                        <div className="overflow-x-auto rounded-[var(--ui-radius-control)] border border-[color:var(--ui-table-border)]" tabIndex={0} aria-label={t("Persisted PDF extraction preview")}>
                             <table className="w-full min-w-[560px] text-left text-xs">
                                 <caption className="sr-only">{t("Persisted extracted PDF sample rows")}</caption>
                                 <tbody>
@@ -1138,7 +1138,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                             <span>{t("I reviewed the sample and confirm that the extracted columns and rows match the PDF.")}</span>
                         </label>
                         <div className="flex flex-wrap gap-2">
-                            <AppButton
+                            <AppButton density="compact"
                                 variant="primary"
                                 onClick={confirmPdfExtraction}
                                 disabled={!pdfAccepted || mutationsDisabled || (detail.extractionPreview?.length ?? 0) === 0}
@@ -1146,7 +1146,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                 isLoading={saving}
                             >
                                 {t("Confirm and analyze PDF")}</AppButton>
-                            <AppButton variant="secondary" onClick={() => requestNavigation({ kind: "imports" })} disabled={saving}>
+                            <AppButton density="compact" variant="secondary" onClick={() => requestNavigation({ kind: "imports" })} disabled={saving}>
                                 {t("Choose a different source")}</AppButton>
                         </div>
                     </div>
@@ -1155,7 +1155,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
 
             {detail && !waitingForPdfConfirmation && (
                 <>
-                    <AppPanel contentClassName="space-y-5">
+                    <AppPanel density="compact" contentClassName="space-y-5">
                         <nav aria-label={t("Import progress")} className="grid gap-2 sm:grid-cols-3">
                             {[
                                 { id: "upload", label: "Upload", detail: "Source staged", icon: FileUp },
@@ -1179,14 +1179,14 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                             if (stage.id === "review") requestNavigation({ kind: "step", step: run?.kind === "COMMIT" || detail.commits?.length ? "result" : "preview" });
                                         }}
                                         className={cn(
-                                            "flex min-h-20 items-center gap-3 rounded-[8px] border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
+                                            "flex min-h-20 items-center gap-3 rounded-[var(--ui-radius-control)] border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
                                             stageActive
                                                 ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
-                                                : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] hover:bg-white/[0.04]"
+                                                : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] hover:bg-[color:var(--ui-form-surface-hover-bg)]"
                                         )}
                                     >
                                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[color:var(--ui-form-surface-border)] text-xs font-semibold">
-                                            {stage.id === "upload" || stage.id === "fix" && relevantAttention.length === 0 || stage.id === "review" && (run?.kind === "COMMIT" || Boolean(detail.commits?.length)) ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : index + 1}
+                                            {stage.id === "upload" || stage.id === "fix" && relevantAttention.length === 0 || stage.id === "review" && (run?.kind === "COMMIT" || Boolean(detail.commits?.length)) ? <CheckCircle2 className="h-4 w-4 text-[color:var(--ui-tone-success-text)]" /> : index + 1}
                                         </span>
                                         <span className="min-w-0"><span className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]"><StageIcon className="h-4 w-4" />{t.owned(stage.label)}</span><span className={cn("mt-1 block text-xs", pageMutedTextClass)}>{t.owned(stage.detail)}</span></span>
                                     </button>
@@ -1206,7 +1206,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                 <span className="font-semibold text-[color:var(--text-primary)]">{readiness}%</span>
                             </div>
                             <div className={pageProgressTrackClass} role="progressbar" aria-label={t("Import readiness")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness}>
-                                <div className="h-full rounded-full bg-cyan-300 transition-all" style={{ width: `${Math.max(0, Math.min(100, readiness))}%` }} />
+                                <div className="h-full rounded-full bg-[color:var(--ui-tone-info-progress)] transition-all" style={{ width: `${Math.max(0, Math.min(100, readiness))}%` }} />
                             </div>
                         </div>
 
@@ -1219,8 +1219,8 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                         aria-current={activeStep === step.id ? "step" : undefined}
                                         onClick={() => requestNavigation({ kind: "step", step: step.id })}
                                         className={cn(
-                                            "min-h-11 shrink-0 rounded-[8px] border px-3 py-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
-                                            activeStep === step.id ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)]"
+                                            "min-h-11 shrink-0 rounded-[var(--ui-radius-control)] border px-3 py-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
+                                            activeStep === step.id ? "border-[color:var(--ui-tone-info-border)] bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]" : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)]"
                                         )}
                                     >
                                         <span className="font-semibold">{t.owned(step.label)}</span>
@@ -1232,7 +1232,7 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                     </AppPanel>
 
                     {relevantAttention.length > 0 && fixSteps.some(step => step.id === activeStep) && (
-                        <AppPanel title={t("Fix these first")} description={t("Open an issue group to jump to the best place to resolve it.")}>
+                        <AppPanel density="compact" title={t("Fix these first")} description={t("Open an issue group to jump to the best place to resolve it.")}>
                             <ul className="grid gap-3 lg:grid-cols-2">
                                 {relevantAttention.map(bucket => {
                                     const target = attentionStep(bucket, goal);
@@ -1246,12 +1246,12 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                                                     ? { kind: "issue", issueCode: bucket.code }
                                                     : { kind: "step", step: target })}
                                                 className={cn(
-                                                    "flex h-full w-full items-start gap-3 p-3 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
+                                                    "flex h-full w-full items-start gap-3 p-3 text-left transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
                                                     pageInsetMetricClass,
                                                     issueActive && "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
                                                 )}
                                             >
-                                                <AlertTriangle className={cn("mt-0.5 h-4 w-4 shrink-0", bucket.severity === "error" ? "text-red-300" : bucket.severity === "warning" ? "text-amber-300" : "text-cyan-300")} />
+                                                <AlertTriangle className={cn("mt-0.5 h-4 w-4 shrink-0", bucket.severity === "error" ? "text-[color:var(--ui-tone-danger-text)]" : bucket.severity === "warning" ? "text-[color:var(--ui-tone-warning-text)]" : "text-[color:var(--ui-tone-info-text)]")} />
                                                 <span className="min-w-0 flex-1">
                                                     <span className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-[color:var(--text-primary)]">{t.owned(bucket.label)}</span><Badge variant={bucket.severity === "error" ? "danger" : bucket.severity === "warning" ? "warning" : "cyan"}>{bucket.count}</Badge></span>
                                                     <span className={cn("mt-1 block text-xs leading-5", pageMutedTextClass)}>{bucket.action ?? bucket.message}</span>
@@ -1395,12 +1395,12 @@ export function ImportSessionWizard({ branchId, sessionId, importDecision }: Imp
                     )}
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <AppButton variant="quiet" icon={RotateCcw} onClick={() => requestNavigation({ kind: "refresh" })} isLoading={loading}>
+                        <AppButton density="compact" variant="quiet" icon={RotateCcw} onClick={() => requestNavigation({ kind: "refresh" })} isLoading={loading}>
                             {t("Refresh session")}</AppButton>
                         <div className="flex flex-wrap gap-2">
-                            <AppButton variant="secondary" onClick={goBackStep} disabled={currentStepIndex === 0}>
+                            <AppButton density="compact" variant="secondary" onClick={goBackStep} disabled={currentStepIndex === 0}>
                                 {t("Previous")}</AppButton>
-                            <AppButton variant="primary" rightIcon={ArrowRight} onClick={goNext} disabled={currentStepIndex === steps.length - 1}>{t("Next: {value}", { value: steps[Math.min(currentStepIndex + 1, steps.length - 1)]?.label ?? activeStepMeta?.label })}</AppButton>
+                            <AppButton density="compact" variant="primary" rightIcon={ArrowRight} onClick={goNext} disabled={currentStepIndex === steps.length - 1}>{t("Next: {value}", { value: steps[Math.min(currentStepIndex + 1, steps.length - 1)]?.label ?? activeStepMeta?.label })}</AppButton>
                         </div>
                     </div>
 

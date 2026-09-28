@@ -118,7 +118,7 @@ export function ResultStep({
 
     return (
         <div className="space-y-5">
-            <AppPanel title={t("Import progress & result")} description={hasResult ? t("Saved progress for the latest import run.") : t("No branch records have been created from this session yet.")}>
+            <AppPanel density="compact" title={t("Import progress & result")} description={hasResult ? t("Saved progress for the latest import run.") : t("No branch records have been created from this session yet.")}>
                 <div className="space-y-5" aria-busy={runLoading}>
                     <div role="status" aria-live="polite" aria-atomic="true">
                         <StepNotice tone={notice.tone} title={notice.title} message={notice.message} />
@@ -138,7 +138,7 @@ export function ResultStep({
                                     <span className="font-semibold text-[color:var(--text-primary)]">{formatNumber(progress)}%</span>
                                 </div>
                                 <div className={pageProgressTrackClass} role="progressbar" aria-label={t("Background import progress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-                                    <div className="h-full rounded-full bg-cyan-300 transition-all" style={{ width: `${progress}%` }} />
+                                    <div className="h-full rounded-full bg-[color:var(--ui-tone-info-progress)] transition-all" style={{ width: `${progress}%` }} />
                                 </div>
                             </div>
                         </>
@@ -155,35 +155,35 @@ export function ResultStep({
 
                     {run?.error?.message && (
                         <div className={cn("p-3", pageInsetSurfaceClass)} role="alert">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-red-200"><XCircle className="h-4 w-4" />{t("Run error")}</div>
+                            <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--ui-tone-danger-text)]"><XCircle className="h-4 w-4" />{t("Run error")}</div>
                             <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{run.error.message}</p>
                         </div>
                     )}
 
                     <div className="flex flex-wrap gap-2">
                         {run && ["QUEUED", "RUNNING", "RETRYABLE_FAILURE"].includes(run.status) && (
-                            <AppButton variant="secondary" onClick={onCancelRun} isLoading={actionLoading}>{t("Cancel import")}</AppButton>
+                            <AppButton density="compact" variant="secondary" onClick={onCancelRun} isLoading={actionLoading}>{t("Cancel import")}</AppButton>
                         )}
                         {repairable && canRetryRun && (
-                            <AppButton variant="primary" icon={RotateCcw} onClick={onRetryRun} isLoading={actionLoading}>{t("Retry remaining work")}</AppButton>
+                            <AppButton density="compact" variant="primary" icon={RotateCcw} onClick={onRetryRun} isLoading={actionLoading}>{t("Retry remaining work")}</AppButton>
                         )}
                         {repairable && !canRetryRun && (
-                            <AppButton variant="primary" icon={ArrowRight} onClick={onRepairRun}>{t("Fix issues and review a new plan")}</AppButton>
+                            <AppButton density="compact" variant="primary" icon={ArrowRight} onClick={onRepairRun}>{t("Fix issues and review a new plan")}</AppButton>
                         )}
                         {run && run.failedItems > 0 && (
                             <>
-                                <AppButton variant="secondary" icon={Download} onClick={() => onExportErrors("csv")} isLoading={actionLoading}>{t("Download error CSV")}</AppButton>
-                                <AppButton variant="secondary" icon={Download} onClick={() => onExportErrors("xlsx")} isLoading={actionLoading}>{t("Download error XLSX")}</AppButton>
+                                <AppButton density="compact" variant="secondary" icon={Download} onClick={() => onExportErrors("csv")} isLoading={actionLoading}>{t("Download error CSV")}</AppButton>
+                                <AppButton density="compact" variant="secondary" icon={Download} onClick={() => onExportErrors("xlsx")} isLoading={actionLoading}>{t("Download error XLSX")}</AppButton>
                             </>
                         )}
-                        {!hasResult && !runLoading && <AppButton variant="primary" icon={ArrowRight} onClick={onGoPreview}>{t("Go to review & import")}</AppButton>}
-                        <AppButton variant="quiet" onClick={() => router.push(`/branch/${branchId}/onboarding/import`)}>{t("All imports")}</AppButton>
+                        {!hasResult && !runLoading && <AppButton density="compact" variant="primary" icon={ArrowRight} onClick={onGoPreview}>{t("Go to review & import")}</AppButton>}
+                        <AppButton density="compact" variant="quiet" onClick={() => router.push(`/branch/${branchId}/onboarding/import`)}>{t("All imports")}</AppButton>
                     </div>
                 </div>
             </AppPanel>
 
             {complete && onSaveRecipe && (
-                <AppPanel title={t("Reuse these column meanings")} description={t("Save a recipe after success. Future files with the same headers can start with these mappings, and you will still review them before import.")}>
+                <AppPanel density="compact" title={t("Reuse these column meanings")} description={t("Save a recipe after success. Future files with the same headers can start with these mappings, and you will still review them before import.")}>
                     {recipeSaved ? (
                         <StepNotice tone="success" title={t("Recipe saved")} message={`${recipeSaved} is ready for matching future imports.`} />
                     ) : (
@@ -199,14 +199,14 @@ export function ResultStep({
                                 <label htmlFor="import-recipe-name" className="text-xs font-semibold text-[color:var(--text-secondary)]">{t("Recipe name")}</label>
                                 <input id="import-recipe-name" value={recipeName} onChange={event => setRecipeName(event.target.value)} className={cn("mt-2 w-full", importFieldClass)} placeholder={t("Example: August student register")} />
                             </div>
-                            <AppButton className="sm:self-end" type="submit" variant="secondary" icon={Save} disabled={!recipeName.trim()} isLoading={actionLoading}>{t("Save recipe")}</AppButton>
+                            <AppButton density="compact" className="sm:self-end" type="submit" variant="secondary" icon={Save} disabled={!recipeName.trim()} isLoading={actionLoading}>{t("Save recipe")}</AppButton>
                         </form>
                     )}
                 </AppPanel>
             )}
 
             {canContinueToBranch && (
-                <AppPanel title={t("Next")} description={t("Open the records created or continue operating the branch.")}>
+                <AppPanel density="compact" title={t("Next")} description={t("Open the records created or continue operating the branch.")}>
                     <div className="grid gap-3 md:grid-cols-4">
                         {[
                             ["View students", UsersRound, `/branch/${branchId}/students`],
@@ -216,8 +216,8 @@ export function ResultStep({
                         ].map(([label, Icon, href]) => {
                             const ActionIcon = Icon as typeof UsersRound;
                             return (
-                                <button key={label as string} type="button" onClick={() => router.push(href as string)} className={cn("flex min-h-24 items-center justify-between gap-3 rounded-[8px] border p-4 text-left transition-colors hover:bg-white/[0.04]", "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]")}>
-                                    <div><ActionIcon className="h-5 w-5 text-cyan-300" /><p className="mt-2 text-sm font-semibold text-[color:var(--text-primary)]">{label as string}</p></div>
+                                <button key={label as string} type="button" onClick={() => router.push(href as string)} className={cn("flex min-h-24 items-center justify-between gap-3 rounded-[var(--ui-radius-control)] border p-4 text-left transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)]", "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]")}>
+                                    <div><ActionIcon className="h-5 w-5 text-[color:var(--ui-tone-info-text)]" /><p className="mt-2 text-sm font-semibold text-[color:var(--text-primary)]">{label as string}</p></div>
                                     <ArrowRight className="h-4 w-4 text-[color:var(--text-muted)]" />
                                 </button>
                             );

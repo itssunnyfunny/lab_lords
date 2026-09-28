@@ -10,5 +10,6 @@ export function isApplicationDesignPilotPath(pathname: string | null | undefined
     if (segments[0] !== "branch" || !segments[1]) return false;
     if (segments.length === 2) return true;
     if (segments.length === 3) return SELECTED_BRANCH_SEGMENTS.has(segments[2]);
-    return segments.length === 4 && segments[2] === "ai" && segments[3] === "reports";
+    if (segments.length === 4 && segments[2] === "ai" && segments[3] === "reports") return true;
+    return segments[2] === "onboarding" && segments[3] === "import" && (segments.length === 4 || segments.length === 5);
 }
