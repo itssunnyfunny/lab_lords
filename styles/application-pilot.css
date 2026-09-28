@@ -10,6 +10,41 @@ html.dark:has([data-app-design-pilot="workspace"]) {
   color-scheme: light;
 }
 
+/* Clerk merges the root provider's public dark classes with UserButton's
+ * workspace classes. Important declarations in Tailwind's utilities layer
+ * outrank unlayered important declarations, so keep these selected-workspace
+ * overrides in the earlier base layer, including for the body-level portal. */
+@layer base {
+html:has([data-app-design-pilot="workspace"])
+  .cl-userButtonPopoverCard
+  :is(.cl-userPreviewMainIdentifier, .cl-userButtonPopoverActionButton, .cl-userButtonPopoverActionButtonText),
+html:has([data-app-design-pilot="workspace"])
+  .cl-modalContent
+  :is(.cl-headerTitle, .cl-profileSectionTitleText, .cl-profileSectionItemText, .cl-navbarMobileMenuButton) {
+  color: var(--text-primary) !important;
+}
+
+html:has([data-app-design-pilot="workspace"])
+  .cl-userButtonPopoverCard
+  :is(.cl-userPreviewSecondaryIdentifier, .cl-userButtonPopoverActionButtonIcon),
+html:has([data-app-design-pilot="workspace"])
+  .cl-modalContent
+  :is(.cl-headerSubtitle, .cl-navbarButton, .cl-modalCloseButton) {
+  color: var(--text-secondary) !important;
+}
+
+html:has([data-app-design-pilot="workspace"])
+  .cl-modalContent
+  :is(.cl-profileSectionPrimaryButton, .cl-profileSectionItemAction, .cl-formFieldAction) {
+  color: var(--ui-form-accent) !important;
+}
+
+html:has([data-app-design-pilot="workspace"])
+  .cl-modalContent .cl-badge {
+  color: var(--ui-tone-neutral-text) !important;
+}
+}
+
 [data-app-design-pilot="workspace"] {
   background: var(--bg-app);
 }

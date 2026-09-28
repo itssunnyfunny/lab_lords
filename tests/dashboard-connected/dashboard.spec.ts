@@ -227,10 +227,10 @@ test("real task and follow-up forms persist, notifications acknowledge, and filt
     await expect(page.getByRole("dialog").getByLabel("Task", { exact: true })).toHaveValue(title);
     await page.getByRole("button", { name: "Save task", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByText(title, { exact: true })).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: title })).toBeVisible();
     await page.reload();
     await applicationReady(page);
-    await expect(page.getByText(title, { exact: true })).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: title })).toBeVisible();
     expect(await db.dashboardTask.count({ where: { branchId: fixture.branchId, title } })).toBe(1);
     await openApplication(page, `/branch/${fixture.branchId}/follow-ups`);
     await expect(page.getByRole("row").filter({ hasText: "Rahul Verma" })).toBeVisible();
@@ -245,7 +245,7 @@ test("real task and follow-up forms persist, notifications acknowledge, and filt
     await page.getByRole("button", { name: "Save follow-up", exact: true }).click();
     expect((await followUpSaved).status()).toBe(200);
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByText(note, { exact: true })).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: note })).toBeVisible();
     await expect.poll(async () => (await db.renewalFollowUp.findUniqueOrThrow({ where: { id: "dashboard-followup-0" } })).note).toBe(note);
     await page.getByRole("button", { name: "Notifications", exact: true }).click();
     const notifications = page.getByRole("dialog", { name: "Notifications", exact: true });

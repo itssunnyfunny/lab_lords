@@ -124,7 +124,9 @@ test("Tasks actual route persists assignment, due date and state with prospectiv
         await dialog.getByRole("combobox", { name: "Status" }).click(); await page.getByRole("option", { name: "Completed" }).click();
         const expectedDue = await page.evaluate(() => new Date("2026-10-01T10:30").toISOString());
         await dialog.getByRole("button", { name: "Save task", exact: true }).click(); await expect(dialog).toHaveCount(0);
-        const persisted = (await db.query('SELECT title,status,"dueAt","assigneeId" FROM "DashboardTask" WHERE id=$1 AND "branchId"=$2', [task.id, fixture.branchId])).rows[0];
+        // Prisma stores DateTime in PostgreSQL TIMESTAMP(3). Interpret its raw value as UTC,
+        // rather than letting pg parse the timezone-free column in the runner's local zone.
+        const persisted = (await db.query('SELECT title,status,"dueAt" AT TIME ZONE \'UTC\' AS "dueAt","assigneeId" FROM "DashboardTask" WHERE id=$1 AND "branchId"=$2', [task.id, fixture.branchId])).rows[0];
         expect(persisted).toMatchObject({ title: "Batch 2 local task verification", status: "DONE", assigneeId: fixture.ownerId });
         expect(new Date(persisted.dueAt).toISOString()).toBe(expectedDue);
         expect(await countEvents()).toBe(eventsBefore + 1);

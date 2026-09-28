@@ -128,7 +128,7 @@ test("actual read-only, restricted and foreign branch routes retain access bound
     } finally { await context.close(); }
 });
 
-test("public content and an unmigrated page remain readable", async ({ page }) => {
+test("public content and the selected account page remain readable", async ({ page }) => {
     for (const route of ["/", "/hi", "/hinglish", "/features", "/pricing", "/faq"]) {
         const response = await page.goto(route); expect(response?.status()).toBe(200);
         await expect(page.locator('h1').first()).toBeVisible();
@@ -136,5 +136,5 @@ test("public content and an unmigrated page remain readable", async ({ page }) =
     }
     await ready(page, "/account");
     await expect(page.locator('h1').first()).toBeVisible();
-    await expect(page.locator('[data-app-design-pilot="workspace"]')).toHaveCount(0);
+    await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
 });

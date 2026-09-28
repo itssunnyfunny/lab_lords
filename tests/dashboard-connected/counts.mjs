@@ -32,7 +32,14 @@ try {
       (SELECT COUNT(*)::int FROM "OccupancySnapshot") AS occupancy_snapshots,
       (SELECT COUNT(*)::int FROM "RenewalFollowUp" WHERE "completedAt" IS NULL) AS unresolved_followups,
       (SELECT COUNT(*)::int FROM "AttendanceExpectation") AS expectations,
+      (SELECT COUNT(*)::int FROM "AttendanceVisit" WHERE "voidedAt" IS NULL) AS active_visits,
+      (SELECT COUNT(*)::int FROM "AttendanceVisit" WHERE "voidedAt" IS NOT NULL) AS voided_visits,
+      (SELECT COUNT(*)::int FROM "AttendanceCommand") AS attendance_commands,
+      (SELECT COUNT(*)::int FROM "AuditLog" WHERE action='ATTENDANCE_CHANGED') AS attendance_audits,
       (SELECT SUM(amount)::float FROM "Payment") AS billed,
-      (SELECT SUM("collectedAmount")::float FROM "Payment") AS collected`);
+      (SELECT SUM("collectedAmount")::float FROM "Payment") AS collected,
+      (SELECT SUM("waivedAmount")::float FROM "Payment") AS waived,
+      (SELECT SUM(amount-"collectedAmount"-"waivedAmount")::float FROM "Payment") AS pending,
+      (SELECT SUM(amount)::float FROM "FeeCollection" WHERE "voidedAt" IS NULL) AS live_receipt_total`);
     console.log(JSON.stringify(result.rows[0], null, 2));
 } finally { await db.end(); }
