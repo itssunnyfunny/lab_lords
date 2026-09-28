@@ -20,15 +20,15 @@ availability of each feature. Test success is not owner approval or deployment.
 | Family | Local verification evidence | Owner presentation approval | Production release |
 | --- | --- | --- | --- |
 | Students | `36d0d0d` implementation; `b102af3` [local evidence](student-card-refinement.md) | **Approved 2026-09-27** in this chat: refined comparison retained as the next batch's visual pattern | Local migration not released; no release operation authorized |
-| Staff | Batch 2 in progress | Reuse approved Students hierarchy; completed family review pending | Not released |
-| Tasks | Starts after Staff verification | Reuse approved hierarchy; completed family review pending | Not released |
+| Staff | `82bf318` implementation and [local connected evidence](batch-two-review.md): 15 fixture browser checks, two actual-route checks and scoped service/permission tests passed | Reused approved Students hierarchy; completed Staff presentation review pending | Local migration not released |
+| Tasks | `ea1c578` implementation and [local fixture/build evidence](batch-two-review.md): 20 browser checks, 26 scoped contracts/service/route tests and offline production build passed; connected target blocked by Windows port reservation, so actual-route persistence/access remains unverified | Reused approved Students hierarchy; completed Tasks presentation review pending | Local migration not released |
 
 | Route / family | Pattern / batch | Bespoke work retained | Risk | Required checks | Status | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | `/branch/b` | Selected dashboard | Chart, seating matrix, artwork, five priorities/six figures | High source/access | Pixel/crops, source freshness, notifications, sparse history, finance/access | Preserved | `95a589a` |
 | `/branch/b/students` | Record list/detail / 1 | Admission, status resolution, consent, fee/attendance overlays | High mutation/recovery | Scalar merge, filter context, readonly/staff, nested dialogs, fees, three languages | Refined; locally verified; presentation approved in ledger | `6e423ae`, `36d0d0d`, `b102af3`; [review](student-card-refinement.md) |
-| `/branch/b/staff` | Record list/detail / 2 | Invites, permission overrides, role controls | High authorization | Invite/permission/server scope, disabled actions, confirmation focus | Planned | — |
-| `/branch/b/tasks` | Record list/detail / 2 | Assignment, task state, evidence/activity tab | Medium | Reload persistence, assignee scope, source-state boundaries | Planned | — |
+| `/branch/b/staff` | Record list/detail / 2 | Invites, permission overrides, role controls | High authorization | Invite/permission/server scope, disabled actions, confirmation focus | Migrated and locally connected-verified; owner presentation review pending | `82bf318`; [review](batch-two-review.md) |
+| `/branch/b/tasks` | Record list/detail / 2 | Assignment, task state, evidence/activity tab | Medium | Reload persistence, assignee scope, source-state boundaries | Migrated; fixture/build verified; connected check blocked by reserved loopback port; owner presentation review pending | `ea1c578`; [review](batch-two-review.md) |
 | `/branch/b/follow-ups`, `/branch/b/renewals`, `/branch/b/overdue` | Work queue / 3 | Due cohorts, promises, completion, reminders and uncertainty | High finance/provider | Partial/waived/legacy balances, contact consent, no automatic provider action | Planned | — |
 | `/branch/b/payments` | Record list/detail with financial evidence / 4 | Canonical collection, immutable receipts, void/correction recovery | High accounting | Same-request retry, partial/waiver arithmetic, owner-only correction, document language | Planned | — |
 | `/branch/b/seats`, `/branch/b/allocations`, `/branch/b/shifts` | Specialized operations / 5 | Seat map, multi-shift capacity, overlap, allocation and fee links | High domain | Scope/capacity/overlap, deep links, loaded vs exact counts, touch/keyboard | Planned | — |
