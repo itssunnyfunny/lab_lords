@@ -1,5 +1,28 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Authenticated application presentation rollout — 2026-09-28
+
+The selected dashboard and approved Students hierarchy are the visual foundation.
+Local presentation migrations now cover A · Work queues (`f7f70d1`), B · Payments
+(`b12befc`), C · Seats/Shifts (`e38a090`), D · Attendance (`c4a3e00`), E · Settings
+(`21e1834`) and F · Reporting (`c39b252`), followed by G · Guided (`6dd008c`)
+and H · Workspace (`8b69d4a`). The local integration check fix is `0973c71`.
+The [migration ledger](../redesign/page-family-migration.md) maps each route to
+its family and separates local evidence, owner presentation approval and release;
+the [design source map](application-design-system.md) names shared and feature
+presentation owners. The available A–F fixture packets are local visual evidence,
+not proof of connected authorization, provider behavior or release.
+
+The rollout composes semantic tokens, AppPanel, RecordList, compact tables and
+feature-owned cards/overlays where each workflow fits. Settings and billing retain
+their identity, permission and provider gates; queues and Payments retain due
+arithmetic, command identities and receipts; Seats/Shifts and Attendance retain
+capacity and confirmed visit semantics; Reporting retains authorized export
+scope, document language and advisory AI boundaries. Guided imports and workspace
+selection retain their tenant and recovery boundaries. No schema, environment,
+provider or public feature/copy behavior is changed by this presentation work.
+Family-specific owner review and production release remain pending.
+
 ## Batch 2 Tasks presentation — 2026-09-28
 
 Tasks now composes the existing RecordList page/surface/states, compact DataTable,
@@ -62,8 +85,9 @@ The existing isolated harness has a gallery importing these production owners.
 There is no application gallery route, new API, dependency, schema or migration.
 Public pages and their separate language/theme system remain unchanged. See
 [shared presentation guidance](application-design-system.md) and the
-[planned page families](../redesign/page-family-migration.md). This historical
-foundation run migrated Students; Batch 2 advances Staff and Tasks only.
+[page-family ledger](../redesign/page-family-migration.md). This historical
+foundation run migrated Students; Batch 2 advanced Staff and Tasks before the
+later application-family rollout.
 
 ## Full selected dashboard implementation — 2026-09-27
 

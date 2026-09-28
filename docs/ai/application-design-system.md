@@ -1,11 +1,12 @@
 # Selected application presentation
 
-Working base: `3d58864`, clean worktree, local branch
-`codex/shared-students-pattern`. This scope supersedes the historical dashboard
-pilot restrictions. The selected dashboard is frozen; Students is the first
-reusable record-family consumer. The owner approved its refined card comparison
-on 2026-09-27 for Batch 2, Staff then Tasks. Reuse its hierarchy and shared owners;
-keep Students/dashboard/public presentation frozen. Later batches remain out of scope.
+The frozen selected-dashboard base is `3d58864`; Students established the first
+reusable record-family pattern. The owner approved its refined card comparison
+on 2026-09-27 for Staff and Tasks. Families A–H now reuse these presentation
+owners across the remaining authenticated routes. Their local implementation is
+not family-specific owner approval or production release; see the
+[migration ledger](../redesign/page-family-migration.md). Keep the selected
+dashboard, Students baseline and public presentation stable.
 
 | Selected rule | Shared owner | Consumers / boundary |
 | --- | --- | --- |
@@ -21,6 +22,23 @@ keep Students/dashboard/public presentation frozen. Later batches remain out of 
 | Quiet initials and integrated modal language control | `Avatar tone="quiet"`, `Dialog languagePlacement="header"` | Explicit opt-ins; default avatars/modal headers stay compatible. Edit uses its scoped backdrop variant |
 | Staff roster and access/invitation overlays | `staff/page.tsx` composing RecordList, compact DataTable, AppPanel and Dialog | Feature-owned role, override, invitation and removal workflows; mobile context is role, important state is access, secondary detail is added date |
 | Tasks list, source work and activity | `TasksContent.tsx`, `TaskRecordCard.tsx` and `ActivityContent.tsx` composing the same RecordList, compact DataTable, AppPanel and Dialog | Feature-owned assignment, due date, state and evidence links; mobile context is assignee, important values are due date/state, secondary detail is update time |
+
+## Rollout source map
+
+| Family | Feature owners | Presentation reuse and preserved boundary |
+| --- | --- | --- |
+| A · Work queues | `app/branch/[branchId]/{follow-ups,renewals,overdue}` and queue components | Compact lists/cards and status panels; due cohorts, consent, partial/waived balances and reminders keep their existing commands |
+| B · Payments | `app/branch/[branchId]/payments` and `components/payments` | RecordList, compact table/cards and scoped collection/receipt overlays; request identities, arithmetic and immutable evidence stay feature-owned |
+| C · Seats/Shifts | `app/branch/[branchId]/{seats,allocations,shifts}` | Semantic panels and touch controls around specialized maps/capacity views; overlap and allocation semantics stay feature-owned |
+| D · Attendance | `app/branch/[branchId]/attendance` and `components/attendance` | Compact result/card hierarchy around calendar and QR workflows; confirmed evidence, session identity and recovery stay feature-owned |
+| E · Settings | `app/account`, branch settings/dashboard settings, organization settings and billing processing pages | Grouped AppPanel/FormField/overlay hierarchy; account identity, writable scope and provider-authoritative billing remain feature-owned |
+| F · Reporting | Branch reports, analytics, AI reports and organization analytics pages | Panels, compact tables and responsive report cards; export scope/document language and advisory AI output stay feature-owned |
+| G · Guided | Onboarding, invitations and branch import pages | Guided steps use shared controls without adopting record-list structure; token scope and staged import recovery remain feature-owned |
+| H · Workspace | `/org` and `/org/[orgId]` pages; `/app` remains a redirect | Workspace panels and route cards; authorized organization/branch discovery and account switching stay feature-owned |
+
+This rollout changes authenticated presentation only. Public Home, Features,
+Pricing and FAQ claims need no copy change because the advertised workflows and
+feature behavior do not change.
 
 The frozen fixture packet is `docs/redesign/shared-system-evidence/before`.
 It uses actual production components, loaded fonts, scale 1 and the fixed
@@ -126,7 +144,7 @@ never reach a database or provider. No production gallery route or auth bypass e
 - Focused card refinement: `pnpm exec node tests/application-design-pilot/student-card-capture.mjs after`, then `pnpm exec node tests/application-design-pilot/student-card-compare.mjs`. The separate frozen card baseline is `docs/redesign/student-card-evidence/before`; this checks one native dashboard/table frame without regenerating historical packets.
 - Palette guard: `pnpm exec node tests/shared-system/check-presentation.mjs 3d58864`.
 - Connected build/test: `pnpm exec node tests/dashboard-connected/start-local.mjs build`, `... start`, `... students-test`. The existing runner proves container ID/image/loopback binding/database identity. Build additionally proves transaction read-only mode. Tests use only the existing synthetic fixture and development sessions; external business providers are held. No reset/seed/migration runs here.
-- Batch 2 only: `... batch-two-test Staff` or `... batch-two-test Tasks` uses an explicit connected spec and family filter. Fixture browser specs are `staff-family.spec.ts` and `tasks-family.spec.ts`. Choose explicit files with the scoped configurations; unchanged historical packets need not be regenerated.
+- Historical Batch 2: `... batch-two-test Staff` or `... batch-two-test Tasks` uses an explicit connected spec and family filter. Fixture browser specs are `staff-family.spec.ts` and `tasks-family.spec.ts`. For later families, choose explicit safe scoped files and record their exact commands in the local handoff; unchanged historical packets need not be regenerated.
 - Shared changes also require lint, production build and representative existing consumers. See the exact results in the local handoff. Never run the broad database-connected repository Vitest config for a presentation change.
 
 Palette additions belong in `styles/tokens.css`. `shared-ui.css` owns primitive
@@ -137,4 +155,4 @@ flags new literal palettes and new duplicated surface styling; it is deliberatel
 not a whole-repository cleanup. A necessary new exception requires a reason in
 this source map and targeted evidence.
 
-See [the remaining migration batches](../redesign/page-family-migration.md).
+See [the migration ledger](../redesign/page-family-migration.md).
