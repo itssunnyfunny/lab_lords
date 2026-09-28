@@ -5,20 +5,17 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AppButton, AppPanel, ErrorState, PageLoadingSkeleton, PageShell } from "@/components/ui";
+import { appActionClassName } from "@/components/ui/AppButton";
 import { Badge } from "@/components/ui/Badge";
 import { formErrorBannerClass, formWarningBannerClass } from "@/components/ui/formSurface";
 import {
-    pageDescriptionClass,
     pageEmptyStateClass,
     pageEyebrowClass,
-    pageGridCardClass,
-    pageGridCardHoverClass,
     pageInsetMetricClass,
     pageMetaPillClass,
     pageSectionDescriptionClass,
     pageSectionTitleClass,
     pageSubtleTextClass,
-    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { analytics, OrganizationAnalyticsSnapshot } from "@/lib/api/analytics";
 import { BranchWithCounts, organizations } from "@/lib/api/organizations";
@@ -193,7 +190,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
     }
 
     return (
-        <PageShell>
+        <PageShell className="ui-record-page">
             {error && (
                 <div className={cn(formErrorBannerClass, "flex items-center gap-3 px-4 py-3 text-sm")}>
                     <AlertCircle size={16} className="shrink-0" />
@@ -201,25 +198,25 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 </div>
             )}
 
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <header className="ui-record-header">
                 <div className="min-w-0">
                     <div className={cn(pageEyebrowClass, "flex flex-wrap items-center gap-2")}>
                         <span>{t("Workspace entry")}</span>
                         <span className="h-1 w-1 rounded-full bg-[color:var(--text-muted)]" />
                         <span>
                             {snapshot
-                                ? `Analytics as of ${formatDateTime(snapshot.asOf)}`
+                                ? t("Analytics as of {date}", { date: formatDateTime(snapshot.asOf) })
                                 : t("Analytics unavailable")}
                         </span>
                     </div>
-                    <h1 className={cn(pageTitleClass, "mt-2")}>
+                    <h1>
                         {t("Open a branch dashboard")}</h1>
-                    <p className={pageDescriptionClass}>
+                    <p className="ui-record-description">
                         {t("Choose the branch you want to work in. Organization numbers are here only as quick context.")}</p>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    <AppButton
+                <div className="ui-record-actions">
+                    <AppButton density="compact"
                         onClick={loadDashboard}
                         variant="secondary"
                         icon={RefreshCw}
@@ -227,7 +224,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                         isLoading={snapshotRefreshing}
                     >
                         {t("Refresh")}</AppButton>
-                    <AppButton
+                    <AppButton density="compact"
                         onClick={() => setCreateDialogOpen(true)}
                         variant="primary"
                         icon={Plus}
@@ -239,18 +236,18 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
             {snapshotState.status === "stale" ? (
                 <div className={cn(formWarningBannerClass, "flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between")} role="status">
                     <span>{t("{reason} Showing analytics from {formatDateTime}.", { reason: snapshotState.reason, formatDateTime: formatDateTime(snapshotState.updatedAt) })}</span>
-                    <AppButton variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry analytics")}</AppButton>
+                    <AppButton density="compact" variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry analytics")}</AppButton>
                 </div>
             ) : snapshotState.status === "error" || snapshotState.status === "restricted" ? (
                 <div className={cn(formWarningBannerClass, "flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between")} role="status">
                     <span>{snapshotState.status === "error" ? snapshotState.message : snapshotState.reason}</span>
-                    <AppButton variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry analytics")}</AppButton>
+                    <AppButton density="compact" variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry analytics")}</AppButton>
                 </div>
             ) : snapshotRefreshing && snapshotUpdatedAt ? (
                 <div className={cn(formWarningBannerClass, "px-4 py-3 text-sm")} role="status">{t("Refreshing organization analytics. Current values are from {formatDateTime}.", { formatDateTime: formatDateTime(snapshotUpdatedAt) })}</div>
             ) : null}
 
-            <AppPanel
+            <AppPanel density="compact"
                 title={t("Choose branch")}
                 description={t("Select a branch to continue to students, payments, seats, shifts, and follow-ups.")}
                 action={
@@ -270,7 +267,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             <p className={cn(pageSubtleTextClass, "mt-1 max-w-sm text-xs leading-5")}>
                                 {t("Create your first branch to start using the operational dashboard.")}</p>
                         </div>
-                        <AppButton
+                        <AppButton density="compact"
                             onClick={() => setCreateDialogOpen(true)}
                             variant="primary"
                             size="sm"
@@ -295,31 +292,29 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                 <Link
                                     key={branch.id}
                                     href={`/branch/${branch.id}`}
-                                    aria-label={`Open ${branch.name} dashboard`}
+                                    aria-label={t("Open {name} dashboard", { name: branch.name })}
                                     className={cn(
-                                        "group relative isolate flex min-h-[214px] cursor-pointer overflow-hidden p-0 text-left transition-transform duration-200 hover:-translate-y-0.5",
-                                        pageGridCardClass,
-                                        pageGridCardHoverClass
+                                        "ui-panel--compact group relative isolate flex min-h-[214px] min-w-0 cursor-pointer overflow-hidden text-left transition-colors hover:border-[color:var(--ui-card-hover-border)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ui-focus-ring)]"
                                     )}
                                 >
                                     <span className="absolute inset-x-0 top-0 h-1 bg-[color:var(--ui-form-accent)]" />
 
                                     <div className="flex min-w-0 flex-1 flex-col justify-between p-5">
-                                        <div className="flex items-start justify-between gap-3">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="flex min-w-0 items-start gap-3">
                                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-sm font-semibold text-[color:var(--ui-form-accent)]">
                                                     {branch.name.slice(0, 1).toUpperCase()}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="truncate text-lg font-semibold text-[color:var(--text-primary)]">{branch.name}</p>
+                                                    <p className="break-words text-lg font-semibold text-[color:var(--text-primary)]">{branch.name}</p>
                                                     <p className={cn(pageSubtleTextClass, "mt-1 flex items-center gap-1.5 text-xs")}>
                                                         <MapPin size={12} />
-                                                        {branch.city || "City not set"}
+                                                        {branch.city || t("City not set")}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <Badge variant={status?.variant ?? "default"} className="shrink-0">
-                                                {status?.label ?? "Metrics unavailable"}
+                                            <Badge variant={status?.variant ?? "default"} className="self-start shrink-0">
+                                                {t.owned(status?.label ?? "Metrics unavailable")}
                                             </Badge>
                                         </div>
 
@@ -341,11 +336,11 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="mt-5 flex items-center justify-between gap-3">
+                                        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                                             <span className={cn(pageSubtleTextClass, "text-xs")}>
-                                                {branch.defaultFee ? `${formatMoney(branch.defaultFee)} default fee` : t("Fee not set")}
+                                                {branch.defaultFee ? t("{amount} default fee", { amount: formatMoney(branch.defaultFee) }) : t("Fee not set")}
                                             </span>
-                                            <span className="inline-flex items-center gap-1.5 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] transition-colors group-hover:bg-[color:var(--ui-button-primary-hover-bg)]">
+                                            <span className={cn(appActionClassName("primary"), "ml-auto whitespace-nowrap")}>
                                                 {t("Open dashboard")}<ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
                                             </span>
                                         </div>
@@ -408,7 +403,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
             </section>
 
             <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-                <AppPanel
+                <AppPanel density="compact"
                     title={t("Revenue coverage")}
                     description={t("Default branch fees and actual payment collection signal.")}
                 >
@@ -434,7 +429,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                     </div>
                 </AppPanel>
 
-                <AppPanel
+                <AppPanel density="compact"
                     title={t("Attention queue")}
                     description={t("Branches with overdue payment pressure.")}
                     contentClassName="p-0"
@@ -444,7 +439,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             <AlertCircle size={22} className="mx-auto text-[color:var(--ui-tone-warning-text)]" />
                             <p className="mt-3 text-sm font-medium text-[color:var(--text-primary)]">{t("Payment analytics unavailable")}</p>
                             <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>{t("The queue cannot be confirmed until analytics reloads.")}</p>
-                            <AppButton className="mt-3" variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry")}</AppButton>
+                            <AppButton density="compact" className="mt-3" variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry")}</AppButton>
                         </div>
                     ) : attentionBranches.length === 0 ? (
                         <div className="px-4 py-8 text-center">
@@ -474,7 +469,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                     )}
                 </AppPanel>
 
-                <AppPanel title={t("Setup footprint")} contentClassName="p-0">
+                <AppPanel density="compact" title={t("Setup footprint")} contentClassName="p-0">
                     <div className="divide-y divide-[color:var(--ui-form-section-divider)]">
                         <div className="flex items-center justify-between px-4 py-3">
                             <span className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">
