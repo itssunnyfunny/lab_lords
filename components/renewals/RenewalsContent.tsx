@@ -6,10 +6,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
-import { AppButton, AppPanel, AppSelect, Dialog, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, AppSelect, Dialog } from "@/components/ui";
+import { appActionClassName } from "@/components/ui/AppButton";
+import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
 import { Badge } from "@/components/ui/Badge";
 import { formControlClass } from "@/components/ui/formSurface";
-import { pageDescriptionClass, pageTitleClass } from "@/components/ui/pageSurface";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { ApprovedPaymentReminderReview } from "@/components/whatsapp/ApprovedPaymentReminderReview";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
@@ -72,36 +73,49 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
         return () => { window.removeEventListener("focus", refresh); window.removeEventListener("pageshow", refresh); };
     }, [load]);
 
-    return <PageShell>
-        <div className="space-y-6">
-            <header className="flex flex-wrap items-start justify-between gap-4">
-                <div><h1 className={pageTitleClass}>{t("Renewals & dues")}</h1>
-                    <p className={pageDescriptionClass}>{t("Upcoming fees, unpaid periods and your latest follow-ups.")}</p></div>
-                <AppButton variant="secondary" onClick={() => void load()} disabled={loading}>{t("Refresh")}</AppButton>
-            </header>
-            <p className="text-sm text-[color:var(--text-muted)]">{t("Expected fees are estimates, not confirmed debt. Fee dates do not indicate membership expiry.")}</p>
+    return <RecordListPage title={t("Renewals & dues")} description={t("Upcoming fees, unpaid periods and your latest follow-ups.")}
+        actions={<AppButton density="compact" variant="secondary" onClick={() => void load()} disabled={loading}>{t("Refresh")}</AppButton>}
+        notices={<><p className="text-sm text-[color:var(--text-muted)]">{t("Expected fees are estimates, not confirmed debt. Fee dates do not indicate membership expiry.")}</p>
+            {notice && <p role="status" className="text-sm">{t.owned(notice)}</p>}</>}
+        overlays={<>
+            {collect?.paymentId && <CollectFeeDialog key={collect.paymentId} branchId={branchId} studentId={collect.studentId}
+                paymentId={collect.paymentId} onClose={() => setCollect(null)} onSaved={() => { setReminder(null); void load(); }} />}
+            {editing && <FollowUpDialog key={editing.key} row={editing} branchId={branchId} onClose={() => setEditing(null)} onSaved={followUp => {
+                requestId.current++;
+                setLoading(false);
+                setPage(current => current ? { ...current, items: current.items.map(row => row.key === editing.key ? { ...row, followUp } : row) } : current);
+                setEditing(null); setNotice("Follow-up saved. The fee date is unchanged.");
+            }} />}
+            {reminder && <ReminderDialog key={reminder.key} row={reminder} branchId={branchId} canSend={send.allowed} blockedReason={send.reason ?? undefined}
+                onClose={() => setReminder(null)} />}
+        </>}>
             <div className="grid gap-3 sm:grid-cols-2">
-                <AppPanel title={t("Outstanding recorded dues")}><p className="text-2xl font-semibold">{page ? money(page.outstandingAmount) : "—"}</p></AppPanel>
-                <AppPanel title={t("Expected fees · today through next {days} days", { days })}><p className="text-2xl font-semibold">{page ? money(page.expectedAmount) : "—"}</p></AppPanel>
+                <AppPanel density="compact" title={t("Outstanding recorded dues")}><p className="text-2xl font-semibold tabular-nums">{page ? money(page.outstandingAmount) : "—"}</p></AppPanel>
+                <AppPanel density="compact" title={t("Expected fees · today through next {days} days", { days })}><p className="text-2xl font-semibold tabular-nums">{page ? money(page.expectedAmount) : "—"}</p></AppPanel>
             </div>
-            <div className="flex flex-wrap gap-2" aria-label={t("Fee filters")}>
-                {renewalFilters.map(value => <AppButton key={value} variant={filter === value ? "primary" : "secondary"}
+            <RecordListSurface label={t("Renewals & dues")} busy={loading} toolbar={<div className="w-full space-y-3">
+                <div className="flex flex-wrap gap-2" aria-label={t("Fee filters")}>
+                {renewalFilters.map(value => <AppButton density="compact" key={value} variant={filter === value ? "primary" : "secondary"}
                     aria-pressed={filter === value} onClick={() => setFilter(value)}>
                     {t.owned(labels[value])}{page ? ` (${page.counts[value]})` : ""}
                 </AppButton>)}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
                 <label className="space-y-1 text-sm">{t("Search by name or phone")}<input className={`${formControlClass} min-h-11 px-3 py-2`} type="search" maxLength={100} value={search}
                         onChange={event => setSearch(event.target.value)} placeholder={t("Student name or phone")} /></label>
                 <AppSelect label={t("Upcoming window")} value={String(days)} onValueChange={value => setDays(value === "3" ? 3 : 7)}
                     options={[{ value: "3", label: t("Next 3 days") }, { value: "7", label: t("Next 7 days") }]} />
-            </div>
-            <p className="text-xs text-[color:var(--text-muted)]">{t("Oldest fee date first. Counts reflect your search; overdue means more than 7 days late. Each period appears separately.")}</p>
-            {notice && <p role="status" className="text-sm">{t.owned(notice)}</p>}
-            {error && <div role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{t.error(error)} <AppButton variant="secondary" onClick={() => void load()}>{t("Retry")}</AppButton></div>}
-            {loading ? <p role="status" className="py-10 text-center">{t("Loading renewals & dues…")}</p>
-                : !error && page?.items.length === 0 ? <AppPanel title={t("No fees in this view")}><p>{t("Try another filter or search.")}</p></AppPanel>
-                : !error && page?.items.map(row => <AppPanel key={row.key} title={row.studentName}
+                </div>
+                <p className="text-xs text-[color:var(--text-muted)]">{t("Oldest fee date first. Counts reflect your search; overdue means more than 7 days late. Each period appears separately.")}</p>
+            </div>} footer={page && !loading && !error && <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm">{t("Showing {shown} of {total} periods", { shown: page.items.length, total: page.counts[filter] })}</p>
+                <div className="flex gap-2"><AppButton density="compact" variant="secondary" onClick={() => void load()}>{t("First page")}</AppButton>
+                    <AppButton density="compact" variant="secondary" disabled={!page.nextCursor} onClick={() => void load(page.nextCursor ?? undefined)}>{t("Next page")}</AppButton></div>
+            </div>}>
+            {loading ? <RecordListState kind="loading" title="Loading renewals & dues…" />
+                : error ? <RecordListState kind="error" title="Something went wrong" description={t.error(error)} onRetry={() => void load()} />
+                : page?.items.length === 0 ? <RecordListState kind="empty" title="No fees in this view" description="Try another filter or search." />
+                : <div className="grid gap-3">{page?.items.map(row => <AppPanel density="compact" key={row.key} title={row.studentName}
                     action={<Badge variant={row.expected ? "warning" : "cyan"}>{row.expected ? t("Expected fee") : t("Recorded due")}</Badge>}>
                     <div className="space-y-4">
                         <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -120,32 +134,17 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
                             <p className="mt-1">{t("Next follow-up: {date}", { date: row.followUp?.nextFollowUpAt ? formatDate(row.followUp.nextFollowUpAt) : t("Not scheduled") })}</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {access.permissions.students && <Link className="inline-flex min-h-11 items-center px-3 text-sm underline" href={getOverdueStudentHref(branchId, row.studentId)}>{t("Open student profile")}</Link>}
-                            {row.paymentId && <AppButton variant="primary" disabled={!record.allowed} title={record.reason ? t.error(record.reason) : undefined}
+                            {access.permissions.students && <Link className={appActionClassName("quiet")} href={getOverdueStudentHref(branchId, row.studentId)}>{t("Open student profile")}</Link>}
+                            {row.paymentId && <AppButton density="compact" variant="primary" disabled={!record.allowed} title={record.reason ? t.error(record.reason) : undefined}
                                 onClick={() => { setCollect(row); }}>{t("Collect fee")}</AppButton>}
-                            <AppButton variant="secondary" disabled={!record.allowed} title={record.reason ? t.error(record.reason) : undefined} onClick={() => setEditing(row)}>{t("Update follow-up")}</AppButton>
-                            <AppButton variant="secondary" onClick={() => setReminder(row)}>{t("Reminder options")}</AppButton>
+                            <AppButton density="compact" variant="secondary" disabled={!record.allowed} title={record.reason ? t.error(record.reason) : undefined} onClick={() => setEditing(row)}>{t("Update follow-up")}</AppButton>
+                            <AppButton density="compact" variant="secondary" onClick={() => setReminder(row)}>{t("Reminder options")}</AppButton>
                         </div>
                         {!record.allowed && <p className="text-xs text-[color:var(--text-muted)]">{t.error(record.reason)}</p>}
                     </div>
-                </AppPanel>)}
-            {page && !loading && !error && <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm">{t("Showing {shown} of {total} periods", { shown: page.items.length, total: page.counts[filter] })}</p>
-                <div className="flex gap-2"><AppButton variant="secondary" onClick={() => void load()}>{t("First page")}</AppButton>
-                    <AppButton variant="secondary" disabled={!page.nextCursor} onClick={() => void load(page.nextCursor ?? undefined)}>{t("Next page")}</AppButton></div>
-            </div>}
-        </div>
-        {collect?.paymentId && <CollectFeeDialog key={collect.paymentId} branchId={branchId} studentId={collect.studentId}
-            paymentId={collect.paymentId} onClose={() => setCollect(null)} onSaved={() => { setReminder(null); void load(); }} />}
-        {editing && <FollowUpDialog key={editing.key} row={editing} branchId={branchId} onClose={() => setEditing(null)} onSaved={followUp => {
-            requestId.current++;
-            setLoading(false);
-            setPage(current => current ? { ...current, items: current.items.map(row => row.key === editing.key ? { ...row, followUp } : row) } : current);
-            setEditing(null); setNotice("Follow-up saved. The fee date is unchanged.");
-        }} />}
-        {reminder && <ReminderDialog row={reminder} branchId={branchId} canSend={send.allowed} blockedReason={send.reason ?? undefined}
-            onClose={() => setReminder(null)} />}
-    </PageShell>;
+                </AppPanel>)}</div>}
+            </RecordListSurface>
+    </RecordListPage>;
 }
 
 function FollowUpDialog({ row, branchId, onClose, onSaved }: {
@@ -166,9 +165,9 @@ function FollowUpDialog({ row, branchId, onClose, onSaved }: {
         catch (err) { setError(err instanceof Error ? err.message : "Unable to save follow-up."); }
         finally { saving.current = false; setBusy(false); }
     }
-    return <Dialog open onClose={onClose} closeDisabled={busy} title={t("Follow-up · {name}", { name: row.studentName })}
+    return <Dialog density="compact" languagePlacement="header" overlayClassName="ui-record-edit-overlay" open onClose={onClose} closeDisabled={busy} title={t("Follow-up · {name}", { name: row.studentName })}
         description={t("Record the latest contact outcome. Scheduling a follow-up does not change the fee date.")}
-        footer={<><AppButton variant="quiet" onClick={onClose} disabled={busy}>{t("Cancel")}</AppButton><AppButton onClick={() => void save()} isLoading={busy}>{t("Save follow-up")}</AppButton></>}>
+        footer={<><AppButton density="compact" variant="quiet" onClick={onClose} disabled={busy}>{t("Cancel")}</AppButton><AppButton density="compact" variant="primary" onClick={() => void save()} isLoading={busy}>{t("Save follow-up")}</AppButton></>}>
         <div className="space-y-4">
             {error && <p role="alert">{t.error(error)}</p>}
             <AppSelect label={t("Contact outcome")} value={outcome} disabled={busy} onValueChange={value => setOutcome(value as FollowUpOutcome)}
@@ -195,7 +194,7 @@ function ReminderDialog({ row, branchId, canSend, blockedReason, onClose }: {
         try { await navigator.clipboard.writeText(text); setNotice(MANUAL_REMINDER_COPIED); }
         catch { setNotice("Copy failed. Select the message text and copy it manually."); }
     }
-    return <Dialog open onClose={onClose} title={t("Reminder · {name}", { name: row.studentName })} className="max-w-3xl">
+    return <Dialog density="compact" languagePlacement="header" open onClose={onClose} title={t("Reminder · {name}", { name: row.studentName })} className="max-w-3xl">
         <div className="space-y-5">
             {row.paymentId && <ApprovedPaymentReminderReview branchId={branchId} paymentIds={[row.paymentId]} canSend={canSend} blockedReason={blockedReason} />}
             <AppPanel title={t("Manual reminder")} description={t("When automated delivery is unavailable, review and copy for your normal contact channel. Copying does not send a message.")}>

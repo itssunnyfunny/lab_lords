@@ -501,7 +501,6 @@ function overdueRows() {
             phone: payment.student.phone,
             dueDate: payment.dueDate,
             amount: payment.amount - payment.collectedAmount - payment.waivedAmount,
-            daysOverdue: 48,
         }));
 }
 
