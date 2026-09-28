@@ -447,9 +447,7 @@ export default function OnboardingPage({
             <div className={cn(entryContentClass, "max-w-5xl")}>
                 <div className={cn(entryPanelClass, "grid overflow-hidden lg:grid-cols-[320px_minmax(0,1fr)]")}>
                     <aside className="border-b border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] p-5 lg:border-b-0 lg:border-r lg:p-6">
-                        <div className={cn(entryIconFrameClass, "h-11 w-11")}>
-                            <LogoMark className="h-9 w-9" title={t("Lab Lords logo")} />
-                        </div>
+                        <LogoMark className="h-11 w-[68px]" title={t("Lab Lords logo")} variant="botanical" />
                         <h1 className={cn(entryTitleClass, "mt-5")}>{t("Set up Lab Lords")}</h1>
                         <p className={cn(entrySubtitleClass, "mt-3")}>
                             {t("Create the organization, first branch, and preferred starting point for operational records.")}</p>

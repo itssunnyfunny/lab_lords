@@ -6,6 +6,7 @@ const evidence = "docs/redesign/application-rollout-evidence/guided";
 const sessionPath = "/branch/pilot/onboarding/import/session-pilot";
 const selectedCaptures = new Set([
     "onboarding-entry:desktop-1440",
+    "onboarding-entry:mobile-390",
     "onboarding-review:mobile-390",
     "onboarding-hi:mobile-320",
     "invite-review:mobile-390",
@@ -100,6 +101,7 @@ test("onboarding keeps four-step validation and staged trial request identity", 
     await page.goto("/onboarding?mode=after&lang=en");
     await expect(page.getByRole("heading", { level: 1, name: "Set up Lab Lords" })).toBeVisible();
     await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
+    await expect(page.getByRole("img", { name: "Lab Lords logo" })).toHaveAttribute("viewBox", "0 0 180 116");
     await expect(page.getByRole("heading", { level: 2, name: "Organization details" })).toBeVisible();
     await capture(page, info, "onboarding-entry");
     await expectNoHorizontalOverflow(page);
