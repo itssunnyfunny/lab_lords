@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Lock, Check, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SkeletonBlock } from "@/components/ui";
+import { Badge } from "@/components/ui/Badge";
 import { formErrorBannerClass } from "@/components/ui/formSurface";
 import {
     pickerCheckBoxClass,
@@ -13,7 +14,6 @@ import {
     pickerChoiceCardDisabledClass,
     pickerChoiceCardIdleClass,
     pickerChoiceCardSelectedClass,
-    pickerChoiceCardSelectedWarningClass,
     pickerDividerClass,
     pickerGroupLabelClass,
     pickerHintClass,
@@ -264,7 +264,7 @@ export function SeatPicker({
                         {primaryShifts.length > 0 && (
                             <div className="space-y-2">
                                 <p className={pickerGroupLabelClass}>
-                                    <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ui-badge-warning-text)]" />
+                                    <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ui-badge-cyan-text)]" />
                                     {t("Primary shifts")}</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {primaryShifts.map(shift => (
@@ -424,7 +424,7 @@ function ShiftCard({
                     ? pickerChoiceCardDisabledClass
                     : isSelected
                         ? isMulti
-                            ? pickerChoiceCardSelectedWarningClass
+                            ? "cursor-pointer border-[color:var(--ui-badge-purple-border)] bg-[color:var(--ui-badge-purple-bg)] text-[color:var(--ui-badge-purple-text)]"
                             : pickerChoiceCardSelectedClass
                         : pickerChoiceCardIdleClass
             )}
@@ -437,7 +437,7 @@ function ShiftCard({
                     pickerCheckBoxClass,
                     isSelected
                         ? isMulti
-                            ? "border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-text)] text-[color:var(--bg-app)]"
+                            ? "border-[color:var(--ui-badge-purple-border)] bg-[color:var(--ui-badge-purple-text)] text-[color:var(--bg-app)]"
                             : "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-text)] text-[color:var(--bg-app)]"
                         : "border-[color:var(--ui-form-input-border)] bg-[color:var(--ui-form-input-bg)]"
                 )}>
@@ -449,11 +449,10 @@ function ShiftCard({
             <div className="mb-1 pr-6">
                 <div className="flex items-center gap-1.5 mb-0.5">
                     {isMulti ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ui-badge-warning-border)] bg-[color:var(--ui-badge-warning-bg)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[color:var(--ui-badge-warning-text)]">
-                            <Layers size={8} />  {t("MULTI-SHIFT")}</span>
+                        <Badge variant="purple" className="gap-1">
+                            <Layers size={11} aria-hidden="true" /> {t("MULTI-SHIFT")}</Badge>
                     ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[color:var(--ui-badge-cyan-text)]">
-                            {t("PRIMARY")}</span>
+                        <Badge variant="cyan">{t("PRIMARY")}</Badge>
                     )}
                 </div>
 

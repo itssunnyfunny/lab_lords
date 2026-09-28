@@ -59,12 +59,22 @@ describe("buildTopSearchResults", () => {
         const actions = groups.find(group => group.id === "actions")?.results ?? [];
 
         expect(actions.map(action => action.title)).toEqual([
+            "Follow-ups",
+            "Exports & Reports",
             "Add Student",
             "Assign Seat",
             "Seats & Maps",
-            "Payments",
         ]);
         expect(groups).toHaveLength(1);
+    });
+
+    it("finds the new authorized work destinations without granting task management", () => {
+        const access = { permissions: permissions(["view_payments"]) };
+        for (const [query, title, path] of [["follow", "Follow-ups", "follow-ups"], ["csv", "Exports & Reports", "reports"]]) {
+            const results = buildTopSearchResults({ branchId, query, access }).flatMap(group => group.results);
+            expect(results).toContainEqual(expect.objectContaining({ title, href: `/branch/${branchId}/${path}` }));
+        }
+        expect(buildTopSearchResults({ branchId, query: "tasks", access }).flatMap(group => group.results)).toEqual([]);
     });
 
     it("handles missing optional fields while matching available record data", () => {

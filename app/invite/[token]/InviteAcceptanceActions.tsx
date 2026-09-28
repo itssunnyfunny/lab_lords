@@ -7,11 +7,12 @@ import { ArrowRight, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AppButton } from "@/components/ui";
+import { appActionClassName } from "@/components/ui/AppButton";
+import { formErrorBannerClass } from "@/components/ui/formSurface";
 import {
     entryInlineInfoClass,
     entryMutedTextClass,
-    entryPrimaryLinkClass,
-    entrySecondaryLinkClass,
 } from "@/components/ui/entrySurface";
 import { cn } from "@/lib/utils";
 
@@ -80,40 +81,36 @@ export function InviteAcceptanceActions({
             {error && (
                 <div
                     role="alert"
-                    className="rounded-[var(--ui-radius-control)] border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-[#a52e2e]"
+                    className={cn(formErrorBannerClass, "px-4 py-3 text-sm")}
                 >
                     <LocalizedError error={error} />
                 </div>
             )}
 
             <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                    type="button"
+                <AppButton
+                    density="compact"
+                    variant="primary"
                     onClick={acceptInvite}
                     disabled={accepting || switching}
-                    className={cn(
-                        entryPrimaryLinkClass,
-                        "w-full disabled:cursor-not-allowed disabled:opacity-60"
-                    )}
+                    className="w-full"
                 >
                     <ArrowRight size={16} />
                     {accepting ? t("Accepting invite...") : t("Accept invite")}
-                </button>
-                <button
-                    type="button"
+                </AppButton>
+                <AppButton
+                    density="compact"
+                    variant="secondary"
                     onClick={switchAccount}
                     disabled={accepting || switching}
-                    className={cn(
-                        entrySecondaryLinkClass,
-                        "w-full disabled:cursor-not-allowed disabled:opacity-60"
-                    )}
+                    className="w-full"
                 >
                     <LogOut size={16} />
                     {switching ? t("Switching...") : t("Switch account")}
-                </button>
+                </AppButton>
             </div>
 
-            <Link href="/app" className="block min-h-11 text-center text-sm font-medium leading-[2.75rem] text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]">
+            <Link href="/app" className={cn(appActionClassName("quiet"), "min-h-11 w-full")}>
                 {t("Decline invite and return to workspaces")}</Link>
         </div>
     );

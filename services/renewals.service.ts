@@ -166,13 +166,15 @@ export class RenewalsService {
                     throw new RenewalInputError("This fee is no longer in the queue. Refresh and try again.");
                 }
             }
-            const values = { note: data.note, outcome: data.outcome,
+            const values = { note: data.note, outcome: data.outcome, completedAt: null,
                 nextFollowUpAt: data.nextFollowUpAt ? parseISO(data.nextFollowUpAt) : null, authorId: actorId };
             const saved = await tx.renewalFollowUp.upsert({
                 where: { studentId_type_periodStart: { studentId: student.id, type: data.type, periodStart } },
                 create: { branchId, studentId: student.id, type: data.type, periodStart, ...values },
                 update: values, select: followUpSelect,
             });
+            await tx.dashboardEvent.create({ data: { branchId, actorId, kind: "FOLLOW_UP",
+                sourceId: renewalKey(student.id, data.type, periodStart), detail: "UPDATED" } });
             return { note: saved.note, outcome: saved.outcome, nextFollowUpAt: saved.nextFollowUpAt?.toISOString() ?? null,
                 updatedAt: saved.updatedAt.toISOString(), author: saved.author } as RenewalFollowUp;
         });

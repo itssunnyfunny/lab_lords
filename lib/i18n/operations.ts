@@ -12,6 +12,7 @@ export const operations = {
     "Reference (optional)": ["पेमेंट रेफरेंस (ज़रूरी नहीं)", "Payment reference (optional)"],
     "Note (shown on receipt, optional)": ["नोट (रसीद पर दिखेगा, ज़रूरी नहीं)", "Note (receipt par dikhega, optional)"],
     "Selected outstanding balance: ₹{amount}": ["चुनी गई बकाया फीस: ₹{amount}", "Selected pending fee: ₹{amount}"],
+    "Expected student balance after confirmation: ₹{amount}": ["पुष्टि के बाद छात्र की अनुमानित बाकी फीस: ₹{amount}", "Confirm hone ke baad student ki expected baaki fee: ₹{amount}"],
     "Fee ₹{fee} · Collected ₹{collected} · Waived ₹{waived} · Remaining ₹{remaining}": ["फीस ₹{fee} · मिली ₹{collected} · माफ ₹{waived} · बाकी ₹{remaining}", "Fee ₹{fee} · Mili ₹{collected} · Maaf ₹{waived} · Baaki ₹{remaining}"],
     "{date}: apply ₹{amount} · ₹{remaining} remains": ["{date}: ₹{amount} जुड़ेंगे · ₹{remaining} बाकी रहेंगे", "{date}: ₹{amount} judenge · ₹{remaining} baaki rahenge"],
     "· Partially paid": ["· कुछ फीस मिली है", "· Kuch fee mili hai"],

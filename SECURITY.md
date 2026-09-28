@@ -14,6 +14,25 @@ reporting-contact document, response-time commitment, or remediation SLA.
 No risks are accepted by default. A known limitation remains unresolved until a
 human owner explicitly resolves it or approves a documented decision.
 
+## Dashboard operational surfaces
+
+Branch dashboard aggregates and new task, expectation, membership-term,
+snapshot and notification routes reuse `AccessPolicy`. Manual tasks and
+utilization settings map to manage_branch; expectation/term writes additionally
+require students. Existing follow-up writes retain paymentsRecord. Snapshot
+writes require seat_allocation. Every write rechecks scope, action and branch
+writability in its transaction. Aggregate sources are permission-shaped and
+the advanced chart also checks ADVANCED_ANALYTICS and view_payments.
+
+Notification state is bound to the authenticated user, branch and a currently
+authorized source-condition key; acknowledging an old key cannot acknowledge a
+new condition. Personal acknowledgement never resolves debt, attendance or
+membership work. Terms and expectations do not alter billing, student status or
+SaaS entitlement. No external provider action is introduced. Dashboard mutation
+routes reject cross-origin requests, non-JSON bodies and oversized requests.
+Activity and snapshot history must use recorded evidence, not inferred past
+events. See [dashboard operations](docs/ai/dashboard-operations.md).
+
 ## System and review scope
 
 Lab Lords is an internet-facing, multi-tenant Next.js application designed for

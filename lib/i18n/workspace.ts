@@ -1,5 +1,6 @@
 /** Workspace navigation, queues and shared operational feedback. */
 export const workspaceMessages = {
+    "Clear filters": ["फ़िल्टर हटाएँ", "Filters hataein"],
     "Collected ₹{collected} · Waived ₹{waived} · Remaining ₹{remaining}": ["मिली ₹{collected} · माफ़ ₹{waived} · बाकी ₹{remaining}", "Mili ₹{collected} · Maaf ₹{waived} · Baaki ₹{remaining}"],
     " · Partially paid": [" · कुछ फीस मिली है", " · Kuch fee mili hai"],
     "Hindi / Hinglish": ["हिंदी / हिंग्लिश", "Hindi / Hinglish"],
@@ -136,6 +137,14 @@ export const workspaceMessages = {
     "Organization branches unavailable": ["संगठन की ब्रांचें उपलब्ध नहीं हैं", "Organization ki branches available nahi hain"],
     "Workspace entry": ["कार्यक्षेत्र में जाएँ", "Workspace mein jaayein"],
     "Analytics unavailable": ["आँकड़े उपलब्ध नहीं हैं", "Analytics available nahi hain"],
+    "Analytics as of {date}": ["{date} तक के आँकड़े", "{date} tak ke analytics"],
+    "Underused": ["कम उपयोग", "Kam upyog"],
+    "Balanced": ["संतुलित", "Santulit"],
+    "Near capacity": ["लगभग पूरा", "Lagbhag poora"],
+    "Metrics unavailable": ["आँकड़े उपलब्ध नहीं हैं", "Metrics available nahi hain"],
+    "City not set": ["शहर तय नहीं है", "City set nahi hai"],
+    "Open {name} dashboard": ["{name} का डैशबोर्ड खोलें", "{name} ka dashboard kholein"],
+    "{amount} default fee": ["तय फीस {amount}", "Default fee {amount}"],
     "Open a branch dashboard": ["ब्रांच का डैशबोर्ड खोलें", "Branch dashboard kholein"],
     "Choose the branch you want to work in. Organization numbers are here only as quick context.": ["जिस ब्रांच में काम करना है उसे चुनें। संगठन के आँकड़े सिर्फ संक्षिप्त जानकारी के लिए हैं।", "Jis branch mein kaam karna hai use chunein. Organization ke numbers sirf chhoti jaankari ke liye hain."],
     "Create branch": ["ब्रांच बनाएँ", "Branch banayein"],

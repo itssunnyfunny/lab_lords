@@ -1,0 +1,23 @@
+{
+  "phase": "after",
+  "viewport": {
+    "width": 390,
+    "height": 2000,
+    "scale": 1
+  },
+  "cards": [
+    {
+      "name": "Aarav Mehta",
+      "height": 209
+    },
+    {
+      "name": "Nisha Verma",
+      "height": 209
+    },
+    {
+      "name": "Meera Singh",
+      "height": 209
+    }
+  ],
+  "errors": []
+}

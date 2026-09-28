@@ -17,7 +17,7 @@ export function AccountSidebar() {
         <aside className={chromeOrgSidebarClass} aria-label={t("Account navigation")}>
             <div className={chromeSidebarHeaderClass}>
                 <Link href="/app" aria-label={t("Open workspace home")}>
-                    <AppLogo subtitle={t("Account")} markClassName="h-10 w-10" />
+                    <AppLogo subtitle={t("Account")} markVariant="botanical" markClassName="h-10 w-[62px]" />
                 </Link>
             </div>
             <nav className="flex-1 space-y-2 p-6" aria-label={t("Account")}>

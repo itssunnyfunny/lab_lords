@@ -30,22 +30,24 @@ export function Avatar({
     name,
     size = "md",
     className,
+    tone = "colorful",
 }: {
     name: string;
     size?: keyof typeof avatarSizes;
     className?: string;
+    tone?: "colorful" | "quiet";
 }) {
     return (
         <span
             aria-hidden="true"
             className={cn(
-                "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border bg-gradient-to-br font-bold tracking-wide shadow-[0_8px_24px_rgba(6,182,212,0.12)]",
+                "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border font-bold tracking-wide",
                 avatarSizes[size],
-                paletteFor(name),
+                tone === "quiet" ? "ui-avatar--quiet" : cn("bg-gradient-to-br shadow-[0_8px_24px_rgba(6,182,212,0.12)]", paletteFor(name)),
                 className
             )}
         >
-            <span className="absolute inset-[1px] rounded-full bg-[radial-gradient(circle_at_28%_20%,rgba(255,255,255,0.22),transparent_38%)]" />
+            {tone === "colorful" && <span className="absolute inset-[1px] rounded-full bg-[radial-gradient(circle_at_28%_20%,rgba(255,255,255,0.22),transparent_38%)]" />}
             <span className="relative">{initials(name)}</span>
         </span>
     );

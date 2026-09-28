@@ -7,24 +7,20 @@ import { AlertCircle, ArrowRight, Building2, CreditCard, LayoutGrid, RefreshCw, 
 import { analytics, type OrganizationAnalyticsSnapshot } from "@/lib/api/analytics";
 import { Badge } from "@/components/ui/Badge";
 import { AppButton, AppPanel, ErrorState, PageLoadingSkeleton, PageShell } from "@/components/ui";
+import { RecordListSurface, RecordListState } from "@/components/ui/RecordList";
 import { DataTable } from "@/components/tables/DataTable";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { getUtilizationStatus } from "@/lib/utilizationStatus";
 import { cn } from "@/lib/utils";
 import { formWarningBannerClass } from "@/components/ui/formSurface";
 import {
-    pageDescriptionClass,
-    pageEyebrowClass,
     pageGridCardClass,
     pageGridCardHoverClass,
     pageInsetMetricClass,
     pageMetaPillClass,
     pageMutedTextClass,
     pageProgressTrackClass,
-    pageSectionDescriptionClass,
-    pageSectionTitleClass,
     pageSubtleTextClass,
-    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
 import { FeatureUpgradeGate } from "@/components/billing/FeatureUpgradeGate";
@@ -155,21 +151,21 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     const branchCount = snapshot.organization.totalBranches;
 
     return (
-        <PageShell>
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <PageShell className="ui-record-page">
+            <header className="ui-record-header">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>{t("Organization analytics")}</p>
-                    <h1 className={cn(pageTitleClass, "mt-2")}>{t("Cross-branch health")}</h1>
-                    <p className={pageDescriptionClass}>
+                    <p className="ui-record-eyebrow">{t("Organization analytics")}</p>
+                    <h1>{t("Cross-branch health")}</h1>
+                    <p className="ui-record-description">
                         {t("Compare locations quickly, then move into the branch that needs work.")}</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="ui-record-actions items-center">
                     <span className={pageMetaPillClass}>
                         {t("Updated")} {snapshot.asOf || updatedAt ? formatDateTime(snapshot.asOf || updatedAt || "") : t("just now")}
                     </span>
                     <AppButton
                         variant="quiet"
-                        size="sm"
+                        density="compact"
                         icon={RefreshCw}
                         isLoading={snapshotState.status === "loading"}
                         onClick={() => setRefreshKey(key => key + 1)}
@@ -226,7 +222,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
             </div>
 
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                <AppPanel title={t("Seat health")} description={t("How tightly the organization is using available slots.")}>
+                <AppPanel density="compact" title={t("Seat health")} description={t("How tightly the organization is using available slots.")}>
                     <div className="space-y-4">
                         <div className="flex items-end justify-between gap-4">
                             <div>
@@ -246,14 +242,14 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                     </div>
                 </AppPanel>
 
-                <AppPanel title={t("Student mix")} description={t("Active vs inactive profile balance.")}>
+                <AppPanel density="compact" title={t("Student mix")} description={t("Active vs inactive profile balance.")}>
                     <div className="grid grid-cols-2 gap-3">
                         <CompactStat label={t("Active")} value={snapshot.students.active} tone="success" />
                         <CompactStat label={t("Inactive")} value={snapshot.students.inactive} tone="neutral" />
                     </div>
                 </AppPanel>
 
-                <AppPanel title={t("Payments")} description={t("Open pressure without burying the page in finance detail.")}>
+                <AppPanel density="compact" title={t("Payments")} description={t("Open pressure without burying the page in finance detail.")}>
                     <div className="grid grid-cols-2 gap-3">
                         <CompactStat label={t("Paid")} value={snapshot.payments.paidCount} tone="success" />
                         <CompactStat label={t("Due")} value={snapshot.payments.dueCount} tone="danger" />
@@ -265,21 +261,20 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                 </AppPanel>
             </div>
 
-            <section className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h2 className={pageSectionTitleClass}>{t("Branch breakdown")}</h2>
-                        <p className={pageSectionDescriptionClass}>
-                            {t("Scan health, then open the branch dashboard for action.")}</p>
+            <RecordListSurface label={t("Branch breakdown")} toolbar={<>
+                    <div className="min-w-0">
+                        <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Branch breakdown")}</h2>
+                        <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Scan health, then open the branch dashboard for action.")}</p>
                     </div>
                     <span className={pageMetaPillClass}>{t("{formatNumber} branches", { formatNumber: formatNumber(rows.length) })}</span>
-                </div>
+                </>}>
+                {rows.length === 0 ? <RecordListState kind="empty" title="No branches available for analytics." /> :
                 <DataTable
+                    density="compact"
                     caption="Branch analytics"
                     data={rows}
-                    emptyMessage={t("No branches available for analytics.")}
                     columns={[
-                        { header: "Branch", accessor: "branchName", className: "font-medium text-[color:var(--text-primary)]" },
+                        { header: "Branch", accessor: "branchName", rowHeader: true, className: "font-medium text-[color:var(--text-primary)]" },
                         { header: "Active / Total", accessor: "students" },
                         { header: "Seated / Active", accessor: "seated" },
                         {
@@ -307,15 +302,15 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                     actions={(item) => (
                         <AppButton
                             variant="secondary"
-                            size="sm"
+                            density="compact"
                             onClick={() => router.push(`/branch/${item.branchId}/analytics`)}
                             rightIcon={ArrowRight}
                             className="whitespace-nowrap"
                         >
                             {t("Open")}</AppButton>
                     )}
-                />
-            </section>
+                />}
+            </RecordListSurface>
         </PageShell>
     );
 }
@@ -370,48 +365,28 @@ function BranchAnalyticsCard({ item, onOpen }: { item: BranchAnalyticsRow; onOpe
     const { formatNumber } = useUserPreferences();
 
     return (
-        <button
-            type="button"
-            onClick={onOpen}
-            className={cn(
-                "group flex min-h-[220px] w-full cursor-pointer flex-col justify-between text-left",
-                pageGridCardClass,
-                pageGridCardHoverClass
-            )}
-        >
-            <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-[color:var(--text-primary)]">{item.branchName}</p>
-                        <p className={cn(pageSubtleTextClass, "mt-1 text-xs")}>{t("{students} students", { students: item.students })}</p>
-                    </div>
-                    <Badge variant={getUtilizationStatus(item.utilization * 100).tone}>{percent(item.utilization, formatNumber)}</Badge>
+        <article className={cn(pageGridCardClass, pageGridCardHoverClass, "ui-record-card")}>
+            <div className="ui-record-card-identity">
+                <div className="min-w-0 flex-1">
+                    <p className="ui-record-card-name">{item.branchName}</p>
+                    <p className="ui-record-card-meta">{t("{students} students", { students: item.students })}</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <div className={pageInsetMetricClass}>
-                        <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Collected")}</p>
-                        <p className="mt-1 truncate text-sm font-semibold text-[color:var(--ui-tone-success-text)]">
-                            {money(item.paidAmount, formatNumber)}
-                        </p>
-                    </div>
-                    <div className={pageInsetMetricClass}>
-                        <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Due")}</p>
-                        <p className="mt-1 truncate text-sm font-semibold text-[color:var(--ui-tone-danger-text)]">
-                            {money(item.dueAmount, formatNumber)}
-                        </p>
-                    </div>
+                <Badge variant={getUtilizationStatus(item.utilization * 100).tone}>{percent(item.utilization, formatNumber)}</Badge>
+            </div>
+            <div className="ui-record-card-context">
+                <span>{t("Seated / Active")}: {item.seated}</span>
+            </div>
+            <div className="ui-record-card-summary">
+                <p className="ui-record-card-due text-[color:var(--ui-tone-success-text)]">{t("Collected")}: {money(item.paidAmount, formatNumber)}</p>
+                <p className="font-semibold text-[color:var(--ui-tone-danger-text)]">{t("Due")}: {money(item.dueAmount, formatNumber)}</p>
+                <p className="ui-record-card-joined">
+                    {item.overdueCount > 0 ? t("{count} overdue payments", { count: item.overdueCount }) : t("No overdue payments")}
+                </p>
+                <div className="mt-3">
+                    <AppButton variant="secondary" density="compact" rightIcon={ArrowRight} onClick={onOpen}>
+                        {t("Open analytics")}</AppButton>
                 </div>
             </div>
-
-            <div className="mt-5 flex items-center justify-between gap-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
-                <span className={cn(pageMutedTextClass, "text-xs")}>
-                    {item.overdueCount > 0 ? `${formatNumber(item.overdueCount)} overdue` : t("No overdue payments")}
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)]">
-                    {t("Open analytics")}<ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
-                </span>
-            </div>
-        </button>
+        </article>
     );
 }

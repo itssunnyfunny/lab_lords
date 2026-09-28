@@ -1,0 +1,56 @@
+[
+  {
+    "key": "dashboard",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 1573005
+  },
+  {
+    "key": "header",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 153972
+  },
+  {
+    "key": "actions",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 233402
+  },
+  {
+    "key": "metrics",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 130754
+  },
+  {
+    "key": "collections",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 181812
+  },
+  {
+    "key": "seating",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 119232
+  },
+  {
+    "key": "activity",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 72240
+  },
+  {
+    "key": "quick",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 68880
+  },
+  {
+    "key": "worklists",
+    "sameSize": true,
+    "differingPixels": 0,
+    "totalPixels": 171672
+  }
+]

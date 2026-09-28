@@ -149,7 +149,7 @@ export function RowsStep({
 
     return (
         <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-            <AppPanel
+            <AppPanel density="compact"
                 title={t("Rows")}
                 description={detail.rowPage ? `${detail.rowPage.returnedRows} of ${detail.rowPage.filteredRows}` : t("Paged staging rows")}
                 action={
@@ -183,7 +183,7 @@ export function RowsStep({
                         <span className={cn("text-xs", pageMutedTextClass)} role="status" aria-live="polite">{t("{count} selected", { count: selectedVisibleIds.length })}</span>
                     </div>
                     <div className="flex flex-wrap gap-2" role="group" aria-label={t("Selected row actions")}>
-                        <AppButton
+                        <AppButton density="compact"
                             size="sm"
                             variant="secondary"
                             disabled={bulkActionsDisabled || selectedVisibleIds.length === 0}
@@ -192,7 +192,7 @@ export function RowsStep({
                             onClick={() => void runSelectedBulkAction(true)}
                         >
                             {t("Skip selected")}</AppButton>
-                        <AppButton
+                        <AppButton density="compact"
                             size="sm"
                             variant="quiet"
                             disabled={bulkActionsDisabled || selectedVisibleIds.length === 0}
@@ -202,12 +202,12 @@ export function RowsStep({
                         >
                             {t("Unskip selected")}</AppButton>
                         {selectedVisibleIds.length > 0 && (
-                            <AppButton size="sm" variant="quiet" disabled={saving} onClick={() => setSelectedRowIds(new Set())}>
+                            <AppButton density="compact" size="sm" variant="quiet" disabled={saving} onClick={() => setSelectedRowIds(new Set())}>
                                 {t("Clear selection")}</AppButton>
                         )}
                     </div>
                     {dirty && (
-                        <p id="import-row-bulk-blocked" className="text-xs text-amber-200" role="status">
+                        <p id="import-row-bulk-blocked" className="text-xs text-[color:var(--ui-tone-warning-text)]" role="status">
                             {t("Save or reset the open row before applying a bulk action.")}</p>
                     )}
 
@@ -220,7 +220,7 @@ export function RowsStep({
                             </div>
                             <p className={cn("text-xs leading-5", pageMutedTextClass)}>{t("Apply to every unresolved row with issue code {replace}, including rows not loaded in this list.", { replace: activeIssue.code.replace(/_/g, " ") })}</p>
                             <div className="flex flex-wrap gap-2" role="group" aria-label={`All rows affected by ${activeIssue.label}`}>
-                                <AppButton
+                                <AppButton density="compact"
                                     size="sm"
                                     variant="secondary"
                                     disabled={bulkActionsDisabled}
@@ -228,7 +228,7 @@ export function RowsStep({
                                     isLoading={pendingBulkAction === "ISSUE_SKIP"}
                                     onClick={() => void runAffectedBulkAction(true)}
                                 >{t("Skip all {count} affected", { count: activeIssue.count })}</AppButton>
-                                <AppButton
+                                <AppButton density="compact"
                                     size="sm"
                                     variant="quiet"
                                     disabled={bulkActionsDisabled}
@@ -254,7 +254,7 @@ export function RowsStep({
                             <div
                                 key={row.id}
                                 className={cn(
-                                    "mb-2 flex w-full overflow-hidden rounded-[8px] border text-left transition-colors hover:bg-white/[0.04]",
+                                    "mb-2 flex w-full overflow-hidden rounded-[var(--ui-radius-control)] border text-left transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)]",
                                     selected
                                         ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
                                         : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]"
@@ -298,20 +298,20 @@ export function RowsStep({
                         );
                     })}
                     {detail.rowPage?.hasMore && (
-                        <AppButton className="mt-2 w-full" size="sm" variant="secondary" onClick={onLoadMore} isLoading={saving}>
+                        <AppButton density="compact" className="mt-2 w-full" size="sm" variant="secondary" onClick={onLoadMore} isLoading={saving}>
                             {t("Load more rows")}</AppButton>
                     )}
                 </div>
             </AppPanel>
 
             <div className="space-y-5">
-                <AppPanel
+                <AppPanel density="compact"
                     title={selectedRow ? `Row ${selectedRow.rowNumber}` : t("Select a row")}
                     description={selectedRow ? rowTitle(selectedRow) : t("Choose a row from the left list.")}
                     action={selectedRow && selectedDraft ? (
                         <div className="flex flex-wrap gap-2">
                             {dirty && <Badge variant="warning">{t("Unsaved")}</Badge>}
-                            <AppButton
+                            <AppButton density="compact"
                                 size="sm"
                                 variant="primary"
                                 icon={Save}
@@ -321,7 +321,7 @@ export function RowsStep({
                                 isLoading={saving}
                             >
                                 {t("Save")}</AppButton>
-                            <AppButton size="sm" variant="quiet" icon={RotateCcw} onClick={onResetRow} disabled={saving}>
+                            <AppButton density="compact" size="sm" variant="quiet" icon={RotateCcw} onClick={onResetRow} disabled={saving}>
                                 {t("Reset")}</AppButton>
                         </div>
                     ) : null}
@@ -331,7 +331,7 @@ export function RowsStep({
                     ) : (
                         <div className="space-y-5">
                             {dirty && (
-                                <div id="import-row-unsaved" className="rounded-[8px] border border-amber-400/25 bg-amber-400/10 p-3 text-xs text-amber-100" role="status">
+                                <div id="import-row-unsaved" className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] p-3 text-xs text-[color:var(--ui-tone-warning-text)]" role="status">
                                     {t("This row has unsaved edits. Save or reset it before switching rows, filters, or steps.")}</div>
                             )}
                             <div className="grid gap-4 lg:grid-cols-2">
@@ -372,7 +372,7 @@ export function RowsStep({
                                     {t("If this row has no payment override, payment generation uses the student monthly fee. Open the override only when this row has a different amount, paid status, method, or reference.")}</p>
                             </div>}
 
-                            {goal === "FULL" && <details className={cn("group rounded-[8px] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]")}>
+                            {goal === "FULL" && <details className={cn("group rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]")}>
                                 <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[color:var(--text-primary)]">
                                     {t("Row payment override")}<span className={cn("ml-2 text-xs font-normal", pageMutedTextClass)}>
                                         {t("Optional row-level amount/status correction")}</span>
@@ -418,7 +418,7 @@ export function RowsStep({
                             </details>}
 
                             <div className="flex flex-wrap items-center gap-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
-                                <AppButton
+                                <AppButton density="compact"
                                     variant="primary"
                                     icon={Save}
                                     onClick={onSaveAndNext}
@@ -427,7 +427,7 @@ export function RowsStep({
                                     isLoading={saving}
                                 >
                                     {t("Save & next")}</AppButton>
-                                {goal !== "STUDENTS" && <AppButton
+                                {goal !== "STUDENTS" && <AppButton density="compact"
                                     variant="secondary"
                                     icon={UserRoundCheck}
                                     onClick={onImportStudentOnly}
@@ -436,7 +436,7 @@ export function RowsStep({
                                     isLoading={saving}
                                 >
                                     {t("Import student only")}</AppButton>}
-                                <AppButton
+                                <AppButton density="compact"
                                     variant="quiet"
                                     icon={Pencil}
                                     onClick={onSkipRow}
@@ -456,12 +456,12 @@ export function RowsStep({
                     )}
                 </AppPanel>
 
-                <AppPanel title={t("Row checks")} description={t("Validation checks for the selected row.")}>
+                <AppPanel density="compact" title={t("Row checks")} description={t("Validation checks for the selected row.")}>
                     <IssueList issues={liveIssues} />
                 </AppPanel>
 
                 {goal === "FULL" && rowPreview?.paymentPreview && (
-                    <AppPanel title={t("Payment preview")} description={rowPreview.paymentPreview.enabled ? t("Payment impact for this row.") : t("Payments are currently skipped or incomplete.")}>
+                    <AppPanel density="compact" title={t("Payment preview")} description={rowPreview.paymentPreview.enabled ? t("Payment impact for this row.") : t("Payments are currently skipped or incomplete.")}>
                         <div className="grid gap-3 sm:grid-cols-4">
                             <div className={cn("p-3", pageInsetSurfaceClass)}>
                                 <p className={cn("text-xs", pageMutedTextClass)}>{t("Amount")}</p>
@@ -484,13 +484,13 @@ export function RowsStep({
                     </AppPanel>
                 )}
 
-                <AppPanel title={t("Raw source")} description={t("Original values from the uploaded file.")}>
+                <AppPanel density="compact" title={t("Raw source")} description={t("Original values from the uploaded file.")}>
                     {!selectedRow ? (
                         <p className={pageMutedTextClass}>{t("Select a row.")}</p>
                     ) : (
                         <AccessibleTableScroll
                             label={`Raw source values for row ${selectedRow.rowNumber}`}
-                            className="rounded-[8px] border border-[color:var(--ui-table-border)]"
+                            className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-table-border)]"
                         >
                             <table className="w-full min-w-[540px] text-left text-xs">
                                 <caption className="sr-only">{t("Raw source values for row {rowNumber}", { rowNumber: selectedRow.rowNumber })}</caption>

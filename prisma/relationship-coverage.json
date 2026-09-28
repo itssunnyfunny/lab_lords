@@ -222,6 +222,166 @@
     "nullable": true
   },
   {
+    "model": "DashboardSettings",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceExpectation",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AttendanceExpectation",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "MembershipTerm",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "MembershipTerm",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "OccupancySnapshot",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "DashboardTask",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "DashboardTask",
+    "field": "creator",
+    "parent": "User",
+    "fields": [
+      "creatorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "DashboardTask",
+    "field": "assignee",
+    "parent": "User",
+    "fields": [
+      "assigneeId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": true
+  },
+  {
+    "model": "DashboardNotificationState",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "DashboardNotificationState",
+    "field": "user",
+    "parent": "User",
+    "fields": [
+      "userId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "DashboardEvent",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "DashboardEvent",
+    "field": "actor",
+    "parent": "User",
+    "fields": [
+      "actorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
     "model": "Payment",
     "field": "branch",
     "parent": "Branch",

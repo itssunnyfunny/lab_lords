@@ -116,11 +116,13 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
             closeLabel={t("Close add seats dialog")}
             closeDisabled={isLoading}
             className="max-w-md"
+            density="compact"
+            languagePlacement="header"
             footer={(
                 <>
-                    <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
+                    <Button type="button" density="compact" variant="ghost" onClick={onClose} disabled={isLoading}>
                         {t("Cancel")}</Button>
-                    <Button type="submit" form="add-seat-form" disabled={isLoading} className="min-w-[120px]">
+                    <Button type="submit" density="compact" variant="primary" form="add-seat-form" disabled={isLoading} className="min-w-[120px]">
                         {isLoading ? (
                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />  {t("Saving...")}</>
                         ) : (
@@ -149,7 +151,7 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                                 disabled={isLoading}
                                 onClick={() => { setMode("single"); resetFieldErrors(); setError(null); }}
                                 className={cn(
-                                    "inline-flex items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                                    "inline-flex min-h-11 items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
                                     mode === "single"
                                         ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
                                         : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--ui-form-help)] hover:border-[color:var(--ui-form-input-border)]"
@@ -163,7 +165,7 @@ export function AddSeatDialog({ isOpen, onClose, onSuccess, branchId }: AddSeatD
                                 disabled={isLoading}
                                 onClick={() => { setMode("generate"); resetFieldErrors(); setError(null); }}
                                 className={cn(
-                                    "inline-flex items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                                    "inline-flex min-h-11 items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
                                     mode === "generate"
                                         ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
                                         : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--ui-form-help)] hover:border-[color:var(--ui-form-input-border)]"

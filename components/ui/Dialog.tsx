@@ -64,6 +64,9 @@ export interface DialogProps {
   showCloseButton?: boolean;
   placement?: "center" | "right" | "bottom";
   className?: string;
+  overlayClassName?: string;
+  density?: "comfortable" | "compact";
+  languagePlacement?: "below" | "header";
 }
 
 /**
@@ -88,6 +91,9 @@ export function Dialog({
   showCloseButton = true,
   placement = "center",
   className,
+  overlayClassName,
+  density = "comfortable",
+  languagePlacement = "below",
 }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -205,13 +211,14 @@ export function Dialog({
           ? "items-stretch justify-end"
           : placement === "bottom"
             ? "items-end justify-center p-0 sm:p-4"
-            : "items-end justify-center p-3 sm:items-center sm:p-4"
+            : "items-end justify-center p-3 sm:items-center sm:p-4",
+        overlayClassName
       )}
       data-dialog-overlay="true"
     >
       <button
         type="button"
-        className="absolute inset-0 cursor-default bg-[color:var(--ui-backdrop-bg)] backdrop-blur-sm"
+        className="ui-dialog-backdrop absolute inset-0 cursor-default bg-[color:var(--ui-backdrop-bg)] backdrop-blur-sm"
         onClick={requestBackdropClose}
         disabled={closeDisabled}
         tabIndex={-1}
@@ -224,6 +231,7 @@ export function Dialog({
           placement === "right" && "h-full max-h-none max-w-md rounded-none border-y-0 border-r-0 [padding-top:max(1rem,env(safe-area-inset-top))]",
           placement === "bottom" && "max-h-[90dvh] rounded-b-none [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:rounded-[var(--ui-dialog-radius)]",
           "ui-dialog-enter",
+          density === "compact" && "ui-record-detail",
           className
         )}
         role={role}
@@ -233,21 +241,23 @@ export function Dialog({
         aria-busy={closeDisabled || undefined}
         tabIndex={-1}
       >
-        <div className="flex items-start gap-3 pr-10">
+        <div className={cn("flex items-start gap-3 pr-10", languagePlacement === "header" && "ui-dialog-header-language")}>
           {icon ? <div className="shrink-0" aria-hidden="true">{icon}</div> : null}
           <div className="min-w-0">
             <h2 id={titleId} className="text-lg font-bold leading-tight text-[color:var(--ui-dialog-title)]">
               {title}
             </h2>
-            {description ? (
+            {description && languagePlacement === "below" ? (
               <div id={descriptionId} className="mt-1.5 text-sm leading-6 text-[color:var(--ui-dialog-description)]">
                 {description}
               </div>
             ) : null}
           </div>
+          {languagePlacement === "header" && <LanguageControls compact />}
         </div>
 
-        <div className="mt-3"><LanguageControls compact /></div>
+        {languagePlacement === "header" && description ? <div id={descriptionId} className="mt-1.5 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{description}</div> : null}
+        {languagePlacement === "below" && <div className="mt-3"><LanguageControls compact /></div>}
         {showCloseButton ? (
           <button
             type="button"
@@ -262,7 +272,7 @@ export function Dialog({
 
         {children ? <div className="mt-5">{children}</div> : null}
         {footer ? (
-          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <div className={cn("mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end", density === "compact" && "ui-record-detail-footer")}>
             {footer}
           </div>
         ) : null}

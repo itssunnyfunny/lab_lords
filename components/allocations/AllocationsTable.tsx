@@ -3,21 +3,17 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton } from "@/components/ui";
+import { AppButton, AppPanel } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Layers, Pencil } from "lucide-react";
 import type { DataViewMode } from "@/components/tables/DataTable";
 import {
-    pageGridCardClass,
-    pageGridCardHoverClass,
     pageInsetMetricClass,
     pageMutedTextClass,
-    pageSectionDividerClass,
     pageSubtleTextClass,
     pageTableBodyDividerClass,
     pageTableHeadClass,
     pageTableRowClass,
-    pageTableShellClass,
 } from "@/components/ui/pageSurface";
 import { cn } from "@/lib/utils";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -158,8 +154,8 @@ export function AllocationsTable({
             return (
                 <div className="flex flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/20 bg-orange-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-orange-300">
-                            <Layers size={9} />  {t("MULTI-SHIFT")}</span>
+                        <Badge variant="purple" className="gap-1">
+                            <Layers size={11} aria-hidden="true" /> {t("MULTI-SHIFT")}</Badge>
                         <span className="text-sm font-semibold text-[color:var(--ui-table-text)]">{alloc.multiShiftName}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -178,8 +174,7 @@ export function AllocationsTable({
 
         return (
             <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/20 bg-yellow-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-yellow-300">
-                    {t("PRIMARY")}</span>
+                <Badge variant="cyan">{t("PRIMARY")}</Badge>
                 <span className="text-sm font-medium text-[color:var(--ui-table-text)]">{alloc.shiftName}</span>
             </div>
         );
@@ -237,15 +232,13 @@ export function AllocationsTable({
                         tabIndex={alloc.ids.includes(highlightedAllocationId ?? "") ? -1 : undefined}
                         aria-current={alloc.ids.includes(highlightedAllocationId ?? "") ? "true" : undefined}
                         className={cn(
-                            "relative flex min-h-[228px] flex-col",
-                            pageGridCardClass,
-                            pageGridCardHoverClass,
-                            alloc.ids.includes(highlightedAllocationId ?? "") && "border-cyan-400/50 bg-cyan-400/[0.05] outline outline-2 outline-cyan-300/60"
+                            "ui-panel--compact relative flex min-h-[228px] flex-col p-4 transition-colors hover:border-[color:var(--ui-card-hover-border)]",
+                            alloc.ids.includes(highlightedAllocationId ?? "") && "bg-[color:var(--ui-tone-info-bg)] outline outline-2 outline-[color:var(--ui-focus-ring)]"
                         )}
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="truncate font-medium text-[color:var(--ui-table-text)]">{alloc.student.name}</p>
+                                <p className="break-words font-semibold text-[color:var(--ui-table-text)]">{alloc.student.name}</p>
                                 <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{alloc.isMulti ? t("Multi-shift assignment") : t("Primary assignment")}</p>
                             </div>
                             <div className="flex-shrink-0">{renderAllocationStatus(alloc)}</div>
@@ -254,7 +247,7 @@ export function AllocationsTable({
                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                             <div className={pageInsetMetricClass}>
                                 <div className={cn("text-xs", pageSubtleTextClass)}>{t("Seat")}</div>
-                                <div className="mt-1 truncate font-semibold text-[color:var(--ui-table-text)]">{alloc.seat.label}</div>
+                                <div className="mt-1 break-words font-semibold text-[color:var(--ui-table-text)]">{alloc.seat.label}</div>
                             </div>
                             <div className={pageInsetMetricClass}>
                                 <div className={cn("text-xs", pageSubtleTextClass)}>{t("Started")}</div>
@@ -268,7 +261,7 @@ export function AllocationsTable({
                         </div>
 
                         {actions && (
-                            <div className={cn("mt-auto border-t pt-4", pageSectionDividerClass)}>
+                            <div className="mt-4">
                                 {actions}
                             </div>
                         )}
@@ -308,14 +301,14 @@ export function AllocationsTable({
     return (
         <>
             <div className="md:hidden">{allocationCards}</div>
-            <div className={cn("hidden md:block", pageTableShellClass)}>
+            <AppPanel density="compact" padding="none" className="hidden md:block" aria-label={t("Loaded seat allocations")}>
             <div
                 className="w-full overflow-x-auto"
                 role="region"
                 aria-label={t("Loaded seat allocations")}
                 tabIndex={0}
             >
-            <table className="w-full min-w-[58rem] text-left text-sm">
+            <table className="ui-table--compact w-full min-w-[58rem] text-left text-sm">
                 <caption className="sr-only">{t("Loaded seat allocations")}</caption>
                 <thead className={pageTableHeadClass}>
                     <tr className="text-[color:var(--ui-table-muted)]">
@@ -341,7 +334,7 @@ export function AllocationsTable({
                                 className={cn(
                                     "group",
                                     pageTableRowClass,
-                                    alloc.ids.includes(highlightedAllocationId ?? "") && "bg-cyan-400/[0.05] outline outline-2 outline-cyan-300/60"
+                                    alloc.ids.includes(highlightedAllocationId ?? "") && "bg-[color:var(--ui-tone-info-bg)] outline outline-2 outline-[color:var(--ui-focus-ring)]"
                                 )}
                             >
                                 <th scope="row" className="px-6 py-4 text-left font-medium text-[color:var(--ui-table-text)]">
@@ -354,8 +347,8 @@ export function AllocationsTable({
                                     {isMulti ? (
                                         <div className="flex flex-col gap-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/20">
-                                                    <Layers size={9} />  {t("MULTI-SHIFT")}</span>
+                                                <Badge variant="purple" className="gap-1">
+                                                    <Layers size={11} aria-hidden="true" /> {t("MULTI-SHIFT")}</Badge>
                                                 <span className="text-sm font-semibold text-[color:var(--ui-table-text)]">{alloc.multiShiftName}</span>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-1.5">
@@ -371,8 +364,7 @@ export function AllocationsTable({
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2">
-                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/20">
-                                                {t("PRIMARY")}</span>
+                                            <Badge variant="cyan">{t("PRIMARY")}</Badge>
                                             <span className="text-sm font-medium text-[color:var(--ui-table-text)]">{alloc.shiftName}</span>
                                         </div>
                                     )}
@@ -430,7 +422,7 @@ export function AllocationsTable({
                 </tbody>
             </table>
             </div>
-            </div>
+            </AppPanel>
             {confirmDialog}
         </>
     );

@@ -6,6 +6,29 @@ database recovery documentation, or an approved incident-response policy.
 
 Last reconciled with the repository: 2026-09-05 (hardening additions; older operational evidence remains dated).
 
+## Dashboard operations additive migration — 2026-09-27
+
+`20260927120000_dashboard_operations` adds seven empty operational tables and
+nullable RenewalFollowUp.completedAt, with no backfill, existing financial
+mutation, environment variable, cron or external provider. Apply the migration
+before serving the matching application through the established separately
+authorized release procedure. Local implementation does not grant Production
+access, push or deployment authority.
+
+Before/after inventory must show unchanged existing student, payment, receipt,
+allocation, attendance and audit rows/totals; initially empty DashboardSettings,
+AttendanceExpectation, MembershipTerm, OccupancySnapshot, DashboardTask,
+DashboardNotificationState and DashboardEvent; null completion dates on retained
+follow-ups; one new finished migration; validated scoped foreign keys/checks;
+and immutable event/snapshot triggers. Actual counts belong to the authorized
+operator's evidence, not guessed documentation. The isolated local connected
+verification report records its own new-database migration evidence.
+
+Rollback retains the additive tables and new evidence, and may return only to a
+collection-compatible application. Never delete snapshots/events/receipts or
+reset fees. See [dashboard operations](ai/dashboard-operations.md) for safe
+defaults, coverage limits, permission mapping and detailed semantics.
+
 ## Personal language preference migration (2026-09-12)
 
 `20260912120000_user_display_languages` adds non-null `User.interfaceLanguage`

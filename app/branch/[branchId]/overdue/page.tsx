@@ -15,34 +15,27 @@ import {
     LockKeyhole,
     Phone,
     RefreshCw,
-    SearchX,
     Send,
     TriangleAlert,
 } from "lucide-react";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, AppPanel, AppSelect, PageLoadingSkeleton, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, AppSelect, PageLoadingSkeleton } from "@/components/ui";
+import { appActionClassName } from "@/components/ui/AppButton";
+import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
+import { DataTable } from "@/components/tables/DataTable";
 import { formHelpTextClass, formWarningBannerClass } from "@/components/ui/formSurface";
 import {
     pageCountBadgeClass,
-    pageDescriptionClass,
-    pageEmptyStateClass,
-    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
     pageGridCardClass,
     pageGridCardHoverClass,
-    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageMutedTextClass,
     pageSectionDividerClass,
     pageSubtleTextClass,
-    pageTableBodyDividerClass,
-    pageTableHeadClass,
-    pageTableRowClass,
-    pageTableShellClass,
-    pageTitleClass,
 } from "@/components/ui/pageSurface";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
@@ -315,40 +308,16 @@ function OverdueContent({
     }
 
     return (
-        <PageShell>
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="min-w-0">
-                    <AppButton variant="quiet" size="sm" icon={ArrowLeft} onClick={() => router.back()}>
-                        {t("Back")}</AppButton>
-                    <p className={cn(pageEyebrowClass, "mt-4")}>{t("Collections queue")}</p>
-                    <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Overdue collections")}</h1>
-                    <p className={pageDescriptionClass}>
-                        {t("Work the collection queue by urgency, fix missing contact details, then copy reminder drafts for manual follow-up.")}</p>
-                    {updatedAt && (
-                        <p className={cn("mt-2 text-xs", pageSubtleTextClass)}>
-                            {t("Updated")} {formatDateTime(updatedAt)}
-                        </p>
-                    )}
-                </div>
-
-                <div className="flex flex-col gap-2 sm:flex-row">
-                    <AppButton
-                        variant="secondary"
-                        icon={RefreshCw}
-                        onClick={() => fetchOverdue("refresh")}
-                        disabled={refreshing}
-                        className={refreshing ? "[&_svg]:animate-spin" : undefined}
-                    >
-                        {t("Refresh")}</AppButton>
-                    <AppButton
-                        variant="primary"
-                        icon={CreditCard}
-                        onClick={() => router.push(bulkReviewHref)}
-                    >
-                        {selectedPayments.length === 1 ? t("Review selected payment") : t("Review due payments")}
-                    </AppButton>
-                </div>
-            </header>
+        <RecordListPage eyebrow={t("Collections queue")} title={t("Overdue collections")}
+            description={t("Work the collection queue by urgency, fix missing contact details, then copy reminder drafts for manual follow-up.")}
+            actions={<>
+                <AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={() => router.back()}>{t("Back")}</AppButton>
+                <AppButton density="compact" variant="secondary" icon={RefreshCw} onClick={() => fetchOverdue("refresh")} disabled={refreshing}>{t("Refresh")}</AppButton>
+                <AppButton density="compact" variant="primary" icon={CreditCard} onClick={() => router.push(bulkReviewHref)}>
+                    {selectedPayments.length === 1 ? t("Review selected payment") : t("Review due payments")}
+                </AppButton>
+            </>}
+            notices={updatedAt && <p className={cn("text-xs", pageSubtleTextClass)}>{t("Updated")} {formatDateTime(updatedAt)}</p>}>
 
                 {error && updatedAt && (
                     <div className={cn("flex items-start gap-3 px-4 py-3 text-sm", formWarningBannerClass)} role="status">
@@ -373,12 +342,7 @@ function OverdueContent({
                 )}
 
                 {payments.length === 0 ? (
-                    <div className={pageEmptyStateClass}>
-                        <SearchX size={36} className="mb-4 opacity-60" />
-                        <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">{t("No overdue payments")}</h2>
-                        <p className={cn("mt-2 max-w-md text-sm", pageMutedTextClass)}>
-                            {t("The collection queue is clear. New overdue payments will appear here after the grace period.")}</p>
-                    </div>
+                    <RecordListState kind="empty" title="No overdue payments" description="The collection queue is clear. New overdue payments will appear here after the grace period." />
                 ) : (
                     <>
                         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -388,10 +352,9 @@ function OverdueContent({
                             <MetricCard label={t("Oldest due")} value={`${formatNumber(totals.oldestDays)}d`} detail="Oldest loaded payment" tone={totals.oldestDays >= 30 ? "danger" : "warning"} />
                         </section>
 
-                        <AppPanel
-                            title={t("Collection Queue")}
-                            description={t("Oldest dues load first. Filters and bulk selection apply to the rows currently loaded.")}
-                            action={
+                        <RecordListSurface label={t("Collection Queue")} busy={refreshing || loadingMore} toolbar={<div className="w-full space-y-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div><h2 className="text-sm font-semibold">{t("Collection Queue")}</h2><p className="text-xs text-[color:var(--text-muted)]">{t("Oldest dues load first. Filters and bulk selection apply to the rows currently loaded.")}</p></div>
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                     <AppSelect
                                         aria-label={t("Reminder language")}
@@ -405,7 +368,7 @@ function OverdueContent({
                                         ]}
                                     />
                                     <AppButton
-                                        size="sm"
+                                        density="compact"
                                         variant="primary"
                                         icon={MessageSquare}
                                         onClick={generateDrafts}
@@ -413,9 +376,7 @@ function OverdueContent({
                                         isLoading={generatingDrafts}
                                     >{t("Draft selected ({count})", { count: selectedPayments.length })}</AppButton>
                                 </div>
-                            }
-                            contentClassName="space-y-4"
-                        >
+                            </div>
                             <div className="grid gap-2 md:grid-cols-3">
                                 {filters.map(item => {
                                     const active = filter === item.value;
@@ -426,28 +387,25 @@ function OverdueContent({
                                             : totals.missingPhoneCount;
 
                                     return (
-                                        <button
+                                        <AppButton
+                                            density="compact"
+                                            variant={active ? "primary" : "secondary"}
                                             key={item.value}
-                                            type="button"
                                             onClick={() => setFilter(item.value)}
                                             aria-pressed={active}
-                                            className={cn(
-                                                "cursor-pointer rounded-[var(--ui-radius-control)] border px-3 py-2 text-left transition-colors",
-                                                active
-                                                    ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
-                                                    : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
-                                            )}
+                                            className="w-full !justify-start text-left [&>span]:w-full [&>span]:flex-col [&>span]:items-stretch"
                                         >
                                             <span className="flex items-center justify-between gap-3">
                                                 <span className="text-sm font-semibold">{t.owned(item.label)}</span>
                                                 <span className={pageCountBadgeClass}>{count}</span>
                                             </span>
-                                            <span className={cn("mt-1 block text-xs", pageSubtleTextClass)}>{item.description}</span>
-                                        </button>
+                                            <span className={cn("mt-1 block text-xs", pageSubtleTextClass)}>{t.owned(item.description)}</span>
+                                        </AppButton>
                                     );
                                 })}
                             </div>
-
+                        </div>}>
+                            <div className="space-y-4 p-4">
                             <div className={cn("flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between", pageInsetSurfaceClass)}>
                                 <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-[color:var(--text-primary)]">
                                     <input
@@ -456,7 +414,7 @@ function OverdueContent({
                                         checked={allVisibleSelected}
                                         onChange={event => toggleAllVisible(event.target.checked)}
                                         disabled={visiblePayments.length === 0}
-                                        className="h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
+                                        className="h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-[color:var(--ui-focus-ring)]"
                                     />
                                     {t("Select all")} {visiblePayments.length}  {t("shown")}</label>
                                 <div className="flex flex-wrap items-center gap-3">
@@ -464,7 +422,7 @@ function OverdueContent({
                                     {selectedPayments.length > 0 && (
                                         <Link
                                             href={bulkReviewHref}
-                                            className="inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 text-sm font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
+                                            className={appActionClassName("secondary")}
                                         >
                                             {selectedPayments.length === 1 ? t("Review selected payment") : t("Open matching due queue")}
                                         </Link>
@@ -479,98 +437,20 @@ function OverdueContent({
                                 </div>
                             )}
 
-                            {visiblePayments.length === 0 ? (
-                                <div className={cn("min-h-[220px]", pageEmptyStateClass)}>
-                                    <SearchX size={30} className="mb-3 opacity-60" />
-                                    <p className="font-medium text-[color:var(--text-primary)]">{t("No payments in this queue")}</p>
-                                    <p className={cn("mt-1 text-sm", pageMutedTextClass)}>{t("Switch filters to continue collection work.")}</p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="grid gap-3 lg:hidden">
-                                        {visiblePayments.map(payment => (
-                                            <OverduePaymentCard
-                                                key={payment.paymentId}
-                                                payment={payment}
-                                                branchId={branchId}
-                                                selected={selectedIds.has(payment.paymentId)}
-                                                onSelectedChange={checked => togglePayment(payment.paymentId, checked)}
-                                                recordDecision={recordDecision}
-                                            />
-                                        ))}
-                                    </div>
-
-                                    <div className={cn("hidden lg:block", pageTableShellClass)}>
-                                        <div className="overflow-x-auto" role="region" aria-label={t("Overdue payments completion queue")} tabIndex={0}>
-                                            <table className="w-full min-w-[760px] text-left text-sm">
-                                                <caption className="sr-only">{t("Overdue payments completion queue")}</caption>
-                                                <thead className={pageTableHeadClass}>
-                                                    <tr>
-                                                        <th scope="col" className="w-12 px-5 py-4">
-                                                            <span className="sr-only">{t("Select payment")}</span>
-                                                        </th>
-                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Student")}</th>
-                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Contact")}</th>
-                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Age")}</th>
-                                                        <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Due date")}</th>
-                                                        <th scope="col" className="px-5 py-4 text-right text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Amount")}</th>
-                                                        <th scope="col" className="px-5 py-4 text-right text-xs font-medium uppercase tracking-wider text-[color:var(--ui-table-muted)]">{t("Action")}</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className={pageTableBodyDividerClass}>
-                                                    {visiblePayments.map(payment => {
-                                                        const days = daysSinceDue(payment);
-                                                        const severity = severityFor(days);
-
-                                                        return (
-                                                            <tr key={payment.paymentId} className={pageTableRowClass}>
-                                                                <td className="px-5 py-4">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={selectedIds.has(payment.paymentId)}
-                                                                        onChange={event => togglePayment(payment.paymentId, event.target.checked)}
-                                                                        aria-label={`Select ${payment.studentName}'s overdue payment`}
-                                                                        className="h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
-                                                                    />
-                                                                </td>
-                                                                <td className="px-5 py-4">
-                                                                    <Link
-                                                                        href={getOverdueStudentHref(branchId, payment.studentId)}
-                                                                        className="font-medium text-[color:var(--text-primary)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
-                                                                    >
-                                                                        {payment.studentName}
-                                                                    </Link>
-                                                                    <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{severity.helper}</p>
-                                                                </td>
-                                                                <td className="px-5 py-4">
-                                                                    {payment.phone ? (
-                                                                        <span className={cn("inline-flex items-center gap-1.5 text-sm", pageMutedTextClass)}>
-                                                                            <Phone size={13} /> {payment.phone}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <Badge variant="warning">{t("No phone")}</Badge>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-5 py-4">
-                                                                    <Badge variant={severity.variant}>{t("{days} days", { days: days })}</Badge>
-                                                                </td>
-                                                                <td className={cn("px-5 py-4", pageMutedTextClass)}>{formatDate(payment.dueDate)}</td>
-                                                                <td className="px-5 py-4 text-right font-semibold text-[color:var(--text-primary)]">{formatMoney(payment.amount)}</td>
-                                                                <td className="px-5 py-4 text-right">
-                                                                    <PaymentQueueAction
-                                                                        href={getOverduePaymentHref(branchId, payment)}
-                                                                        decision={recordDecision}
-                                                                    />
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
+                            {visiblePayments.length === 0 ? <RecordListState kind="empty" title="No payments in this queue" description="Switch filters to continue collection work." /> :
+                                <DataTable density="compact" caption="Overdue payments completion queue"
+                                    data={visiblePayments.map(payment => ({ ...payment, id: payment.paymentId }))}
+                                    columns={[
+                                        { header: "Select payment", accessor: payment => <input type="checkbox" checked={selectedIds.has(payment.paymentId)} onChange={event => togglePayment(payment.paymentId, event.target.checked)} aria-label={`Select ${payment.studentName}'s overdue payment`} className="h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-[color:var(--ui-focus-ring)]" />, className: "w-14" },
+                                        { header: "Student", accessor: payment => <><Link href={getOverdueStudentHref(branchId, payment.studentId)} className="font-semibold text-[color:var(--text-primary)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]">{payment.studentName}</Link><p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{severityFor(daysSinceDue(payment)).helper}</p></>, rowHeader: true },
+                                        { header: "Contact", accessor: payment => payment.phone ? <span className={cn("inline-flex items-center gap-1.5", pageMutedTextClass)}><Phone size={13} aria-hidden="true" />{payment.phone}</span> : <Badge variant="warning">{t("No phone")}</Badge> },
+                                        { header: "Age", accessor: payment => <Badge variant={severityFor(daysSinceDue(payment)).variant}>{t("{days} days", { days: daysSinceDue(payment) })}</Badge> },
+                                        { header: "Due date", accessor: payment => formatDate(payment.dueDate) },
+                                        { header: "Amount", accessor: payment => <strong className="tabular-nums">{formatMoney(payment.amount)}</strong> },
+                                    ]}
+                                    actions={payment => <PaymentQueueAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} />}
+                                    renderGridCard={payment => <OverduePaymentCard payment={payment} branchId={branchId} selected={selectedIds.has(payment.paymentId)} onSelectedChange={checked => togglePayment(payment.paymentId, checked)} recordDecision={recordDecision} />}
+                                />}
 
                             <div className="flex flex-col items-center gap-3 border-t border-[color:var(--ui-form-section-divider)] pt-4 text-center">
                                 <p id="overdue-pagination-status" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">{t("Showing {count} of {total} overdue payment(s)", { count: payments.length, total: total })}</p>
@@ -594,7 +474,8 @@ function OverdueContent({
                                     </div>
                                 )}
                             </div>
-                        </AppPanel>
+                            </div>
+                        </RecordListSurface>
 
                         <ApprovedPaymentReminderReview
                             branchId={branchId}
@@ -649,7 +530,7 @@ function OverdueContent({
                         )}
                     </>
                 )}
-        </PageShell>
+        </RecordListPage>
     );
 }
 
@@ -671,37 +552,27 @@ function MetricCard({
             : "text-[color:var(--ui-tone-success-text)]";
 
     return (
-        <div className={pageInsetMetricClass}>
-            <p className={cn("text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
-            <p className={cn("mt-2 text-2xl font-semibold tracking-tight", valueClass)}>{value}</p>
+        <AppPanel density="compact" title={label}>
+            <p className={cn("text-2xl font-semibold tracking-tight tabular-nums", valueClass)}>{value}</p>
             <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p>
-        </div>
+        </AppPanel>
     );
 }
-
-const queueActionLinkClass = "inline-flex min-h-11 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]";
 
 function PaymentQueueAction({ href, decision }: { href: string; decision: CapabilityDecision }) {
     const t = useTranslation();
     if (decision.allowed) {
-        return <Link href={href} className={queueActionLinkClass}>{t("Record payment")}</Link>;
+        return <Link href={href} className={appActionClassName("secondary")}>{t("Record payment")}</Link>;
     }
 
     if (decision.blocker === "permission") {
-        return <Link href={href} className={queueActionLinkClass}>{t("View payment")}</Link>;
+        return <Link href={href} className={appActionClassName("secondary")}>{t("View payment")}</Link>;
     }
 
     return (
         <div className="inline-flex flex-wrap justify-end gap-2">
-            <Link href={href} className={queueActionLinkClass}>{t("View payment")}</Link>
-            <button
-                type="button"
-                disabled
-                aria-describedby="overdue-record-blocker"
-                className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-1.5 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] px-3 text-xs font-semibold text-[color:var(--ui-button-secondary-text)] opacity-[var(--ui-control-disabled-opacity)]"
-            >
-                <LockKeyhole size={13} aria-hidden="true" />
-                {t("Record payment")}</button>
+            <Link href={href} className={appActionClassName("secondary")}>{t("View payment")}</Link>
+            <AppButton density="compact" variant="secondary" disabled aria-describedby="overdue-record-blocker" icon={LockKeyhole}>{t("Record payment")}</AppButton>
         </div>
     );
 }
@@ -730,48 +601,21 @@ function OverduePaymentCard({
     const severity = severityFor(days);
 
     return (
-        <div className={cn(pageGridCardClass, pageGridCardHoverClass)}>
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3">
-                    <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={event => onSelectedChange(event.target.checked)}
-                        aria-label={`Select ${payment.studentName}'s overdue payment`}
-                        className="mt-0.5 h-5 w-5 shrink-0 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
-                    />
-                    <div className="min-w-0">
-                    <Link
-                        href={getOverdueStudentHref(branchId, payment.studentId)}
-                        className="truncate font-semibold text-[color:var(--text-primary)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
-                    >
-                        {payment.studentName}
-                    </Link>
-                    <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{severity.helper}</p>
-                    </div>
-                </div>
-                <Badge variant={severity.variant}>{t("{days} days", { days: days })}</Badge>
+        <article className={cn(pageGridCardClass, pageGridCardHoverClass, "ui-record-card")}>
+            <div className="ui-record-card-identity">
+                <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center">
+                    <input type="checkbox" checked={selected} onChange={event => onSelectedChange(event.target.checked)} aria-label={`Select ${payment.studentName}'s overdue payment`}
+                        className="h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-[color:var(--ui-focus-ring)]" />
+                </label>
+                <div className="min-w-0 flex-1"><Link href={getOverdueStudentHref(branchId, payment.studentId)} className="ui-record-card-name underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]">{payment.studentName}</Link>
+                    <p className="ui-record-card-meta">{severity.helper}</p></div>
+                <Badge variant={severity.variant}>{t("{days} days", { days })}</Badge>
             </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div className={pageInsetMetricClass}>
-                    <p className={cn("text-xs", pageSubtleTextClass)}>{t("Amount")}</p>
-                    <p className="mt-1 font-semibold text-[color:var(--text-primary)]">{formattedAmount}</p>
-                </div>
-                <div className={pageInsetMetricClass}>
-                    <p className={cn("text-xs", pageSubtleTextClass)}>{t("Due date")}</p>
-                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{formatDate(payment.dueDate)}</p>
-                </div>
+            <div className={cn("ui-record-card-context", payment.phone ? pageMutedTextClass : formHelpTextClass)}><Phone size={14} aria-hidden="true" /><span>{payment.phone || "Phone number missing"}</span></div>
+            <div className="ui-record-card-summary">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p>{t("Amount")}</p><p className="ui-record-card-due tabular-nums">{formattedAmount}</p></div><div><p>{t("Due date")}</p><p className="font-medium">{formatDate(payment.dueDate)}</p></div></div>
+                <div className="mt-3 flex justify-end"><PaymentQueueAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} /></div>
             </div>
-
-            <div className={cn("mt-3 flex items-center gap-2 text-sm", payment.phone ? pageMutedTextClass : formHelpTextClass)}>
-                <Phone size={14} />
-                {payment.phone || "Phone number missing"}
-            </div>
-
-            <div className={cn("mt-4 flex justify-end border-t pt-4", pageSectionDividerClass)}>
-                <PaymentQueueAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} />
-            </div>
-        </div>
+        </article>
     );
 }

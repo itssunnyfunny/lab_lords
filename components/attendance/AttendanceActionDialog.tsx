@@ -2,7 +2,7 @@
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { useRef, useState } from "react";
 import { AppButton, Dialog } from "@/components/ui";
-import { formControlClass } from "@/components/ui/formSurface";
+import { formControlClass, formErrorBannerClass, formLabelClass } from "@/components/ui/formSurface";
 import { attendance, AttendanceRequestError, type AttendanceResult } from "@/lib/api/attendance";
 import type { AttendanceCommand } from "@/lib/attendance";
 
@@ -29,20 +29,20 @@ export function AttendanceActionDialog({ branchId, title, description, command, 
             setError(err instanceof Error ? err.message : "Unable to confirm attendance");
         } finally { inFlight.current = false; setBusy(false); }
     }
-    return <Dialog open closeDisabled={busy || uncertain} onClose={() => { if (!busy && !uncertain) onClose(); }} title={title} description={description}>
+    return <Dialog open density="compact" languagePlacement="header" closeDisabled={busy || uncertain} onClose={() => { if (!busy && !uncertain) onClose(); }} title={title} description={description}>
         <form className="space-y-4" onSubmit={e => { e.preventDefault(); void submit(); }}>
             {command.kind === "CORRECT_VISIT" && <>
-                <p className="text-sm">{t("Enter UTC timestamps ending in Z, or timestamps with an explicit offset (for example +05:30). Leave checkout empty only if the visit is still open.")}</p>
-                <label className="block text-sm">{t("Check-in timestamp")}<input className={`${formControlClass} w-full p-2`} required value={start} disabled={busy || uncertain} onChange={e => setStart(e.target.value)} /></label>
-                <label className="block text-sm">{t("Check-out timestamp")}<input className={`${formControlClass} w-full p-2`} value={end} disabled={busy || uncertain} onChange={e => setEnd(e.target.value)} placeholder="YYYY-MM-DDTHH:mm:ss+05:30" /></label>
+                <p className="text-sm leading-6 text-[color:var(--text-secondary)]">{t("Enter UTC timestamps ending in Z, or timestamps with an explicit offset (for example +05:30). Leave checkout empty only if the visit is still open.")}</p>
+                <label className={`block ${formLabelClass}`}>{t("Check-in timestamp")}<input className={`${formControlClass} mt-1 min-h-11 p-2`} required value={start} disabled={busy || uncertain} onChange={e => setStart(e.target.value)} /></label>
+                <label className={`block ${formLabelClass}`}>{t("Check-out timestamp")}<input className={`${formControlClass} mt-1 min-h-11 p-2`} value={end} disabled={busy || uncertain} onChange={e => setEnd(e.target.value)} placeholder="YYYY-MM-DDTHH:mm:ss+05:30" /></label>
             </>}
-            <label className="block text-sm">{t("Optional note")}<textarea className={`${formControlClass} w-full p-2`} maxLength={1000} value={note} disabled={busy || uncertain} onChange={e => setNote(e.target.value)} /></label>
-            {correction && <label className="block text-sm">{t("Correction reason")}<textarea className={`${formControlClass} w-full p-2`} required maxLength={1000} value={reason} disabled={busy || uncertain} onChange={e => setReason(e.target.value)} /></label>}
-            {error && <p role="alert">{t.error(error, uncertain ? "Unable to confirm the result. Retry the same action." : "Something went wrong. Try again.")}</p>}
-            {uncertain && <p>{t("Keep this dialog open and retry to recover the same action.")}</p>}
-            <div className="flex flex-wrap justify-end gap-2">
-                <AppButton variant="secondary" type="button" disabled={busy || uncertain} onClick={onClose}>{t("Cancel")}</AppButton>
-                <AppButton type="submit" disabled={busy || (correction && !reason.trim())}>{busy ? t("Confirming…") : uncertain ? t("Retry same action") : t("Confirm")}</AppButton>
+            <label className={`block ${formLabelClass}`}>{t("Optional note")}<textarea className={`${formControlClass} mt-1 min-h-24 p-2`} maxLength={1000} value={note} disabled={busy || uncertain} onChange={e => setNote(e.target.value)} /></label>
+            {correction && <label className={`block ${formLabelClass}`}>{t("Correction reason")}<textarea className={`${formControlClass} mt-1 min-h-24 p-2`} required maxLength={1000} value={reason} disabled={busy || uncertain} onChange={e => setReason(e.target.value)} /></label>}
+            {error && <p role="alert" className={`${formErrorBannerClass} p-3 text-sm`}>{t.error(error, uncertain ? "Unable to confirm the result. Retry the same action." : "Something went wrong. Try again.")}</p>}
+            {uncertain && <p className="text-sm leading-6 text-[color:var(--text-secondary)]">{t("Keep this dialog open and retry to recover the same action.")}</p>}
+            <div className="flex flex-wrap justify-end gap-2 border-t border-[color:var(--ui-form-section-divider)] pt-4">
+                <AppButton density="compact" variant="secondary" type="button" disabled={busy || uncertain} onClick={onClose}>{t("Cancel")}</AppButton>
+                <AppButton density="compact" variant="primary" type="submit" disabled={busy || (correction && !reason.trim())}>{busy ? t("Confirming…") : uncertain ? t("Retry same action") : t("Confirm")}</AppButton>
             </div>
         </form>
     </Dialog>;

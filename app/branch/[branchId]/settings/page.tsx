@@ -532,6 +532,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                 actions={!isEditing ? (
                     <AppButton
                         variant="primary"
+                        density="compact"
                         size="sm"
                         disabled={!settingsDecision.allowed}
                         title={!settingsDecision.allowed ? settingsDecision.reason : undefined}

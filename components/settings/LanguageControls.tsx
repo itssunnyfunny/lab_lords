@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { LANGUAGE_OPTIONS, type InterfaceLanguage } from "@/lib/i18n/language";
 import { translate } from "@/lib/i18n";
 import { notifyUserPreferencesChanged, useUserPreferences } from "./UserPreferencesApplier";
@@ -7,6 +7,7 @@ import { formControlClass } from "@/components/ui/formSurface";
 
 export function LanguageControls({ documentOnly = false, compact = false }: { documentOnly?: boolean; compact?: boolean }) {
     const preferences = useUserPreferences();
+    const controlId = useId();
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState<"Saved" | "Unable to save language. Try again." | null>(null);
     const inFlight = useRef(false);
@@ -25,9 +26,9 @@ export function LanguageControls({ documentOnly = false, compact = false }: { do
     const fields = documentOnly ? ["documentLanguage"] as const : compact ? ["interfaceLanguage"] as const : ["interfaceLanguage", "documentLanguage"] as const;
     if (preferences.ownerKey === "signed-out") return null;
     return <div className={compact ? "max-w-32 text-xs" : "space-y-3 p-4 text-sm"}>
-        {fields.map(field => <label key={field} className="block space-y-1">
-            <span className={compact ? "sr-only" : "block"}>{translate(preferences.interfaceLanguage, field === "interfaceLanguage" ? "Interface language" : "Document language")}</span>
-            <select className={`${formControlClass} min-h-11 w-full px-2`} value={preferences[field]} disabled={busy}
+        {fields.map(field => <label key={field} htmlFor={`${controlId}-${field}`} className="block space-y-1">
+            <span id={`${controlId}-${field}-label`} className={compact ? "sr-only" : "block"}>{translate(preferences.interfaceLanguage, field === "interfaceLanguage" ? "Interface language" : "Document language")}</span>
+            <select id={`${controlId}-${field}`} aria-labelledby={`${controlId}-${field}-label`} className={`${formControlClass} min-h-11 w-full px-2`} value={preferences[field]} disabled={busy}
                 onChange={e => void save(field, e.target.value as InterfaceLanguage)}>
                 {LANGUAGE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>

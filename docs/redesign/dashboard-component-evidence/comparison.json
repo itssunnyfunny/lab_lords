@@ -1,0 +1,195 @@
+{
+  "originalTarget": {
+    "width": 1491,
+    "height": 1055
+  },
+  "browserWidth": 1440,
+  "targetDisplayScale": 0.96579476861167,
+  "syntheticRibbonHeight": 21,
+  "regions": [
+    {
+      "key": "action-center",
+      "originalTargetCrop": {
+        "x": 248,
+        "y": 214,
+        "width": 1221,
+        "height": 190
+      },
+      "targetDisplayed": {
+        "width": 1179,
+        "height": 184
+      },
+      "actualRender": {
+        "width": 1164,
+        "height": 155
+      },
+      "appPositionWithoutRibbon": {
+        "x": 254,
+        "y": 177.1875,
+        "width": 1164,
+        "height": 154.796875
+      }
+    },
+    {
+      "key": "summary",
+      "originalTargetCrop": {
+        "x": 248,
+        "y": 415,
+        "width": 1221,
+        "height": 106
+      },
+      "targetDisplayed": {
+        "width": 1179,
+        "height": 102
+      },
+      "actualRender": {
+        "width": 1164,
+        "height": 104
+      },
+      "appPositionWithoutRibbon": {
+        "x": 254,
+        "y": 342.984375,
+        "width": 1164,
+        "height": 102.09375
+      }
+    },
+    {
+      "key": "collections",
+      "originalTargetCrop": {
+        "x": 248,
+        "y": 532,
+        "width": 555,
+        "height": 324
+      },
+      "targetDisplayed": {
+        "width": 536,
+        "height": 313
+      },
+      "actualRender": {
+        "width": 525,
+        "height": 340
+      },
+      "appPositionWithoutRibbon": {
+        "x": 254,
+        "y": 456.078125,
+        "width": 524.125,
+        "height": 339.53125
+      }
+    },
+    {
+      "key": "seating",
+      "originalTargetCrop": {
+        "x": 813,
+        "y": 532,
+        "width": 368,
+        "height": 324
+      },
+      "targetDisplayed": {
+        "width": 355,
+        "height": 313
+      },
+      "actualRender": {
+        "width": 354,
+        "height": 336
+      },
+      "appPositionWithoutRibbon": {
+        "x": 790.125,
+        "y": 456.078125,
+        "width": 353.796875,
+        "height": 335.15625
+      }
+    },
+    {
+      "key": "activity",
+      "originalTargetCrop": {
+        "x": 1190,
+        "y": 532,
+        "width": 279,
+        "height": 260
+      },
+      "targetDisplayed": {
+        "width": 269,
+        "height": 251
+      },
+      "actualRender": {
+        "width": 263,
+        "height": 254
+      },
+      "appPositionWithoutRibbon": {
+        "x": 1155.921875,
+        "y": 456.078125,
+        "width": 262.078125,
+        "height": 253.796875
+      }
+    },
+    {
+      "key": "quick-actions",
+      "originalTargetCrop": {
+        "x": 1190,
+        "y": 800,
+        "width": 279,
+        "height": 169
+      },
+      "targetDisplayed": {
+        "width": 269,
+        "height": 163
+      },
+      "actualRender": {
+        "width": 263,
+        "height": 93
+      },
+      "appPositionWithoutRibbon": {
+        "x": 1155.921875,
+        "y": 719.875,
+        "width": 262.078125,
+        "height": 91.5
+      }
+    },
+    {
+      "key": "upcoming",
+      "originalTargetCrop": {
+        "x": 248,
+        "y": 865,
+        "width": 477,
+        "height": 178
+      },
+      "targetDisplayed": {
+        "width": 461,
+        "height": 172
+      },
+      "actualRender": {
+        "width": 439,
+        "height": 220
+      },
+      "appPositionWithoutRibbon": {
+        "x": 254,
+        "y": 807.609375,
+        "width": 438.953125,
+        "height": 218.6875
+      }
+    },
+    {
+      "key": "follow-ups",
+      "originalTargetCrop": {
+        "x": 735,
+        "y": 865,
+        "width": 446,
+        "height": 178
+      },
+      "targetDisplayed": {
+        "width": 431,
+        "height": 172
+      },
+      "actualRender": {
+        "width": 440,
+        "height": 223
+      },
+      "appPositionWithoutRibbon": {
+        "x": 704.953125,
+        "y": 807.609375,
+        "width": 438.96875,
+        "height": 221.78125
+      }
+    }
+  ]
+}

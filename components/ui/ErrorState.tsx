@@ -33,7 +33,7 @@ export function ErrorState({
                 className
             )}
         >
-            <Icon className="h-6 w-6 text-amber-300" aria-hidden="true" />
+            <Icon className="h-6 w-6 text-[color:var(--ui-tone-warning-text)]" aria-hidden="true" />
             <h2 className="mt-3 text-base font-semibold text-[color:var(--text-primary)]">{t.owned(title)}</h2>
             <p className="mt-1 max-w-md text-sm leading-6 text-[color:var(--text-secondary)]">{t.error(description)}</p>
             {onRetry ? <AppButton className="mt-4" variant="secondary" onClick={onRetry}>{t.owned(retryLabel)}</AppButton> : null}

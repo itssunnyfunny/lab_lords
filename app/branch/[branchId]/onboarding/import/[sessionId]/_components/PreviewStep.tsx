@@ -151,7 +151,7 @@ export function PreviewStep({
 
     return (
         <div className="space-y-5">
-            <AppPanel
+            <AppPanel density="compact"
                 title={t("Review & import")}
                 description={plan?.planVersion ? `Reviewed plan ${plan.planVersion}` : t("Build a plan from your saved changes.")}
                 action={
@@ -166,7 +166,7 @@ export function PreviewStep({
                                 { value: "REQUIRE_ALL_ROWS_READY", label: t("Require every row ready") },
                             ]}
                         />
-                        <AppButton variant="secondary" icon={RotateCcw} onClick={onRefreshPlan} isLoading={saving}>
+                        <AppButton density="compact" variant="secondary" icon={RotateCcw} onClick={onRefreshPlan} isLoading={saving}>
                             {t("Refresh plan")}</AppButton>
                     </div>
                 }
@@ -249,7 +249,7 @@ export function PreviewStep({
 
                             {paymentBreakdown.length > 0 && (
                                 <details
-                                    className={cn("rounded-[8px] border border-[color:var(--ui-form-surface-border)]", pageInsetSurfaceClass)}
+                                    className={cn("rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)]", pageInsetSurfaceClass)}
                                     onToggle={event => {
                                         if (event.currentTarget.open && paymentCyclePages.length === 0 && plan?.paymentDetails?.totalCycles) {
                                             void loadPaymentCyclePage(null, 0);
@@ -259,7 +259,7 @@ export function PreviewStep({
                                     <summary className="cursor-pointer list-none text-sm font-semibold text-[color:var(--text-primary)]">{t("Payment history by student ({formatNumber})", { formatNumber: formatNumber(paymentBreakdown.length) })}</summary>
                                     <p className={cn("mt-2 text-xs leading-5", pageMutedTextClass)}>
                                         {t("Aggregate counts per student. Historical cycles run from the joined date; current means the student's current joined-date cycle.")}</p>
-                                    <AccessibleTableScroll label={t("Planned payment history by student")} className="mt-3 rounded-[8px] border border-[color:var(--ui-table-border)]">
+                                    <AccessibleTableScroll label={t("Planned payment history by student")} className="mt-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-table-border)]">
                                         <table className="w-full min-w-[940px] text-left text-xs">
                                             <caption className="sr-only">{t("Remaining historical and current payment records planned for each student")}</caption>
                                             <thead className={pageTableHeadClass}>
@@ -295,8 +295,8 @@ export function PreviewStep({
                                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                                         <span className={cn("text-xs", pageMutedTextClass)} role="status" aria-live="polite">{t("Page {formatNumber} of {formatNumber2}", { formatNumber: formatNumber(paymentPage + 1), formatNumber2: formatNumber(paymentPageCount) })}</span>
                                         <div className="flex gap-2">
-                                            <AppButton size="sm" variant="quiet" disabled={paymentPage === 0} onClick={() => setPaymentPageIndex(current => Math.max(0, current - 1))}>{t("Previous")}</AppButton>
-                                            <AppButton size="sm" variant="quiet" disabled={paymentPage >= paymentPageCount - 1} onClick={() => setPaymentPageIndex(current => Math.min(paymentPageCount - 1, current + 1))}>{t("Next")}</AppButton>
+                                            <AppButton density="compact" size="sm" variant="quiet" disabled={paymentPage === 0} onClick={() => setPaymentPageIndex(current => Math.max(0, current - 1))}>{t("Previous")}</AppButton>
+                                            <AppButton density="compact" size="sm" variant="quiet" disabled={paymentPage >= paymentPageCount - 1} onClick={() => setPaymentPageIndex(current => Math.min(paymentPageCount - 1, current + 1))}>{t("Next")}</AppButton>
                                         </div>
                                     </div>
 
@@ -312,14 +312,14 @@ export function PreviewStep({
                                         {paymentCycleError && (
                                             <div className="mt-3" role="alert">
                                                 <StepNotice tone="danger" title={t("Exact payment records unavailable")} message={paymentCycleError} />
-                                                <AppButton className="mt-2" size="sm" variant="secondary" disabled={!paymentCycleRetry} onClick={() => paymentCycleRetry && void loadPaymentCyclePage(paymentCycleRetry.cursor, paymentCycleRetry.pageIndex)}>
+                                                <AppButton density="compact" className="mt-2" size="sm" variant="secondary" disabled={!paymentCycleRetry} onClick={() => paymentCycleRetry && void loadPaymentCyclePage(paymentCycleRetry.cursor, paymentCycleRetry.pageIndex)}>
                                                     {t("Try again")}</AppButton>
                                             </div>
                                         )}
 
                                         {paymentCyclePage && (
                                             <>
-                                                <AccessibleTableScroll label={t("Exact planned payment cycle records")} className="mt-3 rounded-[8px] border border-[color:var(--ui-table-border)]">
+                                                <AccessibleTableScroll label={t("Exact planned payment cycle records")} className="mt-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-table-border)]">
                                                     <table className="w-full min-w-[1080px] text-left text-xs">
                                                         <caption className="sr-only">{t("Exact immutable payment cycle records in this reviewed import plan")}</caption>
                                                         <thead className={pageTableHeadClass}>
@@ -356,8 +356,8 @@ export function PreviewStep({
                                                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                                                     <span className={cn("text-xs", pageMutedTextClass)} role="status" aria-live="polite">{t("Exact records page {formatNumber} of {formatNumber2}", { formatNumber: formatNumber(paymentCyclePageIndex + 1), formatNumber2: formatNumber(exactPaymentPageCount) })}</span>
                                                     <div className="flex gap-2">
-                                                        <AppButton size="sm" variant="quiet" disabled={paymentCyclePageIndex === 0 || paymentCycleLoading} onClick={() => setPaymentCyclePageIndex(current => Math.max(0, current - 1))}>{t("Previous exact records")}</AppButton>
-                                                        <AppButton
+                                                        <AppButton density="compact" size="sm" variant="quiet" disabled={paymentCyclePageIndex === 0 || paymentCycleLoading} onClick={() => setPaymentCyclePageIndex(current => Math.max(0, current - 1))}>{t("Previous exact records")}</AppButton>
+                                                        <AppButton density="compact"
                                                             size="sm"
                                                             variant="quiet"
                                                             disabled={!hasNextPaymentCyclePage || paymentCycleLoading}
@@ -408,7 +408,7 @@ export function PreviewStep({
                         </>
                     )}
 
-                    <AppButton
+                    <AppButton density="compact"
                         variant="primary"
                         icon={UploadCloud}
                         onClick={plan ? onConfirmImport : onRefreshPlan}

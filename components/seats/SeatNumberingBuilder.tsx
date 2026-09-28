@@ -145,7 +145,7 @@ export function SeatNumberingBuilder({
                     disabled={disabled}
                     onClick={() => switchMode("SIMPLE")}
                     className={cn(
-                        "inline-flex items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                        "inline-flex min-h-11 items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
                         value.mode === "SIMPLE"
                             ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
                             : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--ui-form-help)] hover:border-[color:var(--ui-form-input-border)]"
@@ -159,7 +159,7 @@ export function SeatNumberingBuilder({
                     disabled={disabled}
                     onClick={() => switchMode("RANGE")}
                     className={cn(
-                        "inline-flex items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                        "inline-flex min-h-11 items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
                         value.mode === "RANGE"
                             ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
                             : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--ui-form-help)] hover:border-[color:var(--ui-form-input-border)]"
@@ -265,7 +265,7 @@ export function SeatNumberingBuilder({
                                         type="button"
                                         disabled={disabled || value.ranges.length <= 1}
                                         onClick={() => removeRange(index)}
-                                        className={cn("rounded-[var(--ui-radius-control)] p-2 transition-colors hover:text-[color:var(--ui-form-error-text)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]", formHelpTextClass)}
+                                        className={cn("inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--ui-radius-control)] p-2 transition-colors hover:text-[color:var(--ui-form-error-text)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]", formHelpTextClass)}
                                         aria-label={t("Remove range")}
                                     >
                                         <Trash2 size={14} />
@@ -279,7 +279,7 @@ export function SeatNumberingBuilder({
                         type="button"
                         disabled={disabled}
                         onClick={addRange}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]"
+                        className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]"
                     >
                         <Plus size={13} />
                         {t("Add range")}</button>

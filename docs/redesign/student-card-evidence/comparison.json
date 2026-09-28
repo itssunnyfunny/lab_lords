@@ -1,0 +1,47 @@
+[
+  {
+    "key": "roster-en-390",
+    "sizes": [
+      {
+        "width": 324,
+        "height": 892
+      },
+      {
+        "width": 324,
+        "height": 660
+      }
+    ],
+    "sameSize": false,
+    "differingPixels": null
+  },
+  {
+    "key": "desktop-table",
+    "sizes": [
+      {
+        "width": 1195,
+        "height": 221
+      },
+      {
+        "width": 1195,
+        "height": 221
+      }
+    ],
+    "sameSize": true,
+    "differingPixels": 0
+  },
+  {
+    "key": "dashboard",
+    "sizes": [
+      {
+        "width": 1491,
+        "height": 1055
+      },
+      {
+        "width": 1491,
+        "height": 1055
+      }
+    ],
+    "sameSize": true,
+    "differingPixels": 0
+  }
+]

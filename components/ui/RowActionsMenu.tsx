@@ -1,5 +1,5 @@
 "use client";
-import { OwnedLabel } from "@/components/settings/LocalizedText";
+import { OwnedLabel, useTranslation } from "@/components/settings/LocalizedText";
 
 import { cn } from "@/lib/utils";
 import { MoreVertical } from "lucide-react";
@@ -34,6 +34,8 @@ export function RowActionsMenu({
     menuClassName,
     menuWidthClassName = "w-44",
 }: RowActionsMenuProps) {
+    const t = useTranslation();
+    const localizedButtonLabel = t.owned(buttonLabel);
     const [open, setOpen] = useState(false);
     const [menuStyle, setMenuStyle] = useState<CSSProperties>({
         position: "fixed",
@@ -177,7 +179,7 @@ export function RowActionsMenu({
                     menuClassName
                 )}
                 role="menu"
-                aria-label={buttonLabel}
+                aria-label={localizedButtonLabel}
                 id={menuId}
                 onKeyDown={handleMenuKeyDown}
             >
@@ -193,7 +195,8 @@ export function RowActionsMenu({
                             role="menuitem"
                             onClick={() => {
                                 if (action.disabled) return;
-                                closeAndRestoreFocus();
+                                setOpen(false);
+                                triggerRef.current?.focus();
                                 action.onClick();
                             }}
                             className={cn(
@@ -240,8 +243,8 @@ export function RowActionsMenu({
                     open && "bg-[color:var(--ui-menu-trigger-active-bg)] text-[color:var(--ui-menu-trigger-active-text)]",
                     buttonClassName
                 )}
-                title={buttonLabel}
-                aria-label={buttonLabel}
+                title={localizedButtonLabel}
+                aria-label={localizedButtonLabel}
                 aria-expanded={open}
                 aria-haspopup="menu"
                 aria-controls={open ? menuId : undefined}

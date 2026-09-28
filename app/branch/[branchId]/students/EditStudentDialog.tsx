@@ -137,6 +137,9 @@ export function EditStudentDialog({
 
     return (
         <Dialog
+            density="compact"
+            languagePlacement="header"
+            overlayClassName="ui-record-edit-overlay"
             open={isOpen}
             onClose={handleClose}
             title={t("Edit student")}
@@ -146,9 +149,10 @@ export function EditStudentDialog({
             className="max-w-sm"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={handleClose} disabled={loading} className="h-11 px-3 text-sm lg:h-8">
+                    <Button variant="secondary" onClick={handleClose} disabled={loading} className="h-11 px-3 text-sm lg:h-8">
                         {t("Cancel")}</Button>
                     <Button
+                        variant="primary"
                         onClick={handleSave}
                         disabled={loading || !hasChanges}
                         className="h-11 min-w-[90px] justify-center px-4 text-sm lg:h-8"

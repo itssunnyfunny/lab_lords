@@ -5,11 +5,12 @@ import type { BranchAccess } from "@/types";
 
 const mocks = vi.hoisted(() => ({
   access: null as BranchAccess | null,
+  pathname: "/branch/branch_1",
   sidebarItems: [] as Array<{ label: string; href?: string }>,
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/branch/branch_1",
+  usePathname: () => mocks.pathname,
 }));
 
 vi.mock("@/hooks/useBranchAccess", () => ({
@@ -47,10 +48,44 @@ const permissions: BranchAccess["permissions"] = {
 
 describe("BranchSidebar", () => {
   beforeEach(() => {
+    mocks.pathname = "/branch/branch_1";
     mocks.sidebarItems.length = 0;
   });
 
-  it("shows the organization control for owners", () => {
+  it("uses the task-oriented pilot grouping only on pilot routes", () => {
+    mocks.access = {
+      branchId: "branch_1",
+      branchName: "Main Branch",
+      organizationId: "org_1",
+      isOwner: true,
+      role: "OWNER",
+      effectivePlan: "PRO",
+      entitlements: ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"],
+      permissions: { ...permissions, manage_org: true, staff_management: true },
+    };
+
+    const pilot = renderToStaticMarkup(<BranchSidebar />);
+    expect(pilot).toContain("Daily work");
+    expect(pilot).toContain("Seats and shifts");
+    expect(pilot).toContain("Setup and access");
+    expect(pilot).not.toContain(">Operations<");
+
+    mocks.pathname = "/branch/branch_1/payments";
+    const migrated = renderToStaticMarkup(<BranchSidebar />);
+    expect(migrated).toContain("Daily work");
+    expect(migrated).not.toContain(">Operations<");
+
+    mocks.pathname = "/branch/branch_1/ai/messages";
+    mocks.sidebarItems.length = 0;
+    const existing = renderToStaticMarkup(<BranchSidebar />);
+    expect(existing).toContain("Overview");
+    expect(existing).toContain("Operations");
+    expect(existing).toContain("Intelligence");
+    expect(existing).not.toContain("Daily work");
+  });
+
+  it("keeps the organization footer on excluded legacy routes for owners", () => {
+    mocks.pathname = "/branch/branch_1/ai/messages";
     mocks.access = {
       branchId: "branch_1",
       branchName: "Main Branch",
@@ -94,7 +129,7 @@ describe("BranchSidebar", () => {
     expect(mocks.sidebarItems.map(item => item.label)).toContain("Branch Settings");
   });
 
-  it("keeps AI reports and messages but removes AI Insights", () => {
+  it("uses the approved report group and supporting destinations", () => {
     mocks.access = {
       branchId: "branch_1",
       branchName: "Main Branch",
@@ -115,7 +150,11 @@ describe("BranchSidebar", () => {
     const labels = mocks.sidebarItems.map(item => item.label);
     expect(labels).not.toContain("AI Insights");
     expect(labels).toContain("AI Reports");
-    expect(labels).toContain("AI Messages");
+    expect(labels).toContain("Follow-ups");
+    expect(labels).toContain("Tasks");
+    expect(labels).toContain("Exports & Reports");
+    expect(labels).not.toContain("AI Messages");
+    expect(labels).not.toContain("Back to organization");
   });
 
   it("hides AI reports and messages when payment visibility is denied", () => {

@@ -244,6 +244,7 @@ export function AddStudentDialog({
 
     return (
         <Dialog
+            density="compact"
             open={isOpen}
             onClose={onClose}
             title={t("Add new student")}

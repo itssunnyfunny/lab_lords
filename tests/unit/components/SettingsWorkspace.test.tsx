@@ -23,6 +23,9 @@ describe("settings edit controls", () => {
 
     expect(html).toContain("Edit settings");
     expect(html).toContain("Saved profile");
+    expect(html).toContain("ui-record-header");
+    expect(html).toContain("ui-panel--compact");
+    expect(html).toContain('aria-label="Settings"');
   });
 
   it("keeps Cancel available but disables Save until a value changes", () => {

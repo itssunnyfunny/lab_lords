@@ -11,7 +11,7 @@ import { UpdateAllocationDialog } from "@/components/allocations/UpdateAllocatio
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { ViewToggle } from "@/components/tables/ViewToggle";
 import { useDataViewMode } from "@/hooks/useDataViewMode";
-import { AppButton, AppSelect, PageLoadingSkeleton, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, AppSelect, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import {
     pageCountBadgeClass,
     pageDescriptionClass,
@@ -19,9 +19,7 @@ import {
     pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
-    pageInsetMetricClass,
     pageMutedTextClass,
-    pageSectionDividerClass,
     pageSubtleTextClass,
     pageTitleClass,
 } from "@/components/ui/pageSurface";
@@ -122,10 +120,8 @@ function AllocationsContent({
 
     // Optional: pre-selected student passed via query param from students page
     const preselectedStudentId = searchParams.get("studentId") ?? undefined;
-    const preselectedStudentName = searchParams.get("studentName") ?? undefined;
     // Change seat: navigated from students page with existing allocation
     const changeStudentId = searchParams.get("changeStudentId") ?? undefined;
-    const changeStudentName = searchParams.get("studentName") ?? undefined;
     const linkedAllocationId = searchParams.get("allocationId") ?? undefined;
     const linkedStatus = searchParams.get("status");
 
@@ -193,7 +189,7 @@ function AllocationsContent({
         setUpdateTarget({
             ids,
             studentId: changeStudentId,
-            studentName: changeStudentName || studentAllocs[0]?.student?.name || "",
+            studentName: studentAllocs[0]?.student?.name || "",
             currentSeatId: studentAllocs[0]?.seat?.id || "",
             currentFee: studentAllocs[0]?.student?.monthlyFee ?? null,
             currentShiftIds: studentAllocs.map((a) => a.shiftId),
@@ -201,7 +197,7 @@ function AllocationsContent({
         });
         // Clear query param
         router.replace(`/branch/${branchId}/allocations`);
-    }, [allocations, branchId, canManageAllocations, changeStudentId, changeStudentName, router]);
+    }, [allocations, branchId, canManageAllocations, changeStudentId, router]);
 
     const fetchAllocations = useCallback(async () => {
         const sequence = ++loadSequence.current;
@@ -397,7 +393,7 @@ function AllocationsContent({
 
     return (
         <PageShell>
-            <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <header className="ui-record-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
                     <p className={pageEyebrowClass}>{t("Seat workflow")}</p>
                     <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Allocations")}</h1>
@@ -407,6 +403,7 @@ function AllocationsContent({
 
                 {showManageActions ? (
                     <AppButton
+                        density="compact"
                         variant="primary"
                         icon={UserPlus}
                         onClick={openAllocateDialog}
@@ -445,7 +442,7 @@ function AllocationsContent({
                 </p>
             )}
 
-            <div className={cn("flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between", pageSectionDividerClass)}>
+            <AppPanel density="compact" contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div role="group" className="flex max-w-full items-center gap-2 overflow-x-auto" aria-label={t("Allocation status filter")}>
                     {(["ACTIVE", "ENDED"] as const).map(tab => {
                         const active = activeTab === tab;
@@ -464,7 +461,7 @@ function AllocationsContent({
                                 onClick={() => setActiveTab(tab)}
                                 aria-pressed={active}
                                 className={cn(
-                                    "inline-flex h-9 cursor-pointer items-center gap-2 whitespace-nowrap rounded-[var(--ui-radius-control)] border px-3 text-sm font-medium transition-colors",
+                                    "inline-flex min-h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-[var(--ui-radius-control)] border px-3 text-sm font-medium transition-colors md:min-h-9",
                                     active ? selectedClassName : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
                                 )}
                             >
@@ -489,7 +486,7 @@ function AllocationsContent({
                     />
                     <ViewToggle value={viewMode} onChange={setViewMode} className="hidden md:inline-flex" />
                 </div>
-            </div>
+            </AppPanel>
 
             {filteredAllocations.length === 0 ? (
                 <div className={pageEmptyStateClass}>
@@ -554,7 +551,6 @@ function AllocationsContent({
                     branchId={branchId}
                     isOpen={isDialogOpen}
                     preselectedStudentId={preselectedStudentId}
-                    preselectedStudentName={preselectedStudentName}
                     onClose={handleClose}
                     onSuccess={() => {
                         fetchAllocations();
@@ -607,7 +603,7 @@ function AllocationMetric({
             : "text-[color:var(--text-primary)]";
 
     return (
-        <div className={cn("flex items-start gap-3", pageInsetMetricClass)}>
+        <AppPanel density="compact" contentClassName="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-muted-surface-bg)]">
                 <Icon size={17} className={toneClass} />
             </div>
@@ -616,6 +612,6 @@ function AllocationMetric({
                 <p className={cn("mt-1 text-2xl font-semibold tracking-tight", toneClass)}>{value}</p>
                 <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p>
             </div>
-        </div>
+        </AppPanel>
     );
 }

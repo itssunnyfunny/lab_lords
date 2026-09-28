@@ -937,6 +937,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 actions={!isEditing ? (
                     <AppButton
                         variant="primary"
+                        density="compact"
                         size="sm"
                         disabled={!organizationCanEdit}
                         title={!organizationCanEdit ? organizationEditReason : undefined}

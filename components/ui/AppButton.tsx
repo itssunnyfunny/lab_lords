@@ -8,6 +8,13 @@ export interface AppButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> 
     icon?: LucideIcon;
     rightIcon?: LucideIcon;
     isLoading?: boolean;
+    density?: "comfortable" | "compact";
+}
+
+/** Use for a real navigation link; never nest a button inside an anchor. */
+export function appActionClassName(variant: AppButtonProps["variant"] = "secondary") {
+    const canonical = variant === "glow" || variant === "cyan" ? "primary" : variant === "ghost" ? "quiet" : variant === "outline" ? "secondary" : variant;
+    return cn("ui-action--compact", canonical !== "secondary" && `ui-action--${canonical}`);
 }
 
 const variantClasses = {
@@ -48,6 +55,7 @@ export const AppButton = forwardRef<HTMLButtonElement, AppButtonProps>(
             isLoading,
             type = "button",
             disabled,
+            density = "comfortable",
             ...props
         },
         ref
@@ -61,9 +69,9 @@ export const AppButton = forwardRef<HTMLButtonElement, AppButtonProps>(
                 disabled={disabled || isLoading}
                 aria-busy={isLoading || undefined}
                 className={cn(
-                    "group inline-flex cursor-pointer items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border font-semibold tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
-                    variantClasses[variant],
-                    sizeClasses[size],
+                    density === "compact" ? appActionClassName(variant) : "group inline-flex cursor-pointer items-center justify-center gap-2 rounded-[var(--ui-radius-control)] border font-semibold tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
+                    density === "comfortable" && variantClasses[variant],
+                    density === "comfortable" && sizeClasses[size],
                     className
                 )}
                 {...props}

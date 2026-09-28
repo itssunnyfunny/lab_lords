@@ -51,11 +51,11 @@ export function DecisionsStep({
 
     return (
         <div className="space-y-5">
-            <AppPanel
+            <AppPanel density="compact"
                 title={t("Decisions")}
                 description={t("Answer only the decisions needed for this import. Unclear seat, shift, and payment data can be deferred.")}
                 action={goal !== "STUDENTS" ?
-                    <AppButton
+                    <AppButton density="compact"
                         variant="secondary"
                         icon={Link2Off}
                         onClick={onDeferAllocations}
@@ -92,7 +92,7 @@ export function DecisionsStep({
                                 />
                                 <span className="min-w-0">
                                     <span className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]">
-                                        <ShieldCheck className="h-4 w-4 text-cyan-300" />
+                                        <ShieldCheck className="h-4 w-4 text-[color:var(--ui-tone-info-text)]" />
                                         {t("Approve setup creation for this reviewed batch")}</span>
                                     <span id="configuration-batch-description" className={cn("mt-1 block text-xs leading-5", pageMutedTextClass)}>{t("This import is configured to create {join} when a ready row refers to one that does not exist. Approval is saved with this staged import; later changes still require a new reviewed plan before running.", { join: configurationLabels.join(", ") })}</span>
                                 </span>
@@ -103,14 +103,14 @@ export function DecisionsStep({
                     {goal !== "STUDENTS" && <div className={cn("flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between", pageInsetSurfaceClass)}>
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                                <UserRoundCheck className="h-4 w-4 text-cyan-300" />
+                                <UserRoundCheck className="h-4 w-4 text-[color:var(--ui-tone-info-text)]" />
                                 <p className="text-sm font-semibold text-[color:var(--text-primary)]">
                                     {t("Import students now, finish setup later")}</p>
                             </div>
                             <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
                                 {t("Defers seat/shift mapping and skips payments for this import while keeping valid student rows importable.")}</p>
                         </div>
-                        <AppButton
+                        <AppButton density="compact"
                             variant="primary"
                             icon={UserRoundCheck}
                             onClick={onStudentsOnly}
@@ -130,7 +130,7 @@ export function DecisionsStep({
                         {openQuestions.map(question => (
                             <div key={question.id} className={cn("p-4", pageInsetSurfaceClass)}>
                                 <div className="flex items-start gap-3">
-                                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+                                    <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ui-tone-info-text)]" />
                                     <div className="min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <p className="font-medium text-[color:var(--text-primary)]">{question.question}</p>
@@ -141,7 +141,7 @@ export function DecisionsStep({
                                         {(question.options ?? []).length > 0 && (
                                             <div className="mt-3 flex flex-wrap gap-2">
                                                 {(question.options ?? []).map(option => (
-                                                    <AppButton
+                                                    <AppButton density="compact"
                                                         key={option}
                                                         size="sm"
                                                         variant="secondary"
@@ -163,7 +163,7 @@ export function DecisionsStep({
                                                 className={cn("min-w-0 flex-1", importFieldClass)}
                                                 placeholder={t("Custom answer")}
                                             />
-                                            <AppButton
+                                            <AppButton density="compact"
                                                 variant="primary"
                                                 size="sm"
                                                 icon={Save}
@@ -180,12 +180,12 @@ export function DecisionsStep({
                         ))}
 
                         {answeredQuestions.length > 0 && (
-                            <details className={cn("rounded-[8px] border border-[color:var(--ui-form-surface-border)]", pageInsetSurfaceClass)}>
+                            <details className={cn("rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)]", pageInsetSurfaceClass)}>
                                 <summary className="cursor-pointer list-none text-sm font-semibold text-[color:var(--text-primary)]">{t("Answered decisions ({count})", { count: answeredQuestions.length })}</summary>
                                 <div className="mt-3 space-y-3">
                                     {answeredQuestions.map(question => (
                                         <div key={question.id} className="flex items-start gap-3 text-sm">
-                                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ui-tone-success-text)]" />
                                             <div className="min-w-0">
                                                 <p className="font-medium text-[color:var(--text-primary)]">{question.question}</p>
                                                 <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Answered: {value}", { value: typeof question.answer === "string" ? labelImportOption(question.answer) : JSON.stringify(question.answer) })}</p>

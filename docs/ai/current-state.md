@@ -1,5 +1,198 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Authenticated application presentation rollout — 2026-09-28
+
+The selected dashboard and approved Students hierarchy are the visual foundation.
+Local presentation migrations now cover A · Work queues (`f7f70d1`), B · Payments
+(`b12befc`), C · Seats/Shifts (`e38a090`), D · Attendance (`c4a3e00`), E · Settings
+(`21e1834`) and F · Reporting (`c39b252`), followed by G · Guided (`6dd008c`)
+and H · Workspace (`8b69d4a`). The local integration check fix is `0973c71`.
+The [migration ledger](../redesign/page-family-migration.md) maps each route to
+its family and separates local evidence, owner presentation approval and release;
+the [design source map](application-design-system.md) names shared and feature
+presentation owners. The available A–F fixture packets are local visual evidence,
+not proof of connected authorization, provider behavior or release.
+
+The rollout composes semantic tokens, AppPanel, RecordList, compact tables and
+feature-owned cards/overlays where each workflow fits. Settings and billing retain
+their identity, permission and provider gates; queues and Payments retain due
+arithmetic, command identities and receipts; Seats/Shifts and Attendance retain
+capacity and confirmed visit semantics; Reporting retains authorized export
+scope, document language and advisory AI boundaries. Guided imports and workspace
+selection retain their tenant and recovery boundaries. No schema, environment,
+provider or public feature/copy behavior is changed by this presentation work.
+Family-specific owner review and production release remain pending.
+
+## Batch 2 Tasks presentation — 2026-09-28
+
+Tasks now composes the existing RecordList page/surface/states, compact DataTable,
+panels and Dialog. A feature-owned mobile card presents title, assignee, due
+date/state and update time. The source-work links and recent-activity view use
+their existing authorized dashboard reads and recorded events. Manual task
+create/edit, assignment, due-date and state requests retain their paths, bodies
+and server authorization. No backend, schema, provider, Students, selected
+dashboard or public presentation changed. The isolated fixture has 20 passing
+browser checks across four widths and three languages; scoped dashboard
+contracts/service/route tests have 26 passes, typecheck and scoped lint pass.
+The connected runner could not start its exact disposable container because
+Windows reserved its existing loopback port; connected Tasks claims remain
+unverified until that target is available. See the [Batch 2 review](../redesign/batch-two-review.md).
+Owner presentation review and production release remain separate pending steps.
+
+## Batch 2 Staff presentation — 2026-09-27
+
+Staff now composes the existing RecordList page/surface/states, compact DataTable,
+quiet Avatar and compact panels/overlays. Its mobile cards retain identity/email,
+role, access summary and added date. Role/invitation/override/removal commands,
+validation and owner/entitlement/writability boundaries remain feature-owned.
+Local verification: 15 fixture browser checks, 33 scoped service/route checks,
+12 localization checks, lint/build and two actual connected checks passed. The
+connected checks restore the synthetic member's access and language preference;
+financial aggregates remain unchanged. Legacy Staff GET returns the same generic
+500 for foreign and missing branch IDs; backend correction is outside this
+presentation scope. See the Batch 2 review handoff when complete. Owner approval
+of the reused Students hierarchy is separate from Staff review and release.
+Staff is also enabled in the existing selected-theme route allowlist. Its shared
+consumers passed 28 scoped checks and two unchanged Students narrow-screen checks;
+tokens, primitive defaults, Students/dashboard code and public presentation are
+unchanged. Historical screenshots are reused rather than regenerated.
+
+## Shared selected presentation and Students family — 2026-09-27
+
+The focused Students refinement replaces its four-box grid renderer with one
+feature-owned `StudentRecordCard`: quiet initials, labelled name workflow entry,
+separate 44px menu, all seat/shift pairs, primary due amount, secondary monthly
+fee/paid values and joining metadata. The gallery imports this same renderer.
+Edit opts into an integrated, wrapping language header and softer backdrop, with
+primary Save / secondary Cancel. Default shared consumers and desktop table
+composition remain compatible. No read, command, validation or financial rules
+change. The owner approved this refined presentation on 2026-09-27 for Batch 2,
+Staff then Tasks. That approval is distinct from local tests and production
+release; this local migration has not been released. See the
+[approval ledger](../redesign/page-family-migration.md) and
+[focused evidence](../redesign/student-card-refinement.md).
+
+The selected dashboard's recurring palette, compact panels/actions and font
+roles now extend the existing semantic token and UI owners. Its full composition
+and eight crops match the frozen `3d58864` fixture exactly. The real Students page
+uses the reusable RecordList presentation, compact table/detail variants and
+stable result-state regions. Existing admission, editing, consent, allocation,
+attendance and financial command logic remain feature-owned. Latest-request
+guards protect roster/supporting reads; branch/account identity clears local
+state, while language changes retain drafts and command identity.
+
+The existing isolated harness has a gallery importing these production owners.
+There is no application gallery route, new API, dependency, schema or migration.
+Public pages and their separate language/theme system remain unchanged. See
+[shared presentation guidance](application-design-system.md) and the
+[page-family ledger](../redesign/page-family-migration.md). This historical
+foundation run migrated Students; Batch 2 advanced Staff and Tasks before the
+later application-family rollout.
+
+## Full selected dashboard implementation — 2026-09-27
+
+The owner's new scope replaces the earlier dashboard-pilot composition limits
+below. The branch dashboard now uses the full selected image composition and a
+permission-shaped `DashboardService` aggregate. The additive operations include
+explicit attendance expectations, independent membership terms, first-observed
+occupancy history, manual tasks, focused fee follow-ups and persistent personal
+notification acknowledgement. Existing collection, anniversary fee, attendance,
+provider, localization and tenant boundaries remain authoritative; public pages
+remain unchanged. Visual acceptance is reserved for the owner.
+
+The chart shows current settlement of the selected month's due-date cohort;
+cash collected this month is a separate measure. Historical occupancy begins
+only at actual snapshots. See [dashboard operations](dashboard-operations.md)
+for source definitions, authorization, sparse states and migration requirements.
+The [local handoff](../redesign/reference-dashboard-handoff.md) contains the
+native reference comparisons, connected preview instructions and exact checks.
+The dated pilot sections below are historical records, not current design gates.
+
+## Dashboard component reconstruction — 2026-09-25
+
+The approval-gated dashboard pilot now has two source-backed Action Center
+groups in one full-width low-count section, four distinct summary metrics, a
+14-day actual daily-collections bar series with a seven-day filter of those
+same observations, and independent billed/collected/outstanding facts. Current
+shift allocation is an eight-bin scaled share per shift with exact counts;
+attendance remains separate, and missing or zero-capacity shift data is not
+presented as available seats. Upcoming fees and Follow-ups are semantic
+desktop tables with compact mobile reflow of the same records. Activity shows
+only actual recorded events, and the two secondary Quick Actions remain
+capability-gated. The photo and quotations remain removed.
+
+Only pilot presentation, localization strings, synthetic tests and visual
+evidence changed. Existing authorized reads, tenant checks, monetary meanings,
+payment idempotency/recovery, public pages, schema and environment did not.
+See the [frozen component specification](../redesign/dashboard-component-spec.md)
+and [native-scale target/render comparisons](../redesign/dashboard-component-evidence/README.md).
+This direction still requires explicit visual approval before wider rollout.
+
+## Dashboard reference geometry correction — 2026-09-25
+
+The local dashboard pilot now uses a direct responsive grid for collections,
+seating/attendance, the activity rail, and the two record worklists. At a 1440px
+desktop viewport the dashboard-only sidebar is 232px, the main columns follow a
+2 : 1.35 : 1 ratio, and the worklists begin within the first viewport. The
+Action Center uses compact cards for the two supported priority groups, while
+the four summary cards stay concise. Current slot allocation is visualized
+from existing snapshot counts; the collections bars remain the authorized
+14-day daily series. Phone layouts put worklists before supporting charts.
+The DOM and keyboard order follow that responsive placement; keyed panels keep
+fee selections through a viewport change. Missing shift-slot detail is shown
+as unavailable, not inferred from physical-seat counts.
+
+This is presentation work on the existing dashboard reads and actions. Source
+meanings, tenant checks, permissions, language preferences, collection recovery,
+and public pages are unchanged. The browser comparison, exceptions, and checks
+are recorded in [the dashboard refinement](../redesign/dashboard-refinement.md).
+The design remains local and approval-gated; it has not been rolled out.
+
+## Dashboard-only operational refinement — 2026-09-23
+
+The existing dashboard pilot now has one compact ordered Action Center, four
+summaries, a 5/4/3 collections-chart/slot-attendance/activity grid, and upcoming fees
+and follow-ups beneath the main panels. Mobile puts worklists before supporting
+visuals. The daily chart differences consecutive all-time cumulative observations
+from the existing authorized payment-trend endpoint; it does not split a monthly
+total into invented bars. Longer definitions use accessible disclosures.
+Monthly billing, collections and
+all-period outstanding amounts are explicitly different. Slot utilization is not
+physical-seat attendance; missing attendance is not inferred absence. All data
+comes from existing authorized reads; no server/domain or provider behavior changed.
+
+Confirmed collection refreshes the dashboard without remounting its receipt or
+same-request workflow. Branch/user changes reset private state and cancel stale
+publications; language changes preserve workflow state. The synthetic harness now
+uses actual built fonts with browser glyph evidence and a four-viewport dashboard
+matrix. No public copy or additional application route family was redesigned.
+See [the refinement, metric definitions and evidence](../redesign/dashboard-refinement.md).
+This remains local and approval-gated, not deployed or approved for wider rollout.
+
+## Authenticated application design pilot — 2026-09-22
+
+A local, approval-gated design pilot now applies the approved botanical public
+identity to the branch dashboard, Students, Seats, and the shared collection
+dialog only. Route-scoped tokens keep all other authenticated routes on their
+existing theme, while an explicit dialog overlay class carries the same tokens
+through the existing body portal. The branch sidebar uses task-oriented groups
+on pilot routes and retains every route, permission check, entitlement lock,
+owner return path, activation state, and billing/read-only banner.
+
+The pilot also makes the dashboard Add Student action capability-aware, retains
+student allocation projections after a scalar edit, removes student names from
+allocation query strings, and clarifies partial-payment review, uncertain
+same-request recovery, and immutable receipt presentation. Server-side tenant,
+permission, seat/allocation, finance, receipt, and provider behavior is
+unchanged. A Clerk/DB/provider-free component harness supplies visibly labelled
+synthetic desktop/mobile and language evidence; it is not a production auth
+bypass or connected-environment verification.
+
+See [the implementation and approval note](../redesign/application-design-pilot.md).
+The shared design is not approved yet, and no application-wide rollout should
+start until explicit owner approval. This records local implementation only,
+not deployment.
+
 ## Public proof and identity refresh — 2026-09-21
 
 Home replaces its plan introduction with a labelled sample payment/receipt.
@@ -1051,7 +1244,7 @@ The uncalled V1 import executor and two obsolete unscoped AI scripts are removed
 Active imports retain Workflow and atomic item/domain finalization. Analysis
 now adds session token/expiry fencing (migration 47) to existing revision CAS.
 See [access/worker contracts](access-and-worker-contracts.md), the complete
-[166-relationship catalog](tenant-relationship-coverage.md), and the
+[complete relationship catalog](tenant-relationship-coverage.md), and the
 [execution matrix](architecture-consolidation-2026-09-05.md). The isolated
 bootstrap applies all maintained migrations and required billing identity;
 Production migration versus fresh cutover remains an evidence-dependent choice

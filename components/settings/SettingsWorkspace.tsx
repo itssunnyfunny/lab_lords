@@ -89,17 +89,17 @@ export function SettingsWorkspace({
 
     return (
         <div>
-            <PageShell>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <PageShell className="ui-record-page">
+            <header className="ui-record-header">
                 <div className="min-w-0">
-                    <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">{t.owned(title)}</h1>
-                    <p className={cn("mt-1 max-w-2xl text-sm leading-6", pageMutedTextClass)}>{t.owned(subtitle)}</p>
+                    <h1>{t.owned(title)}</h1>
+                    <p className="ui-record-description">{t.owned(subtitle)}</p>
                 </div>
-                {actions ? <div className="shrink-0">{actions}</div> : null}
-            </div>
+                {actions ? <div className="ui-record-actions">{actions}</div> : null}
+            </header>
 
-            <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-                <nav className={cn("h-max p-1.5 lg:sticky lg:top-6", pageFilterShellClass)}>
+            <div className="grid gap-4 lg:grid-cols-[210px_minmax(0,1fr)]">
+                <nav className={cn("ui-panel--compact h-max p-1.5 lg:sticky lg:top-6", pageFilterShellClass)} aria-label={t("Settings")}>
                     {sections.map(section => {
                         const Icon = section.icon;
                         const active = activeSection === section.id;
@@ -110,7 +110,7 @@ export function SettingsWorkspace({
                                 onClick={() => handleSectionClick(section.id)}
                                 aria-current={active ? "location" : undefined}
                                 className={cn(
-                                    "flex w-full items-center gap-3 rounded-[var(--ui-radius-control)] border px-3 py-2.5 text-left text-sm transition-colors",
+                                    "flex min-h-11 w-full items-center gap-3 rounded-[var(--ui-radius-control)] border px-3 py-2 text-left text-sm transition-colors",
                                     active
                                         ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
                                         : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
@@ -122,7 +122,7 @@ export function SettingsWorkspace({
                         );
                     })}
                 </nav>
-                <div className="min-w-0 space-y-5 pb-24">{children}</div>
+                <div className="min-w-0 space-y-4 pb-24">{children}</div>
             </div>
             </PageShell>
         </div>
@@ -157,8 +157,8 @@ export function SettingsPanel({
 }) {
     const t = useTranslation();
     return (
-        <section id={id} className="scroll-mt-6 overflow-hidden rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] shadow-[var(--ui-panel-shadow)]">
-            <div className="flex items-start gap-3 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-5 py-4">
+        <section id={id} className="ui-panel--compact scroll-mt-6 overflow-hidden">
+            <div className="flex items-start gap-3 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 py-3">
                 <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-form-accent)]">
                     <Icon size={16} />
                 </div>
@@ -194,7 +194,7 @@ export function SettingsField({
     const describedBy = mergeDescribedBy(descriptionId, error ? resolvedErrorId : undefined);
 
     return (
-        <div className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(170px,220px)_minmax(0,1fr)] md:items-center">
+        <div className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(160px,210px)_minmax(0,1fr)] md:items-center">
             <div>
                 <label id={labelId} htmlFor={controlId} className={formLabelClass}>{t.owned(label)}</label>
                 {description && <p id={descriptionId} className={cn("mt-1 text-xs leading-relaxed", formHelpTextClass)}>{t.owned(description)}</p>}
@@ -427,9 +427,9 @@ export function SettingsSaveBar({
                 </div>
                 {visible ? (
                     <div className="flex justify-end gap-2">
-                        <AppButton variant="quiet" size="sm" onClick={onCancel} disabled={saving} className="min-h-11 lg:min-h-9">
+                        <AppButton variant="quiet" density="compact" size="sm" onClick={onCancel} disabled={saving} className="min-h-11 lg:min-h-9">
                             {t("Cancel")}</AppButton>
-                        <AppButton variant="primary" size="sm" onClick={onSave} disabled={!hasChanges || saving} isLoading={saving} className="min-h-11 min-w-[110px] lg:min-h-9">
+                        <AppButton variant="primary" density="compact" size="sm" onClick={onSave} disabled={!hasChanges || saving} isLoading={saving} className="min-h-11 min-w-[110px] lg:min-h-9">
                             {saving ? t("Saving") : t("Save changes")}
                         </AppButton>
                     </div>

@@ -6,6 +6,7 @@ import {
     BarChart2,
     CalendarCheck,
     CalendarClock,
+    ClipboardList,
     CreditCard,
     FileText,
     Grid,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { SidebarItem } from "./SidebarItem";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import type { StaffAction } from "@/types";
@@ -33,6 +35,7 @@ import {
     chromeSidebarHeaderClass,
     chromeSidebarSectionLabelClass,
 } from "@/components/ui/chromeSurface";
+import { isApplicationDesignPilotPath } from "@/lib/applicationDesignPilot";
 
 type BranchNavItem = {
     icon: LucideIcon;
@@ -49,6 +52,8 @@ export function BranchSidebar() {
     const segments = pathname?.split("/") || [];
     const branchId = segments[2];
     const basePath = `/branch/${branchId}`;
+    const designPilot = isApplicationDesignPilotPath(pathname);
+    const dashboardPilot = designPilot;
     const { access, loading } = useBranchAccess(branchId);
 
     if (!branchId) return null;
@@ -90,6 +95,34 @@ export function BranchSidebar() {
         { icon: MessageSquare, label: "AI Messages", href: `${basePath}/ai/messages`, permission: ["analytics", "view_payments"], feature: "AI_MESSAGES", active: current => current === `${basePath}/ai/messages` },
     ];
 
+    const followUpsItem: BranchNavItem = { icon: CalendarClock, label: "Follow-ups", href: `${basePath}/follow-ups`, permission: "view_payments", active: current => current === `${basePath}/follow-ups` };
+    const tasksItem: BranchNavItem = { icon: ClipboardList, label: "Tasks", href: `${basePath}/tasks`, active: current => current === `${basePath}/tasks` };
+    const reportsItem: BranchNavItem = { icon: FileText, label: "Exports & Reports", href: `${basePath}/reports`, active: current => current === `${basePath}/reports` };
+    const settingsItem: BranchNavItem = { icon: Settings, label: canManageBranchSettings ? "Branch Settings" : "WhatsApp Reports", href: `${basePath}/settings`, active: current => current === `${basePath}/settings` || current === `${basePath}/dashboard-settings` };
+
+    const pilotSections = [
+        {
+            label: "Daily work",
+            items: [overviewItems[0], operationItems[0], operationItems[1], followUpsItem, tasksItem],
+        },
+        {
+            label: "Seats and shifts",
+            items: [operationItems[3], operationItems[4], operationItems[5]],
+        },
+        {
+            label: "Fees",
+            items: [operationItems[6], operationItems[7], operationItems[8]],
+        },
+        {
+            label: "Reports",
+            items: [overviewItems[1], intelligenceItems[0], ...(canSee("view_payments") || canSee("students") ? [reportsItem] : [])],
+        },
+        {
+            label: "Setup and access",
+            items: [...(canOpenSettings ? [settingsItem] : []), operationItems[2], { ...operationItems[9], label: "Staff & Permissions" }],
+        },
+    ];
+
     const renderItems = (items: BranchNavItem[]) => items.map(item => (
         <SidebarItem
             key={item.href}
@@ -109,39 +142,53 @@ export function BranchSidebar() {
 
         return (
             <div className="space-y-2">
-                <div className={chromeSidebarSectionLabelClass}>{label}</div>
+                <div className={chromeSidebarSectionLabelClass}>{t.owned(label)}</div>
                 {renderItems(visibleItems)}
             </div>
         );
     };
 
     return (
-        <aside className={chromeSidebarClass} aria-label={t("Branch navigation")}>
+        <aside className={chromeSidebarClass} aria-label={t("Branch navigation")} data-dashboard-navigation={dashboardPilot ? "true" : undefined}>
             <div className={chromeSidebarHeaderClass}>
                 <Link
                     href="/app"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
+                    className="flex h-10 w-12 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
                     aria-label={t("Open workspace home")}
                 >
-                    <LogoMark className="h-10 w-10" title="" />
+                    <LogoMark
+                        className={designPilot ? "h-8 w-12" : "h-10 w-10"}
+                        title=""
+                        variant={designPilot ? "botanical" : "legacy"}
+                    />
                 </Link>
                 <div className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]">{access?.branchName ?? "Loading..."}</span>
+                    <span className={dashboardPilot ? "reference-sidebar-wordmark block text-[27px] font-bold leading-tight tracking-tight text-[#104d38]" : "block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]"}>{dashboardPilot ? <>Lab<span className="text-[#37863b]">Lords</span><small className="text-[12px]">.in</small></> : access?.branchName ?? "Loading..."}</span>
                     <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-form-accent)]">
-                        {access?.role ?? (loading ? "Checking access" : "Branch Connected")}
+                        {dashboardPilot ? t("Spaces for brighter minds") : access?.role ?? (loading ? "Checking access" : "Branch Connected")}
                     </span>
                 </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 py-3 scrollbar-none">
                 <div className="space-y-4">
-                    {renderSection("Overview", overviewItems)}
-                    {renderSection("Operations", operationItems)}
-                    {renderSection("Intelligence", intelligenceItems)}
+                    {designPilot
+                        ? pilotSections.map(section => (
+                            <div key={section.label}>{renderSection(section.label, section.items)}</div>
+                        ))
+                        : (
+                            <>
+                                {renderSection("Overview", overviewItems)}
+                                {renderSection("Operations", [...operationItems, followUpsItem, tasksItem])}
+                                {renderSection("Intelligence", [...intelligenceItems, ...(canSee("view_payments") || canSee("students") ? [reportsItem] : [])])}
+                            </>
+                        )}
                 </div>
             </div>
 
-            {(access?.isOwner || canOpenSettings) && (
+            {designPilot && <div className="reference-sidebar-quote" aria-hidden="true"><Image src="/images/dashboard/botanical-sprig.png" width={150} height={188} alt="" /><p>{t("Better students.")}<br />{t("Brighter futures.")}</p></div>}
+
+            {!designPilot && (access?.isOwner || canOpenSettings) && (
                 <div className={chromeSidebarFooterClass}>
                     <div className="space-y-2">
                         {access?.isOwner && (

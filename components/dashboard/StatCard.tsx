@@ -39,34 +39,34 @@ const toneMap = {
 
 const accentMap = {
     neutral: {
-        border: "border-[color:var(--ui-panel-border)]",
+        border: "border-[color:var(--ui-tone-neutral-border)]",
         wash: "hidden",
         icon: "bg-[color:var(--ui-tone-neutral-bg)] text-[color:var(--ui-tone-neutral-text)]",
         value: "text-[color:var(--ui-stat-value)]",
     },
     emerald: {
-        border: "border-emerald-400/20",
-        wash: "bg-[radial-gradient(circle_at_top_right,rgba(52,211,153,0.11),transparent_48%)]",
-        icon: "bg-emerald-400/10 text-emerald-200",
-        value: "text-emerald-200",
+        border: "border-[color:var(--ui-tone-success-border)]",
+        wash: "bg-[color:var(--ui-tone-success-bg)] opacity-60",
+        icon: "bg-[color:var(--ui-tone-success-bg)] text-[color:var(--ui-tone-success-text)]",
+        value: "text-[color:var(--ui-tone-success-text)]",
     },
     rose: {
-        border: "border-rose-400/20",
-        wash: "bg-[radial-gradient(circle_at_top_right,rgba(251,113,133,0.11),transparent_48%)]",
-        icon: "bg-rose-400/10 text-rose-200",
-        value: "text-rose-200",
+        border: "border-[color:var(--ui-tone-danger-border)]",
+        wash: "bg-[color:var(--ui-tone-danger-bg)] opacity-60",
+        icon: "bg-[color:var(--ui-tone-danger-bg)] text-[color:var(--ui-tone-danger-text)]",
+        value: "text-[color:var(--ui-tone-danger-text)]",
     },
     cyan: {
-        border: "border-cyan-400/20",
-        wash: "bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.11),transparent_48%)]",
-        icon: "bg-cyan-400/10 text-cyan-200",
-        value: "text-cyan-200",
+        border: "border-[color:var(--ui-tone-info-border)]",
+        wash: "bg-[color:var(--ui-tone-info-bg)] opacity-60",
+        icon: "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]",
+        value: "text-[color:var(--ui-tone-info-text)]",
     },
     violet: {
-        border: "border-violet-400/20",
-        wash: "bg-[radial-gradient(circle_at_top_right,rgba(167,139,250,0.12),transparent_48%)]",
-        icon: "bg-violet-400/10 text-violet-200",
-        value: "text-violet-200",
+        border: "border-[color:var(--ui-tone-insight-border)]",
+        wash: "bg-[color:var(--ui-tone-insight-bg)] opacity-60",
+        icon: "bg-[color:var(--ui-tone-insight-bg)] text-[color:var(--ui-tone-insight-text)]",
+        value: "text-[color:var(--ui-tone-insight-text)]",
     },
 } satisfies Record<StatCardAccent, {
     border: string;
