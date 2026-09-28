@@ -71,6 +71,11 @@ describe("BranchSidebar", () => {
     expect(pilot).not.toContain(">Operations<");
 
     mocks.pathname = "/branch/branch_1/payments";
+    const migrated = renderToStaticMarkup(<BranchSidebar />);
+    expect(migrated).toContain("Daily work");
+    expect(migrated).not.toContain(">Operations<");
+
+    mocks.pathname = "/branch/branch_1/ai/messages";
     mocks.sidebarItems.length = 0;
     const existing = renderToStaticMarkup(<BranchSidebar />);
     expect(existing).toContain("Overview");
@@ -79,8 +84,8 @@ describe("BranchSidebar", () => {
     expect(existing).not.toContain("Daily work");
   });
 
-  it("keeps the organization footer on non-dashboard routes for owners", () => {
-    mocks.pathname = "/branch/branch_1/payments";
+  it("keeps the organization footer on excluded legacy routes for owners", () => {
+    mocks.pathname = "/branch/branch_1/ai/messages";
     mocks.access = {
       branchId: "branch_1",
       branchName: "Main Branch",
