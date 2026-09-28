@@ -1,8 +1,8 @@
 "use client";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppButton, Dialog } from "@/components/ui";
-import { formControlClass } from "@/components/ui/formSurface";
+import { AppButton, AppPanel, Dialog } from "@/components/ui";
+import { formControlClass, formLabelClass } from "@/components/ui/formSurface";
 import { attendance } from "@/lib/api/attendance";
 import { AttendanceActionDialog } from "./AttendanceActionDialog";
 import type { AttendanceCommand } from "@/lib/attendance";
@@ -38,17 +38,17 @@ export function AttendanceScanner({ branchId, onClose, onSaved }: { branchId: st
         setCommand(mode === "CHECK_IN" ? { key: crypto.randomUUID(), kind: "CHECK_IN", studentId: identity.student.id, source: "QR" }
             : { key: crypto.randomUUID(), kind: "CHECK_OUT", studentId: identity.student.id, visitId: identity.openVisit!.id, version: identity.openVisit!.version });
     }
-    return <Dialog open closeDisabled={!!command} title={t("Front-desk QR scanner")} onClose={() => { if (!command) onClose(); }}>
+    return <Dialog open density="compact" languagePlacement="header" closeDisabled={!!command} title={t("Front-desk QR scanner")} onClose={() => { if (!command) onClose(); }}>
         <div className="space-y-4">
-            <p className="text-sm">{t("Confirm the student's identity before recording attendance. Scanning is supervised and does not prove identity.")}</p>
-            <div className="flex gap-2">{(["CHECK_IN", "CHECK_OUT"] as const).map(value => <AppButton key={value} variant={mode === value ? "primary" : "secondary"} aria-pressed={mode === value} disabled={!!identity || loading || !!command} onClick={() => setMode(value)}>{value === "CHECK_IN" ? t("Check in") : t("Check out")}</AppButton>)}</div>
-            <video key={`${camera}:${scan}`} ref={video} muted playsInline className="aspect-video w-full rounded-lg bg-black" aria-label={t("QR camera preview")} />
-            {devices.length > 1 && <label className="block text-sm">{t("Camera")}<select className={`${formControlClass} w-full p-2`} value={camera} disabled={!!identity || loading || !!command} onChange={e => setCamera(e.target.value)}><option value="">{t("Rear camera preferred")}</option>{devices.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || t("Camera {number}", { number: i + 1 })}</option>)}</select></label>}
-            {loading && <p role="status">{t("Looking up student…")}</p>}{error && <p role="alert">{t.error(error)}</p>}{result && <p role="status">{result.name}: {t.owned(result.message)}</p>}
-            {identity && <div className="space-y-2"><h3 className="font-semibold">{identity.student.name}</h3><p>{t.owned(identity.student.status.toLowerCase())} · {identity.openVisit ? t("Open visit recorded") : t("No open visit")}</p>
-                {!result && <AppButton disabled={mode === "CHECK_IN" && identity.student.status !== "ACTIVE"} onClick={confirm}>{t(mode === "CHECK_IN" ? "Confirm check in" : "Confirm check out")}</AppButton>}</div>}
-            {(identity || error) && <AppButton variant="secondary" onClick={next}>{t("Scan next student")}</AppButton>}
-            <AppButton variant="secondary" onClick={onClose}>{t("Close and use manual search")}</AppButton>
+            <p className="text-sm leading-6 text-[color:var(--text-secondary)]">{t("Confirm the student's identity before recording attendance. Scanning is supervised and does not prove identity.")}</p>
+            <div className="flex flex-wrap gap-2">{(["CHECK_IN", "CHECK_OUT"] as const).map(value => <AppButton key={value} density="compact" variant={mode === value ? "primary" : "secondary"} aria-pressed={mode === value} disabled={!!identity || loading || !!command} onClick={() => setMode(value)}>{value === "CHECK_IN" ? t("Check in") : t("Check out")}</AppButton>)}</div>
+            <video key={`${camera}:${scan}`} ref={video} muted playsInline className="aspect-video w-full rounded-[var(--ui-radius-control)] bg-black" aria-label={t("QR camera preview")} />
+            {devices.length > 1 && <label className={`block ${formLabelClass}`}>{t("Camera")}<select className={`${formControlClass} mt-1 min-h-11 p-2`} value={camera} disabled={!!identity || loading || !!command} onChange={e => setCamera(e.target.value)}><option value="">{t("Rear camera preferred")}</option>{devices.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || t("Camera {number}", { number: i + 1 })}</option>)}</select></label>}
+            {loading && <p role="status" className="text-sm text-[color:var(--text-secondary)]">{t("Looking up student…")}</p>}{error && <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{t.error(error)}</p>}{result && <p role="status" className="text-sm text-[color:var(--ui-tone-success-text)]">{result.name}: {t.owned(result.message)}</p>}
+            {identity && <AppPanel density="compact" contentClassName="space-y-2"><h3 className="break-words font-semibold text-[color:var(--text-primary)]">{identity.student.name}</h3><p className="text-sm text-[color:var(--text-secondary)]">{t.owned(identity.student.status.toLowerCase())} · {identity.openVisit ? t("Open visit recorded") : t("No open visit")}</p>
+                {!result && <AppButton density="compact" variant="primary" disabled={mode === "CHECK_IN" && identity.student.status !== "ACTIVE"} onClick={confirm}>{t(mode === "CHECK_IN" ? "Confirm check in" : "Confirm check out")}</AppButton>}</AppPanel>}
+            <div className="flex flex-wrap gap-2">{(identity || error) && <AppButton density="compact" variant="secondary" onClick={next}>{t("Scan next student")}</AppButton>}
+                <AppButton density="compact" variant="quiet" onClick={onClose}>{t("Close and use manual search")}</AppButton></div>
         </div>
         {command && <AttendanceActionDialog branchId={branchId} title={mode === "CHECK_IN" ? t("Check in") : t("Check out")} description={identity?.student.name} command={command} onClose={() => setCommand(null)} onSaved={r => { setResult({ name: r.student?.name ?? identity?.student.name ?? "", message: r.message }); onSaved(); }} />}
     </Dialog>;

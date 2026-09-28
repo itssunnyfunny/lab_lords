@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { useEffect, useRef, useState } from "react";
-import { AppButton } from "@/components/ui";
+import { AppButton, AppPanel } from "@/components/ui";
 export function AttendanceQr({ code, name }: { code: string; name: string }) {
     const t = useTranslation();
     const canvas = useRef<HTMLCanvasElement>(null), [error, setError] = useState(""), [ready, setReady] = useState(false);
@@ -26,10 +26,10 @@ export function AttendanceQr({ code, name }: { code: string; name: string }) {
         const caption = popup.document.createElement("p"); caption.textContent = `Lab Lords · ${t("Supervised attendance")}`;
         popup.document.body.append(heading, img, caption); img.onload = () => { popup.focus(); popup.print(); };
     }
-    return <section className="space-y-3" aria-label={t("Student attendance QR")}>
-        <canvas ref={canvas} aria-label={t("Attendance QR for {name}", { name })} className="max-w-full rounded-lg" />
-        {error && <p role="alert">{t.error(error)}</p>}
-        <div className="flex flex-wrap gap-2"><AppButton variant="secondary" disabled={!ready} onClick={download}>{t("Download QR")}</AppButton><AppButton variant="secondary" disabled={!ready} onClick={print}>{t("Print QR")}</AppButton></div>
-        <p className="text-xs">{t("This code contains an opaque attendance identifier. It grants no account access and is for supervised front-desk use.")}</p>
-    </section>;
+    return <AppPanel density="compact" title={t("Student attendance QR")} aria-label={t("Student attendance QR")} contentClassName="space-y-3">
+        <canvas ref={canvas} aria-label={t("Attendance QR for {name}", { name })} className="mx-auto block max-w-full rounded-[var(--ui-radius-control)]" />
+        {error && <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{t.error(error)}</p>}
+        <div className="flex flex-wrap gap-2"><AppButton density="compact" variant="secondary" disabled={!ready} onClick={download}>{t("Download QR")}</AppButton><AppButton density="compact" variant="secondary" disabled={!ready} onClick={print}>{t("Print QR")}</AppButton></div>
+        <p className="text-xs leading-5 text-[color:var(--text-muted)]">{t("This code contains an opaque attendance identifier. It grants no account access and is for supervised front-desk use.")}</p>
+    </AppPanel>;
 }

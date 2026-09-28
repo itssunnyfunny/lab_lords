@@ -18,6 +18,7 @@ import SeatsPage from "@/app/branch/[branchId]/seats/page";
 import AllocationsPage from "@/app/branch/[branchId]/allocations/page";
 import ShiftsPage from "@/app/branch/[branchId]/shifts/page";
 import PaymentsPage from "@/app/branch/[branchId]/payments/page";
+import AttendancePage from "@/app/branch/[branchId]/attendance/page";
 import { ComponentGallery } from "./ComponentGallery";
 import "@/app/globals.css";
 
@@ -65,6 +66,7 @@ function PilotSurface() {
     if (pathname.endsWith("/allocations")) return <AllocationsPage />;
     if (pathname.endsWith("/shifts")) return <ShiftsPage />;
     if (pathname.endsWith("/payments")) return <PaymentsPage params={dashboardParams} />;
+    if (pathname.endsWith("/attendance")) return <AttendancePage params={dashboardParams} />;
     if (pathname === `/branch/${currentBranchId}`) return <BranchDashboardPage params={dashboardParams} />;
     return <PageShell><h1>This route is outside the design pilot</h1><p>The link targets the existing application route: {pathname}.</p>
         <Link href="/branch/pilot?mode=after&lang=en" className="underline">Return to the synthetic dashboard</Link></PageShell>;
