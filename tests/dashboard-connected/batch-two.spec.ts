@@ -4,6 +4,7 @@ import { Client } from "pg";
 import { assertDisposableTestDatabaseTarget } from "../setup/testDatabaseSafety";
 import { refreshDevelopmentSession } from "../browser/helpers/development-session";
 import type { StaffWithUser } from "../../lib/api/staff";
+import type { DashboardTask } from "../../lib/dashboardContracts";
 
 const fixture = JSON.parse(readFileSync(".clerk/dashboard-fixture.json", "utf8"));
 const target = assertDisposableTestDatabaseTarget(process.env.TEST_DATABASE_URL, process.env);
@@ -99,5 +100,80 @@ test("Staff actual readonly and restricted routes preserve owner-only management
         await expect(staff.getByRole("heading", { name: "No access", exact: true })).toBeVisible();
         await expect(staff.getByRole("button", { name: "Add Staff", exact: true })).toHaveCount(0);
         expect((await request(staff, `/api/branches/${fixture.branchId}/staff?limit=10`)).status()).toBe(403);
+    } finally { await context.close(); }
+});
+
+test("Tasks actual route persists assignment, due date and state with prospective activity", async ({ page }) => {
+    const db = await database(); const before = await finances(db);
+    const profileResponse = await request(page, "/api/users/me"); expect(profileResponse.ok()).toBe(true); const profile = await profileResponse.json();
+    const tasksResponse = await request(page, `/api/branches/${fixture.branchId}/dashboard/tasks?status=OPEN&limit=50`); expect(tasksResponse.ok()).toBe(true);
+    const tasks = await tasksResponse.json(); const task: DashboardTask = tasks.items[0]; expect(!!task).toBe(true);
+    const path = `/api/branches/${fixture.branchId}/dashboard/tasks/${task.id}`;
+    const countEvents = async () => (await db.query('SELECT COUNT(*)::int AS count FROM "DashboardEvent" WHERE "branchId"=$1 AND kind=\'TASK\' AND "sourceId"=$2', [fixture.branchId, task.id])).rows[0].count as number;
+    const eventsBefore = await countEvents();
+    let restored = false;
+    try {
+        expect((await request(page, "/api/users/me", "PATCH", { interfaceLanguage: "en" })).ok()).toBe(true);
+        await ready(page, `/branch/${fixture.branchId}/tasks`);
+        await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
+        const row = page.locator(`#task-table-${task.id}`); await expect(row).toBeVisible();
+        await row.getByRole("button", { name: /Edit task/ }).click(); const dialog = page.getByRole("dialog", { name: "Edit task" });
+        await dialog.getByLabel("Task", { exact: true }).fill("Batch 2 local task verification");
+        await dialog.getByLabel("Due date and time (device timezone)").fill("2026-10-01T10:30");
+        await dialog.getByRole("combobox", { name: "Owner" }).click(); await page.getByRole("option", { name: /Ananya Sharma/ }).click();
+        await dialog.getByRole("combobox", { name: "Status" }).click(); await page.getByRole("option", { name: "Completed" }).click();
+        const expectedDue = await page.evaluate(() => new Date("2026-10-01T10:30").toISOString());
+        await dialog.getByRole("button", { name: "Save task", exact: true }).click(); await expect(dialog).toHaveCount(0);
+        const persisted = (await db.query('SELECT title,status,"dueAt","assigneeId" FROM "DashboardTask" WHERE id=$1 AND "branchId"=$2', [task.id, fixture.branchId])).rows[0];
+        expect(persisted).toMatchObject({ title: "Batch 2 local task verification", status: "DONE", assigneeId: fixture.ownerId });
+        expect(new Date(persisted.dueAt).toISOString()).toBe(expectedDue);
+        expect(await countEvents()).toBe(eventsBefore + 1);
+        await page.getByRole("combobox", { name: "Status" }).click(); await page.getByRole("option", { name: "Completed" }).click();
+        await expect(page.locator('[data-record-list]')).toContainText("Batch 2 local task verification");
+        await page.locator(`#task-table-${task.id}`).scrollIntoViewIfNeeded(); await page.screenshot({ path: `${output}/tasks-done-en-1491.png` });
+        await page.getByRole("link", { name: "Recent activity" }).click(); await expect(page).toHaveURL(/view=activity/);
+        await expect(page.getByRole("link", { name: "Task updated" }).first()).toBeVisible();
+        await page.screenshot({ path: `${output}/tasks-activity-en-1491.png` });
+        const restore = await request(page, path, "PATCH", { title: task.title, dueAt: task.dueAt, assigneeId: task.assigneeId, status: task.status }); expect(restore.ok()).toBe(true);
+        restored = true;
+        expect(await countEvents()).toBe(eventsBefore + 2);
+        for (const language of ["en", "hi", "hinglish"]) {
+            expect((await request(page, "/api/users/me", "PATCH", { interfaceLanguage: language })).ok()).toBe(true);
+            for (const width of [1491, 390]) {
+                await page.setViewportSize({ width, height: width === 1491 ? 1055 : 844 });
+                await ready(page, `/branch/${fixture.branchId}/tasks`);
+                const record = page.locator(width === 1491 ? `#task-table-${task.id}` : `#task-grid-${task.id}`); await expect(record).toBeVisible();
+                await expect(page.locator("html")).toHaveAttribute("lang", language === "en" ? "en-IN" : language === "hi" ? "hi-IN" : "hi-Latn-IN");
+                expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+                if (language === "en" && width === 1491 || language === "hi" && width === 390) { await record.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${output}/tasks-${language}-${width}.png` }); }
+            }
+        }
+        expect(await finances(db)).toEqual(before);
+        writeFileSync(`${output}/tasks-verification.json`, JSON.stringify({ scope: "actual Next Tasks route and APIs; verified disposable database; development authentication; providers held", assignmentDueAndStatePersisted: true, prospectiveRecordedTaskEvents: 2, originalTaskRestored: true, financialAggregateUnchanged: true, languages: ["en", "hi", "hinglish"], widths: [1491, 390] }, null, 2));
+    } finally {
+        try {
+            if (!restored) {
+                const restore = await request(page, path, "PATCH", { title: task.title, dueAt: task.dueAt, assigneeId: task.assigneeId, status: task.status }); expect(restore.ok()).toBe(true);
+            }
+            expect((await request(page, "/api/users/me", "PATCH", { interfaceLanguage: profile.interfaceLanguage })).ok()).toBe(true);
+        } finally { await db.end(); }
+    }
+});
+
+test("Tasks actual readonly, source-only and foreign routes preserve boundaries", async ({ page, browser }) => {
+    await ready(page, `/branch/${fixture.readonlyBranchId}/tasks`);
+    await expect(page.getByRole("button", { name: "Add task", exact: true })).toBeDisabled();
+    const foreign = await request(page, `/api/branches/${fixture.foreignBranchId}/dashboard/tasks?status=OPEN`);
+    const missing = await request(page, "/api/branches/missing-batch-two-branch/dashboard/tasks?status=OPEN");
+    expect(foreign.status()).toBe(missing.status()); expect([403, 404]).toContain(foreign.status()); expect(await foreign.json()).toEqual(await missing.json());
+    const context = await browser.newContext({ baseURL: "http://localhost:3117", storageState: ".clerk/dashboard-staff-auth.json" });
+    try {
+        const staff = await context.newPage(); await refreshDevelopmentSession(staff);
+        await ready(staff, `/branch/${fixture.branchId}/tasks`);
+        await expect(staff.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
+        await expect(staff.getByRole("button", { name: "Add task", exact: true })).toHaveCount(0);
+        expect((await request(staff, `/api/branches/${fixture.branchId}/dashboard/tasks?status=OPEN`)).status()).toBe(403);
+        await ready(staff, `/branch/${fixture.branchId}/tasks?view=activity`);
+        await expect(staff.getByRole("heading", { name: "Recent activity", exact: true })).toBeVisible();
     } finally { await context.close(); }
 });

@@ -68,3 +68,57 @@ production/shared database operation, push, PR, merge, deployment or live extern
 communication. Public claims need no changes: this is authenticated presentation.
 Students cards/table, selected dashboard and public code stay unchanged; reuse
 their existing accepted comparison evidence and verification.
+
+## Tasks local review — 2026-09-28
+
+Tasks composes the same record-list header, compact controls, panel, table and
+overlay owners. Its own mobile card follows title → assignee → due date/state →
+update time; it imports no Student financial fields or business logic. Source
+work remains a set of links to the existing authorized work destinations. The
+activity view reads existing recorded dashboard events and retains its bounded,
+non-audit meaning. Existing POST/PATCH paths, request bodies, validation,
+assignment and server permission checks remain unchanged. When a saved state
+change removes a row from the active filter, focus returns to list search.
+
+### Focused Tasks views
+
+- [Populated desktop](batch-two-evidence/tasks/en-desktop-1440.png),
+  [390px cards](batch-two-evidence/tasks/en-records-mobile-390.png),
+  [320px Hindi cards](batch-two-evidence/tasks/hi-records-mobile-320.png).
+- [Hindi task overlay](batch-two-evidence/tasks/editor-hi-mobile-390.png),
+  [desktop activity](batch-two-evidence/tasks/activity-en-desktop-1440.png),
+  [source-only 390px](batch-two-evidence/tasks/source-only-en-mobile-390.png).
+
+These captures load real feature components and fonts with synthetic fixture
+data, while keeping database and providers absent. They demonstrate layout and
+interactions, not connected authorization.
+
+### Tasks validation
+
+| Exact command | Result |
+| --- | --- |
+| `pnpm exec node node_modules/@playwright/test/cli.js test --config tests/shared-system/playwright.config.ts tasks-family.spec.ts --output=test-results/tasks-batch-two` | 20 passed across 1440px, 834px, 390px and 320px; three languages, canonical create/edit bodies, validation/draft retention, filters/pagination, source/activity links, error/empty/readonly/restricted states, keyboard/focus, no page errors or serious/critical axe findings |
+| `pnpm exec node node_modules/vitest/vitest.mjs run --config tests/shared-system/vitest.config.ts tests/unit/lib/dashboard-contracts.test.ts tests/unit/services/dashboard.service.test.ts tests/unit/api/dashboard.route.test.ts` | 3 files, 26 passed; no database/network access |
+| `pnpm exec node node_modules/typescript/bin/tsc --noEmit --pretty false` | Passed |
+| `pnpm exec node node_modules/eslint/bin/eslint.js components/dashboard-features/TasksContent.tsx components/dashboard-features/TaskRecordCard.tsx components/dashboard-features/ActivityContent.tsx tests/application-design-pilot/main.tsx tests/application-design-pilot/tasks-family-fixture.ts tests/application-design-pilot/tasks-family.spec.ts tests/dashboard-connected/batch-two.spec.ts tests/shared-system/playwright.config.ts tests/shared-system/vitest.config.ts` | Passed, zero findings |
+| `pnpm exec node test-results/batch-two-offline-build.mjs` | Optimized Next build, TypeScript and two-workflow manifest passed with providers held and deliberately unreachable `127.0.0.1:1` database; compile evidence only, not connected verification |
+| `pnpm exec node node_modules/@playwright/test/cli.js test --config tests/shared-system/playwright.config.ts tasks-family.spec.ts --project=mobile-320 --grep "Tasks uses the approved card hierarchy" --output=test-results/tasks-hindi-card-capture` | 1 passed after adding the focused 320px Hindi card crop |
+| `pnpm exec node tests/dashboard-connected/start-local.mjs build` | Blocked before build: Windows reserved the exact container's `127.0.0.1:55447` port, within exclusion range `55371–55470`; no fallback target was used |
+| `pnpm exec node tests/dashboard-connected/start-local.mjs batch-two-test Tasks` | Not run: the verified disposable target could not start at its fixed loopback port; connected persistence, authorization and real-route captures remain unverified |
+
+The first browser run exposed selector assumptions under Hindi and a post-save
+focus gap when a completed task left the Open filter; both were corrected and
+the complete final 20-case run passed. An intermediate targeted retry lost the
+preview process before mobile cases; the final run used a stable dedicated
+preview. The first offline build attempt hit a sandbox filesystem denial; the
+same build completed with local filesystem access and a deliberately unreachable
+database. The connected spec is prepared to verify real persistence, recorded
+prospective task history, three languages, read-only/source-only/foreign scope,
+and unchanged finance totals when the same isolated fixture becomes available.
+It restores the task and interface preference, without deleting recorded events.
+
+No shared component default or style changed in Tasks, so the previous Staff,
+Students and dashboard consumer evidence is reused. No schema, migration,
+seed, dependency, application environment, provider, backend or public copy
+change is required. Owner review of the completed Staff/Tasks presentation and
+production release remain pending independently of local verification.

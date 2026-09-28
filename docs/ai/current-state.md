@@ -1,5 +1,21 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Batch 2 Tasks presentation — 2026-09-28
+
+Tasks now composes the existing RecordList page/surface/states, compact DataTable,
+panels and Dialog. A feature-owned mobile card presents title, assignee, due
+date/state and update time. The source-work links and recent-activity view use
+their existing authorized dashboard reads and recorded events. Manual task
+create/edit, assignment, due-date and state requests retain their paths, bodies
+and server authorization. No backend, schema, provider, Students, selected
+dashboard or public presentation changed. The isolated fixture has 20 passing
+browser checks across four widths and three languages; scoped dashboard
+contracts/service/route tests have 26 passes, typecheck and scoped lint pass.
+The connected runner could not start its exact disposable container because
+Windows reserved its existing loopback port; connected Tasks claims remain
+unverified until that target is available. See the [Batch 2 review](../redesign/batch-two-review.md).
+Owner presentation review and production release remain separate pending steps.
+
 ## Batch 2 Staff presentation — 2026-09-27
 
 Staff now composes the existing RecordList page/surface/states, compact DataTable,

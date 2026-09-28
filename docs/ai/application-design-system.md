@@ -20,6 +20,7 @@ keep Students/dashboard/public presentation frozen. Later batches remain out of 
 | Compact Students identity / allocation / financial card | feature-owned `students/StudentRecordCard.tsx`, `.ui-record-card*` in `shared-ui.css` | Students and gallery import the same card; fee arithmetic, permissions and commands stay in the feature |
 | Quiet initials and integrated modal language control | `Avatar tone="quiet"`, `Dialog languagePlacement="header"` | Explicit opt-ins; default avatars/modal headers stay compatible. Edit uses its scoped backdrop variant |
 | Staff roster and access/invitation overlays | `staff/page.tsx` composing RecordList, compact DataTable, AppPanel and Dialog | Feature-owned role, override, invitation and removal workflows; mobile context is role, important state is access, secondary detail is added date |
+| Tasks list, source work and activity | `TasksContent.tsx`, `TaskRecordCard.tsx` and `ActivityContent.tsx` composing the same RecordList, compact DataTable, AppPanel and Dialog | Feature-owned assignment, due date, state and evidence links; mobile context is assignee, important values are due date/state, secondary detail is update time |
 
 The frozen fixture packet is `docs/redesign/shared-system-evidence/before`.
 It uses actual production components, loaded fonts, scale 1 and the fixed
@@ -83,6 +84,12 @@ Staff supplies member identity/email, role, access summary and added date. Keep
 its authorized commands in the Staff feature. No financial Student fields belong
 in a Staff card. The same `.ui-record-card*` classes can compose feature-owned
 records without adding another shared component or changing primitive defaults.
+Tasks follows the same structure with a task title, assignee, due date/state and
+update time. Manual task edits retain their existing POST/PATCH identities and
+source alerts remain links to their authorized source work. The activity view
+uses recorded events and the existing dashboard read; it is not an audit log or
+a new backend. A saved edit that removes a row from the current filter returns
+keyboard focus to the list search.
 
 `Avatar tone="quiet"` uses the existing muted surface/text tokens and does not
 encode status. `Dialog languagePlacement="header"` integrates the existing
