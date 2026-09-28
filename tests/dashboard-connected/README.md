@@ -33,6 +33,24 @@ receipts total ₹1,900, leaving ₹2,400. There are 2 scheduled follow-ups and
 **synthetic test evidence**, never a production backfill. Test data has no phone
 numbers, provider subscriptions, senders or provider payment records.
 
+For the 2026-09-28 local closeout, this procedure was completed on a **new**
+disposable container `lab-lords-dashboard-test-20260928` (ID
+`14c435177e235c254e58b7b62bfd20eae9818d66f3ebf0720144688db48556d4`,
+`postgres:16-alpine`, image ID
+`sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685`).
+Its sole host binding is `127.0.0.1:59117 → 5432/tcp`, outside the then-current
+Windows IPv4/IPv6 excluded ranges, and its database is
+`lab_lords_dashboard_closeout_browser_test`. Independent Docker and host-side
+PostgreSQL checks confirmed its identity, zero public tables before setup,
+53 existing migrations and 80 tables after bootstrap, and the exact synthetic
+`DashboardEvent` schedule marker after the single transactional seed. The
+pre-test financial baseline is ₹4,300 billed, ₹1,900 collected and ₹2,400
+pending; later tests intentionally create durable synthetic records, so compare
+post-test counts by declared mutations and financial invariants. The former
+fixture (`94ec32d894ea…`, port `55447`) remained untouched and stopped; copies
+of its prior ignored metadata were retained privately before the current
+ignored records were changed. See the [fixture repair record](../../docs/redesign/local-fixture-port-repair-proposal.md).
+
 ## Real development authentication
 
 Saved sessions expire. The optional helper
@@ -69,6 +87,15 @@ any other target. It starts the completed local build with providers held. In a
 second terminal, use `start-local.mjs test`, `start-local.mjs capture`, or
 `start-local.mjs counts` for guarded verification. Then open the normal review
 window with `pnpm exec node tests/dashboard-connected/open-preview.mjs`.
+
+For a focused current connected case, the same exact-target guard accepts only
+an allowlisted spec filename, for example
+`pnpm exec node tests/dashboard-connected/start-local.mjs test rollout-closeout.spec.ts`
+or `... test rollout-recovery.spec.ts`. The filename comes from the runner's
+fixed allowlist; it cannot supply another database or bypass the container,
+binding, fixture or live database identity checks. Run the prepared `test`
+suite before additional focused cases, with the built application running under
+normal development authentication and business providers held.
 
 For the bounded shared-presentation/Students run, use `start-local.mjs build`
 to build with the same exact verified target and enforced read-only transactions,
