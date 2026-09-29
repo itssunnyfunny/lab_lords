@@ -174,11 +174,21 @@ unit/API/integration coverage.
   required provider confirmation. Historical data remains available according
   to authorization.
   (`services/branch.service.ts`, branch-billing-lifecycle integration tests)
-- **Known discrepancy—do not rely on:** `OnboardingService.createNetwork` is
-  not idempotent. Repeating the request can create independent organizations
-  and networks. Callers must not treat retrying it as safe until an idempotency
-  contract is added. (`services/onboarding.service.ts`,
-  `tests/integration/services/onboarding.test.ts`)
+- **Must preserve—enforced:** Each canonical onboarding command requires an
+  authenticated-owner-scoped, bounded idempotency key and a stable versioned
+  hash of the validated setup input. The original workspace, branch, trial
+  decision (and any new grant), and durable receipt commit together. An exact
+  replay returns only that
+  owner's original linked result without another setup or trial mutation;
+  changed input under the same key conflicts. A different key may create an
+  intentional additional workspace but never a second lifetime owner trial.
+  The browser must retain the frozen account-scoped command before dispatch
+  and through uncertain responses; a missing or unsafe pending command cannot
+  be silently replaced. Receipt identity is retained without automatic expiry,
+  and archiving the result does not free its key. Physical result deletion is
+  restricted until a separately approved key-retention design exists.
+  (`services/onboarding.service.ts`, `app/api/onboarding/route.ts`,
+  `app/onboarding/page.tsx`, `prisma/schema.prisma`)
 
 ## Students and fee sources
 
@@ -1009,7 +1019,14 @@ unit/API/integration coverage.
   cannot clear a successor. Draft admission reserves the five-minute cooldown
   before Gemini, including failed publication, and GET/POST expose that deadline.
   Draft replacement is transactional with one non-null-student logical draft per
-  branch/student/action/language. Reports keep existing cache/staleness rules.
+  branch/student/action/language. A draft's advisory source marker covers exact
+  overdue fee identity, remaining balance, due date, elapsed overdue days and
+  student facts; legacy or changed-source text is marked outdated and cannot be
+  copied as a current draft. DRAFTS publication rechecks the current source and
+  authorization under a short Student-then-Branch lock before and after writes;
+  provider calls remain outside the transaction. A failed or contended publish
+  rolls back the batch and leaves cooldown intact. Reports keep their existing
+  cache/staleness rules.
 - **Must preserve—enforced:** Report confirmation/stop redelivery is deduplicated
   by sender and provider message ID, atomically with challenge mutation, even
   across different webhook batches. Full STOP and outbox delivery rules remain

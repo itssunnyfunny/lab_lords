@@ -5,9 +5,10 @@
 The interactive branch snapshot and payment trend separate general analytics
 access from finance access. An entitled analytics viewer with an explicit
 `view_payments` denial can still read student and seat analytics; payment-derived
-amounts, counts and rates are omitted or denied server-side. The dashboard's
-financial sources and complete AI reports retain their existing separate
-payment checks. Local unit and route regressions cover the split; connected
+amounts, counts and rates are omitted or denied server-side. The legacy
+dashboard payment trend now checks payment-view access, while complete AI
+reports retain their separate payment checks. Local unit and route regressions
+cover the split; connected
 role/database and browser verification remains pending. No schema or environment
 change is needed for this boundary. The public report capability claims remain
 accurate under the narrower permission rule, so Home, Features, Pricing and FAQ
@@ -536,8 +537,16 @@ Two payment domains must not be confused:
   persists V2 and the selected post-trial plan, and starts the existing single-owner
   30-day trial. The old organization-only POST returns `410 ONBOARDING_REQUIRED`.
   Existing legacy organizations retain their compatibility entitlement behavior.
-- The transaction has no request-idempotency guard. Retrying the same completed
-  onboarding submission can create another independent organization/network.
+- Onboarding requires an owner-bound UUID request key and freezes the validated
+  setup command in account-scoped browser storage before dispatch. The service
+  serializes an owner's commands and commits an `OnboardingRequest` receipt with
+  the new workspace. The receipt stores a versioned canonical hash and result
+  IDs, not the request body; matching retries return only the original linked
+  IDs. Different keys still support intentional additional workspaces without
+  granting another lifetime trial. Receipt-bearing results are archival, not
+  physically deletable under the restrictive receipt relations. This change is
+  locally implemented but connected lost-response/concurrency validation and
+  migration application remain pending an exactly verified disposable database.
 
 Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.service.ts`, `services/onboarding.service.ts`, and `app/api/onboarding/route.ts`.
 
@@ -1075,13 +1084,13 @@ Known failure semantic: admission advances `aiLastCalledAt` before Gemini. Owned
 
 Message generation is human-triggered and does not send messages.
 
-- GET reads current overdue students and returns matching cached drafts with `allowGeneration: false`.
+- GET reads current overdue students and returns matching cached drafts with `allowGeneration: false`. A versioned source marker covers payment identities, remaining balances, due dates, elapsed overdue days and student facts; an older or mismatched marker is outdated. GET never invokes Gemini.
 - POST regenerates only explicitly selected student IDs and requires analytics plus payment-view permission, AI entitlement, writability, and a process-local route limit.
 - Overdue payments are grouped into one target per student.
 - A branch/DRAFTS token reserves the five-minute cooldown before a single Gemini request covers the selected targets. Cached GET and POST metadata include the durable cooldown even after failed publication.
 - The prompt includes student name, oldest due date, total due, payment count, and days overdue; it does not include the stored phone number.
 - Invalid/missing Gemini output is replaced with deterministic English or Hinglish text.
-- The selected draft batch is replaced in one transaction, fenced by the current token and a unique branch/student/language/action key. Ambiguous historical duplicates block migration rather than being deleted.
+- Gemini runs outside the database transaction. DRAFTS publication locks selected students and then the branch with NOWAIT, rechecks the current token, branch state, authorization and exact source before and after replacement, and rolls back the whole batch if any input changed or the lock is busy. The response re-reads current overdue membership/freshness; the UI suppresses outdated text and copy. The versioned action retains the unique branch/student/language/action key; other language/tone/include variants remain separate. Ambiguous historical duplicates block migration rather than being deleted.
 - This AI draft UI remains review/copy only and has no provider integration. The
   separate PR3 official reminder flow rebuilds content from trusted typed values
   and managed Utility templates; it never reads `MessageDraft.message`.
@@ -1163,7 +1172,7 @@ Production migrations have a separate manually dispatched workflow requiring the
 ### Known verification gaps
 
 - Real PostgreSQL generation ownership and caller suites exercise report takeover/stale completion, draft concurrency, cooldown metadata and failed batch rollback. They do not exhaust every report cache/narrative combination.
-- No direct Vitest suite exercises the complete `draftOverdueMessages()` persistence/cooldown lifecycle; route tests mock it.
+- DB-free regressions exercise canonical overdue-source freshness, simulated provider latency, cached reads and cooldown. Real PostgreSQL writer/publisher interleavings and browser review remain unverified until an exactly verified disposable target is available.
 - AI verification scripts exist, but scripts are not equivalent to repeatable CI coverage.
 - Browser tests exist but are not run by the main CI workflow.
 - Repository tests do not prove deployment-pinned Workflow resume behavior,
