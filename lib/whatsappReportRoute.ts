@@ -76,6 +76,22 @@ export async function handleWhatsAppReportSubscriptionGet(
   }
 }
 
+export async function handleWhatsAppReportHistoryGet(
+  request: Request,
+  scope: WhatsAppReportScopeInput
+) {
+  try {
+    const actor = await actorForReportRequest(request, scope, "history:get", false);
+    if (actor.kind === "response") return actor.response;
+    return NextResponse.json(await WhatsAppReportService.listRecentHistory({
+      ...scope,
+      actorUserId: actor.user.id,
+    }));
+  } catch (error) {
+    return whatsAppErrorResponse(error);
+  }
+}
+
 export async function handleWhatsAppReportSubscriptionCreate(
   request: Request,
   scope: WhatsAppReportScopeInput

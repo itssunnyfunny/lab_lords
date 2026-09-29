@@ -6,28 +6,27 @@ import { Badge } from "@/components/ui/Badge";
 import { pageInsetMetricClass } from "@/components/ui/pageSurface";
 import {
   WhatsAppDailyReportActions,
-  type WhatsAppDailyReportHistoryItemView,
   type WhatsAppDailyReportPreviewView,
   type WhatsAppDailyReportQueueResultView,
   type WhatsAppReportSettingsSummaryView,
 } from "@/components/whatsapp/OrganizationWhatsAppReports";
 
 export interface BranchWhatsAppReportsProps {
+  branchId: string;
   branchName: string;
   settings: WhatsAppReportSettingsSummaryView;
   canQueue: boolean;
   blockedReason?: string;
-  recentReports: readonly WhatsAppDailyReportHistoryItemView[];
   onPreview: () => Promise<WhatsAppDailyReportPreviewView>;
   onQueue: (idempotencyKey: string) => Promise<WhatsAppDailyReportQueueResultView>;
 }
 
 export function BranchWhatsAppReports({
+  branchId,
   branchName,
   settings,
   canQueue,
   blockedReason,
-  recentReports,
   onPreview,
   onQueue,
 }: BranchWhatsAppReportsProps) {
@@ -58,10 +57,10 @@ export function BranchWhatsAppReports({
 
       <WhatsAppDailyReportActions
         scope="BRANCH"
+        scopeId={branchId}
         scopeName={branchName}
         canQueue={canQueue}
         blockedReason={blockedReason}
-        recentReports={recentReports}
         onPreview={onPreview}
         onQueue={onQueue}
       />

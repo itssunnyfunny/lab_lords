@@ -167,11 +167,11 @@ describe("WhatsApp PR4 presentational UI", () => {
     const queue = vi.fn(async () => ({ status: "QUEUED" as const, queuedMessageCount: 1, suppressedCount: 0, localReportDate: "2026-08-24" }));
     const organizationHtml = renderToStaticMarkup(
       <OrganizationWhatsAppReports
+        organizationId="org_1"
         organizationName="Synthetic Study Halls"
         settings={{ enabled: true, senderId: "sender_1", senderLabel: "Synthetic Sender", monthlyBudgetMinor: 10_000, budgetSource: "ORGANIZATION_REPORT" }}
         canManage
         availableSenders={[{ id: "sender_1", label: "Synthetic Sender · ••••1234" }]}
-        recentReports={[]}
         onSetEnabled={noOp}
         onSaveSettings={vi.fn(async () => undefined)}
         onPreview={preview}
@@ -180,11 +180,11 @@ describe("WhatsApp PR4 presentational UI", () => {
     );
     const branchHtml = renderToStaticMarkup(
       <BranchWhatsAppReports
+        branchId="branch_1"
         branchName="Central Branch"
         settings={{ enabled: false, senderId: "sender_1", senderLabel: "Synthetic Sender", monthlyBudgetMinor: null, budgetSource: "BRANCH" }}
         canQueue={false}
         blockedReason="Reviewed branch report permissions are required."
-        recentReports={[]}
         onPreview={preview}
         onQueue={queue}
       />

@@ -744,6 +744,11 @@ The organization WhatsApp panel adds managed-template installation, consolidated
 report, organization report-budget, sender-safety, rate-card, incident, and
 health state. Branch settings expose delivery/budget/rules/prospective automation,
 self-service daily reports, typed service notices, and permitted operations.
+Daily report panels load their own 20 most recent persisted message outcomes
+after report authorization, scoped to the actor's subscription, tenant,
+purpose, snapshot and provider mode. History exposes masked recipient and
+delivery metadata, distinguishes accepted from delivered, and shows an
+unavailable state on read failure.
 Entitled branch WhatsApp viewers can enter a restricted WhatsApp workspace
 without branch-settings or report-recipient permission. Its assignment response
 projects operations and service-notice availability independently of reports;

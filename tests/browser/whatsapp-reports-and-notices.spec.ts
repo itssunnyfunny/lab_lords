@@ -228,6 +228,7 @@ async function mockOrganizationShell(page: Page, canManageOnboarding = true) {
 }
 
 async function mockOrganizationReportSettings(page: Page) {
+  await page.route(`**/api/organizations/${ORG_ID}/whatsapp/reports/history`, route => json(route, { reports: [] }));
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-settings`, route => json(route, {
     operationsUiEnabled: true,
     settings: {
@@ -366,6 +367,7 @@ async function mockExactReportRecipientBranch(
     nextCursor: null,
     total: 0,
   }));
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/reports/history`, route => json(route, { reports: [] }));
 }
 
 test("shows an organization confirmation code once and never sends it to Graph", async ({ page }) => {
@@ -375,6 +377,14 @@ test("shows an organization confirmation code once and never sends it to Graph",
   let currentSubscription: ReturnType<typeof subscription> | null = null;
   const createBodies: unknown[] = [];
   let reportQueueKey: string | null = null;
+  let historyStatus = "SCHEDULED";
+  let historyUnavailable = false;
+  await page.route(`**/api/organizations/${ORG_ID}/whatsapp/reports/history`, route => (
+    historyUnavailable ? json(route, { error: "Unavailable" }, 503) : json(route, { reports: reportQueueKey ? [{
+      id: "organization_report_history", localReportDate: "2026-08-24", status: historyStatus,
+      maskedPhone: "••••••3210", scheduledFor: "2026-08-24T15:30:00.000Z", estimatedCostMicros: "250000",
+    }] : [] })
+  ));
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-subscription`, route => {
     if (route.request().method() === "POST") {
       createBodies.push(route.request().postDataJSON());
@@ -418,6 +428,19 @@ test("shows an organization confirmation code once and never sends it to Graph",
   await page.getByRole("button", { name: "Confirm and queue today's report" }).click();
   await expect(page.getByText("Queue status: queued.", { exact: false })).toBeVisible();
   expect(reportQueueKey).toMatch(/\S+/);
+  const history = page.locator("section[aria-labelledby='organization-recent-report-heading']");
+  await expect(history.getByText("SCHEDULED", { exact: true })).toBeVisible();
+  historyStatus = "ACCEPTED";
+  await history.getByRole("button", { name: "Refresh report history" }).click();
+  await expect(history.getByText("ACCEPTED", { exact: true })).toBeVisible();
+  await expect(history.getByText("DELIVERED", { exact: true })).toHaveCount(0);
+  historyStatus = "DELIVERED";
+  await page.reload();
+  await expect(history.getByText("DELIVERED", { exact: true })).toBeVisible();
+  historyUnavailable = true;
+  await history.getByRole("button", { name: "Refresh report history" }).click();
+  await expect(history.getByText("Daily report history is unavailable. Try refreshing.")).toBeVisible();
+  await expect(history.getByText("No daily report history yet.")).toHaveCount(0);
   expect(graphRequests).toEqual([]);
 });
 
@@ -445,6 +468,10 @@ test("lets an exact branch report recipient preview and queue without manage_bra
   let previewPosts = 0;
   let queuePosts = 0;
   let queueKey: string | null = null;
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/reports/history`, route => json(route, { reports: queuePosts ? [{
+    id: "branch_report_history", localReportDate: "2026-08-24", status: "UNKNOWN",
+    maskedPhone: "••••••3210", scheduledFor: "2026-08-24T15:30:00.000Z", estimatedCostMicros: "250000",
+  }] : [] }));
   await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/reports/preview`, async route => {
     previewPosts += 1;
     expect(route.request().postDataJSON()).toEqual({});
@@ -484,6 +511,10 @@ test("lets an exact branch report recipient preview and queue without manage_bra
   await expect(page.getByText("Queue status: queued.", { exact: false })).toBeVisible();
   expect(queuePosts).toBe(1);
   expect(queueKey).toMatch(/\S+/);
+  const history = page.locator("section[aria-labelledby='branch-recent-report-heading']");
+  await expect(history.getByText("UNKNOWN", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(history.getByText("UNKNOWN", { exact: true })).toBeVisible();
   expect(graphRequests).toEqual([]);
 });
 

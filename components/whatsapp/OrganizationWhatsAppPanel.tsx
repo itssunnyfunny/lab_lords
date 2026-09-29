@@ -681,6 +681,7 @@ export function OrganizationWhatsAppPanel({
             }}
           /> : null}
           {reportSettingsResponse ? <OrganizationWhatsAppReports
+            organizationId={organizationId}
             organizationName={organizationName}
             settings={{
               enabled: reportSettingsResponse.settings.enabled,
@@ -699,7 +700,6 @@ export function OrganizationWhatsAppPanel({
                 id: sender.id,
                 label: `${sender.verifiedName || "WhatsApp business number"} · ${sender.displayPhoneNumber}`,
               }))}
-            recentReports={[]}
             onSetEnabled={async enabled => {
               await whatsapp.updateOrganizationReportSettings(organizationId, { enabled });
               await loadReports(sendersResponse);

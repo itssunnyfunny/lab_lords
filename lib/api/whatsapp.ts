@@ -510,6 +510,19 @@ export type WhatsAppDailyReportQueueResult = {
   };
 };
 
+export type WhatsAppDailyReportHistoryItem = {
+  id: string;
+  localReportDate: string;
+  status: "SCHEDULED" | "CLAIMED" | "SUBMITTING" | "ACCEPTED" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "CANCELLED" | "SUPPRESSED" | "UNKNOWN";
+  maskedPhone: string;
+  scheduledFor: string;
+  estimatedCostMicros: string | null;
+};
+
+export type WhatsAppDailyReportHistoryResponse = {
+  reports: WhatsAppDailyReportHistoryItem[];
+};
+
 export type WhatsAppServiceNoticeDraft = {
   type: "BRANCH_CLOSED" | "HOURS_CHANGED" | "MAINTENANCE_WINDOW";
   reason: "PUBLIC_HOLIDAY" | "LOCAL_HOLIDAY" | "MAINTENANCE" | "EMERGENCY" | "ADMINISTRATIVE";
@@ -1012,6 +1025,14 @@ export const whatsapp = {
 
   previewBranchDailyReport(branchId: string): Promise<WhatsAppDailyReportPreview> {
     return apiClient.post(`${branchBase(branchId)}/reports/preview`, {});
+  },
+
+  getBranchDailyReportHistory(branchId: string): Promise<WhatsAppDailyReportHistoryResponse> {
+    return apiClient.get(`${branchBase(branchId)}/reports/history`);
+  },
+
+  getOrganizationDailyReportHistory(organizationId: string): Promise<WhatsAppDailyReportHistoryResponse> {
+    return apiClient.get(`${organizationBase(organizationId)}/reports/history`);
   },
 
   queueBranchDailyReport(

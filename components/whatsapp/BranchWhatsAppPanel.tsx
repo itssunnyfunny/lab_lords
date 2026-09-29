@@ -783,6 +783,7 @@ export function BranchWhatsAppPanel({
         />
         {settings ? (
           <BranchWhatsAppReports
+            branchId={branchId}
             branchName={branchName}
             settings={{
               enabled: settings.enabled,
@@ -793,7 +794,6 @@ export function BranchWhatsAppPanel({
             }}
             canQueue={canOperateReports}
             blockedReason="Daily-report preview and queue actions require a writable branch and the complete report-recipient permission set."
-            recentReports={[]}
             onPreview={async () => presentWhatsAppDailyReportPreview(
               await whatsapp.previewBranchDailyReport(branchId)
             )}

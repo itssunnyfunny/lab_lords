@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, MessageCircle, ShieldCheck } from "lucide-react";
 import { AppButton, AppPanel } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
+import { WhatsAppDailyReportHistory } from "@/components/whatsapp/WhatsAppDailyReportHistory";
 import {
   SettingsField,
   SettingsInput,
@@ -63,15 +64,6 @@ export interface WhatsAppDailyReportQueueResultView {
   localReportDate: string;
 }
 
-export interface WhatsAppDailyReportHistoryItemView {
-  id: string;
-  localReportDate: string;
-  status: "PLANNED" | "QUEUED" | "SENT" | "DELIVERED" | "PARTIAL" | "FAILED" | "UNKNOWN" | "SUPPRESSED";
-  maskedPhone: string;
-  scheduledFor: string;
-  estimatedCostMicros: string;
-}
-
 export interface WhatsAppReportSettingsSummaryView {
   enabled: boolean;
   senderId: string | null;
@@ -87,10 +79,10 @@ export interface WhatsAppReportSenderOptionView {
 
 export interface WhatsAppDailyReportActionsProps {
   scope: "BRANCH" | "ORGANIZATION";
+  scopeId: string;
   scopeName: string;
   canQueue: boolean;
   blockedReason?: string;
-  recentReports: readonly WhatsAppDailyReportHistoryItemView[];
   onPreview: () => Promise<WhatsAppDailyReportPreviewView>;
   onQueue: (idempotencyKey: string) => Promise<WhatsAppDailyReportQueueResultView>;
 }
@@ -99,18 +91,6 @@ function estimatedInr(value: string) {
   if (!/^\d+$/.test(value)) return "Unavailable";
   const amount = Number(value) / 1_000_000;
   return Number.isFinite(amount) ? `₹${amount.toFixed(4)}` : "Unavailable";
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("en-IN");
-}
-
-function reportStatusVariant(status: WhatsAppDailyReportHistoryItemView["status"]) {
-  if (status === "DELIVERED" || status === "SENT") return "success" as const;
-  if (status === "FAILED" || status === "UNKNOWN") return "danger" as const;
-  if (status === "PARTIAL" || status === "SUPPRESSED") return "warning" as const;
-  return "default" as const;
 }
 
 function createIdempotencyKey() {
@@ -220,10 +200,10 @@ export function WhatsAppDailyReportPreviewCard({
 
 export function WhatsAppDailyReportActions({
   scope,
+  scopeId,
   scopeName,
   canQueue,
   blockedReason,
-  recentReports,
   onPreview,
   onQueue,
 }: WhatsAppDailyReportActionsProps) {
@@ -231,6 +211,7 @@ export function WhatsAppDailyReportActions({
   const [previewState, setPreviewState] = useState<{ preview: WhatsAppDailyReportPreviewView; idempotencyKey: string } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [queueResult, setQueueResult] = useState<WhatsAppDailyReportQueueResultView | null>(null);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [busy, setBusy] = useState<"preview" | "queue" | null>(null);
   const [notice, setNotice] = useState<{ tone: "status" | "error"; text: string } | null>(null);
   const operationRef = useRef(false);
@@ -272,6 +253,7 @@ export function WhatsAppDailyReportActions({
     } catch {
       setNotice({ tone: "error", text: "The queue outcome could not be confirmed. Keep this review open before repeating the action." });
     } finally {
+      setHistoryRefreshKey(current => current + 1);
       operationRef.current = false;
       setBusy(null);
     }
@@ -312,30 +294,18 @@ export function WhatsAppDailyReportActions({
 
       {queueResult ? <div className={cn("flex items-start gap-3 p-3 text-sm", formSuccessBannerClass)} role="status"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{t("Queue status: {toLowerCase}. Delivery remains subject to send-time authorization, consent, sender health, rate, and budget checks.", { toLowerCase: queueResult.status.toLowerCase() })}</span></div> : null}
 
-      <section aria-labelledby={`${scope.toLowerCase()}-recent-report-heading`} className="space-y-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
-        <h3 id={`${scope.toLowerCase()}-recent-report-heading`} className="font-semibold">{t("Recent daily reports")}</h3>
-        {recentReports.length === 0 ? <p className="text-sm text-[color:var(--text-muted)]">{t("No daily report history yet.")}</p> : (
-          <ul className="grid gap-2">
-            {recentReports.map(report => (
-              <li key={report.id} className={cn("flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between", pageInsetSurfaceClass)}>
-                <div><p className="text-sm font-medium">{report.localReportDate} · {report.maskedPhone}</p><p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("Scheduled {formatDateTime} · estimate {estimatedInr}", { formatDateTime: formatDateTime(report.scheduledFor), estimatedInr: estimatedInr(report.estimatedCostMicros) })}</p></div>
-                <Badge variant={reportStatusVariant(report.status)}>{report.status.replaceAll("_", " ")}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <WhatsAppDailyReportHistory scope={scope} scopeId={scopeId} refreshKey={historyRefreshKey} />
     </AppPanel>
   );
 }
 
 export interface OrganizationWhatsAppReportsProps {
+  organizationId: string;
   organizationName: string;
   settings: WhatsAppReportSettingsSummaryView;
   canManage: boolean;
   blockedReason?: string;
   availableSenders: readonly WhatsAppReportSenderOptionView[];
-  recentReports: readonly WhatsAppDailyReportHistoryItemView[];
   onSetEnabled: (enabled: boolean) => Promise<void>;
   onSaveSettings: (settings: { senderId: string; monthlyBudgetMinor: number }) => Promise<void>;
   onPreview: () => Promise<WhatsAppDailyReportPreviewView>;
@@ -343,12 +313,12 @@ export interface OrganizationWhatsAppReportsProps {
 }
 
 export function OrganizationWhatsAppReports({
+  organizationId,
   organizationName,
   settings,
   canManage,
   blockedReason,
   availableSenders,
-  recentReports,
   onSetEnabled,
   onSaveSettings,
   onPreview,
@@ -463,7 +433,7 @@ export function OrganizationWhatsAppReports({
         {settingNotice ? <p className={cn("px-3 py-2 text-sm", settingNotice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)} role={settingNotice.tone === "error" ? "alert" : "status"} aria-live={settingNotice.tone === "error" ? "assertive" : "polite"}>{settingNotice.tone === "error" ? t.error(settingNotice.text) : t.owned(settingNotice.text)}</p> : null}
         <div className="flex justify-end"><AppButton variant={settings.enabled ? "danger" : "primary"} size="sm" onClick={() => void setEnabled()} disabled={!canManage || changing || (!settings.enabled && (!settings.senderId || settings.monthlyBudgetMinor === null))} isLoading={changing}>{settings.enabled ? t("Disable scheduled reports") : t("Enable scheduled reports")}</AppButton></div>
       </AppPanel>
-      <WhatsAppDailyReportActions scope="ORGANIZATION" scopeName={organizationName} canQueue={canManage} blockedReason={blockedReason} recentReports={recentReports} onPreview={onPreview} onQueue={onQueue} />
+      <WhatsAppDailyReportActions scope="ORGANIZATION" scopeId={organizationId} scopeName={organizationName} canQueue={canManage} blockedReason={blockedReason} onPreview={onPreview} onQueue={onQueue} />
     </div>
   );
 }
