@@ -982,7 +982,7 @@ Authoritative code: `services/billing*.ts`, `services/ownerTrial.service.ts`, `s
   [redesign implementation record](../redesign/implementation.md) for scope and
   validation; this is local implementation, not deployment evidence.
 - Landing, product-specific SEO pages, contact, support, privacy, terms, refund, shipping/delivery, and cookie pages are implemented.
-- Google Analytics loads only when a measurement ID is configured and begins with denied consent. Events require explicit accepted consent.
+- Google Analytics is initialized only after routing reaches a known public page when a measurement ID is configured and begins with denied consent. Explicit public page views can be sent without analytics storage; custom events still require accepted consent. The application drops queries, fragments, sensitive routes, and referrers from explicit tracking and sets safe URL defaults at initialization. Provider-managed Enhanced Measurement settings and actual network payloads still need separate verification, especially after client navigation from a public page into a sensitive route.
 - The support/bug-report form opens a pre-filled email through `mailto:`; there is no server-side support-ticket or email-delivery integration.
 
 Authoritative code: `app/layout.tsx`, public pages under `app/`, `components/analytics/AnalyticsProvider.tsx`, `lib/tracking.ts`, and `components/feedback/BugReportForm.tsx`.

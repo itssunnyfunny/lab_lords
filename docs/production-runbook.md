@@ -6,6 +6,35 @@ database recovery documentation, or an approved incident-response policy.
 
 Last reconciled with the repository: 2026-09-05 (hardening additions; older operational evidence remains dated).
 
+## Public analytics URL safety — application change pending external verification
+
+The application now initializes its Google Analytics tag only after routing
+reaches a known public page. Its explicit page views and accepted-consent custom events use
+allowlisted public paths without queries, fragments, or referrers. It supplies
+safe URL/referrer defaults before the tag configuration. Do not infer that this
+alone proves all provider-generated events are safe: a tag loaded on a public
+page can remain mounted while client navigation reaches an invite or sign-in
+return URL.
+
+Before treating the invitation-token finding PS-01 as closed in any environment
+with a measurement ID, an authorized analytics owner must inspect that web data
+stream's Enhanced Measurement configuration. Disable automatic page changes
+based on browser history and inspect enabled search, form and outbound-link
+measurements, or provide equally strong evidence that their generated events
+contain no dynamic path token, encoded return URL, query, or referrer. A support
+`mailto:` link may include user-entered report details.
+Google documents that `send_page_view: false` does not disable those history
+events: [page-view measurement guidance](https://developers.google.com/analytics/devguides/collection/ga4/views).
+Use a synthetic invitation token in an isolated browser, visit directly and
+from a public page under unknown, rejected and accepted consent, and inspect
+outgoing requests and any available provider TEST/debug view. Preserve the
+current cookie-choice behavior. This repository change does not edit the GA
+property, deploy a new tag, or establish whether the deployed stream has
+Enhanced Measurement enabled. If external settings cannot be verified, keep
+PS-01 open and do not claim that an offline unit/build result proves telemetry
+safety. No database migration, new environment variable, or provider write is
+needed for the application-side change.
+
 ## Dashboard operations additive migration — 2026-09-27
 
 `20260927120000_dashboard_operations` adds seven empty operational tables and

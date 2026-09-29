@@ -171,6 +171,10 @@ operator workstation or CI runner that can access credentials.
   after an authenticated, tenant-scoped authorization boundary.
 - Staff invitations remain owner-controlled, time-limited, email-bound,
   unpredictable, single-use, and race-safe.
+- Marketing analytics must not transmit invitation tokens or authentication
+  return URLs. Explicit tracking is limited to known public paths with queries,
+  fragments, and referrers removed. Provider-managed automatic measurement must
+  be verified separately before considering telemetry safe across client routing.
 
 Cron routes are machine-authenticated with `CRON_SECRET`. Workflow's
 framework-controlled `/.well-known/workflow/` endpoint is deliberately outside
