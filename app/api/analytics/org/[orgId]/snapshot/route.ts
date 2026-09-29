@@ -1,6 +1,6 @@
 import { AnalyticsAccessService } from "@/services/analyticsAccess.service"
 import { getSessionUser } from "@/lib/auth"
-import { OrganizationService } from "@/services/organization.service"
+import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors"
 import { SubscriptionEntitlementError } from "@/services/entitlement.service"
 import { NextResponse } from "next/server"
 
@@ -15,15 +15,12 @@ export async function GET(
 
     try {
         const { orgId } = await params;
-        const isOwner = await OrganizationService.isOwner(orgId, user.id)
-        if (!isOwner) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-        }
-
-
         const snapshot = await AnalyticsAccessService.organizationSnapshot(user.id, orgId)
         return NextResponse.json(snapshot)
     } catch (error) {
+        if (error instanceof OrganizationAccessNotFoundError) {
+            return NextResponse.json({ error: error.message }, { status: 404 })
+        }
         if (error instanceof SubscriptionEntitlementError) {
             return NextResponse.json({ error: error.message, code: error.code }, { status: 403 })
         }

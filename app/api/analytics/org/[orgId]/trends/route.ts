@@ -1,5 +1,6 @@
 import { getSessionUser } from "@/lib/auth"
-import { OrganizationService } from "@/services/organization.service"
+import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors"
+import { AccessPolicy } from "@/services/accessPolicy.service"
 import { NextResponse } from "next/server"
 
 export async function GET(
@@ -10,17 +11,21 @@ export async function GET(
     if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    const { orgId } = await params
-    const isOwner = await OrganizationService.isOwner(orgId, user.id)
-    if (!isOwner) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    try {
+        const { orgId } = await params
+        await AccessPolicy.authorizeOrganization(user.id, orgId)
 
-    // "No need to overbuild yet"
-    // Organization-level trends require aggregating branch trends over time,
-    // which is computationally expensive and not yet optimized.
-    return NextResponse.json(
-        { message: "Organization trends not yet implemented" },
-        { status: 501 }
-    )
+        // "No need to overbuild yet"
+        // Organization-level trends require aggregating branch trends over time,
+        // which is computationally expensive and not yet optimized.
+        return NextResponse.json(
+            { message: "Organization trends not yet implemented" },
+            { status: 501 }
+        )
+    } catch (error) {
+        if (error instanceof OrganizationAccessNotFoundError) {
+            return NextResponse.json({ error: error.message }, { status: 404 })
+        }
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    }
 }
