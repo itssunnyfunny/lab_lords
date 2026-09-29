@@ -102,6 +102,12 @@ remain unchanged. Visual acceptance is reserved for the owner.
 Renewal notifications link to the membership-terms setup section. The setup
 section follows same-route query changes and keeps tab navigation in the URL,
 subject to the viewer's existing permissions.
+Attendance expectations and membership terms now page their records and active
+student choices independently with full scoped totals. The student cursor uses
+immutable ID order without placing names in URLs; a focused same-branch student
+can be selected outside the current page. Save locks paging and selection until
+the write and refresh finish. Separate live page requests are not one database
+snapshot, so concurrent membership changes can change totals.
 
 The chart shows current settlement of the selected month's due-date cohort;
 cash collected this month is a separate measure. Historical occupancy begins

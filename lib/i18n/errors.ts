@@ -38,6 +38,8 @@ export const errorMessages = {
     "Enter a correction reason (1–1000 characters)": ["सुधार की वजह 1–1000 अक्षरों में लिखें।", "Correction ki wajah 1–1000 characters mein likhein."],
     "Unauthorized: Only the owner can void a collection": ["केवल मालिक पेमेंट रिकॉर्ड रद्द कर सकता है।", "Sirf owner collection void kar sakta hai."],
     "Invalid history cursor": ["इतिहास फिर से पहले पेज से खोलें।", "History dobara first page se kholein."],
+    "This page is no longer available. Go back and try again.": ["यह पेज अब उपलब्ध नहीं है। पिछले पेज पर जाकर फिर कोशिश करें।", "Yeh page ab available nahi hai. Pichhle page par jaakar dobara try karein."],
+    "This student page is no longer available. Go back and try again.": ["छात्रों का यह पेज अब उपलब्ध नहीं है। पिछले पेज पर जाकर फिर कोशिश करें।", "Students ka yeh page ab available nahi hai. Pichhle page par jaakar dobara try karein."],
     "Invalid history month": ["इतिहास के लिए सही महीना चुनें।", "History ke liye valid month chunein."],
     "This retry key belongs to a different attendance request": ["यह अनुरोध पहचान दूसरी हाजिरी की है। उसी मूल अनुरोध से पुष्टि करें।", "Yeh retry key doosre attendance request ki hai. Usi original request se confirm karein."],
     "Select each student only once": ["हर छात्र को केवल एक बार चुनें।", "Har student ko sirf ek baar chunein."],
