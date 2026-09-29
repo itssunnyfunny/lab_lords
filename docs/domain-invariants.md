@@ -386,7 +386,8 @@ unit/API/integration coverage.
 - **Must preserve—enforced:** “Overdue” is derived rather than stored. Current
   logic considers a payment overdue only while `DUE` and strictly more than
   seven calendar days past its due date. `WAIVED` payments are excluded from
-  open debt and revenue.
+  open debt. Historical non-ledger waived rows are excluded from revenue;
+  ledger-backed fees retain collected revenue and subtract only waived rupees.
   (`lib/utils/paymentStatus.ts`, `analytics/payment.analytics.ts`, payment
   analytics integration tests)
 - **Known discrepancy—do not rely on:** `Organization.paymentGraceDays` is not
@@ -1033,7 +1034,12 @@ unit/API/integration coverage.
   (`app/api/`, `services/entitlement.service.ts`, analytics route tests)
 - **Must preserve—enforced:** Payment analytics use the payment semantics above:
   due means `DUE` through end-of-day, overdue means strictly more than seven
-  days late, and waived rows are excluded from open debt and revenue.
+  days late, and waived balances are excluded from open debt and billable
+  revenue while receipts collected before a waiver remain collected revenue.
+- **Must preserve—enforced:** A daily payment-trend point includes only fees
+  due and receipts recorded through that plotted day's end. The monthly summary
+  still covers the whole selected month. These are recomputed from mutable
+  current records, subject to the historical limitation below.
 - **Known discrepancy—do not rely on:** Trend analytics recompute past-looking
   values from today's mutable tables rather than immutable historical
   snapshots. Student status and the active-shift set are current, not reliably
