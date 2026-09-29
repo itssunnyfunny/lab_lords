@@ -525,6 +525,9 @@ Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.ser
 ### Branch operations
 
 - Student create, import, update, status changes, fee-source links, billing start date, and paginated listing are implemented.
+- Student deactivation offers KEEP by default; paid and waived resolutions appear
+  only when the viewer has their respective fee permissions. The server still
+  checks those actions and branch writability for each status command.
 - Seats can be created individually or generated from a numbering configuration.
 - Branches have primary shifts and composed multi-shifts.
 - Shift deletion is soft deletion and requires an explicit resolution for affected allocations.
