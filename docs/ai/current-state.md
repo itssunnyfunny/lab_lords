@@ -730,6 +730,10 @@ the panel loads authorized incidents and notices even when report access is
 denied or a report read fails. General branch settings still require branch
 management permission, and the service rechecks notice writes and incident
 acknowledgement server-side.
+For an entitled organization owner, the sender projection separately exposes
+operations availability and writable operations management. Organization
+incident and sender-safety reads start independently of report requests;
+onboarding controls continue to use their own write/configuration gate.
 Student management retains explicit recipient/consent controls, and the overdue
 workspace keeps deterministic official-reminder preview/queueing separate from
 AI review/copy. Operations projection is server-side and hidden by default.

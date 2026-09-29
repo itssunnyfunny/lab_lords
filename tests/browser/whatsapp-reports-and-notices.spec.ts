@@ -165,7 +165,7 @@ async function blockAndRecordGraph(page: Page) {
   return requests;
 }
 
-async function mockOrganizationShell(page: Page) {
+async function mockOrganizationShell(page: Page, canManageOnboarding = true) {
   await page.route("https://checkout.razorpay.com/v1/checkout.js", route =>
     route.fulfill({ contentType: "application/javascript", body: "window.Razorpay=function(){};" })
   );
@@ -201,7 +201,9 @@ async function mockOrganizationShell(page: Page) {
   }));
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/senders`, route => json(route, {
     enabled: true,
-    canManage: true,
+    canManage: canManageOnboarding,
+    canManageOperations: true,
+    operationsUiEnabled: true,
     safeReason: null,
     senders: [{
       id: SENDER_ID,
@@ -692,7 +694,7 @@ test("queues only a typed service notice and shows UNKNOWN evidence without a re
 
 test("pauses and safely resumes a sender without retrying UNKNOWN messages", async ({ page }) => {
   const graphRequests = await blockAndRecordGraph(page);
-  await mockOrganizationShell(page);
+  await mockOrganizationShell(page, false);
   await mockOrganizationReportSettings(page);
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-subscription`, route => json(route, {
     operationsUiEnabled: true,
@@ -746,5 +748,22 @@ test("pauses and safely resumes a sender without retrying UNKNOWN messages", asy
   await expect(page.getByText("Sender delivery resumed.", { exact: false })).toBeVisible();
   await expect(page.getByText("Delivery active", { exact: true })).toBeVisible();
   expect(resumeBody).toEqual({ confirmation: true });
+  expect(graphRequests).toEqual([]);
+});
+
+test("keeps owner sender safety and incidents visible when report reads are held", async ({ page }) => {
+  const graphRequests = await blockAndRecordGraph(page);
+  await mockOrganizationShell(page, false);
+  await mockOrganizationReportSettings(page);
+  await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-subscription`, route =>
+    json(route, { error: "Reports held" }, 503));
+  await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-settings`, route =>
+    json(route, { error: "Reports held" }, 503));
+
+  await page.goto(`/org/${ORG_ID}/settings`);
+  await expect(page.getByRole("heading", { name: "Sender delivery safety" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Operational incidents" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pause sender delivery" })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "Organization daily report recipient" })).toHaveCount(0);
   expect(graphRequests).toEqual([]);
 });

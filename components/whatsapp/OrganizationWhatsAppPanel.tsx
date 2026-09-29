@@ -84,6 +84,46 @@ export async function loadManagedTemplateStatuses(
   })) as Record<string, WhatsAppManagedTemplateInstallation>;
 }
 
+export async function fetchOrganizationWhatsAppReports(
+  organizationId: string,
+  senders: WhatsAppSendersResponse | null,
+  api: Pick<typeof whatsapp, "getOrganizationReportSubscription" | "getOrganizationReportSettings"> = whatsapp
+) {
+  if (!senders?.enabled || senders.operationsUiEnabled !== true) {
+    return { subscription: null, settings: null };
+  }
+  const [subscription, settings] = await Promise.allSettled([
+    api.getOrganizationReportSubscription(organizationId),
+    api.getOrganizationReportSettings(organizationId),
+  ]);
+  return {
+    subscription: subscription.status === "fulfilled" && subscription.value.operationsUiEnabled === true
+      ? subscription.value : null,
+    settings: settings.status === "fulfilled" && settings.value.operationsUiEnabled === true
+      ? settings.value : null,
+  };
+}
+
+export async function fetchOrganizationWhatsAppOperations(
+  organizationId: string,
+  senders: WhatsAppSendersResponse | null,
+  api: Pick<typeof whatsapp, "listOrganizationIncidents" | "getSenderSafety"> = whatsapp
+) {
+  if (!senders?.enabled || senders.operationsUiEnabled !== true) {
+    return { incidents: null, senderSafety: {} as Record<string, WhatsAppSenderSafetyDto> };
+  }
+  const [incidents, safety] = await Promise.all([
+    api.listOrganizationIncidents(organizationId).catch(() => null),
+    Promise.allSettled(senders.senders.map(sender => api.getSenderSafety(organizationId, sender.id))),
+  ]);
+  return {
+    incidents,
+    senderSafety: Object.fromEntries(safety.flatMap((result, index) => (
+      result.status === "fulfilled" ? [[senders.senders[index].id, result.value]] : []
+    ))) as Record<string, WhatsAppSenderSafetyDto>,
+  };
+}
+
 export function WhatsAppSenderSummaryCard({
   sender,
   canManage,
@@ -309,48 +349,33 @@ export function OrganizationWhatsAppPanel({
   const availabilityHandlerRef = useRef(onAvailabilityChange);
   const operationRef = useRef(false);
   const reportLoadRef = useRef(0);
+  const operationsLoadRef = useRef(0);
 
   useEffect(() => {
     availabilityHandlerRef.current = onAvailabilityChange;
   }, [onAvailabilityChange]);
 
-  const loadReportOperations = useCallback(async () => {
+  const loadReports = useCallback(async (response: WhatsAppSendersResponse | null) => {
     const requestId = ++reportLoadRef.current;
-    try {
-      const subscriptionResponse = await whatsapp.getOrganizationReportSubscription(organizationId);
-      if (requestId !== reportLoadRef.current) return;
-      if (subscriptionResponse.operationsUiEnabled !== true) {
-        setReportSubscriptionResponse(null);
-        setReportSettingsResponse(null);
-        setIncidentResponse(null);
-        setSenderSafety({});
-        return;
-      }
-      const [settingsResult, incidentResult] = await Promise.allSettled([
-        whatsapp.getOrganizationReportSettings(organizationId),
-        whatsapp.listOrganizationIncidents(organizationId),
-      ]);
-      if (requestId !== reportLoadRef.current) return;
-      setReportSubscriptionResponse(subscriptionResponse);
-      setReportSettingsResponse(
-        settingsResult.status === "fulfilled"
-          && settingsResult.value.operationsUiEnabled === true
-          ? settingsResult.value
-          : null
-      );
-      setIncidentResponse(incidentResult.status === "fulfilled" ? incidentResult.value : null);
-    } catch {
-      if (requestId !== reportLoadRef.current) return;
-      setReportSubscriptionResponse(null);
-      setReportSettingsResponse(null);
-      setIncidentResponse(null);
-      setSenderSafety({});
-    }
+    const reports = await fetchOrganizationWhatsAppReports(organizationId, response);
+    if (requestId !== reportLoadRef.current) return;
+    setReportSubscriptionResponse(reports.subscription);
+    setReportSettingsResponse(reports.settings);
+  }, [organizationId]);
+
+  const loadOperations = useCallback(async (response: WhatsAppSendersResponse | null) => {
+    const requestId = ++operationsLoadRef.current;
+    const operations = await fetchOrganizationWhatsAppOperations(organizationId, response);
+    if (requestId !== operationsLoadRef.current) return;
+    setIncidentResponse(operations.incidents);
+    setSenderSafety(operations.senderSafety);
   }, [organizationId]);
 
   const loadSenders = useCallback(async () => {
     const response = await whatsapp.listSenders(organizationId);
     setSendersResponse(response);
+    void loadReports(response);
+    void loadOperations(response);
     const loadedInstallations = await loadManagedTemplateStatuses(
       organizationId,
       response.senders.map(sender => sender.id)
@@ -364,32 +389,7 @@ export function OrganizationWhatsAppPanel({
       setConfig(previous => previous ? { ...previous, enabled: false } : previous);
     }
     return response;
-  }, [organizationId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (
-      reportSubscriptionResponse?.operationsUiEnabled !== true
-      || !sendersResponse
-    ) {
-      return;
-    }
-    const load = async () => {
-      const results = await Promise.allSettled(
-        sendersResponse.senders.map(sender => whatsapp.getSenderSafety(organizationId, sender.id))
-      );
-      if (cancelled) return;
-      setSenderSafety(Object.fromEntries(results.flatMap((result, index) => (
-        result.status === "fulfilled"
-          ? [[sendersResponse.senders[index].id, result.value] as const]
-          : []
-      ))));
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId, reportSubscriptionResponse?.operationsUiEnabled, sendersResponse]);
+  }, [loadOperations, loadReports, organizationId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -416,12 +416,11 @@ export function OrganizationWhatsAppPanel({
 
         setConfig(browserConfig);
         availabilityHandlerRef.current(true);
-        const [response] = await Promise.all([
-          whatsapp.listSenders(organizationId),
-          loadReportOperations(),
-        ]);
+        const response = await whatsapp.listSenders(organizationId);
         if (cancelled) return;
         setSendersResponse(response);
+        void loadReports(response);
+        void loadOperations(response);
         const loadedInstallations = await loadManagedTemplateStatuses(
           organizationId,
           response.senders.map(sender => sender.id)
@@ -441,12 +440,14 @@ export function OrganizationWhatsAppPanel({
     return () => {
       cancelled = true;
       reportLoadRef.current += 1;
+      operationsLoadRef.current += 1;
     };
-  }, [loadReportOperations, organizationId]);
+  }, [loadOperations, loadReports, organizationId]);
 
   if (!config?.enabled) return null;
 
   const canManage = sendersResponse?.canManage ?? false;
+  const canManageOperations = sendersResponse?.canManageOperations === true;
   const availableConfig = config.appId
     && config.embeddedSignupConfigId
     && config.graphApiVersion
@@ -623,13 +624,13 @@ export function OrganizationWhatsAppPanel({
         </div>
       </SettingsPanel>
 
-      {reportSubscriptionResponse?.operationsUiEnabled === true ? (
+      {sendersResponse?.operationsUiEnabled === true ? (
         <>
-          <WhatsAppReportSubscription
+          {reportSubscriptionResponse ? <WhatsAppReportSubscription
             scope="ORGANIZATION"
             subscription={organizationReportSubscription}
-            canManage={canManage}
-            blockedReason="Only the organization owner can configure the organization daily-report recipient."
+            canManage={canManageOperations}
+            blockedReason="An organization owner with a writable workspace can configure the organization daily-report recipient."
             onCreate={async draft => {
               const response = await whatsapp.createOrganizationReportSubscription(organizationId, {
                 phone: draft.phoneE164,
@@ -678,7 +679,7 @@ export function OrganizationWhatsAppPanel({
                 senderLabel: sendersResponse?.senders.find(sender => sender.id === subscription.senderId)?.verifiedName ?? null,
               };
             }}
-          />
+          /> : null}
           {reportSettingsResponse ? <OrganizationWhatsAppReports
             organizationName={organizationName}
             settings={{
@@ -690,8 +691,8 @@ export function OrganizationWhatsAppPanel({
               monthlyBudgetMinor: reportSettingsResponse.settings.monthlyBudgetMinor,
               budgetSource: "ORGANIZATION_REPORT",
             }}
-            canManage={canManage}
-            blockedReason="Only the organization owner can configure and queue organization daily reports."
+            canManage={canManageOperations}
+            blockedReason="An organization owner with a writable workspace can configure and queue organization daily reports."
             availableSenders={(sendersResponse?.senders ?? [])
               .filter(sender => sender.status === "ACTIVE")
               .map(sender => ({
@@ -701,11 +702,11 @@ export function OrganizationWhatsAppPanel({
             recentReports={[]}
             onSetEnabled={async enabled => {
               await whatsapp.updateOrganizationReportSettings(organizationId, { enabled });
-              await loadReportOperations();
+              await loadReports(sendersResponse);
             }}
             onSaveSettings={async changes => {
               await whatsapp.updateOrganizationReportSettings(organizationId, changes);
-              await loadReportOperations();
+              await loadReports(sendersResponse);
             }}
             onPreview={async () => presentWhatsAppDailyReportPreview(
               await whatsapp.previewOrganizationDailyReport(organizationId)
@@ -718,8 +719,8 @@ export function OrganizationWhatsAppPanel({
             <WhatsAppSenderSafety
               key={senderId}
               safety={safety}
-              isOwner={canManage}
-              blockedReason="Only the organization owner can pause or resume sender delivery."
+              isOwner={canManageOperations}
+              blockedReason="An organization owner with a writable workspace can pause or resume sender delivery."
               onPause={async () => {
                 await whatsapp.pauseSenderDelivery(organizationId, senderId);
                 await refreshSenderSafety(senderId);
@@ -735,12 +736,12 @@ export function OrganizationWhatsAppPanel({
             <WhatsAppIncidents
               incidents={organizationIncidents.incidents}
               unknownOutcomes={organizationIncidents.unknownOutcomes}
-              canAcknowledge={canManage}
-              blockedReason="Only the organization owner can acknowledge organization incidents."
+              canAcknowledge={canManageOperations}
+              blockedReason="An organization owner with a writable workspace can acknowledge organization incidents."
               nextCursor={null}
               onAcknowledge={async incidentId => {
                 await whatsapp.acknowledgeOrganizationIncident(organizationId, incidentId);
-                await loadReportOperations();
+                await loadOperations(sendersResponse);
               }}
             />
           ) : null}

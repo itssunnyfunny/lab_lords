@@ -66,6 +66,7 @@ export class WhatsAppSenderService {
       return {
         enabled: true,
         canManage: false,
+        canManageOperations: false,
         operationsUiEnabled: false,
         safeReason: "WhatsApp requires the Standard plan.",
         senders: [],
@@ -111,6 +112,7 @@ export class WhatsAppSenderService {
     return {
       enabled: true,
       canManage,
+      canManageOperations: profile.canWrite,
       operationsUiEnabled: isWhatsAppOperationsUiEnabled(),
       safeReason,
       senders: senders.map(sender => {

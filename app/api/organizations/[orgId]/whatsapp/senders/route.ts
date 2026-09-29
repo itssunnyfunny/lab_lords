@@ -15,7 +15,14 @@ export async function GET(
     const { orgId } = await context.params;
     await WhatsAppAuthorizationService.assertOwner(user.id, orgId);
     if (!isWhatsAppIntegrationEnabled()) {
-      return NextResponse.json({ enabled: false, canManage: false, safeReason: null, senders: [] });
+      return NextResponse.json({
+        enabled: false,
+        canManage: false,
+        canManageOperations: false,
+        operationsUiEnabled: false,
+        safeReason: null,
+        senders: [],
+      });
     }
     return NextResponse.json(await WhatsAppSenderService.listForOwner(user.id, orgId));
   } catch (error) {

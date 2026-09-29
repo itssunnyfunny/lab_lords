@@ -42,6 +42,9 @@ export type WhatsAppSenderSummary = {
 export type WhatsAppSendersResponse = {
   enabled: boolean;
   canManage: boolean;
+  /** Operational access does not depend on the onboarding rollout gate. Missing fields fail closed. */
+  canManageOperations?: boolean;
+  operationsUiEnabled?: boolean;
   safeReason: string | null;
   senders: WhatsAppSenderSummary[];
 };
