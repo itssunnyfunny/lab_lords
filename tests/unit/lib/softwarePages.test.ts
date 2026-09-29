@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
+  getSoftwarePage,
   getSoftwarePagePath,
   softwarePageSlugs,
   softwarePages,
 } from "@/lib/softwarePages";
 
 describe("software landing page configuration", () => {
+  it.each(["unknown-software", "", "constructor", "__proto__", "toString", "hasOwnProperty", "valueOf"])(
+    "does not resolve the non-catalogue slug %j",
+    slug => {
+      expect(getSoftwarePage(slug)).toBeUndefined();
+    }
+  );
+
+  it.each(softwarePageSlugs)("resolves the configured page %s", slug => {
+    expect(getSoftwarePage(slug)).toBe(softwarePages[slug]);
+    expect(getSoftwarePage(slug)?.slug).toBe(slug);
+  });
+
   it("defines the seven requested public software routes", () => {
     expect(softwarePageSlugs).toEqual([
       "study-hall-management",
