@@ -781,14 +781,9 @@ export function BranchWhatsAppPanel({
               monthlyBudgetMinor: settings.monthlyBudgetMinor,
               budgetSource: "BRANCH",
             }}
-            canConfigure={mayManageBranch}
             canQueue={canOperateReports}
             blockedReason="Daily-report preview and queue actions require a writable branch and the complete report-recipient permission set."
             recentReports={[]}
-            onSetEnabled={async enabled => {
-              await whatsapp.setBranchDelivery(branchId, enabled);
-              await reload();
-            }}
             onPreview={async () => presentWhatsAppDailyReportPreview(
               await whatsapp.previewBranchDailyReport(branchId)
             )}

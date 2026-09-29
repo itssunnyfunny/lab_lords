@@ -182,13 +182,28 @@ describe("WhatsApp PR4 presentational UI", () => {
       <BranchWhatsAppReports
         branchName="Central Branch"
         settings={{ enabled: false, senderId: "sender_1", senderLabel: "Synthetic Sender", monthlyBudgetMinor: null, budgetSource: "BRANCH" }}
-        canConfigure={false}
         canQueue={false}
         blockedReason="Reviewed branch report permissions are required."
         recentReports={[]}
-        onSetEnabled={noOp}
         onPreview={preview}
         onQueue={queue}
+      />
+    );
+    const activeRecipientHtml = renderToStaticMarkup(
+      <WhatsAppReportSubscription
+        scope="BRANCH"
+        subscription={{
+          id: "subscription_1", scope: "BRANCH", maskedPhone: "+91••••••3210",
+          language: "en_IN", sendTimeLocal: "21:00", status: "ACTIVE",
+          senderLabel: "Synthetic Sender", confirmationExpiresAt: null,
+          activatedAt: "2026-08-24T15:00:00.000Z", pausedAt: null, staleAt: null,
+        }}
+        canManage
+        onCreate={vi.fn(async () => ({ code: "unused", expiresAt: "2026-08-24T18:00:00.000Z" }))}
+        onReissue={vi.fn(async () => ({ code: "unused", expiresAt: "2026-08-24T18:00:00.000Z" }))}
+        onPause={noOp}
+        onRevoke={noOp}
+        onRefresh={vi.fn(async () => null)}
       />
     );
 
@@ -203,7 +218,9 @@ describe("WhatsApp PR4 presentational UI", () => {
     expect(organizationHtml).toContain("Preview today&#x27;s report");
     expect(branchHtml).toContain("Existing branch WhatsApp budget");
     expect(branchHtml).toContain("Reviewed branch report permissions are required");
-    expect(branchHtml).toContain('disabled=""');
+    expect(branchHtml).toContain("Pause only your daily reports in the recipient section above");
+    expect(branchHtml).not.toMatch(/Enable scheduled reports|Disable scheduled reports/);
+    expect(activeRecipientHtml).toContain("Pause reports");
   });
 
   it("offers only typed service-notice fields and exposes audience plus estimate in preview", () => {
