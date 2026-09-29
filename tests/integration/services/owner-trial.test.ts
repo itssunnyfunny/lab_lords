@@ -3,6 +3,7 @@ import { OnboardingService } from "@/services/onboarding.service";
 import { OwnerTrialService, TRIAL_DAYS } from "@/services/ownerTrial.service";
 import { createOrg, createUser } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
+import { randomUUID } from "node:crypto";
 
 describe("owner-level trials", () => {
   beforeEach(async () => {
@@ -14,6 +15,7 @@ describe("owner-level trials", () => {
 
   const onboarding = (userId: string, suffix: string) => OnboardingService.createNetwork({
     userId,
+    idempotencyKey: randomUUID(),
     selectedPostTrialPlan: "PRO",
     ownerPhone: "9876543210",
     orgData: { name: `Owner Org ${suffix}` },
@@ -38,7 +40,7 @@ describe("owner-level trials", () => {
     expect(grants[0].trialStartedAt!.getTime()).toBeLessThanOrEqual(after);
     expect(grants[0].trialEndsAt!.getTime() - grants[0].trialStartedAt!.getTime())
       .toBe(TRIAL_DAYS * 24 * 60 * 60 * 1000);
-    expect(second.org.billingModelVersion).toBe("WORKSPACE_V2");
+    expect((await testPrisma.organization.findUniqueOrThrow({ where: { id: second.org.id } })).billingModelVersion).toBe("WORKSPACE_V2");
   });
 
   it("lets the owner claim one migrated grant for a never-billed organization", async () => {

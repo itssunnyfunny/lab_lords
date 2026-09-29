@@ -17,9 +17,11 @@ import { generateSeatLabelsForSeatCount, type SeatNumberingConfig } from "@/lib/
 import { isWorkspaceBillingEnabled } from "@/lib/billingFeature";
 import { OwnerTrialService } from "@/services/ownerTrial.service";
 import { isCheckoutBillingPlanId, type CheckoutBillingPlanId } from "@/lib/billingPlans";
+import { hashOnboardingRequest, invalidOnboardingRequest, normalizeOnboardingKey, OnboardingRequestError } from "@/lib/onboardingRequest";
 
 interface CreateNetworkParams {
     userId: string;
+    idempotencyKey: string;
     selectedPostTrialPlan: CheckoutBillingPlanId;
     ownerPhone: string;
     orgData: {
@@ -49,47 +51,84 @@ interface CreateNetworkParams {
 
 export class OnboardingService {
     static async createNetwork(params: CreateNetworkParams) {
-        if (!isWorkspaceBillingEnabled()) {
-            throw new Error("Workspace creation is temporarily unavailable.");
-        }
+        const idempotencyKey = normalizeOnboardingKey(params.idempotencyKey);
         const { userId, orgData, branchData } = params;
         if (!isCheckoutBillingPlanId(params.selectedPostTrialPlan)) {
-            throw new Error("Choose Basic or Standard as the post-trial plan.");
+            throw invalidOnboardingRequest("Choose Basic or Standard as the post-trial plan.");
         }
         const ownerPhoneResult = validateRequiredPhone(params.ownerPhone, "Owner phone");
-        if (!ownerPhoneResult.ok) throw new Error(ownerPhoneResult.error);
+        if (!ownerPhoneResult.ok) throw invalidOnboardingRequest(ownerPhoneResult.error);
         const orgNameResult = validateRequiredText(orgData.name, "Organization name", 120);
-        if (!orgNameResult.ok) throw new Error(orgNameResult.error);
+        if (!orgNameResult.ok) throw invalidOnboardingRequest(orgNameResult.error);
         const businessTypeResult = validateOptionalText(orgData.businessType, "Business type", 80);
-        if (!businessTypeResult.ok) throw new Error(businessTypeResult.error);
+        if (!businessTypeResult.ok) throw invalidOnboardingRequest(businessTypeResult.error);
         const branchNameResult = validateRequiredText(branchData.name, "Branch name", 120);
-        if (!branchNameResult.ok) throw new Error(branchNameResult.error);
+        if (!branchNameResult.ok) throw invalidOnboardingRequest(branchNameResult.error);
         const cityResult = validateOptionalText(branchData.city, "City", FORM_LIMITS.cityMax);
-        if (!cityResult.ok) throw new Error(cityResult.error);
+        if (!cityResult.ok) throw invalidOnboardingRequest(cityResult.error);
         const defaultFeeResult = parseIntegerField(branchData.defaultFee, "Default monthly fee", {
             min: 0,
             max: FORM_LIMITS.moneyMax,
         });
-        if (!defaultFeeResult.ok) throw new Error(defaultFeeResult.error);
+        if (!defaultFeeResult.ok) throw invalidOnboardingRequest(defaultFeeResult.error);
         const seatCountResult = parseIntegerField(params.seatCount, "Total seats", {
             min: 0,
             max: FORM_LIMITS.seatsMax,
         });
-        if (!seatCountResult.ok) throw new Error(seatCountResult.error);
+        if (!seatCountResult.ok) throw invalidOnboardingRequest(seatCountResult.error);
         const seatLabelsResult = generateSeatLabelsForSeatCount(seatCountResult.value, params.seatNumbering);
-        if (!seatLabelsResult.ok) throw new Error(seatLabelsResult.error);
+        if (!seatLabelsResult.ok) throw invalidOnboardingRequest(seatLabelsResult.error);
         const shiftsResult = params.shifts ? validateShiftDrafts(params.shifts, { allowEmpty: false }) : null;
-        if (shiftsResult && !shiftsResult.ok) throw new Error(shiftsResult.error);
+        if (shiftsResult && !shiftsResult.ok) throw invalidOnboardingRequest(shiftsResult.error);
         const shiftsToCreate = shiftsResult?.ok && shiftsResult.value.length > 0
             ? shiftsResult.value
             : DEFAULT_PRIMARY_SHIFTS;
         const multiShiftsResult = params.multiShifts
             ? validateMultiShiftDrafts(params.multiShifts, shiftsToCreate, { allowEmpty: false })
             : null;
-        if (multiShiftsResult && !multiShiftsResult.ok) throw new Error(multiShiftsResult.error);
+        if (multiShiftsResult && !multiShiftsResult.ok) throw invalidOnboardingRequest(multiShiftsResult.error);
+        const requestHash = hashOnboardingRequest({
+            selectedPostTrialPlan: params.selectedPostTrialPlan,
+            ownerPhone: ownerPhoneResult.value,
+            orgName: orgNameResult.value,
+            businessType: businessTypeResult.value,
+            branchName: branchNameResult.value,
+            city: cityResult.value,
+            defaultFee: defaultFeeResult.value,
+            seatLabels: seatLabelsResult.value,
+            shifts: shiftsResult?.ok ? shiftsResult.value : undefined,
+            multiShifts: multiShiftsResult?.ok ? multiShiftsResult.value : undefined,
+            includeFullTimeMultiShift: params.includeFullTimeMultiShift,
+        });
 
-        // Use interactive transaction for atomicity
+        // Serialize all keys for an owner, matching the owner-trial lock order.
+        // The receipt and setup commit together; an uncertain response is safe to retry.
         return await prisma.$transaction(async (tx) => {
+            const owner = await tx.$queryRaw<Array<{ id: string }>>`
+                SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE
+            `;
+            if (owner.length !== 1) {
+                throw new OnboardingRequestError("ONBOARDING_RESULT_NOT_FOUND", "Workspace setup result not found.", 404);
+            }
+            const receipt = await tx.onboardingRequest.findUnique({
+                where: { ownerId_idempotencyKey: { ownerId: userId, idempotencyKey } },
+            });
+            if (receipt) {
+                if (receipt.requestHash !== requestHash) {
+                    throw new OnboardingRequestError("ONBOARDING_KEY_CONFLICT", "This setup request key was already used with different details.", 409);
+                }
+                const branch = await tx.branch.findFirst({
+                    where: { id: receipt.branchId, organizationId: receipt.organizationId, organization: { ownerId: userId } },
+                    select: { id: true, organizationId: true },
+                });
+                if (!branch) {
+                    throw new OnboardingRequestError("ONBOARDING_RESULT_NOT_FOUND", "Workspace setup result not found.", 404);
+                }
+                return { org: { id: branch.organizationId }, branch: { id: branch.id } };
+            }
+            if (!isWorkspaceBillingEnabled()) {
+                throw new OnboardingRequestError("ONBOARDING_UNAVAILABLE", "Workspace creation is temporarily unavailable.", 503);
+            }
             await tx.user.update({
                 where: { id: userId },
                 data: { phone: ownerPhoneResult.value },
@@ -204,7 +243,10 @@ export class OnboardingService {
 
             await OwnerTrialService.startOnboardingTrial(tx, userId, org.id, new Date());
 
-            return { org, branch };
-        });
+            await tx.onboardingRequest.create({
+                data: { ownerId: userId, idempotencyKey, requestHash, organizationId: org.id, branchId: branch.id },
+            });
+            return { org: { id: org.id }, branch: { id: branch.id } };
+        }, { isolationLevel: "ReadCommitted" });
     }
 }

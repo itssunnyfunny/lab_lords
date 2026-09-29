@@ -1166,6 +1166,24 @@ held, new creation is unavailable; existing legacy access remains supported.
 Before releasing, verify the intended flag state through the approved operator
 process. No flag or deployment change was performed by the local sprint.
 
+LEAD-01 onboarding replay requires a database-first additive
+`OnboardingRequest` migration before the receipt-aware handler and browser are
+served. Drain old identity-free onboarding handlers before opening creation;
+the new handler rejects keyless or malformed old-client requests with a typed
+400 response before writes. An old client must update and establish a new
+durably retained command; historical uncertain submissions cannot be inferred
+or backfilled. Keep the version-one canonical hash semantics stable when
+changing setup defaults or payload shape, or add an explicit compatible hash
+reader. Receipt rows have no TTL or cleanup job. Result branch archival retains
+the receipt; restrictive keys block physical owner/organization/branch deletion
+while a receipt exists. Any future erasure workflow needs a separately reviewed
+consumed-key preservation scheme and must not silently free a key. Rollback
+must keep the receipt table and replay-aware handler, or hold onboarding
+creation with the existing release gate. Reverting to a keyless handler while
+creation is open restores duplicate workspace risk. The migration in this
+remediation is generated but must not be applied outside an exactly verified
+disposable local test database without separate release authorization.
+
 1. Identify the approved commit and classify schema, environment, cron,
    webhook, billing, and external-provider impact.
 2. Require green targeted validation and CI for that commit.
