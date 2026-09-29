@@ -80,6 +80,7 @@ export default function AllocationsPage() {
                     <AllocationsContent
                         branchId={branchId}
                         manageDecision={getBranchCapabilityDecision(access, "allocationsManage")}
+                        canManageStudentFees={getBranchCapabilityDecision(access, "studentsManage").allowed}
                     />
                 </Suspense>
             )}
@@ -90,9 +91,11 @@ export default function AllocationsPage() {
 function AllocationsContent({
     branchId,
     manageDecision,
+    canManageStudentFees,
 }: {
     branchId: string;
     manageDecision: CapabilityDecision;
+    canManageStudentFees: boolean;
 }) {
     const t = useTranslation();
     const canManageAllocations = manageDecision.allowed;
@@ -375,9 +378,11 @@ function AllocationsContent({
         return { active: allocationTotals.ACTIVE, ended: allocationTotals.ENDED, multiShift };
     }, [allocationTotals, allocations]);
 
-    if (loading) return <PageLoadingSkeleton label={t("Loading allocations")} variant="table" rows={6} />;
+    // Keep the move dialog mounted while it recovers an optional fee update.
+    // Reloading committed allocations must not discard that local progress.
+    if (loading && !updateTarget) return <PageLoadingSkeleton label={t("Loading allocations")} variant="table" rows={6} />;
 
-    if (error) return (
+    if (error && !updateTarget) return (
         <div className={pageErrorStateClass}>
             <AlertCircle className={pageErrorIconClass} />
             <h2 className="text-xl font-semibold">{t("Allocations did not load")}</h2>
@@ -562,6 +567,7 @@ function AllocationsContent({
             {/* Update (change seat/shift) dialog */}
             {canManageAllocations && updateTarget && (
                 <UpdateAllocationDialog
+                    key={updateTarget.ids[0]}
                     isOpen={!!updateTarget}
                     branchId={branchId}
                     allocationId={updateTarget.ids[0]}
@@ -572,11 +578,9 @@ function AllocationsContent({
                     currentFee={updateTarget.currentFee}
                     currentShiftIds={updateTarget.currentShiftIds}
                     currentMultiShiftId={updateTarget.currentMultiShiftId}
+                    canManageStudentFees={canManageStudentFees}
                     onClose={() => setUpdateTarget(null)}
-                    onSuccess={() => {
-                        fetchAllocations();
-                        setUpdateTarget(null);
-                    }}
+                    onSuccess={fetchAllocations}
                 />
             )}
         </PageShell>

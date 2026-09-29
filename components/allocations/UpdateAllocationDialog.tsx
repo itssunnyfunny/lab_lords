@@ -2,7 +2,7 @@
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -14,6 +14,7 @@ import {
     formIconClass,
     formLabelClass,
     formSurfaceClass,
+    formSuccessBannerClass,
 } from "@/components/ui/formSurface";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
@@ -31,9 +32,13 @@ interface UpdateAllocationDialogProps {
     currentFee: number | null;
     currentShiftIds?: string[];
     currentMultiShiftId?: string | null;
+    canManageStudentFees: boolean;
     onClose: () => void;
+    /** Refresh committed changes without closing a partially completed workflow. */
     onSuccess: () => void;
 }
+
+const EMPTY_SHIFT_IDS: string[] = [];
 
 export function UpdateAllocationDialog({
     isOpen,
@@ -44,8 +49,9 @@ export function UpdateAllocationDialog({
     studentName,
     currentSeatId,
     currentFee,
-    currentShiftIds = [],
+    currentShiftIds = EMPTY_SHIFT_IDS,
     currentMultiShiftId = null,
+    canManageStudentFees,
     onClose,
     onSuccess,
 }: UpdateAllocationDialogProps) {
@@ -60,6 +66,10 @@ export function UpdateAllocationDialog({
 
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [allocationUpdated, setAllocationUpdated] = useState(false);
+    const moveCompleted = useRef(false);
+    const inFlight = useRef(false);
+    const pendingFeeBody = useRef<string | null>(null);
     const {
         markTouched,
         markSubmitted,
@@ -68,7 +78,15 @@ export function UpdateAllocationDialog({
     } = useInlineFieldErrors<"selection" | "fee">();
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            moveCompleted.current = false;
+            pendingFeeBody.current = null;
+            setAllocationUpdated(false);
+            return;
+        }
+        // A parent reload must not turn a committed move back into an editable
+        // operation with the ended allocation IDs.
+        if (moveCompleted.current) return;
         setSelectedShiftIds(currentShiftIds);
         setSelectedShiftNames([]);
         setSelectedSeatId(null);
@@ -141,71 +159,77 @@ export function UpdateAllocationDialog({
     const feeError = visibleError("fee", validation.errors);
 
     const handleConfirm = async () => {
+        if (inFlight.current) return;
         markSubmitted();
         setSubmitError(null);
-        const result = validateForm();
-        if (Object.values(result.errors).some(Boolean)) {
-            return;
+        if (!moveCompleted.current) {
+            const result = validateForm();
+            if (Object.values(result.errors).some(Boolean)) return;
+            pendingFeeBody.current = canManageStudentFees && (linkFeeToSelection || newFee.trim() !== "")
+                ? JSON.stringify({
+                    id: studentId,
+                    ...(linkFeeToSelection && selectedMultiShiftId
+                        ? { feeLinkedShiftId: null, feeLinkedMultiShiftId: selectedMultiShiftId }
+                        : linkFeeToSelection && selectedShiftIds.length === 1
+                            ? { feeLinkedShiftId: selectedShiftIds[0], feeLinkedMultiShiftId: null }
+                            : {
+                                monthlyFee: result.newFeeResult?.ok ? result.newFeeResult.value : undefined,
+                                feeLinkedShiftId: null,
+                                feeLinkedMultiShiftId: null,
+                            }),
+                })
+                : null;
         }
-        const newFeeResult = result.newFeeResult;
 
+        inFlight.current = true;
         setSubmitting(true);
 
         try {
-            const res = await fetch(`/api/seat-allocations/${allocationId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    seatId: selectedSeatId,
-                    studentId,
-                    shiftIds: selectedShiftIds,
-                    allocationIds,
-                    ...(selectedMultiShiftId ? { multiShiftId: selectedMultiShiftId } : {}),
-                }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "Failed to update allocation");
-            }
-
-            if (linkFeeToSelection || newFee.trim() !== "") {
-                const feeRes = await fetch(`/api/branches/${branchId}/students`, {
+            if (!moveCompleted.current) {
+                const res = await fetch(`/api/seat-allocations/${allocationId}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        id: studentId,
-                        ...(linkFeeToSelection && selectedMultiShiftId
-                            ? {
-                                feeLinkedShiftId: null,
-                                feeLinkedMultiShiftId: selectedMultiShiftId,
-                            }
-                            : linkFeeToSelection && selectedShiftIds.length === 1
-                                ? {
-                                    feeLinkedShiftId: selectedShiftIds[0],
-                                    feeLinkedMultiShiftId: null,
-                                }
-                                : {
-                                    monthlyFee: newFeeResult?.ok ? newFeeResult.value : undefined,
-                                    feeLinkedShiftId: null,
-                                    feeLinkedMultiShiftId: null,
-                                }),
+                        seatId: selectedSeatId,
+                        studentId,
+                        shiftIds: selectedShiftIds,
+                        allocationIds,
+                        ...(selectedMultiShiftId ? { multiShiftId: selectedMultiShiftId } : {}),
                     }),
+                });
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || "Failed to update allocation");
+                }
+                moveCompleted.current = true;
+                setAllocationUpdated(true);
+            }
+
+            if (pendingFeeBody.current) {
+                const feeRes = await fetch(`/api/branches/${branchId}/students`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: pendingFeeBody.current,
                 });
 
                 if (!feeRes.ok) {
                     const data = await feeRes.json().catch(() => ({}));
                     throw new Error(data.error || "Allocation updated, but fee update failed.");
                 }
+                pendingFeeBody.current = null;
             }
 
-            onSuccess();
             resetFieldErrors();
             onClose();
         } catch (e: unknown) {
             setSubmitError(e instanceof Error ? e.message : "Something went wrong.");
         } finally {
+            inFlight.current = false;
             setSubmitting(false);
+            // The allocation is already durable, even when the optional fee
+            // request failed or its response was lost. Reload both outcomes.
+            if (moveCompleted.current) onSuccess();
         }
     };
 
@@ -232,17 +256,23 @@ export function UpdateAllocationDialog({
             footer={(
                 <>
                     <Button density="compact" variant="ghost" onClick={onClose} disabled={submitting}>
-                        {t("Cancel")}</Button>
+                        {t(allocationUpdated ? "Close" : "Cancel")}</Button>
                     <Button density="compact" variant="primary" onClick={handleConfirm} disabled={submitting}>
                         {submitting
                             ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" />  {t("Updating...")}</>
-                            : confirmLabel
+                            : allocationUpdated ? t("Retry fee update") : confirmLabel
                         }
                     </Button>
                 </>
             )}
         >
-                <div
+                {allocationUpdated && (
+                    <div role="status" className={cn("p-3 text-sm", formSuccessBannerClass)}>
+                        {t("Seat and shifts updated.")}
+                    </div>
+                )}
+                {!allocationUpdated && <fieldset
+                    disabled={submitting}
                     role="group"
                     aria-label={t("Seat and shift selection")}
                     aria-describedby={selectionError ? "update-allocation-selection-error" : undefined}
@@ -260,7 +290,7 @@ export function UpdateAllocationDialog({
                     />
                     <FieldError id="update-allocation-selection-error" error={selectionError} />
 
-                    {feeLinkLabel && (
+                    {canManageStudentFees && feeLinkLabel && (
                         <div className={cn("mt-5 space-y-3 p-4", formSurfaceClass)}>
                             <div className="flex items-center gap-3">
                                 <label htmlFor="update-allocation-fee" className={cn("whitespace-nowrap text-xs", formHelpTextClass)}>
@@ -302,12 +332,15 @@ export function UpdateAllocationDialog({
                         </div>
                     )}
 
+                </fieldset>}
                     {submitError && (
                         <div role="alert" className={cn("mt-4 p-3 text-sm", formErrorBannerClass)}>
+                            {allocationUpdated && <p className="mb-2">
+                                {t("The fee update could not be confirmed. Retry applies only the requested fee change.")}
+                            </p>}
                             <LocalizedError error={submitError} />
                         </div>
                     )}
-                </div>
         </Dialog>
     );
 }
