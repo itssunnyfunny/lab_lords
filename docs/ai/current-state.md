@@ -530,6 +530,9 @@ Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.ser
   checks those actions and branch writability for each status command.
 - Seats can be created individually or generated from a numbering configuration.
 - Branches have primary shifts and composed multi-shifts.
+- Allocation capacity and picker maps omit retained MultiShifts with inactive,
+  foreign, missing, or incomplete component sets; management can still see
+  those bundles for repair and historical fee links.
 - Shift deletion is soft deletion and requires an explicit resolution for affected allocations.
 - Shift deletion shares the allocation writer's serializable/retry protocol.
   Targets must be active in the source branch; manual assignments must exactly

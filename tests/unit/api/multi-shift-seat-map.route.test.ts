@@ -120,4 +120,28 @@ describe("GET multi-shift seat map", () => {
     expect(response.status).toBe(404);
     expect(mocks.seatFindMany).not.toHaveBeenCalled();
   });
+
+  it("does not offer seats when a component is absent from the active branch query", async () => {
+    mocks.shiftFindMany.mockResolvedValue([{ id: "morning", startTime: "06:00", endTime: "10:00" }]);
+    const { GET } = await import("@/app/api/branches/[branchId]/multi-shifts/[multiShiftId]/seat-map/route");
+    const response = await GET(new Request("http://test.local"), context);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Multi-shift not found" });
+    expect(mocks.shiftFindMany).toHaveBeenCalledWith({
+      where: { branchId: "branch_1", status: "ACTIVE" }, select: { id: true, startTime: true, endTime: true },
+    });
+    expect(mocks.seatFindMany).not.toHaveBeenCalled();
+  });
+
+  it.each([{ ids: [] as string[] }, { ids: ["morning"] }])("rejects an incomplete bundle component set $ids", async ({ ids }) => {
+    mocks.multiShiftFindUnique.mockResolvedValue({
+      id: "multi_full", branchId: "branch_1", name: "Broken bundle",
+      components: ids.map(id => ({ shiftId: id, shift: { id, startTime: null, endTime: null } })),
+    });
+    const { GET } = await import("@/app/api/branches/[branchId]/multi-shifts/[multiShiftId]/seat-map/route");
+    const response = await GET(new Request("http://test.local"), context);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Multi-shift not found" });
+    expect(mocks.seatFindMany).not.toHaveBeenCalled();
+  });
 });
