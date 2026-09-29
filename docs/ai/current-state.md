@@ -99,6 +99,9 @@ occupancy history, manual tasks, focused fee follow-ups and persistent personal
 notification acknowledgement. Existing collection, anniversary fee, attendance,
 provider, localization and tenant boundaries remain authoritative; public pages
 remain unchanged. Visual acceptance is reserved for the owner.
+Renewal notifications link to the membership-terms setup section. The setup
+section follows same-route query changes and keeps tab navigation in the URL,
+subject to the viewer's existing permissions.
 
 The chart shows current settlement of the selected month's due-date cohort;
 cash collected this month is a separate measure. Historical occupancy begins

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppButton, AppPanel, AppSelect } from "@/components/ui";
 import { RecordListPage, RecordListState } from "@/components/ui/RecordList";
 import { DataTable } from "@/components/tables/DataTable";
@@ -15,13 +15,23 @@ import { dashboardRequest, inputClass, ResourceError, useDashboardResource } fro
 type StudentOption = { id: string; name: string };
 type Expectation = { studentId: string; weekdays: number[]; expectedBy: string; enabled: boolean };
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const setupSections = [["utilization", "Utilization review"], ["expectations", "Attendance expectations"], ["terms", "Membership terms"]] as const;
 export function DashboardSettingsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
     const t = useTranslation(); const write = getBranchCapabilityDecision(access, "settingsManage");
-    const query = useSearchParams(); const [section, setSection] = useState(query.get("section") ?? "utilization");
+    const query = useSearchParams(); const router = useRouter();
+    const availableSections = setupSections.filter(([key]) => key === "utilization"
+        ? access.permissions.seat_allocation || access.permissions.manage_branch
+        : access.permissions.students);
+    const section = availableSections.find(([key]) => key === query.get("section"))?.[0] ?? availableSections[0]?.[0];
+    function selectSection(value: typeof setupSections[number][0]) {
+        const nextQuery = new URLSearchParams(query.toString());
+        nextQuery.set("section", value);
+        router.replace(`/branch/${encodeURIComponent(branchId)}/dashboard-settings?${nextQuery.toString()}`, { scroll: false });
+    }
     const overview = useDashboardResource<DashboardOverview>(`/api/branches/${branchId}/dashboard`);
     const seating = overview.data?.seating; const attendance = overview.data?.attendance;
     return <RecordListPage title={t("Dashboard setup")} description={t("Choose attendance expectations, record membership terms and set an advisory utilization threshold. These settings do not change fees or student status.")}>
-        <AppPanel density="compact" padding="none"><nav className="flex flex-wrap gap-2 p-3" aria-label={t("Dashboard setup")}>{[ ["utilization", "Utilization review"], ["expectations", "Attendance expectations"], ["terms", "Membership terms"] ].filter(([key]) => key === "utilization" ? access.permissions.seat_allocation || access.permissions.manage_branch : access.permissions.students).map(([value, label]) => <AppButton key={value} density="compact" variant={section === value ? "primary" : "secondary"} aria-pressed={section === value} onClick={() => setSection(value)}>{t.owned(label)}</AppButton>)}</nav></AppPanel>
+        <AppPanel density="compact" padding="none"><nav className="flex flex-wrap gap-2 p-3" aria-label={t("Dashboard setup")}>{availableSections.map(([value, label]) => <AppButton key={value} density="compact" variant={section === value ? "primary" : "secondary"} aria-pressed={section === value} onClick={() => selectSection(value)}>{t.owned(label)}</AppButton>)}</nav></AppPanel>
         {overview.loading && !overview.data && <RecordListState kind="loading" title={t("Loading…")} />}
         <ResourceError error={overview.error} retry={() => void overview.reload()} />
         {section === "utilization" && <><AppPanel density="compact" title={t("Utilization review")} description={t("Review available slots before changing allocations. Low utilization is advisory.")}>

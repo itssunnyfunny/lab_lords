@@ -370,7 +370,7 @@ export class DashboardService {
         if (access.permissions.students) {
             const [attendance, terms] = await completeReads([this.attendance(branchId, timezone, today, now), this.termSummary(branchId, today)]);
             add("ATTENDANCE", attendance.gaps, [today, attendance.gaps, attendance.gapsStudents.map(r => r.id)], "attendance");
-            add("RENEWAL", terms.renewalsThisWeek, terms.items.map(r => [r.id, r.endDate]), "dashboard-settings");
+            add("RENEWAL", terms.renewalsThisWeek, terms.items.map(r => [r.id, r.endDate]), "dashboard-settings?section=terms");
         }
         if (access.permissions.manage_branch) {
             const where = { branchId, status: "OPEN", dueAt: { lte: now }, OR: [{ assigneeId: actorId }, { assigneeId: null }] };

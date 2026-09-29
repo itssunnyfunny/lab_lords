@@ -129,4 +129,36 @@ describe("dashboard scoped service boundary", () => {
         expect(result.items[0].count).toBe(145); expect(result.unreadCount).toBe(1);
         expect(mocks.db.dashboardNotificationState.findMany).toHaveBeenCalledWith({ where: { branchId: "branch", userId: "actor", key: { in: [result.items[0].key] } } });
     });
+    it("links a student's renewal notification to membership terms without changing its personal state", async () => {
+        mocks.resolve.mockResolvedValue({ ...access(), permissions: { ...permissions, students: true } });
+        mocks.db.attendanceExpectation.count.mockResolvedValue(0);
+        mocks.db.attendanceExpectation.findMany.mockResolvedValue([]);
+        mocks.db.student.count.mockResolvedValue(0);
+        mocks.db.membershipTerm.count.mockResolvedValue(1);
+        mocks.db.membershipTerm.findMany.mockResolvedValue([{
+            id: "term", studentId: "student", label: "Monthly membership",
+            startDate: "2026-09-01", endDate: "2026-09-30", student: { name: "Student" },
+        }]);
+        mocks.db.dashboardNotificationState.findMany.mockResolvedValue([]);
+        const now = new Date("2026-09-29T12:00:00Z");
+
+        const first = await DashboardService.notifications("actor", "branch", now);
+        expect(first.items).toHaveLength(1);
+        expect(first.items[0]).toMatchObject({ kind: "RENEWAL", count: 1, href: "/branch/branch/dashboard-settings?section=terms" });
+
+        mocks.db.dashboardNotificationState.findMany.mockResolvedValue([{
+            key: first.items[0].key, readAt: now, dismissedAt: now, snoozedUntil: null,
+        }]);
+        const next = await DashboardService.notifications("actor", "branch", now);
+        expect(next.items[0]).toMatchObject({ key: first.items[0].key, read: true, dismissed: true });
+        expect(next.unreadCount).toBe(0);
+        expect(mocks.db.membershipTerm.create).not.toHaveBeenCalled();
+        expect(mocks.db.payment.update).not.toHaveBeenCalled();
+    });
+    it("does not read or advertise membership terms without student permission", async () => {
+        mocks.db.dashboardNotificationState.findMany.mockResolvedValue([]);
+        expect((await DashboardService.notifications("actor", "branch")).items).toEqual([]);
+        expect(mocks.db.membershipTerm.count).not.toHaveBeenCalled();
+        expect(mocks.db.membershipTerm.findMany).not.toHaveBeenCalled();
+    });
 });
