@@ -131,6 +131,10 @@ operator workstation or CI runner that can access credentials.
   be trusted independently of its authorized branch or organization.
 - Permission-shaped responses must not expose unrelated counts, settings,
   students, seats, payments, staff, or other branch data.
+- Allocation-authorized staff may read only active same-branch student IDs and
+  names through the allocation selector. The general student directory retains
+  its separate `students` permission; optional fee-profile updates still
+  recheck that permission and branch writability server-side.
 - User-initiated mutations must enforce entitlement and writable state.
 - Renewal queue and follow-up reads require `view_payments` in the resolved
   branch. Follow-up writes require the existing `paymentsRecord` capability

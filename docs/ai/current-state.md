@@ -534,6 +534,9 @@ Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.ser
 - Allocation student/seat/shift/MultiShift links additionally use branch-scoped
   composite foreign keys, backed by the explicit allocation `branchId`.
 - Releasing one allocation belonging to a multi-shift releases the complete related bundle.
+- The allocation picker reads only active same-branch student IDs and names
+  under allocation permission; full student-directory and optional fee-profile
+  access remain independently permission-gated.
 - Student creation and its optional admission payment are atomic, but an
   optional initial seat allocation runs afterward. Allocation failure leaves
   the student and admission payment committed.
