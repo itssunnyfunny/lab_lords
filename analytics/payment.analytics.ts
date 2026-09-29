@@ -232,9 +232,10 @@ export async function getDueStudents(
  */
 export async function getOverduePayments(
   branchId: string,
-  asOf?: AsOf
+  asOf?: AsOf,
+  client: Pick<Prisma.TransactionClient, "payment"> = prisma
 ) {
-  const page = await getOverduePaymentsPage(branchId, { asOf, all: true })
+  const page = await getOverduePaymentsPage(branchId, { asOf, all: true }, client)
 
   return {
     count: page.total,
@@ -256,7 +257,8 @@ export type OverduePaymentPageOptions = {
  */
 export async function getOverduePaymentsPage(
   branchId: string,
-  options: OverduePaymentPageOptions = {}
+  options: OverduePaymentPageOptions = {},
+  client: Pick<Prisma.TransactionClient, "payment"> = prisma
 ) {
   if (options.all && options.cursor) {
     throw new PaginationInputError("all cannot be combined with cursor")
@@ -283,7 +285,7 @@ export async function getOverduePaymentsPage(
     : baseWhere
 
   const [rows, total] = await Promise.all([
-    prisma.payment.findMany({
+    client.payment.findMany({
       where,
       select: {
         id: true,
@@ -303,7 +305,7 @@ export async function getOverduePaymentsPage(
       ],
       ...(options.all ? {} : { take: limit + 1 }),
     }),
-    prisma.payment.count({ where: baseWhere }),
+    client.payment.count({ where: baseWhere }),
   ])
 
   const page = options.all

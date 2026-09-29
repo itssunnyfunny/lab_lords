@@ -1,6 +1,9 @@
 import { AccessPolicy, type BranchAccessContext } from "@/services/accessPolicy.service";
-import { claimGeneration, publishGeneration, releaseGeneration } from "@/ai/generationLease";
-import { getOverduePayments } from "@/analytics/payment.analytics";
+import { claimGeneration, DraftSourceChangedError, publishDraftGeneration, releaseGeneration } from "@/ai/generationLease";
+import {
+    draftActionFamilyWhere, isDraftSourceOutdated, loadDraftDebtSource, versionedDraftAction,
+    type OverdueDebtPayment,
+} from "./debtSource";
 import {
     buildMessageDraftAction,
     includedMessageFields,
@@ -86,7 +89,7 @@ function formatDueDate(date: Date) {
     return format(date, "dd MMM yyyy");
 }
 
-function buildTargets(payments: Awaited<ReturnType<typeof getOverduePayments>>["payments"]): MessageTarget[] {
+function buildTargets(payments: OverdueDebtPayment[]): MessageTarget[] {
     const byStudent = new Map<string, MessageTarget>();
 
     for (const payment of payments) {
@@ -263,7 +266,9 @@ function draftFromRecord(
         language,
         tone,
         include,
-        message,
+        // Cached text may contain the old amount. Keep the persisted evidence
+        // but do not return obsolete wording as a current, copyable draft.
+        message: isOutdated ? "" : message,
         createdAt: createdAt?.toISOString(),
         isOutdated,
     };
@@ -312,8 +317,8 @@ export async function draftOverdueMessages(
     const allowGeneration = options.allowGeneration ?? true;
     const generateMissing = options.generateMissing ?? true;
 
-    const overdueResult = await getOverduePayments(branchId);
-    const targets = buildTargets(overdueResult.payments);
+    const source = await loadDraftDebtSource(branchId, now);
+    const targets = buildTargets(source.payments);
     const targetIds = targets.map(target => target.studentId);
 
     if (targets.length === 0) {
@@ -335,25 +340,15 @@ export async function draftOverdueMessages(
         };
     }
 
-    const [existingDrafts, studentRows, lastGeneratedAt, generationLease] = await Promise.all([
+    const [existingDrafts, lastGeneratedAt, generationLease] = await Promise.all([
         prisma.messageDraft.findMany({
             where: {
                 branchId,
-                action,
+                ...draftActionFamilyWhere(action),
                 language,
                 studentId: { in: targetIds },
             },
             orderBy: { createdAt: "desc" },
-        }),
-        prisma.student.findMany({
-            where: {
-                branchId,
-                id: { in: targetIds },
-            },
-            select: {
-                id: true,
-                updatedAt: true,
-            },
         }),
         getLastMessageGeneratedAt(branchId),
         prisma.branchGenerationLease.findUnique({ where: { branchId_kind: { branchId, kind: "DRAFTS" } } }),
@@ -366,7 +361,6 @@ export async function draftOverdueMessages(
         }
     }
 
-    const studentUpdatedAtById = new Map(studentRows.map(student => [student.id, student.updatedAt]));
     const resultsByStudentId = new Map<string, OverdueMessageDraft>();
     const generationTargets: MessageTarget[] = [];
     let selectedRegenerationCount = 0;
@@ -374,42 +368,19 @@ export async function draftOverdueMessages(
     for (const target of targets) {
         const existing = latestDraftByStudentId.get(target.studentId);
         const isSelectedForRegeneration = selectedRegenerationIds.has(target.studentId);
-
-        if (existing && !isSelectedForRegeneration) {
-            const studentUpdatedAt = studentUpdatedAtById.get(target.studentId);
-            resultsByStudentId.set(
-                target.studentId,
-                draftFromRecord(
-                    target,
-                    existing.message,
-                    language,
-                    tone,
-                    include,
-                    existing.createdAt,
-                    studentUpdatedAt ? studentUpdatedAt > existing.createdAt : false
-                )
-            );
-            continue;
-        }
+        // Keep membership complete even when cooldown or another generation
+        // owner prevents a selected target from receiving a replacement.
+        resultsByStudentId.set(target.studentId, draftFromRecord(
+            target, existing?.message ?? "", language, tone, include, existing?.createdAt,
+            existing ? isDraftSourceOutdated(existing.action, action, source.fingerprintsByStudentId.get(target.studentId)) : false
+        ));
+        if (existing && !isSelectedForRegeneration) continue;
 
         if (isSelectedForRegeneration) {
             selectedRegenerationCount += 1;
         }
         if (allowGeneration && (isSelectedForRegeneration || (!existing && generateMissing))) {
             generationTargets.push(target);
-        } else {
-            resultsByStudentId.set(
-                target.studentId,
-                draftFromRecord(
-                    target,
-                    existing?.message ?? "",
-                    language,
-                    tone,
-                    include,
-                    existing?.createdAt,
-                    existing ? (studentUpdatedAtById.get(target.studentId) ?? new Date(0)) > existing.createdAt : false
-                )
-            );
         }
     }
 
@@ -439,12 +410,27 @@ export async function draftOverdueMessages(
             } catch (error) {
                 console.error("[Messages] Gemini response could not be parsed, using fallback", error);
             }
-            const created = await publishGeneration(branchId, "DRAFTS", token, async tx => {
+            const expectedFingerprints = new Map(generationTargets.map(target => [
+                target.studentId, source.fingerprintsByStudentId.get(target.studentId),
+            ]));
+            if ([...expectedFingerprints.values()].some(value => !value)) throw new DraftSourceChangedError();
+            const created = await publishDraftGeneration(branchId, token,
+                generationTargets.map(target => target.studentId),
+                async (tx, asOf) => {
+                    await AccessPolicy.recheckCapability(access, "aiGenerate", tx);
+                    const current = await loadDraftDebtSource(branchId, asOf, tx);
+                    for (const [studentId, expected] of expectedFingerprints) {
+                        if (current.fingerprintsByStudentId.get(studentId) !== expected) throw new DraftSourceChangedError();
+                    }
+                }, async tx => {
                 const records = [];
                 for (const target of generationTargets) {
                     const message = generatedByStudentId.get(target.studentId) || buildFallbackMessage(target, language, tone, include);
-                    await tx.messageDraft.deleteMany({ where: { branchId, studentId: target.studentId, action, language } });
-                    records.push(await tx.messageDraft.create({ data: { branchId, studentId: target.studentId, action, language, message } }));
+                    const fingerprint = source.fingerprintsByStudentId.get(target.studentId);
+                    if (!fingerprint) throw new DraftSourceChangedError();
+                    await tx.messageDraft.deleteMany({ where: { branchId, studentId: target.studentId, ...draftActionFamilyWhere(action), language } });
+                    records.push(await tx.messageDraft.create({ data: { branchId, studentId: target.studentId,
+                        action: versionedDraftAction(action, fingerprint), language, message } }));
                 }
                 return records;
             });
@@ -466,6 +452,19 @@ export async function draftOverdueMessages(
         : regenerationCoolingDown
             ? cooldownUntil
             : now);
+
+    if (generatedCount > 0) {
+        // A fee writer may commit immediately after the short publication
+        // transaction. Return current membership and freshness, not the
+        // pre-provider amount or an assumed-current generated message.
+        const refreshed = await draftOverdueMessages(access, {
+            language, tone, include, allowGeneration: false, generateMissing: false,
+            now: options.now ?? new Date(),
+        });
+        return { ...refreshed, meta: { ...refreshed.meta, generatedCount,
+            cachedCount: Math.max(0, refreshed.items.length - generatedCount),
+            selectedRegenerationCount } };
+    }
 
     return {
         language,
