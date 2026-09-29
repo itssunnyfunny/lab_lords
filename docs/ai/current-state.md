@@ -1,5 +1,18 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Branch analytics payment boundary — local remediation, 2026-09-29
+
+The interactive branch snapshot and payment trend separate general analytics
+access from finance access. An entitled analytics viewer with an explicit
+`view_payments` denial can still read student and seat analytics; payment-derived
+amounts, counts and rates are omitted or denied server-side. The dashboard's
+financial sources and complete AI reports retain their existing separate
+payment checks. Local unit and route regressions cover the split; connected
+role/database and browser verification remains pending. No schema or environment
+change is needed for this boundary. The public report capability claims remain
+accurate under the narrower permission rule, so Home, Features, Pricing and FAQ
+need no wording change.
+
 ## Authenticated application presentation rollout — 2026-09-28
 
 The selected dashboard and approved Students hierarchy are the visual foundation.

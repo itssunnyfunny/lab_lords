@@ -105,6 +105,12 @@ export async function GET(
 
         return NextResponse.json(result)
     } catch (error) {
+        if (error instanceof Error && error.message.includes("Branch not found")) {
+            return NextResponse.json({ error: "Branch not found" }, { status: 404 })
+        }
+        if (error instanceof Error && error.message.includes("Unauthorized")) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        }
         console.error("Error fetching branch trends:", error)
         return NextResponse.json(
             { error: "Internal Server Error" },

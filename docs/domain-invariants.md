@@ -1032,9 +1032,13 @@ unit/API/integration coverage.
   named `totalSeats` may therefore represent slots in analytics output.
   (`analytics/`, analytics tests)
 - **Must preserve—enforced:** Branch analytics requires the analytics action and
-  the `ADVANCED_ANALYTICS` entitlement. Organization snapshots require owner
-  access and the entitlement. Raw analytics helpers are not tenant authorization
-  boundaries and must be called only after route/service authorization.
+  the `ADVANCED_ANALYTICS` entitlement. Financial branch analytics additionally
+  require `view_payments`, including payment-derived counts, rates and scores;
+  an explicit payment-view denial does not remove separately authorized student
+  and seat analytics. Restricted finance is omitted rather than represented as
+  zero. Organization snapshots require owner access and the entitlement. Raw
+  analytics helpers are not tenant authorization boundaries and must be called
+  only after route/service authorization.
   (`app/api/`, `services/entitlement.service.ts`, analytics route tests)
 - **Must preserve—enforced:** Payment analytics use the payment semantics above:
   due means `DUE` through end-of-day, overdue means strictly more than seven

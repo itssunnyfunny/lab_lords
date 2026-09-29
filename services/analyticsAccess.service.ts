@@ -1,8 +1,8 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
-import { getBranchHealthSnapshot } from "@/analytics/branch.analytics";
+import { getBranchOperationalSnapshot } from "@/analytics/branch.analytics";
 import { getOrganizationHealthSnapshot } from "@/analytics/org.analytics";
 import { getOverduePaymentsPage, getPaymentPeriodStats, type AnalyticsPeriod } from "@/analytics/payment.analytics";
-import { getBranchHealthTrend } from "@/analytics/trends/branch.trends";
+import { getBranchOperationalTrend } from "@/analytics/trends/branch.trends";
 import { getPaymentTrend } from "@/analytics/trends/payment.trends";
 import { getSeatUtilizationTrend } from "@/analytics/trends/seat.trends";
 
@@ -14,9 +14,10 @@ export class AnalyticsAccessService {
         return getOverduePaymentsPage(branchId, options);
     }
     static async branchSnapshot(actorId: string, branchId: string, period: AnalyticsPeriod) {
-        await AccessPolicy.authorizeCapability(actorId, branchId, "analyticsView");
+        const access = await AccessPolicy.authorizeCapability(actorId, branchId, "analyticsView");
         const [health, finance] = await Promise.all([
-            getBranchHealthSnapshot(branchId), getPaymentPeriodStats(branchId, undefined, period),
+            getBranchOperationalSnapshot(branchId),
+            access.permissions.view_payments ? getPaymentPeriodStats(branchId, undefined, period) : null,
         ]);
         return { health, finance };
     }
@@ -26,10 +27,10 @@ export class AnalyticsAccessService {
     }
     static async healthTrend(actorId: string, branchId: string, from: Date, to: Date) {
         await AccessPolicy.authorizeCapability(actorId, branchId, "analyticsView");
-        return getBranchHealthTrend(branchId, from, to);
+        return getBranchOperationalTrend(branchId, from, to);
     }
     static async paymentTrend(actorId: string, branchId: string, from: Date, to: Date, period: AnalyticsPeriod) {
-        await AccessPolicy.authorizeCapability(actorId, branchId, "analyticsView");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "analyticsFinanceView");
         return getPaymentTrend(branchId, from, to, "DAY", period);
     }
     static async seatTrend(actorId: string, branchId: string, from: Date, to: Date) {

@@ -70,6 +70,7 @@ export function KpiRow({
     const [seatTrend, setSeatTrend] = useState<number[] | undefined>();
     const [paymentTrend, setPaymentTrend] = useState<number[] | undefined>();
     const [dueTrend, setDueTrend] = useState<number[] | undefined>();
+    const canViewFinance = snapshot?.financialAccess === true;
     const { formatNumber } = useUserPreferences();
     const formatMoney = (amount: number) => formatNumber(amount, {
         style: "currency",
@@ -79,6 +80,7 @@ export function KpiRow({
 
     useEffect(() => {
         if (!branchId) return;
+        let active = true;
         const loadTrends = async () => {
             try {
                 const to = new Date().toISOString();
@@ -86,25 +88,25 @@ export function KpiRow({
 
                 const [seat, pay] = await Promise.all([
                     analytics.getTrends(branchId, { from, to, type: "seat" }),
-                    analytics.getTrends(branchId, { from, to, type: "payment", period }),
+                    canViewFinance ? analytics.getTrends(branchId, { from, to, type: "payment", period }) : Promise.resolve([]),
                 ]);
 
+                if (!active) return;
                 setSeatTrend(seat.map(t => t.value));
-                setPaymentTrend(pay.filter(t => t.category === "Collected").map(t => t.value));
-                setDueTrend(pay.filter(t => t.category === "Pending").map(t => t.value));
+                setPaymentTrend(canViewFinance ? pay.filter(t => t.category === "Collected").map(t => t.value) : undefined);
+                setDueTrend(canViewFinance ? pay.filter(t => t.category === "Pending").map(t => t.value) : undefined);
             } catch (err) {
                 console.error("Failed to load KPI trends", err);
             }
         };
-        loadTrends();
-    }, [branchId, period]);
+        void loadTrends();
+        return () => { active = false; };
+    }, [branchId, canViewFinance, period]);
 
     if (!snapshot) {
         return (
-            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <KpiCard title={t("Collected Revenue")} value="-" />
+            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <KpiCard title={t("Active Students")} value="-" />
-                <KpiCard title={t("Due Payments")} value="-" />
                 <KpiCard title={t("Total Utilization")} value="-" />
             </div>
         );
@@ -112,24 +114,24 @@ export function KpiRow({
 
     return (
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
+            {snapshot.financialAccess && <KpiCard
                 title={t("Collected Revenue")}
                 value={formatMoney(snapshot.paidAmount)}
                 trend={period === "month" ? "Collected this month" : "Collected all time"}
                 data={paymentTrend}
-            />
+            />}
             <KpiCard
                 title={t("Active Students")}
                 value={formatNumber(snapshot.activeStudents)}
                 trend="Current active count"
             />
-            <KpiCard
+            {snapshot.financialAccess && <KpiCard
                 title={t("Due Payments")}
                 value={formatMoney(snapshot.dueAmount)}
                 trend="All due payments"
                 trendUp={false}
                 data={dueTrend}
-            />
+            />}
             <KpiCard
                 title={t("Total Utilization")}
                 value={formatNumber(snapshot.occupancyRate / 100, {

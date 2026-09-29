@@ -173,6 +173,13 @@ operator workstation or CI runner that can access credentials.
   provider charges.
 - Raw analytics and data helpers that do not authorize callers may be used only
   after an authenticated, tenant-scoped authorization boundary.
+- Branch financial analytics require `analytics`, `view_payments`, and
+  `ADVANCED_ANALYTICS`. An explicit payment-view denial also denies financial
+  counts, rates, scores and other derived financial information; `analytics`
+  alone does not override it. Authorized nonfinancial student and seat analytics
+  remain available. Restricted financial fields are omitted, never returned as
+  fabricated zeroes. Complete payment-bearing AI responses retain their
+  independent whole-response authorization rule below.
 - Staff invitations remain owner-controlled, time-limited, email-bound,
   unpredictable, single-use, and race-safe.
 - Marketing analytics must not transmit invitation tokens or authentication

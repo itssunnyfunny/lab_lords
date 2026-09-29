@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/analytics/org.analytics", () => ({ getOrganizationHealthSnapshot: mocks.organizationSnapshot }));
 vi.mock("@/analytics/branch.analytics", () => ({ getBranchHealthSnapshot: vi.fn() }));
 vi.mock("@/analytics/payment.analytics", () => ({ getOverduePaymentsPage: vi.fn(), getPaymentPeriodStats: vi.fn() }));
-vi.mock("@/analytics/trends/branch.trends", () => ({ getBranchHealthTrend: vi.fn() }));
+vi.mock("@/analytics/trends/branch.trends", () => ({ getBranchOperationalTrend: vi.fn() }));
 vi.mock("@/analytics/trends/payment.trends", () => ({ getPaymentTrend: vi.fn() }));
 vi.mock("@/analytics/trends/seat.trends", () => ({ getSeatUtilizationTrend: vi.fn() }));
 

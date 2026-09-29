@@ -28,12 +28,6 @@ export async function GET(
         const assignedSeats = health.seats.occupancySnapshot.totalUsedSlots;
         const totalStudents = health.students.status.active + health.students.status.inactive;
 
-        // Calculate financial metrics
-        const paidAmount = finance.paidAmount;
-        const dueAmount = finance.dueAmount;
-        const monthlyRevenue = finance.revenueAmount;
-        const collectionRate = finance.collectionRate;
-
         const snapshot = {
             period,
             totalStudents,
@@ -42,10 +36,13 @@ export async function GET(
             totalSeats,
             // Replace legacy AI occupancyRate with deterministic SeatService percent
             occupancyRate: health.seats.occupancySnapshot.totalOccupancyPercent,
-            monthlyRevenue,
-            dueAmount,
-            paidAmount,
-            collectionRate,
+            financialAccess: finance !== null,
+            ...(finance === null ? {} : {
+                monthlyRevenue: finance.revenueAmount,
+                dueAmount: finance.dueAmount,
+                paidAmount: finance.paidAmount,
+                collectionRate: finance.collectionRate,
+            }),
             seatDetails: {
                 totalUsedSlots: health.seats.occupancySnapshot.totalUsedSlots,
                 totalShiftCapacity: health.seats.occupancySnapshot.totalShiftCapacity,

@@ -27,6 +27,7 @@ export const BRANCH_CAPABILITIES = {
     paymentsWaive: { permissions: ["view_payments", "waive_payments"], mutation: true },
     overdueView: { permissions: ["view_payments"] },
     analyticsView: { permissions: ["analytics"], entitlement: "ADVANCED_ANALYTICS" },
+    analyticsFinanceView: { permissions: ["analytics", "view_payments"], entitlement: "ADVANCED_ANALYTICS" },
     staffView: { permissions: ["manage_branch"], entitlement: "STAFF_MANAGEMENT" },
     staffManage: { permissions: ["staff_management"], entitlement: "STAFF_MANAGEMENT", mutation: true },
     aiUse: { permissions: ["analytics", "view_payments"], entitlement: "AI_ACCESS" },

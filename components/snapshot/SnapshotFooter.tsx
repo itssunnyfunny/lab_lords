@@ -17,6 +17,7 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
     const t = useTranslation();
     const [studentTrends, setStudentTrends] = useState<TrendData>([]);
     const [paymentTrends, setPaymentTrends] = useState<TrendData>([]);
+    const canViewFinance = snapshot?.financialAccess === true;
     const { formatDate, formatNumber } = useUserPreferences();
     const formatMoney = (amount: number) => formatNumber(amount, {
         style: "currency",
@@ -26,6 +27,7 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
 
     useEffect(() => {
         if (!branchId) return;
+        let active = true;
         const loadTrends = async () => {
             try {
                 const to = new Date().toISOString();
@@ -33,17 +35,19 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
 
                 const [stu, pay] = await Promise.all([
                     analytics.getTrends(branchId, { from, to, type: "students" }),
-                    analytics.getTrends(branchId, { from, to, type: "payment" }),
+                    canViewFinance ? analytics.getTrends(branchId, { from, to, type: "payment" }) : Promise.resolve([]),
                 ]);
 
+                if (!active) return;
                 setStudentTrends(stu);
                 setPaymentTrends(pay);
             } catch (err) {
                 console.error("Failed to load footer trends", err);
             }
         };
-        loadTrends();
-    }, [branchId]);
+        void loadTrends();
+        return () => { active = false; };
+    }, [branchId, canViewFinance]);
 
     const studentData = useMemo(() => {
         const dataByDate = new Map<string, { name: string; active: number; inactive: number }>();
@@ -104,7 +108,7 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
                 </ResponsiveContainer>
             </AppPanel>
 
-            <AppPanel title={t("Due vs. Paid Payments")} className="flex h-[300px] flex-col" contentClassName="min-h-0 flex-1">
+            {snapshot.financialAccess && <AppPanel title={t("Due vs. Paid Payments")} className="flex h-[300px] flex-col" contentClassName="min-h-0 flex-1">
                 <div className="flex h-full items-end justify-between pb-4">
                     <div className="space-y-4">
                         <div>
@@ -138,7 +142,7 @@ export function SnapshotFooter({ snapshot, branchId }: { snapshot?: BranchSnapsh
                         </ResponsiveContainer>
                     </div>
                 </div>
-            </AppPanel>
+            </AppPanel>}
         </div>
     );
 }
