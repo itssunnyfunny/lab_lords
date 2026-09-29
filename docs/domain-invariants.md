@@ -193,6 +193,10 @@ unit/API/integration coverage.
 - **Service-layer contract—not DB-enforced:** The normalized student identity
   rule is application-enforced; there is no matching database unique key. New
   import or bulk-write paths must preserve the intended duplicate behavior.
+- **Service-layer contract—not DB-enforced:** An imported student may retain a
+  null phone while permitted name or fee fields are edited. An unchanged phone
+  is omitted from profile updates; adding or changing a phone still requires
+  the normal validation, identity check, and WhatsApp reconciliation.
 - **Must preserve—enforced:** A student's current recurring fee has exactly one
   source: manual amount, an active same-branch Shift, or a same-branch
   MultiShift. Selecting a manual fee clears linked fee-source IDs. Updating a
