@@ -561,6 +561,9 @@ Authoritative code: `services/student.service.ts`, `services/seat.service.ts`, `
 - Overdue state is derived centrally using a hard-coded rule of strictly more
   than seven calendar days; the stored `paymentGraceDays` setting is not read.
 - `/api/cron/payments/daily` generates due payments for active students and requires `Authorization: Bearer <CRON_SECRET>`.
+- The branch payments page fences tab/month/deep-link reads and pagination by
+  active query and request version, so obsolete responses cannot replace the
+  current rows, counts, cursor, loading state, or error.
 
 Authoritative code: `services/payment.service.ts`, `analytics/payment.analytics.ts`, and the payment API routes.
 

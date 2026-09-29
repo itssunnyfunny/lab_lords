@@ -27,7 +27,7 @@ import { remainingFee } from "@/lib/feeBalance";
 import { PaymentAuditLog } from "@/components/payments/PaymentAuditLog";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, History, Ban, MoreHorizontal } from "lucide-react";
-import { useCallback, useEffect, useState, use } from "react";
+import { useCallback, useEffect, useRef, useState, use } from "react";
 import { payments, type PaymentListItem } from "@/lib/api/payments";
 import { format, addMonths, subMonths } from "date-fns";
 import { isOverdue } from "@/lib/utils/paymentStatus";
@@ -130,17 +130,32 @@ function PaymentsContent({
     const [auditLog, setAuditLog] = useState<{ paymentId: string; studentName: string } | null>(null);
     const [generating, setGenerating] = useState(false);
     const [generationMessage, setGenerationMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+    const requestVersion = useRef(0);
+    const activeQuery = useRef<string | null>(null);
+    const pagination = useRef<{ cursor: string | null; pending: boolean }>({ cursor: null, pending: false });
+    const monthStr = format(currentDate, "yyyy-MM");
+    const queryKey = JSON.stringify([branchId, monthStr, activeTab, targetPaymentId, targetStatus]);
 
     const loadPayments = useCallback(async (cursor?: string, append = false) => {
+        // Delayed mutation callbacks can still hold a loader for a previous view.
+        if (activeQuery.current !== queryKey) return;
+        if (append && (!cursor || pagination.current.pending || cursor !== pagination.current.cursor)) return;
+        const version = ++requestVersion.current;
+        const isCurrent = () => version === requestVersion.current && activeQuery.current === queryKey;
+        pagination.current = { cursor: append ? cursor! : null, pending: true };
         if (append) setLoadingMore(true);
-        else setLoading(true);
+        else {
+            setLoading(true);
+            setLoadingMore(false);
+        }
 
         try {
-            const monthStr = format(currentDate, "yyyy-MM");
             const options = { status: activeTab, month: monthStr };
 
             if (append) {
                 const page = await payments.list(branchId, { ...options, cursor, limit: 50 });
+                if (!isCurrent()) return;
+                pagination.current.cursor = page.nextCursor;
                 setData(previous => [...previous, ...page.items]);
                 setNextPaymentCursor(page.nextCursor);
                 setPaymentTotals(previous => ({ ...previous, [activeTab]: page.total }));
@@ -163,6 +178,7 @@ function PaymentsContent({
                     currentPagePromise,
                     Promise.all(countPromises),
                 ]);
+                if (!isCurrent()) return;
                 const totals: Record<PaymentTab, number> = {
                     DUE: 0,
                     PAID: 0,
@@ -171,12 +187,14 @@ function PaymentsContent({
                     [activeTab]: page.total,
                 };
 
+                pagination.current.cursor = page.nextCursor;
                 setData(page.items);
                 setNextPaymentCursor(page.nextCursor);
                 setPaymentTotals(totals);
             }
             setError(null);
         } catch (loadError: unknown) {
+            if (!isCurrent()) return;
             console.error("Failed to load payments", loadError);
             if (append) {
                 toast.show({
@@ -188,14 +206,21 @@ function PaymentsContent({
                 setError("Failed to load payments.");
             }
         } finally {
-            if (append) setLoadingMore(false);
-            else setLoading(false);
+            if (isCurrent()) {
+                pagination.current.pending = false;
+                if (append) setLoadingMore(false);
+                else setLoading(false);
+            }
         }
-    }, [activeTab, branchId, currentDate, targetPaymentId, targetStatus, toast]);
+    }, [activeTab, branchId, monthStr, queryKey, targetPaymentId, targetStatus, toast]);
 
     useEffect(() => {
+        activeQuery.current = queryKey;
         void loadPayments();
-    }, [loadPayments]);
+        return () => {
+            activeQuery.current = null;
+        };
+    }, [loadPayments, queryKey]);
 
     useEffect(() => {
         if (targetMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(targetMonth)) {
