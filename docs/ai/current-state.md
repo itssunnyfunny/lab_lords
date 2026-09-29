@@ -533,6 +533,9 @@ Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.ser
   cover the current active source rows. Ending/reallocating a bundle component
   ends its active siblings for that student and seat before any replacement.
 - Seat allocations preserve history through `startDate` and nullable `endDate`.
+- Allocation history groups bundle components by bundle, student, seat and
+  exact assignment period, so later assignments and same-name students remain
+  distinct in both grid and table views.
 - Allocation writes use serializable transactions with retry handling and validate branch ownership, active student/shift state, exact conflicts, and time overlaps for both the seat and student.
 - Allocation student/seat/shift/MultiShift links additionally use branch-scoped
   composite foreign keys, backed by the explicit allocation `branchId`.

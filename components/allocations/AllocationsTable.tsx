@@ -95,11 +95,14 @@ export function AllocationsTable({
     const result: GroupedAllocation[] = [];
 
     allocations.forEach(alloc => {
-        const isActive = !alloc.endDate;
         if (alloc.multiShiftId || alloc.multiShift) {
             const msId = alloc.multiShiftId || alloc.multiShift?.id;
             const msName = alloc.multiShift?.name || "MULTI-SHIFT";
-            const key = `${msId}-${alloc.student.name}-${alloc.seat.label}-${isActive}`;
+            // Bundle siblings share one assignment period. Names and labels
+            // are not identities, and ended periods must remain separate.
+            const key = JSON.stringify([
+                msId, alloc.studentId, alloc.seat.id, alloc.startDate, alloc.endDate,
+            ]);
             if (grouped.has(key)) {
                 const group = grouped.get(key)!;
                 group.ids.push(alloc.id);
