@@ -48,6 +48,10 @@ export const BRANCH_CAPABILITIES = {
         entitlement: "WHATSAPP_AUTOMATION",
         mutation: true,
     },
+    whatsappServiceNoticeView: {
+        permissions: ["view_whatsapp", "send_whatsapp", "manage_whatsapp"],
+        entitlement: "WHATSAPP_AUTOMATION",
+    },
     settingsManage: { permissions: ["manage_branch"], mutation: true },
 } as const satisfies Record<string, CapabilityRequirement>;
 

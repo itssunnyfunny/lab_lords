@@ -137,8 +137,8 @@ const SECTIONS_WITH_WHATSAPP = [
     ...SECTIONS.slice(3),
 ];
 
-const REPORT_ONLY_SECTIONS = [
-    { id: "whatsapp", label: "WhatsApp Reports", icon: MessageSquare },
+const WHATSAPP_ONLY_SECTIONS = [
+    { id: "whatsapp", label: "WhatsApp", icon: MessageSquare },
 ];
 
 function toForm(branch: BranchData): BranchForm {
@@ -165,28 +165,28 @@ export default function BranchSettingsPage({ params }: { params: Promise<{ branc
         <BranchAccessGuard
             branchId={branchId}
             permission={BRANCH_PAGE_ACCESS.settings}
-            description={t("Branch settings require branch-management access. Daily-report recipients need WhatsApp viewing, report receiving, payment viewing, analytics, and the WhatsApp entitlement.")}
+            description={t.owned("Branch settings require branch-management access. WhatsApp viewing requires its own permission and the WhatsApp entitlement.")}
         >
             {access => {
-                const reportDecision = getBranchCapabilityDecision(access, "whatsappReportReceive");
-                if (!access.permissions.manage_branch && !reportDecision.allowed) {
+                const whatsappViewDecision = getBranchCapabilityDecision(access, "whatsappView");
+                if (!access.permissions.manage_branch && !whatsappViewDecision.allowed) {
                     return (
                         <BranchNoAccess
                             branchId={branchId}
-                            title={t("WhatsApp reports unavailable")}
-                            description={reportDecision.reason || "Your role does not include this action."}
+                            title={t.owned("WhatsApp unavailable")}
+                            description={whatsappViewDecision.reason || "Your role does not include this action."}
                         />
                     );
                 }
                 return access.permissions.manage_branch
                     ? <BranchSettingsContent branchId={branchId} access={access} />
-                    : <BranchWhatsAppReportSettingsContent branchId={branchId} access={access} />;
+                    : <BranchWhatsAppOnlySettingsContent branchId={branchId} access={access} />;
             }}
         </BranchAccessGuard>
     );
 }
 
-function BranchWhatsAppReportSettingsContent({
+function BranchWhatsAppOnlySettingsContent({
     branchId,
     access,
 }: {
@@ -198,12 +198,14 @@ function BranchWhatsAppReportSettingsContent({
     const reportDecision = getBranchCapabilityDecision(access, "whatsappReportReceive");
     const reportOperationDecision = getBranchCapabilityDecision(access, "whatsappReportOperate");
     const serviceNoticeDecision = getBranchCapabilityDecision(access, "whatsappServiceNotice");
+    const serviceNoticeViewDecision = getBranchCapabilityDecision(access, "whatsappServiceNoticeView");
+    const whatsappManageDecision = getBranchCapabilityDecision(access, "whatsappManage");
 
     return (
         <SettingsWorkspace
-            title={t("WhatsApp Daily Reports")}
-            subtitle={`Confirm and review aggregate daily reports for ${access.branchName}. This access does not grant branch settings management.`}
-            sections={REPORT_ONLY_SECTIONS}
+            title={t.owned("WhatsApp")}
+            subtitle={`Review WhatsApp communication for ${access.branchName}. This access does not grant branch settings management.`}
+            sections={WHATSAPP_ONLY_SECTIONS}
             activeSection={activeSection}
             onSectionChange={setActiveSection}
         >
@@ -212,9 +214,10 @@ function BranchWhatsAppReportSettingsContent({
                 branchId={branchId}
                 branchName={access.branchName}
                 canView={getBranchCapabilityDecision(access, "whatsappView").allowed}
-                canManage={false}
+                canManage={whatsappManageDecision.allowed}
                 canReceiveReports={reportDecision.allowed}
                 canOperateReports={reportOperationDecision.allowed}
+                canViewNotices={serviceNoticeViewDecision.allowed}
                 canSendNotices={serviceNoticeDecision.allowed}
                 isOwner={access.isOwner}
                 onAvailabilityChange={() => undefined}
@@ -649,6 +652,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     canManage={whatsappManageDecision.allowed}
                     canReceiveReports={whatsappReportDecision.allowed}
                     canOperateReports={whatsappReportOperationDecision.allowed}
+                    canViewNotices={getBranchCapabilityDecision(access, "whatsappServiceNoticeView").allowed}
                     canSendNotices={whatsappServiceNoticeDecision.allowed}
                     isOwner={access.isOwner}
                     onAvailabilityChange={setWhatsAppAvailable}

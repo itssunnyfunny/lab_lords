@@ -9,6 +9,8 @@ import {
   assertWhatsAppOnboardingWritesEnabled,
   areWhatsAppOnboardingWritesEnabled,
   isWhatsAppDeliverySchemaAccessEnabled,
+  isWhatsAppOperationsUiEnabled,
+  isWhatsAppServiceNoticesEnabled,
   resolveWhatsAppProviderMode,
 } from "@/lib/whatsappFeature";
 import {
@@ -64,6 +66,7 @@ export class WhatsAppSenderService {
       return {
         enabled: true,
         canManage: false,
+        operationsUiEnabled: false,
         safeReason: "WhatsApp requires the Standard plan.",
         senders: [],
       };
@@ -108,6 +111,7 @@ export class WhatsAppSenderService {
     return {
       enabled: true,
       canManage,
+      operationsUiEnabled: isWhatsAppOperationsUiEnabled(),
       safeReason,
       senders: senders.map(sender => {
         const templateCounts = sender.templates.reduce(
@@ -169,6 +173,8 @@ export class WhatsAppSenderService {
       return {
         enabled: true,
         canManage: false,
+        operationsUiEnabled: false,
+        serviceNoticesEnabled: false,
         safeReason: "WhatsApp requires the Standard plan.",
         assignment: null,
         availableSenders: [],
@@ -248,6 +254,8 @@ export class WhatsAppSenderService {
     return {
       enabled: true,
       canManage,
+      operationsUiEnabled: isWhatsAppOperationsUiEnabled(),
+      serviceNoticesEnabled: isWhatsAppServiceNoticesEnabled(),
       safeReason,
       assignment: settings
         ? {

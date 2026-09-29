@@ -66,11 +66,11 @@ export function BranchSidebar() {
 
     const featureAvailable = (feature?: BillingFeatureKey) => !feature || hasFeatureEntitlement(access?.entitlements ?? [], feature);
     const canManageBranchSettings = canSee("manage_branch");
-    const canReceiveWhatsAppReports = getBranchCapabilityDecision(
+    const canViewWhatsApp = getBranchCapabilityDecision(
         access,
-        "whatsappReportReceive"
+        "whatsappView"
     ).allowed;
-    const canOpenSettings = canManageBranchSettings || canReceiveWhatsAppReports;
+    const canOpenSettings = canManageBranchSettings || canViewWhatsApp;
 
     const overviewItems: BranchNavItem[] = [
         { icon: LayoutDashboard, label: "Dashboard", href: basePath, active: current => current === basePath },
@@ -98,7 +98,7 @@ export function BranchSidebar() {
     const followUpsItem: BranchNavItem = { icon: CalendarClock, label: "Follow-ups", href: `${basePath}/follow-ups`, permission: "view_payments", active: current => current === `${basePath}/follow-ups` };
     const tasksItem: BranchNavItem = { icon: ClipboardList, label: "Tasks", href: `${basePath}/tasks`, active: current => current === `${basePath}/tasks` };
     const reportsItem: BranchNavItem = { icon: FileText, label: "Exports & Reports", href: `${basePath}/reports`, active: current => current === `${basePath}/reports` };
-    const settingsItem: BranchNavItem = { icon: Settings, label: canManageBranchSettings ? "Branch Settings" : "WhatsApp Reports", href: `${basePath}/settings`, active: current => current === `${basePath}/settings` || current === `${basePath}/dashboard-settings` };
+    const settingsItem: BranchNavItem = { icon: Settings, label: canManageBranchSettings ? "Branch Settings" : "WhatsApp", href: `${basePath}/settings`, active: current => current === `${basePath}/settings` || current === `${basePath}/dashboard-settings` };
 
     const pilotSections = [
         {
@@ -203,7 +203,7 @@ export function BranchSidebar() {
                         {canOpenSettings && (
                             <SidebarItem
                                 icon={Settings}
-                                label={canManageBranchSettings ? t("Branch Settings") : t("WhatsApp Reports")}
+                                label={canManageBranchSettings ? t("Branch Settings") : t.owned("WhatsApp")}
                                 isActive={pathname === `${basePath}/settings`}
                                 href={`${basePath}/settings`}
                                 density="compact"

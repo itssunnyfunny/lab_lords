@@ -723,6 +723,13 @@ The organization WhatsApp panel adds managed-template installation, consolidated
 report, organization report-budget, sender-safety, rate-card, incident, and
 health state. Branch settings expose delivery/budget/rules/prospective automation,
 self-service daily reports, typed service notices, and permitted operations.
+Entitled branch WhatsApp viewers can enter a restricted WhatsApp workspace
+without branch-settings or report-recipient permission. Its assignment response
+projects operations and service-notice availability independently of reports;
+the panel loads authorized incidents and notices even when report access is
+denied or a report read fails. General branch settings still require branch
+management permission, and the service rechecks notice writes and incident
+acknowledgement server-side.
 Student management retains explicit recipient/consent controls, and the overdue
 workspace keeps deterministic official-reminder preview/queueing separate from
 AI review/copy. Operations projection is server-side and hidden by default.

@@ -83,6 +83,9 @@ export type WhatsAppBranchAssignment = {
 export type WhatsAppBranchAssignmentResponse = {
   enabled: boolean;
   canManage: boolean;
+  /** Missing flags on older servers fail closed. */
+  operationsUiEnabled?: boolean;
+  serviceNoticesEnabled?: boolean;
   safeReason: string | null;
   assignment: WhatsAppBranchAssignment | null;
   availableSenders: WhatsAppBranchSenderSummary[];

@@ -5,17 +5,10 @@ export type BranchPagePermissionRequirement = BranchPermissionSet | {
     anyOf: readonly BranchPermissionSet[];
 };
 
-const WHATSAPP_REPORT_RECIPIENT_PERMISSIONS = [
-    "view_whatsapp",
-    "receive_whatsapp_reports",
-    "view_payments",
-    "analytics",
-] as const satisfies readonly [StaffAction, ...StaffAction[]];
-
 export const BRANCH_PAGE_ACCESS = {
     analytics: "analytics",
     settings: {
-        anyOf: ["manage_branch", WHATSAPP_REPORT_RECIPIENT_PERMISSIONS],
+        anyOf: ["manage_branch", "view_whatsapp"],
     },
     staff: "manage_branch",
     shifts: "seat_allocation",

@@ -177,7 +177,7 @@ describe("BranchSidebar", () => {
     expect(labels).not.toContain("AI Messages");
   });
 
-  it("offers WhatsApp Reports without granting branch settings management", () => {
+  it("offers restricted WhatsApp settings without granting branch settings management", () => {
     mocks.access = {
       branchId: "branch_1",
       branchName: "Main Branch",
@@ -200,7 +200,24 @@ describe("BranchSidebar", () => {
     renderToStaticMarkup(<BranchSidebar />);
 
     const labels = mocks.sidebarItems.map(item => item.label);
-    expect(labels).toContain("WhatsApp Reports");
+    expect(labels).toContain("WhatsApp");
+    expect(labels).not.toContain("Branch Settings");
+  });
+
+  it("offers WhatsApp to a notice operator whose report permission is denied", () => {
+    mocks.access = {
+      branchId: "branch_1", branchName: "Main Branch", organizationId: "org_1",
+      isOwner: false, role: "STAFF", staffId: "staff_1", effectivePlan: "PRO",
+      entitlements: ["WHATSAPP_AUTOMATION"],
+      permissions: {
+        ...permissions, manage_branch: false, view_whatsapp: true,
+        send_whatsapp: true, manage_whatsapp: true,
+        receive_whatsapp_reports: false, view_payments: false, analytics: false,
+      },
+    };
+    renderToStaticMarkup(<BranchSidebar />);
+    const labels = mocks.sidebarItems.map(item => item.label);
+    expect(labels).toContain("WhatsApp");
     expect(labels).not.toContain("Branch Settings");
   });
 
@@ -227,7 +244,7 @@ describe("BranchSidebar", () => {
     renderToStaticMarkup(<BranchSidebar />);
 
     const labels = mocks.sidebarItems.map(item => item.label);
-    expect(labels).not.toContain("WhatsApp Reports");
+    expect(labels).not.toContain("WhatsApp");
     expect(labels).not.toContain("Branch Settings");
   });
 });

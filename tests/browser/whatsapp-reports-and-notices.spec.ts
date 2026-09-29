@@ -251,21 +251,26 @@ async function mockOrganizationReportSettings(page: Page) {
   );
 }
 
-async function mockExactReportRecipientBranch(page: Page, canSendOperations = false) {
+async function mockExactReportRecipientBranch(
+  page: Page,
+  canSendOperations = false,
+  reportsAllowed = true,
+  canManageBranch = canSendOperations
+) {
   const permissions = {
     manage_org: false,
-    manage_branch: canSendOperations,
+    manage_branch: canManageBranch,
     students: false,
     seat_allocation: false,
-    view_payments: true,
+    view_payments: reportsAllowed,
     generate_payments: false,
     mark_payment_paid: false,
     waive_payments: false,
-    analytics: true,
+    analytics: reportsAllowed,
     view_whatsapp: true,
     send_whatsapp: canSendOperations,
     manage_whatsapp: canSendOperations,
-    receive_whatsapp_reports: true,
+    receive_whatsapp_reports: reportsAllowed,
     staff_management: false,
   };
   await page.route(`**/api/branches/${BRANCH_ID}/access`, route => json(route, {
@@ -273,7 +278,7 @@ async function mockExactReportRecipientBranch(page: Page, canSendOperations = fa
     branchName: "Playwright Central Branch",
     organizationId: ORG_ID,
     isOwner: false,
-    role: canSendOperations ? "MANAGER" : "STAFF",
+    role: canManageBranch ? "MANAGER" : "STAFF",
     staffId: "staff_report_recipient",
     permissions,
     effectivePlan: "PRO",
@@ -288,6 +293,8 @@ async function mockExactReportRecipientBranch(page: Page, canSendOperations = fa
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/branch-assignments?**`, route => json(route, {
     enabled: true,
     canManage: false,
+    operationsUiEnabled: true,
+    serviceNoticesEnabled: true,
     safeReason: null,
     assignment: {
       branchId: BRANCH_ID,
@@ -451,9 +458,9 @@ test("lets an exact branch report recipient preview and queue without manage_bra
   });
 
   await page.goto(`/branch/${BRANCH_ID}/settings`);
-  await expect(page.getByRole("heading", { name: "WhatsApp Daily Reports" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "WhatsApp", exact: true }).first()).toBeVisible();
   await expect(page.getByText("This access does not grant branch settings management.")).toBeVisible();
-  await expect(page.getByText("WhatsApp Reports", { exact: true }).last()).toBeVisible();
+  await expect(page.getByText("WhatsApp", { exact: true }).last()).toBeVisible();
   await expect(page.getByText("Branch Settings", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Branch name", { exact: true })).toHaveCount(0);
 
@@ -475,6 +482,32 @@ test("lets an exact branch report recipient preview and queue without manage_bra
   await expect(page.getByText("Queue status: queued.", { exact: false })).toBeVisible();
   expect(queuePosts).toBe(1);
   expect(queueKey).toMatch(/\S+/);
+  expect(graphRequests).toEqual([]);
+});
+
+test("keeps notices and incidents available to a report-denied WhatsApp operator", async ({ page }) => {
+  const graphRequests = await blockAndRecordGraph(page);
+  await mockExactReportRecipientBranch(page, true, false, false);
+  let reportReads = 0;
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/report-subscription`, route => {
+    reportReads += 1;
+    return json(route, { error: "Not found" }, 404);
+  });
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/incidents?limit=50`, route => json(route, {
+    incidents: [], unknownMessages: [],
+  }));
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/service-notices?limit=20`, route => json(route, {
+    notices: [],
+  }));
+
+  await page.goto(`/branch/${BRANCH_ID}/settings`);
+  await expect(page.getByRole("heading", { name: "WhatsApp", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Operational service notice" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Operational incidents" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Branch daily report recipient" })).toHaveCount(0);
+  await expect(page.getByText("Branch name", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Branch Settings", { exact: true })).toHaveCount(0);
+  expect(reportReads).toBe(0);
   expect(graphRequests).toEqual([]);
 });
 
