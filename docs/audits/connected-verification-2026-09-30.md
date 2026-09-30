@@ -214,10 +214,16 @@ provider mutation, AI call, or customer message was used.
 
 An early maintained Playwright invocation used its default ignored
 `test-results` output directory; the runner's normal cleanup removed older
-ignored test artifacts there. Their prior contents were not recovered. The
-pre-existing untracked audit report/evidence under `docs/audits/` were not
-changed, and new public results were preserved in the visualizations path
-above. Subsequent browser runs used dedicated output directories.
+ignored test artifacts there. On 30 September, the earlier raw
+`test-results/dashboard-connected-review/`,
+`test-results/dashboard-connected/`, `test-results/dashboard-build.log`, and
+`test-results/batch-two-offline-build.mjs` were absent; their prior contents
+were not recovered. The selected linked screenshots under
+`docs/redesign/reference-dashboard-evidence/connected/` and the untracked
+audit `build.log` still existed. The pre-existing untracked audit
+report/evidence under `docs/audits/` were not changed, and new public results
+were preserved in the visualizations path above. Subsequent browser runs used
+dedicated output directories.
 
 ## Final validation, cleanup and release boundary
 

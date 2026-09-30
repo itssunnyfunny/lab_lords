@@ -101,8 +101,10 @@ pnpm exec node tests/dashboard-connected/start-local.mjs capture
 
 All dashboard artwork was verified loaded (`complete` and `naturalWidth > 0`),
 including lazy artwork scrolled into view, before capture. The final selected
-images are saved review evidence; raw copies remain under ignored
-`test-results/dashboard-connected-review/`:
+images are saved review evidence. The earlier raw copies under ignored
+`test-results/dashboard-connected-review/` were removed by a later Playwright
+output cleanup and were not recovered; the selected linked images below remain
+present in this checkout:
 
 - [Desktop, 1491×1055](reference-dashboard-evidence/connected/desktop.png).
 - 390px mobile: [top](reference-dashboard-evidence/connected/mobile-390.png),
