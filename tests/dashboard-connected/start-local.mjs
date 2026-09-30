@@ -60,7 +60,7 @@ if (mode === "batch-two-test" && process.argv[3]) {
 if (mode === "audit-test") {
     const focusedFiles = new Set(["finance-remediation.spec.ts", "operations-remediation.spec.ts",
         "onboarding-replay-connected.spec.ts", "messaging-remediation.spec.ts",
-        "analytics-positive-control.spec.ts"]);
+        "analytics-positive-control.spec.ts", "draft-remediation.spec.ts"]);
     const file = process.argv[3];
     const project = process.argv[4];
     const runId = process.env.AUDIT_BROWSER_RUN_ID;

@@ -32,6 +32,7 @@ export default defineConfig({
     "onboarding-replay-connected.spec.ts",
     "messaging-remediation.spec.ts",
     "analytics-positive-control.spec.ts",
+    "draft-remediation.spec.ts",
   ],
   fullyParallel: false,
   workers: 1,

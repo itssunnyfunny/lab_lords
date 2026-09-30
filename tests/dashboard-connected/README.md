@@ -191,6 +191,11 @@ permission and read endpoints; it does not send a message or fabricate
 provider history. Do not run a messaging spec against a shared database or
 real sender account.
 
+The separate `draft-remediation.spec.ts` case uses the same exact local fixture
+with Gemini held. It creates only synthetic overdue source and draft rows,
+checks the authenticated review/copy control against actual local reads, and
+removes its rows by ID. It does not invoke AI generation or send a message.
+
 For PS-01's **synthetic tag positive control only**, start a separate guarded
 server process with `DASHBOARD_AUDIT_GA_CONFIRM` equal to that exact fixture
 name. It forces `G-0000000000` locally and blanks any inherited GA ID
