@@ -818,6 +818,22 @@ export function createSyntheticApiMiddleware() {
                 return;
             }
 
+            if (path === `/api/branches/${BRANCH_ID}/seat-allocations/students`) {
+                const access = branchAccess(context.role);
+                if (!access.permissions.seat_allocation) {
+                    sendJson(response, 403, { error: "Forbidden" });
+                    return;
+                }
+                sendJson(response, 200, {
+                    items: (empty ? [] : roster)
+                        .filter(student => student.status === "ACTIVE")
+                        .map(student => ({ id: student.id, name: student.name }))
+                        .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
+                    canLinkFee: access.permissions.students,
+                });
+                return;
+            }
+
             if (path === `/api/branches/${BRANCH_ID}/seat-allocations`) {
                 if (method === "POST") {
                     const body = await readJson(request);
