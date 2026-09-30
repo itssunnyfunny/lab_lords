@@ -1,9 +1,23 @@
 import { draftOverdueMessages } from "@/ai/messageDrafting/branchMessageDrafter"
+import { DraftPublicationBusyError, DraftSourceChangedError } from "@/ai/generationLease"
 import { getSessionUser } from "@/lib/auth"
 import { checkRateLimit, getRequestRateLimitKey } from "@/lib/rateLimit"
 import { AccessPolicy, BranchAccessNotFoundError } from "@/services/accessPolicy.service"
 import { NextRequest, NextResponse } from "next/server"
 
+function draftErrorResponse(error: unknown) {
+    if (error instanceof BranchAccessNotFoundError) {
+        return NextResponse.json({ error: "Branch not found" }, { status: 404 })
+    }
+    if (error instanceof DraftSourceChangedError || error instanceof DraftPublicationBusyError) {
+        return NextResponse.json({ error: error.message, code: error.name }, { status: 409 })
+    }
+    if (error instanceof Error && error.message.startsWith("Unauthorized")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+    console.error("[AI MESSAGES ERROR]", error instanceof Error ? error.name : "Unknown error")
+    return NextResponse.json({ error: "Failed to load message drafts" }, { status: 500 })
+}
 
 export async function GET(
     req: NextRequest,
@@ -31,13 +45,7 @@ export async function GET(
         return NextResponse.json(result)
 
     } catch (error) {
-        if (error instanceof BranchAccessNotFoundError) return Response.json({ error: error.message }, { status: 404 });
-        console.error("[AI MESSAGES ERROR]", error)
-        const message = String(error)
-        return NextResponse.json(
-            { error: "Failed to generate message drafts", details: message },
-            { status: message.includes("Unauthorized") ? 403 : 500 }
-        )
+        return draftErrorResponse(error)
     }
 }
 
@@ -91,12 +99,6 @@ export async function POST(
         return NextResponse.json(result)
 
     } catch (error) {
-        if (error instanceof BranchAccessNotFoundError) return Response.json({ error: error.message }, { status: 404 });
-        console.error("[AI MESSAGES ERROR]", error)
-        const message = String(error)
-        return NextResponse.json(
-            { error: "Failed to generate message drafts", details: message },
-            { status: message.includes("Unauthorized") ? 403 : 500 }
-        )
+        return draftErrorResponse(error)
     }
 }

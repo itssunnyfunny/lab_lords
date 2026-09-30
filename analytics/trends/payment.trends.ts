@@ -32,7 +32,7 @@ export async function getPaymentTrend(
   let cursor = new Date(from)
 
   while (cursor <= to) {
-    const snapshot = await getPaymentPeriodStats(branchId, cursor, period)
+    const snapshot = await getPaymentPeriodStats(branchId, cursor, period, { throughAsOfDay: true })
 
     points.push({
       asOf: new Date(cursor),

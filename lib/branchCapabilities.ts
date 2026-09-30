@@ -27,6 +27,7 @@ export const BRANCH_CAPABILITIES = {
     paymentsWaive: { permissions: ["view_payments", "waive_payments"], mutation: true },
     overdueView: { permissions: ["view_payments"] },
     analyticsView: { permissions: ["analytics"], entitlement: "ADVANCED_ANALYTICS" },
+    analyticsFinanceView: { permissions: ["analytics", "view_payments"], entitlement: "ADVANCED_ANALYTICS" },
     staffView: { permissions: ["manage_branch"], entitlement: "STAFF_MANAGEMENT" },
     staffManage: { permissions: ["staff_management"], entitlement: "STAFF_MANAGEMENT", mutation: true },
     aiUse: { permissions: ["analytics", "view_payments"], entitlement: "AI_ACCESS" },
@@ -47,6 +48,10 @@ export const BRANCH_CAPABILITIES = {
         permissions: ["view_whatsapp", "send_whatsapp", "manage_whatsapp"],
         entitlement: "WHATSAPP_AUTOMATION",
         mutation: true,
+    },
+    whatsappServiceNoticeView: {
+        permissions: ["view_whatsapp", "send_whatsapp", "manage_whatsapp"],
+        entitlement: "WHATSAPP_AUTOMATION",
     },
     settingsManage: { permissions: ["manage_branch"], mutation: true },
 } as const satisfies Record<string, CapabilityRequirement>;

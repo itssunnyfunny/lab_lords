@@ -8,6 +8,7 @@ export default defineConfig({ plugins: [tsconfigPaths()], test: {
         "tests/unit/components/BranchSidebar.test.tsx", "tests/unit/components/WorkspaceSwitcher.test.tsx", "tests/unit/components/BranchWorkspaceShell.test.tsx",
         "tests/unit/lib/localization.test.ts", "tests/unit/lib/public-localization.test.ts", "tests/unit/lib/feeBalance.test.ts",
         "tests/unit/utils/studentBillingCycles.test.ts", "tests/unit/lib/seat-view-state.test.ts", "tests/unit/services/seat-pagination.test.ts",
+        "tests/unit/components/AddStudentDialog.test.tsx", "tests/unit/services/seat-map.test.ts",
         "tests/unit/services/staff.test.ts", "tests/unit/api/branch-staff-member.route.test.ts", "tests/unit/api/branch-staff-invites.route.test.ts", "tests/unit/api/staff-overdue-pagination.route.test.ts",
         "tests/unit/lib/dashboard-contracts.test.ts", "tests/unit/services/dashboard.service.test.ts", "tests/unit/api/dashboard.route.test.ts",
         "tests/unit/api/organization-settings.route.test.ts"],

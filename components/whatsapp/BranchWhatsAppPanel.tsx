@@ -148,6 +148,56 @@ function requiredTemplateKeys(stages: readonly WhatsAppAutomationStage[], tone: 
   return [...keys];
 }
 
+type BranchOverviewApi = Pick<typeof whatsapp,
+  | "getBranchAssignment" | "getBranchSettings" | "getBranchReportSubscription"
+  | "listBranchIncidents" | "listBranchServiceNotices">;
+
+export async function fetchBranchWhatsAppOverview(input: {
+  organizationId: string;
+  branchId: string;
+  canReceiveReports: boolean;
+  canViewNotices: boolean;
+}, api: BranchOverviewApi = whatsapp) {
+  const { organizationId, branchId, canReceiveReports, canViewNotices } = input;
+  const [assignmentResult, settingsResult, reportSubscriptionResult] = await Promise.allSettled([
+    api.getBranchAssignment(organizationId, branchId),
+    api.getBranchSettings(branchId),
+    canReceiveReports ? api.getBranchReportSubscription(branchId) : Promise.resolve(null),
+  ]);
+  if (assignmentResult.status === "rejected") throw assignmentResult.reason;
+  const assignment = assignmentResult.value;
+  const reportSubscription = reportSubscriptionResult.status === "fulfilled"
+    ? reportSubscriptionResult.value
+    : null;
+  const [incidentResult, serviceNoticeResult] = await Promise.allSettled([
+    assignment.operationsUiEnabled === true
+      ? api.listBranchIncidents(branchId)
+      : Promise.resolve(null),
+    canViewNotices && assignment.serviceNoticesEnabled === true
+      ? api.listBranchServiceNotices(branchId)
+      : Promise.resolve(null),
+  ]);
+  const incidents = incidentResult.status === "fulfilled" ? incidentResult.value : null;
+  const serviceNotices = serviceNoticeResult.status === "fulfilled"
+    ? serviceNoticeResult.value
+    : null;
+  if (!assignment.enabled) {
+    return { assignment, settings: null, reportSubscription, incidents, serviceNotices };
+  }
+  // A branch settings row is created by the owner-only sender assignment.
+  // Keep that first assignment reachable even though the settings resource
+  // correctly returns not-found before the row exists.
+  if (settingsResult.status === "rejected") {
+    if (!assignment.assignment) {
+      return { assignment, settings: null, reportSubscription, incidents, serviceNotices };
+    }
+    throw settingsResult.reason;
+  }
+  return {
+    assignment, settings: settingsResult.value, reportSubscription, incidents, serviceNotices,
+  };
+}
+
 export function BranchWhatsAppReadiness({
   response,
   settings = null,
@@ -482,6 +532,7 @@ export function BranchWhatsAppPanel({
   canManage = false,
   canReceiveReports = false,
   canOperateReports = canReceiveReports,
+  canViewNotices = false,
   canSendNotices = false,
   isOwner = false,
   onAvailabilityChange,
@@ -493,6 +544,7 @@ export function BranchWhatsAppPanel({
   canManage?: boolean;
   canReceiveReports?: boolean;
   canOperateReports?: boolean;
+  canViewNotices?: boolean;
   canSendNotices?: boolean;
   isOwner?: boolean;
   onAvailabilityChange: (available: boolean) => void;
@@ -515,51 +567,9 @@ export function BranchWhatsAppPanel({
     availabilityHandlerRef.current = onAvailabilityChange;
   }, [onAvailabilityChange]);
 
-  const fetchOverview = useCallback(async () => {
-    const [assignmentResult, settingsResult, reportSubscriptionResult] = await Promise.allSettled([
-      whatsapp.getBranchAssignment(organizationId, branchId),
-      whatsapp.getBranchSettings(branchId),
-      canReceiveReports
-        ? whatsapp.getBranchReportSubscription(branchId)
-        : Promise.resolve(null),
-    ]);
-    if (assignmentResult.status === "rejected") throw assignmentResult.reason;
-    const assignment = assignmentResult.value;
-    const reportSubscription = reportSubscriptionResult.status === "fulfilled"
-      ? reportSubscriptionResult.value
-      : null;
-    const [incidentResult, serviceNoticeResult] = reportSubscription?.operationsUiEnabled === true
-      ? await Promise.allSettled([
-          whatsapp.listBranchIncidents(branchId),
-          canSendNotices
-            ? whatsapp.listBranchServiceNotices(branchId)
-            : Promise.resolve(null),
-        ])
-      : [null, null];
-    const incidents = incidentResult?.status === "fulfilled" ? incidentResult.value : null;
-    const serviceNotices = serviceNoticeResult?.status === "fulfilled"
-      ? serviceNoticeResult.value
-      : null;
-    if (!assignment.enabled) {
-      return { assignment, settings: null, reportSubscription, incidents, serviceNotices };
-    }
-    // A branch settings row is created by the owner-only sender assignment.
-    // Keep that first assignment reachable even though the settings resource
-    // correctly returns not-found before the row exists.
-    if (settingsResult.status === "rejected") {
-      if (!assignment.assignment) {
-        return { assignment, settings: null, reportSubscription, incidents, serviceNotices };
-      }
-      throw settingsResult.reason;
-    }
-    return {
-      assignment,
-      settings: settingsResult.value,
-      reportSubscription,
-      incidents,
-      serviceNotices,
-    };
-  }, [branchId, canReceiveReports, canSendNotices, organizationId]);
+  const fetchOverview = useCallback(() => fetchBranchWhatsAppOverview({
+    organizationId, branchId, canReceiveReports, canViewNotices,
+  }), [branchId, canReceiveReports, canViewNotices, organizationId]);
 
   const applyOverview = useCallback((overview: Awaited<ReturnType<typeof fetchOverview>>) => {
     setResponse(overview.assignment);
@@ -773,6 +783,7 @@ export function BranchWhatsAppPanel({
         />
         {settings ? (
           <BranchWhatsAppReports
+            branchId={branchId}
             branchName={branchName}
             settings={{
               enabled: settings.enabled,
@@ -781,14 +792,8 @@ export function BranchWhatsAppPanel({
               monthlyBudgetMinor: settings.monthlyBudgetMinor,
               budgetSource: "BRANCH",
             }}
-            canConfigure={mayManageBranch}
             canQueue={canOperateReports}
             blockedReason="Daily-report preview and queue actions require a writable branch and the complete report-recipient permission set."
-            recentReports={[]}
-            onSetEnabled={async enabled => {
-              await whatsapp.setBranchDelivery(branchId, enabled);
-              await reload();
-            }}
             onPreview={async () => presentWhatsAppDailyReportPreview(
               await whatsapp.previewBranchDailyReport(branchId)
             )}
@@ -797,7 +802,9 @@ export function BranchWhatsAppPanel({
             )}
           />
         ) : null}
-        {serviceNoticeResponse ? (
+      </>
+    ) : null}
+    {serviceNoticeResponse ? (
           <WhatsAppServiceNoticeComposer
             branchName={branchName}
             canManage={canSendNotices}
@@ -815,8 +822,8 @@ export function BranchWhatsAppPanel({
               return result;
             }}
           />
-        ) : null}
-        {presentedIncidents ? (
+    ) : null}
+    {response.operationsUiEnabled === true && presentedIncidents ? (
           <WhatsAppIncidents
             incidents={presentedIncidents.incidents}
             unknownOutcomes={presentedIncidents.unknownOutcomes}
@@ -828,8 +835,6 @@ export function BranchWhatsAppPanel({
               await reload();
             }}
           />
-        ) : null}
-      </>
     ) : null}
     </>
   );

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { StaffService } from "@/services/staff.service";
+import { BranchAccessNotFoundError } from "@/services/accessPolicy.service";
 
 export async function GET(
     req: NextRequest,
@@ -38,9 +39,13 @@ export async function GET(
 
         return NextResponse.json(logs);
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Internal Server Error";
-        console.error("[PAYMENT_AUDIT_LOG_GET]", error);
-        const status = message.includes("Unauthorized") ? 403 : 500;
-        return NextResponse.json({ error: message }, { status });
+        if (error instanceof BranchAccessNotFoundError) {
+            return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+        }
+        if (error instanceof Error && error.message.startsWith("Unauthorized:")) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        console.error("[PAYMENT_AUDIT_LOG_GET] Unexpected audit-log failure");
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

@@ -23,7 +23,6 @@ import { getStudentDisplayName } from "@/lib/studentRoster";
 interface StudentOption {
     id: string;
     name: string;
-    phone?: string | null;
 }
 
 interface AllocateSeatDialogProps {
@@ -54,6 +53,7 @@ export function AllocateSeatDialog({
     const t = useTranslation();
     // Student picking
     const [students, setStudents] = useState<StudentOption[]>([]);
+    const [canLinkFee, setCanLinkFee] = useState(false);
     const [studentId, setStudentId] = useState(preselectedStudentId ?? "");
     const [studentName, setStudentName] = useState("");
     const [studentSearch, setStudentSearch] = useState("");
@@ -114,8 +114,11 @@ export function AllocateSeatDialog({
     useEffect(() => {
         if (!isOpen) return;
         let cancelled = false;
+        setStudents([]);
+        setCanLinkFee(false);
+        setLinkFeeToSelection(false);
 
-        fetch(`/api/branches/${branchId}/students?status=ACTIVE&all=true`)
+        fetch(`/api/branches/${branchId}/seat-allocations/students`)
             .then(async response => {
                 const body = await response.json();
                 if (!response.ok || !Array.isArray(body?.items)) {
@@ -123,6 +126,7 @@ export function AllocateSeatDialog({
                 }
                 if (cancelled) return;
                 setStudents(body.items);
+                setCanLinkFee(body.canLinkFee === true);
                 if (preselectedStudentId) {
                     const resolvedName = getStudentDisplayName(body.items, preselectedStudentId);
                     if (!resolvedName) {
@@ -134,6 +138,7 @@ export function AllocateSeatDialog({
             .catch(error => {
                 if (cancelled) return;
                 setStudents([]);
+                setCanLinkFee(false);
                 setStudentName("");
                 setSubmitError(error instanceof Error ? error.message : "Failed to load students");
             });
@@ -213,7 +218,7 @@ export function AllocateSeatDialog({
                 throw new Error(data.error || "Failed to allocate seat");
             }
 
-            if (linkFeeToSelection) {
+            if (canLinkFee && linkFeeToSelection) {
                 const feeRes = await fetch(`/api/branches/${branchId}/students`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -257,8 +262,7 @@ export function AllocateSeatDialog({
     const selectionError = visibleError("selection", validation.errors);
 
     const filteredStudents = students.filter(s =>
-        s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-        (s.phone && s.phone.includes(studentSearch))
+        s.name.toLowerCase().includes(studentSearch.toLowerCase())
     );
 
     const confirmLabel = selectedMultiShiftName
@@ -307,7 +311,7 @@ export function AllocateSeatDialog({
                             <input
                                 id="allocate-seat-student-search"
                                 type="text"
-                                placeholder={t("Search by name or phone...")}
+                                placeholder={t("Search active students")}
                                 value={studentSearch}
                                 onChange={e => setStudentSearch(e.target.value)}
                                 className={cn(formControlClass, "px-3 py-2 text-sm")}
@@ -323,7 +327,6 @@ export function AllocateSeatDialog({
                                         aria-pressed={studentId === s.id}
                                     >
                                         <p className="text-sm font-medium text-[color:var(--ui-form-label-strong)]">{s.name}</p>
-                                        {s.phone && <p className={cn("text-xs", formHelpTextClass)}>{s.phone}</p>}
                                     </button>
                                 ))}
                                 {filteredStudents.length === 0 && (
@@ -352,7 +355,7 @@ export function AllocateSeatDialog({
                             />
                             <FieldError id="allocate-seat-selection-error" error={selectionError} />
 
-                            {feeLinkLabel && (
+                            {canLinkFee && feeLinkLabel && (
                                 <label className={cn("group flex w-max cursor-pointer items-center gap-3 px-4 py-3", formSurfaceClass, formSurfaceHoverClass)}>
                                     <input
                                         type="checkbox"

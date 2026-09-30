@@ -6,6 +6,35 @@ database recovery documentation, or an approved incident-response policy.
 
 Last reconciled with the repository: 2026-09-05 (hardening additions; older operational evidence remains dated).
 
+## Public analytics URL safety — application change pending external verification
+
+The application now initializes its Google Analytics tag only after routing
+reaches a known public page. Its explicit page views and accepted-consent custom events use
+allowlisted public paths without queries, fragments, or referrers. It supplies
+safe URL/referrer defaults before the tag configuration. Do not infer that this
+alone proves all provider-generated events are safe: a tag loaded on a public
+page can remain mounted while client navigation reaches an invite or sign-in
+return URL.
+
+Before treating the invitation-token finding PS-01 as closed in any environment
+with a measurement ID, an authorized analytics owner must inspect that web data
+stream's Enhanced Measurement configuration. Disable automatic page changes
+based on browser history and inspect enabled search, form and outbound-link
+measurements, or provide equally strong evidence that their generated events
+contain no dynamic path token, encoded return URL, query, or referrer. A support
+`mailto:` link may include user-entered report details.
+Google documents that `send_page_view: false` does not disable those history
+events: [page-view measurement guidance](https://developers.google.com/analytics/devguides/collection/ga4/views).
+Use a synthetic invitation token in an isolated browser, visit directly and
+from a public page under unknown, rejected and accepted consent, and inspect
+outgoing requests and any available provider TEST/debug view. Preserve the
+current cookie-choice behavior. This repository change does not edit the GA
+property, deploy a new tag, or establish whether the deployed stream has
+Enhanced Measurement enabled. If external settings cannot be verified, keep
+PS-01 open and do not claim that an offline unit/build result proves telemetry
+safety. No database migration, new environment variable, or provider write is
+needed for the application-side change.
+
 ## Dashboard operations additive migration — 2026-09-27
 
 `20260927120000_dashboard_operations` adds seven empty operational tables and
@@ -1136,6 +1165,24 @@ requires `WORKSPACE_BRANCH_BILLING_V2_ENABLED` for new onboarding. With the flag
 held, new creation is unavailable; existing legacy access remains supported.
 Before releasing, verify the intended flag state through the approved operator
 process. No flag or deployment change was performed by the local sprint.
+
+LEAD-01 onboarding replay requires a database-first additive
+`OnboardingRequest` migration before the receipt-aware handler and browser are
+served. Drain old identity-free onboarding handlers before opening creation;
+the new handler rejects keyless or malformed old-client requests with a typed
+400 response before writes. An old client must update and establish a new
+durably retained command; historical uncertain submissions cannot be inferred
+or backfilled. Keep the version-one canonical hash semantics stable when
+changing setup defaults or payload shape, or add an explicit compatible hash
+reader. Receipt rows have no TTL or cleanup job. Result branch archival retains
+the receipt; restrictive keys block physical owner/organization/branch deletion
+while a receipt exists. Any future erasure workflow needs a separately reviewed
+consumed-key preservation scheme and must not silently free a key. Rollback
+must keep the receipt table and replay-aware handler, or hold onboarding
+creation with the existing release gate. Reverting to a keyless handler while
+creation is open restores duplicate workspace risk. The migration in this
+remediation is generated but must not be applied outside an exactly verified
+disposable local test database without separate release authorization.
 
 1. Identify the approved commit and classify schema, environment, cron,
    webhook, billing, and external-provider impact.

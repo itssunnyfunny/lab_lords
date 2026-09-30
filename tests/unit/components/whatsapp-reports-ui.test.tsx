@@ -167,11 +167,11 @@ describe("WhatsApp PR4 presentational UI", () => {
     const queue = vi.fn(async () => ({ status: "QUEUED" as const, queuedMessageCount: 1, suppressedCount: 0, localReportDate: "2026-08-24" }));
     const organizationHtml = renderToStaticMarkup(
       <OrganizationWhatsAppReports
+        organizationId="org_1"
         organizationName="Synthetic Study Halls"
         settings={{ enabled: true, senderId: "sender_1", senderLabel: "Synthetic Sender", monthlyBudgetMinor: 10_000, budgetSource: "ORGANIZATION_REPORT" }}
         canManage
         availableSenders={[{ id: "sender_1", label: "Synthetic Sender · ••••1234" }]}
-        recentReports={[]}
         onSetEnabled={noOp}
         onSaveSettings={vi.fn(async () => undefined)}
         onPreview={preview}
@@ -180,15 +180,30 @@ describe("WhatsApp PR4 presentational UI", () => {
     );
     const branchHtml = renderToStaticMarkup(
       <BranchWhatsAppReports
+        branchId="branch_1"
         branchName="Central Branch"
         settings={{ enabled: false, senderId: "sender_1", senderLabel: "Synthetic Sender", monthlyBudgetMinor: null, budgetSource: "BRANCH" }}
-        canConfigure={false}
         canQueue={false}
         blockedReason="Reviewed branch report permissions are required."
-        recentReports={[]}
-        onSetEnabled={noOp}
         onPreview={preview}
         onQueue={queue}
+      />
+    );
+    const activeRecipientHtml = renderToStaticMarkup(
+      <WhatsAppReportSubscription
+        scope="BRANCH"
+        subscription={{
+          id: "subscription_1", scope: "BRANCH", maskedPhone: "+91••••••3210",
+          language: "en_IN", sendTimeLocal: "21:00", status: "ACTIVE",
+          senderLabel: "Synthetic Sender", confirmationExpiresAt: null,
+          activatedAt: "2026-08-24T15:00:00.000Z", pausedAt: null, staleAt: null,
+        }}
+        canManage
+        onCreate={vi.fn(async () => ({ code: "unused", expiresAt: "2026-08-24T18:00:00.000Z" }))}
+        onReissue={vi.fn(async () => ({ code: "unused", expiresAt: "2026-08-24T18:00:00.000Z" }))}
+        onPause={noOp}
+        onRevoke={noOp}
+        onRefresh={vi.fn(async () => null)}
       />
     );
 
@@ -203,7 +218,9 @@ describe("WhatsApp PR4 presentational UI", () => {
     expect(organizationHtml).toContain("Preview today&#x27;s report");
     expect(branchHtml).toContain("Existing branch WhatsApp budget");
     expect(branchHtml).toContain("Reviewed branch report permissions are required");
-    expect(branchHtml).toContain('disabled=""');
+    expect(branchHtml).toContain("Pause only your daily reports in the recipient section above");
+    expect(branchHtml).not.toMatch(/Enable scheduled reports|Disable scheduled reports/);
+    expect(activeRecipientHtml).toContain("Pause reports");
   });
 
   it("offers only typed service-notice fields and exposes audience plus estimate in preview", () => {

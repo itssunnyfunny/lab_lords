@@ -1211,6 +1211,55 @@ async function staleReportSubscriptionRows(input: {
 }
 
 export class WhatsAppReportService {
+  static async listRecentHistory(input: WhatsAppReportScopeInput & {
+    actorUserId: string;
+    env?: Readonly<Record<string, string | undefined>>;
+  }) {
+    assertWhatsAppReportsEnabled(input.env);
+    const authorized = await authorizeReportScope({
+      actorUserId: input.actorUserId,
+      scope: input,
+      client: prisma,
+      writable: false,
+    });
+    const scope = {
+      organizationId: authorized.organizationId,
+      branchId: authorized.branchId,
+      scope: authorized.scope,
+      scopeKey: authorized.scopeKey,
+    };
+    const messages = await prisma.whatsAppMessage.findMany({
+      where: {
+        organizationId: authorized.organizationId,
+        branchId: authorized.branchId,
+        purpose: authorized.scope === "BRANCH" ? "DAILY_BRANCH_REPORT" : "DAILY_ORGANIZATION_REPORT",
+        sender: { organizationId: authorized.organizationId, provider: "META_CLOUD", providerMode: resolveWhatsAppProviderMode(input.env) },
+        reportSubscription: { ...scope, userId: input.actorUserId },
+        dailyReportSnapshot: scope,
+      },
+      select: {
+        id: true,
+        status: true,
+        recipientPhoneE164: true,
+        scheduledFor: true,
+        estimatedCostMicros: true,
+        dailyReportSnapshot: { select: { localReportDate: true } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 20,
+    });
+    return {
+      reports: messages.flatMap(message => message.dailyReportSnapshot ? [{
+        id: message.id,
+        localReportDate: message.dailyReportSnapshot.localReportDate,
+        status: message.status,
+        maskedPhone: maskPhone(message.recipientPhoneE164),
+        scheduledFor: message.scheduledFor.toISOString(),
+        estimatedCostMicros: message.estimatedCostMicros?.toString() ?? null,
+      }] : []),
+    };
+  }
+
   static async getSubscription(input: WhatsAppReportScopeInput & {
     actorUserId: string;
     env?: Readonly<Record<string, string | undefined>>;

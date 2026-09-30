@@ -150,7 +150,7 @@ function DraftMessageText({
     draft: OverdueMessageDraft;
     onCopy: (draft: OverdueMessageDraft) => void;
 }) {
-    const hasMessage = draft.message.trim().length > 0;
+    const hasMessage = !draft.isOutdated && draft.message.trim().length > 0;
 
     return (
         <p
@@ -160,7 +160,9 @@ function DraftMessageText({
             }}
             title={hasMessage ? "Double-click to copy" : undefined}
         >
-            <span>{hasMessage ? draft.message : "No draft generated yet."}</span>
+            <span>{draft.isOutdated
+                ? "The debt changed. Regenerate this draft before copying."
+                : hasMessage ? draft.message : "No draft generated yet."}</span>
         </p>
     );
 }
@@ -178,7 +180,7 @@ function MessageCard({
     onSelect: (studentId: string) => void;
     onCopy: (draft: OverdueMessageDraft) => void;
 }) {
-    const hasMessage = draft.message.trim().length > 0;
+    const hasMessage = !draft.isOutdated && draft.message.trim().length > 0;
 
     return (
         <article className={cn(pageGridCardClass, "flex h-full flex-col gap-3")}>
@@ -381,7 +383,7 @@ function AIMessagesContent({
     };
 
     const copyDraft = async (draft: OverdueMessageDraft) => {
-        if (!draft.message.trim()) return;
+        if (draft.isOutdated || !draft.message.trim()) return;
         await navigator.clipboard.writeText(draft.message);
         setCopiedId(draft.studentId);
         setTimeout(() => setCopiedId(null), 2000);
@@ -409,27 +411,16 @@ function AIMessagesContent({
             });
             const json = await res.json().catch(() => null) as MessagesResponse | { error?: string; details?: string } | null;
             if (!res.ok || !json || !("items" in json)) {
+                if (res.status === 409) await fetchData("refresh");
                 const message = json && !("items" in json)
                     ? json.details ?? json.error
                     : undefined;
                 throw new Error(message ?? "Failed to regenerate messages");
             }
 
-            const regeneratedByStudentId = new Map(json.items.map(item => [item.studentId, item]));
-            const selected = new Set(studentIds);
-            const currentItems = data?.items ?? EMPTY_DRAFTS;
-            const mergedItems = currentItems.map(item => {
-                if (!selected.has(item.studentId)) return item;
-                return regeneratedByStudentId.get(item.studentId) ?? item;
-            });
-            const knownIds = new Set(mergedItems.map(item => item.studentId));
-            for (const item of json.items) {
-                if (selected.has(item.studentId) && !knownIds.has(item.studentId)) {
-                    mergedItems.push(item);
-                }
-            }
-
-            applyData({ ...json, items: mergedItems });
+            // POST returns authoritative current membership for this variant.
+            // Keeping omitted rows would revive resolved debts or stale text.
+            applyData(json);
             if (json.meta.rateLimited) {
                 setError("Regeneration is cooling down. The current drafts are still available.");
             } else {

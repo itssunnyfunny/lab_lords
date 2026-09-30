@@ -11,6 +11,7 @@ import { dashboardExpectationSchema, dashboardFollowUpPatchSchema, dashboardFoll
     type DashboardActivity, type DashboardFollowUp, type DashboardNotification, type DashboardOverview, type DashboardSource,
     type DashboardTask, type DashboardTerm } from "@/lib/dashboardContracts";
 import type { z } from "zod";
+import { dashboardSetupQuerySchema } from "@/lib/dashboardSetup";
 
 type Tx = Prisma.TransactionClient;
 export class DashboardInputError extends Error {}
@@ -68,6 +69,24 @@ async function event(tx: Tx, access: BranchAccessContext, kind: string, sourceId
 }
 async function studentExists(tx: Tx, branchId: string, studentId: string) {
     if (!await tx.student.findFirst({ where: { id: studentId, branchId }, select: { id: true } })) throw new DashboardNotFoundError();
+}
+
+async function setupStudentPage(branchId: string, query: z.output<typeof dashboardSetupQuerySchema>) {
+    const where = { branchId, status: "ACTIVE" as const };
+    const [anchor, selectedStudent] = await completeReads([
+        query.studentCursor ? prisma.student.findFirst({ where: { ...where, id: query.studentCursor }, select: { id: true } }) : null,
+        query.studentId ? prisma.student.findFirst({ where: { branchId, id: query.studentId }, select: { id: true, name: true } }) : null,
+    ]);
+    if (query.studentCursor && !anchor) throw new DashboardInputError("This student page is no longer available. Go back and try again.");
+    if (query.studentId && !selectedStudent) throw new DashboardNotFoundError();
+    const [rows, studentTotal] = await completeReads([
+        // Keep the boundary immutable without placing student names in cursor URLs.
+        prisma.student.findMany({ where: { ...where, ...(anchor ? { id: { gt: anchor.id } } : {}) },
+            select: { id: true, name: true }, orderBy: { id: "asc" }, take: query.limit + 1 }),
+        prisma.student.count({ where }),
+    ]);
+    const students = rows.slice(0, query.limit);
+    return { students, studentTotal, selectedStudent, studentNextCursor: rows.length > query.limit ? students.at(-1)!.id : null };
 }
 async function checkAssignee(tx: Tx, access: BranchAccessContext, assigneeId?: string | null) {
     if (!assigneeId) return;
@@ -311,14 +330,23 @@ export class DashboardService {
             await event(tx, access, "CONFIGURATION", branchId, "UTILIZATION_THRESHOLD"); return settings;
         });
     }
-    static async expectations(actorId: string, branchId: string) {
+    static async expectations(actorId: string, branchId: string, input: z.input<typeof dashboardSetupQuerySchema> = {}) {
         await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch");
         await AccessPolicy.authorizeAction(actorId, branchId, "students");
-        const [items, students] = await completeReads([
-            prisma.attendanceExpectation.findMany({ where: { branchId }, select: { studentId: true, weekdays: true, expectedBy: true, enabled: true }, take: 500 }),
-            prisma.student.findMany({ where: { branchId, status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" }, take: 500 }),
+        const query = dashboardSetupQuerySchema.parse(input);
+        const where = { branchId, ...(query.studentId ? { studentId: query.studentId } : {}) };
+        if (query.cursor && !await prisma.attendanceExpectation.findFirst({ where: { ...where, id: query.cursor }, select: { id: true } }))
+            throw new DashboardInputError("This page is no longer available. Go back and try again.");
+        const [rows, total, studentPage] = await completeReads([
+            prisma.attendanceExpectation.findMany({ where: { ...where, ...(query.cursor ? { id: { gt: query.cursor } } : {}) },
+                select: { id: true, studentId: true, weekdays: true, expectedBy: true, enabled: true, student: { select: { name: true } } },
+                orderBy: { id: "asc" }, take: query.limit + 1 }),
+            prisma.attendanceExpectation.count({ where }),
+            setupStudentPage(branchId, query),
         ]);
-        return { items, students };
+        const items = rows.slice(0, query.limit).map(({ student, ...row }) => ({ ...row, studentName: student.name }));
+        return { items, total, nextCursor: rows.length > query.limit ? items.at(-1)!.id : null,
+            selectedItem: query.studentId ? items.find(item => item.studentId === query.studentId) ?? null : null, ...studentPage };
     }
     static async saveExpectation(actorId: string, branchId: string, input: z.input<typeof dashboardExpectationSchema>) {
         const data = dashboardExpectationSchema.parse(input);
@@ -330,14 +358,25 @@ export class DashboardService {
             await event(tx, access, "CONFIGURATION", row.id, "ATTENDANCE_EXPECTATION"); return row;
         });
     }
-    static async terms(actorId: string, branchId: string, now = new Date()) {
+    static async terms(actorId: string, branchId: string, now = new Date(), input: z.input<typeof dashboardSetupQuerySchema> = {}) {
         await AccessPolicy.authorizeAction(actorId, branchId, "students");
+        const query = dashboardSetupQuerySchema.parse(input);
         const { today } = await branchClock(branchId, prisma, now);
-        const [items, students] = await completeReads([
-            prisma.membershipTerm.findMany({ where: { branchId }, include: { student: { select: { name: true } } }, orderBy: [{ endDate: "desc" }, { id: "asc" }], take: 500 }),
-            prisma.student.findMany({ where: { branchId, status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" }, take: 500 }),
+        const where = { branchId, ...(query.studentId ? { studentId: query.studentId } : {}) };
+        const anchor = query.cursor ? await prisma.membershipTerm.findFirst({ where: { ...where, id: query.cursor }, select: { id: true, endDate: true } }) : null;
+        if (query.cursor && !anchor) throw new DashboardInputError("This page is no longer available. Go back and try again.");
+        const [rows, total, studentPage, latest] = await completeReads([
+            prisma.membershipTerm.findMany({ where: { ...where, ...(anchor ? { OR: [
+                { endDate: { lt: anchor.endDate } }, { endDate: anchor.endDate, id: { gt: anchor.id } },
+            ] } : {}) }, include: { student: { select: { name: true } } }, orderBy: [{ endDate: "desc" }, { id: "asc" }], take: query.limit + 1 }),
+            prisma.membershipTerm.count({ where }),
+            setupStudentPage(branchId, query),
+            query.studentId ? prisma.membershipTerm.findFirst({ where,
+                include: { student: { select: { name: true } } }, orderBy: [{ endDate: "desc" }, { id: "asc" }] }) : null,
         ]);
-        return { items: items.map(row => termView(row, today)), students };
+        const items = rows.slice(0, query.limit).map(row => termView(row, today));
+        return { items, total, nextCursor: rows.length > query.limit ? items.at(-1)!.id : null,
+            selectedItem: latest ? termView(latest, today) : null, ...studentPage };
     }
     static async saveTerm(actorId: string, branchId: string, input: z.input<typeof dashboardTermSchema>, now = new Date()) {
         const data = dashboardTermSchema.parse(input);
@@ -370,7 +409,7 @@ export class DashboardService {
         if (access.permissions.students) {
             const [attendance, terms] = await completeReads([this.attendance(branchId, timezone, today, now), this.termSummary(branchId, today)]);
             add("ATTENDANCE", attendance.gaps, [today, attendance.gaps, attendance.gapsStudents.map(r => r.id)], "attendance");
-            add("RENEWAL", terms.renewalsThisWeek, terms.items.map(r => [r.id, r.endDate]), "dashboard-settings");
+            add("RENEWAL", terms.renewalsThisWeek, terms.items.map(r => [r.id, r.endDate]), "dashboard-settings?section=terms");
         }
         if (access.permissions.manage_branch) {
             const where = { branchId, status: "OPEN", dueAt: { lte: now }, OR: [{ assigneeId: actorId }, { assigneeId: null }] };

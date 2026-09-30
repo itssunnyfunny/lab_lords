@@ -58,6 +58,7 @@ model User {
   whatsAppSenderSafetyPauses    WhatsAppSenderSafetyState[]   @relation("WhatsAppSenderSafetyPausedBy")
   whatsAppIncidentsAcknowledged WhatsAppOperationalIncident[] @relation("WhatsAppOperationalIncidentAcknowledgedBy")
   ownerTrialGrant               OwnerTrialGrant?
+  onboardingRequests            OnboardingRequest[]
 }
 
 model Organization {
@@ -107,6 +108,7 @@ model Organization {
   whatsAppOperationalIncidents   WhatsAppOperationalIncident[]
   owner                          User                                @relation(fields: [ownerId], references: [id])
   providerActions BillingProviderAction[]
+  onboardingRequests OnboardingRequest[]
 }
 
 model Branch {
@@ -170,8 +172,25 @@ model Branch {
   whatsAppDailyReportSnapshots WhatsAppDailyReportSnapshot[]
   whatsAppServiceNotices       WhatsAppServiceNotice[]
   whatsAppOperationalIncidents WhatsAppOperationalIncident[]
+  onboardingRequests OnboardingRequest[]
 
   @@unique([id, organizationId], map: "TI_U_Branch_id_organizationId")
+}
+
+model OnboardingRequest {
+  ownerId        String
+  idempotencyKey String
+  requestHash    String
+  organizationId String
+  branchId       String
+  createdAt      DateTime @default(now())
+  owner          User @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  branch         Branch @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([ownerId, idempotencyKey])
+  @@index([organizationId])
+  @@index([branchId, organizationId])
 }
 
 model Student {

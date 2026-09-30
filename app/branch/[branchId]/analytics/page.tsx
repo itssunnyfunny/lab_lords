@@ -9,10 +9,9 @@ import { AppButton, AppPanel, ErrorState, PageLoadingSkeleton, PageShell } from 
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { cn } from "@/lib/utils";
 import { use, useEffect, useState } from "react";
-import { AnalyticsPeriod, analytics, BranchSnapshot, TrendData } from "@/lib/api/analytics";
-import { branches } from "@/lib/api/branches";
+import type { AnalyticsPeriod, BranchSnapshot } from "@/lib/api/analytics";
+import { loadBranchAnalyticsPage, type AnalyticsChartKey, type BranchAnalyticsPayload } from "@/lib/analyticsPageLoader";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
-import { formWarningBannerClass } from "@/components/ui/formSurface";
 import {
     pageFilterShellClass,
     pageGridCardClass,
@@ -22,32 +21,13 @@ import {
     pageSectionDividerClass,
     pageSubtleTextClass,
 } from "@/components/ui/pageSurface";
-import { AlertCircle, RefreshCw } from "lucide-react";
-import type { ResourceState } from "@/types";
-import { failResourceRefresh, resourceData, resourceUpdatedAt, startResourceRefresh } from "@/lib/resourceState";
+import { RefreshCw } from "lucide-react";
+import type { BranchAccess, ResourceState } from "@/types";
+import { resourceData, resourceUpdatedAt } from "@/lib/resourceState";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
+import { withoutFinancialAnalytics } from "@/lib/analyticsFinancialAccess";
 
-type ChartKey = "revenue" | "collected" | "due" | "utilization" | "students";
-
-interface BranchAnalyticsRow {
-    id: string;
-    branch: string;
-    students: number;
-    util: number;
-    revenue: number;
-    collected: number;
-    due: number;
-}
-
-interface BranchAnalyticsPayload {
-    row: BranchAnalyticsRow;
-    snapshot: BranchSnapshot;
-    trends: TrendData;
-    period: AnalyticsPeriod;
-    chart: ChartKey;
-    from: string;
-    to: string;
-}
+type ChartKey = AnalyticsChartKey;
 
 type SummaryTone = "success" | "danger" | "info" | "neutral";
 
@@ -64,36 +44,23 @@ const CHARTS: { key: ChartKey; label: string; color: string }[] = [
     { key: "students", label: "Students", color: "var(--ui-tone-insight-progress)" },
 ];
 
-function getTrendWindow(period: AnalyticsPeriod, chart: ChartKey) {
-    const to = new Date();
-    const from = new Date(to);
-
-    if (period === "month" && ["revenue", "collected", "due"].includes(chart)) {
-        from.setDate(1);
-        from.setHours(0, 0, 0, 0);
-        return { from: from.toISOString(), to: to.toISOString() };
-    }
-
-    from.setDate(from.getDate() - 30);
-    return { from: from.toISOString(), to: to.toISOString() };
-}
-
 export default function AnalyticsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = use(params);
 
     return (
         <BranchAccessGuard branchId={branchId} permission={BRANCH_PAGE_ACCESS.analytics} feature="BRANCH_ANALYTICS">
-            <AnalyticsContent branchId={branchId} />
+            {access => <AnalyticsContent branchId={branchId} access={access} />}
         </BranchAccessGuard>
     );
 }
 
-function AnalyticsContent({ branchId }: { branchId: string }) {
+function AnalyticsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
     const t = useTranslation();
     const [period, setPeriod] = useState<AnalyticsPeriod>("month");
     const [activeChart, setActiveChart] = useState<ChartKey>("revenue");
     const [resource, setResource] = useState<ResourceState<BranchAnalyticsPayload>>({ status: "loading" });
     const [refreshKey, setRefreshKey] = useState(0);
+    const canViewFinance = access.permissions.view_payments;
     const { formatDateTime, formatNumber } = useUserPreferences();
     const formatMoney = (value: number) => formatNumber(value, {
         style: "currency",
@@ -107,64 +74,24 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
 
     useEffect(() => {
         let active = true;
-        const loadAnalytics = async () => {
-            setResource(current => startResourceRefresh(current));
-            try {
-                const { from, to } = getTrendWindow(period, activeChart);
-                const trendType = activeChart === "utilization" ? "seat" : activeChart === "students" ? "students" : "payment";
-
-                const [branchDetails, snap, trendData] = await Promise.all([
-                    branches.getDetails(branchId),
-                    analytics.getSnapshot(branchId, { period }),
-                    activeChart === "students"
-                        ? Promise.resolve([])
-                        : analytics.getTrends(branchId, { from, to, type: trendType, period }),
-                ]);
-
-                if (!active) return;
-                setResource({
-                    status: "success",
-                    updatedAt: new Date().toISOString(),
-                    data: {
-                        row: {
-                            id: branchDetails.id,
-                            branch: branchDetails.name,
-                            students: snap.totalStudents,
-                            util: snap.occupancyRate,
-                            revenue: snap.monthlyRevenue,
-                            collected: snap.paidAmount,
-                            due: snap.dueAmount,
-                        },
-                        snapshot: snap,
-                        trends: trendData,
-                        period,
-                        chart: activeChart,
-                        from,
-                        to,
-                    },
-                });
-            } catch (loadError) {
-                console.error("Failed to load analytics", loadError);
-                if (active) {
-                    setResource(current => failResourceRefresh(
-                        current,
-                        "The requested analytics view could not be refreshed."
-                    ));
-                }
-            }
-        };
-        void loadAnalytics();
+        void loadBranchAnalyticsPage(branchId, period, activeChart, canViewFinance, setResource, () => active);
         return () => { active = false; };
-    }, [activeChart, branchId, period, refreshKey]);
+    }, [activeChart, branchId, canViewFinance, period, refreshKey]);
 
     const payload = resourceData(resource);
     const displayedPeriod = payload?.period ?? period;
-    const displayedChart = payload?.chart ?? activeChart;
-    const snapshot = payload?.snapshot;
-    const trends = payload?.trends ?? [];
+    const snapshot = payload?.snapshot && (canViewFinance ? payload.snapshot : withoutFinancialAnalytics(payload.snapshot));
+    const financialAccess = snapshot?.financialAccess === true;
+    const displayedChart = financialAccess
+        ? payload?.chart ?? activeChart
+        : payload?.chart === "students" ? "students" : "utilization";
+    const visibleSelection = financialAccess
+        ? activeChart
+        : activeChart === "students" ? "students" : "utilization";
+    const trends = payload?.chart === displayedChart ? payload.trends : [];
     const updatedAt = resourceUpdatedAt(resource);
 
-    const chartConfig = CHARTS.find(chart => chart.key === displayedChart) ?? CHARTS[0];
+    const chartConfig = CHARTS.find(chart => chart.key === displayedChart) ?? CHARTS[3];
 
     const chartData = (() => {
         if (displayedChart === "students") {
@@ -222,7 +149,9 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
             <header className="ui-record-header">
                 <div className="min-w-0">
                     <h1>{t("Analytics & Trends")}</h1>
-                    <p className="ui-record-description">{t("Branch performance with corrected revenue, collections, dues, and utilization.")}</p>
+                    <p className="ui-record-description">{financialAccess
+                        ? t("Branch performance with corrected revenue, collections, dues, and utilization.")
+                        : t("Branch students and seat utilization.")}</p>
                 </div>
                 <div className="ui-record-actions items-center">
                     <span className={pageMutedTextClass}>{t("Updated")} {updatedAt ? formatDateTime(updatedAt) : t("recently")}</span>
@@ -237,17 +166,8 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                 </div>
             </header>
 
-            {(resource.status === "stale" || (resource.status === "loading" && resource.previous)) && (
-                <div role="status" className={cn("flex items-start gap-2 px-4 py-3 text-sm", formWarningBannerClass)}>
-                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                    {resource.status === "stale"
-                        ? `${resource.reason} Showing ${CHARTS.find(item => item.key === displayedChart)?.label ?? displayedChart} / ${PERIODS.find(item => item.key === displayedPeriod)?.label ?? displayedPeriod} from the last verified response.`
-                        : `Loading ${CHARTS.find(item => item.key === activeChart)?.label ?? activeChart} / ${PERIODS.find(item => item.key === period)?.label ?? period}. Showing the previous verified selection until it finishes.`}
-                </div>
-            )}
-
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div role="group" aria-label={t("Analytics period")} className={cn("inline-flex w-fit flex-wrap p-1", pageFilterShellClass)}>
+                {financialAccess && <div role="group" aria-label={t("Analytics period")} className={cn("inline-flex w-fit flex-wrap p-1", pageFilterShellClass)}>
                     {PERIODS.map(item => (
                         <button
                             key={item.key}
@@ -264,14 +184,14 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                             {t.owned(item.label)}
                         </button>
                     ))}
-                </div>
+                </div>}
 
                 <div role="group" aria-label={t("Chart metric")} className="inline-flex flex-wrap gap-2">
-                    {CHARTS.map(item => (
+                    {CHARTS.filter(item => financialAccess || item.key === "utilization" || item.key === "students").map(item => (
                         <button
                             key={item.key}
                             type="button"
-                            aria-pressed={activeChart === item.key}
+                            aria-pressed={visibleSelection === item.key}
                             onClick={() => setActiveChart(item.key)}
                             className={cn(
                                 "min-h-11 rounded-[var(--ui-radius-control)] border px-3 py-2 text-xs font-semibold transition-colors",
@@ -288,7 +208,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
 
             <KpiRow snapshot={snapshot} branchId={branchId} period={displayedPeriod} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className={cn("grid grid-cols-1 gap-6", financialAccess && "lg:grid-cols-3")}>
                 <MainChart
                     data={chartData}
                     title={t(displayedChart === "students" ? "{label} Snapshot" : "{label} Trend", { label: t.owned(chartConfig.label) })}
@@ -299,7 +219,7 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                     contextLabel={chartContext}
                     dataLabel={displayedChart === "students" ? "Student status" : "Date"}
                 />
-                <SideStats snapshot={snapshot} period={displayedPeriod} />
+                {financialAccess && <SideStats snapshot={snapshot} period={displayedPeriod} />}
             </div>
 
             <AppPanel
@@ -314,15 +234,11 @@ function AnalyticsContent({ branchId }: { branchId: string }) {
                 {[payload.row].map(item => (
                     <BranchSummaryCard key={`${item.id}-util`} label={t("Seat utilization")} value={formatPercent(item.util, 2)} detail="Current occupancy" tone="neutral" badge={formatPercent(item.util, 2)} />
                 ))}
-                {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-revenue`} label={t("Revenue")} value={formatMoney(item.revenue)} detail={displayedPeriod === "month" ? "This month" : "All time"} tone="neutral" />
-                ))}
-                {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-collected`} label={t("Collected")} value={formatMoney(item.collected)} detail="Received payments" tone="success" />
-                ))}
-                {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-due`} label={t("All due")} value={formatMoney(item.due)} detail="Open receivables" tone="danger" />
-                ))}
+                {financialAccess && <>
+                    <BranchSummaryCard label={t("Revenue")} value={formatMoney(snapshot.monthlyRevenue)} detail={displayedPeriod === "month" ? "This month" : "All time"} tone="neutral" />
+                    <BranchSummaryCard label={t("Collected")} value={formatMoney(snapshot.paidAmount)} detail="Received payments" tone="success" />
+                    <BranchSummaryCard label={t("All due")} value={formatMoney(snapshot.dueAmount)} detail="Open receivables" tone="danger" />
+                </>}
             </AppPanel>
 
             {snapshot?.seatDetails && (

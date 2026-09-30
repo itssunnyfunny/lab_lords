@@ -435,6 +435,7 @@ export function AddStudentDialog({
                                             <SeatPicker
                                                 branchId={branchId}
                                                 selectedShiftIds={selectedShiftIds}
+                                                selectedMultiShiftId={selectedMultiShiftId}
                                                 selectedSeatId={selectedSeatId}
                                                 onToggleShift={(s) => {
                                                     markTouched("allocation");

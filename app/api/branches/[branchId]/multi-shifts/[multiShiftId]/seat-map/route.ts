@@ -50,6 +50,9 @@ export async function GET(_req: Request, { params }: Params) {
             select: { id: true, startTime: true, endTime: true },
         });
         const shiftTimeMap = new Map(allShifts.map(s => [s.id, s]));
+        if (componentShiftIds.size < 2 || [...componentShiftIds].some(id => !shiftTimeMap.has(id))) {
+            return NextResponse.json({ error: "Multi-shift not found" }, { status: 404 });
+        }
 
         // All seats with their active allocations
         const seats = sortSeatsByLabel(await prisma.seat.findMany({

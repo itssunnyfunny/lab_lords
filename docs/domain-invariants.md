@@ -174,11 +174,21 @@ unit/API/integration coverage.
   required provider confirmation. Historical data remains available according
   to authorization.
   (`services/branch.service.ts`, branch-billing-lifecycle integration tests)
-- **Known discrepancy—do not rely on:** `OnboardingService.createNetwork` is
-  not idempotent. Repeating the request can create independent organizations
-  and networks. Callers must not treat retrying it as safe until an idempotency
-  contract is added. (`services/onboarding.service.ts`,
-  `tests/integration/services/onboarding.test.ts`)
+- **Must preserve—enforced:** Each canonical onboarding command requires an
+  authenticated-owner-scoped, bounded idempotency key and a stable versioned
+  hash of the validated setup input. The original workspace, branch, trial
+  decision (and any new grant), and durable receipt commit together. An exact
+  replay returns only that
+  owner's original linked result without another setup or trial mutation;
+  changed input under the same key conflicts. A different key may create an
+  intentional additional workspace but never a second lifetime owner trial.
+  The browser must retain the frozen account-scoped command before dispatch
+  and through uncertain responses; a missing or unsafe pending command cannot
+  be silently replaced. Receipt identity is retained without automatic expiry,
+  and archiving the result does not free its key. Physical result deletion is
+  restricted until a separately approved key-retention design exists.
+  (`services/onboarding.service.ts`, `app/api/onboarding/route.ts`,
+  `app/onboarding/page.tsx`, `prisma/schema.prisma`)
 
 ## Students and fee sources
 
@@ -193,6 +203,10 @@ unit/API/integration coverage.
 - **Service-layer contract—not DB-enforced:** The normalized student identity
   rule is application-enforced; there is no matching database unique key. New
   import or bulk-write paths must preserve the intended duplicate behavior.
+- **Service-layer contract—not DB-enforced:** An imported student may retain a
+  null phone while permitted name or fee fields are edited. An unchanged phone
+  is omitted from profile updates; adding or changing a phone still requires
+  the normal validation, identity check, and WhatsApp reconciliation.
 - **Must preserve—enforced:** A student's current recurring fee has exactly one
   source: manual amount, an active same-branch Shift, or a same-branch
   MultiShift. Selecting a manual fee clears linked fee-source IDs. Updating a
@@ -386,7 +400,8 @@ unit/API/integration coverage.
 - **Must preserve—enforced:** “Overdue” is derived rather than stored. Current
   logic considers a payment overdue only while `DUE` and strictly more than
   seven calendar days past its due date. `WAIVED` payments are excluded from
-  open debt and revenue.
+  open debt. Historical non-ledger waived rows are excluded from revenue;
+  ledger-backed fees retain collected revenue and subtract only waived rupees.
   (`lib/utils/paymentStatus.ts`, `analytics/payment.analytics.ts`, payment
   analytics integration tests)
 - **Known discrepancy—do not rely on:** `Organization.paymentGraceDays` is not
@@ -1004,7 +1019,14 @@ unit/API/integration coverage.
   cannot clear a successor. Draft admission reserves the five-minute cooldown
   before Gemini, including failed publication, and GET/POST expose that deadline.
   Draft replacement is transactional with one non-null-student logical draft per
-  branch/student/action/language. Reports keep existing cache/staleness rules.
+  branch/student/action/language. A draft's advisory source marker covers exact
+  overdue fee identity, remaining balance, due date, elapsed overdue days and
+  student facts; legacy or changed-source text is marked outdated and cannot be
+  copied as a current draft. DRAFTS publication rechecks the current source and
+  authorization under a short Student-then-Branch lock before and after writes;
+  provider calls remain outside the transaction. A failed or contended publish
+  rolls back the batch and leaves cooldown intact. Reports keep their existing
+  cache/staleness rules.
 - **Must preserve—enforced:** Report confirmation/stop redelivery is deduplicated
   by sender and provider message ID, atomically with challenge mutation, even
   across different webhook batches. Full STOP and outbox delivery rules remain
@@ -1027,13 +1049,22 @@ unit/API/integration coverage.
   named `totalSeats` may therefore represent slots in analytics output.
   (`analytics/`, analytics tests)
 - **Must preserve—enforced:** Branch analytics requires the analytics action and
-  the `ADVANCED_ANALYTICS` entitlement. Organization snapshots require owner
-  access and the entitlement. Raw analytics helpers are not tenant authorization
-  boundaries and must be called only after route/service authorization.
+  the `ADVANCED_ANALYTICS` entitlement. Financial branch analytics additionally
+  require `view_payments`, including payment-derived counts, rates and scores;
+  an explicit payment-view denial does not remove separately authorized student
+  and seat analytics. Restricted finance is omitted rather than represented as
+  zero. Organization snapshots require owner access and the entitlement. Raw
+  analytics helpers are not tenant authorization boundaries and must be called
+  only after route/service authorization.
   (`app/api/`, `services/entitlement.service.ts`, analytics route tests)
 - **Must preserve—enforced:** Payment analytics use the payment semantics above:
   due means `DUE` through end-of-day, overdue means strictly more than seven
-  days late, and waived rows are excluded from open debt and revenue.
+  days late, and waived balances are excluded from open debt and billable
+  revenue while receipts collected before a waiver remain collected revenue.
+- **Must preserve—enforced:** A daily payment-trend point includes only fees
+  due and receipts recorded through that plotted day's end. The monthly summary
+  still covers the whole selected month. These are recomputed from mutable
+  current records, subject to the historical limitation below.
 - **Known discrepancy—do not rely on:** Trend analytics recompute past-looking
   values from today's mutable tables rather than immutable historical
   snapshots. Student status and the active-shift set are current, not reliably

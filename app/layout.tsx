@@ -4,11 +4,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { UserPreferencesBoundary } from "@/components/settings/UserPreferencesBoundary";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { AttendanceCameraBoundary } from "@/components/attendance/AttendanceCameraBoundary";
-import { getGoogleAnalyticsBootstrapScript } from "@/lib/tracking";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 import { clerkRouting } from "@/lib/clerkRouting";
 import { Geist_Mono, Inter, Manrope, Noto_Sans_Devanagari } from "next/font/google";
-import Script from "next/script";
 import { Suspense } from "react";
 import { clerkAppAppearance } from "@/components/ui/entrySurface";
 import "./globals.css";
@@ -93,20 +91,8 @@ export default async function RootLayout({
 }>) {
   const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   const { locale } = await publicStrings();
-
   return (
     <html lang={publicLanguageTags[locale]} className="dark">
-      <head>
-        {measurementId ? (
-          <Script
-            id="google-analytics-consent-default"
-            strategy="beforeInteractive"
-            dangerouslySetInnerHTML={{
-              __html: getGoogleAnalyticsBootstrapScript(measurementId),
-            }}
-          />
-        ) : null}
-      </head>
       <body
         className={`${inter.variable} ${manrope.variable} ${geistMono.variable} ${devanagari.variable} antialiased`}
       >
@@ -120,13 +106,6 @@ export default async function RootLayout({
         >
           <PublicDraftProvider><UserPreferencesBoundary><AttendanceCameraBoundary>{children}</AttendanceCameraBoundary></UserPreferencesBoundary></PublicDraftProvider>
         </ClerkProvider>
-        {measurementId && (
-          <Script
-            id="google-analytics"
-            src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-            strategy="afterInteractive"
-          />
-        )}
         <Suspense fallback={null}>
           <AnalyticsProvider measurementId={measurementId} />
         </Suspense>

@@ -15,7 +15,7 @@ describe("branch page access mapping", () => {
         expect(BRANCH_PAGE_ACCESS.settings).toEqual({
             anyOf: [
                 "manage_branch",
-                ["view_whatsapp", "receive_whatsapp_reports", "view_payments", "analytics"],
+                "view_whatsapp",
             ],
         });
         expect(BRANCH_PAGE_ACCESS.staff).toBe("manage_branch");
@@ -43,7 +43,7 @@ describe("branch page access mapping", () => {
         expect(hasBranchPageAccess({ permissions: permissions(["analytics", "view_payments"]) }, "aiMessages")).toBe(true);
     });
 
-    it("lets an exact report recipient reach settings without manage_branch", () => {
+    it("lets WhatsApp viewers reach only the restricted WhatsApp settings workspace", () => {
         const reportRecipient = permissions([
             "view_whatsapp",
             "receive_whatsapp_reports",
@@ -54,6 +54,12 @@ describe("branch page access mapping", () => {
         expect(hasBranchPageAccess({ permissions: reportRecipient }, "settings")).toBe(true);
         expect(hasBranchPageAccess({
             permissions: { ...reportRecipient, analytics: false },
+        }, "settings")).toBe(true);
+        expect(hasBranchPageAccess({
+            permissions: permissions(["view_whatsapp", "send_whatsapp", "manage_whatsapp"]),
+        }, "settings")).toBe(true);
+        expect(hasBranchPageAccess({
+            permissions: permissions(["send_whatsapp", "manage_whatsapp"]),
         }, "settings")).toBe(false);
     });
 

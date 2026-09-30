@@ -131,6 +131,10 @@ operator workstation or CI runner that can access credentials.
   be trusted independently of its authorized branch or organization.
 - Permission-shaped responses must not expose unrelated counts, settings,
   students, seats, payments, staff, or other branch data.
+- Allocation-authorized staff may read only active same-branch student IDs and
+  names through the allocation selector. The general student directory retains
+  its separate `students` permission; optional fee-profile updates still
+  recheck that permission and branch writability server-side.
 - User-initiated mutations must enforce entitlement and writable state.
 - Renewal queue and follow-up reads require `view_payments` in the resolved
   branch. Follow-up writes require the existing `paymentsRecord` capability
@@ -144,6 +148,16 @@ operator workstation or CI runner that can access credentials.
 - New organizations must be created through canonical V2 onboarding, with
   explicit commercial state and the existing once-per-owner trial contract.
   A disabled release flag must not select legacy writable access for new records.
+- Onboarding creation requires a valid request key before writes, bound to the
+  authenticated owner and a versioned hash of validated input. A matching
+  replay returns only the original owner-linked result; changed input conflicts
+  and a foreign or broken result link yields a generic scoped denial. The
+  workspace and receipt commit atomically. The account-scoped browser command
+  must be durably retained before dispatch and reused after uncertain outcomes;
+  an account switch must never dispatch another account's frozen command.
+  Receipts have no automatic expiry. Archiving preserves the result link;
+  physical deletion of a receipt-bearing result remains restricted so the
+  original key cannot become reusable.
 - Shift deactivation must transactionally authorize its source, scope every
   target to the same branch, and validate exact active allocation membership.
   It shares the serializable allocation-writer protocol so concurrent inserts
@@ -169,8 +183,19 @@ operator workstation or CI runner that can access credentials.
   provider charges.
 - Raw analytics and data helpers that do not authorize callers may be used only
   after an authenticated, tenant-scoped authorization boundary.
+- Branch financial analytics require `analytics`, `view_payments`, and
+  `ADVANCED_ANALYTICS`. An explicit payment-view denial also denies financial
+  counts, rates, scores and other derived financial information; `analytics`
+  alone does not override it. Authorized nonfinancial student and seat analytics
+  remain available. Restricted financial fields are omitted, never returned as
+  fabricated zeroes. Complete payment-bearing AI responses retain their
+  independent whole-response authorization rule below.
 - Staff invitations remain owner-controlled, time-limited, email-bound,
   unpredictable, single-use, and race-safe.
+- Marketing analytics must not transmit invitation tokens or authentication
+  return URLs. Explicit tracking is limited to known public paths with queries,
+  fragments, and referrers removed. Provider-managed automatic measurement must
+  be verified separately before considering telemetry safe across client routing.
 
 Cron routes are machine-authenticated with `CRON_SECRET`. Workflow's
 framework-controlled `/.well-known/workflow/` endpoint is deliberately outside
@@ -572,7 +597,12 @@ authentication boundaries, not open application routes.
   Claim and cooldown reservation precede Gemini; only an unexpired matching
   owner may publish, and release cannot clear a successor. No provider call
   occurs inside the publication transaction. Draft replacement is one atomic
-  batch with a unique branch/student/action/language key.
+  batch with a unique branch/student/action/language key. A current overdue
+  source fingerprint must match selected draft inputs after the provider call;
+  short Student-then-Branch NOWAIT locks and transaction-local authorization
+  fence publication against fee writers. Legacy or changed-source text is
+  marked outdated and cannot be copied as current. A failed publication keeps
+  its reserved cooldown and never returns pre-provider debt as a current draft.
 - Signed inbound report confirmation and report-stop commands are deduplicated
   by sender plus provider message ID inside the same transaction as challenge
   mutation. A different batch envelope cannot spend another confirmation attempt.

@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({ health: vi.fn(), seat: vi.fn(), payment: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ getSessionUser: async () => ({ id: "owner" }) }));
 vi.mock("@/services/staff.service", () => ({ StaffService: { authorize: async () => true } }));
-vi.mock("@/analytics/trends/branch.trends", () => ({ getBranchHealthTrend: mocks.health }));
+vi.mock("@/analytics/trends/branch.trends", () => ({ getBranchOperationalTrend: mocks.health }));
 vi.mock("@/analytics/trends/seat.trends", () => ({ getSeatUtilizationTrend: mocks.seat }));
 vi.mock("@/analytics/trends/payment.trends", () => ({ getPaymentTrend: mocks.payment }));
 import { GET } from "@/app/api/analytics/branch/[branchId]/trends/route";

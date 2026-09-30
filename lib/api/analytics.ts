@@ -1,6 +1,6 @@
 import { apiClient } from "./core";
 
-export interface BranchSnapshot {
+interface BranchSnapshotBase {
     period?: AnalyticsPeriod;
     totalStudents: number;
     activeStudents: number;
@@ -8,10 +8,6 @@ export interface BranchSnapshot {
     assignedSeats: number;
     totalSeats: number;
     occupancyRate: number;
-    monthlyRevenue: number;
-    dueAmount: number;
-    paidAmount: number;
-    collectionRate: number;
     seatDetails?: {
         totalUsedSlots: number;
         totalShiftCapacity: number;
@@ -24,6 +20,20 @@ export interface BranchSnapshot {
         }[];
     };
 }
+
+export type BranchSnapshot = BranchSnapshotBase & ({
+    financialAccess: true;
+    monthlyRevenue: number;
+    dueAmount: number;
+    paidAmount: number;
+    collectionRate: number;
+} | {
+    financialAccess: false;
+    monthlyRevenue?: never;
+    dueAmount?: never;
+    paidAmount?: never;
+    collectionRate?: never;
+});
 
 export type AnalyticsPeriod = "month" | "all";
 export type AnalyticsTrendType = "health" | "seat" | "payment" | "students";

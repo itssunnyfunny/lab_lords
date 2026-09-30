@@ -165,7 +165,7 @@ async function blockAndRecordGraph(page: Page) {
   return requests;
 }
 
-async function mockOrganizationShell(page: Page) {
+async function mockOrganizationShell(page: Page, canManageOnboarding = true) {
   await page.route("https://checkout.razorpay.com/v1/checkout.js", route =>
     route.fulfill({ contentType: "application/javascript", body: "window.Razorpay=function(){};" })
   );
@@ -201,7 +201,9 @@ async function mockOrganizationShell(page: Page) {
   }));
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/senders`, route => json(route, {
     enabled: true,
-    canManage: true,
+    canManage: canManageOnboarding,
+    canManageOperations: true,
+    operationsUiEnabled: true,
     safeReason: null,
     senders: [{
       id: SENDER_ID,
@@ -226,6 +228,7 @@ async function mockOrganizationShell(page: Page) {
 }
 
 async function mockOrganizationReportSettings(page: Page) {
+  await page.route(`**/api/organizations/${ORG_ID}/whatsapp/reports/history`, route => json(route, { reports: [] }));
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-settings`, route => json(route, {
     operationsUiEnabled: true,
     settings: {
@@ -251,21 +254,26 @@ async function mockOrganizationReportSettings(page: Page) {
   );
 }
 
-async function mockExactReportRecipientBranch(page: Page, canSendOperations = false) {
+async function mockExactReportRecipientBranch(
+  page: Page,
+  canSendOperations = false,
+  reportsAllowed = true,
+  canManageBranch = canSendOperations
+) {
   const permissions = {
     manage_org: false,
-    manage_branch: canSendOperations,
+    manage_branch: canManageBranch,
     students: false,
     seat_allocation: false,
-    view_payments: true,
+    view_payments: reportsAllowed,
     generate_payments: false,
     mark_payment_paid: false,
     waive_payments: false,
-    analytics: true,
+    analytics: reportsAllowed,
     view_whatsapp: true,
     send_whatsapp: canSendOperations,
     manage_whatsapp: canSendOperations,
-    receive_whatsapp_reports: true,
+    receive_whatsapp_reports: reportsAllowed,
     staff_management: false,
   };
   await page.route(`**/api/branches/${BRANCH_ID}/access`, route => json(route, {
@@ -273,7 +281,7 @@ async function mockExactReportRecipientBranch(page: Page, canSendOperations = fa
     branchName: "Playwright Central Branch",
     organizationId: ORG_ID,
     isOwner: false,
-    role: canSendOperations ? "MANAGER" : "STAFF",
+    role: canManageBranch ? "MANAGER" : "STAFF",
     staffId: "staff_report_recipient",
     permissions,
     effectivePlan: "PRO",
@@ -288,6 +296,8 @@ async function mockExactReportRecipientBranch(page: Page, canSendOperations = fa
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/branch-assignments?**`, route => json(route, {
     enabled: true,
     canManage: false,
+    operationsUiEnabled: true,
+    serviceNoticesEnabled: true,
     safeReason: null,
     assignment: {
       branchId: BRANCH_ID,
@@ -357,6 +367,7 @@ async function mockExactReportRecipientBranch(page: Page, canSendOperations = fa
     nextCursor: null,
     total: 0,
   }));
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/reports/history`, route => json(route, { reports: [] }));
 }
 
 test("shows an organization confirmation code once and never sends it to Graph", async ({ page }) => {
@@ -366,6 +377,14 @@ test("shows an organization confirmation code once and never sends it to Graph",
   let currentSubscription: ReturnType<typeof subscription> | null = null;
   const createBodies: unknown[] = [];
   let reportQueueKey: string | null = null;
+  let historyStatus = "SCHEDULED";
+  let historyUnavailable = false;
+  await page.route(`**/api/organizations/${ORG_ID}/whatsapp/reports/history`, route => (
+    historyUnavailable ? json(route, { error: "Unavailable" }, 503) : json(route, { reports: reportQueueKey ? [{
+      id: "organization_report_history", localReportDate: "2026-08-24", status: historyStatus,
+      maskedPhone: "••••••3210", scheduledFor: "2026-08-24T15:30:00.000Z", estimatedCostMicros: "250000",
+    }] : [] })
+  ));
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-subscription`, route => {
     if (route.request().method() === "POST") {
       createBodies.push(route.request().postDataJSON());
@@ -409,6 +428,19 @@ test("shows an organization confirmation code once and never sends it to Graph",
   await page.getByRole("button", { name: "Confirm and queue today's report" }).click();
   await expect(page.getByText("Queue status: queued.", { exact: false })).toBeVisible();
   expect(reportQueueKey).toMatch(/\S+/);
+  const history = page.locator("section[aria-labelledby='organization-recent-report-heading']");
+  await expect(history.getByText("SCHEDULED", { exact: true })).toBeVisible();
+  historyStatus = "ACCEPTED";
+  await history.getByRole("button", { name: "Refresh report history" }).click();
+  await expect(history.getByText("ACCEPTED", { exact: true })).toBeVisible();
+  await expect(history.getByText("DELIVERED", { exact: true })).toHaveCount(0);
+  historyStatus = "DELIVERED";
+  await page.reload();
+  await expect(history.getByText("DELIVERED", { exact: true })).toBeVisible();
+  historyUnavailable = true;
+  await history.getByRole("button", { name: "Refresh report history" }).click();
+  await expect(history.getByText("Daily report history is unavailable. Try refreshing.")).toBeVisible();
+  await expect(history.getByText("No daily report history yet.")).toHaveCount(0);
   expect(graphRequests).toEqual([]);
 });
 
@@ -436,6 +468,10 @@ test("lets an exact branch report recipient preview and queue without manage_bra
   let previewPosts = 0;
   let queuePosts = 0;
   let queueKey: string | null = null;
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/reports/history`, route => json(route, { reports: queuePosts ? [{
+    id: "branch_report_history", localReportDate: "2026-08-24", status: "UNKNOWN",
+    maskedPhone: "••••••3210", scheduledFor: "2026-08-24T15:30:00.000Z", estimatedCostMicros: "250000",
+  }] : [] }));
   await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/reports/preview`, async route => {
     previewPosts += 1;
     expect(route.request().postDataJSON()).toEqual({});
@@ -451,9 +487,9 @@ test("lets an exact branch report recipient preview and queue without manage_bra
   });
 
   await page.goto(`/branch/${BRANCH_ID}/settings`);
-  await expect(page.getByRole("heading", { name: "WhatsApp Daily Reports" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "WhatsApp", exact: true }).first()).toBeVisible();
   await expect(page.getByText("This access does not grant branch settings management.")).toBeVisible();
-  await expect(page.getByText("WhatsApp Reports", { exact: true }).last()).toBeVisible();
+  await expect(page.getByText("WhatsApp", { exact: true }).last()).toBeVisible();
   await expect(page.getByText("Branch Settings", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Branch name", { exact: true })).toHaveCount(0);
 
@@ -475,6 +511,36 @@ test("lets an exact branch report recipient preview and queue without manage_bra
   await expect(page.getByText("Queue status: queued.", { exact: false })).toBeVisible();
   expect(queuePosts).toBe(1);
   expect(queueKey).toMatch(/\S+/);
+  const history = page.locator("section[aria-labelledby='branch-recent-report-heading']");
+  await expect(history.getByText("UNKNOWN", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(history.getByText("UNKNOWN", { exact: true })).toBeVisible();
+  expect(graphRequests).toEqual([]);
+});
+
+test("keeps notices and incidents available to a report-denied WhatsApp operator", async ({ page }) => {
+  const graphRequests = await blockAndRecordGraph(page);
+  await mockExactReportRecipientBranch(page, true, false, false);
+  let reportReads = 0;
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/report-subscription`, route => {
+    reportReads += 1;
+    return json(route, { error: "Not found" }, 404);
+  });
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/incidents?limit=50`, route => json(route, {
+    incidents: [], unknownMessages: [],
+  }));
+  await page.route(`**/api/branches/${BRANCH_ID}/whatsapp/service-notices?limit=20`, route => json(route, {
+    notices: [],
+  }));
+
+  await page.goto(`/branch/${BRANCH_ID}/settings`);
+  await expect(page.getByRole("heading", { name: "WhatsApp", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Operational service notice" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Operational incidents" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Branch daily report recipient" })).toHaveCount(0);
+  await expect(page.getByText("Branch name", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Branch Settings", { exact: true })).toHaveCount(0);
+  expect(reportReads).toBe(0);
   expect(graphRequests).toEqual([]);
 });
 
@@ -659,7 +725,7 @@ test("queues only a typed service notice and shows UNKNOWN evidence without a re
 
 test("pauses and safely resumes a sender without retrying UNKNOWN messages", async ({ page }) => {
   const graphRequests = await blockAndRecordGraph(page);
-  await mockOrganizationShell(page);
+  await mockOrganizationShell(page, false);
   await mockOrganizationReportSettings(page);
   await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-subscription`, route => json(route, {
     operationsUiEnabled: true,
@@ -713,5 +779,22 @@ test("pauses and safely resumes a sender without retrying UNKNOWN messages", asy
   await expect(page.getByText("Sender delivery resumed.", { exact: false })).toBeVisible();
   await expect(page.getByText("Delivery active", { exact: true })).toBeVisible();
   expect(resumeBody).toEqual({ confirmation: true });
+  expect(graphRequests).toEqual([]);
+});
+
+test("keeps owner sender safety and incidents visible when report reads are held", async ({ page }) => {
+  const graphRequests = await blockAndRecordGraph(page);
+  await mockOrganizationShell(page, false);
+  await mockOrganizationReportSettings(page);
+  await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-subscription`, route =>
+    json(route, { error: "Reports held" }, 503));
+  await page.route(`**/api/organizations/${ORG_ID}/whatsapp/report-settings`, route =>
+    json(route, { error: "Reports held" }, 503));
+
+  await page.goto(`/org/${ORG_ID}/settings`);
+  await expect(page.getByRole("heading", { name: "Sender delivery safety" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Operational incidents" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pause sender delivery" })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "Organization daily report recipient" })).toHaveCount(0);
   expect(graphRequests).toEqual([]);
 });

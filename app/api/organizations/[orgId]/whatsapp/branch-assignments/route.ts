@@ -28,6 +28,8 @@ export async function GET(
       return NextResponse.json({
         enabled: false,
         canManage: false,
+        operationsUiEnabled: false,
+        serviceNoticesEnabled: false,
         safeReason: null,
         assignment: null,
         availableSenders: [],

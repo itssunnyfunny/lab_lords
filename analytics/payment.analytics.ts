@@ -100,16 +100,20 @@ export async function getOpenPaymentLedger(
  *
  * Revenue/collected respect the selected period. Due is intentionally all
  * unpaid due up to the as-of day so old dues stay visible in every view.
+ * Monthly summaries include the whole month; daily trend points opt into a
+ * month-to-date cutoff so later receipts do not appear on earlier days.
  */
 export async function getPaymentPeriodStats(
   branchId: string,
   asOf?: AsOf,
-  period?: AnalyticsPeriod
+  period?: AnalyticsPeriod,
+  options: { throughAsOfDay?: boolean } = {}
 ) {
   const date = resolveAsOf(asOf)
   const selectedPeriod = resolvePeriod(period)
   const periodStart = selectedPeriod === "month" ? startOfMonth(date) : undefined
-  const periodEnd = selectedPeriod === "month" ? endOfMonth(date) : dayEnd(date)
+  const periodEnd = selectedPeriod === "month" && !options.throughAsOfDay
+    ? endOfMonth(date) : dayEnd(date)
 
   // ⚡ Bolt: Replaced memory-heavy findMany + reduce with database-level aggregate
   // Impact: Reduces memory overhead from O(N) to O(1) and eliminates payload transfer for thousands of payment records.
@@ -122,7 +126,7 @@ export async function getPaymentPeriodStats(
           ? { gte: periodStart, lte: periodEnd }
           : { lte: periodEnd },
       },
-      _sum: { amount: true },
+      _sum: { amount: true, waivedAmount: true },
     }),
     prisma.payment.aggregate({
       where: {
@@ -144,7 +148,7 @@ export async function getPaymentPeriodStats(
     getOpenPaymentLedger(branchId, date),
   ])
 
-  const revenueAmount = revenueAgg._sum.amount ?? 0
+  const revenueAmount = (revenueAgg._sum.amount ?? 0) - (revenueAgg._sum.waivedAmount ?? 0)
   const actual = await prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: { gte: periodStart, lte: periodEnd } }, _sum: { amount: true } })
   const paidAmount = (collectedAgg._sum.amount ?? 0) + (actual._sum.amount ?? 0)
   const dueAmount = openLedger.dueAmount
@@ -228,9 +232,10 @@ export async function getDueStudents(
  */
 export async function getOverduePayments(
   branchId: string,
-  asOf?: AsOf
+  asOf?: AsOf,
+  client: Pick<Prisma.TransactionClient, "payment"> = prisma
 ) {
-  const page = await getOverduePaymentsPage(branchId, { asOf, all: true })
+  const page = await getOverduePaymentsPage(branchId, { asOf, all: true }, client)
 
   return {
     count: page.total,
@@ -252,7 +257,8 @@ export type OverduePaymentPageOptions = {
  */
 export async function getOverduePaymentsPage(
   branchId: string,
-  options: OverduePaymentPageOptions = {}
+  options: OverduePaymentPageOptions = {},
+  client: Pick<Prisma.TransactionClient, "payment"> = prisma
 ) {
   if (options.all && options.cursor) {
     throw new PaginationInputError("all cannot be combined with cursor")
@@ -279,7 +285,7 @@ export async function getOverduePaymentsPage(
     : baseWhere
 
   const [rows, total] = await Promise.all([
-    prisma.payment.findMany({
+    client.payment.findMany({
       where,
       select: {
         id: true,
@@ -299,7 +305,7 @@ export async function getOverduePaymentsPage(
       ],
       ...(options.all ? {} : { take: limit + 1 }),
     }),
-    prisma.payment.count({ where: baseWhere }),
+    client.payment.count({ where: baseWhere }),
   ])
 
   const page = options.all

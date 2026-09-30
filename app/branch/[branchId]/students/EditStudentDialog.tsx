@@ -65,24 +65,25 @@ export function EditStudentDialog({
         : student.feeLinkedShiftId
             ? "shift price"
             : null;
+    const phoneChanged = phone.trim() !== (student.phone ?? "").trim();
     const hasChanges =
         name.trim() !== (student.name ?? "") ||
-        phone.trim() !== (student.phone ?? "") ||
+        phoneChanged ||
         monthlyFee !== currentFeeStr;
 
     const validateForm = () => {
         const errors: Partial<Record<"name" | "phone" | "monthlyFee", string>> = {};
         const nameResult = validateRequiredText(name, "Student name");
-        const phoneResult = validateRequiredPhone(phone);
+        const phoneResult = phoneChanged ? validateRequiredPhone(phone) : null;
         const monthlyFeeResult = monthlyFee !== currentFeeStr && monthlyFee.trim() !== ""
             ? parseIntegerField(monthlyFee, "Monthly fee", { min: 0, max: FORM_LIMITS.moneyMax })
             : null;
 
         if (!nameResult.ok) errors.name = nameResult.error;
-        if (!phoneResult.ok) errors.phone = phoneResult.error;
+        if (phoneResult && !phoneResult.ok) errors.phone = phoneResult.error;
         if (monthlyFeeResult && !monthlyFeeResult.ok) errors.monthlyFee = monthlyFeeResult.error;
 
-        if (!nameResult.ok || !phoneResult.ok || (monthlyFeeResult && !monthlyFeeResult.ok)) {
+        if (!nameResult.ok || (phoneResult && !phoneResult.ok) || (monthlyFeeResult && !monthlyFeeResult.ok)) {
             return { errors, values: null };
         }
 
@@ -110,7 +111,7 @@ export function EditStudentDialog({
                 body: JSON.stringify({
                     id: student.id,
                     name: nameResult.value,
-                    phone: phoneResult.value,
+                    ...(phoneResult?.ok ? { phone: phoneResult.value } : {}),
                     ...(monthlyFeeResult?.ok && monthlyFeeResult.value !== undefined ? { monthlyFee: monthlyFeeResult.value } : {}),
                 }),
             });
@@ -189,7 +190,7 @@ export function EditStudentDialog({
 
                     {/* Phone */}
                     <div className="space-y-1.5">
-                        <label htmlFor="edit-student-phone" className={formCompactLabelClass}>{t("Phone Number *")}</label>
+                        <label htmlFor="edit-student-phone" className={formCompactLabelClass}>{student.phone ? t("Phone Number *") : t("Phone Number")}</label>
                         <div className="relative">
                             <Phone size={14} className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} aria-hidden="true" />
                             <input

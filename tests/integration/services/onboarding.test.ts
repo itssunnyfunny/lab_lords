@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vites
 import { OnboardingService } from "@/services/onboarding.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import { createUser } from "@/tests/factories";
+import { randomUUID } from "node:crypto";
+import { OwnerTrialService } from "@/services/ownerTrial.service";
+import { BranchService } from "@/services/branch.service";
 
 /**
  * INTEGRATION TESTS: OnboardingService
@@ -12,7 +15,7 @@ import { createUser } from "@/tests/factories";
  * 2. Default shifts are created
  * 3. Seats are created when seatCount supplied
  * 4. User is added as MANAGER on the branch
- * 5. Calling twice creates 2 independent networks (documents no-idempotency contract)
+ * 5. Durable replay, owner scope, intentional additional workspaces and rollback
  */
 
 describe("OnboardingService Integration", () => {
@@ -25,6 +28,7 @@ describe("OnboardingService Integration", () => {
 
   const baseParams = (userId: string) => ({
     userId,
+    idempotencyKey: randomUUID(),
     selectedPostTrialPlan: "BASIC" as const,
     ownerPhone: "9876543210",
     orgData: { name: "Bright Academy" },
@@ -44,7 +48,9 @@ describe("OnboardingService Integration", () => {
 
     it("creates org and branch atomically — correct ownership chain", async () => {
       const user = await createUser();
-      const { org, branch } = await OnboardingService.createNetwork(baseParams(user.id));
+      const result = await OnboardingService.createNetwork(baseParams(user.id));
+      const org = await testPrisma.organization.findUniqueOrThrow({ where: { id: result.org.id } });
+      const branch = await testPrisma.branch.findUniqueOrThrow({ where: { id: result.branch.id } });
 
       expect(org.ownerId).toBe(user.id);
       expect(branch.organizationId).toBe(org.id);
@@ -160,13 +166,7 @@ describe("OnboardingService Integration", () => {
       expect(staffRecord!.role).toBe("MANAGER");
     });
 
-    it("calling twice creates 2 separate networks — no dedup (expected contract)", async () => {
-      /**
-       * OnboardingService.createNetwork has NO idempotency guard.
-       * Calling it twice for the same user produces two distinct orgs + branches.
-       * This test documents that contract explicitly.
-       * If idempotency is ever added to the service, this test should be updated first.
-       */
+    it("two intentional keys create independent networks and retain one owner trial", async () => {
       const user = await createUser();
       const result1 = await OnboardingService.createNetwork(baseParams(user.id));
       const result2 = await OnboardingService.createNetwork(baseParams(user.id));
@@ -177,6 +177,165 @@ describe("OnboardingService Integration", () => {
 
       const orgCount = await testPrisma.organization.count({ where: { ownerId: user.id } });
       expect(orgCount).toBe(2);
+      expect(await testPrisma.onboardingRequest.count({ where: { ownerId: user.id } })).toBe(2);
+      expect(await testPrisma.ownerTrialGrant.count({ where: { ownerId: user.id } })).toBe(1);
+    });
+
+    it("concurrent retries commit one network, receipt and trial", async () => {
+      const owner = await createUser();
+      const command = { ...baseParams(owner.id), seatCount: 3 };
+      const results = await Promise.all(Array.from({ length: 4 }, () => OnboardingService.createNetwork(command)));
+      expect(results.every(result => result.org.id === results[0].org.id && result.branch.id === results[0].branch.id)).toBe(true);
+      expect(await testPrisma.organization.count()).toBe(1);
+      expect(await testPrisma.branch.count()).toBe(1);
+      expect(await testPrisma.staff.count()).toBe(1);
+      expect(await testPrisma.seat.count()).toBe(3);
+      expect(await testPrisma.onboardingRequest.count()).toBe(1);
+      expect(await testPrisma.ownerTrialGrant.count()).toBe(1);
+    });
+
+    it("replays the lost-response command without restoring changed settings or trial state", async () => {
+      const owner = await createUser();
+      const command = baseParams(owner.id);
+      const result = await OnboardingService.createNetwork(command);
+      await testPrisma.user.update({ where: { id: owner.id }, data: { phone: "+91 98765 43211" } });
+      await testPrisma.organization.update({ where: { id: result.org.id }, data: { name: "Later name", selectedPostTrialPlan: "PRO" } });
+      await testPrisma.branch.update({ where: { id: result.branch.id }, data: { billingStatus: "ARCHIVED", name: "Later branch" } });
+      await testPrisma.ownerTrialGrant.update({ where: { ownerId: owner.id }, data: { status: "EXPIRED" } });
+      const before = await Promise.all([
+        testPrisma.user.findUnique({ where: { id: owner.id } }),
+        testPrisma.organization.findUnique({ where: { id: result.org.id } }),
+        testPrisma.branch.findUnique({ where: { id: result.branch.id } }),
+        testPrisma.ownerTrialGrant.findUnique({ where: { ownerId: owner.id } }),
+        testPrisma.onboardingRequest.findMany(),
+      ]);
+      vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "false");
+      expect(await OnboardingService.createNetwork(command)).toEqual(result);
+      const after = await Promise.all([
+        testPrisma.user.findUnique({ where: { id: owner.id } }),
+        testPrisma.organization.findUnique({ where: { id: result.org.id } }),
+        testPrisma.branch.findUnique({ where: { id: result.branch.id } }),
+        testPrisma.ownerTrialGrant.findUnique({ where: { ownerId: owner.id } }),
+        testPrisma.onboardingRequest.findMany(),
+      ]);
+      expect(after).toEqual(before);
+      expect(await testPrisma.organization.count()).toBe(1);
+    });
+
+    it("replays the same receipt after supported branch archival without creating another workspace", async () => {
+      const owner = await createUser();
+      const command = baseParams(owner.id);
+      const result = await OnboardingService.createNetwork(command);
+      const trial = await testPrisma.ownerTrialGrant.findUniqueOrThrow({ where: { ownerId: owner.id } });
+      const receiptWhere = { ownerId_idempotencyKey: { ownerId: owner.id, idempotencyKey: command.idempotencyKey } };
+      const receipt = await testPrisma.onboardingRequest.findUniqueOrThrow({ where: receiptWhere });
+      const sibling = await BranchService.createBranchForOrg({
+        organizationId: result.org.id,
+        userId: owner.id,
+        name: "Continuing Hall",
+        contactPhone: command.ownerPhone,
+        idempotencyKey: randomUUID(),
+      });
+
+      const scheduled = await BranchService.scheduleBillingRemoval(owner.id, result.branch.id, randomUUID());
+      expect(scheduled).toMatchObject({ action: "NONE", change: { status: "SCHEDULED", effectiveAt: trial.trialEndsAt } });
+      const archived = await BranchService.archiveDueBillingRemovals(new Date(trial.trialEndsAt!.getTime() + 1));
+      expect(archived).toEqual({ archived: 1 });
+      await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: result.branch.id } }))
+        .resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+
+      const beforeReplay = await Promise.all([
+        testPrisma.organization.count({ where: { ownerId: owner.id } }),
+        testPrisma.branch.count({ where: { organizationId: result.org.id } }),
+        testPrisma.ownerTrialGrant.count({ where: { ownerId: owner.id } }),
+        testPrisma.onboardingRequest.count({ where: { ownerId: owner.id } }),
+      ]);
+      expect(beforeReplay).toEqual([1, 2, 1, 1]);
+      vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "false");
+      expect(await OnboardingService.createNetwork(command)).toEqual(result);
+      expect(await testPrisma.onboardingRequest.findUniqueOrThrow({ where: receiptWhere })).toEqual(receipt);
+      expect(await testPrisma.branch.findUniqueOrThrow({ where: { id: result.branch.id } }))
+        .toMatchObject({ billingStatus: "ARCHIVED" });
+      expect(await testPrisma.branch.findUniqueOrThrow({ where: { id: sibling.id } }))
+        .toMatchObject({ billingStatus: "ACTIVE" });
+      expect(await Promise.all([
+        testPrisma.organization.count({ where: { ownerId: owner.id } }),
+        testPrisma.branch.count({ where: { organizationId: result.org.id } }),
+        testPrisma.ownerTrialGrant.count({ where: { ownerId: owner.id } }),
+        testPrisma.onboardingRequest.count({ where: { ownerId: owner.id } }),
+      ])).toEqual(beforeReplay);
+    });
+
+    it("rejects changed payload and isolates the same UUID across owners", async () => {
+      const owner = await createUser();
+      const other = await createUser();
+      const command = baseParams(owner.id);
+      const first = await OnboardingService.createNetwork(command);
+      await expect(OnboardingService.createNetwork({ ...command, branchData: { name: "Changed" } }))
+        .rejects.toMatchObject({ code: "ONBOARDING_KEY_CONFLICT", status: 409 });
+      const second = await OnboardingService.createNetwork({ ...command, userId: other.id });
+      expect(second.org.id).not.toBe(first.org.id);
+      expect(await testPrisma.onboardingRequest.count()).toBe(2);
+      expect(await testPrisma.organization.count()).toBe(2);
+    });
+
+    it("rejects a foreign result even when its receipt has valid independent foreign keys", async () => {
+      const owner = await createUser();
+      const other = await createUser();
+      const command = baseParams(owner.id);
+      await OnboardingService.createNetwork(command);
+      const foreign = await OnboardingService.createNetwork(baseParams(other.id));
+      await testPrisma.onboardingRequest.update({
+        where: { ownerId_idempotencyKey: { ownerId: owner.id, idempotencyKey: command.idempotencyKey } },
+        data: { organizationId: foreign.org.id, branchId: foreign.branch.id },
+      });
+      await expect(OnboardingService.createNetwork(command))
+        .rejects.toMatchObject({ code: "ONBOARDING_RESULT_NOT_FOUND", message: "Workspace setup result not found." });
+      expect(await testPrisma.organization.count()).toBe(2);
+    });
+
+    it("rolls back setup and phone changes if the transaction fails before receipt creation", async () => {
+      const owner = await createUser();
+      const failure = vi.spyOn(OwnerTrialService, "startOnboardingTrial").mockRejectedValueOnce(new Error("Synthetic trial failure"));
+      const command = baseParams(owner.id);
+      try {
+        await expect(OnboardingService.createNetwork(command)).rejects.toThrow("Synthetic trial failure");
+      } finally { failure.mockRestore(); }
+      expect(await testPrisma.organization.count()).toBe(0);
+      expect(await testPrisma.branch.count()).toBe(0);
+      expect(await testPrisma.staff.count()).toBe(0);
+      expect(await testPrisma.shift.count()).toBe(0);
+      expect(await testPrisma.onboardingRequest.count()).toBe(0);
+      expect(await testPrisma.ownerTrialGrant.count()).toBe(0);
+      expect((await testPrisma.user.findUniqueOrThrow({ where: { id: owner.id } })).phone).toBeNull();
+      await OnboardingService.createNetwork(command);
+      expect(await testPrisma.onboardingRequest.count()).toBe(1);
+    });
+
+    it("rolls back the entire network and trial when receipt insertion itself fails", async () => {
+      const owner = await createUser();
+      const command = { ...baseParams(owner.id), idempotencyKey: "11111111-1111-4111-8111-111111111111", seatCount: 2 };
+      // Test-only fault at the final write, after the real trial was inserted.
+      // This suite must only run against the exact verified disposable database.
+      await testPrisma.$executeRaw`ALTER TABLE "OnboardingRequest" ADD CONSTRAINT "test_onboarding_receipt_failure"
+        CHECK ("idempotencyKey" <> '11111111-1111-4111-8111-111111111111')`;
+      try {
+        await expect(OnboardingService.createNetwork(command)).rejects.toThrow(/test_onboarding_receipt_failure/);
+      } finally {
+        await testPrisma.$executeRaw`ALTER TABLE "OnboardingRequest" DROP CONSTRAINT "test_onboarding_receipt_failure"`;
+      }
+      expect(await testPrisma.organization.count()).toBe(0);
+      expect(await testPrisma.branch.count()).toBe(0);
+      expect(await testPrisma.shift.count()).toBe(0);
+      expect(await testPrisma.multiShift.count()).toBe(0);
+      expect(await testPrisma.multiShiftComponent.count()).toBe(0);
+      expect(await testPrisma.seat.count()).toBe(0);
+      expect(await testPrisma.staff.count()).toBe(0);
+      expect(await testPrisma.ownerTrialGrant.count()).toBe(0);
+      expect(await testPrisma.onboardingRequest.count()).toBe(0);
+      expect((await testPrisma.user.findUniqueOrThrow({ where: { id: owner.id } })).phone).toBeNull();
+      await OnboardingService.createNetwork(command);
+      expect(await testPrisma.onboardingRequest.count()).toBe(1);
     });
 
     it("creates custom shifts when shifts array is supplied", async () => {

@@ -45,8 +45,9 @@ const commands = {
     build: ["tests/dashboard-connected/build.mjs"],
     "students-test": ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/shared-system/connected.playwright.config.ts"],
     "batch-two-test": ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/shared-system/batch-two.connected.playwright.config.ts"],
+    "audit-test": ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/dashboard-connected/audit.playwright.config.ts"],
 };
-if (!Object.hasOwn(commands, mode)) throw new Error("Choose start, test, capture, counts, build, students-test or batch-two-test");
+if (!Object.hasOwn(commands, mode)) throw new Error("Choose start, test, capture, counts, build, students-test, batch-two-test or audit-test");
 if (mode === "test" && process.argv[3]) {
     const focusedFiles = new Set(["rollout-closeout.spec.ts", "rollout-recovery.spec.ts", "account-provider.spec.ts"]);
     if (!focusedFiles.has(process.argv[3]) || process.argv[4]) throw new Error("Choose one supported connected spec file");
@@ -55,6 +56,20 @@ if (mode === "test" && process.argv[3]) {
 if (mode === "batch-two-test" && process.argv[3]) {
     if (!["Staff", "Tasks"].includes(process.argv[3])) throw new Error("Choose the Staff or Tasks verification family");
     commands[mode].push("--grep", `${process.argv[3]} actual`);
+}
+if (mode === "audit-test") {
+    const focusedFiles = new Set(["finance-remediation.spec.ts", "operations-remediation.spec.ts",
+        "onboarding-replay-connected.spec.ts", "messaging-remediation.spec.ts",
+        "analytics-positive-control.spec.ts", "draft-remediation.spec.ts"]);
+    const file = process.argv[3];
+    const project = process.argv[4];
+    const runId = process.env.AUDIT_BROWSER_RUN_ID;
+    if (!focusedFiles.has(file) || !["desktop", "mobile"].includes(project) || process.argv[5])
+        throw new Error("Choose one supported audit spec and desktop or mobile project");
+    if (!runId || !/^20260930-[a-z0-9-]+$/.test(runId)
+        || existsSync(`.clerk/audit-browser-runs/${runId}`))
+        throw new Error("Choose a fresh 20260930- audit run ID; existing evidence must be preserved");
+    commands[mode].push(`tests/dashboard-connected/${file}`, "--project", project);
 }
 console.log("Verified the exact disposable container and local fixture. No saved application environment or shared database is used.");
 const child = spawn(process.execPath, commands[mode], { env: { ...process.env, TEST_DATABASE_URL: connectionString,

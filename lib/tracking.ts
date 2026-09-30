@@ -1,3 +1,5 @@
+import { publicHref, publicRoute } from "@/lib/public-i18n/routes";
+
 export type TrackingProperties = Record<string, string | number | boolean | null | undefined>;
 
 declare global {
@@ -23,6 +25,7 @@ const GOOGLE_ANALYTICS_CONFIG = {
   allow_google_signals: false,
   allow_ad_personalization_signals: false,
 } as const;
+const TRACKING_URL_FIELDS = new Set(["page_path", "page_location", "page_referrer", "page_title"]);
 
 export const COOKIE_CONSENT_KEY = `${RESERVED_PREFIX}_cookie_consent_v2`;
 export const COOKIE_CONSENT_CHANGE_EVENT = `${COOKIE_CONSENT_KEY}_changed`;
@@ -60,28 +63,44 @@ export function setStoredCookieConsent(consent: CookieConsent) {
   window.dispatchEvent(new Event(COOKIE_CONSENT_CHANGE_EVENT));
 }
 
-export function getGoogleAnalyticsBootstrapScript(measurementId: string) {
-  const serializedMeasurementId = JSON.stringify(measurementId);
-  const serializedDeniedConsent = JSON.stringify(DENIED_CONSENT);
-  const serializedConfig = JSON.stringify(GOOGLE_ANALYTICS_CONFIG);
+/** Load the tag only after client routing reaches an allowlisted public page. */
+export function activateGoogleAnalyticsForPublicPath(measurementId: string, path: string) {
+  if (typeof window === "undefined" || typeof document === "undefined" || !safePublicPage(path)) {
+    return false;
+  }
+  if (window.labLordsGaMeasurementId === measurementId) return true;
 
-  return `
-(function () {
-  var measurementId = ${serializedMeasurementId};
   window.dataLayer = window.dataLayer || [];
   window.gtag = window.gtag || function gtag() {
-    window.dataLayer.push(arguments);
+    // Google processes queued gtag commands as Arguments objects.
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer?.push(arguments);
   };
   window.labLordsGaConsent = "rejected";
   window.labLordsGaMeasurementId = measurementId;
   window.labLordsGaPagePath = undefined;
-  window.gtag("consent", "default", ${serializedDeniedConsent});
+  window.gtag("consent", "default", DENIED_CONSENT);
   window.gtag("set", "ads_data_redaction", true);
   window.gtag("set", "url_passthrough", false);
+  const safeOrigin = `${window.location.origin}/`;
+  window.gtag("set", "page_location", safeOrigin);
+  window.gtag("set", "page_referrer", "");
+  window.gtag("set", "page_title", "Lab Lords");
   window.gtag("js", new Date());
-  window.gtag("config", measurementId, ${serializedConfig});
-})();
-  `.trim();
+  window.gtag("config", measurementId, {
+    ...GOOGLE_ANALYTICS_CONFIG,
+    page_location: safeOrigin,
+    page_referrer: "",
+    page_title: "Lab Lords",
+  });
+
+  const script = document.createElement("script");
+  script.id = "google-analytics";
+  script.async = true;
+  script.referrerPolicy = "no-referrer";
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+  document.head.appendChild(script);
+  return true;
 }
 
 export function updateGoogleAnalyticsConsent(consent: CookieConsent) {
@@ -98,17 +117,32 @@ export function updateGoogleAnalyticsConsent(consent: CookieConsent) {
   }
 }
 
-export function trackPageView(path: string, title?: string) {
+function safePublicPage(path: string) {
+  if (!path.startsWith("/") || path.startsWith("//")) return null;
+  const pathname = path.split(/[?#]/, 1)[0];
+  const route = publicRoute(pathname);
+  if (!route) return null;
+  const safePath = publicHref(route.locale, route.path);
+  return {
+    page_path: safePath,
+    page_location: `${window.location.origin}${safePath}`,
+    page_referrer: "",
+    page_title: "Lab Lords",
+  };
+}
+
+export function trackPageView(path: string) {
   if (typeof window === "undefined" || !window.gtag) return;
-  if (window.labLordsGaPagePath === path) return;
+  const page = safePublicPage(path);
+  if (!page) {
+    window.labLordsGaPagePath = undefined;
+    return;
+  }
+  if (window.labLordsGaPagePath === page.page_path) return;
 
-  window.labLordsGaPagePath = path;
+  window.labLordsGaPagePath = page.page_path;
 
-  window.gtag("event", "page_view", {
-    page_path: path,
-    page_location: window.location.href,
-    page_title: title ?? document.title,
-  });
+  window.gtag("event", "page_view", page);
 }
 
 export function trackEvent(name: string, properties: TrackingProperties = {}) {
@@ -117,12 +151,14 @@ export function trackEvent(name: string, properties: TrackingProperties = {}) {
     !window.gtag ||
     window.labLordsGaConsent !== "accepted"
   ) return;
+  const page = safePublicPage(window.location.pathname);
+  if (!page) return;
 
   const cleanProperties = Object.fromEntries(
-    Object.entries(properties).filter(([, value]) => value !== undefined)
+    Object.entries(properties).filter(([key, value]) => value !== undefined && !TRACKING_URL_FIELDS.has(key))
   );
 
-  window.gtag("event", name, cleanProperties);
+  window.gtag("event", name, { ...cleanProperties, ...page });
 }
 
 export function clearGoogleAnalyticsCookies() {

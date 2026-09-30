@@ -1,75 +1,43 @@
 "use client";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { useRef, useState } from "react";
-import { AppButton, AppPanel } from "@/components/ui";
+import { AppPanel } from "@/components/ui";
 import { Badge } from "@/components/ui/Badge";
-import { formErrorBannerClass, formSuccessBannerClass } from "@/components/ui/formSurface";
 import { pageInsetMetricClass } from "@/components/ui/pageSurface";
-import { cn } from "@/lib/utils";
 import {
   WhatsAppDailyReportActions,
-  type WhatsAppDailyReportHistoryItemView,
   type WhatsAppDailyReportPreviewView,
   type WhatsAppDailyReportQueueResultView,
   type WhatsAppReportSettingsSummaryView,
 } from "@/components/whatsapp/OrganizationWhatsAppReports";
 
 export interface BranchWhatsAppReportsProps {
+  branchId: string;
   branchName: string;
   settings: WhatsAppReportSettingsSummaryView;
-  canConfigure: boolean;
   canQueue: boolean;
   blockedReason?: string;
-  recentReports: readonly WhatsAppDailyReportHistoryItemView[];
-  onSetEnabled: (enabled: boolean) => Promise<void>;
   onPreview: () => Promise<WhatsAppDailyReportPreviewView>;
   onQueue: (idempotencyKey: string) => Promise<WhatsAppDailyReportQueueResultView>;
 }
 
 export function BranchWhatsAppReports({
+  branchId,
   branchName,
   settings,
-  canConfigure,
   canQueue,
   blockedReason,
-  recentReports,
-  onSetEnabled,
   onPreview,
   onQueue,
 }: BranchWhatsAppReportsProps) {
     const t = useTranslation();
-  const [changing, setChanging] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "status" | "error"; text: string } | null>(null);
-  const operationRef = useRef(false);
-
-  const setEnabled = async () => {
-    if (operationRef.current || !canConfigure) return;
-    operationRef.current = true;
-    setChanging(true);
-    setNotice(null);
-    try {
-      await onSetEnabled(!settings.enabled);
-      setNotice({
-        tone: "status",
-        text: settings.enabled
-          ? "Branch report automation disabled. Unsubmitted report work will be revalidated by the server."
-          : "Branch report automation enabled prospectively.",
-      });
-    } catch {
-      setNotice({ tone: "error", text: "Branch report automation could not be changed." });
-    } finally {
-      operationRef.current = false;
-      setChanging(false);
-    }
-  };
 
   return (
     <div className="space-y-4">
       <AppPanel
         title={t("Branch report setup")}
         description={t("Permission-bound branch reports use deterministic aggregate metrics, shift-slot occupancy, and the existing branch WhatsApp budget.")}
-        action={<Badge variant={settings.enabled ? "success" : "default"}>{settings.enabled ? t("Enabled") : t("Disabled")}</Badge>}
+        action={<Badge variant={settings.enabled ? "success" : "default"}>{settings.enabled ? t.owned("Branch delivery on") : t.owned("Branch delivery off")}</Badge>}
         contentClassName="space-y-4"
       >
         <dl className="grid gap-3 sm:grid-cols-2">
@@ -82,34 +50,17 @@ export function BranchWhatsAppReports({
             <dd className="mt-1 font-medium">{t("Existing branch WhatsApp budget")}</dd>
           </div>
         </dl>
-        {notice ? (
-          <p
-            className={cn("px-3 py-2 text-sm", notice.tone === "error" ? formErrorBannerClass : formSuccessBannerClass)}
-            role={notice.tone === "error" ? "alert" : "status"}
-            aria-live={notice.tone === "error" ? "assertive" : "polite"}
-          >
-            {notice.tone === "error" ? t.error(notice.text) : t.owned(notice.text)}
-          </p>
-        ) : null}
-        <div className="flex justify-end">
-          <AppButton
-            variant={settings.enabled ? "danger" : "primary"}
-            size="sm"
-            onClick={() => void setEnabled()}
-            disabled={!canConfigure || changing}
-            isLoading={changing}
-          >
-            {settings.enabled ? t("Disable scheduled reports") : t("Enable scheduled reports")}
-          </AppButton>
-        </div>
+        <p className="text-sm text-[color:var(--text-secondary)]">
+          {t.owned("Pause only your daily reports in the recipient section above. Resuming requires phone confirmation. The branch delivery switch above stops future sends and cancels queued work across the branch.")}
+        </p>
       </AppPanel>
 
       <WhatsAppDailyReportActions
         scope="BRANCH"
+        scopeId={branchId}
         scopeName={branchName}
         canQueue={canQueue}
         blockedReason={blockedReason}
-        recentReports={recentReports}
         onPreview={onPreview}
         onQueue={onQueue}
       />

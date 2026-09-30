@@ -104,6 +104,18 @@ describe("branch capability decisions", () => {
         expect(getBranchCapabilityDecision(analyticsOnly, "aiGenerate").blocker).toBe("permission");
     });
 
+    it("keeps nonfinancial analytics while explicit payment denial blocks financial analytics", () => {
+        const analyticsOnly = access({
+            isOwner: false,
+            role: "MANAGER",
+            permissions: { ...allPermissions, view_payments: false },
+        });
+        expect(getBranchCapabilityDecision(analyticsOnly, "analyticsView").allowed).toBe(true);
+        expect(getBranchCapabilityDecision(analyticsOnly, "analyticsFinanceView").blocker).toBe("permission");
+        expect(getBranchCapabilityDecision(access(), "analyticsFinanceView").allowed).toBe(true);
+        expect(getBranchCapabilityDecision(access({ entitlements: [] }), "analyticsFinanceView").blocker).toBe("entitlement");
+    });
+
     it("allows a manager when the resolved permission set includes the action", () => {
         const result = getBranchCapabilityDecision(
             access({ isOwner: false, role: "MANAGER" }),
@@ -209,6 +221,7 @@ describe("branch capability decisions", () => {
         expect(getBranchCapabilityDecision(readOnly, "whatsappManage").blocker).toBe("read_only");
         expect(getBranchCapabilityDecision(readOnly, "whatsappReportReceive").allowed).toBe(true);
         expect(getBranchCapabilityDecision(readOnly, "whatsappReportOperate").blocker).toBe("read_only");
+        expect(getBranchCapabilityDecision(readOnly, "whatsappServiceNoticeView").allowed).toBe(true);
         expect(getBranchCapabilityDecision(readOnly, "whatsappServiceNotice").blocker).toBe("read_only");
     });
 
@@ -232,5 +245,26 @@ describe("branch capability decisions", () => {
         }, "whatsappReportOperate").blocker).toBe("permission");
 
         expect(getBranchCapabilityDecision(recipient, "whatsappServiceNotice").blocker).toBe("permission");
+    });
+
+    it("keeps notice viewing independent of report and payment permissions", () => {
+        const noticeOperator = access({
+            isOwner: false,
+            role: "STAFF",
+            permissions: {
+                ...allPermissions,
+                manage_branch: false,
+                receive_whatsapp_reports: false,
+                view_payments: false,
+                analytics: false,
+            },
+        });
+        expect(getBranchCapabilityDecision(noticeOperator, "whatsappReportReceive").allowed).toBe(false);
+        expect(getBranchCapabilityDecision(noticeOperator, "whatsappServiceNoticeView").allowed).toBe(true);
+        expect(getBranchCapabilityDecision(noticeOperator, "whatsappServiceNotice").allowed).toBe(true);
+        expect(getBranchCapabilityDecision({
+            ...noticeOperator,
+            permissions: { ...noticeOperator.permissions, manage_whatsapp: false },
+        }, "whatsappServiceNoticeView").allowed).toBe(false);
     });
 });

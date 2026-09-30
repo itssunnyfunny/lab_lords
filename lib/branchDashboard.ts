@@ -156,7 +156,7 @@ export async function loadBranchDashboardSources(
             permissions.view_payments
                 ? fetchDashboardJson<RenewalPage>(`${base}/renewals?filter=UPCOMING&days=7&search=&limit=4`)
                 : Promise.resolve(null),
-            permissions.analytics
+            permissions.analytics && permissions.view_payments
                 ? analytics.getTrends(branchId, { from: trendFrom.toISOString(), to: now.toISOString(), type: "payment", period: "all" })
                 : Promise.resolve(null),
         ] as const);
@@ -173,7 +173,7 @@ export async function loadBranchDashboardSources(
         upcoming: fulfilledValue(upcomingResult, null),
         resources: {
             analytics: resourceStatus(permissions.analytics, snapshotResult),
-            collectionsTrend: resourceStatus(permissions.analytics, trendResult),
+            collectionsTrend: resourceStatus(permissions.analytics && permissions.view_payments, trendResult),
             students: resourceStatus(permissions.students, studentsResult),
             allocations: resourceStatus(permissions.seat_allocation, allocationsResult),
             payments: resourceStatus(permissions.view_payments, paymentsResult),

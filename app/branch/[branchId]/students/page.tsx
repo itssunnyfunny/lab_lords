@@ -202,12 +202,14 @@ function StudentTabButton({
 interface InactivateDialogProps {
     student: Student | null;
     duePayments: Payment[];
+    canRecordFees: boolean;
+    canWaiveFees: boolean;
     onConfirm: (resolution: DueResolution) => void;
     onCancel: () => void;
     loading: boolean;
 }
 
-function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }: InactivateDialogProps) {
+function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, onConfirm, onCancel, loading }: InactivateDialogProps) {
     const t = useTranslation();
     const { formatNumber } = useUserPreferences();
     const formatCurrency = (amount: number) => formatNumber(amount, {
@@ -215,7 +217,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
         currency: "INR",
         maximumFractionDigits: 0,
     });
-    const [resolution, setResolution] = useState<DueResolution>("WAIVED");
+    const [resolution, setResolution] = useState<DueResolution>("KEEP");
 
     const totalDue = duePayments.reduce((sum, p) => sum + remainingFee(p), 0);
     const hasDues = duePayments.length > 0;
@@ -243,6 +245,10 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
             color: "text-[color:var(--ui-tone-danger-text)]",
         },
     ];
+    const allowedOptions = resolutionOptions.filter(option => option.value === "KEEP"
+        || (option.value === "PAID" && canRecordFees)
+        || (option.value === "WAIVED" && canWaiveFees));
+    const effectiveResolution = allowedOptions.some(option => option.value === resolution) ? resolution : "KEEP";
 
     return (
         <Dialog
@@ -260,7 +266,7 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                         {t("Cancel")}</Button>
                     <Button
                         variant="danger"
-                        onClick={() => onConfirm(hasDues ? resolution : "KEEP")}
+                        onClick={() => onConfirm(hasDues ? effectiveResolution : "KEEP")}
                         disabled={loading}
                         isLoading={loading}
                         icon={PowerOff}
@@ -277,9 +283,9 @@ function InactivateDialog({ student, duePayments, onConfirm, onCancel, loading }
                         <p className="text-[color:var(--ui-tone-warning-text)] text-xs">{t("How should these be resolved?")}</p>
 
                         <div className="mt-3 space-y-2">
-                            {resolutionOptions.map(opt => {
+                            {allowedOptions.map(opt => {
                                 const Icon = opt.icon;
-                                const selected = resolution === opt.value;
+                                const selected = effectiveResolution === opt.value;
                                 return (
                                     <label
                                         key={opt.value}
@@ -775,7 +781,10 @@ function StudentsContent({
                     dueResolution: resolution,
                 }),
             });
-            if (!res.ok) throw new Error("Failed to update status.");
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(typeof body?.error === "string" ? body.error : "Failed to update status.");
+            }
             setInactivateTarget(null);
             await Promise.all([loadStudentPage(), loadAuxiliaryData()]);
             toast.show({ title: "Student deactivated", tone: "success" });
@@ -1063,11 +1072,14 @@ function StudentsContent({
 
             {/* Inactivate dialog */}
             <InactivateDialog
+                key={inactivateTarget?.id ?? "closed"}
                 student={inactivateTarget}
                 duePayments={inactivateTarget
                     ? (allPayments.filter(p => p.studentId === inactivateTarget.id && p.status === "DUE"))
                     : []
                 }
+                canRecordFees={canRecordFees}
+                canWaiveFees={getBranchCapabilityDecision(access, "paymentsWaive").allowed}
                 onConfirm={handleInactivateConfirm}
                 onCancel={() => setInactivateTarget(null)}
                 loading={inactivateLoading}

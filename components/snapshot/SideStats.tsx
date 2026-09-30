@@ -30,6 +30,8 @@ export function SideStats({
         );
     }
 
+    if (!snapshot.financialAccess) return null;
+
     const periodLabel = period === "month" ? "This month" : "All time";
 
     return (

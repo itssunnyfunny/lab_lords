@@ -69,7 +69,7 @@ describe("AI generation callers", () => {
   it("preserves cooldown after failed publication in GET and POST metadata", async () => {
     const access = await overdueBranch();
     mocks.gemini.mockResolvedValue("[]");
-    vi.spyOn(generation, "publishGeneration").mockRejectedValueOnce(new Error("publication failed"));
+    vi.spyOn(generation, "publishDraftGeneration").mockRejectedValueOnce(new Error("publication failed"));
     await expect(draftOverdueMessages(access)).rejects.toThrow("publication failed");
     const cached = await draftOverdueMessages(access, { allowGeneration: false });
     const retry = await draftOverdueMessages(access);

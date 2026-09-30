@@ -29,6 +29,9 @@ Global User references record actors/owners and do not assert current membership
 | FeeCollectionAllocation.payment (paymentId, studentId, branchId) | Payment (id, studentId, branchId) | Composite student and branch | No |
 | Organization.owner (ownerId) | User (id) | Global identity/configuration; policy checks remain | No |
 | Branch.organization (organizationId) | Organization (id) | Organization ownership chain | No |
+| OnboardingRequest.owner (ownerId) | User (id) | Durable command actor; replay rechecks current ownership | No |
+| OnboardingRequest.organization (organizationId) | Organization (id) | Receipt binds the created organization | No |
+| OnboardingRequest.branch (branchId, organizationId) | Branch (id, organizationId) | Composite organizationId binds the receipt to its created branch | No |
 | Student.branch (branchId) | Branch (id) | Single scoped parent chain | No |
 | Student.feeLinkedShift (feeLinkedShiftId, branchId) | Shift (id, branchId) | Composite branchId | Yes; deletion semantics in SQL |
 | Student.feeLinkedMultiShift (feeLinkedMultiShiftId, branchId) | MultiShift (id, branchId) | Composite branchId | Yes; deletion semantics in SQL |

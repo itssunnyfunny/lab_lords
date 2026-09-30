@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { BranchAccessNotFoundError } from "@/services/accessPolicy.service";
 
 const mocks = vi.hoisted(() => ({
   getSessionUser: vi.fn(),
@@ -31,8 +32,10 @@ vi.mock("@/services/staff.service", () => ({
 
 describe("GET /api/payments/[paymentId]/audit-log", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
+  afterEach(() => vi.restoreAllMocks());
 
   const request = new NextRequest("http://test.local/api/payments/payment_1/audit-log");
   const context = { params: Promise.resolve({ paymentId: "payment_1" }) };
@@ -71,6 +74,43 @@ describe("GET /api/payments/[paymentId]/audit-log", () => {
     const response = await GET(request, context);
 
     expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "Forbidden" });
     expect(mocks.auditLogFindMany).not.toHaveBeenCalled();
+  });
+
+  it("returns identical generic 404 responses for missing and foreign payments", async () => {
+    mocks.getSessionUser.mockResolvedValue({ id: "unrelated_user" });
+    mocks.paymentFindUnique.mockResolvedValueOnce(null);
+    const { GET } = await import("@/app/api/payments/[paymentId]/audit-log/route");
+
+    const missing = await GET(request, context);
+    expect(mocks.authorize).not.toHaveBeenCalled();
+    mocks.paymentFindUnique.mockResolvedValueOnce({ id: "payment_1", branchId: "foreign_branch" });
+    mocks.authorize.mockRejectedValueOnce(new BranchAccessNotFoundError());
+    const foreign = await GET(request, context);
+
+    expect(missing.status).toBe(404);
+    expect(foreign.status).toBe(missing.status);
+    expect(await missing.json()).toEqual({ error: "Payment not found" });
+    expect(await foreign.json()).toEqual({ error: "Payment not found" });
+    expect(mocks.authorize).toHaveBeenCalledWith("unrelated_user", "foreign_branch", "view_payments");
+    expect(mocks.auditLogFindMany).not.toHaveBeenCalled();
+  });
+
+  it.each(["payment", "authorization", "audit"] as const)("masks unexpected %s errors", async stage => {
+    mocks.getSessionUser.mockResolvedValue({ id: "owner_1" });
+    mocks.paymentFindUnique.mockResolvedValue({ id: "payment_1", branchId: "branch_1" });
+    mocks.authorize.mockResolvedValue(true);
+    const failingRead = stage === "payment" ? mocks.paymentFindUnique
+      : stage === "authorization" ? mocks.authorize : mocks.auditLogFindMany;
+    failingRead.mockRejectedValueOnce(new Error("Internal database detail must not appear in the response"));
+    const { GET } = await import("@/app/api/payments/[paymentId]/audit-log/route");
+
+    const response = await GET(request, context);
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Internal Server Error" });
+    expect(console.error).toHaveBeenCalledWith("[PAYMENT_AUDIT_LOG_GET] Unexpected audit-log failure");
+    if (stage !== "audit") expect(mocks.auditLogFindMany).not.toHaveBeenCalled();
   });
 });

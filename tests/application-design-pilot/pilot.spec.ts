@@ -100,6 +100,71 @@ test("partial collection retains one request through uncertainty and returns a r
     await expect(dialog.getByRole("heading", { name: "फीस की रसीद" })).toBeVisible();
 });
 
+test("onboarding recovers one saved command after response loss, reload, and account switch", async ({ page }, info) => {
+    test.skip(!["desktop-1440", "mobile-390"].includes(info.project.name), "One desktop and one mobile viewport cover the shared recovery flow");
+    const attempts: Array<{ account: string | undefined; key: string | undefined; body: string | null; saved: string | null }> = [];
+    const committed = new Map<string, string>();
+    const result = { org: { id: "org-pilot" }, branch: { id: "pilot" } };
+    await page.route("**/api/onboarding", async route => {
+        const request = route.request();
+        const account = request.headers()["x-onboarding-account"];
+        const key = request.headers()["idempotency-key"];
+        const body = request.postData();
+        attempts.push({
+            account, key, body,
+            saved: await page.evaluate(id => localStorage.getItem(`lab-lords:onboarding:v1:${encodeURIComponent(id)}`), account ?? ""),
+        });
+        const receiptKey = `${account}:${key}`;
+        const originalBody = committed.get(receiptKey);
+        if (originalBody && originalBody !== body) return route.fulfill({ status: 409, json: { code: "ONBOARDING_KEY_CONFLICT" } });
+        if (!originalBody) committed.set(receiptKey, body ?? "");
+        // The first synthetic setup commits, but its HTTP response is lost.
+        if (attempts.length === 1) return route.abort("failed");
+        return route.fulfill({ status: 201, json: result });
+    });
+
+    await openPilot(page, "/onboarding", { identity: "pilot-owner" });
+    expect(await page.evaluate(() => typeof navigator.locks?.request)).toBe("function");
+    await page.locator('input[name="orgName"]').fill("Synthetic Recovery Library");
+    await page.locator('input[name="ownerPhone"]').fill("9876543210");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.locator('input[name="branchName"]').fill("Synthetic Main Branch");
+    await page.locator('input[name="seatCount"]').fill("8");
+    await page.getByRole("button", { name: "Choose plan" }).click();
+    await page.getByRole("button", { name: /^Standard\b/ }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: /Begin with a clean workspace/ }).click();
+    await page.getByRole("button", { name: "Start Standard trial" }).click();
+
+    await expect(page.getByRole("heading", { name: "Recover your saved setup" })).toBeVisible();
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].account).toBe("pilot-owner");
+    expect(attempts[0].key).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(JSON.parse(attempts[0].saved!)).toMatchObject({
+        accountId: "pilot-owner", pending: { commandId: attempts[0].key, body: attempts[0].body },
+    });
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Recover your saved setup" })).toBeVisible();
+    expect(attempts).toHaveLength(1); // Reload never dispatches on its own.
+    await page.goto("/onboarding?mode=after&lang=en&identity=other-owner");
+    await expect(page.getByRole("heading", { name: "Organization details" })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("lab-lords:onboarding:v1:other-owner"))).toBeNull();
+    expect(attempts).toHaveLength(1);
+
+    await page.goto("/onboarding?mode=after&lang=en&identity=pilot-owner");
+    await expect(page.getByRole("button", { name: "Retry saved setup" })).toBeVisible();
+    await page.getByRole("button", { name: "Retry saved setup" }).click();
+    await expect(page).toHaveURL(/\/branch\/pilot$/);
+    expect(attempts).toHaveLength(2);
+    expect(committed.size).toBe(1);
+    expect(attempts[1]).toMatchObject({ account: "pilot-owner", key: attempts[0].key, body: attempts[0].body });
+    expect(JSON.parse(attempts[1].saved!)).toMatchObject({ pending: { commandId: attempts[0].key } });
+    expect(JSON.parse((await page.evaluate(() => localStorage.getItem("lab-lords:onboarding:v1:pilot-owner")))!)).toMatchObject({
+        pending: null, completed: [{ commandId: attempts[0].key, result }],
+    });
+});
+
 test("empty, no-results, failed, restricted, and read-only fixture states stay distinct", async ({ page }) => {
     await openPilot(page, "/branch/pilot/students", { state: "empty" });
     await expect(page.getByText("No students in this view yet.").filter({ visible: true }).first()).toBeVisible();

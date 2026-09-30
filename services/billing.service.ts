@@ -3074,26 +3074,69 @@ export class BillingService {
       change:processed ?? change,subscription:serializeSubscription(subscription)};
   }
 
-  static async undoWorkspaceCancellation(userId: string, organizationId: string, now = new Date()) {
+  static async undoWorkspaceCancellation(
+    userId: string,
+    organizationId: string,
+    now?: Date,
+    changeId?: string
+  ) {
     await OrganizationService.getOrganizationForOwnerAccess(organizationId, userId);
-    const change = await prisma.organizationBillingChange.findFirst({
-      where: { organizationId, type: "CANCELLATION", status: "QUEUED" },
-      orderBy: { sequence: "desc" },
+    return prisma.$transaction(async tx => {
+      const lockedOrganization = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "Organization"
+        WHERE "id" = ${organizationId} AND "ownerId" = ${userId}
+        FOR UPDATE
+      `;
+      if (lockedOrganization.length === 0) throw new OrganizationAccessNotFoundError();
+      const organization = await tx.organization.findFirst({
+        where: { id: organizationId, ownerId: userId },
+        select: { billingMutationLeaseToken: true },
+      });
+      if (!organization) throw new OrganizationAccessNotFoundError();
+      const change = await tx.organizationBillingChange.findFirst({
+        where: {
+          organizationId,
+          type: "CANCELLATION",
+          ...(changeId ? { id: changeId } : { status: { in: ["QUEUED", "PROCESSING"] } }),
+        },
+        orderBy: { sequence: "desc" },
+      });
+      if (!change) throw new BillingResourceNotFoundError("Undoable cancellation not found");
+      if (organization.billingMutationLeaseToken || change.status !== "QUEUED"
+        || change.providerMutationAdmittedAt) {
+        throw new BillingChangeInProgressError(
+          change.id,
+          "The provider mutation is processing and cannot be undone"
+        );
+      }
+      const undoAt = now ?? new Date();
+      if (!change.undoCutoffAt || change.undoCutoffAt <= undoAt) {
+        throw new BillingValidationError("The cancellation is no longer undoable");
+      }
+      const undone = await tx.organizationBillingChange.updateMany({
+        where: {
+          id: change.id,
+          organizationId,
+          status: "QUEUED",
+          updatedAt: change.updatedAt,
+          providerMutationAdmittedAt: null,
+        },
+        data: {
+          status: "UNDONE",
+          operationStatus: "ABANDONED",
+          undoneAt: undoAt,
+          resolvedAt: undoAt,
+        },
+      });
+      if (undone.count !== 1) {
+        throw new BillingChangeInProgressError(
+          change.id,
+          "The billing change moved while the undo was being finalized"
+        );
+      }
+      return { undone: true };
     });
-    if (!change) throw new BillingResourceNotFoundError("Undoable cancellation not found");
-    if (!change.undoCutoffAt || change.undoCutoffAt <= now) {
-      throw new BillingValidationError("The cancellation is no longer undoable");
-    }
-    await prisma.organizationBillingChange.update({
-      where: { id: change.id },
-      data: {
-        status: "UNDONE",
-        operationStatus: "ABANDONED",
-        undoneAt: now,
-        resolvedAt: now,
-      },
-    });
-    return { undone: true };
   }
 
   static async getRecoveryCheckout(userId: string, organizationId: string, returnPath?: unknown) {
@@ -3840,7 +3883,9 @@ export class BillingService {
         "The provider mutation outcome must be reconciled before it can be undone"
       );
     }
-    if (change.type === "CANCELLATION") return this.undoWorkspaceCancellation(userId, organizationId);
+    if (change.type === "CANCELLATION") {
+      return this.undoWorkspaceCancellation(userId, organizationId, undefined, change.id);
+    }
     if (change.replacementSubscriptionId) {
       await BillingReplacementService.undoReplacement(change.id);
       return { undone: true, replayed: null };

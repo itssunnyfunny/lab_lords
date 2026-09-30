@@ -24,6 +24,44 @@
     "nullable": false
   },
   {
+    "model": "OnboardingRequest",
+    "field": "owner",
+    "parent": "User",
+    "fields": [
+      "ownerId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "OnboardingRequest",
+    "field": "organization",
+    "parent": "Organization",
+    "fields": [
+      "organizationId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "OnboardingRequest",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId",
+      "organizationId"
+    ],
+    "references": [
+      "id",
+      "organizationId"
+    ],
+    "nullable": false
+  },
+  {
     "model": "Student",
     "field": "branch",
     "parent": "Branch",

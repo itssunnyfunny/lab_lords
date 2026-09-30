@@ -177,10 +177,19 @@ describe("loadBranchDashboardSources", () => {
     expect(result.upcoming?.counts.UPCOMING).toBe(5);
   });
 
-  it("requests a bounded all-time cumulative series only with analytics access", async () => {
+  it("does not request a financial series when payment view is explicitly denied", async () => {
     mocks.getSnapshot.mockResolvedValue(null);
     mocks.getTrends.mockResolvedValue([]);
-    await loadBranchDashboardSources("branch_1", { analytics: true, students: false, seat_allocation: false, view_payments: false }, new Date("2026-09-23T08:30:00Z"));
+    const result = await loadBranchDashboardSources("branch_1", { analytics: true, students: false, seat_allocation: false, view_payments: false }, new Date("2026-09-23T08:30:00Z"));
+    expect(mocks.getSnapshot).toHaveBeenCalledWith("branch_1", { period: "month" });
+    expect(mocks.getTrends).not.toHaveBeenCalled();
+    expect(result.resources.collectionsTrend).toBe("restricted");
+  });
+
+  it("requests a bounded financial series when both analytics and payment view are allowed", async () => {
+    mocks.getSnapshot.mockResolvedValue(null);
+    mocks.getTrends.mockResolvedValue([]);
+    await loadBranchDashboardSources("branch_1", { analytics: true, students: false, seat_allocation: false, view_payments: true }, new Date("2026-09-23T08:30:00Z"));
     expect(mocks.getTrends).toHaveBeenCalledWith("branch_1", {
       from: "2026-09-09T08:30:00.000Z", to: "2026-09-23T08:30:00.000Z", type: "payment", period: "all",
     });

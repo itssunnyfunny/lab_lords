@@ -1,5 +1,19 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Branch analytics payment boundary — local remediation, 2026-09-29
+
+The interactive branch snapshot and payment trend separate general analytics
+access from finance access. An entitled analytics viewer with an explicit
+`view_payments` denial can still read student and seat analytics; payment-derived
+amounts, counts and rates are omitted or denied server-side. The legacy
+dashboard payment trend now checks payment-view access, while complete AI
+reports retain their separate payment checks. Local unit and route regressions
+cover the split; connected
+role/database and browser verification remains pending. No schema or environment
+change is needed for this boundary. The public report capability claims remain
+accurate under the narrower permission rule, so Home, Features, Pricing and FAQ
+need no wording change.
+
 ## Authenticated application presentation rollout — 2026-09-28
 
 The selected dashboard and approved Students hierarchy are the visual foundation.
@@ -99,6 +113,15 @@ occupancy history, manual tasks, focused fee follow-ups and persistent personal
 notification acknowledgement. Existing collection, anniversary fee, attendance,
 provider, localization and tenant boundaries remain authoritative; public pages
 remain unchanged. Visual acceptance is reserved for the owner.
+Renewal notifications link to the membership-terms setup section. The setup
+section follows same-route query changes and keeps tab navigation in the URL,
+subject to the viewer's existing permissions.
+Attendance expectations and membership terms now page their records and active
+student choices independently with full scoped totals. The student cursor uses
+immutable ID order without placing names in URLs; a focused same-branch student
+can be selected outside the current page. Save locks paging and selection until
+the write and refresh finish. Separate live page requests are not one database
+snapshot, so concurrent membership changes can change totals.
 
 The chart shows current settlement of the selected month's due-date cohort;
 cash collected this month is a separate measure. Historical occupancy begins
@@ -514,26 +537,49 @@ Two payment domains must not be confused:
   persists V2 and the selected post-trial plan, and starts the existing single-owner
   30-day trial. The old organization-only POST returns `410 ONBOARDING_REQUIRED`.
   Existing legacy organizations retain their compatibility entitlement behavior.
-- The transaction has no request-idempotency guard. Retrying the same completed
-  onboarding submission can create another independent organization/network.
+- Onboarding requires an owner-bound UUID request key and freezes the validated
+  setup command in account-scoped browser storage before dispatch. The service
+  serializes an owner's commands and commits an `OnboardingRequest` receipt with
+  the new workspace. The receipt stores a versioned canonical hash and result
+  IDs, not the request body; matching retries return only the original linked
+  IDs. Different keys still support intentional additional workspaces without
+  granting another lifetime trial. Receipt-bearing results are archival, not
+  physically deletable under the restrictive receipt relations. This change is
+  locally implemented but connected lost-response/concurrency validation and
+  migration application remain pending an exactly verified disposable database.
 
 Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.service.ts`, `services/onboarding.service.ts`, and `app/api/onboarding/route.ts`.
 
 ### Branch operations
 
 - Student create, import, update, status changes, fee-source links, billing start date, and paginated listing are implemented.
+- Student deactivation offers KEEP by default; paid and waived resolutions appear
+  only when the viewer has their respective fee permissions. The server still
+  checks those actions and branch writability for each status command.
 - Seats can be created individually or generated from a numbering configuration.
 - Branches have primary shifts and composed multi-shifts.
+- Allocation capacity and picker maps omit retained MultiShifts with inactive,
+  foreign, missing, or incomplete component sets; management can still see
+  those bundles for repair and historical fee links.
 - Shift deletion is soft deletion and requires an explicit resolution for affected allocations.
 - Shift deletion shares the allocation writer's serializable/retry protocol.
   Targets must be active in the source branch; manual assignments must exactly
   cover the current active source rows. Ending/reallocating a bundle component
   ends its active siblings for that student and seat before any replacement.
 - Seat allocations preserve history through `startDate` and nullable `endDate`.
+- Allocation history groups bundle components by bundle, student, seat and
+  exact assignment period, so later assignments and same-name students remain
+  distinct in both grid and table views.
 - Allocation writes use serializable transactions with retry handling and validate branch ownership, active student/shift state, exact conflicts, and time overlaps for both the seat and student.
 - Allocation student/seat/shift/MultiShift links additionally use branch-scoped
   composite foreign keys, backed by the explicit allocation `branchId`.
 - Releasing one allocation belonging to a multi-shift releases the complete related bundle.
+- The change-allocation dialog treats a successful seat/shift move as committed even
+  if its optional student fee PATCH fails. It keeps a fee-only retry available,
+  refreshes allocation rows, and hides fee controls from allocation-only staff.
+- The allocation picker reads only active same-branch student IDs and names
+  under allocation permission; full student-directory and optional fee-profile
+  access remain independently permission-gated.
 - Student creation and its optional admission payment are atomic, but an
   optional initial seat allocation runs afterward. Allocation failure leaves
   the student and admission payment committed.
@@ -561,6 +607,9 @@ Authoritative code: `services/student.service.ts`, `services/seat.service.ts`, `
 - Overdue state is derived centrally using a hard-coded rule of strictly more
   than seven calendar days; the stored `paymentGraceDays` setting is not read.
 - `/api/cron/payments/daily` generates due payments for active students and requires `Authorization: Bearer <CRON_SECRET>`.
+- The branch payments page fences tab/month/deep-link reads and pagination by
+  active query and request version, so obsolete responses cannot replace the
+  current rows, counts, cursor, loading state, or error.
 
 Authoritative code: `services/payment.service.ts`, `analytics/payment.analytics.ts`, and the payment API routes.
 
@@ -723,6 +772,22 @@ The organization WhatsApp panel adds managed-template installation, consolidated
 report, organization report-budget, sender-safety, rate-card, incident, and
 health state. Branch settings expose delivery/budget/rules/prospective automation,
 self-service daily reports, typed service notices, and permitted operations.
+Daily report panels load their own 20 most recent persisted message outcomes
+after report authorization, scoped to the actor's subscription, tenant,
+purpose, snapshot and provider mode. History exposes masked recipient and
+delivery metadata, distinguishes accepted from delivered, and shows an
+unavailable state on read failure.
+Entitled branch WhatsApp viewers can enter a restricted WhatsApp workspace
+without branch-settings or report-recipient permission. Its assignment response
+projects operations and service-notice availability independently of reports;
+the panel loads authorized incidents and notices even when report access is
+denied or a report read fails. General branch settings still require branch
+management permission, and the service rechecks notice writes and incident
+acknowledgement server-side.
+For an entitled organization owner, the sender projection separately exposes
+operations availability and writable operations management. Organization
+incident and sender-safety reads start independently of report requests;
+onboarding controls continue to use their own write/configuration gate.
 Student management retains explicit recipient/consent controls, and the overdue
 workspace keeps deterministic official-reminder preview/queueing separate from
 AI review/copy. Operations projection is server-side and hidden by default.
@@ -982,7 +1047,7 @@ Authoritative code: `services/billing*.ts`, `services/ownerTrial.service.ts`, `s
   [redesign implementation record](../redesign/implementation.md) for scope and
   validation; this is local implementation, not deployment evidence.
 - Landing, product-specific SEO pages, contact, support, privacy, terms, refund, shipping/delivery, and cookie pages are implemented.
-- Google Analytics loads only when a measurement ID is configured and begins with denied consent. Events require explicit accepted consent.
+- Google Analytics is initialized only after routing reaches a known public page when a measurement ID is configured and begins with denied consent. Explicit public page views can be sent without analytics storage; custom events still require accepted consent. The application drops queries, fragments, sensitive routes, and referrers from explicit tracking and sets safe URL defaults at initialization. Provider-managed Enhanced Measurement settings and actual network payloads still need separate verification, especially after client navigation from a public page into a sensitive route.
 - The support/bug-report form opens a pre-filled email through `mailto:`; there is no server-side support-ticket or email-delivery integration.
 
 Authoritative code: `app/layout.tsx`, public pages under `app/`, `components/analytics/AnalyticsProvider.tsx`, `lib/tracking.ts`, and `components/feedback/BugReportForm.tsx`.
@@ -1019,13 +1084,13 @@ Known failure semantic: admission advances `aiLastCalledAt` before Gemini. Owned
 
 Message generation is human-triggered and does not send messages.
 
-- GET reads current overdue students and returns matching cached drafts with `allowGeneration: false`.
+- GET reads current overdue students and returns matching cached drafts with `allowGeneration: false`. A versioned source marker covers payment identities, remaining balances, due dates, elapsed overdue days and student facts; an older or mismatched marker is outdated. GET never invokes Gemini.
 - POST regenerates only explicitly selected student IDs and requires analytics plus payment-view permission, AI entitlement, writability, and a process-local route limit.
 - Overdue payments are grouped into one target per student.
 - A branch/DRAFTS token reserves the five-minute cooldown before a single Gemini request covers the selected targets. Cached GET and POST metadata include the durable cooldown even after failed publication.
 - The prompt includes student name, oldest due date, total due, payment count, and days overdue; it does not include the stored phone number.
 - Invalid/missing Gemini output is replaced with deterministic English or Hinglish text.
-- The selected draft batch is replaced in one transaction, fenced by the current token and a unique branch/student/language/action key. Ambiguous historical duplicates block migration rather than being deleted.
+- Gemini runs outside the database transaction. DRAFTS publication locks selected students and then the branch with NOWAIT, rechecks the current token, branch state, authorization and exact source before and after replacement, and rolls back the whole batch if any input changed or the lock is busy. The response re-reads current overdue membership/freshness; the UI suppresses outdated text and copy. The versioned action retains the unique branch/student/language/action key; other language/tone/include variants remain separate. Ambiguous historical duplicates block migration rather than being deleted.
 - This AI draft UI remains review/copy only and has no provider integration. The
   separate PR3 official reminder flow rebuilds content from trusted typed values
   and managed Utility templates; it never reads `MessageDraft.message`.
@@ -1107,7 +1172,7 @@ Production migrations have a separate manually dispatched workflow requiring the
 ### Known verification gaps
 
 - Real PostgreSQL generation ownership and caller suites exercise report takeover/stale completion, draft concurrency, cooldown metadata and failed batch rollback. They do not exhaust every report cache/narrative combination.
-- No direct Vitest suite exercises the complete `draftOverdueMessages()` persistence/cooldown lifecycle; route tests mock it.
+- DB-free regressions exercise canonical overdue-source freshness, simulated provider latency, cached reads and cooldown. Real PostgreSQL writer/publisher interleavings and browser review remain unverified until an exactly verified disposable target is available.
 - AI verification scripts exist, but scripts are not equivalent to repeatable CI coverage.
 - Browser tests exist but are not run by the main CI workflow.
 - Repository tests do not prove deployment-pinned Workflow resume behavior,

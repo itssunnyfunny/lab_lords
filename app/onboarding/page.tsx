@@ -3,7 +3,8 @@ import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import type { ChangeEvent } from "react";
-import { use, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { AppButton, AppSelect } from "@/components/ui";
 import {
@@ -36,7 +37,14 @@ import {
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { ArrowLeft, ArrowRight, Building2, CheckCircle2, Clock3, CreditCard, Layers, LayoutDashboard, MapPin, Phone, Plus, Sparkles, UploadCloud, X } from "lucide-react";
 import { LogoMark } from "@/components/brand/AppLogo";
-import { apiClient } from "@/lib/api/core";
+import {
+    onboardingDestination,
+    onboardingStorageKey,
+    readOnboardingCommand,
+    runOnboardingCommand,
+    type OnboardingCommand,
+    type OnboardingDraft,
+} from "@/lib/onboardingPendingCommand";
 import {
     FORM_LIMITS,
     parseIntegerField,
@@ -67,15 +75,6 @@ interface OnboardingMultiShiftDraft {
     name: string;
     price: number | string;
     componentShiftIds: string[];
-}
-
-interface OnboardingResponse {
-    org: {
-        id: string;
-    };
-    branch: {
-        id: string;
-    };
 }
 
 type FieldKey = "orgName" | "ownerPhone" | "businessType" | "branchName" | "city" | "seatCount" | "seatNumbering" | "shifts" | "multiShifts";
@@ -144,13 +143,51 @@ export default function OnboardingPage({
 }) {
     const t = useTranslation();
     const query = use(searchParams);
+    const { isLoaded, isSignedIn, user } = useUser();
     const requestedBillingPlan = isCheckoutBillingPlanId(query.billingPlan)
         ? query.billingPlan
         : null;
+    if (!isLoaded || !isSignedIn || !user) {
+        return <div className={entryRootClass}><p role="status">{t.owned(isLoaded ? "Sign in to continue setup." : "Loading setup...")}</p></div>;
+    }
+    // Account changes remount every form, recovery and in-flight UI state.
+    return <OnboardingAccountPage key={user.id} accountId={user.id} requestedBillingPlan={requestedBillingPlan} />;
+}
+
+function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
+    accountId: string;
+    requestedBillingPlan: CheckoutBillingPlanId | null;
+}) {
+    const t = useTranslation();
     const router = useRouter();
     const [step, setStep] = useState<OnboardingStep>(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [savedCommand, setSavedCommand] = useState<OnboardingCommand | null>(null);
+    const [storageReady, setStorageReady] = useState(false);
+    const [storageError, setStorageError] = useState<string | null>(null);
+    const [newAfterCommandId, setNewAfterCommandId] = useState<string>();
+    const active = useRef(false);
+    const busy = useRef(false);
+    const loadSavedCommand = useCallback(() => {
+        try {
+            setSavedCommand(readOnboardingCommand(accountId));
+            setStorageReady(true);
+            setStorageError(null);
+        } catch (failure) {
+            setStorageReady(false);
+            setStorageError(failure instanceof Error ? failure.message : "Your saved setup could not be accessed safely.");
+        }
+    }, [accountId]);
+    useEffect(() => {
+        active.current = true;
+        loadSavedCommand();
+        const onStorage = (event: StorageEvent) => {
+            if (event.key === null || event.key === onboardingStorageKey(accountId)) loadSavedCommand();
+        };
+        window.addEventListener("storage", onStorage);
+        return () => { active.current = false; window.removeEventListener("storage", onStorage); };
+    }, [accountId, loadSavedCommand]);
     const [selectedPostTrialPlan, setSelectedPostTrialPlan] = useState<CheckoutBillingPlanId | null>(requestedBillingPlan);
     const [startingPoint, setStartingPoint] = useState<"IMPORT" | "CLEAN" | null>(null);
     const [trialEndDate] = useState(() => {
@@ -375,7 +412,29 @@ export default function OnboardingPage({
         setStep(2);
     };
 
+    const completeSetup = async (draft?: OnboardingDraft) => {
+        if (busy.current || !active.current || !storageReady) return;
+        busy.current = true;
+        setLoading(true);
+        setError(null);
+        try {
+            const receipt = await runOnboardingCommand({ accountId, draft, newAfterCommandId, isCurrent: () => active.current });
+            if (!active.current) return;
+            setSavedCommand(receipt);
+            setNewAfterCommandId(undefined);
+            router.push(onboardingDestination(receipt));
+        } catch (failure) {
+            if (!active.current) return;
+            loadSavedCommand();
+            setError(failure instanceof Error ? failure.message : "Setup could not be confirmed. Retry the saved setup.");
+        } finally {
+            busy.current = false;
+            if (active.current) setLoading(false);
+        }
+    };
+
     const handleSubmit = async () => {
+        if (busy.current || !storageReady) return;
         markSubmitted();
         setError(null);
         const result = validateForm();
@@ -391,33 +450,21 @@ export default function OnboardingPage({
         }
 
         const { orgNameResult, ownerPhoneResult, businessTypeResult, branchNameResult, cityResult, seatCountResult, seatNumberingConfig, shiftsResult, multiShiftsResult } = result.values;
-        setLoading(true);
-
-        try {
-            const res = await apiClient.post("/onboarding", {
+        await completeSetup({
+            startingPoint,
+            payload: {
                 orgName: orgNameResult.value,
                 ownerPhone: ownerPhoneResult.value,
                 businessType: businessTypeResult.value,
                 branchName: branchNameResult.value,
                 city: cityResult.value,
-                seatCount: seatCountResult.value,
+                seatCount: seatCountResult.value!,
                 seatNumbering: seatNumberingConfig,
                 shifts: shiftsResult.value,
                 multiShifts: multiShiftsResult.value,
                 selectedPostTrialPlan,
-            }) as OnboardingResponse;
-
-            const destination = startingPoint === "IMPORT"
-                ? `/branch/${res.branch.id}/onboarding/import`
-                : `/branch/${res.branch.id}`;
-            router.push(destination);
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : "Failed to complete setup. Please try again.";
-            console.error("Setup failed", err);
-            setError(message);
-        } finally {
-            setLoading(false);
-        }
+            },
+        });
     };
 
     const continueToPlan = () => {
@@ -441,6 +488,7 @@ export default function OnboardingPage({
     const selectedPlan = onboardingPlans.find(plan => plan.id === selectedPostTrialPlan) ?? null;
 
     const canAddMultiShift = formData.shifts.length >= 2;
+    const showRecovery = savedCommand && (savedCommand.status === "pending" || newAfterCommandId !== savedCommand.commandId);
 
     return (
         <div data-app-design-pilot="workspace" className={cn(entryRootClass, "items-start py-8 sm:items-center")}>
@@ -479,6 +527,30 @@ export default function OnboardingPage({
                     </aside>
 
                     <main className="p-5 sm:p-6 lg:p-8">
+                        {!storageReady ? (
+                            <div role="status" className="space-y-4">
+                                <p>{t.owned(storageError ?? "Checking for a saved setup...")}</p>
+                                {storageError && <AppButton density="compact" onClick={loadSavedCommand}>{t.owned("Retry saved setup check")}</AppButton>}
+                            </div>
+                        ) : showRecovery ? (
+                            <div className="space-y-4">
+                                <h2 className={entryTitleClass}>{t.owned(savedCommand.status === "completed" ? "Your workspace is ready" : "Recover your saved setup")}</h2>
+                                <p className={entryMutedTextClass}>{t.owned(savedCommand.status === "completed"
+                                    ? "Continue to the workspace you already created, or choose to set up another organization."
+                                    : "Your setup request is saved. Retry it to confirm the result. The same request will be used so an interrupted response does not create another workspace.")}</p>
+                                <AppButton density="compact" disabled={loading} isLoading={loading} onClick={() => completeSetup()}>
+                                    {t.owned(savedCommand.status === "completed" ? "Continue to workspace" : "Retry saved setup")}
+                                </AppButton>
+                                {savedCommand.status === "completed" && <AppButton density="compact" variant="quiet" disabled={loading} onClick={() => {
+                                    setNewAfterCommandId(savedCommand.commandId);
+                                    setStep(1);
+                                    setError(null);
+                                    setStartingPoint(null);
+                                    setFormData({ orgName: "", ownerPhone: "", businessType: "", branchName: "", city: "", seatCount: "",
+                                        seatNumbering: createSimpleSeatNumbering(), shifts: DEFAULT_ONBOARDING_SHIFTS, multiShifts: DEFAULT_ONBOARDING_MULTI_SHIFTS });
+                                }}>{t.owned("Set up another organization")}</AppButton>}
+                            </div>
+                        ) : <fieldset disabled={loading} className="min-w-0">
                         <div className="mb-6">
                             <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ui-form-accent)]">{t("Step {step} of 4", { step: step })}</p>
                             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[color:var(--text-primary)]">
@@ -1009,6 +1081,7 @@ export default function OnboardingPage({
                             </div>
                         )}
 
+                        </fieldset>}
                         {error && (
                             <div className={cn("mt-5 p-3 text-sm", formErrorBannerClass)}>
                                 <LocalizedError error={error} />

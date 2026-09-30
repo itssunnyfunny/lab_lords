@@ -9,6 +9,9 @@ import {
 import { getOrganizationHealthSnapshot, getOrgSnapshot } from "@/analytics/org.analytics";
 import { getSeatUtilizationTrend } from "@/analytics/trends/seat.trends";
 import { GET as getBranchSnapshot } from "@/app/api/analytics/branch/[branchId]/snapshot/route";
+import { GET as getBranchTrends } from "@/app/api/analytics/branch/[branchId]/trends/route";
+import { NextRequest } from "next/server";
+import { AccessPolicy } from "@/services/accessPolicy.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import {
   createAllocation,
@@ -17,6 +20,7 @@ import {
   createPayment,
   createSeat,
   createSaasSubscription,
+  createStaff,
   createShift,
   createStudent,
   createTestWorld,
@@ -331,6 +335,62 @@ describe("Analytics corrections", () => {
   });
 
   describe("branch analytics route authorization", () => {
+    it("persists explicit payment denial without removing nonfinancial analytics or ordinary payment access", async () => {
+      const { branch, org, user } = await createTestWorld();
+      await createSaasSubscription({ organizationId: org.id, plan: "PRO" });
+      const manager = await createUser();
+      const staff = await createStaff({ userId: manager.id, branchId: branch.id, role: "MANAGER" });
+      const student = await createStudent({ branchId: branch.id });
+      await createPayment({
+        branchId: branch.id, studentId: student.id, amount: 420,
+        dueDate: new Date("2026-09-01T00:00:00.000Z"),
+        periodStart: new Date("2026-09-01T00:00:00.000Z"),
+        periodEnd: new Date("2026-09-30T00:00:00.000Z"),
+      });
+      await testPrisma.staffPermissionOverride.create({ data: { staffId: staff.id, action: "VIEW_PAYMENTS", allowed: false } });
+      authMock.sessionUser = { id: manager.id, email: manager.email };
+
+      const snapshot = await getBranchSnapshot(
+        new Request(`http://localhost/api/analytics/branch/${branch.id}/snapshot`),
+        { params: Promise.resolve({ branchId: branch.id }) }
+      );
+      expect(snapshot.status).toBe(200);
+      const body = await snapshot.json();
+      expect(body).toMatchObject({ financialAccess: false, activeStudents: 1 });
+      for (const field of ["monthlyRevenue", "dueAmount", "paidAmount", "collectionRate", "payments", "overdueCount", "healthScore"]) {
+        expect(body).not.toHaveProperty(field);
+      }
+      for (const type of ["seat", "students", "health"]) {
+        const response = await getBranchTrends(new NextRequest(
+          `http://localhost/api/analytics/branch/${branch.id}/trends?from=2026-09-01&to=2026-09-01&type=${type}`
+        ), { params: Promise.resolve({ branchId: branch.id }) });
+        expect(response.status).toBe(200);
+      }
+      const paymentTrend = await getBranchTrends(new NextRequest(
+        `http://localhost/api/analytics/branch/${branch.id}/trends?from=2026-09-01&to=2026-09-01&type=payment`
+      ), { params: Promise.resolve({ branchId: branch.id }) });
+      expect(paymentTrend.status).toBe(403);
+      expect(await paymentTrend.json()).toEqual({ error: "Forbidden" });
+
+      authMock.sessionUser = { id: user.id, email: user.email };
+      const ownerSnapshot = await getBranchSnapshot(
+        new Request(`http://localhost/api/analytics/branch/${branch.id}/snapshot`),
+        { params: Promise.resolve({ branchId: branch.id }) }
+      );
+      expect(ownerSnapshot.status).toBe(200);
+      expect(await ownerSnapshot.json()).toMatchObject({ financialAccess: true, dueAmount: 420 });
+
+      await testPrisma.staffPermissionOverride.delete({ where: { staffId_action: { staffId: staff.id, action: "VIEW_PAYMENTS" } } });
+      await testPrisma.staffPermissionOverride.create({ data: { staffId: staff.id, action: "ANALYTICS", allowed: false } });
+      authMock.sessionUser = { id: manager.id, email: manager.email };
+      const deniedAnalytics = await getBranchSnapshot(
+        new Request(`http://localhost/api/analytics/branch/${branch.id}/snapshot`),
+        { params: Promise.resolve({ branchId: branch.id }) }
+      );
+      expect(deniedAnalytics.status).toBe(403);
+      await expect(AccessPolicy.authorizeCapability(manager.id, branch.id, "paymentsView")).resolves.toBeDefined();
+    });
+
     it("rejects users without analytics access", async () => {
       const { branch } = await createTestWorld();
       const stranger = await createUser();

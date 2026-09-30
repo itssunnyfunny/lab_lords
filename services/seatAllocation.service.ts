@@ -41,6 +41,19 @@ const ALLOCATION_STUDENT_DETAIL_SELECT = {
 } as const satisfies Prisma.StudentSelect;
 
 export class SeatAllocationService {
+    /** Minimal identity picker for allocation work, independently of student-directory access. */
+    static async listStudentOptions(userId: string, branchId: string) {
+        const access = await AccessPolicy.authorizeCapability(userId, branchId, "allocationsView");
+        const items = await prisma.student.findMany({
+            where: { branchId: access.branchId, status: StudentStatus.ACTIVE },
+            select: MINIMAL_STUDENT_IDENTITY_SELECT,
+            orderBy: [{ name: "asc" }, { id: "asc" }],
+        });
+        // Fee-profile PATCH requires students permission; both mutations still
+        // independently recheck authorization and branch writability on submit.
+        return { items, canLinkFee: access.permissions.students };
+    }
+
     private static async getAllocationWithBranch(allocationId: string) {
         const allocation = await prisma.seatAllocation.findUnique({
             where: { id: allocationId },

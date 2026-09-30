@@ -85,6 +85,7 @@ export const analyticsMessages = {
     "No verified analytics snapshot was returned.": ["सत्यापित आँकड़ों की झलक नहीं मिली।", "Verified analytics snapshot nahi mila."],
     "Analytics & Trends": ["आँकड़े और रुझान", "Analytics aur trends"],
     "Branch performance with corrected revenue, collections, dues, and utilization.": ["सही आमदनी, मिली फीस, बकाया और इस्तेमाल के साथ ब्रांच का प्रदर्शन।", "Corrected revenue, collections, dues aur utilization ke saath branch performance."],
+    "Branch students and seat utilization.": ["ब्रांच के छात्र और सीटों का इस्तेमाल।", "Branch students aur seat utilization."],
     "Updated": ["अपडेट हुआ", "Updated"], "recently": ["हाल में", "Haal mein"],
     "Analytics period": ["आँकड़ों की अवधि", "Analytics period"], "Chart metric": ["चार्ट का आँकड़ा", "Chart metric"],
     "Branch Summary": ["ब्रांच का सार", "Branch summary"],

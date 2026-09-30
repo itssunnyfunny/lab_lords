@@ -5,9 +5,10 @@ import { publicConsentCatalog } from "@/lib/public-i18n/consent";
 import { publicRoute } from "@/lib/public-i18n/routes";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
+  activateGoogleAnalyticsForPublicPath,
   COOKIE_CONSENT_CHANGE_EVENT,
   CookieConsent,
   getStoredCookieConsent,
@@ -25,7 +26,6 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   const pathname = usePathname();
   const route = publicRoute(pathname);
   const t = route ? publicTranslator(messagesFor(publicConsentCatalog, route.locale)) : appText.owned;
-  const searchParams = useSearchParams();
   const [showPreferences, setShowPreferences] = useState(false);
   const appliedConsent = useRef<CookieConsent | null>(null);
   const consent = useSyncExternalStore(
@@ -33,11 +33,6 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
     getStoredCookieConsent,
     () => null
   );
-
-  const pagePath = useMemo(() => {
-    const query = searchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  }, [pathname, searchParams]);
 
   useEffect(() => {
     const openPreferences = () => setShowPreferences(true);
@@ -49,20 +44,21 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
   }, []);
 
   useEffect(() => {
-    if (!measurementId || consent === null || appliedConsent.current === consent) return;
-
-    updateGoogleAnalyticsConsent(consent);
-    appliedConsent.current = consent;
-  }, [consent, measurementId]);
-
-  useEffect(() => {
     if (!measurementId) return;
-    trackPageView(pagePath);
-  }, [measurementId, pagePath]);
+    activateGoogleAnalyticsForPublicPath(measurementId, pathname);
+    if (window.labLordsGaMeasurementId === measurementId &&
+        consent !== null && appliedConsent.current !== consent) {
+      updateGoogleAnalyticsConsent(consent);
+      appliedConsent.current = consent;
+    }
+    trackPageView(pathname);
+  }, [consent, measurementId, pathname]);
 
   const saveConsent = (nextConsent: CookieConsent) => {
-    updateGoogleAnalyticsConsent(nextConsent);
-    appliedConsent.current = nextConsent;
+    if (measurementId && window.labLordsGaMeasurementId === measurementId) {
+      updateGoogleAnalyticsConsent(nextConsent);
+      appliedConsent.current = nextConsent;
+    }
 
     setStoredCookieConsent(nextConsent);
     setShowPreferences(false);

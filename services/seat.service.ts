@@ -410,9 +410,9 @@ export class SeatService {
                 },
             });
             if (!ms || ms.branchId !== branchId) throw new Error("Multi-shift not found");
-            if (ms.components.length === 0) throw new Error("Multi-shift has no component shifts");
 
             const componentShiftIds = new Set(ms.components.map(c => c.shiftId));
+            if (componentShiftIds.size < 2) throw new Error("Multi-shift not found");
             const componentWindows = ms.components.map(component => parseShiftWindow(component.shift));
 
             const [allShifts, rawSeats] = await Promise.all([
@@ -440,6 +440,9 @@ export class SeatService {
                 const parsed = parseShiftWindow(activeShift);
                 return [parsed.id, parsed] as const;
             }));
+            if ([...componentShiftIds].some(id => !activeShiftWindows.has(id))) {
+                throw new Error("Multi-shift not found");
+            }
             const seats = sortSeatsByLabel(rawSeats);
 
             const totalSeats = seats.length;
@@ -717,7 +720,11 @@ export class SeatService {
             return [parsed.id, parsed] as const;
         }));
 
-        const multiItems = multiShifts.map(ms => {
+        // A retained management bundle may contain a deactivated component.
+        // Only complete active same-branch bundles are allocation choices.
+        const allocatableMultiShifts = multiShifts.filter(ms => ms.components.length >= 2
+            && ms.components.every(component => primaryMap.has(component.shiftId) && activeShiftWindows.has(component.shiftId)));
+        const multiItems = allocatableMultiShifts.map(ms => {
             const componentShiftIds = ms.components.map(c => c.shiftId);
             const componentShiftNames = ms.components.map(c => c.shift.name);
             const validComponents = componentShiftIds.map(id => primaryMap.get(id)).filter(Boolean) as typeof primaryItems[number][];

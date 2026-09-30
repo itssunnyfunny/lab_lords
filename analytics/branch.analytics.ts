@@ -14,23 +14,18 @@ function resolveAsOf(asOf?: Date): Date {
   return asOf ?? new Date()
 }
 
-/**
- * Aggregated, snapshot-first view of branch health
- * Read-only, deterministic, AI-friendly
- */
-export async function getBranchHealthSnapshot(
+/** Operational analytics are available without payment visibility. */
+export async function getBranchOperationalSnapshot(
   branchId: string,
   asOf?: AsOf
 ) {
   const date = resolveAsOf(asOf)
 
   const [
-    payment,
     studentStatus,
     studentSeating,
     occupancySnapshot,
   ] = await Promise.all([
-    getPaymentStats(branchId, date),
     getStudentStatusSnapshot(branchId, date),
     getStudentSeatingSnapshot(branchId, date),
     getSeatOccupancySnapshot(branchId, date),
@@ -65,9 +60,20 @@ export async function getBranchHealthSnapshot(
       status: studentStatus,
       seating: studentSeating,
     },
-
-    payments: payment,
   }
+}
+
+/** Full, payment-bearing snapshot for already authorized AI/owner callers. */
+export async function getBranchHealthSnapshot(
+  branchId: string,
+  asOf?: AsOf
+) {
+  const date = resolveAsOf(asOf)
+  const [operational, payments] = await Promise.all([
+    getBranchOperationalSnapshot(branchId, date),
+    getPaymentStats(branchId, date),
+  ])
+  return { ...operational, payments }
 }
 
 /**

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { getSessionUser } from "@/lib/auth";
 import { OnboardingService } from "@/services/onboarding.service";
 import {
@@ -11,54 +12,71 @@ import {
 } from "@/lib/formValidation";
 import { generateSeatLabelsForSeatCount, validateSeatNumberingConfig } from "@/lib/seatNumbering";
 import { isCheckoutBillingPlanId } from "@/lib/billingPlans";
+import { invalidOnboardingRequest, normalizeOnboardingKey, OnboardingRequestError } from "@/lib/onboardingRequest";
 
-function getErrorMessage(error: unknown) {
-    return error instanceof Error ? error.message : "Failed to complete setup";
+function invalidResponse(error: string) {
+    return NextResponse.json({ error, code: "ONBOARDING_INVALID_REQUEST" }, { status: 400 });
 }
 
 export async function POST(req: Request) {
     try {
+        const { userId: clerkUserId } = await auth();
+        if (!clerkUserId) {
+            return NextResponse.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+        }
+        const idempotencyKey = normalizeOnboardingKey(req.headers.get("Idempotency-Key"));
+        // Keyless old clients receive a definite 400 before account preconditions
+        // or body parsing. This header never grants authority.
+        if (req.headers.get("X-Onboarding-Account") !== clerkUserId) {
+            return NextResponse.json({ error: "Your signed-in account changed. Reopen setup for the current account.", code: "ONBOARDING_ACCOUNT_CHANGED" }, { status: 409 });
+        }
         const user = await getSessionUser();
         if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
         }
 
-        const body = await req.json();
+        const body = await req.json().catch(() => { throw invalidOnboardingRequest("Setup details must be valid JSON."); });
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+            return invalidResponse("Setup details must be an object.");
+        }
         const { orgName, ownerPhone, businessType, branchName, city, defaultFee, seatCount, seatNumbering, shifts, multiShifts, includeFullTimeMultiShift, selectedPostTrialPlan } = body;
 
         if (!isCheckoutBillingPlanId(selectedPostTrialPlan)) {
-            return NextResponse.json({ error: "Choose Basic or Standard as the post-trial plan." }, { status: 400 });
+            return invalidResponse("Choose Basic or Standard as the post-trial plan.");
         }
 
         const orgNameResult = validateRequiredText(orgName, "Organization name", 120);
-        if (!orgNameResult.ok) return NextResponse.json({ error: orgNameResult.error }, { status: 400 });
+        if (!orgNameResult.ok) return invalidResponse(orgNameResult.error);
         const ownerPhoneResult = validateRequiredPhone(ownerPhone, "Owner phone");
-        if (!ownerPhoneResult.ok) return NextResponse.json({ error: ownerPhoneResult.error }, { status: 400 });
+        if (!ownerPhoneResult.ok) return invalidResponse(ownerPhoneResult.error);
         const businessTypeResult = validateOptionalText(businessType, "Business type", 80);
-        if (!businessTypeResult.ok) return NextResponse.json({ error: businessTypeResult.error }, { status: 400 });
+        if (!businessTypeResult.ok) return invalidResponse(businessTypeResult.error);
         const branchNameResult = validateRequiredText(branchName, "Branch name", 120);
-        if (!branchNameResult.ok) return NextResponse.json({ error: branchNameResult.error }, { status: 400 });
+        if (!branchNameResult.ok) return invalidResponse(branchNameResult.error);
         const cityResult = validateOptionalText(city, "City", FORM_LIMITS.cityMax);
-        if (!cityResult.ok) return NextResponse.json({ error: cityResult.error }, { status: 400 });
+        if (!cityResult.ok) return invalidResponse(cityResult.error);
         const defaultFeeResult = parseIntegerField(defaultFee, "Default monthly fee", { min: 0, max: FORM_LIMITS.moneyMax });
-        if (!defaultFeeResult.ok) return NextResponse.json({ error: defaultFeeResult.error }, { status: 400 });
+        if (!defaultFeeResult.ok) return invalidResponse(defaultFeeResult.error);
         const seatCountResult = parseIntegerField(seatCount, "Total seats", { required: true, min: 1, max: FORM_LIMITS.seatsMax });
-        if (!seatCountResult.ok) return NextResponse.json({ error: seatCountResult.error }, { status: 400 });
+        if (!seatCountResult.ok) return invalidResponse(seatCountResult.error);
         const seatNumberingResult = validateSeatNumberingConfig(seatNumbering, seatCountResult.value);
-        if (!seatNumberingResult.ok) return NextResponse.json({ error: seatNumberingResult.error }, { status: 400 });
+        if (!seatNumberingResult.ok) return invalidResponse(seatNumberingResult.error);
         const seatLabelsResult = generateSeatLabelsForSeatCount(seatCountResult.value, seatNumberingResult.value);
-        if (!seatLabelsResult.ok) return NextResponse.json({ error: seatLabelsResult.error }, { status: 400 });
-        const shiftsResult = Array.isArray(shifts) ? validateShiftDrafts(shifts) : { ok: true as const, value: undefined };
-        if (!shiftsResult.ok) return NextResponse.json({ error: shiftsResult.error }, { status: 400 });
-        if (multiShifts !== undefined && !Array.isArray(multiShifts)) {
-            return NextResponse.json({ error: "Multi-shift selections are invalid." }, { status: 400 });
+        if (!seatLabelsResult.ok) return invalidResponse(seatLabelsResult.error);
+        for (const [label, rows] of [["Primary shift", shifts], ["Multi-shift", multiShifts]] as const) {
+            if (rows !== undefined && (!Array.isArray(rows) || rows.some(row => !row || typeof row !== "object" || Array.isArray(row)))) {
+                return invalidResponse(`${label} selections are invalid.`);
+            }
         }
+        const shiftsResult = Array.isArray(shifts) ? validateShiftDrafts(shifts) : { ok: true as const, value: undefined };
+        if (!shiftsResult.ok) return invalidResponse(shiftsResult.error);
         if (includeFullTimeMultiShift !== undefined && typeof includeFullTimeMultiShift !== "boolean") {
-            return NextResponse.json({ error: "Full Time multi-shift selection is invalid." }, { status: 400 });
+            return invalidResponse("Full Time multi-shift selection is invalid.");
         }
 
         const result = await OnboardingService.createNetwork({
             userId: user.id,
+            idempotencyKey,
             selectedPostTrialPlan,
             ownerPhone: ownerPhoneResult.value,
             orgData: {
@@ -77,12 +95,14 @@ export async function POST(req: Request) {
             includeFullTimeMultiShift,
         });
 
-        return NextResponse.json(result, { status: 201 });
+        return NextResponse.json({ org: { id: result.org.id }, branch: { id: result.branch.id } }, { status: 201 });
     } catch (error: unknown) {
-        console.error("Onboarding Error:", error);
+        if (error instanceof OnboardingRequestError) {
+            return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+        }
         return NextResponse.json(
-            { error: getErrorMessage(error) },
-            { status: 400 }
+            { error: "Failed to complete setup. Retry the same setup request.", code: "ONBOARDING_FAILED" },
+            { status: 500 }
         );
     }
 }

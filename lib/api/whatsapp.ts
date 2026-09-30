@@ -42,6 +42,9 @@ export type WhatsAppSenderSummary = {
 export type WhatsAppSendersResponse = {
   enabled: boolean;
   canManage: boolean;
+  /** Operational access does not depend on the onboarding rollout gate. Missing fields fail closed. */
+  canManageOperations?: boolean;
+  operationsUiEnabled?: boolean;
   safeReason: string | null;
   senders: WhatsAppSenderSummary[];
 };
@@ -83,6 +86,9 @@ export type WhatsAppBranchAssignment = {
 export type WhatsAppBranchAssignmentResponse = {
   enabled: boolean;
   canManage: boolean;
+  /** Missing flags on older servers fail closed. */
+  operationsUiEnabled?: boolean;
+  serviceNoticesEnabled?: boolean;
   safeReason: string | null;
   assignment: WhatsAppBranchAssignment | null;
   availableSenders: WhatsAppBranchSenderSummary[];
@@ -502,6 +508,19 @@ export type WhatsAppDailyReportQueueResult = {
     reportSubscriptionId: string | null;
     createdAt: string;
   };
+};
+
+export type WhatsAppDailyReportHistoryItem = {
+  id: string;
+  localReportDate: string;
+  status: "SCHEDULED" | "CLAIMED" | "SUBMITTING" | "ACCEPTED" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "CANCELLED" | "SUPPRESSED" | "UNKNOWN";
+  maskedPhone: string;
+  scheduledFor: string;
+  estimatedCostMicros: string | null;
+};
+
+export type WhatsAppDailyReportHistoryResponse = {
+  reports: WhatsAppDailyReportHistoryItem[];
 };
 
 export type WhatsAppServiceNoticeDraft = {
@@ -1006,6 +1025,14 @@ export const whatsapp = {
 
   previewBranchDailyReport(branchId: string): Promise<WhatsAppDailyReportPreview> {
     return apiClient.post(`${branchBase(branchId)}/reports/preview`, {});
+  },
+
+  getBranchDailyReportHistory(branchId: string): Promise<WhatsAppDailyReportHistoryResponse> {
+    return apiClient.get(`${branchBase(branchId)}/reports/history`);
+  },
+
+  getOrganizationDailyReportHistory(organizationId: string): Promise<WhatsAppDailyReportHistoryResponse> {
+    return apiClient.get(`${organizationBase(organizationId)}/reports/history`);
   },
 
   queueBranchDailyReport(

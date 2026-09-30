@@ -857,7 +857,8 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
   },
 };
 
-export function getSoftwarePage(slug: string) {
+export function getSoftwarePage(slug: string): SoftwarePage | undefined {
+  if (!Object.hasOwn(softwarePages, slug)) return undefined;
   return softwarePages[slug as SoftwarePageSlug];
 }
 
