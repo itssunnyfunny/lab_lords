@@ -4,6 +4,7 @@ import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db"
 import { createUser } from "@/tests/factories";
 import { randomUUID } from "node:crypto";
 import { OwnerTrialService } from "@/services/ownerTrial.service";
+import { BranchService } from "@/services/branch.service";
 
 /**
  * INTEGRATION TESTS: OnboardingService
@@ -219,6 +220,50 @@ describe("OnboardingService Integration", () => {
       ]);
       expect(after).toEqual(before);
       expect(await testPrisma.organization.count()).toBe(1);
+    });
+
+    it("replays the same receipt after supported branch archival without creating another workspace", async () => {
+      const owner = await createUser();
+      const command = baseParams(owner.id);
+      const result = await OnboardingService.createNetwork(command);
+      const trial = await testPrisma.ownerTrialGrant.findUniqueOrThrow({ where: { ownerId: owner.id } });
+      const receiptWhere = { ownerId_idempotencyKey: { ownerId: owner.id, idempotencyKey: command.idempotencyKey } };
+      const receipt = await testPrisma.onboardingRequest.findUniqueOrThrow({ where: receiptWhere });
+      const sibling = await BranchService.createBranchForOrg({
+        organizationId: result.org.id,
+        userId: owner.id,
+        name: "Continuing Hall",
+        contactPhone: command.ownerPhone,
+        idempotencyKey: randomUUID(),
+      });
+
+      const scheduled = await BranchService.scheduleBillingRemoval(owner.id, result.branch.id, randomUUID());
+      expect(scheduled).toMatchObject({ action: "NONE", change: { status: "SCHEDULED", effectiveAt: trial.trialEndsAt } });
+      const archived = await BranchService.archiveDueBillingRemovals(new Date(trial.trialEndsAt!.getTime() + 1));
+      expect(archived).toEqual({ archived: 1 });
+      await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: result.branch.id } }))
+        .resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+
+      const beforeReplay = await Promise.all([
+        testPrisma.organization.count({ where: { ownerId: owner.id } }),
+        testPrisma.branch.count({ where: { organizationId: result.org.id } }),
+        testPrisma.ownerTrialGrant.count({ where: { ownerId: owner.id } }),
+        testPrisma.onboardingRequest.count({ where: { ownerId: owner.id } }),
+      ]);
+      expect(beforeReplay).toEqual([1, 2, 1, 1]);
+      vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "false");
+      expect(await OnboardingService.createNetwork(command)).toEqual(result);
+      expect(await testPrisma.onboardingRequest.findUniqueOrThrow({ where: receiptWhere })).toEqual(receipt);
+      expect(await testPrisma.branch.findUniqueOrThrow({ where: { id: result.branch.id } }))
+        .toMatchObject({ billingStatus: "ARCHIVED" });
+      expect(await testPrisma.branch.findUniqueOrThrow({ where: { id: sibling.id } }))
+        .toMatchObject({ billingStatus: "ACTIVE" });
+      expect(await Promise.all([
+        testPrisma.organization.count({ where: { ownerId: owner.id } }),
+        testPrisma.branch.count({ where: { organizationId: result.org.id } }),
+        testPrisma.ownerTrialGrant.count({ where: { ownerId: owner.id } }),
+        testPrisma.onboardingRequest.count({ where: { ownerId: owner.id } }),
+      ])).toEqual(beforeReplay);
     });
 
     it("rejects changed payload and isolates the same UUID across owners", async () => {
