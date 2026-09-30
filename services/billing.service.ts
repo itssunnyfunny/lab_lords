@@ -3098,7 +3098,7 @@ export class BillingService {
         where: {
           organizationId,
           type: "CANCELLATION",
-          ...(changeId ? { id: changeId } : { status: "QUEUED" }),
+          ...(changeId ? { id: changeId } : { status: { in: ["QUEUED", "PROCESSING"] } }),
         },
         orderBy: { sequence: "desc" },
       });

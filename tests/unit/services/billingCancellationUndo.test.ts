@@ -128,7 +128,10 @@ describe("billing cancellation Undo ownership", () => {
     const undo = entry === "direct"
       ? BillingService.undoWorkspaceCancellation("owner", "org", beforeCutoff)
       : BillingService.undoWorkspaceChange("owner", "org", "cancel_old");
-    await expect(undo).rejects.toThrow();
+    await expect(undo).rejects.toMatchObject({
+      code: "BILLING_CHANGE_IN_PROGRESS",
+      existingChangeId: "cancel_old",
+    });
     expect(changes[0].status).toBe("PROCESSING");
     expect(changes[0].undoneAt).toBeUndefined();
     expect(mocks.changeUpdate).not.toHaveBeenCalled();
