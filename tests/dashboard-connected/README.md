@@ -155,3 +155,49 @@ The suite restores only its two known synthetic follow-ups after an interrupted
 run. It otherwise preserves history: completed verification tasks and voided
 verification receipts remain in the disposable fixture as evidence. Membership
 term tests add future terms distinct from upcoming renewals and monthly billing.
+
+## September audit browser continuation
+
+For the retained `lab_lords_dashboard_closeout_browser_test` fixture only,
+`start-local.mjs audit-test <allowlisted-spec> <desktop|mobile>` runs the
+authenticated remediation scenarios in `audit.playwright.config.ts`. The
+runner checks the pinned disposable container, loopback binding, fixture
+marker and exact database identity; set `TEST_DATABASE_URL` and matching
+`TEST_DATABASE_RESET_CONFIRM` in the private process environment as above.
+Provide the refreshed real Clerk development owner and staff storage states
+through `PLAYWRIGHT_OWNER_AUTH_STATE` and
+`PLAYWRIGHT_STAFF_AUTH_STATE`. Each must be an existing ignored `.clerk/` path.
+Set a new `AUDIT_BROWSER_RUN_ID` beginning `20260930-` for every invocation.
+The runner rejects a pre-existing `.clerk/audit-browser-runs/<run-id>` path,
+preserving earlier evidence. The specs use actual local Next routes and
+PostgreSQL services; provider writes remain held.
+
+The onboarding replay spec additionally needs the built local server started
+with `DASHBOARD_AUDIT_ONBOARDING_CONFIRM` equal to that exact database name.
+This opt-in is refused for any other target and enables the existing local
+synthetic onboarding path only. Successful replay deliberately retains its
+new synthetic organization, branch and receipt, while its ignored output
+records the exact per-run count deltas. It is not a sign-in/MFA UI test:
+`refresh-auth.mjs` establishes a real Clerk development session for the
+normal middleware.
+
+For the messaging panel checks, start the guarded server instead with
+`DASHBOARD_AUDIT_MESSAGING_CONFIRM` equal to the same exact fixture name.
+That opt-in enables only the local WhatsApp integration, report, notice and
+operations UI flags in TEST mode. The launcher still removes Meta credentials
+and keeps provider writes, webhook ingest, planners, health reconciliation
+and live canaries disabled. The connected messaging spec uses actual local
+permission and read endpoints; it does not send a message or fabricate
+provider history. Do not run a messaging spec against a shared database or
+real sender account.
+
+For PS-01's **synthetic tag positive control only**, start a separate guarded
+server process with `DASHBOARD_AUDIT_GA_CONFIRM` equal to that exact fixture
+name. It forces `G-0000000000` locally and blanks any inherited GA ID
+otherwise. Run only the allowlisted `analytics-positive-control.spec.ts` in a
+fresh audit run ID. Its browser context installs a deny-by-default network
+route before navigation, allows the exact Google tag/configuration reads,
+captures and aborts all generated Google measurement requests before egress,
+and requires a real tag response and collect attempt. Private request details
+remain in ignored output. This does not inspect any GA web-stream property
+settings or establish provider receipt.

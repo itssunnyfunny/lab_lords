@@ -19,6 +19,28 @@ try {
     if (result.rows[0]?.name !== database) throw new Error("Connected database identity differs");
 } finally { await db.end(); }
 
+const onboardingConfirm = process.env.DASHBOARD_AUDIT_ONBOARDING_CONFIRM;
+const auditOnboarding = onboardingConfirm === database
+    && database === "lab_lords_dashboard_closeout_browser_test"
+    && target.hostname === "127.0.0.1" && target.port === "59117";
+if (onboardingConfirm && !auditOnboarding) {
+    throw new Error("Audit onboarding opt-in requires the exact retained local synthetic fixture");
+}
+const messagingConfirm = process.env.DASHBOARD_AUDIT_MESSAGING_CONFIRM;
+const auditMessaging = messagingConfirm === database
+    && database === "lab_lords_dashboard_closeout_browser_test"
+    && target.hostname === "127.0.0.1" && target.port === "59117";
+if (messagingConfirm && !auditMessaging) {
+    throw new Error("Audit messaging opt-in requires the exact retained local synthetic fixture");
+}
+const gaConfirm = process.env.DASHBOARD_AUDIT_GA_CONFIRM;
+const auditGa = gaConfirm === database
+    && database === "lab_lords_dashboard_closeout_browser_test"
+    && target.hostname === "127.0.0.1" && target.port === "59117";
+if (gaConfirm && !auditGa) {
+    throw new Error("Audit GA opt-in requires the exact retained local synthetic fixture");
+}
+
 const env = { ...process.env };
 const built = process.env.DASHBOARD_CONNECTED_MODE === "start";
 const mode = built ? "production" : "development";
@@ -37,11 +59,17 @@ Object.assign(env, {
     NODE_ENV: built ? "production" : "development", NEXT_TELEMETRY_DISABLED: "1", NEXT_DISABLE_TURBOPACK: "1",
     DATABASE_URL: target.href, DIRECT_URL: target.href, ACCELERATE_URL: "",
     RAZORPAY_MODE: "TEST", RAZORPAY_BILLING_WRITES_ENABLED: "false", META_WHATSAPP_MODE: "TEST",
-    WHATSAPP_INTEGRATION_ENABLED: "false", IMPORT_V2_ENABLED: "false", WORKSPACE_BRANCH_BILLING_V2_ENABLED: "false",
+    WHATSAPP_INTEGRATION_ENABLED: auditMessaging ? "true" : "false",
+    WHATSAPP_REPORTS_ENABLED: auditMessaging ? "true" : "false",
+    WHATSAPP_SERVICE_NOTICES_ENABLED: auditMessaging ? "true" : "false",
+    WHATSAPP_OPERATIONS_UI_ENABLED: auditMessaging ? "true" : "false",
+    NEXT_PUBLIC_GA_MEASUREMENT_ID: auditGa ? "G-0000000000" : "",
+    IMPORT_V2_ENABLED: "false",
+    WORKSPACE_BRANCH_BILLING_V2_ENABLED: auditOnboarding ? "true" : "false",
 });
 const port = process.env.DASHBOARD_CONNECTED_PORT || "3117";
 if (!/^\d{4,5}$/.test(port)) throw new Error("Invalid local port");
-console.log("Verified local connected server; development authentication retained; billing, AI, import and messaging providers held.");
+console.log(`Verified local connected server; development authentication retained; billing, AI, import and messaging provider writes held; onboarding ${auditOnboarding ? "enabled for exact synthetic fixture" : "held"}; messaging panels ${auditMessaging ? "enabled for exact synthetic fixture" : "held"}; synthetic GA tag ${auditGa ? "enabled for intercepted network test" : "held"}.`);
 const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", ...(built ? ["start"] : ["dev", "--webpack"]), "--hostname", "localhost", "--port", port], {
     env, stdio: "inherit", windowsHide: true,
 });
