@@ -2,11 +2,13 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as generation from "@/ai/generationLease";
 import { draftOverdueMessages } from "@/ai/messageDrafting/branchMessageDrafter";
+import { loadDraftDebtSource, versionedDraftAction } from "@/ai/messageDrafting/debtSource";
 import { MESSAGE_DRAFT_ACTION_PREFIX, MESSAGE_REGENERATION_COOLDOWN_MS } from "@/lib/messageDrafts";
 import { AccessPolicy, type BranchAccessContext } from "@/services/accessPolicy.service";
 import { FeeCollectionService, lockFeeStudent } from "@/services/feeCollection.service";
 import { PaymentService } from "@/services/payment.service";
-import { createPayment, createSaasSubscription, createStudent, createTestWorld } from "@/tests/factories";
+import { ShiftService } from "@/services/shift.service";
+import { createPayment, createSaasSubscription, createShift, createStudent, createTestWorld } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 
 // Connected suite: invoke only against a separately verified disposable local
@@ -18,6 +20,9 @@ vi.mock("@/ai/llm/gemini.client", () => ({ callGemini: mocks.gemini }));
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const oldDraftAt = new Date(NOW.getTime() - 60 * 60_000);
+const localMidnight = new Date(2026, 8, 30).getTime();
+const beforeMidnight = new Date(localMidnight - 100);
+const afterMidnight = new Date(localMidnight + 100);
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -56,6 +61,16 @@ async function fixture() {
     const input = { studentId: student.id, paymentIds: [payment.id], amount: 300,
         method: "CASH" as const, reference: "", note: "", idempotencyKey: randomUUID() };
     return { ...world, student, payment, original, access, input };
+}
+
+async function markOriginalCurrent(f: Awaited<ReturnType<typeof fixture>>) {
+    const source = await loadDraftDebtSource(f.branch.id, new Date());
+    const fingerprint = source.fingerprintsByStudentId.get(f.student.id);
+    if (!fingerprint) throw new Error("Synthetic overdue source was not found");
+    return testPrisma.messageDraft.update({ where: { id: f.original.id }, data: {
+        action: versionedDraftAction(MESSAGE_DRAFT_ACTION_PREFIX, fingerprint),
+        message: "Synthetic current-source text",
+    } });
 }
 
 async function pauseGeneration(access: BranchAccessContext, studentIds: string[]) {
@@ -155,6 +170,87 @@ describe("AI draft publication fence — controlled PostgreSQL interleavings", (
                 .toEqual([f.original]);
             expect((await draftOverdueMessages(f.access, { allowGeneration: false })).items[0])
                 .toMatchObject({ amount: 1400, paymentCount: 2, isOutdated: true });
+        } finally { run.complete(); await run.settled; }
+    });
+
+    it("rejects old output after a real shift price change bulk-updates linked students", async () => {
+        const f = await fixture();
+        const feeShift = await createShift({ branchId: f.branch.id, name: "Synthetic fee shift",
+            startTime: "12:00", endTime: "17:00", price: 1000 });
+        await testPrisma.student.update({ where: { id: f.student.id },
+            data: { feeLinkedShiftId: feeShift.id, monthlyFee: 1000 } });
+        const second = await createStudent({ branchId: f.branch.id, name: "Synthetic linked student",
+            phone: "9999999998", feeLinkedShiftId: feeShift.id, monthlyFee: 1000 });
+        await createPayment({ branchId: f.branch.id, studentId: second.id, amount: 600,
+            dueDate: new Date("2026-08-21T00:00:00.000Z"),
+            periodStart: new Date("2026-08-01T00:00:00.000Z"), periodEnd: new Date("2026-09-01T00:00:00.000Z") });
+        const original = await markOriginalCurrent(f);
+        expect((await draftOverdueMessages(f.access, { allowGeneration: false })).items
+            .find(item => item.studentId === f.student.id)).toMatchObject({ isOutdated: false, message: original.message });
+        const before = await testPrisma.student.findMany({ where: { id: { in: [f.student.id, second.id] } },
+            select: { id: true, updatedAt: true } });
+        const revisions = new Map(before.map(student => [student.id, student.updatedAt.getTime()]));
+        const run = await pauseGeneration(f.access, [f.student.id, second.id]);
+        try {
+            vi.setSystemTime(new Date(NOW.getTime() + 1000));
+            await ShiftService.updateShift(f.user.id, feeShift.id, { price: 1200 });
+            const after = await testPrisma.student.findMany({ where: { id: { in: [f.student.id, second.id] } },
+                select: { id: true, updatedAt: true, monthlyFee: true } });
+            expect(after).toHaveLength(2);
+            for (const student of after) {
+                expect(student.monthlyFee).toBe(1200);
+                expect(student.updatedAt.getTime()).toBeGreaterThan(revisions.get(student.id)!);
+            }
+            run.complete();
+            expect((await run.settled).error).toBeInstanceOf(generation.DraftSourceChangedError);
+            expect(await testPrisma.messageDraft.findMany({ where: { branchId: f.branch.id } })).toEqual([original]);
+            const cached = await draftOverdueMessages(f.access, { allowGeneration: false });
+            expect(cached.items.find(item => item.studentId === f.student.id))
+                .toMatchObject({ amount: 1000, isOutdated: true, message: "" });
+            expect(cached.items.find(item => item.studentId === second.id))
+                .toMatchObject({ amount: 600, message: "" });
+            expect(mocks.gemini).toHaveBeenCalledTimes(1);
+        } finally { run.complete(); await run.settled; }
+    });
+
+    it("rejects old output when elapsed overdue days change across local midnight", async () => {
+        const f = await fixture();
+        vi.setSystemTime(beforeMidnight);
+        const original = await markOriginalCurrent(f);
+        const before = (await draftOverdueMessages(f.access, { allowGeneration: false })).items[0];
+        expect(before).toMatchObject({ amount: 1000, paymentCount: 1,
+            isOutdated: false, message: original.message });
+        const run = await pauseGeneration(f.access, [f.student.id]);
+        try {
+            vi.setSystemTime(afterMidnight);
+            run.complete();
+            expect((await run.settled).error).toBeInstanceOf(generation.DraftSourceChangedError);
+            expect(await testPrisma.messageDraft.findMany({ where: { branchId: f.branch.id } })).toEqual([original]);
+            const after = (await draftOverdueMessages(f.access, { allowGeneration: false })).items[0];
+            expect(after).toMatchObject({ amount: 1000, paymentCount: 1, isOutdated: true, message: "" });
+            expect(after.daysOverdue).toBe(before.daysOverdue + 1);
+            expect(mocks.gemini).toHaveBeenCalledTimes(1);
+        } finally { run.complete(); await run.settled; }
+    });
+
+    it("rejects old output when a grace-period fee becomes overdue at local midnight", async () => {
+        const f = await fixture();
+        await createPayment({ branchId: f.branch.id, studentId: f.student.id, amount: 400,
+            dueDate: new Date(2026, 8, 22, 12),
+            periodStart: new Date(2026, 8, 1), periodEnd: new Date(2026, 9, 1) });
+        vi.setSystemTime(beforeMidnight);
+        const original = await markOriginalCurrent(f);
+        expect((await draftOverdueMessages(f.access, { allowGeneration: false })).items[0])
+            .toMatchObject({ amount: 1000, paymentCount: 1, isOutdated: false });
+        const run = await pauseGeneration(f.access, [f.student.id]);
+        try {
+            vi.setSystemTime(afterMidnight);
+            run.complete();
+            expect((await run.settled).error).toBeInstanceOf(generation.DraftSourceChangedError);
+            expect(await testPrisma.messageDraft.findMany({ where: { branchId: f.branch.id } })).toEqual([original]);
+            expect((await draftOverdueMessages(f.access, { allowGeneration: false })).items[0])
+                .toMatchObject({ amount: 1400, paymentCount: 2, isOutdated: true, message: "" });
+            expect(mocks.gemini).toHaveBeenCalledTimes(1);
         } finally { run.complete(); await run.settled; }
     });
 
