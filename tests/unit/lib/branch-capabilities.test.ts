@@ -150,7 +150,7 @@ describe("branch capability decisions", () => {
 
         expect(result.allowed).toBe(false);
         expect(result.blocker).toBe("entitlement");
-        expect(result.recoveryHref).toBe("/org/org_1/settings#billing");
+        expect(result.recoveryHref).toBe("/org/org_1/billing");
     });
 
     it("keeps reads available but blocks mutations in read-only mode", () => {

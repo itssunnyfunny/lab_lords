@@ -127,7 +127,7 @@ export function BranchActivationGate({ children }: { children: ReactNode }) {
           ) : (
             <AppButton isLoading={working === "reactivate"} onClick={() => perform("reactivate")}>{t("Reactivate branch")}</AppButton>
           )}
-          <Link className="inline-flex items-center px-2 font-semibold text-[color:var(--ui-accent)] hover:underline" href={`/org/${encodeURIComponent(organizationId!)}/settings#billing`}>{t("Open organization billing")}</Link>
+          <Link className="inline-flex items-center px-2 font-semibold text-[color:var(--ui-accent)] hover:underline" href={`/org/${encodeURIComponent(organizationId!)}/billing`}>{t("Open organization billing")}</Link>
         </div>
       )}
     </div>

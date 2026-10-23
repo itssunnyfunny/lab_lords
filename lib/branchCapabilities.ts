@@ -62,7 +62,7 @@ const ALLOWED_BRANCH_STATES = new Set(["ACTIVE"]);
 
 function billingRecoveryHref(access: BranchAccess) {
     if (!access.isOwner && !access.billingExperience?.viewer.canManageBilling) return null;
-    return `/org/${encodeURIComponent(access.organizationId)}/settings#billing`;
+    return `/org/${encodeURIComponent(access.organizationId)}/billing`;
 }
 
 export function getBranchCapabilityDecision(

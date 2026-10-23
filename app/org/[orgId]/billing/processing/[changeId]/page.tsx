@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle2, Clock3, Loader2, RotateCcw } from "lucide-react";
 import { billing, type BillingOperationDto } from "@/lib/api/billing";
 import {
-  isRazorpayCheckoutPayload,
+  getRazorpayCheckoutPayload,
   isRazorpayCheckoutReady,
   openRazorpayCheckout,
   RazorpayCheckoutScript,
@@ -60,11 +60,17 @@ export function reconcileWithCooldown(
 
 export function preferProviderConfirmedOperation(
   current: BillingOperationDto | null,
-  incoming: BillingOperationDto
+  incoming: BillingOperationDto,
+  checkoutReopened = false
 ) {
   if (!current) return incoming;
   if (PROVIDER_CONFIRMED.has(current.operationStatus) && !PROVIDER_CONFIRMED.has(incoming.operationStatus)) {
     return current;
+  }
+  // A successful owner retry may deliberately reopen a failed attempt. Ordinary
+  // polling still cannot roll a terminal outcome back to stale pending state.
+  if (checkoutReopened && incoming.id === current.id && incoming.operationStatus === "CHECKOUT_OPEN") {
+    return incoming;
   }
   if (
     TERMINAL_OPERATION_STATUSES.has(current.operationStatus)
@@ -107,11 +113,11 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
   });
   const reconcileGateRef = useRef<ProcessingReconcileGate>({ key: "", nextAllowedAt: 0, inFlight: null });
 
-  const applyOperation = useCallback((incoming: BillingOperationDto) => {
+  const applyOperation = useCallback((incoming: BillingOperationDto, checkoutReopened = false) => {
     if (operationRef.current.key !== operationKey) {
       operationRef.current = { key: operationKey, value: null };
     }
-    const preferred = preferProviderConfirmedOperation(operationRef.current.value, incoming);
+    const preferred = preferProviderConfirmedOperation(operationRef.current.value, incoming, checkoutReopened);
     operationRef.current.value = preferred;
     setOperation(preferred);
     return preferred;
@@ -196,7 +202,7 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
   const content = useMemo(() => getBillingProcessingCopy(operation, timedOut), [operation, timedOut]);
   const successful = operation?.operationStatus === "APPLIED" || operation?.operationStatus === "SCHEDULED";
   const failed = operation && ["DECLINED", "ABANDONED", "FAILED"].includes(operation.operationStatus);
-  const returnPath = operation?.returnPath || `/org/${encodeURIComponent(orgId)}/settings#billing`;
+  const returnPath = operation?.returnPath || `/org/${encodeURIComponent(orgId)}/billing`;
 
   const retry = async () => {
     if (operation?.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady) {
@@ -206,26 +212,27 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
     setRetrying(true);
     setError("");
     try {
-      const result = await billing.retryOperation(orgId, changeId) as {
-        operation?: BillingOperationDto;
-        processingUrl?: string;
-        changeId?: string;
-      };
-      if (result.operation) applyOperation(result.operation);
-      if (isRazorpayCheckoutPayload(result)) {
+      const result = await billing.retryOperation(orgId, changeId);
+      const checkout = getRazorpayCheckoutPayload(result);
+      if (checkout) {
+        if (!checkoutReady || !isRazorpayCheckoutReady()) {
+          setError("Razorpay Checkout is still loading. Please wait a moment and try again.");
+          return;
+        }
+        if (result.operation) applyOperation(result.operation, true);
         openRazorpayCheckout({
-          payload: result,
-          mode: result.subscription_card_change ? "RECOVERY" : "AUTHORIZATION",
+          payload: checkout,
+          mode: checkout.subscription_card_change ? "RECOVERY" : "AUTHORIZATION",
           verify: (response) => billing.verifySubscription(orgId, {
-            changeId: result.changeId,
-            razorpay_subscription_id: response.razorpay_subscription_id ?? result.subscriptionId,
+            changeId: checkout.changeId,
+            razorpay_subscription_id: response.razorpay_subscription_id ?? checkout.subscriptionId,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
           }),
           recordEvent: async (checkoutResult: RazorpayCheckoutEventResult) => {
             await billing.recordCheckoutEvent(
               orgId,
-              result.changeId,
+              checkout.changeId,
               checkoutResult.event,
               checkoutResult.failure
             );
@@ -246,6 +253,7 @@ export default function BillingProcessingPage({ params }: { params: Promise<{ or
         return;
       }
 
+      if (result.operation) applyOperation(result.operation);
       // Provider-native updates do not use Checkout. Poll this operation again
       // instead of navigating back to the page that is already open.
       setTimedOut(false);

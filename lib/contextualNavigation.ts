@@ -37,7 +37,7 @@ export function resolveContextualParent(pathname: string | null): ContextualPare
 
         if (/^billing\/processing\/[^/]+/.test(childPath)) {
             return {
-                href: `/org/${organizationId}/settings?section=billing`,
+                href: `/org/${organizationId}/billing`,
                 label: "Back to billing settings",
             };
         }
