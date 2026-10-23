@@ -83,7 +83,7 @@ describe("OnboardingService Integration", () => {
       await expect(OnboardingService.createNetwork({
         ...baseParams(user.id),
         selectedPostTrialPlan: "AGENT_CONTROL" as "BASIC",
-      })).rejects.toThrow("Choose Basic or Standard");
+      })).rejects.toThrow("Choose Basic, Standard or Pro");
 
       expect(await testPrisma.organization.count({ where: { ownerId: user.id } })).toBe(0);
     });

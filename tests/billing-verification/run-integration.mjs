@@ -55,7 +55,7 @@ mkdirSync("test-results/billing-verification", { recursive: true });
 writeFileSync(`test-results/billing-verification/${proofName}`, JSON.stringify({ database, containerId: config.containerId,
     schemaOnly: true, emptyBeforeTests: true, mode: "TEST", provider: "injected synthetic adapter" }, null, 2));
 const allowedFiles = ["billing.test.ts", "billing-mutation.test.ts", "billing-provider-action.test.ts",
-    "billing-deadline.test.ts", "billing-cancellation-undo-race.test.ts", "branch-billing-lifecycle.test.ts", "entitlement.test.ts", "whatsapp-delivery.test.ts"];
+    "billing-deadline.test.ts", "billing-cancellation-undo-race.test.ts", "branch-billing-lifecycle.test.ts", "entitlement.test.ts", "whatsapp-delivery.test.ts", "onboarding.test.ts"];
 const requestedFiles = process.argv.slice(2);
 if (requestedFiles.some(file => !allowedFiles.includes(file))) throw new Error("Choose an allowlisted billing integration file");
 const files = requestedFiles.length ? requestedFiles : allowedFiles;
