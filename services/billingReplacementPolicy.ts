@@ -121,18 +121,24 @@ export function isSupportedRecurringPaymentMethod(value: string | null | undefin
 }
 
 /**
- * Card subscriptions use Razorpay's native update API. UPI AutoPay and
- * eMandate subscriptions require a newly authorized replacement subscription.
+ * Domestic card subscriptions cannot change plan or quantity in place. Stored
+ * CARD identity does not prove international-card update eligibility, so every
+ * supported mandate uses an explicitly authorized replacement for new changes.
  */
 export function isReplacementMutationEligible(input: ReplacementEligibilityInput) {
   const sourceMethod = normalizeReplacementPaymentMethod(input.sourcePaymentMethod);
   if (!REPLACEMENT_MUTATION_TYPES.includes(input.mutationType as ReplacementMutationType)) {
     return false;
   }
-  if (input.mutationType === "PAYMENT_METHOD_REPLACEMENT") {
-    return sourceMethod != null;
-  }
-  return sourceMethod === "UPI" || sourceMethod === "EMANDATE";
+  return sourceMethod != null;
+}
+
+/** Card-only Checkout can authorize another card mandate without exposing the
+ * separately gated UPI/eMandate or proactive payment-method-switching rollout. */
+export function isReplacementMutationEnabled(input: ReplacementEligibilityInput, multiMethodEnabled: boolean) {
+  return isReplacementMutationEligible(input)
+    && (multiMethodEnabled || (normalizeReplacementPaymentMethod(input.sourcePaymentMethod) === "CARD"
+      && input.mutationType !== "PAYMENT_METHOD_REPLACEMENT"));
 }
 
 export function replacementTargetMatches(input: ReplacementTargetInput) {

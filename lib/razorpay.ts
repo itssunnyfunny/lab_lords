@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 
 const RAZORPAY_API_BASE = "https://api.razorpay.com/v1";
 const RAZORPAY_REQUEST_TIMEOUT_MS = 15_000;
+const RAZORPAY_INVOICE_PAGE_SIZE = 100;
+const RAZORPAY_INVOICE_MAX_PAGES = 25;
 
 const ZERO_DECIMAL_CURRENCIES = new Set(["JPY"]);
 
@@ -303,12 +305,11 @@ export function resolveRazorpayMode(
   if (vercelEnvironment === "production" && configuredMode !== "LIVE") {
     throw new RazorpayConfigurationError("Vercel Production requires RAZORPAY_MODE=LIVE");
   }
-  if (
-    (vercelEnvironment === "preview" || vercelEnvironment === "development")
-    && configuredMode !== "TEST"
-  ) {
+  if (vercelEnvironment !== "production" && configuredMode !== "TEST") {
     throw new RazorpayConfigurationError(
-      `Vercel ${vercelEnvironment} requires RAZORPAY_MODE=TEST`
+      vercelEnvironment === "preview" || vercelEnvironment === "development"
+        ? `Vercel ${vercelEnvironment} requires RAZORPAY_MODE=TEST`
+        : "Local and unrecognized environments require RAZORPAY_MODE=TEST"
     );
   }
 
@@ -605,10 +606,34 @@ class DefaultRazorpayClient implements RazorpayPlanCatalogApiClient {
     );
   }
 
-  fetchSubscriptionInvoices(subscriptionId: string) {
-    return razorpayRequest<RazorpayInvoices>(
-      `/invoices?subscription_id=${encodeURIComponent(subscriptionId)}`
-    );
+  async fetchSubscriptionInvoices(subscriptionId: string): Promise<RazorpayInvoices> {
+    const items: RazorpayInvoice[] = [];
+    const seen = new Set<string>();
+    // Razorpay collection counts describe a page, not proof of an exhausted
+    // history. Never let reconciliation select paid evidence from a partial list.
+    // An empty final page also handles providers returning less than requested.
+    for (let pageIndex = 0; pageIndex < RAZORPAY_INVOICE_MAX_PAGES; pageIndex += 1) {
+      const page = await razorpayRequest<RazorpayInvoices>(
+        `/invoices?subscription_id=${encodeURIComponent(subscriptionId)}`
+        + `&count=${RAZORPAY_INVOICE_PAGE_SIZE}&skip=${items.length}`
+      );
+      if (!page || page.entity !== "collection" || !Array.isArray(page.items)
+        || !Number.isSafeInteger(page.count) || page.count !== page.items.length
+        || page.items.length > RAZORPAY_INVOICE_PAGE_SIZE) {
+        throw new RazorpayApiError("Razorpay returned an incomplete invoice collection", { kind: "PROVIDER" });
+      }
+      if (page.items.length === 0) return { entity: "collection", count: items.length, items };
+      for (const invoice of page.items) {
+        if (!invoice || invoice.entity !== "invoice" || typeof invoice.id !== "string"
+          || !invoice.id.trim() || invoice.subscription_id !== subscriptionId || seen.has(invoice.id)) {
+          throw new RazorpayApiError("Razorpay returned an inconsistent invoice collection", { kind: "PROVIDER" });
+        }
+        seen.add(invoice.id);
+        items.push(invoice);
+      }
+    }
+    // A bounded read must not silently turn into complete commercial evidence.
+    throw new RazorpayApiError("Razorpay invoice history could not be read completely", { kind: "PROVIDER" });
   }
 
   cancelSubscription(subscriptionId: string, input: { cancel_at_cycle_end: boolean }) {

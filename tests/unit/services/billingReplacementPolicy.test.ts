@@ -13,6 +13,7 @@ import {
   getSafeReplacementCycleBoundary,
   isReplacementAuthorizationReady,
   isReplacementMutationEligible,
+  isReplacementMutationEnabled,
   isReplacementPromotionReady,
   isSupportedRecurringPaymentMethod,
   normalizeReplacementPaymentMethod,
@@ -96,7 +97,7 @@ describe("billing replacement policy", () => {
     expect(isSupportedRecurringPaymentMethod("unknown")).toBe(false);
   });
 
-  it("requires replacement only for supported UPI/eMandate plan and quantity mutations", () => {
+  it("requires replacement for every supported card, UPI and eMandate plan or quantity mutation", () => {
     for (const mutationType of [
       "TRIAL_SUBSCRIPTION_UPDATE",
       "PLAN_UPGRADE",
@@ -107,7 +108,7 @@ describe("billing replacement policy", () => {
     ]) {
       expect(isReplacementMutationEligible({ sourcePaymentMethod: "UPI", mutationType })).toBe(true);
       expect(isReplacementMutationEligible({ sourcePaymentMethod: "emandate", mutationType })).toBe(true);
-      expect(isReplacementMutationEligible({ sourcePaymentMethod: "CARD", mutationType })).toBe(false);
+      expect(isReplacementMutationEligible({ sourcePaymentMethod: "CARD", mutationType })).toBe(true);
     }
 
     expect(isReplacementMutationEligible({
@@ -118,6 +119,22 @@ describe("billing replacement policy", () => {
       sourcePaymentMethod: "UNKNOWN",
       mutationType: "PLAN_UPGRADE",
     })).toBe(false);
+  });
+
+  it.each(["PLAN_UPGRADE", "PLAN_DOWNGRADE", "QUANTITY_INCREASE", "BRANCH_REMOVAL", "BRANCH_REACTIVATION", "TRIAL_SUBSCRIPTION_UPDATE"])(
+    "permits card-only replacement for %s while preserving the other-method rollout hold", mutationType => {
+      expect(isReplacementMutationEnabled({ sourcePaymentMethod: "CARD", mutationType }, false)).toBe(true);
+      for (const sourcePaymentMethod of ["UPI", "EMANDATE"]) {
+        expect(isReplacementMutationEnabled({ sourcePaymentMethod, mutationType }, false)).toBe(false);
+        expect(isReplacementMutationEnabled({ sourcePaymentMethod, mutationType }, true)).toBe(true);
+      }
+      expect(isReplacementMutationEnabled({ sourcePaymentMethod: "UNKNOWN", mutationType }, true)).toBe(false);
+    }
+  );
+
+  it("keeps proactive payment-method replacement behind the multi-method rollout", () => {
+    expect(isReplacementMutationEnabled({ sourcePaymentMethod: "CARD", mutationType: "PAYMENT_METHOD_REPLACEMENT" }, false)).toBe(false);
+    expect(isReplacementMutationEnabled({ sourcePaymentMethod: "CARD", mutationType: "PAYMENT_METHOD_REPLACEMENT" }, true)).toBe(true);
   });
 
   it("uses a replacement for proactive method switching from any supported mandate", () => {

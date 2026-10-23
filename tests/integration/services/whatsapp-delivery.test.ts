@@ -420,6 +420,22 @@ describe("WhatsApp durable delivery integration", () => {
     await expect(testPrisma.whatsAppMessage.count()).resolves.toBe(1);
   });
 
+  it.each(["BASIC", "STANDARD"] as const)("suppresses queued WhatsApp work after a paid downgrade to %s", async plan => {
+    const world = await createDeliveryWorld();
+    await queueGroupedReminder(world, `downgrade-${plan}`);
+    // Simulate an already settled canonical downgrade. The old record remains
+    // historical, and the queue must re-check the new entitlement at dispatch.
+    await testPrisma.organizationSubscription.updateMany({ where: { currentOrganizationId: world.organization.id }, data: { currentOrganizationId: null } });
+    await createSaasSubscription({ organizationId: world.organization.id, plan });
+    const { provider, sendApprovedUtilityTemplate } = fakeProvider();
+    const result = await WhatsAppDispatcherService.run({ now: NOW, limit: 10, env: DELIVERY_ENV, provider });
+    expect(result).toMatchObject({ messagesAccepted: 0, messagesSuppressed: 1 });
+    expect(sendApprovedUtilityTemplate).not.toHaveBeenCalled();
+    await expect(testPrisma.whatsAppMessage.findFirstOrThrow()).resolves.toMatchObject({ status: "SUPPRESSED", failureCode: "ENTITLEMENT_REQUIRED" });
+    await expect(WhatsAppMessageService.previewPaymentReminders({ actorUserId: world.owner.id,
+      branchId: world.branch.id, paymentIds: [world.payments[0].id], now: NOW, env: DELIVERY_ENV })).rejects.toThrow();
+  });
+
   it("dispatches an eligible row only through the injected provider and commits its reservation", async () => {
     const world = await createDeliveryWorld();
     await queueGroupedReminder(world, "manual-delivery-request-2");

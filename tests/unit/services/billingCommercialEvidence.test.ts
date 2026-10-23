@@ -109,6 +109,21 @@ function validate(overrides: {
   invoice?: RazorpayInvoice | null;
   plan?: RazorpayPlan | null;
   providerMode?: "TEST" | "LIVE";
+  expectedPaymentId?: string;
+  verifiedCallbackBinding?: { subscriptionId: string; paymentId: string };
+  completeInvoiceHistoryEmpty?: boolean;
+  localSubscription?: Partial<{
+    organizationId: string;
+    providerMode: "TEST" | "LIVE";
+    razorpaySubscriptionId: string;
+    authPaymentId: string | null;
+    confirmedCommercialIntentChangeId: string | null;
+    providerStartAt: Date | null;
+    currentStart: Date | null;
+    currentEnd: Date | null;
+    paidThrough: Date | null;
+    totalCount: number;
+  }>;
 } = {}) {
   return validateExactCommercialEvidence({
     intent: overrides.intent === undefined ? intent() : overrides.intent,
@@ -118,9 +133,13 @@ function validate(overrides: {
       organizationId: "org_1",
       providerMode: "TEST",
       razorpaySubscriptionId: "sub_1",
+      ...overrides.localSubscription,
     },
+    verifiedCallbackBinding: overrides.verifiedCallbackBinding,
+    completeInvoiceHistoryEmpty: overrides.completeInvoiceHistoryEmpty,
     providerSubscription: overrides.subscription ?? providerSubscription(),
     payment: overrides.payment === undefined ? payment() : overrides.payment,
+    expectedPaymentId: overrides.expectedPaymentId,
     invoice: overrides.invoice === undefined ? invoice() : overrides.invoice,
     providerPlan: overrides.plan === undefined ? providerPlan() : overrides.plan,
     now,
@@ -174,6 +193,65 @@ describe("exact billing commercial evidence", () => {
     })).toEqual({ kind: "AUTHORIZATION_ONLY" });
   });
 
+  function refundedAuthorization() {
+    return {
+      subscription: providerSubscription({ status: "authenticated", paid_count: 0,
+        current_start: null, current_end: null, start_at: periodEnd }),
+      payment: payment({ amount: 500, status: "refunded", captured: false, invoice_id: null,
+        subscription_id: undefined, amount_refunded: 500, refund_status: "full" }),
+      invoice: null, plan: null, completeInvoiceHistoryEmpty: true,
+      verifiedCallbackBinding: { subscriptionId: "sub_1", paymentId: "pay_1" },
+      localSubscription: { providerStartAt: new Date(periodEnd * 1000), totalCount: 120 },
+    };
+  }
+
+  it.each(["card", "upi"])("accepts a fully refunded INR5 %s token only as signed future authorization", method => {
+    const evidence = refundedAuthorization();
+    expect(validate({ ...evidence, payment: { ...evidence.payment, method } }))
+      .toEqual({ kind: "AUTHORIZATION_ONLY" });
+  });
+
+  it("retains a fully refunded verification token with previously confirmed authorization", () => {
+    const evidence = refundedAuthorization();
+    expect(validate({ ...evidence, verifiedCallbackBinding: undefined,
+      localSubscription: { ...evidence.localSubscription, authPaymentId: "pay_1", confirmedCommercialIntentChangeId: "change_1" } }))
+      .toEqual({ kind: "AUTHORIZATION_ONLY" });
+  });
+
+  it.each([
+    ["partial refund", { amount_refunded: 499 }], ["missing refund amount", { amount_refunded: undefined }],
+    ["partial status", { refund_status: "partial" }], ["captured", { captured: true }],
+    ["wrong amount", { amount: 499 }], ["unsupported method", { method: "wallet" }],
+    ["eMandate token", { method: "emandate" }], ["foreign subscription", { subscription_id: "sub_foreign" }],
+    ["invoice present", { invoice_id: "inv_1" }],
+  ] as const)("rejects a refunded authorization with %s", (_label, changes) => {
+    const evidence = refundedAuthorization();
+    expect(validate({ ...evidence, payment: { ...evidence.payment, ...changes } }).kind).toBe("MISMATCH");
+  });
+
+  it.each([
+    ["active", { status: "active" }], ["created", { status: "created" }], ["paid count", { paid_count: 1 }],
+    ["unknown paid count", { paid_count: undefined }], ["paid period", { current_end: periodEnd }],
+    ["wrong future date", { start_at: periodEnd + 1 }], ["wrong count", { total_count: 119 }],
+  ] as const)("rejects refunded token subscription evidence: %s", (_label, changes) => {
+    const evidence = refundedAuthorization();
+    expect(validate({ ...evidence, subscription: { ...evidence.subscription, ...changes } }).kind).toBe("MISMATCH");
+  });
+
+  it("does not accept refunded tokens from payment hints, direct IDs, incomplete histories, or local paid periods", () => {
+    const evidence = refundedAuthorization();
+    expect(validate({ ...evidence, verifiedCallbackBinding: undefined,
+      payment: { ...evidence.payment, subscription_id: "sub_1" } }).kind).toBe("MISMATCH");
+    expect(validate({ ...evidence, completeInvoiceHistoryEmpty: false }).kind).toBe("MISMATCH");
+    expect(validate({ ...evidence, localSubscription: { ...evidence.localSubscription, paidThrough: new Date(periodEnd * 1000) } }).kind).toBe("MISMATCH");
+  });
+
+  it("never treats a refunded full invoice payment as settlement even with a valid callback binding", () => {
+    expect(validate({ payment: payment({ status: "refunded", captured: false, amount_refunded: 59_800, refund_status: "full" }),
+      verifiedCallbackBinding: { subscriptionId: "sub_1", paymentId: "pay_1" } }))
+      .toEqual({ kind: "MISMATCH", code: "PAYMENT_NOT_CAPTURED" });
+  });
+
   it("accepts a captured token payment only when capture state is internally consistent", () => {
     expect(validate({
       subscription: providerSubscription({ status: "authenticated" }),
@@ -199,6 +277,133 @@ describe("exact billing commercial evidence", () => {
       periodStart: new Date(periodStart * 1000),
       periodEnd: new Date(periodEnd * 1000),
     });
+  });
+
+  it.each([undefined, null])("binds a payment with subscription_id %s through its exact fetched invoice", subscriptionId => {
+    expect(validate({ payment: payment({ subscription_id: subscriptionId }) })).toEqual({
+      kind: "EXACT_SETTLEMENT",
+      expectedAmountSubunits: 59_800,
+      periodStart: new Date(periodStart * 1000),
+      periodEnd: new Date(periodEnd * 1000),
+    });
+  });
+
+  it.each([0, 1, 999])("accepts provider-second settlement at %i ms authorization precision", milliseconds => {
+    expect(validate({ intent: intent({
+      commercialIntentCapturedAt: new Date((periodStart + 60) * 1000 + milliseconds),
+    }) })).toMatchObject({ kind: "EXACT_SETTLEMENT" });
+  });
+
+  it.each([1_000, 1_999])("rejects a provider settlement second preceding authorization by %i ms", milliseconds => {
+    expect(validate({ intent: intent({
+      commercialIntentCapturedAt: new Date((periodStart + 60) * 1000 + milliseconds),
+    }) })).toEqual({ kind: "MISMATCH", code: "STALE_SETTLEMENT" });
+  });
+
+  it.each([undefined, null])("rejects authorization-only payment with subscription_id %s without invoice binding", subscriptionId => {
+    expect(validate({
+      payment: payment({ subscription_id: subscriptionId, invoice_id: null }),
+      invoice: null,
+      plan: null,
+    })).toEqual({ kind: "MISMATCH", code: "PAYMENT_SUBSCRIPTION_MISMATCH" });
+  });
+
+  it.each([undefined, null])("accepts only authorization for a server-verified callback with subscription_id %s", subscriptionId => {
+    expect(validate({
+      payment: payment({ subscription_id: subscriptionId, invoice_id: null, amount: 500, status: "authorized", captured: false }),
+      invoice: null, plan: null,
+      verifiedCallbackBinding: { subscriptionId: "sub_1", paymentId: "pay_1" },
+    })).toEqual({ kind: "AUTHORIZATION_ONLY" });
+  });
+
+  it.each([undefined, null])("retains authorization for a previously confirmed payment with subscription_id %s", subscriptionId => {
+    expect(validate({
+      payment: payment({ subscription_id: subscriptionId, invoice_id: null, amount: 500 }),
+      invoice: null, plan: null,
+      localSubscription: { authPaymentId: "pay_1", confirmedCommercialIntentChangeId: "change_1" },
+    })).toEqual({ kind: "AUTHORIZATION_ONLY" });
+  });
+
+  it.each([
+    { subscriptionId: "sub_other", paymentId: "pay_1" },
+    { subscriptionId: "sub_1", paymentId: "pay_other" },
+  ])("rejects a callback binding for another payment or subscription: %j", verifiedCallbackBinding => {
+    expect(validate({ payment: payment({ subscription_id: undefined, invoice_id: null }),
+      invoice: null, plan: null, verifiedCallbackBinding }))
+      .toEqual({ kind: "MISMATCH", code: "PAYMENT_SUBSCRIPTION_MISMATCH" });
+  });
+
+  it.each([
+    { authPaymentId: "pay_other", confirmedCommercialIntentChangeId: "change_1" },
+    { authPaymentId: "pay_1", confirmedCommercialIntentChangeId: "change_other" },
+    { authPaymentId: null, confirmedCommercialIntentChangeId: "change_1" },
+    { authPaymentId: "pay_1", confirmedCommercialIntentChangeId: null },
+  ])("rejects unconfirmed or unrelated stored authorization pointers: %j", localSubscription => {
+    expect(validate({ payment: payment({ subscription_id: undefined, invoice_id: null }),
+      invoice: null, plan: null, localSubscription }))
+      .toEqual({ kind: "MISMATCH", code: "PAYMENT_SUBSCRIPTION_MISMATCH" });
+  });
+
+  it.each([
+    ["foreign payment subscription", { payment: payment({ subscription_id: "sub_other", invoice_id: null }) }, "PAYMENT_SUBSCRIPTION_MISMATCH"],
+    ["malformed payment subscription", { payment: payment({ subscription_id: 42 as unknown as string, invoice_id: null }) }, "MALFORMED_PROVIDER_EVIDENCE"],
+    ["foreign organization", { localSubscription: { organizationId: "org_other" } }, "ORGANIZATION_MISMATCH"],
+    ["wrong mode", { providerMode: "LIVE" }, "PROVIDER_MODE_MISMATCH"],
+    ["wrong plan", { subscription: providerSubscription({ plan_id: "plan_other" }) }, "PROVIDER_PLAN_MISMATCH"],
+    ["wrong quantity", { subscription: providerSubscription({ quantity: 3 }) }, "QUANTITY_MISMATCH"],
+  ] as const)("never lets callback proof override %s", (_label, evidence, code) => {
+    expect(validate({ payment: payment({ subscription_id: undefined, invoice_id: null }),
+      invoice: null, plan: null,
+      verifiedCallbackBinding: { subscriptionId: "sub_1", paymentId: "pay_1" }, ...evidence }))
+      .toEqual({ kind: "MISMATCH", code });
+  });
+
+  it("never lets authorization proof bypass reciprocal invoice identity for settlement", () => {
+    expect(validate({ payment: payment({ subscription_id: undefined, invoice_id: "inv_other" }),
+      verifiedCallbackBinding: { subscriptionId: "sub_1", paymentId: "pay_1" },
+      localSubscription: { authPaymentId: "pay_1", confirmedCommercialIntentChangeId: "change_1" } }))
+      .toEqual({ kind: "MISMATCH", code: "INVOICE_PAYMENT_MISMATCH" });
+  });
+
+  it.each([0, false, {}, [], "", "  "])("rejects malformed payment subscription identity %j even with a matching invoice", subscriptionId => {
+    expect(validate({ payment: payment({ subscription_id: subscriptionId as unknown as string }) }))
+      .toEqual({ kind: "MISMATCH", code: "MALFORMED_PROVIDER_EVIDENCE" });
+  });
+
+  it.each([
+    ["foreign subscription", { invoice: invoice({ subscription_id: "sub_other" }) }, "INVOICE_SUBSCRIPTION_MISMATCH"],
+    ["missing invoice subscription", { invoice: invoice({ subscription_id: undefined }) }, "INVOICE_SUBSCRIPTION_MISMATCH"],
+    ["foreign payment", { invoice: invoice({ payment_id: "pay_other" }) }, "INVOICE_PAYMENT_MISMATCH"],
+    ["missing invoice payment", { invoice: invoice({ payment_id: null }) }, "INVOICE_PAYMENT_MISMATCH"],
+    ["foreign invoice", { invoice: invoice({ id: "inv_other" }) }, "INVOICE_PAYMENT_MISMATCH"],
+    ["unpaid invoice", { invoice: invoice({ status: "issued" }) }, "INVOICE_NOT_PAID"],
+    ["partial settlement", { invoice: invoice({ amount_due: 100 }) }, "INVOICE_AMOUNT_DUE"],
+    ["wrong currency", { invoice: invoice({ currency: "USD" }) }, "CURRENCY_MISMATCH"],
+    ["wrong period", { invoice: invoice({ billing_end: periodEnd + 1 }) }, "BILLING_PERIOD_MISMATCH"],
+    ["missing plan evidence", { plan: null }, "PROVIDER_PLAN_EVIDENCE_MISSING"],
+    ["wrong plan", { plan: providerPlan({ id: "plan_other" }) }, "PROVIDER_PLAN_MISMATCH"],
+    ["wrong quantity", { subscription: providerSubscription({ quantity: 1 }) }, "QUANTITY_MISMATCH"],
+  ] as const)("still rejects %s when payment has no direct subscription identity", (_label, evidence, code) => {
+    expect(validate({ ...evidence, payment: payment({ subscription_id: undefined }) }))
+      .toEqual({ kind: "MISMATCH", code });
+  });
+
+  it.each([null, "inv_other"])("rejects missing or mismatched payment invoice identity %s without a direct subscription", invoiceId => {
+    expect(validate({ payment: payment({ subscription_id: undefined, invoice_id: invoiceId }) }))
+      .toEqual({ kind: "MISMATCH", code: "INVOICE_PAYMENT_MISMATCH" });
+  });
+
+  it("does not let invoice binding override the requested payment identity", () => {
+    expect(validate({ payment: payment({ subscription_id: undefined }), expectedPaymentId: "pay_other" }))
+      .toEqual({ kind: "MISMATCH", code: "PAYMENT_ID_MISMATCH" });
+  });
+
+  it.each([
+    [false, "PAYMENT_NOT_CAPTURED"],
+    [undefined, "MALFORMED_PROVIDER_EVIDENCE"],
+  ] as const)("requires exact capture evidence %s for invoice-bound payments", (captured, code) => {
+    expect(validate({ payment: payment({ subscription_id: undefined, captured }) }))
+      .toEqual({ kind: "MISMATCH", code });
   });
 
   it.each([

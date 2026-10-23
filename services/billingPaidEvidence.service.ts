@@ -160,7 +160,10 @@ function resolveTrustedPaidThroughInternal(
     requireBoundSubscription: true,
   });
   if (!isValidDate(frozen.commercialIntentCapturedAt)
-    || evidence.paidAt.getTime() < frozen.commercialIntentCapturedAt.getTime()
+    // Razorpay settlement timestamps have second precision. Use the same
+    // ordering boundary as the provider commercial-evidence validator.
+    || Math.floor(evidence.paidAt.getTime() / 1000)
+      < Math.floor(frozen.commercialIntentCapturedAt.getTime() / 1000)
     || frozen.authorizedProviderMode !== subscription.providerMode
     || !isExactId(frozen.authorizedSourceRazorpaySubscriptionId)
     || frozen.authorizedRazorpaySubscriptionId !== subscription.razorpaySubscriptionId

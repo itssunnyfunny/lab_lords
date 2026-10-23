@@ -19,10 +19,12 @@ import {
   commercialEvidenceMessage,
   readCommercialIntentSnapshot,
   validateExactCommercialEvidence,
+  readVerifiedSubscriptionCallbackBinding,
   type CommercialEvidenceMismatchCode,
   type ExactCommercialEvidenceResult,
 } from "@/services/billingCommercialEvidence.service";
 import { recordBillingMutationAudit } from "@/services/billingMutationAudit.service";
+import { confirmReconciledBillingProviderAction } from "@/services/billingProviderAction.service";
 import {
   isSupportedProviderPaymentMethod,
   normalizeProviderPaymentMethod,
@@ -631,6 +633,10 @@ export class BillingReconciliationService {
       providerSubscription,
       payment,
       expectedPaymentId: options.paymentId ?? selectedInvoice?.payment_id ?? null,
+      verifiedCallbackBinding: await readVerifiedSubscriptionCallbackBinding({
+        intent, subscriptionId: razorpaySubscriptionId, paymentId: payment?.id,
+      }),
+      completeInvoiceHistoryEmpty: invoices.count === 0 && invoices.items.length === 0,
       invoice: selectedInvoice,
       providerPlan,
       now,
@@ -788,6 +794,10 @@ export class BillingReconciliationService {
             providerSubscription,
             payment,
             expectedPaymentId: options.paymentId ?? payment.id,
+            verifiedCallbackBinding: await readVerifiedSubscriptionCallbackBinding({
+              intent: lockedIntent, subscriptionId: razorpaySubscriptionId, paymentId: payment.id,
+            }, tx),
+            completeInvoiceHistoryEmpty: invoices.count === 0 && invoices.items.length === 0,
             invoice: null,
             providerPlan: null,
             now,
@@ -1142,6 +1152,22 @@ export class BillingReconciliationService {
               data: { billingStatus: "ARCHIVED", billingArchivedAt: now },
             });
           }
+        }
+
+        // Exact settlement proves an in-place update reached its frozen target.
+        // Resolve that receipt atomically with adoption, including rows adopted
+        // by an older worker. Settlement never proves cancellation or replacement
+        // actions, which retain their own outcome and reconciliation boundaries.
+        if (!replacement && [
+          "TRIAL_SUBSCRIPTION_UPDATE", "PLAN_UPGRADE", "PLAN_DOWNGRADE",
+          "QUANTITY_INCREASE", "BRANCH_REMOVAL", "BRANCH_REACTIVATION", "LEGACY_TRANSITION",
+        ].includes(lockedIntent.type)) {
+          await confirmReconciledBillingProviderAction(tx, {
+            organizationId: lockedIntent.organizationId,
+            identity: lockedIntent.id,
+            purpose: "MUTATE",
+            provider: providerSubscription,
+          });
         }
 
         return { stale: false as const, subscription: stored };

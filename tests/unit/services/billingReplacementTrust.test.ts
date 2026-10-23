@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   subscriptionFindFirst: vi.fn(),
   subscriptionFindUnique: vi.fn(),
   subscriptionFindUniqueOrThrow: vi.fn(),
+  subscriptionUpdate: vi.fn(),
+  subscriptionHistoryUpsert: vi.fn(),
   getOrganizationForOwnerAccess: vi.fn(),
   enqueueMutation: vi.fn(),
   processNextMutation: vi.fn(),
@@ -62,7 +64,8 @@ vi.mock("@/services/organization.service", () => ({
   },
 }));
 
-vi.mock("@/services/billingMutation.service", () => ({
+vi.mock("@/services/billingMutation.service", async importOriginal => ({
+  ...await importOriginal<typeof import("@/services/billingMutation.service")>(),
   BillingMutationService: {
     enqueue: mocks.enqueueMutation,
     processNext: mocks.processNextMutation,
@@ -90,7 +93,8 @@ vi.mock("@/services/billingReplacement.service", () => ({
   isCandidateCancellationRetrySafeCode: () => false,
 }));
 
-vi.mock("@/services/billingReplacementPolicy", () => ({
+vi.mock("@/services/billingReplacementPolicy", async importOriginal => ({
+  ...await importOriginal<typeof import("@/services/billingReplacementPolicy")>(),
   isReplacementMutationEligible: () => true,
 }));
 
@@ -226,7 +230,10 @@ describe("replacement billing trust and race contracts", () => {
     mocks.organizationUpdate.mockResolvedValue({});
     mocks.billingChangeUpdateMany.mockResolvedValue({ count: 1 });
     mocks.transaction.mockImplementation(async callback => callback({
+      organizationBillingChangeAudit: { upsert: vi.fn(async () => ({})) },
       organizationBillingChange: { updateMany: mocks.billingChangeUpdateMany },
+      organizationSubscription: { update: mocks.subscriptionUpdate },
+      organizationSubscriptionHistory: { upsert: mocks.subscriptionHistoryUpsert },
     }));
     mocks.recordBillingMutationAudit.mockResolvedValue(undefined);
     mocks.processNextMutation.mockResolvedValue(null);
@@ -290,7 +297,7 @@ describe("replacement billing trust and race contracts", () => {
     {
       label: "payment subscription association",
       subscription: {},
-      payment: { subscription_id: null },
+      payment: { subscription_id: "sub_other" },
       code: "PAYMENT_SUBSCRIPTION_MISMATCH",
       error: "The payment does not belong to the authorized subscription",
     },
@@ -371,6 +378,42 @@ describe("replacement billing trust and race contracts", () => {
       })
     );
     expect(mocks.syncAuthorizedAccess).not.toHaveBeenCalled();
+  });
+
+  it("confirms invoice-free replacement authorization from its verified callback without inventing paid access", async () => {
+    let change = replacementChange();
+    let candidate = candidateSubscription();
+    mocks.billingChangeFindFirst.mockImplementation(async () => change);
+    mocks.subscriptionFindFirst.mockImplementation(async () => candidate);
+    mocks.billingChangeFindUniqueOrThrow.mockImplementation(async () => change);
+    mocks.subscriptionFindUniqueOrThrow.mockImplementation(async () => candidate);
+    mocks.billingChangeUpdateMany.mockImplementation(async ({ data }) => {
+      change = { ...change, ...data };
+      return { count: 1 };
+    });
+    mocks.subscriptionUpdate.mockImplementation(async ({ data }) => {
+      candidate = { ...candidate, ...data };
+      return candidate;
+    });
+    mocks.subscriptionHistoryUpsert.mockResolvedValue({});
+    mocks.fetchSubscription.mockResolvedValue({
+      id: "sub_candidate", entity: "subscription", plan_id: "plan_pro", status: "authenticated",
+      total_count: 120, quantity: 1, paid_count: 0, offer_id: null, current_start: null, current_end: null,
+    });
+    mocks.fetchPayment.mockResolvedValue({
+      id: "pay_auth", entity: "payment", amount: 500, currency: "INR", status: "authorized",
+      order_id: null, invoice_id: null, method: "upi", captured: false,
+    });
+
+    await expect(BillingService.verifySubscriptionSuccess("owner_1", "org_1", {
+      changeId: change.id, razorpay_subscription_id: "sub_candidate", razorpay_payment_id: "pay_auth",
+      razorpay_signature: "verified-signature",
+    })).resolves.toMatchObject({ verified: true, pending: true,
+      subscription: { status: "AUTHENTICATED", paidThrough: null } });
+    expect(candidate).toMatchObject({ authPaymentId: "pay_auth", confirmedCommercialIntentChangeId: change.id,
+      pendingReplacementOrganizationId: "org_1", currentOrganizationId: null, paidThrough: null });
+    expect(mocks.syncAuthorizedAccess).toHaveBeenCalledWith(change.id, expect.any(Date));
+    expect(mocks.failReplacementCheckout).not.toHaveBeenCalled();
   });
 
   it("returns the existing PROCESSING plan replacement when an idempotent retry has no candidate yet", async () => {

@@ -156,6 +156,24 @@ describe("stored paid commercial evidence", () => {
     expect(resolve(exactSubscription())).toEqual(periodEnd);
   });
 
+  it.each([0, 1, 999])("accepts settlement in the authorization second with %i ms local precision", milliseconds => {
+    const subscription = exactSubscription({
+      invoices: [exactInvoice({ commercialIntentChange: exactIntent({
+        commercialIntentCapturedAt: new Date(paidAt.getTime() + milliseconds),
+      }) })],
+    });
+    expect(resolve(subscription)).toEqual(periodEnd);
+  });
+
+  it.each([1_000, 1_999])("rejects settlement from an earlier provider second (%i ms before local authorization)", milliseconds => {
+    const subscription = exactSubscription({
+      invoices: [exactInvoice({ commercialIntentChange: exactIntent({
+        commercialIntentCapturedAt: new Date(paidAt.getTime() + milliseconds),
+      }) })],
+    });
+    expect(resolve(subscription)).toBeNull();
+  });
+
   it("accepts an exact replacement-intent lineage after cutover", () => {
     const replacementIntent = exactIntent({
       organizationSubscriptionId: "source_subscription_row",

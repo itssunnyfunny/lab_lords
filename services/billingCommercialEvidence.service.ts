@@ -10,6 +10,7 @@ import type {
   BillingOfferDiscountType,
   BillingOfferDurationType,
   OrganizationBillingChange,
+  Prisma,
   RazorpayMode,
   SaasPlan,
 } from "@/app/generated/prisma/client";
@@ -411,7 +412,18 @@ type ExactCommercialEvidenceInput = {
     organizationId: string;
     providerMode: RazorpayMode;
     razorpaySubscriptionId: string;
+    authPaymentId?: string | null;
+    confirmedCommercialIntentChangeId?: string | null;
+    providerStartAt?: Date | null;
+    currentStart?: Date | null;
+    currentEnd?: Date | null;
+    paidThrough?: Date | null;
+    totalCount?: number;
   };
+  // Only the server callback verifier may supply this after validating its
+  // signature and matching the owner-scoped operation/subscription identity.
+  verifiedCallbackBinding?: { subscriptionId: string; paymentId: string } | null;
+  completeInvoiceHistoryEmpty?: boolean;
   providerSubscription: RazorpaySubscription;
   payment?: RazorpayPayment | null;
   expectedPaymentId?: string | null;
@@ -510,7 +522,11 @@ function validateExactCommercialEvidenceInternal(
     if (input.expectedPaymentId && paymentId !== input.expectedPaymentId) {
       return mismatch("PAYMENT_ID_MISMATCH");
     }
-    if (paymentSubscriptionId !== intent.authorizedRazorpaySubscriptionId) {
+    // Razorpay payments may omit subscription_id. For settlement, the fetched
+    // invoice must prove the exact payment/subscription link below; an explicit
+    // conflicting subscription is never overridden by that invoice evidence.
+    if (paymentSubscriptionId != null
+      && paymentSubscriptionId !== intent.authorizedRazorpaySubscriptionId) {
       return mismatch("PAYMENT_SUBSCRIPTION_MISMATCH");
     }
     if (paymentCurrency !== intent.authorizedCurrency) {
@@ -527,8 +543,43 @@ function validateExactCommercialEvidenceInternal(
   let invoicePaymentId: string | null = null;
   if (!rawInvoice) {
     if (!rawPayment) return { kind: "PENDING" };
+    const verifiedCallbackBindsPayment = input.verifiedCallbackBinding?.subscriptionId
+      === intent.authorizedRazorpaySubscriptionId
+      && input.verifiedCallbackBinding?.paymentId === paymentId;
+    // These pointers are established by provider-confirmed authorization or
+    // settlement. A browser-recorded providerPaymentId alone is
+    // deliberately insufficient for a later read-only reconciliation.
+    const storedAuthorizationBindsPayment = input.localSubscription.authPaymentId === paymentId
+      && input.localSubscription.confirmedCommercialIntentChangeId === intent.id;
+    if (paymentSubscriptionId !== intent.authorizedRazorpaySubscriptionId
+      && !verifiedCallbackBindsPayment && !storedAuthorizationBindsPayment) {
+      return mismatch("PAYMENT_SUBSCRIPTION_MISMATCH");
+    }
     if (paymentInvoiceId) {
       return mismatch("INVOICE_PAYMENT_MISMATCH");
+    }
+    if (paymentStatus === "refunded") {
+      // Razorpay auto-refunds the INR 5 CARD/UPI mandate verification token.
+      // This proves authorization only, never a paid invoice or billing period.
+      const localStart = input.localSubscription.providerStartAt;
+      const nowSeconds = Math.floor((input.now ?? new Date()).getTime() / 1000);
+      if ((!verifiedCallbackBindsPayment && !storedAuthorizationBindsPayment)
+        || paymentAmount !== 500 || paymentCurrency !== "INR" || paymentCaptured !== false
+        || payment?.amount_refunded !== 500 || payment.refund_status !== "full"
+        || !["card", "upi"].includes(normalizedProviderStatus(payment.method) ?? "")
+        || providerSubscriptionStatus !== "authenticated" || providerSubscription.paid_count !== 0
+        || providerSubscription.current_start != null || providerSubscription.current_end != null
+        || input.localSubscription.currentStart != null || input.localSubscription.currentEnd != null
+        || input.localSubscription.paidThrough != null
+        || !positiveInteger(input.localSubscription.totalCount)
+        || providerSubscription.total_count !== input.localSubscription.totalCount
+        || !(localStart instanceof Date) || !Number.isFinite(localStart.getTime())
+        || providerSubscription.start_at !== Math.floor(localStart.getTime() / 1000)
+        || !positiveInteger(providerSubscription.start_at) || providerSubscription.start_at <= nowSeconds
+        || input.completeInvoiceHistoryEmpty !== true) {
+        return mismatch("PAYMENT_NOT_AUTHORIZED");
+      }
+      return { kind: "AUTHORIZATION_ONLY" };
     }
     if (paymentStatus === "authorized" && paymentCaptured !== false) {
       return mismatch("MALFORMED_PROVIDER_EVIDENCE");
@@ -663,6 +714,39 @@ function validateExactCommercialEvidenceInternal(
     periodStart: new Date(invoice.billing_start * 1000),
     periodEnd: new Date(invoice.billing_end * 1000),
   };
+}
+
+const VERIFIED_CALLBACK_OUTCOME = "SUBSCRIPTION_CALLBACK_SIGNATURE_VERIFIED";
+
+/** Persist only after HMAC verification and owner/operation/subscription scope checks. */
+export async function recordVerifiedSubscriptionCallbackBinding(tx: Prisma.TransactionClient, input: {
+  change: Pick<OrganizationBillingChange, "id" | "organizationId" | "attemptCount">;
+  subscriptionId: string;
+  paymentId: string;
+  providerMode: RazorpayMode;
+}) {
+  const dedupeKey = `verified-subscription-callback:${input.change.id}:${input.providerMode}:${input.subscriptionId}:${input.paymentId}`;
+  await tx.organizationBillingChangeAudit.upsert({ where: { dedupeKey }, update: {}, create: {
+    organizationId: input.change.organizationId, changeId: input.change.id,
+    attemptCount: input.change.attemptCount, outcome: VERIFIED_CALLBACK_OUTCOME,
+    providerSubscriptionId: input.subscriptionId, dedupeKey,
+  } });
+}
+
+/** A browser payment hint is not proof; only the immutable verified-pair audit qualifies. */
+export async function readVerifiedSubscriptionCallbackBinding(input: {
+  intent: CommercialIntentRecord | null;
+  subscriptionId: string;
+  paymentId: string | null | undefined;
+}, db: Pick<Prisma.TransactionClient, "organizationBillingChangeAudit"> = prisma) {
+  if (!input.intent || !input.paymentId
+    || input.intent.authorizedRazorpaySubscriptionId !== input.subscriptionId) return null;
+  const proof = await db.organizationBillingChangeAudit.findFirst({ where: {
+    organizationId: input.intent.organizationId, changeId: input.intent.id,
+    outcome: VERIFIED_CALLBACK_OUTCOME, providerSubscriptionId: input.subscriptionId,
+    dedupeKey: `verified-subscription-callback:${input.intent.id}:${input.intent.authorizedProviderMode}:${input.subscriptionId}:${input.paymentId}`,
+  }, select: { id: true } });
+  return proof ? { subscriptionId: input.subscriptionId, paymentId: input.paymentId } : null;
 }
 
 /** Treats every provider response as untrusted and never lets malformed evidence escape. */
