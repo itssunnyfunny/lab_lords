@@ -2899,3 +2899,22 @@ deployment status is in `docs/ai/basic-attendance-verification-2026-09-11.md`.
 ## Three-plan billing release — 2026-10-23
 
 Follow [the catalogue cutover runbook](billing/three-plan-cutover.md) before applying `20261023090000_three_plan_catalogue`. It is transactionally guarded for a commercially empty ledger; it intentionally fails for historical subscriptions, invoices, mappings or unresolved operations. Use `scripts/billing-three-plan-inventory.sql` for the read-only affected-ID/count inventory. Do not delete billing history or reinterpret old internal PRO to bypass the guard. Production inventory, Live mappings, deployment and authorized Live smoke verification remain release prerequisites. No shared migration or deployment was performed in this task.
+
+
+### Three-plan release preparation and cron hosting gate
+
+The [release preparation handoff](billing/three-plan-cutover.md#release-preparation-follow-up--2026-10-23)
+records the five sub-daily schedules rejected by Vercel Hobby and the owner
+decision to upgrade the same project to Pro after approximately one week.
+The Hobby failure is an intentional hold; no alternative scheduler is selected.
+Retain the eight schedules and existing credentials/leases. An account purchase,
+scheduler replacement, deployment or Production operation needs its own explicit
+authorization; this preparation performs none of them.
+
+The read-only inventory now includes a bounded, consistent JSON readiness
+summary. Run with SQL stop-on-error, keep full output private, and treat timeout
+or partial output as invalid. Empty-ledger success is only a data precondition:
+provider obligations, migration lineage, snapshot/restore, worker drain, Live
+mappings and release smoke evidence remain separate gates. Do not use the
+local fixture verifier against shared databases; it accepts only the existing
+identity-checked loopback Docker runtime and creates a fresh synthetic database.

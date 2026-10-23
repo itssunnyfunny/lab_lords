@@ -203,3 +203,44 @@ billing were not changed; supported hosting or an approved scheduler design is
 required. Production inventory/ledger transition, Live mappings and actual
 future settlement/webhook/deployment checks remain release prerequisites.
 No merge, manual deployment, production access or schema change occurred in this follow-up.
+
+
+## Release preparation and remaining capability copy — 2026-10-23
+
+The subsequent complete GitHub CI run [39910456939](https://github.com/itssunnyfunny/lab_lords/actions/runs/39910456939)
+passed at `605c75a`: 351 files / 2,967 tests, lint, build and coverage (74.94%
+lines, 84.19% functions). This supersedes the earlier pending-CI note above.
+
+`lib/branchCapabilities.ts` now distinguishes Pro-only WhatsApp from Standard
+staff, analytics and AI in both owner and staff recovery guidance. Hindi and
+Hinglish translations retain the same distinction. Tests cover every entitled
+capability, both viewer roles and recovery-link visibility. Permissions and
+server entitlement enforcement are unchanged.
+
+The read-only cutover inventory now emits a consistent aggregate summary and
+explicit stop reasons; it never grants release approval or claims provider
+obligations were verified. The seven-case verifier creates a fresh synthetic
+DB in the identity-checked loopback-only Docker container. It exercises empty
+legacy state, old Standard selection, preserved billing history, obsolete
+selection, unfinished migration, unexpected schema and v2 already present.
+It makes no provider call and does not rerun completed payment/migration checks.
+
+The [cutover handoff](../billing/three-plan-cutover.md#release-preparation-follow-up--2026-10-23)
+records all five incompatible cron frequencies, the same-project Pro
+path, alternative-scheduler requirements, operator inventory stop
+conditions and an evidence/responsibility matrix. The owner selected a Pro
+upgrade after approximately one week; the Hobby cron failure is an intentional
+release hold and schedules remain unchanged. Hosting upgrade,
+Production/provider inventory, conditional populated-ledger work, Live mappings
+and authorized deployment/renewal/webhook checks remain unresolved.
+
+Validation:
+
+- `pnpm exec vitest run --config vitest.unit.safe.config.ts --pool=threads --no-cache branch-capabilities localization`: **38 passed**.
+- `pnpm exec node tests/billing-verification/check-cutover-inventory.mjs`: **7 passed**.
+- Focused `pnpm exec eslint` for the helper, translations, capability tests and inventory verifier: **passed**.
+- Guarded `pnpm exec node tests/billing-verification/run-build.mjs`: **passed**, including TypeScript, 74 static pages and the two-workflow manifest.
+- `git -c core.safecrlf=false diff --check` and new documentation path/anchor validation: **passed**.
+
+ No schema, migration history, package, environment or cron schedule
+was changed. No merge, deployment, provider payment or Production access occurred.

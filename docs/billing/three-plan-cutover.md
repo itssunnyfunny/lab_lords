@@ -67,3 +67,102 @@ required hourly billing cron. Do not reduce billing/WhatsApp cron frequency to
 make that check pass. Release requires hosting that supports the existing
 schedules or a separately approved scheduler design. No account upgrade,
 schedule change, deployment or promotion was performed during this review.
+
+## Release preparation follow-up — 2026-10-23
+
+PR #284 at `605c75a` passed the complete GitHub workflow: lint, 2,967 tests,
+production build (74 static pages and two import workflows), and coverage
+(74.94% lines, 84.19% functions). This is code evidence, not production readiness.
+
+### Scheduler decision — owner-selected Vercel Pro, upgrade deferred
+
+Keep all eight schedules in `vercel.json`. Five exceed Hobby's daily limit:
+billing hourly; WhatsApp planner and reports every 15 minutes; dispatcher every
+5 minutes; health every 30 minutes. Together with the three daily jobs, these
+schedule 555 invocations per UTC day before duplicates/manual calls. This is a
+schedule count, not a cost estimate or guaranteed delivery count.
+
+Owner decision on 2026-10-23: retain Vercel Cron and upgrade the existing project
+to Vercel Pro after approximately one week. The current Hobby failure is an
+intentional release hold until that owner-managed upgrade is complete. Do not
+replace the scheduler or reduce frequencies to bypass it. This is a stated
+plan, not evidence of an account upgrade or permission to deploy.
+
+Selected path: use Vercel Pro for the existing project, retaining the same
+routes, schedules, bearer authentication, leases and provider-write gates.
+The account owner must review the current subscription cost and approve any
+purchase. No upgrade, trial activation or deployment is performed here.
+Vercel's [current limits](https://vercel.com/docs/cron-jobs/usage-and-pricing)
+allow once-per-minute schedules on Pro; function usage remains separately metered.
+
+Alternative: a separately approved external scheduler. Before implementation,
+name its provider, owner and budget; retain all eight UTC schedules and HTTPS
+GET routes; store `CRON_SECRET` privately in headers; limit concurrency; alert
+on missed runs/errors/backlog; preserve application leases and unknown-provider
+holds. Establish one scheduler owner and a hold/drain/switch sequence, so the
+old and new schedulers cannot both dispatch. Specify retry and redirect handling,
+secret rotation, deployment targeting and rollback. A proposed ADR and isolated
+fault tests must precede enablement. Simply removing crons or reducing them to
+daily does not solve billing or delivery readiness. No alternative scheduler
+has been selected, provisioned or authorized.
+
+After the hosting decision and separate deployment authorization, confirm the
+project supports the configured intervals, all eight jobs are registered on
+the intended production revision, and `CRON_SECRET` authentication fails closed.
+Preview schedules do not execute automatically. Use only separately approved
+Test fixtures for endpoint checks; preview success cannot prove production
+schedule health. Follow the existing runbook's enable order, with provider
+writes held until the relevant canary approvals. Vercel's project-wide Disable
+Cron Jobs setting persists across promotion/rollback; verify it explicitly.
+See [cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
+
+### Inventory handoff and stop conditions
+
+`scripts/billing-three-plan-inventory.sql` now ends with a `cutover_readiness`
+JSON row from the same read-only repeatable-read snapshot as its existing
+private affected-ID inventory. It includes schema labels, all ten ledger
+counts, obsolete selections, unfinished migration count, old PRO selections,
+and operational/trial row counts. Lock and statement waits are bounded to 3
+and 30 seconds respectively. Timeout, missing tables or any SQL error means no
+valid report; never treat partial output as a pass.
+
+An authorized operator may later run it using a private PostgreSQL service
+configuration on an approved snapshot first, with `psql -X -v ON_ERROR_STOP=1
+-f scripts/billing-three-plan-inventory.sql`, retaining output privately. Do
+not paste database identifiers, affected IDs or connection settings into a
+public PR. No production connection is authorized by this document.
+
+| Result | Required action |
+| --- | --- |
+| `EMPTY_LEDGER_PRECONDITION_MET` | Data precondition only; finish every external gate below. It is not release approval. |
+| `BLOCKED_LEGACY_LEDGER` | Preserve all history; prepare the finite obligation register and a separate history-preserving transition. Never delete rows to pass. |
+| `BLOCKED_OBSOLETE_SELECTION` | Obtain explicit owner choices for old AGENT_CONTROL/CUSTOM selections before migration. |
+| `BLOCKED_MIGRATION_HISTORY` | Inspect unfinished/failed migration evidence and repair through the approved runbook; never mark a failed migration successful blindly. |
+| `BLOCKED_SCHEMA_REVIEW` | Verify schema lineage and migration history against the intended release. |
+| `ALREADY_V2_DO_NOT_RERUN` | This is not a legacy cutover target. Check deployed revision and migration history; do not rerun the enum migration. |
+
+The report always returns `releaseAuthorized: false` and
+`providerObligationsVerified: false`. A local empty ledger cannot establish
+that Razorpay has no live mandates. Even an empty snapshot needs verified
+migration history, a restorable backup and a fresh inventory during the held
+release window; concurrent changes after the snapshot invalidate its release
+use. The migration's own locked guard remains authoritative.
+
+### Remaining evidence and responsibility
+
+| Gate | Prepared evidence | Still required before release |
+| --- | --- | --- |
+| Hosting/scheduler | Exact incompatible schedules and two reviewed options above | Owner-managed Pro upgrade (planned after approximately one week), then authorized schedule verification |
+| Schema/data | Guarded migration; historical clean/blocked rehearsal; seven new inventory checks on a fresh local DB | Authorized snapshot/target inventory, migration lineage, restorable backup and hold/drain proof |
+| Provider obligations | Test checkout/replacement evidence already retained | Operator's private Live obligation register, including mandates outside the local ledger |
+| Populated ledger | Release-stop policy and finite-transition requirements | Separate migration/compatibility design if any legacy rows or provider obligations exist |
+| Live catalogue | Exact v2 catalogue keys and verification contract | Authorized Live mapping provisioning/readback in the intended DB; no Test mapping reuse |
+| Runtime release | Existing isolated regression, build and browser evidence | Authorized webhook/renewal/cutover checks, canary approval and deployment smoke evidence |
+
+The private obligation register must identify organization, provider mode,
+source/candidate subscription, old catalogue terms, invoice/payment evidence,
+paid-through boundary, pending change/action state, proposed target tier,
+consent status and resolution owner. Record evidence references and unresolved
+items rather than reconstructing billing facts or inferring consent. Until this
+register is available, a populated-ledger migration cannot safely be specified
+or claimed complete. None of these external gates was exercised in this task.

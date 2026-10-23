@@ -7,6 +7,11 @@ Release is prepared for PR review and remains undeployed, with a guarded empty-l
 and separate TEST/LIVE v2 provider mappings. See [cutover and evidence](../billing/three-plan-cutover.md).
 
 
+Shared branch capability denial copy now names Pro for WhatsApp and Standard
+for staff, analytics and AI, including owner/staff Hindi and Hinglish messages.
+The release inventory supplies a read-only aggregate precondition report; the
+owner-managed Pro upgrade and all Production/Live cutover gates remain outstanding.
+
 ## Dedicated billing and recovery — local implementation, 2026-10-22
 
 Owners manage SaaS billing at `/org/[orgId]/billing`: current access, Basic, Standard and
