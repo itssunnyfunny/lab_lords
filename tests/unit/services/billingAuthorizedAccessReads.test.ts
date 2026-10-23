@@ -31,6 +31,7 @@ vi.mock("@/lib/razorpay", () => ({
 
 import { BillingExperienceService } from "@/services/billingExperience.service";
 import { EntitlementService } from "@/services/entitlement.service";
+import { BILLING_FEATURE_POLICIES, hasFeatureEntitlement } from "@/lib/billingPolicy";
 
 const paidThrough = new Date("2026-10-01T00:00:00.000Z");
 const paidPeriodStart = new Date("2026-08-01T00:00:00.000Z");
@@ -210,6 +211,46 @@ describe("authorized replacement access reads", () => {
     vi.useRealTimers();
   });
 
+  it("updates every advanced feature gate across settled Basic, Standard, Pro and downgraded tiers", async () => {
+    for (const plan of ["BASIC", "STANDARD", "PRO", "STANDARD", "BASIC"] as const) {
+      const stored = organization();
+      const amount = plan === "BASIC" ? 9900 : plan === "STANDARD" ? 29900 : 49900;
+      const providerPlan = plan === "BASIC" ? "plan_basic" : "plan_standard";
+      Object.assign(stored, { pendingSubscriptionReplacement: null });
+      Object.assign(stored.subscription, { plan, amount: amount / 100, amountSubunits: amount, razorpayPlanId: providerPlan });
+      const invoice = stored.subscription.invoices[0];
+      Object.assign(invoice, { amountSubunits: amount, amountPaidSubunits: amount, paymentAmountSubunits: amount, razorpayPlanId: providerPlan });
+      Object.assign(invoice.commercialIntentChange, { toPlan: plan, authorizedPlan: plan,
+        authorizedRazorpayPlanId: providerPlan, authorizedUnitAmountSubunits: amount,
+        authorizedGrossAmountSubunits: amount, authorizedExpectedAmountSubunits: amount });
+      mocks.organizationFindUnique.mockResolvedValue(stored);
+
+      const profile = await EntitlementService.assertOrganizationWritable("org_1");
+      const experience = await BillingExperienceService.getBillingExperience("org_1", "owner_1");
+      expect(profile.effectivePlan).toBe(plan);
+      expect(experience.effectivePlan).toBe(plan);
+      for (const [feature, policy] of Object.entries(BILLING_FEATURE_POLICIES)) {
+        expect(hasFeatureEntitlement(profile.entitlements, feature as keyof typeof BILLING_FEATURE_POLICIES)).toBe(plan !== "BASIC");
+        expect(experience.entitlements.includes(policy.entitlement)).toBe(plan !== "BASIC");
+        const access = EntitlementService.assertOrganizationEntitlement("org_1", policy.entitlement);
+        if (plan !== "BASIC") await expect(access).resolves.toMatchObject({ effectivePlan: plan });
+        else await expect(access).rejects.toMatchObject({ code: "SUBSCRIPTION_UPGRADE_REQUIRED" });
+      }
+    }
+  });
+
+  it("does not unlock Standard from provider ACTIVE or a paid date without exact settlement", async () => {
+    const stored = organization();
+    Object.assign(stored, { pendingSubscriptionReplacement: null });
+    Object.assign(stored.subscription, { plan: "PRO", amountSubunits: 49900, razorpayPlanId: "plan_standard", invoices: [] });
+    mocks.organizationFindUnique.mockResolvedValue(stored);
+    await expect(EntitlementService.getOrganizationProfile("org_1")).resolves.toMatchObject({
+      effectivePlan: "BASIC", accessMode: "READ_ONLY", canWrite: false, entitlements: [],
+    });
+    await expect(EntitlementService.assertOrganizationEntitlement("org_1", "AI_ACCESS"))
+      .rejects.toMatchObject({ code: "SUBSCRIPTION_UPGRADE_REQUIRED" });
+  });
+
   it("exposes upgrade entitlements while retaining canonical billing facts", async () => {
     const entitlement = await EntitlementService.getOrganizationProfile("org_1");
     const experience = await BillingExperienceService.getBillingExperience("org_1", "owner_1");
@@ -223,7 +264,7 @@ describe("authorized replacement access reads", () => {
     });
     expect(entitlement.entitlements).toContain("AI_ACCESS");
     expect(experience).toMatchObject({
-      effectivePlan: "STANDARD",
+      effectivePlan: "PRO",
       providerStatus: "ACTIVE",
       paidThrough: paidThrough.toISOString(),
       confirmedQuantity: 1,
@@ -274,7 +315,7 @@ describe("authorized replacement access reads", () => {
     await expect(EntitlementService.getOrganizationProfile("org_1"))
       .resolves.toMatchObject({ effectivePlan: "PRO", accessMode: "FULL" });
     await expect(BillingExperienceService.getBillingExperience("org_1", "owner_1"))
-      .resolves.toMatchObject({ effectivePlan: "STANDARD" });
+      .resolves.toMatchObject({ effectivePlan: "PRO" });
 
     vi.setSystemTime(accessGraceEndsAt);
     await expect(EntitlementService.getOrganizationProfile("org_1"))
@@ -293,6 +334,6 @@ describe("authorized replacement access reads", () => {
     await expect(EntitlementService.getOrganizationProfile("org_1"))
       .resolves.toMatchObject({ effectivePlan: "PRO", accessMode: "FULL" });
     await expect(BillingExperienceService.getBillingExperience("org_1", "owner_1"))
-      .resolves.toMatchObject({ effectivePlan: "STANDARD" });
+      .resolves.toMatchObject({ effectivePlan: "PRO" });
   });
 });

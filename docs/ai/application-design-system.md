@@ -28,6 +28,13 @@ dashboard, Students baseline and public presentation stable.
 
 ## Rollout source map
 
+The dedicated organization Billing page (`/org/[orgId]/billing`) reuses the
+SettingsWorkspace/SettingsPanel owners, shared AppButton and existing checkout
+and outcome dialogs. It is an exact selected authenticated route, including cold
+loading/error presentation. Plan, payment and invoice state remains owned by the
+billing services; the new navigation does not grant feature access. See the
+[billing verification report](../audits/billing-recovery-2026-10-22.md).
+
 | Family | Feature owners | Presentation reuse and preserved boundary |
 | --- | --- | --- |
 | A · Work queues | `app/branch/[branchId]/{follow-ups,renewals,overdue}` and queue components | Compact lists/cards and status panels; due cohorts, consent, partial/waived balances and reminders keep their existing commands |

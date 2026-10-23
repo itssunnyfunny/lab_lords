@@ -698,7 +698,8 @@ export class BranchService {
         const change = await prisma.organizationBillingChange.findFirst({
             where: {
                 branchId,
-                type: { in: ["QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
+                  organizationId: branch.organizationId,
+                  type: { in: ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
                 status: { in: ["FAILED", "AWAITING_PAYMENT"] },
             },
             orderBy: { sequence: "desc" },
@@ -732,7 +733,8 @@ export class BranchService {
         const change = await prisma.organizationBillingChange.findFirst({
             where: {
                 branchId,
-                type: { in: ["QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
+                  organizationId: branch.organizationId,
+                  type: { in: ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
                 status: { in: ["QUEUED", "PROCESSING", "AWAITING_PAYMENT", "SCHEDULED", "FAILED"] },
             },
             orderBy: { sequence: "desc" },
@@ -767,7 +769,8 @@ export class BranchService {
             const currentChange = await tx.organizationBillingChange.findFirst({
                 where: {
                     branchId,
-                    type: { in: ["QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
+                      organizationId: branch.organizationId,
+                      type: { in: ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"] },
                     status: { in: ["QUEUED", "PROCESSING", "AWAITING_PAYMENT", "SCHEDULED", "FAILED"] },
                 },
                 orderBy: { sequence: "desc" },
@@ -778,6 +781,27 @@ export class BranchService {
             if (currentChange.replacementSubscriptionId) {
                 throw new Error("Replacement branch activation must be discarded through its mandate operation");
             }
+              const providerActions = await tx.billingProviderAction.findMany({
+                  where: { organizationId: branch.organizationId, changeId: currentChange.id },
+                  select: { status: true },
+              });
+              const priorAdmission = currentChange.providerMutationAdmittedAt
+                  || await tx.organizationBillingChangeAudit.findFirst({
+                      where: { organizationId: branch.organizationId, changeId: currentChange.id,
+                          outcome: "PROVIDER_MUTATION_ADMITTED" },
+                      select: { id: true },
+                  });
+              if (!["QUEUED", "FAILED"].includes(currentChange.status)
+                  || currentChange.failureCategory === "MANUAL_REVIEW_REQUIRED"
+                  || (currentChange.status === "FAILED"
+                      && !isSafeFailedBillingMutationForLocalUndo(currentChange.failureCategory))
+                  || providerActions.some(action => action.status !== "REJECTED")
+                  || (priorAdmission && providerActions.length === 0)) {
+                  throw new BillingChangeInProgressError(
+                      currentChange.id,
+                      "The provider outcome must be reconciled before this pending branch can be discarded"
+                  );
+              }
             await tx.organizationBillingChange.update({
                 where: { id: currentChange.id },
                 data: {

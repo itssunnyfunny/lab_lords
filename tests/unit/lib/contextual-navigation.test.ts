@@ -25,7 +25,7 @@ describe("resolveContextualParent", () => {
     it("routes organization children and billing processing safely", () => {
         expect(resolveContextualParent("/org/org_1/settings")?.href).toBe("/org/org_1");
         expect(resolveContextualParent("/org/org_1/billing/processing/change_1")).toEqual({
-            href: "/org/org_1/settings?section=billing",
+            href: "/org/org_1/billing",
             label: "Back to billing settings",
         });
     });

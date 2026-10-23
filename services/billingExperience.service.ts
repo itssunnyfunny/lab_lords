@@ -1,6 +1,6 @@
 import { historicalBillingState } from "@/services/legacyCommercialCompatibility";
 import { prisma } from "@/lib/prisma";
-import { getBillingPlan } from "@/lib/billingPlans";
+import { getBillingPlan, isCheckoutBillingPlanId, type BillingPlanId } from "@/lib/billingPlans";
 import { deriveWorkspaceBillingState } from "@/lib/billingState";
 import type { BillingExperience, BillingExperienceOperation } from "@/types/billingExperience";
 import type { OrganizationBillingChange } from "@/app/generated/prisma/client";
@@ -36,9 +36,7 @@ function isCustomerVisibleOperationFailure(change: OrganizationBillingChange | n
 }
 
 function experiencePlan(plan: string | null | undefined) {
-  if (plan === "PRO") return "STANDARD" as const;
-  if (plan === "BASIC") return "BASIC" as const;
-  return "NONE" as const;
+  return isCheckoutBillingPlanId(plan) ? plan : "NONE" as const;
 }
 
 function selectedPlan(subscription: {
@@ -49,7 +47,7 @@ function selectedPlan(subscription: {
   if (!subscription || !isSupportedRecurringPaymentMethod(subscription.providerPaymentMethod)) return null;
   if (["CREATED", "EXPIRED", "CANCELLED", "COMPLETED"].includes(subscription.status)) return null;
   const plan = experiencePlan(subscription.plan);
-  return plan === "STANDARD" || plan === "BASIC" ? plan : null;
+  return plan === "NONE" ? null : plan;
 }
 
 function serializeOperation(change: OrganizationBillingChange): BillingExperienceOperation {
@@ -64,7 +62,7 @@ function serializeOperation(change: OrganizationBillingChange): BillingExperienc
     failureCode: change.failureCode,
     providerPaymentId: change.providerPaymentId,
     branchId: change.branchId,
-    toPlan: change.toPlan === "PRO" ? "STANDARD" : change.toPlan === "BASIC" ? "BASIC" : null,
+    toPlan: isCheckoutBillingPlanId(change.toPlan) ? change.toPlan : null,
     toQuantity: change.toQuantity,
     lastError: change.lastError,
   };
@@ -72,7 +70,7 @@ function serializeOperation(change: OrganizationBillingChange): BillingExperienc
 
 function customerPresentation(input: {
   trialActive: boolean;
-  effectivePlan: "BASIC" | "STANDARD" | "STANDARD_TRIAL" | "NONE";
+  effectivePlan: "BASIC" | "STANDARD" | "PRO" | "STANDARD_TRIAL" | "NONE";
   providerStatus: string | null;
   operationStatus: string | null;
   operationFailureVisible: boolean;
@@ -95,6 +93,7 @@ function customerPresentation(input: {
   if (input.providerStatus === "PAUSED") return { state: "PAYMENT_RETRYING" as const, message: "The recurring mandate is paused. Resume it in your UPI app when available, or authorize a replacement payment method." };
   if (input.providerStatus === "HALTED") return { state: "PAYMENT_HALTED" as const, message: "Payment retries are exhausted. Recover the mandate or authorize another payment method to restore full access after confirmation." };
   if (input.effectivePlan === "STANDARD") return { state: "STANDARD_ACTIVE" as const, message: "Standard is active for this workspace." };
+  if (input.effectivePlan === "PRO") return { state: "PRO_ACTIVE" as const, message: "Pro is active for this workspace." };
   if (input.effectivePlan === "BASIC") return { state: "BASIC_ACTIVE" as const, message: "Basic is active for this workspace." };
   if (["CANCELLED", "COMPLETED", "EXPIRED"].includes(input.providerStatus ?? "")) return { state: "ACCESS_ENDED" as const, message: "The paid access period has ended. Your data is preserved." };
   return {
@@ -155,7 +154,7 @@ export class BillingExperienceService {
       : null;
     const authorizedReplacement = replacementOverride
       && getBillingPlan(replacementOverride.plan)
-      ? { ...replacementOverride, plan: replacementOverride.plan as "BASIC" | "PRO" }
+      ? { ...replacementOverride, plan: replacementOverride.plan as BillingPlanId }
       : null;
     const trustedPaidThrough = resolveTrustedPaidThrough(subscription, now);
     const isOwner = organization.ownerId === userId;
@@ -219,25 +218,18 @@ export class BillingExperienceService {
         })
       : historicalBillingState(subscription?.plan ?? null, trustedPaidThrough);
 
-    const effectivePlan = trialActive
+    const effectivePlan = trialActive && state.effectivePlan === "STANDARD"
       ? "STANDARD_TRIAL" as const
       : state.source === "NONE" && organization.billingModelVersion === "WORKSPACE_V2"
         ? "NONE" as const
         : experiencePlan(state.effectivePlan);
-    const entitlementPlan = effectivePlan === "STANDARD" || effectivePlan === "STANDARD_TRIAL" ? "PRO" : "BASIC";
+    const entitlementPlan = effectivePlan === "STANDARD_TRIAL" ? "STANDARD"
+      : isCheckoutBillingPlanId(effectivePlan) ? effectivePlan : "BASIC";
     const entitlements = getBillingPlan(entitlementPlan)?.entitlements ?? [];
     const providerPostTrialPlan = selectedPlan(subscription);
     const postTrialPlan = providerPostTrialPlan
-      ?? (organization.selectedPostTrialPlan === "PRO"
-        ? "STANDARD" as const
-        : organization.selectedPostTrialPlan === "BASIC"
-          ? "BASIC" as const
-          : null);
-    const projectedPlanId = postTrialPlan === "STANDARD"
-      ? "PRO"
-      : postTrialPlan === "BASIC"
-        ? "BASIC"
-        : null;
+      ?? (isCheckoutBillingPlanId(organization.selectedPostTrialPlan) ? organization.selectedPostTrialPlan : null);
+    const projectedPlanId = postTrialPlan;
     const projectedUnitAmount = projectedPlanId ? getBillingPlan(projectedPlanId)?.amount ?? 0 : 0;
     const currentUnitAmount = subscription?.amount ?? 0;
     const confirmedQuantity = subscription?.quantity ?? 0;

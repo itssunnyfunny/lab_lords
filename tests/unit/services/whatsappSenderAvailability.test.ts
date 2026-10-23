@@ -67,7 +67,7 @@ describe("branch WhatsApp availability projection", () => {
   it("fails closed for an unentitled viewer even when operations flags are on", async () => {
     mocks.getOrganizationProfile.mockResolvedValue({ entitlements: [], canWrite: true });
     const response = await WhatsAppSenderService.getBranchAssignment("staff_1", "org_1", "branch_1");
-    expect(response).toMatchObject({ operationsUiEnabled: false, serviceNoticesEnabled: false });
+    expect(response).toMatchObject({ operationsUiEnabled: false, serviceNoticesEnabled: false, safeReason: "WhatsApp requires the Pro plan." });
     expect(mocks.settingsFindFirst).not.toHaveBeenCalled();
   });
 

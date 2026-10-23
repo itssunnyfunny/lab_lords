@@ -8,7 +8,6 @@ export const detailMessages = {
     "{formatInr}/month": ["{formatInr}/महीना", "{formatInr}/mahina"],
     "{quantity} {value} × {formatInr} per branch": ["{quantity} {value} × {formatInr} हर ब्रांच", "{quantity} {value} × {formatInr} har branch"],
     "Billing contact: {join}": ["बिलिंग संपर्क: {join}", "Billing contact: {join}"],
-    "Standard: ₹499 × {confirmedQuantity} branch(s) = ₹{value}/month. Immediate upgrades may include a prorated charge.": ["Standard: ₹499 × {confirmedQuantity} ब्रांच = ₹{value}/महीना। तुरंत अपग्रेड पर बचे दिनों का शुल्क लग सकता है।", "Standard: ₹499 × {confirmedQuantity} branches = ₹{value}/mahina. Turant upgrade par bache dinon ka charge lag sakta hai."],
     "{formatNumber} selected": ["{formatNumber} चुने गए", "{formatNumber} select hue"],
     "{formatNumber} of {formatNumber2} slots used": ["{formatNumber2} में से {formatNumber} स्लॉट इस्तेमाल में", "{formatNumber2} mein se {formatNumber} slots istemaal mein"],
     "Some alerts could not load: {join}.": ["कुछ सूचनाएँ लोड नहीं हुईं: {join}।", "Kuch alerts load nahi hue: {join}."],

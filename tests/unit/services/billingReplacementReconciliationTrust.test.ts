@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    organizationBillingChangeAudit: { findFirst: vi.fn(async () => null) },
     organizationSubscription: { findUnique: mocks.localFindUnique },
     organization: { findUnique: mocks.organizationFindUnique },
     organizationBillingChange: {
@@ -244,6 +245,7 @@ describe("replacement reconciliation trust contracts", () => {
     });
 
     const tx = {
+      organizationBillingChangeAudit: { findFirst: vi.fn(async () => null) },
       $queryRaw: vi.fn().mockResolvedValue([{ id: "org_1" }]),
       organization: {
         findUniqueOrThrow: mocks.organizationFindUniqueOrThrow,

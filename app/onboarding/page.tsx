@@ -132,7 +132,7 @@ const stepHeadings: Record<OnboardingStep, string> = {
 const stepDescriptions: Record<OnboardingStep, string> = {
     1: "Name the business and add the owner contact used for operations.",
     2: "Define a usable branch with seats and shifts before entering the dashboard.",
-    3: "Choose Basic or Standard for after the trial. Both choices receive 30 days of Standard access.",
+    3: "Choose Basic, Standard or Pro for after the trial. All choices receive 30 days of Standard access.",
     4: "Choose how to begin, then start 30 days of Standard access. No card is required.",
 };
 
@@ -444,7 +444,7 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
             return;
         }
         if (!selectedPostTrialPlan) {
-            setError("Choose Basic or Standard as your post-trial plan.");
+            setError("Choose Basic, Standard or Pro as your post-trial plan.");
             setStep(3);
             return;
         }
@@ -479,7 +479,7 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
     const continueToTrial = () => {
         setError(null);
         if (!selectedPostTrialPlan) {
-            setError("Choose Basic or Standard as your post-trial plan.");
+            setError("Choose Basic, Standard or Pro as your post-trial plan.");
             return;
         }
         setStep(4);
@@ -936,7 +936,7 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
                                     </div>
                                 </div>
 
-                                <div className="grid gap-4 lg:grid-cols-2">
+                                <div className="grid gap-4 lg:grid-cols-3">
                                     {onboardingPlans.map(plan => {
                                         const selected = selectedPostTrialPlan === plan.id;
                                         return (
@@ -972,6 +972,7 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
                                                     </span>
                                                 </span>
 
+                                                {plan.availabilityNote && <span className={cn("mt-3 block text-xs", formHelpTextClass)}>{t.owned(plan.availabilityNote)}</span>}
                                                 <span className="mt-5 w-full space-y-2.5 border-t border-[color:var(--ui-form-section-divider)] pt-4">
                                                     {plan.capabilities.map(capability => (
                                                         <span key={capability.id} className="flex items-start gap-2 text-sm">
@@ -981,7 +982,7 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
                                                                 <X size={15} className="mt-0.5 shrink-0 text-[color:var(--text-muted)]" />
                                                             )}
                                                             <span className={capability.included ? "text-[color:var(--text-secondary)]" : "text-[color:var(--text-muted)]"}>
-                                                                {t.owned(capability.label)}{capability.included ? "" : t(" — Standard only")}
+                                                                {t.owned(capability.label)}{capability.included ? "" : t(capability.id === "WHATSAPP_INTEGRATION" ? " — Pro only" : " — Standard or Pro")}
                                                             </span>
                                                         </span>
                                                     ))}

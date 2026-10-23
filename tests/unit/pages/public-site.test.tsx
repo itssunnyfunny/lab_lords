@@ -79,7 +79,7 @@ describe("complete public marketing journey", () => {
     expect([...ids].sort()).toEqual(publicFaqs.map(faq => faq.id).sort());
     for (const answer of getPublicFaqs(ids)) expect(answer.href).toMatch(/^\//);
   });
-  it("uses the public billing catalogue in the FAQ and comparison, including Standard's internal PRO identity", async () => {
+  it("uses the public billing catalogue in the FAQ and comparison, with distinct Standard and Pro identities", async () => {
     const html = await renderPublic(<Pricing />);
     const [answer] = getPublicFaqs(["plans"]);
     for (const plan of publicBillingPlans()) {
@@ -87,7 +87,7 @@ describe("complete public marketing journey", () => {
       expect(answer.answer).toContain(String(plan.amount));
       expect(html).toContain(`Choose ${plan.shortName}`);
     }
-    expect(publicBillingPlans().find(plan => plan.id === "PRO")?.shortName).toBe("Standard");
+    expect(publicBillingPlans().find(plan => plan.id === "PRO")?.shortName).toBe("Pro");
     expect(html).not.toMatch(/Agent Control|WhatsApp automation|Forever free|Annual discount/);
   });
   it("keeps public additions crawlable and operational routes out of the sitemap", async () => {

@@ -151,10 +151,20 @@ export async function confirmReconciledBillingProviderAction(
       || request.args[0].quantity !== input.provider.quantity))) {
     throw new BillingManualReviewRequiredError(action.changeId ?? action.id, "Reconciliation does not match the admitted action");
   }
-  await tx.billingProviderAction.updateMany({ where: { id: action.id, dispatchToken: action.dispatchToken, status: action.status }, data: {
+  // A delayed provider response can move ADMITTED to UNKNOWN without taking the
+  // organization lock. Either unresolved state belongs to this same dispatch.
+  const confirmed = await tx.billingProviderAction.updateMany({ where: {
+    id: action.id, dispatchToken: action.dispatchToken, status: { in: ["ADMITTED", "UNKNOWN"] },
+  }, data: {
     status: "CONFIRMED", response: JSON.parse(JSON.stringify(input.provider)) as Prisma.InputJsonValue,
     respondedAt: new Date(), failureKind: null,
   } });
+  if (confirmed.count !== 1) {
+    const current = await tx.billingProviderAction.findUnique({ where: { id: action.id } });
+    if (current?.status !== "CONFIRMED" || current.dispatchToken !== action.dispatchToken) {
+      throw new BillingManualReviewRequiredError(action.changeId ?? action.id, "Provider action changed during reconciliation");
+    }
+  }
 }
 
 export async function getConfirmedBillingProviderResponse(organizationId: string, identity: string, purpose: Purpose) {

@@ -14,10 +14,10 @@ export async function GET(_request: Request, context: { params: Promise<{ branch
     return NextResponse.json({
       organizationId: access.organizationId,
       branchStatus: experience.branch.billingStatus,
-      inheritedPlan: experience.effectivePlan === "STANDARD_TRIAL" ? "Standard trial" : experience.effectivePlan === "STANDARD" ? "Standard" : experience.effectivePlan === "BASIC" ? "Basic" : "No active plan",
+      inheritedPlan: experience.effectivePlan === "STANDARD_TRIAL" ? "Standard trial" : experience.effectivePlan === "PRO" ? "Pro" : experience.effectivePlan === "STANDARD" ? "Standard" : experience.effectivePlan === "BASIC" ? "Basic" : "No active plan",
       billingState: experience.customerMessage,
       accessMode: experience.accessMode,
-      billingUrl: `/org/${access.organizationId}/settings#billing`,
+      billingUrl: `/org/${access.organizationId}/billing`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load branch billing";

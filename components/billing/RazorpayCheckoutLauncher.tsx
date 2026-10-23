@@ -234,6 +234,14 @@ export function isRazorpayCheckoutPayload(value: unknown): value is RazorpayChec
     && typeof candidate.processingUrl === "string";
 }
 
+/** Retry responses may include reusable replacement Checkout inside an operation envelope. */
+export function getRazorpayCheckoutPayload(value: unknown): RazorpayCheckoutPayloadLike | null {
+  if (isRazorpayCheckoutPayload(value)) return value;
+  if (!value || typeof value !== "object") return null;
+  const checkout = (value as Record<string, unknown>).checkout;
+  return isRazorpayCheckoutPayload(checkout) ? checkout : null;
+}
+
 function browserRazorpayConstructor() {
   if (typeof window === "undefined") return undefined;
   return (window as Window & { Razorpay?: RazorpayConstructor }).Razorpay;

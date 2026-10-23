@@ -1,4 +1,4 @@
-import type { BillingPlanId } from "@/lib/billingPlans";
+import { billingPlanRank, type BillingPlanId } from "@/lib/billingPlans";
 
 export type BillingAccessMode = "FULL" | "WARNING" | "READ_ONLY";
 
@@ -32,7 +32,7 @@ function applyAuthorizedReplacement(
   if (state.accessMode === "FULL" || state.accessMode === "WARNING") {
     return {
       ...state,
-      effectivePlan: replacement.plan,
+      effectivePlan: billingPlanRank(replacement.plan) > billingPlanRank(state.effectivePlan) ? replacement.plan : state.effectivePlan,
       reason: "A replacement mandate is authorized for the next billing cycle",
     };
   }
@@ -62,12 +62,14 @@ export function deriveWorkspaceBillingState(input: BillingStateInput): BillingSt
     && input.trial.endsAt > input.now;
 
   if (activeTrial) {
+    const paidPro = input.subscription?.plan === "PRO" && input.subscription.status !== "HALTED"
+      && input.subscription.paidThrough != null && input.subscription.paidThrough > input.now;
     return applyAuthorizedReplacement({
       accessMode: "FULL",
       canWrite: true,
-      effectivePlan: "PRO",
-      source: "TRIAL",
-      reason: "Standard trial is active",
+      effectivePlan: paidPro ? "PRO" : "STANDARD",
+      source: paidPro ? "PAID" : "TRIAL",
+      reason: paidPro ? "Provider-confirmed Pro paid period is active" : "Standard trial is active",
     }, input.authorizedReplacement, input.now);
   }
 

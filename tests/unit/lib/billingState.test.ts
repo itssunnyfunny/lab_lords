@@ -4,12 +4,28 @@ import { deriveWorkspaceBillingState } from "@/lib/billingState";
 const now = new Date("2026-08-03T00:00:00.000Z");
 
 describe("deriveWorkspaceBillingState", () => {
+  it.each([
+    ["BASIC", "STANDARD", true], ["BASIC", "PRO", true], ["STANDARD", "PRO", true],
+    ["STANDARD", "BASIC", false], ["PRO", "STANDARD", false], ["PRO", "BASIC", false],
+  ] as const)("keeps %s to %s access truthful across the paid boundary", (source, target, upgrade) => {
+    const boundary = new Date("2026-09-01T00:00:00Z");
+    const subscription = { status: "ACTIVE", plan: source, paidThrough: boundary };
+    const grant = upgrade ? { plan: target, accessGrantedAt: now, accessRevokedAt: null, graceEndsAt: null } : null;
+    expect(deriveWorkspaceBillingState({ now, subscription, authorizedReplacement: grant }))
+      .toMatchObject({ effectivePlan: upgrade ? target : source, canWrite: true });
+    expect(subscription).toEqual({ status: "ACTIVE", plan: source, paidThrough: boundary });
+    expect(deriveWorkspaceBillingState({ now: boundary, subscription })).toMatchObject({ canWrite: false, source: "NONE" });
+    expect(deriveWorkspaceBillingState({ now: boundary,
+      subscription: { plan: target, status: "ACTIVE", paidThrough: new Date("2026-10-01T00:00:00Z") } }))
+      .toMatchObject({ effectivePlan: target, canWrite: true, source: "PAID" });
+  });
+
   it("grants Standard during the owner trial without a card", () => {
     expect(deriveWorkspaceBillingState({
       now,
       trial: { status: "ACTIVE", endsAt: new Date("2026-09-02T00:00:00.000Z") },
       subscription: null,
-    })).toMatchObject({ accessMode: "FULL", effectivePlan: "PRO", source: "TRIAL" });
+    })).toMatchObject({ accessMode: "FULL", effectivePlan: "STANDARD", source: "TRIAL" });
   });
 
   it("does not treat ACTIVE as paid without paidThrough", () => {

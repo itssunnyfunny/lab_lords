@@ -39,7 +39,7 @@ export function languageHref(locale: PublicLocale, pathname: string, search = ""
   if (!route?.translated) return null;
   const query = new URLSearchParams(search);
   const plan = query.get("billingPlan");
-  const kept = plan === "BASIC" || plan === "PRO" ? `?billingPlan=${plan}` : "";
+  const kept = plan === "BASIC" || plan === "STANDARD" || plan === "PRO" ? `?billingPlan=${plan}` : "";
   const fragment = /^#[A-Za-z][A-Za-z0-9_-]*$/.test(hash) ? hash : "";
   return `${publicHref(locale, route.path)}${kept}${fragment}`;
 }

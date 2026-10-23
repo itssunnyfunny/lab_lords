@@ -35,6 +35,13 @@ describe("POST /api/onboarding", () => {
     });
   }
 
+  it.each(["BASIC", "STANDARD", "PRO"])("passes the explicit %s selection to onboarding", async selectedPostTrialPlan => {
+    mocks.createNetwork.mockResolvedValue({ org: { id: "org_1" }, branch: { id: "branch_1" } });
+    const { POST } = await import("@/app/api/onboarding/route");
+    expect((await POST(request({ ...validBody, selectedPostTrialPlan }))).status).toBe(201);
+    expect(mocks.createNetwork).toHaveBeenCalledWith(expect.objectContaining({ selectedPostTrialPlan }));
+  });
+
   it("passes custom seat numbering to the service", async () => {
     mocks.getSessionUser.mockResolvedValue({ id: "user_1", email: "owner@test.com" });
     mocks.createNetwork.mockResolvedValue({ org: { id: "org_1", contactPhone: "private" }, branch: { id: "branch_1", name: "private" } });
@@ -92,7 +99,7 @@ describe("POST /api/onboarding", () => {
     expect(mocks.createNetwork).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, "AGENT_CONTROL", "CUSTOM", "STANDARD", "PRO<script>"])(
+  it.each([undefined, "AGENT_CONTROL", "CUSTOM", "standard", "PRO<script>"])(
     "rejects an invalid post-trial plan identifier: %s",
     async selectedPostTrialPlan => {
       mocks.getSessionUser.mockResolvedValue({ id: "user_1", email: "owner@test.com" });
@@ -109,7 +116,7 @@ describe("POST /api/onboarding", () => {
 
       expect(response.status).toBe(400);
       expect(await response.json()).toEqual({
-        error: "Choose Basic or Standard as the post-trial plan.",
+        error: "Choose Basic, Standard or Pro as the post-trial plan.",
         code: "ONBOARDING_INVALID_REQUEST",
       });
       expect(mocks.createNetwork).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { BILLING_CATALOG_VERSION } from "@/lib/billingPlans";
 
 import type { SaasPlan } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -108,7 +109,7 @@ export function razorpayPlanCatalogKey(input: {
 }) {
   return [
     "razorpay-plan",
-    "v1",
+    `v${BILLING_CATALOG_VERSION}`,
     input.providerMode,
     input.plan,
     normalizeCurrency(input.currency),
@@ -496,10 +497,9 @@ export async function ensureRazorpayPlanCatalogEntry(
   }
 
   try {
-    let providerPlan: RazorpayPlan | undefined;
-    if (lease.attemptCount > 1) {
-      providerPlan = await findProviderPlanByCatalogKey(razorpay, expected);
-    }
+    // A release may prepare immutable plans before this database has a mapping.
+    // Adopt the exact versioned provider note even on the first local attempt.
+    let providerPlan = await findProviderPlanByCatalogKey(razorpay, expected);
 
     if (!providerPlan) {
       providerPlan = await razorpay.createPlan({

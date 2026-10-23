@@ -13,7 +13,7 @@ import {
   resolveRazorpayMode,
   type RazorpaySubscription,
 } from "@/lib/razorpay";
-import { getBillingPlan } from "@/lib/billingPlans";
+import { getBillingPlan, billingPlanRank } from "@/lib/billingPlans";
 import { assertRazorpayBillingWritesEnabled } from "@/lib/billingFeature";
 import { ensureRazorpayPlanCatalogEntry } from "@/services/razorpayPlanCatalog.service";
 import { normalizeProviderPaymentMethod } from "@/services/billingPaymentMethod.service";
@@ -34,6 +34,7 @@ import {
   isReplacementPromotionReady,
   isSupportedRecurringPaymentMethod,
   normalizeReplacementPaymentMethod,
+  REPLACEMENT_SAFE_CYCLE_LEAD_MS,
 } from "@/services/billingReplacementPolicy";
 import type {
   BillingChangeType,
@@ -122,9 +123,7 @@ function hasTrustworthyReplacementAccessState(input: ReplacementAccessTrustInput
 }
 
 function planRank(plan: string) {
-  if (plan === "PRO") return 2;
-  if (plan === "BASIC") return 1;
-  return 0;
+  return billingPlanRank(plan);
 }
 
 function isImmediateAccessIncrease(input: Pick<
@@ -247,6 +246,54 @@ function timestamp(value: Date) {
   return Math.floor(value.getTime() / 1000);
 }
 
+function isUnpaidPreStartSource(source: OrganizationSubscription, effectiveAt: Date) {
+  return source.providerStartAt?.getTime() === effectiveAt.getTime()
+    && source.currentStart == null && source.currentEnd == null
+    && source.paidThrough == null && source.lastConfirmedInvoiceId == null
+    && source.lastConfirmedPaymentId == null && source.lastPaymentConfirmedAt == null;
+}
+
+/** A future mandate can be retired immediately only while it is provably uncharged. */
+async function readUnchargedPreStartSource(input: {
+  changeId: string;
+  source: OrganizationSubscription;
+  effectiveAt: Date;
+  offerId: string | null;
+  now: Date;
+  recoveringTerminal?: boolean;
+}) {
+  const { source, effectiveAt } = input;
+  const matches = (provider: RazorpaySubscription) =>
+    provider.entity === "subscription" && provider.id === source.razorpaySubscriptionId
+    && provider.plan_id === source.razorpayPlanId && provider.quantity === source.quantity
+    && provider.total_count === source.totalCount && (provider.offer_id ?? null) === input.offerId
+    && dateFromTimestamp(provider.start_at)?.getTime() === effectiveAt.getTime()
+    && provider.paid_count === 0 && provider.current_start == null && provider.current_end == null
+    && (input.recoveringTerminal
+      ? TERMINAL_PROVIDER_STATUSES.has(provider.status.toLowerCase())
+      : provider.status.toLowerCase() === "authenticated" && provider.ended_at == null
+        && provider.has_scheduled_changes !== true
+        && effectiveAt.getTime() > Math.max(input.now.getTime(), Date.now()));
+  if (source.providerMode !== resolveRazorpayMode() || !isUnpaidPreStartSource(source, effectiveAt)) {
+    throw new BillingManualReviewRequiredError(input.changeId, "The original mandate is no longer an uncharged future subscription");
+  }
+  const client = getRazorpayClient();
+  if (!matches(await client.fetchSubscription(source.razorpaySubscriptionId))) {
+    throw new BillingManualReviewRequiredError(input.changeId, "The original mandate's future unpaid terms could not be verified");
+  }
+  const invoices = await client.fetchSubscriptionInvoices(source.razorpaySubscriptionId);
+  if (invoices.entity !== "collection" || !Array.isArray(invoices.items)
+    || invoices.count !== 0 || invoices.items.length !== 0) {
+    throw new BillingManualReviewRequiredError(input.changeId, "The original mandate has invoice activity or incomplete invoice evidence");
+  }
+  // A charge or status transition during the invoice read must block cancellation.
+  const fresh = await client.fetchSubscription(source.razorpaySubscriptionId);
+  if (!matches(fresh)) {
+    throw new BillingManualReviewRequiredError(input.changeId, "The original mandate changed during cancellation verification");
+  }
+  return fresh;
+}
+
 function mapProviderStatus(value: unknown): SaasSubscriptionStatus {
   const normalized = typeof value === "string" ? value.trim().toUpperCase() : "PENDING";
   return [
@@ -367,8 +414,8 @@ function intervalMonths(subscription: Pick<OrganizationSubscription, "period" | 
   return subscription.interval;
 }
 
-function isSameProvisioningIntent(
-  provider: RazorpaySubscription,
+export function isSameReplacementProvisioningIntent(
+  provider: RazorpaySubscription | null | undefined,
   input: {
     organizationId: string;
     changeId: string;
@@ -378,15 +425,20 @@ function isSameProvisioningIntent(
     quantity: number;
     startAt: number;
     expireBy: number;
+    totalCount: number;
   }
 ) {
-  return provider.notes?.organization_id === input.organizationId
+  return provider != null && typeof provider === "object" && provider.entity === "subscription"
+    && typeof provider.id === "string" && provider.id.trim().length > 0
+    && provider.notes?.organization_id === input.organizationId
     && provider.notes?.billing_change_id === input.changeId
     && provider.notes?.replacement_source_subscription_id === input.sourceProviderSubscriptionId
     && provider.notes?.provider_mode === input.providerMode
     && provider.notes?.billing_type === "saas_subscription_replacement"
     && provider.plan_id === input.providerPlanId
-    && (provider.quantity ?? 1) === input.quantity
+    && provider.quantity === input.quantity
+    && provider.total_count === input.totalCount
+    && (provider.offer_id == null || provider.offer_id === "")
     && provider.start_at === input.startAt
     && provider.expire_by === input.expireBy;
 }
@@ -616,14 +668,25 @@ async function quarantineCandidateCancellationAttempt(
 export class BillingReplacementService {
   static async reconcileSourceCancellation(changeId: string, now = new Date()) {
     const snapshot = await prisma.organizationBillingChange.findUniqueOrThrow({
-      where: { id: changeId }, include: { organizationSubscription: true },
+      where: { id: changeId }, include: { organizationSubscription: { include: { billingOffer: true } } },
     });
     const source = snapshot.organizationSubscription;
     if (!source || source.providerMode !== resolveRazorpayMode()
       || source.razorpaySubscriptionId !== snapshot.authorizedSourceRazorpaySubscriptionId) {
       throw new BillingManualReviewRequiredError(changeId);
     }
-    const provider = await getRazorpayClient().fetchSubscription(source.razorpaySubscriptionId);
+    const action = await prisma.billingProviderAction.findFirst({ where: {
+      organizationId: snapshot.organizationId, changeId, purpose: "CANCEL_SOURCE", providerMode: source.providerMode,
+    }, select: { request: true } });
+    const request = action?.request as { method?: string; args?: unknown[] } | undefined;
+    const immediate = request?.method === "cancelSubscription"
+      && request.args?.[0] === source.razorpaySubscriptionId
+      && (request.args?.[1] as { cancel_at_cycle_end?: boolean } | undefined)?.cancel_at_cycle_end === false;
+    if (immediate && !snapshot.effectiveAt) throw new BillingManualReviewRequiredError(changeId);
+    const provider = immediate
+      ? await readUnchargedPreStartSource({ changeId, source, effectiveAt: snapshot.effectiveAt!,
+          offerId: source.billingOffer?.razorpayOfferId ?? null, now, recoveringTerminal: true })
+      : await getRazorpayClient().fetchSubscription(source.razorpaySubscriptionId);
     const actionResponse = await getConfirmedBillingProviderResponse(snapshot.organizationId, changeId, "CANCEL_SOURCE");
     return prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT "id" FROM "Organization" WHERE "id" = ${snapshot.organizationId} FOR UPDATE`;
@@ -636,6 +699,11 @@ export class BillingReplacementService {
         || current.currentOrganizationId !== change.organizationId) {
         throw new BillingManualReviewRequiredError(changeId);
       }
+      if (immediate && await tx.organizationSubscriptionInvoice.findFirst({ where: {
+        organizationId: change.organizationId, OR: [
+          { organizationSubscriptionId: source.id }, { razorpaySubscriptionId: source.razorpaySubscriptionId },
+        ],
+      }, select: { id: true } })) throw new BillingManualReviewRequiredError(changeId);
       const admitted = await tx.organizationBillingChangeAudit.findFirst({ where: {
         changeId, outcome: "PROVIDER_MUTATION_ADMITTED", failureCode: SOURCE_CANCELLATION_PROCESSING_CODE,
       } });
@@ -656,8 +724,8 @@ export class BillingReplacementService {
         throw new BillingManualReviewRequiredError(changeId);
       }
       await tx.organizationSubscription.update({ where: { id: source.id }, data: {
-        cancelAtCycleEnd: true, cancellationRequestedAt: source.cancellationRequestedAt ?? admitted.createdAt,
-        cancellationScheduledAt: change.effectiveAt, lastReconciledAt: now,
+        cancelAtCycleEnd: !immediate, cancellationRequestedAt: source.cancellationRequestedAt ?? admitted.createdAt,
+        cancellationScheduledAt: immediate ? null : change.effectiveAt, lastReconciledAt: now,
         ...(ended ? { status: mapProviderStatus(provider.status), endedAt: dateFromTimestamp(provider.ended_at) ?? now } : {}),
       } });
       const recovered = await tx.organizationBillingChange.update({ where: { id: changeId }, data: {
@@ -740,7 +808,7 @@ export class BillingReplacementService {
         },
         OR: [
           { replacementSubscriptionId: { not: null } },
-          { organizationSubscription: { providerPaymentMethod: { in: ["UPI", "EMANDATE"] } } },
+          { organizationSubscription: { providerPaymentMethod: { in: ["CARD", "UPI", "EMANDATE"] } } },
           { type: "PAYMENT_METHOD_REPLACEMENT" },
         ],
         ...(allowedChangeId ? { id: { not: allowedChangeId } } : {}),
@@ -897,6 +965,16 @@ export class BillingReplacementService {
       ?? source.paidThrough
       ?? futureStartBoundary;
     if (!currentBoundary) throw new Error("A current billing-cycle boundary is required for replacement");
+    const isPreStartSource = providerBoundary == null && source.currentEnd == null
+      && source.paidThrough == null && futureStartBoundary != null;
+    // An uncharged mandate has no renewable paid cycle to advance. Its
+    // replacement must share the first charge boundary so source retirement
+    // can prove that two mandates will not charge at different future dates.
+    if (isPreStartSource && (futureStartBoundary.getTime() < now.getTime() + REPLACEMENT_SAFE_CYCLE_LEAD_MS
+      || (change.authorizedProviderStartAt != null
+        && timestamp(change.authorizedProviderStartAt) !== timestamp(futureStartBoundary)))) {
+      throw new Error("The first charge is too close or changed; this mandate cannot be safely replaced yet");
+    }
 
     const cadenceMonths = intervalMonths(source);
     let discountSafeBoundary = currentBoundary;
@@ -915,13 +993,18 @@ export class BillingReplacementService {
         discountSafeBoundary = addCalendarMonthsUtc(currentBoundary, cadenceMonths);
       }
     }
-    const effectiveAt = change.authorizedProviderStartAt ?? getSafeReplacementCycleBoundary({
+    if (isPreStartSource && discountSafeBoundary.getTime() !== currentBoundary.getTime()) {
+      throw new Error("The original discounted authorization must complete before replacing this mandate");
+    }
+    const effectiveAt = change.authorizedProviderStartAt ?? (isPreStartSource ? futureStartBoundary : getSafeReplacementCycleBoundary({
       now,
       currentCycleEnd: discountSafeBoundary,
       intervalMonths: cadenceMonths,
-    });
+    }));
     const undoCutoffAt = change.authorizedProviderExpireAt ?? getReplacementUndoCutoffAt(effectiveAt);
     const accessGraceEndsAt = getReplacementChargeGraceEndsAt(effectiveAt);
+    const totalCount = change.authorizedTotalCount
+      ?? Math.max(providerSource.remaining_count ?? getDefaultSubscriptionCycles(), 1);
     const providerIntent = {
       organizationId: change.organizationId,
       changeId: change.id,
@@ -931,9 +1014,8 @@ export class BillingReplacementService {
       quantity: targetQuantity,
       startAt: timestamp(effectiveAt),
       expireBy: timestamp(undoCutoffAt),
+      totalCount,
     };
-    const totalCount = change.authorizedTotalCount
-      ?? Math.max(providerSource.remaining_count ?? getDefaultSubscriptionCycles(), 1);
     // Freeze the exact provider request before discovery/dispatch. Future
     // reconciliation must not shift its identity into a later billing cycle.
     await prisma.$transaction(async tx => {
@@ -966,16 +1048,16 @@ export class BillingReplacementService {
       const matches: RazorpaySubscription[] = [];
       for (let skip = 0; ; skip += 100) {
         const page = await razorpay.listSubscriptions({ count: 100, skip });
-        matches.push(...page.items.filter(candidate => isSameProvisioningIntent(candidate, providerIntent)));
+        matches.push(...page.items.filter(candidate => isSameReplacementProvisioningIntent(candidate, providerIntent)));
         if (page.items.length < 100) break;
       }
       const liveMatches = matches
-        .filter(candidate => isSameProvisioningIntent(candidate, providerIntent))
+        .filter(candidate => isSameReplacementProvisioningIntent(candidate, providerIntent))
         .filter(candidate => !TERMINAL_PROVIDER_STATUSES.has(candidate.status.toLowerCase()))
         .sort((left, right) => (left.created_at ?? 0) - (right.created_at ?? 0));
       const ambiguousMatches = liveMatches.filter(candidate =>
         candidate.status.toLowerCase() !== "created"
-        || (candidate.paid_count ?? 0) > 0
+        || candidate.paid_count !== 0
       );
       if (ambiguousMatches.length > 0 || liveMatches.length > 1) {
         throw new BillingManualReviewRequiredError(change.id,
@@ -1026,10 +1108,10 @@ export class BillingReplacementService {
         },
       }] } });
     }
-    if (!isSameProvisioningIntent(providerCandidate, providerIntent)) {
+    if (!isSameReplacementProvisioningIntent(providerCandidate, providerIntent)) {
       throw new Error("Razorpay replacement does not match the expected plan and branch quantity");
     }
-    if (providerCandidate.status.toLowerCase() !== "created" || (providerCandidate.paid_count ?? 0) > 0) {
+    if (providerCandidate.status.toLowerCase() !== "created" || providerCandidate.paid_count !== 0) {
       throw new BillingManualReviewRequiredError(change.id, "Replacement authorization requires reconciliation");
     }
     // Bind the confirmed provider identity separately from local subscription
@@ -1190,8 +1272,20 @@ export class BillingReplacementService {
 
       // Candidate evidence cannot resolve an in-flight or ambiguous source
       // cancellation. Its provider action has a separate durable admission.
-      const sourceCancellationConfirmed = source.cancelAtCycleEnd
+      const cycleEndCancellationConfirmed = source.cancelAtCycleEnd
         && source.cancellationScheduledAt?.getTime() === change.effectiveAt?.getTime();
+      // Immediate retirement has no cycle-end flag. Retain its completed
+      // outcome only with terminal source state and this exact cancellation's
+      // confirmation/recovery record; an admission alone stays unresolved.
+      const immediateCancellationConfirmed = !source.cancelAtCycleEnd
+        && source.cancellationRequestedAt != null && source.endedAt != null
+        && ["CANCELLED", "COMPLETED", "EXPIRED"].includes(source.status)
+        && Boolean(await tx.organizationBillingChangeAudit.findFirst({ where: {
+          organizationId: change.organizationId, changeId: change.id,
+          change: { organizationSubscriptionId: source.id }, outcome: "PROVIDER_STATE_ADOPTED",
+          failureCode: { in: ["SOURCE_CANCELLATION_CONFIRMED", "SOURCE_CANCELLATION_RECOVERED"] },
+        } }));
+      const sourceCancellationConfirmed = cycleEndCancellationConfirmed || immediateCancellationConfirmed;
       const sourceCancellationHeld = Boolean(change.failureCode?.startsWith("SOURCE_CANCELLATION_")
         || (!sourceCancellationConfirmed && await tx.organizationBillingChangeAudit.findFirst({ where: {
           changeId: change.id, outcome: "PROVIDER_MUTATION_ADMITTED",
@@ -1645,7 +1739,7 @@ export class BillingReplacementService {
       }
       const change = await tx.organizationBillingChange.findUnique({
         where: { id: changeId },
-        include: { organizationSubscription: true, replacementSubscription: true },
+        include: { organizationSubscription: { include: { billingOffer: true } }, replacementSubscription: true },
       });
       const source = change?.organizationSubscription;
       const candidate = change?.replacementSubscription;
@@ -1720,7 +1814,12 @@ export class BillingReplacementService {
         targetPlanId: frozen.authorizedRazorpayPlanId,
         targetQuantity,
       })) throw new BillingReplacementNotReadyError();
-      if (!source.currentEnd || source.currentEnd.getTime() !== change.effectiveAt.getTime()) {
+      // No paid-cycle boundary means cycle-end cancellation cannot protect the
+      // first charge. Admit the separate proof below, and quarantine uncertainty
+      // instead of leaving an authorized second mandate silently waiting.
+      const cancelImmediately = source.currentEnd == null;
+      if (!cancelImmediately
+        && (!source.currentEnd || source.currentEnd.getTime() !== change.effectiveAt.getTime())) {
         return { skipped: "SOURCE_BOUNDARY_NOT_REACHED" as const };
       }
       if (source.currentOrganizationId !== change.organizationId
@@ -1741,7 +1840,7 @@ export class BillingReplacementService {
       await recordBillingMutationAudit(tx, { changeId: change.id, organizationId: change.organizationId,
         organizationSubscriptionId: source.id, attemptCount: admitted.attemptCount,
         outcome: "PROVIDER_MUTATION_ADMITTED", failureCode: SOURCE_CANCELLATION_PROCESSING_CODE });
-      return { skipped: null, change: admitted, source, candidate };
+      return { skipped: null, change: admitted, source, candidate, cancelImmediately };
     });
     if (claim.skipped) {
       return {
@@ -1751,13 +1850,58 @@ export class BillingReplacementService {
     }
 
     try {
-      const provider = await executeBillingProviderAction({ organizationId: claim.change.organizationId, change: claim.change, leaseToken, purpose: "CANCEL_SOURCE", command: { method: "cancelSubscription", args: [claim.source.razorpaySubscriptionId, { cancel_at_cycle_end: true }] } });
+      if (claim.cancelImmediately) {
+        if (claim.source.status !== "AUTHENTICATED"
+          || claim.candidate.providerStartAt?.getTime() !== claim.change.effectiveAt!.getTime()
+          || claim.change.authorizedProviderStartAt?.getTime() !== claim.change.effectiveAt!.getTime()
+          || claim.source.razorpayPlanId !== claim.change.authorizedSourceRazorpayPlanId
+          || claim.source.providerMode !== claim.candidate.providerMode) {
+          throw new BillingManualReviewRequiredError(changeId, "The original and replacement mandates do not share the verified first-charge boundary");
+        }
+        await readUnchargedPreStartSource({ changeId, source: claim.source,
+          effectiveAt: claim.change.effectiveAt!, offerId: claim.source.billingOffer?.razorpayOfferId ?? null, now });
+        await prisma.$transaction(async tx => {
+          await tx.$queryRaw`SELECT "id" FROM "Organization" WHERE "id" = ${claim.change.organizationId} FOR UPDATE`;
+          const owner = await tx.organization.findFirst({ where: {
+            id: claim.change.organizationId, billingMutationLeaseToken: leaseToken,
+          } });
+          const latest = await tx.organizationBillingChange.findFirst({ where: {
+            id: changeId, status: "PROCESSING", attemptCount: claim.change.attemptCount,
+            processingStartedAt: claim.change.processingStartedAt, failureCode: SOURCE_CANCELLATION_PROCESSING_CODE,
+          }, include: { organizationSubscription: true, replacementSubscription: true } });
+          const source = latest?.organizationSubscription;
+          const candidate = latest?.replacementSubscription;
+          const invoice = await tx.organizationSubscriptionInvoice.findFirst({ where: {
+            organizationId: claim.change.organizationId, OR: [
+              { organizationSubscriptionId: claim.source.id },
+              { razorpaySubscriptionId: claim.source.razorpaySubscriptionId },
+            ],
+          }, select: { id: true } });
+          if (!owner || !source || !candidate || invoice || source.status !== "AUTHENTICATED"
+            || source.currentOrganizationId !== claim.change.organizationId
+            || candidate.pendingReplacementOrganizationId !== claim.change.organizationId
+            || source.updatedAt.getTime() !== claim.source.updatedAt.getTime()
+            || candidate.updatedAt.getTime() !== claim.candidate.updatedAt.getTime()
+            || !isUnpaidPreStartSource(source, claim.change.effectiveAt!)) {
+            throw new BillingManualReviewRequiredError(changeId, "Replacement state changed before retiring the original mandate");
+          }
+        });
+      }
+      const provider = await executeBillingProviderAction({ organizationId: claim.change.organizationId, change: claim.change, leaseToken, purpose: "CANCEL_SOURCE", command: { method: "cancelSubscription", args: [claim.source.razorpaySubscriptionId, { cancel_at_cycle_end: !claim.cancelImmediately }] } });
       if (provider.id !== claim.source.razorpaySubscriptionId) {
         throw new Error("Razorpay source mismatch while scheduling replacement cutover");
       }
       const providerStatus = provider.status.toLowerCase();
       const providerScheduledAt = dateFromTimestamp(provider.change_scheduled_at);
       const providerEnded = TERMINAL_PROVIDER_STATUSES.has(providerStatus);
+      if (claim.cancelImmediately && (!providerEnded || provider.entity !== "subscription"
+        || provider.plan_id !== claim.source.razorpayPlanId || provider.quantity !== claim.source.quantity
+        || provider.total_count !== claim.source.totalCount || provider.paid_count !== 0
+        || provider.current_start != null || provider.current_end != null
+        || (provider.offer_id ?? null) !== (claim.source.billingOffer?.razorpayOfferId ?? null)
+        || dateFromTimestamp(provider.start_at)?.getTime() !== claim.change.effectiveAt!.getTime())) {
+        throw new Error("Razorpay did not confirm immediate retirement of the uncharged source mandate");
+      }
       if (!providerEnded && (
         provider.has_scheduled_changes !== true
         || !providerScheduledAt
@@ -1807,10 +1951,13 @@ export class BillingReplacementService {
         await tx.organizationSubscription.update({
           where: { id: claim.source.id },
           data: {
-            cancelAtCycleEnd: true,
+            cancelAtCycleEnd: !claim.cancelImmediately,
             cancellationRequestedAt: now,
-            cancellationScheduledAt: providerScheduledAt ?? claim.change.effectiveAt,
+            cancellationScheduledAt: claim.cancelImmediately ? null : providerScheduledAt ?? claim.change.effectiveAt,
             lastReconciledAt: now,
+            ...(claim.cancelImmediately ? {
+              status: mapProviderStatus(provider.status), endedAt: dateFromTimestamp(provider.ended_at) ?? now,
+            } : {}),
           },
         });
         await tx.organizationBillingChange.update({

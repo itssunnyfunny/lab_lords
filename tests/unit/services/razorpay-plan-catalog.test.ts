@@ -159,7 +159,7 @@ describe("Razorpay provider-scoped plan catalog", () => {
   it("includes provider mode and immutable price details in the deterministic key", () => {
     const testKey = existingEntry("TEST").catalogKey;
     const liveKey = existingEntry("LIVE").catalogKey;
-    expect(testKey).toBe("razorpay-plan:v1:TEST:BASIC:INR:29900:monthly:1");
+    expect(testKey).toBe("razorpay-plan:v2:TEST:BASIC:INR:29900:monthly:1");
     expect(liveKey).not.toBe(testKey);
   });
 
@@ -219,9 +219,9 @@ describe("Razorpay provider-scoped plan catalog", () => {
     expect(razorpay.createPlan).not.toHaveBeenCalled();
   });
 
-  it("recovers a provider plan by catalog note after an interrupted earlier attempt", async () => {
+  it.each([0, 1])("adopts a prepared provider plan after %s prior local attempts", async attempts => {
     const state = fakeStore();
-    state.setAttemptCount(1);
+    state.setAttemptCount(attempts);
     const razorpay = fakeRazorpay();
     const catalogKey = existingEntry().catalogKey;
     vi.mocked(razorpay.listPlans).mockResolvedValueOnce({

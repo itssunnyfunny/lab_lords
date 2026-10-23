@@ -1,5 +1,89 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Three-plan catalogue — isolated implementation, 2026-10-23
+
+The working tree uses BASIC 99 / STANDARD 299 / PRO 499 INR per active branch/month.
+Release is prepared for PR review and remains undeployed, with a guarded empty-ledger migration
+and separate TEST/LIVE v2 provider mappings. See [cutover and evidence](../billing/three-plan-cutover.md).
+
+
+Shared branch capability denial copy now names Pro for WhatsApp and Standard
+for staff, analytics and AI, including owner/staff Hindi and Hinglish messages.
+The release inventory supplies a read-only aggregate precondition report; the
+owner-managed Pro upgrade and all Production/Live cutover gates remain outstanding.
+
+## Dedicated billing and recovery — local implementation, 2026-10-22
+
+Owners manage SaaS billing at `/org/[orgId]/billing`: current access, Basic, Standard and
+Pro comparisons, Razorpay authorization/recovery, scheduled changes,
+cancellation undo, invoices with cursor pagination, and subscription history.
+Organization Settings retains workspace configuration and links to Billing.
+Legacy Settings billing queries and anchors forward without losing the selected
+plan or return path. Shared feature gates refresh from server entitlement after
+billing changes; stale responses cannot overwrite a newer scope or refresh.
+The summary distinguishes the canonical billed plan from effective feature access
+during a complimentary replacement grant. An authenticated subscription during an
+active owner trial exposes the existing confirmed cancellation flow before the
+first plan charge, preserving the original trial end date. Billing summary and
+payment-method labels use the English, Hindi and Hinglish interface boundary.
+
+Successful scheduled-undo and exact-settlement recovery now confirm the matching
+durable provider-action receipt in the same transaction as the domain outcome.
+This permits later changes while retaining independent unresolved cancellation
+or replacement fences. Reconciliation also repairs matching receipts left behind
+by an older successful adoption. Receipt confirmation handles a concurrent
+ADMITTED-to-UNKNOWN transition and rolls back adoption if ownership changed.
+The owner Retry entry point routes uncertain scheduled undo through its own
+provider-read-only recovery path; recovery does not replay queued mutations.
+
+Razorpay invoice reads now paginate completely and fail closed on incomplete,
+duplicate, foreign or bounded-out histories. Replacement discovery checks exact
+cycle count, quantity, offer absence and explicit zero prior charges. Authorization
+expiry rechecks uncharged provider/local state under its lease before cancellation.
+Local/unrecognized deployment environments reject LIVE mode. Pricing, plan
+entitlements, trial rules, callback/webhook verification and commercial evidence
+requirements are unchanged. See the [verification report](../audits/billing-recovery-2026-10-22.md).
+Real Test checkout exposed a payment-response contract mismatch: Razorpay may
+omit `payment.subscription_id`. Settlement now accepts that absence only when
+the fetched invoice binds the exact payment and authorized subscription in both
+directions; an explicit conflicting identity still fails. All remaining frozen
+commercial terms and captured-payment checks remain mandatory.
+Future-start Test authorization also exposed Razorpay's auto-refunded INR 5
+verification token. The exact fully refunded card/UPI token can establish only
+authorization for an authenticated, uncharged candidate with unchanged future
+terms and complete empty invoice history. Signature verification now records
+the exact callback pair in the scoped append-only service audit before provider
+reads, allowing later reconciliation without treating browser payment hints as
+proof. Pre-fix quarantines without that proof remain held. Paid cutover still
+requires exact captured invoice evidence.
+
+The real Test account also rejected a plan update on a domestic-card mandate.
+Stored `CARD` identity does not establish international-card update eligibility,
+so new Workspace Billing V2 card plan, trial-plan and branch-quantity changes use the existing
+explicitly authorized replacement flow. This conservative routing applies to
+all stored cards; it does not relabel their payment method or add a provider
+capability field. Card-only Checkout can authorize a replacement card with the
+multi-method flag off. UPI/eMandate replacements and proactive payment-method
+switching retain that flag's gate. Unknown methods remain blocked. Existing
+provider-scheduled updates retain their exact undo and recovery paths.
+The Billing confirmation explains the new authorization and safe-cycle timing;
+returning a Checkout payload does not itself grant access or mark the new plan
+paid. Retry consumers also reopen a reusable Checkout nested in the owned
+operation response, preserving the same candidate and change identity. The
+complimentary-access notice requires the matching recorded grant, no revocation
+or quarantine, and current server entitlement; candidate status alone is not
+an access claim. Pending trial branches share retry/discard guards with paid
+branch changes, and uncertain candidate creation cannot be locally abandoned.
+For an unpaid future-start source, the replacement preserves the original start
+and trial dates and requires the existing safe lead time. After the undo window
+closes, exact candidate authorization can permit immediate retirement of the
+still-unpaid authenticated source only after fresh provider and local evidence
+proves matching future terms and no charges or invoices. Paid sources keep the
+cycle-end path. Both paths retain durable cancellation admission, read-only
+recovery after ambiguity and the separate exact-paid promotion requirement.
+Confirmed immediate source retirement is retained during subsequent access reconciliation using the exact scoped confirmation/recovery audit, so it does not revoke an activated branch. Terminal state or admission alone does not resolve uncertain cancellation.
+This work is isolated on `codex/billing-recovery`; it is not a production release.
+
 ## Branch analytics payment boundary — local remediation, 2026-09-29
 
 The interactive branch snapshot and payment trend separate general analytics
@@ -622,9 +706,8 @@ Authoritative code: `services/payment.service.ts`, `analytics/payment.analytics.
 - `view_whatsapp`, `send_whatsapp`, `manage_whatsapp`, and
   `receive_whatsapp_reports` are overridable branch actions. WhatsApp actions
   also require the internal
-  `WHATSAPP_AUTOMATION` entitlement, which is present on Standard/`PRO` and
-  hidden higher plans but deliberately absent from Basic and public pricing
-  capability output. PR2 defines `send_whatsapp` for forward-compatible RBAC;
+  `WHATSAPP_AUTOMATION` entitlement, which is present only on explicit `PRO`
+  in catalogue v2 and absent from BASIC, STANDARD and normal Standard trials. PR2 defines `send_whatsapp` for forward-compatible RBAC;
   it does not expose a send route.
 
 Authoritative code: `services/staff.service.ts`, `services/staffInvite.service.ts`, `services/staffInviteSecurity.ts`, `lib/branchCapabilities.ts`, and `app/api/branches/[branchId]/access/route.ts`.
@@ -922,17 +1005,22 @@ The repository contains both legacy billing and Workspace Billing V2.
   both organization and owner ID. Foreign and nonexistent organization IDs
   receive the exact same generic 404 response, route status mapping is typed,
   and rejected requests perform no Razorpay read or mutation.
-- `BASIC` is displayed as Basic and costs INR 299 per active branch per month.
-- Database plan `PRO` is displayed as Standard and costs INR 499 per active branch per month.
-- Standard grants staff management, advanced analytics, AI access, and the
-  internal `WHATSAPP_AUTOMATION` entitlement. WhatsApp remains absent from
-  public pricing output; held repository delivery capability is not a launch or
-  customer promise.
+- `BASIC` is displayed as Basic and costs INR 99 per active branch per month.
+- `STANDARD` is displayed as Standard and costs INR 299 per active branch per month.
+- `PRO` is displayed as Pro and costs INR 499 per active branch per month.
+- Standard grants staff management, advanced analytics and AI access. Pro adds
+  `WHATSAPP_AUTOMATION`; public copy discloses setup/rollout and messaging terms.
+  Entitlement is separate from integration readiness.
 - Workspace Billing V2 derives subscription quantity from billable branch
   lifecycle state. Pending activation and scheduled removal affect quantity
   sequencing, so it is not simply a count of rows currently marked `ACTIVE`.
 - Owner trial state, branch activation/removal, plan changes, quantity changes, cancellation, recovery, payment-method replacement, invoices, subscription history, and provider reconciliation are modeled.
-- Card changes can use provider subscription updates; supported non-card changes use separately authorized replacement subscriptions and controlled cutover logic.
+- New Workspace Billing V2 CARD, UPI and eMandate plan/trial-plan/quantity changes use separately
+  authorized replacement subscriptions and controlled cutover. The stored CARD
+  enum cannot distinguish provider-eligible international mandates from domestic
+  mandates, so no new card update is inferred safe from that enum. Existing
+  provider-scheduled card changes still support exact undo and reconciliation.
+  Unknown recurring methods remain unavailable.
 - Provider mutations and scheduled-update undo use organization leases plus
   exact attempt fencing. Ambiguous outcomes and expired attempts enter manual
   review without automatic resubmission; owner retry reconciles provider state,
@@ -945,6 +1033,14 @@ The repository contains both legacy billing and Workspace Billing V2.
   atomically with pending-slot release and any branch restoration. A definite
   provider rejection still requires a confirming read before a later explicit
   cancellation may be submitted.
+- Future-start replacement never silently extends the source's start or the
+  owner trial. An exactly authorized candidate with the same frozen future
+  start permits immediate retirement of a provably uncharged authenticated
+  source after the undo cutoff. Fresh complete empty invoices, explicit zero
+  paid count, absent local/provider paid periods and unchanged scoped records
+  are required; changed or ambiguous evidence retains manual review. Paid source
+  retirement remains at cycle end, and candidate promotion still needs exact
+  paid evidence.
 - New authorizations and billing changes persist an immutable versioned
   commercial tuple covering provider mode, source/target subscription, plan,
   quantity, offer-adjusted amount, currency, and cadence. Replacement target
@@ -998,7 +1094,10 @@ This subsystem is implemented but deliberately release-gated:
 
 - `WORKSPACE_BRANCH_BILLING_V2_ENABLED` gates V2 onboarding/runtime behavior.
 - `RAZORPAY_BILLING_WRITES_ENABLED` gates provider mutations, with an optional controlled Live canary allow-list.
-- `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED` switches from card-only Checkout configuration to provider-managed eligible recurring methods.
+- `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED` switches from card-only Checkout
+  configuration to provider-managed eligible recurring methods. Card plan and
+  quantity replacements work through card-only Checkout with this flag off;
+  UPI/eMandate replacement and proactive payment-method switching remain gated.
 - each organization retains `billingModelVersion`, so enabling the environment flag does not by itself migrate legacy organizations.
 
 Repository code and tests do not prove that these flags are enabled in any deployment or that the target Razorpay account is approved and configured.

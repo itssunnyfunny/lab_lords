@@ -22,6 +22,7 @@ or imply owner approval.
 | [0001](./0001-managed-workflow-for-import-execution.md) | Proposed | Managed Workflow for import execution |
 | [0002](./0002-whatsapp-communication-foundation.md) | Proposed | WhatsApp communication foundation and customer-owned Meta assets |
 | [0005](./0005-tenant-integrity-and-authoritative-execution-boundaries.md) | Proposed | Tenant integrity and authoritative execution boundaries |
+| [0006](./0006-card-subscription-replacement.md) | Proposed | Fresh authorization for card subscription changes |
 
 ## Naming and status
 

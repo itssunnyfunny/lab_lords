@@ -54,7 +54,7 @@ export class OnboardingService {
         const idempotencyKey = normalizeOnboardingKey(params.idempotencyKey);
         const { userId, orgData, branchData } = params;
         if (!isCheckoutBillingPlanId(params.selectedPostTrialPlan)) {
-            throw invalidOnboardingRequest("Choose Basic or Standard as the post-trial plan.");
+            throw invalidOnboardingRequest("Choose Basic, Standard or Pro as the post-trial plan.");
         }
         const ownerPhoneResult = validateRequiredPhone(params.ownerPhone, "Owner phone");
         if (!ownerPhoneResult.ok) throw invalidOnboardingRequest(ownerPhoneResult.error);

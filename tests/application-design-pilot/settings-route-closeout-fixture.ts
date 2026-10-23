@@ -103,5 +103,5 @@ export async function installSettingsRouteFixture(page: Page) {
             : operation,
         processingUrl: "/org/org-pilot/billing/processing/change-pilot",
     } }));
-    return { commands };
+    return { commands, org, billingOverview };
 }

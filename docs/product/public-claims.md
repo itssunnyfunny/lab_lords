@@ -1,5 +1,28 @@
 # Public wording and feature claims
 
+## Three-plan catalogue — working tree, 2026-10-23
+
+Home, Features, Pricing, FAQ, relevant solution pages, onboarding and dedicated Billing use the shared three-plan catalogue: Basic ₹99, Standard ₹299, Pro ₹499 per active/billable branch per month. Standard and Pro include staff, advanced analytics and AI; only Pro includes WhatsApp entitlement. The public copy explicitly requires WhatsApp setup/rollout availability and applies messaging charges/usage terms without promising unlimited usage. English, Hindi and Hinglish preserve the same facts. The normal trial remains 30 days of Standard. Basic uses existing core screens; its simpler interface has not shipped.
+
+These are working-tree release claims, not a statement of production deployment. See [cutover status](../billing/three-plan-cutover.md). The [2026-10-22 recovery report](../audits/billing-recovery-2026-10-22.md) records the prior two-plan prices and actual Test events; it is historical evidence, not the current catalogue.
+
+The observed domestic-card update restriction changes the authorization flow,
+not the advertised plan price or features. Billing now explains that a plan
+change needs a new recurring authorization and that recurring charges change
+at a safe-cycle boundary. Do not promise that every existing card mandate can
+be changed in place, that a downgrade always starts at the next immediate
+renewal, or that opening Checkout grants paid access. All stored cards use the
+replacement flow until provider-supported capability can be proven separately.
+Home, Features, Pricing and FAQ need no new payment-method or gateway guarantee;
+the customer-facing confirmation carries the specific authorization/timing copy.
+
+The 2026-10-23 shared Renewals/Overdue capability wording correction names Pro
+for WhatsApp while retaining Standard for staff/AI/analytics. Home, Features,
+Pricing and FAQ keep the existing three-plan facts; no marketing promise,
+feature availability or pricing change is introduced by this correction.
+
+## Approved public baseline
+
 Reviewed 2026-09-21 at implementation revision `804b133`, with regression coverage
 in `3c27e4b`; approved wording baseline is `cd20304`.
 The implemented public site is the wording reference. Preserve accurate headings,
@@ -49,14 +72,14 @@ revision is `3007db3`. Prices, plan IDs and inclusions remain sourced from
 | Partial payments / owner-confirmed and deployment-verified | `services/feeCollection.service.ts`, `lib/feeBalance.ts`; `docs/ai/fee-collections.md` | `paymentsRecord`: payment-view/record permission and writable branch; both plans | Owner baseline + collections deployment + current revision | Record full or partial payments and check how much each student has left to pay. | Home, Features, Pricing, FAQ, setup, student-fee solution |
 | Receipts / owner-confirmed and deployment-verified | Collection snapshot/history readers; `docs/ai/fee-collections.md` | Payment-view permission; no public receipt links; both plans | Same as collections | Download a receipt for a recorded payment and find it again in the student's collection history. | Home, Features, Pricing, FAQ, setup, student-fee solution |
 | Renewals/follow-ups / owner-confirmed and deployment-verified | `services/renewals.service.ts`, `lib/renewals.ts` | View payments to read; `paymentsRecord` to save; both plans | Owner baseline + renewals deployment + current revision | See today's fees, upcoming fee dates and pending amounts. Save a note, contact outcome and the next date to follow up. | Features, Pricing, FAQ, setup, fee-reminder solution |
-| Attendance / owner-confirmed and deployment-verified | `services/attendance.service.ts`, `components/attendance/AttendanceScanner.tsx`, `docs/ai/basic-attendance.md` | Student permission; correction also needs branch-management permission; writable branch; both plans. Staff accounts require Standard | Owner baseline + attendance deployment + current revision | Mark daily attendance and record check-in and check-out, with staff-assisted QR scanning. | Home, Features, Pricing, FAQ, setup |
+| Attendance / owner-confirmed and deployment-verified | `services/attendance.service.ts`, `components/attendance/AttendanceScanner.tsx`, `docs/ai/basic-attendance.md` | Student permission; correction also needs branch-management permission; writable branch; all three plans. Staff accounts require Standard or Pro | Owner baseline + attendance deployment + current revision | Mark daily attendance and record check-in and check-out, with staff-assisted QR scanning. | Home, Features, Pricing, FAQ, setup |
 | Languages / deployment-verified | `services/user.service.ts`, `lib/i18n/`, `docs/localization.md` | Personal interface/document choices; both plans. Report access retains its own plan/permissions | Current production deployment includes `c4af748` and owns customer aliases | Choose your interface language, and set the receipt and report language separately. | Home, Features, Pricing, FAQ, setup |
 | Branches / release-verified | `services/branch.service.ts`, public billing catalogue | Authorized branch scope; per-billable-branch pricing | Current production revision | Manage your branches from one account, with separate records for each. | Home, Features, Pricing, FAQ, setup, relevant solutions |
-| Staff / release-verified | `services/accessPolicy.service.ts`, `lib/branchCapabilities.ts` | Standard; permissions still checked per operation | Current production revision | Add your team and choose what each person can view or change. | Home, Features, Pricing, FAQ |
-| Reports and AI assistance / implemented in deployed code | `lib/billingPlans.ts`, AI report page/service and branch capability policy | Standard; analytics and payment-view permission; advisory output | Current production revision; no provider generation executed here | Read summaries of recorded figures and review them alongside your library's records. | Features, Pricing, FAQ |
+| Staff / release-verified | `services/accessPolicy.service.ts`, `lib/branchCapabilities.ts` | Standard or Pro; permissions still checked per operation | Current production revision | Add your team and choose what each person can view or change. | Home, Features, Pricing, FAQ |
+| Reports and AI assistance / implemented in deployed code | `lib/billingPlans.ts`, AI report page/service and branch capability policy | Standard or Pro; analytics and payment-view permission; advisory output | Current production revision; no provider generation executed here | Read summaries of recorded figures and review them alongside your library's records. | Features, Pricing, FAQ |
 | Imports / implemented, gated; current enablement unknown | `lib/importFeature.ts`, `importing/`, import routes | Student permission, writable branch, Import V2 flag and mutation limit; AI mapping retains its rules | Source and existing local verification only; target enablement unconfirmed | Existing narrow reviewed-student-list wording retained. No new claim for PDF beta, OCR, every format or whole-file rollback | Existing Home/Features/FAQ/setup copy |
-| WhatsApp / implemented, independently gated; commercial availability unknown | `lib/whatsappFeature.ts`, `services/whatsapp*.ts`, public catalogue filtering | Separate permissions, entitlement, flags, mode/canaries, consent and templates | No fresh gate/provider/delivery evidence | No new public delivery/automation promise. An AI draft is not evidence of delivery | Existing draft-specific explanation only |
-| Standalone AI Messages / retirement-planned, still implemented | `docs/localization.md`, branch navigation and AI messages page | Standard and existing AI permissions | Code remains in current deployed revision; removal not evidenced | Existing accurate drafting descriptions retained; no new central selling point | Features, FAQ, fee-reminder solution |
+| WhatsApp / implemented, independently gated; commercial availability unknown | `lib/whatsappFeature.ts`, `services/whatsapp*.ts`, public catalogue filtering | Pro entitlement plus separate permissions, flags, mode/canaries, consent and templates | No fresh gate/provider/delivery evidence | Pro includes conditional integration/automation entitlement; setup/rollout and usage terms apply. No unlimited messages or delivery guarantee | Pricing and conditional Pro plan description |
+| Standalone AI Messages / retirement-planned, still implemented | `docs/localization.md`, branch navigation and AI messages page | Standard or Pro and existing AI permissions | Code remains in current deployed revision; removal not evidenced | Existing accurate drafting descriptions retained; no new central selling point | Features, FAQ, fee-reminder solution |
 
 ## Meaning to preserve
 

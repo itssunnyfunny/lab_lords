@@ -8,7 +8,7 @@ type CheckoutConfirmationDialogProps = {
   isOpen: boolean;
   loading: boolean;
   purpose?: "PLAN" | "RECOVERY" | "REPLACEMENT";
-  planName: "Basic" | "Standard";
+  planName: string;
   unitAmount: number;
   quantity: number;
   monthlyTotal: number;
@@ -201,6 +201,9 @@ export function CheckoutConfirmationDialog({
 
         <section className="mt-5" aria-labelledby="checkout-next-step-title">
           <h3 id="checkout-next-step-title" className="text-sm font-semibold text-[color:var(--ui-text)]">{t("What happens next")}</h3>
+          {purpose === "REPLACEMENT" ? (
+            <p className="mt-2 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{t("This subscription change requires a new recurring payment authorization in Razorpay.")}</p>
+          ) : null}
           <p className="mt-2 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{t.owned(firstPlanCharge)}</p>
           {opensCheckout ? (
             <>
