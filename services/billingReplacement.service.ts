@@ -1272,8 +1272,20 @@ export class BillingReplacementService {
 
       // Candidate evidence cannot resolve an in-flight or ambiguous source
       // cancellation. Its provider action has a separate durable admission.
-      const sourceCancellationConfirmed = source.cancelAtCycleEnd
+      const cycleEndCancellationConfirmed = source.cancelAtCycleEnd
         && source.cancellationScheduledAt?.getTime() === change.effectiveAt?.getTime();
+      // Immediate retirement has no cycle-end flag. Retain its completed
+      // outcome only with terminal source state and this exact cancellation's
+      // confirmation/recovery record; an admission alone stays unresolved.
+      const immediateCancellationConfirmed = !source.cancelAtCycleEnd
+        && source.cancellationRequestedAt != null && source.endedAt != null
+        && ["CANCELLED", "COMPLETED", "EXPIRED"].includes(source.status)
+        && Boolean(await tx.organizationBillingChangeAudit.findFirst({ where: {
+          organizationId: change.organizationId, changeId: change.id,
+          change: { organizationSubscriptionId: source.id }, outcome: "PROVIDER_STATE_ADOPTED",
+          failureCode: { in: ["SOURCE_CANCELLATION_CONFIRMED", "SOURCE_CANCELLATION_RECOVERED"] },
+        } }));
+      const sourceCancellationConfirmed = cycleEndCancellationConfirmed || immediateCancellationConfirmed;
       const sourceCancellationHeld = Boolean(change.failureCode?.startsWith("SOURCE_CANCELLATION_")
         || (!sourceCancellationConfirmed && await tx.organizationBillingChangeAudit.findFirst({ where: {
           changeId: change.id, outcome: "PROVIDER_MUTATION_ADMITTED",

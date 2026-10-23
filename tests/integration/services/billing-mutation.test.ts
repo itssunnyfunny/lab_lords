@@ -710,7 +710,7 @@ describe("serialized workspace billing mutations", () => {
 
   it.each(["CARD", "UPI", "EMANDATE"] as const)(
     "retires an uncharged pre-start %s source without changing the trial or granting paid access", async method => {
-      const { owner, organization, subscription, candidate, change, razorpay, now, effectiveAt }
+      const { owner, organization, branch, subscription, candidate, change, razorpay, now, effectiveAt }
         = await setupPreStartSourceRetirement(`pre-start-${method}`);
       await testPrisma.organizationSubscription.updateMany({ where: { id: { in: [subscription.id, candidate.id] } },
         data: { providerPaymentMethod: method } });
@@ -719,7 +719,16 @@ describe("serialized workspace billing mutations", () => {
         trialStartedAt: new Date(effectiveAt.getTime() - 30 * 24 * 60 * 60 * 1000),
         trialEndsAt: effectiveAt, consumedAt: new Date(),
       } });
+      expect(await BillingReplacementService.syncAuthorizedAccess(change.id, now)).toMatchObject({ action: "GRANT" });
       expect(await BillingReplacementService.scheduleSourceCancellation(change.id, now)).toMatchObject({ scheduled: true });
+      // The next authorization reconciliation must recognize completed immediate
+      // retirement rather than revoke the already activated branch.
+      expect(await BillingReplacementService.syncAuthorizedAccess(change.id, new Date(now.getTime() + 1)))
+        .toMatchObject({ action: "NONE" });
+      expect(await testPrisma.branch.findUniqueOrThrow({ where: { id: branch.id } }))
+        .toMatchObject({ billingStatus: "ACTIVE" });
+      expect(await testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
+        .toMatchObject({ status: "SCHEDULED", accessRevokedAt: null, failureCategory: null });
       expect(razorpay.cancelSubscription).toHaveBeenCalledExactlyOnceWith(subscription.razorpaySubscriptionId,
         { cancel_at_cycle_end: false });
       expect(await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { id: subscription.id } }))
@@ -737,6 +746,22 @@ describe("serialized workspace billing mutations", () => {
       expect(razorpay.createSubscription).toHaveBeenCalledTimes(1);
     }
   );
+
+  it("does not treat terminal source state without cancellation confirmation as resolved", async () => {
+    const { organization, subscription, branch, change, now } = await setupPreStartSourceRetirement("unconfirmed-terminal-source");
+    expect(await BillingReplacementService.syncAuthorizedAccess(change.id, now)).toMatchObject({ action: "GRANT" });
+    await testPrisma.organizationBillingChangeAudit.create({ data: {
+      organizationId: organization.id, changeId: change.id, providerSubscriptionId: subscription.razorpaySubscriptionId,
+      attemptCount: change.attemptCount, dedupeKey: "unconfirmed-source-admission",
+      outcome: "PROVIDER_MUTATION_ADMITTED", failureCode: "SOURCE_CANCELLATION_PROCESSING",
+    } });
+    await testPrisma.organizationSubscription.update({ where: { id: subscription.id }, data: {
+      status: "CANCELLED", endedAt: now, cancellationRequestedAt: now, cancelAtCycleEnd: false,
+    } });
+    expect(await BillingReplacementService.syncAuthorizedAccess(change.id, now)).toMatchObject({ action: "REVOKE" });
+    expect(await testPrisma.branch.findUniqueOrThrow({ where: { id: branch.id } }))
+      .toMatchObject({ billingStatus: "PENDING_ACTIVATION" });
+  });
 
   it.each(["unknown-paid-count", "paid", "period", "wrong-id", "wrong-plan", "wrong-quantity", "wrong-start",
     "wrong-total", "wrong-offer", "incomplete-invoices", "issued-invoice", "changed-during-read", "local-invoice",

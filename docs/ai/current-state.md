@@ -76,6 +76,7 @@ still-unpaid authenticated source only after fresh provider and local evidence
 proves matching future terms and no charges or invoices. Paid sources keep the
 cycle-end path. Both paths retain durable cancellation admission, read-only
 recovery after ambiguity and the separate exact-paid promotion requirement.
+Confirmed immediate source retirement is retained during subsequent access reconciliation using the exact scoped confirmation/recovery audit, so it does not revoke an activated branch. Terminal state or admission alone does not resolve uncertain cancellation.
 This work is isolated on `codex/billing-recovery`; it is not a production release.
 
 ## Branch analytics payment boundary — local remediation, 2026-09-29
