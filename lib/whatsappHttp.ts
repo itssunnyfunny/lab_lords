@@ -67,7 +67,7 @@ export function safeWhatsAppError(error: unknown): SafeWhatsAppError {
     return {
       status: 403,
       code: "WHATSAPP_UPGRADE_REQUIRED",
-      message: "WhatsApp requires the Standard plan",
+      message: "WhatsApp requires the Pro plan",
     };
   }
   if (error instanceof BillingReadOnlyError) {

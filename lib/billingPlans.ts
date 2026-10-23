@@ -1,7 +1,19 @@
 import { BillingValidationError } from "@/lib/billingErrors";
 
-export type BillingPlanId = "BASIC" | "PRO" | "AGENT_CONTROL" | "CUSTOM";
-export type CheckoutBillingPlanId = "BASIC" | "PRO";
+export const BILLING_CATALOG_VERSION = 2;
+export const BILLING_PLAN_IDS = ["BASIC", "STANDARD", "PRO"] as const;
+export type BillingPlanId = typeof BILLING_PLAN_IDS[number];
+export type CheckoutBillingPlanId = BillingPlanId;
+
+export function billingPlanRank(planId: string | null | undefined) {
+  return BILLING_PLAN_IDS.indexOf(planId as BillingPlanId) + 1;
+}
+
+export function billingPlanName(planId: string | null | undefined) {
+  return getBillingPlan(planId ?? "")?.shortName ?? "No active plan";
+}
+
+export const WHATSAPP_PLAN_AVAILABILITY = "WhatsApp requires integration setup and rollout availability. Messaging charges and usage terms apply; unlimited messages are not included.";
 
 export const BILLING_ENTITLEMENTS = [
   "STAFF_MANAGEMENT",
@@ -24,6 +36,7 @@ export const BILLING_CAPABILITIES = [
   { id: "STAFF_CONTROLS", label: "Staff invitations, roles and permission controls", standardOnly: true },
   { id: "ADVANCED_ANALYTICS", label: "Branch and cross-branch advanced analytics", standardOnly: true },
   { id: "AI_ASSISTANCE", label: "AI reports and message drafting", standardOnly: true },
+  { id: "WHATSAPP_INTEGRATION", label: "WhatsApp integration and automation", standardOnly: false, proOnly: true },
 ] as const;
 
 export type BillingCapabilityId = typeof BILLING_CAPABILITIES[number]["id"];
@@ -62,7 +75,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     id: "BASIC",
     name: "Lab Lords Basic",
     shortName: "Basic",
-    amount: 299,
+    amount: 99,
     currency: "INR",
     period: "monthly",
     interval: 1,
@@ -79,10 +92,10 @@ export const BILLING_PLANS: BillingPlan[] = [
     limits: { maxBranches: null },
   },
   {
-    id: "PRO",
+    id: "STANDARD",
     name: "Lab Lords Standard",
     shortName: "Standard",
-    amount: 499,
+    amount: 299,
     currency: "INR",
     period: "monthly",
     interval: 1,
@@ -99,47 +112,23 @@ export const BILLING_PLANS: BillingPlan[] = [
       "Branch and cross-branch advanced analytics",
       "AI reports and message drafting",
     ],
-    entitlements: ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS", "WHATSAPP_AUTOMATION"],
+    entitlements: ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"],
     limits: { maxBranches: null },
   },
   {
-    id: "AGENT_CONTROL",
-    name: "Agent Control",
-    shortName: "Agent Control",
-    amount: 999,
+    id: "PRO",
+    name: "Lab Lords Pro",
+    shortName: "Pro",
+    amount: 499,
     currency: "INR",
     period: "monthly",
     interval: 1,
-    active: false,
-    visible: false,
-    comingSoon: true,
-    description: "AI agent control, deeper automations, and custom command surfaces.",
+    active: true,
+    visible: true,
+    description: "Everything in Standard, plus WhatsApp integration and automation.",
     features: [
-      "Everything in Pro",
-      "Agent control panel",
-      "Custom automation policies",
-      "Priority rollout access",
-    ],
-    entitlements: ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS", "WHATSAPP_AUTOMATION"],
-    limits: { maxBranches: null },
-  },
-  {
-    id: "CUSTOM",
-    name: "Custom",
-    shortName: "Custom",
-    amount: null,
-    currency: "INR",
-    period: "monthly",
-    interval: 1,
-    active: false,
-    visible: false,
-    custom: true,
-    description: "For larger teams that need custom onboarding, controls, or contracts.",
-    features: [
-      "Custom limits and onboarding",
-      "Dedicated success support",
-      "Security and workflow reviews",
-      "Tailored agent and reporting roadmap",
+      "Everything in Standard",
+      "WhatsApp integration and automation",
     ],
     entitlements: ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS", "WHATSAPP_AUTOMATION"],
     limits: { maxBranches: null },
@@ -189,12 +178,11 @@ export function publicBillingPlans() {
     capabilities: BILLING_CAPABILITIES.map(capability => ({
       id: capability.id,
       label: capability.label,
-      included: !capability.standardOnly || plan.id === "PRO",
+      included: "proOnly" in capability ? plan.id === "PRO"
+        : !capability.standardOnly || billingPlanRank(plan.id) >= billingPlanRank("STANDARD"),
     } satisfies PublicBillingCapability)),
-    // Internal rollout entitlements must not advertise unfinished capabilities.
-    entitlements: plan.entitlements.filter(
-      entitlement => entitlement !== "WHATSAPP_AUTOMATION"
-    ),
+    entitlements: [...plan.entitlements],
+    availabilityNote: plan.id === "PRO" ? WHATSAPP_PLAN_AVAILABILITY : null,
     limits: plan.limits,
   }));
 }
