@@ -16,6 +16,11 @@ replacement flow until provider-supported capability can be proven separately.
 Home, Features, Pricing and FAQ need no new payment-method or gateway guarantee;
 the customer-facing confirmation carries the specific authorization/timing copy.
 
+The 2026-10-23 shared Renewals/Overdue capability wording correction names Pro
+for WhatsApp while retaining Standard for staff/AI/analytics. Home, Features,
+Pricing and FAQ keep the existing three-plan facts; no marketing promise,
+feature availability or pricing change is introduced by this correction.
+
 ## Approved public baseline
 
 Reviewed 2026-09-21 at implementation revision `804b133`, with regression coverage
