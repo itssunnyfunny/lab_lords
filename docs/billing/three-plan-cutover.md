@@ -55,6 +55,15 @@ If a precondition fails, the SQL transaction rolls back without enum or row chan
 
 ## Evidence boundaries
 
-Deterministic suites cover production services with a verified disposable PostgreSQL database and synthetic providers. Browser fixtures exercise production billing components with synthetic API/Checkout responses. New actual Razorpay Test evidence proves **plan creation and readback only**. Prior actual card checkouts/recovery/replacements used the old prices. No new-price bank Checkout, future renewal/cutover, public webhook delivery, Live payment or real WhatsApp send is claimed.
+Deterministic suites cover production services with a verified disposable PostgreSQL database and synthetic providers. Browser fixtures exercise production billing components with synthetic API/Checkout responses. Actual Razorpay Test evidence proves plan creation/readback, initial paid card checkouts at all three new prices, and authenticated replacements Basic→Standard, Standard→Pro and Pro→Basic. Recovery re-entry and same-key replay preserved the original invoices and source periods without provider writes. Other directions, newly injected lost-response recovery and fresh post-undo mandates were not executed against the new catalogue. Future renewal/cutover, public webhook delivery, Live payment and real WhatsApp delivery remain unverified; see the final audit.
 
 Official references: [immutable Razorpay plans](https://razorpay.com/docs/payments/subscriptions/create-plans), [subscription update restrictions](https://razorpay.com/docs/payments/subscriptions/update). Domestic-card plan/quantity changes continue through replacement mandates; no new native card update is inferred safe.
+
+## Hosting gate observed during PR review
+
+The automatic Vercel Git preview for PR #284 at `8637d53` was rejected before
+build because the connected account uses Hobby, which does not support the
+required hourly billing cron. Do not reduce billing/WhatsApp cron frequency to
+make that check pass. Release requires hosting that supports the existing
+schedules or a separately approved scheduler design. No account upgrade,
+schedule change, deployment or promotion was performed during this review.

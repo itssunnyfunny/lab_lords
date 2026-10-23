@@ -161,3 +161,45 @@ The pre-network guard was inspected and an explicit guard probe added; the
 subsequent guarded run was approved and passed. No approval block remains for
 the completed checks. Production inventory, populated-ledger transition if
 needed, Live mappings and deployment prerequisites remain unchanged.
+
+## PR #284 review follow-up — 2026-10-23
+
+Review at `8637d53` found a real next-reconciliation defect: completed immediate
+source retirement has no cycle-end cancellation flag, so its old admission
+could wrongly revoke an activated replacement branch. The fix recognizes
+terminal immediate retirement only with a confirmation/recovery audit scoped
+to the organization, change and its source subscription. Explicit unresolved
+source failures remain held. No paid period is inferred or provider write added.
+
+The CARD/UPI/eMandate integration cases reproduced REVOKE before the fix. After
+correction, the next access reconciliation returns NONE and retains ACTIVE,
+SCHEDULED and no access revocation. A negative case confirms terminal source
+state without a confirmation record still fails closed.
+
+CI run [39907871234](https://github.com/itssunnyfunny/lab_lords/actions/runs/39907871234)
+reported 2,964 passing tests, two assertion failures and a Playwright suite
+collected by Vitest. The fixes exclude the dedicated billing Playwright folder
+from general Vitest discovery, include the dedicated Billing route in theme
+expectations, and use the three-plan onboarding validation message. The browser
+suite remains available through its dedicated Playwright config.
+
+Three WhatsApp sender/connection responses now require Pro, matching existing
+entitlement enforcement. The cutover guide's obsolete plan-only Test-evidence
+wording was updated to reflect the completed payment verification.
+
+Validation for these changes:
+
+- `pnpm exec vitest run --config vitest.unit.safe.config.ts --pool=threads --no-cache billingReplacement whatsappSenderAvailability whatsappConnection application-pilot-theme`: **115 passed**.
+- Guarded `run-integration.mjs onboarding.test.ts`: **19 passed**.
+- Guarded `run-integration.mjs billing-mutation.test.ts`: **97 passed**, four cases failed on an intermediate invalid audit field. That filter and fixture were corrected; focused `retires an uncharged pre-start|terminal source state without` rerun: **4 passed**, 97 skipped. This is 101 distinct mutation cases across runs, not one all-green invocation.
+- Focused lint and final diff check passed.
+- Guarded `run-build.mjs` passed after the audit relation correction: TypeScript, 74 static pages and the two-workflow manifest.
+- No Razorpay checkouts or earlier browser suite were repeated for this review.
+
+The PR remains draft. Fresh GitHub CI on the pushed fixes must pass before release.
+The Vercel Git integration's automatic preview attempt failed before build:
+the account's Hobby plan rejects the hourly billing cron. Schedules and account
+billing were not changed; supported hosting or an approved scheduler design is
+required. Production inventory/ledger transition, Live mappings and actual
+future settlement/webhook/deployment checks remain release prerequisites.
+No merge, manual deployment, production access or schema change occurred in this follow-up.
