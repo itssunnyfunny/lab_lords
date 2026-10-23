@@ -2,7 +2,10 @@ import type { PublicCatalog } from "./translate";
 
 // Approved English is the key. These prepared translations are loaded only on the server.
 export const publicCatalog = {
-  "Fees": ["फीस", "Fees"],
+  "Fees": [
+    "फीस",
+    "Fees"
+  ],
   "Why Lab Lords": [
     "Lab Lords क्यों",
     "Lab Lords kyun"
@@ -451,9 +454,9 @@ export const publicCatalog = {
     "देखें सेटअप कैसे होता है",
     "Dekhein setup kaise hota hai"
   ],
-  "Compare Lab Lords Basic and Standard for students, seats, shifts and fees. Monthly pricing for each billable branch, with a 30-day trial for eligible new owners.": [
-    "स्टूडेंट, सीट, शिफ्ट और फीस के लिए Lab Lords Basic और Standard की तुलना करें। हर बिल योग्य ब्रांच की मासिक कीमत, और पात्र नए मालिकों के लिए 30 दिन का ट्रायल।",
-    "Students, seats, shifts aur fees ke liye Lab Lords Basic aur Standard ki tulna karein. Har billable branch ki monthly pricing, aur eligible naye owners ke liye 30 din ka trial."
+  "Compare Lab Lords Basic, Standard and Pro for students, seats, shifts and fees. Monthly pricing for each billable branch, with a 30-day trial for eligible new owners.": [
+    "स्टूडेंट, सीट, शिफ्ट और फीस के लिए Lab Lords Basic, Standard और Pro की तुलना करें। हर बिल योग्य ब्रांच की मासिक कीमत, और पात्र नए मालिकों के लिए 30 दिन का ट्रायल।",
+    "Students, seats, shifts aur fees ke liye Lab Lords Basic, Standard aur Pro ki tulna karein. Har billable branch ki monthly pricing, aur eligible naye owners ke liye 30 din ka trial."
   ],
   "Plans & Pricing": [
     "प्लान और कीमतें",
@@ -487,13 +490,9 @@ export const publicCatalog = {
     "अपने काम के हिसाब से चुनें।",
     "Apne kaam ke hisaab se chunein."
   ],
-  "Both plans cover student records, seats and fees. Standard adds tools for your team and a more detailed view of your branches.": [
-    "दोनों प्लान में स्टूडेंट रिकॉर्ड, सीट और फीस शामिल हैं। Standard आपकी टीम के लिए टूल्स और ब्रांचों की ज़्यादा विस्तृत जानकारी जोड़ता है।",
-    "Dono plans mein student records, seats aur fees shaamil hain. Standard aapki team ke liye tools aur branches ki zyaada detailed jaankaari jodta hai."
-  ],
-  "Both plans include full or partial payments, receipts, fee follow-ups, attendance and language preferences. Staff access still requires Standard, with the permissions needed for each task. Report language preferences do not add access to reports outside your plan.": [
-    "दोनों प्लान में पूरे या आंशिक पेमेंट, रसीदें, फीस फॉलो-अप, हाजिरी और भाषा के विकल्प हैं। स्टाफ ऐक्सेस के लिए अब भी Standard और हर काम की ज़रूरी अनुमतियाँ चाहिए। रिपोर्ट की भाषा चुनने से प्लान के बाहर की रिपोर्ट का ऐक्सेस नहीं मिलता।",
-    "Dono plans mein full ya partial payments, receipts, fee follow-ups, attendance aur language preferences hain. Staff access ke liye ab bhi Standard aur har kaam ki zaroori permissions chahiye. Report ki bhasha chunne se plan ke baahar ki reports ka access nahi milta."
+  "All three plans include full or partial payments, receipts, fee follow-ups, attendance and language preferences. Staff access requires Standard or Pro, with the permissions needed for each task. Report language preferences do not add access to reports outside your plan.": [
+    "तीनों प्लान में पूरा या आंशिक पेमेंट, रसीदें, फीस फॉलो-अप, उपस्थिति और भाषा विकल्प हैं। स्टाफ एक्सेस के लिए Standard या Pro और हर काम की सही अनुमति चाहिए। रिपोर्ट की भाषा चुनने से प्लान के बाहर की रिपोर्ट नहीं मिलती।",
+    "Teeno plans mein full ya partial payments, receipts, fee follow-ups, attendance aur language preferences hain. Staff access ke liye Standard ya Pro aur har task ki permission chahiye. Report language se plan ke bahar ki reports ka access nahi milta."
   ],
   "Public plan feature comparison": [
     "पब्लिक प्लान फीचर्स की तुलना",
@@ -1239,9 +1238,9 @@ export const publicCatalog = {
     "और जानें",
     "Aur jaanein"
   ],
-  "Compare what’s included in Basic and Standard.": [
-    "तुलना करें कि Basic और Standard में क्या शामिल है।",
-    "Tulna karein ki Basic aur Standard mein kya shaamil hai."
+  "Compare what’s included in Basic, Standard and Pro.": [
+    "तुलना करें कि Basic, Standard और Pro में क्या शामिल है।",
+    "Tulna karein ki Basic, Standard aur Pro mein kya shaamil hai."
   ],
   "View all features": [
     "सभी फीचर्स देखें",
@@ -1255,9 +1254,9 @@ export const publicCatalog = {
     "लाइब्रेरी को जो चाहिए, वह चुनें।",
     "Library ko jo chahiye, woh chunein."
   ],
-  "Two plans. Clear monthly pricing for each billable branch.": [
-    "दो प्लान। हर बिल योग्य ब्रांच की साफ़ मासिक कीमत।",
-    "Do plans. Har billable branch ki saaf monthly pricing."
+  "Three plans. Clear monthly pricing for each billable branch.": [
+    "तीन प्लान। हर बिल योग्य ब्रांच की साफ़ मासिक कीमत।",
+    "Teen plans. Har billable branch ki saaf monthly pricing."
   ],
   "Eligible new owners can try Standard features for 30 days after setting up their first branch. No card needed.": [
     "पात्र नए मालिक पहली ब्रांच सेट करने के बाद Standard के फीचर्स 30 दिन आजमा सकते हैं। कार्ड की ज़रूरत नहीं।",
@@ -1895,9 +1894,9 @@ export const publicCatalog = {
     "क्या AI मेरे लिए बदलाव करता या मैसेज भेजता है?",
     "Kya AI mere liye badlaav karta ya messages bhejta hai?"
   ],
-  "Standard includes AI reports and message drafting. Review the output against your records and check a draft before using it. A generated draft is not proof that a message was sent or that a student has paid.": [
-    "Standard में AI रिपोर्ट और मैसेज ड्राफ्टिंग शामिल है। नतीजे को अपने रिकॉर्ड से जाँचें और ड्राफ्ट इस्तेमाल करने से पहले पढ़ें। बना हुआ ड्राफ्ट इस बात का सबूत नहीं कि मैसेज भेजा गया या स्टूडेंट ने फीस दी।",
-    "Standard mein AI reports aur message drafting shaamil hai. Output ko apne records se check karein aur draft use karne se pehle padhein. Bana hua draft is baat ka saboot nahi ki message bheja gaya ya student ne fees di."
+  "Standard and Pro include AI reports and message drafting. Review the output against your records and check a draft before using it. A generated draft is not proof that a message was sent or that a student has paid.": [
+    "Standard और Pro में AI रिपोर्ट और मैसेज ड्राफ्टिंग शामिल है। नतीजे को अपने रिकॉर्ड से जाँचें और ड्राफ्ट इस्तेमाल करने से पहले पढ़ें। बना हुआ ड्राफ्ट इस बात का सबूत नहीं कि मैसेज भेजा गया या स्टूडेंट ने फीस दी।",
+    "Standard aur Pro mein AI reports aur message drafting shaamil hai. Output ko apne records se check karein aur draft use karne se pehle padhein. Bana hua draft is baat ka saboot nahi ki message bheja gaya ya student ne fees di."
   ],
   "What do the plans cost?": [
     "प्लान की कीमत क्या है?",
@@ -2159,9 +2158,9 @@ export const publicCatalog = {
     "क्या मैं एक से ज़्यादा स्टडी हॉल संभाल सकता हूँ?",
     "Kya main ek se zyaada study halls sambhaal sakta hoon?"
   ],
-  "Yes. Both plans support multiple branches, with each billable branch charged separately.": [
-    "हाँ। दोनों प्लान में कई ब्रांचें संभाल सकते हैं, हर बिल योग्य ब्रांच का शुल्क अलग है।",
-    "Haan. Dono plans mein kai branches sambhaal sakte hain, har billable branch ka charge alag hai."
+  "Yes. All three plans support multiple branches, with each billable branch charged separately.": [
+    "हाँ। तीनों प्लान में कई ब्रांचें संभाल सकते हैं, हर बिल योग्य ब्रांच का शुल्क अलग है।",
+    "Haan. Teeno plans mein kai branches sambhaal sakte hain, har billable branch ka charge alag hai."
   ],
   "Can I give staff limited access?": [
     "क्या स्टाफ को सीमित ऐक्सेस दे सकता हूँ?",
@@ -2303,9 +2302,9 @@ export const publicCatalog = {
     "क्या लाइब्रेरी की कई ब्रांचें संभाल सकता हूँ?",
     "Kya library ki kai branches sambhaal sakta hoon?"
   ],
-  "Yes. Both plans support multiple branches, and each billable branch is charged separately.": [
-    "हाँ। दोनों प्लान कई ब्रांचों की सुविधा देते हैं और हर बिल योग्य ब्रांच का शुल्क अलग लगता है।",
-    "Haan. Dono plans kai branches ki suvidha dete hain aur har billable branch ka charge alag lagta hai."
+  "Yes. All three plans support multiple branches, and each billable branch is charged separately.": [
+    "हाँ। तीनों प्लान कई ब्रांचों की सुविधा देते हैं और हर बिल योग्य ब्रांच का शुल्क अलग लगता है।",
+    "Haan. Teeno plans kai branches ki suvidha dete hain aur har billable branch ka charge alag lagta hai."
   ],
   "Seat 12 is occupied in the morning. Before offering it in the evening, check the evening shift and intended dates. Availability belongs to a time slot and period; a single occupied label cannot describe every use of that seat.": [
     "सीट 12 सुबह भरी है। शाम में देने से पहले शाम की शिफ्ट और चाहिए हुई तारीखें जाँचें। खाली होने की स्थिति किसी समय और अवधि के लिए होती है; एक भरी हुई का लेबल उस सीट के हर इस्तेमाल की जानकारी नहीं दे सकता।",
@@ -2479,9 +2478,9 @@ export const publicCatalog = {
     "क्या सीट मैनेजमेंट Basic में है?",
     "Kya seat management Basic mein hai?"
   ],
-  "Yes. Seats, shifts and allocations are included in both Basic and Standard.": [
-    "हाँ। सीट, शिफ्ट और आवंटन Basic और Standard दोनों में शामिल हैं।",
-    "Haan. Seats, shifts aur allocations Basic aur Standard dono mein shaamil hain."
+  "Yes. Seats, shifts and allocations are included in Basic, Standard and Pro.": [
+    "हाँ। सीट, शिफ्ट और आवंटन Basic, Standard और Pro में शामिल हैं।",
+    "Haan. Seats, shifts aur allocations Basic, Standard aur Pro mein shaamil hain."
   ],
   "Set up your library seats": [
     "अपनी लाइब्रेरी की सीटें सेट करें",
@@ -2651,9 +2650,9 @@ export const publicCatalog = {
     "क्या फीस मैनेजमेंट Basic में है?",
     "Kya fee management Basic mein hai?"
   ],
-  "Yes. Payments, dues and audit history are included in Basic and Standard.": [
-    "हाँ। पेमेंट, बकाया और बदलावों का इतिहास Basic और Standard में शामिल हैं।",
-    "Haan. Payments, dues aur audit history Basic aur Standard mein shaamil hain."
+  "Yes. Payments, dues and audit history are included in Basic, Standard and Pro.": [
+    "हाँ। पेमेंट, बकाया और बदलावों का इतिहास Basic, Standard और Pro में शामिल हैं।",
+    "Haan. Payments, dues aur audit history Basic, Standard aur Pro mein shaamil hain."
   ],
   "Keep your student fees easy to check": [
     "स्टूडेंट फीस जाँचना आसान रखें",
@@ -2819,9 +2818,9 @@ export const publicCatalog = {
     "किस प्लान में AI की मदद है?",
     "Kis plan mein AI ki madad hai?"
   ],
-  "Standard includes AI reports and message drafting. Both plans include payments, dues and audit history.": [
-    "Standard में AI रिपोर्ट और मैसेज ड्राफ्टिंग हैं। दोनों प्लान में पेमेंट, बकाया और बदलावों का इतिहास है।",
-    "Standard mein AI reports aur message drafting hain. Dono plans mein payments, dues aur audit history hai."
+  "Standard and Pro include AI reports and message drafting. All three plans include payments, dues and audit history.": [
+    "Standard और Pro में AI रिपोर्ट और मैसेज ड्राफ्टिंग हैं। तीनों प्लान में पेमेंट, बकाया और बदलावों का इतिहास है।",
+    "Standard aur Pro mein AI reports aur message drafting hain. Teeno plans mein payments, dues aur audit history hai."
   ],
   "Make fee follow-ups easier to track": [
     "फीस फॉलो-अप का हिसाब आसान बनाएँ",
@@ -3070,5 +3069,21 @@ export const publicCatalog = {
   "Libraries using Lab Lords": [
     "Lab Lords इस्तेमाल करने वाली लाइब्रेरी",
     "Lab Lords use karne waali libraries"
+  ],
+  "Everything in Standard, plus WhatsApp integration and automation.": [
+    "Standard की सभी सुविधाएँ, साथ में WhatsApp इंटीग्रेशन और ऑटोमेशन।",
+    "Standard ke saare features, saath mein WhatsApp integration aur automation."
+  ],
+  "WhatsApp integration and automation": [
+    "WhatsApp इंटीग्रेशन और ऑटोमेशन",
+    "WhatsApp integration aur automation"
+  ],
+  "WhatsApp requires integration setup and rollout availability. Messaging charges and usage terms apply; unlimited messages are not included.": [
+    "WhatsApp के लिए इंटीग्रेशन सेटअप और रोलआउट उपलब्ध होना ज़रूरी है। मैसेजिंग शुल्क और उपयोग की शर्तें लागू हैं; असीमित मैसेज शामिल नहीं हैं।",
+    "WhatsApp ke liye integration setup aur rollout available hona zaroori hai. Messaging charges aur usage terms apply hote hain; unlimited messages shaamil nahi hain."
+  ],
+  "All three plans cover student records, seats and fees. Standard adds staff, advanced analytics and AI. Pro also includes WhatsApp integration and automation, subject to setup and rollout availability.": [
+    "तीनों प्लान में स्टूडेंट रिकॉर्ड, सीट और फीस शामिल हैं। Standard में स्टाफ, उन्नत एनालिटिक्स और AI मिलते हैं। Pro में WhatsApp इंटीग्रेशन और ऑटोमेशन भी है, जिसके लिए सेटअप और रोलआउट उपलब्ध होना ज़रूरी है।",
+    "Teeno plans mein student records, seats aur fees hain. Standard mein staff, advanced analytics aur AI milte hain. Pro mein WhatsApp integration aur automation bhi hai, jiske liye setup aur rollout available hona zaroori hai."
   ]
 } satisfies PublicCatalog;

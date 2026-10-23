@@ -24,11 +24,11 @@ export async function LandingPricing({ showIntroduction = true, showComparisonLi
           <div className="mb-10 max-w-3xl">
             <p className="marketing-eyebrow">{t("Simple monthly pricing")}</p>
             <h2 className="marketing-title mt-3">{t("Choose what your library needs.")}</h2>
-            <p className="marketing-lead mt-4">{t("Two plans. Clear monthly pricing for each billable branch.")}</p>
+            <p className="marketing-lead mt-4">{t("Three plans. Clear monthly pricing for each billable branch.")}</p>
             <p className="marketing-plan-note mt-3">{t("Eligible new owners can try Standard features for 30 days after setting up their first branch. No card needed.")}</p>
           </div>
         )}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-3">
           {plans.map(plan => (
             <article key={plan.id} className="marketing-card flex flex-col p-6 sm:p-8">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -40,7 +40,7 @@ export async function LandingPricing({ showIntroduction = true, showComparisonLi
               <p className="mt-3 min-h-12 text-sm leading-6 text-[color:var(--text-secondary)]">
                 {t(plan.id === "BASIC"
                   ? t("For your student records, seats and daily fee tracking.")
-                  : plan.id === "PRO"
+                  : plan.id === "STANDARD"
                     ? t("For staff access, detailed reports and AI assistance.")
                     : t(plan.description))}
               </p>
@@ -63,6 +63,7 @@ export async function LandingPricing({ showIntroduction = true, showComparisonLi
                   </li>
                 ))}
               </ul></>}
+              {plan.availabilityNote && <p className="marketing-plan-note mt-4">{t(plan.availabilityNote)}</p>}
             </article>
           ))}
         </div>

@@ -155,7 +155,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "question": "Can I manage more than one study hall?",
-        "answer": "Yes. Both plans support multiple branches, with each billable branch charged separately."
+        "answer": "Yes. All three plans support multiple branches, with each billable branch charged separately."
       },
       {
         "question": "Can I give staff limited access?",
@@ -277,7 +277,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "question": "Can I manage several library branches?",
-        "answer": "Yes. Both plans support multiple branches, and each billable branch is charged separately."
+        "answer": "Yes. All three plans support multiple branches, and each billable branch is charged separately."
       }
     ],
     relatedSlugs: ["study-hall-management", "seat-management", "student-fee-management"],
@@ -391,7 +391,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "question": "Is seat management available in Basic?",
-        "answer": "Yes. Seats, shifts and allocations are included in both Basic and Standard."
+        "answer": "Yes. Seats, shifts and allocations are included in Basic, Standard and Pro."
       }
     ],
     relatedSlugs: ["study-hall-management", "library-management", "student-fee-management"],
@@ -505,7 +505,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "question": "Is fee management available in Basic?",
-        "answer": "Yes. Payments, dues and audit history are included in Basic and Standard."
+        "answer": "Yes. Payments, dues and audit history are included in Basic, Standard and Pro."
       }
     ],
     relatedSlugs: ["fee-reminder", "library-management", "study-hall-management"],
@@ -619,7 +619,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "question": "Which plan includes AI assistance?",
-        "answer": "Standard includes AI reports and message drafting. Both plans include payments, dues and audit history."
+        "answer": "Standard and Pro include AI reports and message drafting. All three plans include payments, dues and audit history."
       }
     ],
     relatedSlugs: ["student-fee-management", "library-management", "study-hall-management"],
