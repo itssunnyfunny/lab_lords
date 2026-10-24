@@ -2,7 +2,7 @@ const SELECTED_BRANCH_SEGMENTS = new Set(["students", "staff", "seats", "follow-
 
 /**
  * Selected application routes adopted so far. Keep the public surface and
- * excluded legacy AI Messages route outside this boundary.
+ * authentication routes outside this boundary.
  * Collection owns its overlay scope separately because it can open elsewhere.
  */
 export function isApplicationDesignPilotPath(pathname: string | null | undefined) {

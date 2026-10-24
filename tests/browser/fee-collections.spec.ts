@@ -63,7 +63,12 @@ test("partial collection, lost-response recovery and PDF failure never double-re
         record.voidedAt = "2026-09-11T06:00:00Z"; record.voidReason = "Verified duplicate entry";
         await route.fulfill({ json: record });
     });
-    await page.goto(`/branch/${branchId}/payments`);
+    // Continue through the restored navigation, retaining the active workspace
+    // and Clerk session throughout the collection-to-correction workflow.
+    const openNavigation = page.getByRole("button", { name: "Open navigation", exact: true });
+    if (await openNavigation.isVisible()) await openNavigation.click();
+    await page.getByRole("link", { name: "Payments", exact: true }).click();
+    await expect(page).toHaveURL(`/branch/${branchId}/payments`);
     await page.getByRole("button", { name: "View receipt", exact: true }).first().click();
     await expect(page.getByRole("dialog", { name: "Fee payment receipt" })).toBeVisible();
     await page.keyboard.press("Escape");
@@ -79,5 +84,9 @@ test("partial collection, lost-response recovery and PDF failure never double-re
     await expect(page.getByRole("dialog", { name: "Void mistaken collection" })).toBeVisible();
     releaseVoid!();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByText(/Sample Student · ₹700 · CASH · VOID/)).toBeVisible();
+    const voidedCollection = page.getByRole("article").filter({ hasText: "LL-TEST-1" });
+    await expect(voidedCollection).toContainText("Sample Student");
+    await expect(voidedCollection).toContainText("700");
+    await expect(voidedCollection).toContainText("CASH");
+    await expect(voidedCollection.getByText("VOID", { exact: true })).toBeVisible();
 });

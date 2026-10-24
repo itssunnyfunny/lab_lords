@@ -1,3 +1,3 @@
 /** Application-owned source labels shared by notifications and the task worklist. */
-export const notificationLabels = { OVERDUE: "Overdue collections", FOLLOW_UP: "Follow-ups due", ATTENDANCE: "Attendance gaps", RENEWAL: "Upcoming renewals", TASK: "Tasks due" } as const;
+export const notificationLabels = { OVERDUE: "Overdue collections", FOLLOW_UP: "Follow-ups due", ATTENDANCE: "Attendance gaps", RENEWAL: "Upcoming renewals", TASK: "Tasks due", UNASSIGNED: "Students without seats", SHIFT_FULL: "Full shifts", SHIFT_NEAR_FULL: "Shifts near capacity", INVITES: "Active staff invitations" } as const;
 export const activityDetailLabels: Record<string, string> = { CREATED: "Created", UPDATED: "Updated", COMPLETED: "Completed", REOPENED: "Reopened", UTILIZATION_THRESHOLD: "Low utilization threshold", ATTENDANCE_EXPECTATION: "Attendance expectations", MEMBERSHIP_TERM: "Membership terms", ATTENDANCE_CHANGED: "Attendance recorded", OPEN: "Open", DONE: "Completed" };

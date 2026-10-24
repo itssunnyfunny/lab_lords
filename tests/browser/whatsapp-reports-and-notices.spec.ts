@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { refreshDevelopmentSession } from "./helpers/development-session";
 
 const EMPTY_STATE = { cookies: [], origins: [] };
 const ownerAuthState = process.env.PLAYWRIGHT_OWNER_AUTH_STATE;
@@ -14,11 +15,15 @@ const hasManagerAuthState = Boolean(
 );
 
 test.use({ storageState: hasOwnerAuthState ? ownerAuthState! : EMPTY_STATE });
-test.beforeEach(() => {
+test.beforeEach(async ({ page }, testInfo) => {
+  const managerCase = testInfo.titlePath.some(title => title.startsWith("Manager authenticated WhatsApp"));
   test.skip(
-    !hasOwnerAuthState,
-    "Set PLAYWRIGHT_OWNER_AUTH_STATE for owner operations coverage."
+    managerCase ? !hasManagerAuthState : !hasOwnerAuthState,
+    managerCase
+      ? "Set PLAYWRIGHT_MANAGER_AUTH_STATE and PLAYWRIGHT_MANAGER_BRANCH_ID for manager coverage."
+      : "Set PLAYWRIGHT_OWNER_AUTH_STATE for owner operations coverage."
   );
+  await refreshDevelopmentSession(page);
 });
 
 const ORG_ID = process.env.PLAYWRIGHT_OWNER_ORG_ID ?? "playwright-report-org";
@@ -49,7 +54,7 @@ function subscription(scope: "BRANCH" | "ORGANIZATION", status = "ACTIVE") {
     sendTimeLocal: "21:00",
     status,
     confirmationExpiresAt: status === "PENDING_CONFIRMATION"
-      ? "2026-08-24T18:15:00.000Z"
+      ? new Date(Date.now() + 15 * 60_000).toISOString()
       : null,
     confirmationAttemptCount: 0,
     activatedAt: status === "ACTIVE" ? "2026-08-24T17:30:00.000Z" : null,

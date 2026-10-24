@@ -55,7 +55,7 @@ test("collection refreshes the affected entry and totals; failure stays in the d
     state.rejectCollection = true;
     await page.getByRole("button", { name: "Collect fee", exact: true }).click();
     await page.getByRole("button", { name: "Confirm collection", exact: true }).click();
-    await expect(page.getByRole("dialog").getByRole("alert")).toHaveText("Collection unavailable");
+    await expect(page.getByRole("dialog").getByRole("alert")).toHaveText("Something went wrong. Try again.");
     state.rejectCollection = false;
     const reads = state.reads;
     await page.getByRole("button", { name: "Confirm collection", exact: true }).click();

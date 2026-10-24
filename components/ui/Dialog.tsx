@@ -67,6 +67,7 @@ export interface DialogProps {
   overlayClassName?: string;
   density?: "comfortable" | "compact";
   languagePlacement?: "below" | "header";
+  variant?: "default" | "navigation";
 }
 
 /**
@@ -94,9 +95,11 @@ export function Dialog({
   overlayClassName,
   density = "comfortable",
   languagePlacement = "below",
+  variant = "default",
 }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const t = useTranslation();
   const titleId = useId();
@@ -127,7 +130,7 @@ export function Dialog({
       const requestedInitialFocus = dialog.querySelector<HTMLElement>("[data-dialog-initial-focus]");
       requestedInitialFocus?.focus();
       if (!requestedInitialFocus) {
-        getFocusableElements(dialog)[0]?.focus();
+        (closeButtonRef.current ?? getFocusableElements(dialog)[0])?.focus();
       }
       if (!dialog.contains(document.activeElement)) {
         dialog.focus();
@@ -215,6 +218,7 @@ export function Dialog({
         overlayClassName
       )}
       data-dialog-overlay="true"
+      data-app-design-pilot={variant === "navigation" ? "workspace" : undefined}
     >
       <button
         type="button"
@@ -232,6 +236,7 @@ export function Dialog({
           placement === "bottom" && "max-h-[90dvh] rounded-b-none [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:rounded-[var(--ui-dialog-radius)]",
           "ui-dialog-enter",
           density === "compact" && "ui-record-detail",
+          variant === "navigation" && "ui-navigation-drawer",
           className
         )}
         role={role}
@@ -241,7 +246,7 @@ export function Dialog({
         aria-busy={closeDisabled || undefined}
         tabIndex={-1}
       >
-        <div className={cn("flex items-start gap-3 pr-10", languagePlacement === "header" && "ui-dialog-header-language")}>
+        <div className={cn("flex items-start gap-3 pr-10", languagePlacement === "header" && "ui-dialog-header-language", variant === "navigation" && "sr-only")}>
           {icon ? <div className="shrink-0" aria-hidden="true">{icon}</div> : null}
           <div className="min-w-0">
             <h2 id={titleId} className="text-lg font-bold leading-tight text-[color:var(--ui-dialog-title)]">
@@ -253,15 +258,16 @@ export function Dialog({
               </div>
             ) : null}
           </div>
-          {languagePlacement === "header" && <LanguageControls compact />}
+          {variant !== "navigation" && languagePlacement === "header" && <LanguageControls compact />}
         </div>
 
         {languagePlacement === "header" && description ? <div id={descriptionId} className="mt-1.5 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{description}</div> : null}
-        {languagePlacement === "below" && <div className="mt-3"><LanguageControls compact /></div>}
+        {variant !== "navigation" && languagePlacement === "below" && <div className="mt-3"><LanguageControls compact /></div>}
         {showCloseButton ? (
           <button
+            ref={closeButtonRef}
             type="button"
-            className="absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-[var(--ui-radius-control)] text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--ui-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]"
+            className={cn("absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-[var(--ui-radius-control)] text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--ui-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]", variant === "navigation" && "z-40")}
             onClick={onClose}
             disabled={closeDisabled}
             aria-label={t.owned(closeLabel)}
@@ -270,7 +276,7 @@ export function Dialog({
           </button>
         ) : null}
 
-        {children ? <div className="mt-5">{children}</div> : null}
+        {children ? <div className={variant === "navigation" ? "h-full" : "mt-5"}>{children}</div> : null}
         {footer ? (
           <div className={cn("mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end", density === "compact" && "ui-record-detail-footer")}>
             {footer}

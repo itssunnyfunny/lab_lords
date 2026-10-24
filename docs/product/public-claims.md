@@ -56,7 +56,7 @@ revision is `3007db3`. Prices, plan IDs and inclusions remain sourced from
 | Reports and AI assistance / implemented in deployed code | `lib/billingPlans.ts`, AI report page/service and branch capability policy | Standard; analytics and payment-view permission; advisory output | Current production revision; no provider generation executed here | Read summaries of recorded figures and review them alongside your library's records. | Features, Pricing, FAQ |
 | Imports / implemented, gated; current enablement unknown | `lib/importFeature.ts`, `importing/`, import routes | Student permission, writable branch, Import V2 flag and mutation limit; AI mapping retains its rules | Source and existing local verification only; target enablement unconfirmed | Existing narrow reviewed-student-list wording retained. No new claim for PDF beta, OCR, every format or whole-file rollback | Existing Home/Features/FAQ/setup copy |
 | WhatsApp / implemented, independently gated; commercial availability unknown | `lib/whatsappFeature.ts`, `services/whatsapp*.ts`, public catalogue filtering | Separate permissions, entitlement, flags, mode/canaries, consent and templates | No fresh gate/provider/delivery evidence | No new public delivery/automation promise. An AI draft is not evidence of delivery | Existing draft-specific explanation only |
-| Standalone AI Messages / retirement-planned, still implemented | `docs/localization.md`, branch navigation and AI messages page | Standard and existing AI permissions | Code remains in current deployed revision; removal not evidenced | Existing accurate drafting descriptions retained; no new central selling point | Features, FAQ, fee-reminder solution |
+| Standalone AI Messages / retired from current UI by owner clarification on 23 October | Legacy page redirects to Follow-ups; sidebar, search and dashboard draft shortcut removed | Existing API/services and stored drafts are outside this UI cleanup | Local implementation only; no new release claim | Home, Features, Pricing and FAQ were checked: their general reports/manual follow-up wording does not require standalone AI Messages. No marketing copy change or provider availability claim | Features, FAQ, fee-reminder solution |
 
 ## Meaning to preserve
 
@@ -87,6 +87,15 @@ older registry content remains unrendered; it is not current promoted wording.
 No blind redirects, silent 404s or edits to legal commitments are introduced.
 
 ## Keeping claims current
+
+**22 October 2026 — No marketing change needed.** Home, Features, Pricing and
+FAQ wording was checked against the restored navigation and controls. The change
+exposes supported workflows and repairs their destinations; plan inclusion,
+provider rollout, AI advisory behavior, reminder consent, recorded payment facts,
+and one-trial-per-owner rules stay unchanged. Branch billing removal retains its
+existing cycle-boundary/provider confirmation rules and does not delete history.
+The [local restoration review](../redesign/navigation-restoration-review.md)
+records implementation and verification, without a new availability or release claim.
 
 For a customer-visible feature change, check Home, Features, Pricing, FAQ and the
 relevant solution/setup content. Record the exact phrase changed and the factual

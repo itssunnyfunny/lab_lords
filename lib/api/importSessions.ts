@@ -438,4 +438,7 @@ export const importSessions = {
     createRecipe(branchId: string, input: CreateImportRecipeInput): Promise<ImportRecipe> {
         return requestJson<ImportRecipe>(`/api/branches/${branchId}/import-recipes`, "POST", input);
     },
+    deleteRecipe(branchId: string, recipeId: string): Promise<{ deleted: true }> {
+        return requestJson<{ deleted: true }>(`/api/branches/${encodeURIComponent(branchId)}/import-recipes/${encodeURIComponent(recipeId)}`, "DELETE", {});
+    },
 };

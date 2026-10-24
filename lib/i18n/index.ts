@@ -17,9 +17,10 @@ import { attendanceMessages } from "./attendance";
 import { dashboardMessages } from "./dashboard";
 import { referenceDashboardMessages } from "./referenceDashboard";
 import { dashboardFeatureMessages } from "./dashboardFeatures";
+import { navigationRestorationMessages } from "./navigationRestoration";
 import type { InterfaceLanguage } from "./language";
 
-export const messages = { ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes } as const;
+export const messages = { ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes, ...navigationRestorationMessages } as const;
 export type MessageKey = keyof typeof messages;
 const lookup: Readonly<Record<string, readonly [string, string]>> = messages;
 const localizedMessages = new Set<string>(Object.values(lookup).flat());
@@ -34,7 +35,7 @@ export function translateOwnedText(language: InterfaceLanguage, text: string, pa
     const attendance = /^(\d+) selected student\(s\) marked (present|absent|not marked)$/.exec(text);
     if (attendance) return translate(language, "{count} selected student(s) marked {status}", { count: attendance[1], status: translateOwnedText(language, attendance[2] === "not marked" ? "Not marked" : attendance[2] === "present" ? "Present" : "Absent") });
     const queued = /^(\d+) messages? queued\. Delivery remains subject to send-time revalidation\.$/.exec(text);
-    if (queued) return translate(language, "{count} messages queued. Delivery remains subject to send-time revalidation.", { count: queued[1] });
+    if (queued) return translate(language, "{count} message(s) queued. Delivery remains subject to send-time revalidation.", { count: queued[1] });
     const permission = /^Requires (.+) access\. Ask the branch owner to update your staff permissions\.$/.exec(text);
     if (permission && !text.includes("{permissions}")) {
         const labels = permission[1].split(/, or | or |, /);

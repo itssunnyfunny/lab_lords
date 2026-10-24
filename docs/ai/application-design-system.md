@@ -22,9 +22,10 @@ dashboard, Students baseline and public presentation stable.
 | Quiet initials and integrated modal language control | `Avatar tone="quiet"`, `Dialog languagePlacement="header"` | Explicit opt-ins; default avatars/modal headers stay compatible. Edit uses its scoped backdrop variant |
 | Staff roster and access/invitation overlays | `staff/page.tsx` composing RecordList, compact DataTable, AppPanel and Dialog | Feature-owned role, override, invitation and removal workflows; mobile context is role, important state is access, secondary detail is added date |
 | Tasks list, source work and activity | `TasksContent.tsx`, `TaskRecordCard.tsx` and `ActivityContent.tsx` composing the same RecordList, compact DataTable, AppPanel and Dialog | Feature-owned assignment, due date, state and evidence links; mobile context is assignee, important values are due date/state, secondary detail is update time |
-| Botanical mark on selected account/organization entry | existing `AppLogo markVariant="botanical"` using `LogoMark`; selected org/account callers opt in | Preserve the dashboard's existing avatar and the public/legacy logo defaults |
+| Botanical mark on organization entry and consistent branch menu branding | existing `AppLogo markVariant="botanical"` / `LogoMark`; branch reference wordmark | Mobile carries the selected scope into the existing Dialog navigation variant; Account has no redundant outer sidebar. Public/legacy logo defaults stay unchanged |
 | Selected account popover/profile | token-backed workspace appearances in `entrySurface.ts`, chosen by `AppShell` only when `designPilot` | Clerk's public and excluded-route appearance stays separate; live provider visual check awaits the guarded fixture |
-| Cold loading and root error | `RouteLoading`, `app/error.tsx` and `isSelectedApplicationSurfacePath` | Exact selected authenticated routes only; public/auth/legacy AI Messages remain excluded; owned error copy uses interface language |
+| Cold loading and root error | `RouteLoading`, `app/error.tsx` and `isSelectedApplicationSurfacePath` | Exact current authenticated routes; full-height light cold canvas, nested loading below the persistent shell; public/auth remain excluded |
+| Cookie preferences | `AnalyticsProvider` composing AppPanel, shared action styling and the existing explicit overlay theme | Current compact panel and 44px choices, including outside authenticated routes; consent storage, analytics gating, policy destination and the surrounding public theme unchanged |
 
 ## Rollout source map
 
@@ -127,8 +128,8 @@ it opens. Never move portals to make CSS inheritance convenient.
 When adding a selected authenticated route, update the exact route inventory in
 `lib/applicationDesignPilot.ts` so a cold loading/error boundary can opt in to
 the same theme. The branch gate remains separate from the account/organization
-entry selector. Do not activate public, Clerk-hosted sign-in/up, or legacy AI
-Messages by prefix match. Use the existing `AppLogo` botanical option on a
+entry selector. Retired AI Messages redirects to Follow-ups; do not activate
+public or Clerk-hosted sign-in/up by prefix match. Use the existing `AppLogo` botanical option on a
 selected entry/sidebar; its default is intentionally compatible with public
 callers. The [bounded closeout packet](../redesign/application-closeout-review.md)
 records the route and overlay audit.
@@ -163,8 +164,57 @@ Palette additions belong in `styles/tokens.css`. `shared-ui.css` owns primitive
 variant/pattern presentation; feature files can retain layout utilities. Existing
 dashboard chart fills, matrix colors, artwork and geometry are documented
 feature-specific exceptions, frozen by image comparison. The changed-file guard
-flags new literal palettes and new duplicated surface styling; it is deliberately
-not a whole-repository cleanup. A necessary new exception requires a reason in
+flags new literal palettes and new duplicated surface styling. Palette counts
+are compared per file across removed and added lines, so editing a chart label
+does not classify its retained colors as new. `check-presentation.mjs --self-test`
+covers retained values, added usages, file boundaries and surface owners. The
+guard is deliberately not a whole-repository cleanup. A necessary new exception requires a reason in
 this source map and targeted evidence.
 
 See [the migration ledger](../redesign/page-family-migration.md).
+
+## Restored feature navigation — 22 October 2026
+
+The owner requested restoration of the audited omissions while retaining the new
+design. Branch navigation keeps its Daily work, Seats and shifts, Fees, Reports,
+and Setup and access groups. Following the owner's 23 October correction, retired
+AI Messages and Draft follow-ups are removed. Dashboard setup and the authorized
+WhatsApp anchor remain under Setup and access. An owner-only Workspace section
+at the end of the scrollable menu holds Back to organization. The botanical
+artwork sits at the bottom, after the menu. Account settings stays in the header;
+another-organization setup is absent from navigation and completed onboarding.
+The scrollable branch menu retains a native scrollbar so lower groups are discoverable.
+
+The organization/branch header shows one static current-organization name and a native branch
+selector, without an organization or account option in that selector. Below the
+desktop breakpoint the branch selector provides a 44 px touch target;
+personal Account settings omits workspace controls entirely.
+the tablet header grows to fit them. Organization shells wait for initial Clerk
+identity before mounting mutable forms, matching branch-shell readiness. Dialog's
+shared focus owner prefers the close button unless a feature marks another
+`data-dialog-initial-focus` target; confirmation cancel actions keep that priority.
+Trial-banner small text uses the existing primary text token for readable
+contrast. These are local behavior/accessibility repairs within the selected UI.
+`AccountControl` keeps Clerk's provider surface independent of billing/preference
+renders while preserving account-identity resets and the selected appearance.
+Mobile search owns its arrow-key state and accepts hover selection only from
+actual mouse movement. Import mapping cards and tables announce the same source
+column with their ERP-field controls; uploaded header text remains unchanged.
+
+`app/branch/[branchId]/loading.tsx` reuses `RouteLoading` beneath the persistent
+workspace shell. Leaf-page loading stays inside the content region, keeping
+navigation and open overlays visible without changing their focus owners or the
+selected design. Six mobile diagnostic repeats passed without retries or
+connected-control hidden-ancestor events; the final complete desktop/mobile
+browser suite passed 255 cases with 39 conditional skips and no failures or
+flaky cases. Owner presentation acceptance and release remain separate.
+
+`DashboardOperationalPreviews` adds recent enrollments and exact recorded overdue
+fee review beneath the existing dashboard grid. Existing charts, artwork, matrix,
+tokens and grid geometry remain intact. These previews, paged attendance gaps,
+branch billing review and saved-recipe management compose AppPanel, AppButton,
+Dialog and existing pagination owners. They do not introduce a second visual
+system. New application-owned labels use the existing three-language dictionary.
+See the [restoration review](../redesign/navigation-restoration-review.md) for
+workflow and verification evidence; local implementation is separate from owner
+presentation acceptance and release.

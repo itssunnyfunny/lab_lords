@@ -1,5 +1,20 @@
 # Application page-family migration
 
+Owner correction, 23 October 2026: this local UI pass removes retired AI Messages,
+organization switching/additional-organization shortcuts, duplicate sidebar
+account links and old account access-link cards. Read-only System Info remains.
+Account has a direct workspace return on both screen sizes and no redundant
+outer sidebar. Mobile carries the desktop menu styling and branding. It keeps branch switching,
+puts the owner organization return in a final Workspace section, anchors sidebar
+artwork at the bottom, and updates cold/auth-readiness loading and cookie consent
+to the shared presentation. Owner visual acceptance and release remain pending;
+verification belongs to the [restoration review](navigation-restoration-review.md).
+
+Brand correction, 24 October 2026: the branch wordmark now reads Lab Lords,
+matching the landing pages and organization logo without the obsolete `.in`
+suffix. The shared branch menu applies this on desktop and mobile; selected
+styling stays intact. Verification is recorded in the restoration review.
+
 The selected dashboard remains the visual baseline. On 2026-09-27 the owner
 approved the refined Students comparison as the pattern for Staff and Tasks.
 Families A–H subsequently apply the shared presentation owners to the remaining
@@ -32,6 +47,7 @@ availability of each feature. Test success is not owner approval or deployment.
 | H · Workspace | `8b69d4a` local implementation; [fixture packet](application-rollout-evidence/workspace), 8/8 applicable scoped browser checks with four viewport-independent skips. `/app` remains its existing redirect. | Pending family review | Not released by this rollout |
 | Bounded closeout | `15094ff` fixes selected cold boundaries, authenticated botanical marks and opened account appearance; [one compact review packet](application-closeout-review.md) maps route inventory, family evidence, exceptions and current checks. | **Pending owner review**; Students approval remains separate | Not released |
 | Connected handoff | `0cd0bcc` corrects scoped Clerk contrast and adds guarded connected checks on a new independently identified disposable loopback fixture; 23/23 full actual-route/database cases pass, followed by 4/4 focused recovery cases including the migrated correction dialog. | **Pending owner review**; no new presentation approval inferred from tests | Not released |
+| Feature restoration and owner corrections · 2026-10-22–24 | [Restoration review](navigation-restoration-review.md) maps the 20 discoverability/wiring findings and owner corrections to current controls, desktop/mobile evidence and final verification. Retired AI Messages redirects to Follow-ups; the one-organization menu, direct Account return and Lab Lords branding preserve the selected design. | Implementation requested by owner; review windows open; completed presentation acceptance remains separate | No release operation performed |
 
 Fixture packets record local presentation only; no connected/database or
 deployment claim follows from screenshots. The exact scoped checks below are
@@ -54,7 +70,7 @@ separate from owner review and production release.
 | `/onboarding`, `/invite/token`, `/branch/b/onboarding/import`, `/branch/b/onboarding/import/sessionId` | Guided workflow / G | Identity linking, invitations, staged imports and durable recovery | High tenant/AI/data | Token ownership, staged validation, import resumability, no automatic AI authorization | Local presentation migrated; review pending | `6dd008c` |
 | `/org`, `/org/o`, `/app` | Workspace selection/overview / H | Organization/branch discovery, owner/staff routing; `/app` remains a routing redirect | High access | No foreign enumeration, correct landing routes, account identity switching | Local presentation migrated; review pending | `8b69d4a` |
 | `/sign-in/…`, `/sign-up/…` | Authentication entry / separate review | Clerk-hosted flow | High provider | Redirect/context, provider-owned languages, no auth bypass | Unchanged | — |
-| `/branch/b/ai/messages` | Legacy generation surface | Planned retirement; independent communication language semantics | High provider | No change in this migration; preserve stored drafts and data | Excluded | — |
+| `/branch/b/ai/messages` | Retired page / owner correction 2026-10-23 | Legacy bookmark redirects to the same branch's Follow-ups; stored data and APIs remain intact | Navigation | No sidebar, search or dashboard entry; no automatic provider action | Current UI removal implemented; owner review pending | [Restoration evidence](navigation-restoration-review.md) |
 | Public `/`, `/features`, `/pricing`, `/faq`, other marketing/policy routes and `/hi` / `/hinglish` equivalents | Public system | Approved copy, URL language, public fonts/layout | Independent | Public localization and route/theme smoke checks | Excluded; unchanged | — |
 
 Operational maps and guided workflows retain their own interaction patterns while
@@ -71,7 +87,7 @@ At the initial rollout snapshot, the guarded connected fixture was **blocked** b
 
 ## Bounded closeout — 2026-09-28
 
-The current `app/**/page.tsx` inventory has 29 application paths: the 28
+The 28 September `app/**/page.tsx` inventory had 29 application paths: the 28
 selected routes grouped above and the excluded legacy AI Messages route.
 Sign-in/sign-up and public/localized routes are outside that inventory. The
 branch theme gate already matched every selected branch route, including the

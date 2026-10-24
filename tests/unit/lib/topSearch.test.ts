@@ -60,10 +60,10 @@ describe("buildTopSearchResults", () => {
 
         expect(actions.map(action => action.title)).toEqual([
             "Follow-ups",
+            "Tasks",
             "Exports & Reports",
-            "Add Student",
-            "Assign Seat",
-            "Seats & Maps",
+            "Attendance",
+            "Renewals & dues",
         ]);
         expect(groups).toHaveLength(1);
     });
@@ -74,7 +74,7 @@ describe("buildTopSearchResults", () => {
             const results = buildTopSearchResults({ branchId, query, access }).flatMap(group => group.results);
             expect(results).toContainEqual(expect.objectContaining({ title, href: `/branch/${branchId}/${path}` }));
         }
-        expect(buildTopSearchResults({ branchId, query: "tasks", access }).flatMap(group => group.results)).toEqual([]);
+        expect(buildTopSearchResults({ branchId, query: "tasks", access }).flatMap(group => group.results)).toContainEqual(expect.objectContaining({ title: "Tasks", href: `/branch/${branchId}/tasks` }));
     });
 
     it("handles missing optional fields while matching available record data", () => {
@@ -204,7 +204,6 @@ describe("buildTopSearchResults", () => {
             query: "messages",
             access: { permissions: permissions(["analytics", "view_payments"]) },
         });
-        expect(permitted.flatMap(group => group.results)[0]?.href)
-            .toBe(`/branch/${branchId}/ai/messages`);
+        expect(permitted.flatMap(group => group.results)).toHaveLength(0);
     });
 });

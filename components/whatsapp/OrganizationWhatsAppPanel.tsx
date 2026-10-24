@@ -334,6 +334,7 @@ export function OrganizationWhatsAppPanel({
   const [config, setConfig] = useState<WhatsAppBrowserConfig | null>(null);
   const [sendersResponse, setSendersResponse] = useState<WhatsAppSendersResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [notice, setNotice] = useState<{
     tone: "status" | "error";
     message: string;
@@ -393,7 +394,7 @@ export function OrganizationWhatsAppPanel({
 
   useEffect(() => {
     let cancelled = false;
-    availabilityHandlerRef.current(false);
+    availabilityHandlerRef.current(true);
     setLoading(true);
     setConfig(null);
     setSendersResponse(null);
@@ -428,7 +429,7 @@ export function OrganizationWhatsAppPanel({
         if (!cancelled) setInstallations(loadedInstallations);
       } catch {
         if (!cancelled) {
-          availabilityHandlerRef.current(false);
+          availabilityHandlerRef.current(true);
           setNotice({ tone: "error", message: "WhatsApp settings are unavailable right now." });
         }
       } finally {
@@ -442,9 +443,12 @@ export function OrganizationWhatsAppPanel({
       reportLoadRef.current += 1;
       operationsLoadRef.current += 1;
     };
-  }, [loadOperations, loadReports, organizationId]);
+  }, [loadOperations, loadReports, organizationId, loadAttempt]);
 
-  if (!config?.enabled) return null;
+  if (config?.enabled === false) return null;
+  if (!config) return <SettingsPanel id="whatsapp" title="WhatsApp" description={t.owned("WhatsApp connection and delivery settings")} icon={MessageCircle}>
+    <div className="space-y-3 px-5 py-4"><p role={notice?.tone === "error" ? "alert" : "status"}>{notice ? t.owned(notice.message) : t("Loading…")}</p>{notice?.tone === "error" && <AppButton variant="secondary" onClick={() => setLoadAttempt(current => current + 1)}>{t("Retry")}</AppButton>}</div>
+  </SettingsPanel>;
 
   const canManage = sendersResponse?.canManage ?? false;
   const canManageOperations = sendersResponse?.canManageOperations === true;

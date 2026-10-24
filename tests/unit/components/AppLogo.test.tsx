@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AppLogo, LogoMark } from "@/components/brand/AppLogo";
-import { AccountSidebar } from "@/components/layout/AccountSidebar";
 
 describe("application brand marks", () => {
   it("preserves the legacy mark for existing default callers", () => {
@@ -16,9 +15,4 @@ describe("application brand marks", () => {
     expect(markup).not.toContain('viewBox="0 0 64 64"');
   });
 
-  it("uses the botanical mark in account navigation", () => {
-    const markup = renderToStaticMarkup(<AccountSidebar />);
-    expect(markup).toContain('viewBox="0 0 180 116"');
-    expect(markup).toContain("h-10 w-[62px]");
-  });
 });

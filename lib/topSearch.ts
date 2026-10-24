@@ -123,18 +123,25 @@ type ActionDefinition = {
     subtitle: string;
     path: string;
     permissions: StaffAction[];
+    anyPermission?: StaffAction[];
     keywords: string[];
 };
 
 const ACTIONS: ActionDefinition[] = [
     { id: "follow-ups", title: "Follow-ups", subtitle: "Review scheduled contact work", path: "follow-ups", permissions: ["view_payments"], keywords: ["follow", "contact", "call", "reminder"] },
-    { id: "tasks", title: "Tasks", subtitle: "Manage branch tasks and source work", path: "tasks", permissions: ["manage_branch"], keywords: ["task", "work", "todo"] },
-    { id: "reports", title: "Exports & Reports", subtitle: "Preview and export branch records", path: "reports", permissions: ["view_payments"], keywords: ["export", "csv", "reports", "download"] },
+    { id: "tasks", title: "Tasks", subtitle: "Manage branch tasks and source work", path: "tasks", permissions: [], anyPermission: ["manage_branch", "students", "view_payments", "seat_allocation"], keywords: ["task", "work", "todo"] },
+    { id: "reports", title: "Exports & Reports", subtitle: "Preview and export branch records", path: "reports", permissions: [], anyPermission: ["view_payments", "students"], keywords: ["export", "csv", "reports", "download"] },
+    { id: "attendance", title: "Attendance", subtitle: "Daily attendance, visits and QR", path: "attendance", permissions: ["students"], keywords: ["attendance", "qr", "check in", "visits"] },
+    { id: "renewals", title: "Renewals & dues", subtitle: "Review upcoming fees and dues", path: "renewals", permissions: ["view_payments"], keywords: ["renewals", "upcoming", "fees"] },
+    { id: "overdue", title: "Overdue", subtitle: "Review overdue fees", path: "overdue", permissions: ["view_payments"], keywords: ["overdue", "pending", "dues"] },
+    { id: "import", title: "Import Assistant", subtitle: "Import records and manage saved recipes", path: "onboarding/import", permissions: ["students"], keywords: ["import", "spreadsheet", "recipe"] },
+    { id: "shifts", title: "Shifts", subtitle: "Manage shifts and bundles", path: "shifts", permissions: ["seat_allocation"], keywords: ["shift", "bundle", "multi"] },
+    { id: "dashboard-setup", title: "Dashboard setup", subtitle: "Attendance expectations and membership terms", path: "dashboard-settings", permissions: [], anyPermission: ["manage_branch", "students", "seat_allocation"], keywords: ["setup", "expectations", "membership", "terms", "utilization"] },
     {
         id: "add-student",
         title: "Add Student",
         subtitle: "Create a new student record",
-        path: "students",
+        path: "students?action=add",
         permissions: ["students"],
         keywords: ["student", "add", "admit", "new", "register"],
     },
@@ -193,14 +200,6 @@ const ACTIONS: ActionDefinition[] = [
         path: "ai/reports",
         permissions: ["analytics", "view_payments"],
         keywords: ["ai", "reports", "insights", "analysis"],
-    },
-    {
-        id: "ai-messages",
-        title: "AI Messages",
-        subtitle: "Draft overdue payment messages",
-        path: "ai/messages",
-        permissions: ["analytics", "view_payments"],
-        keywords: ["ai", "messages", "reminders", "overdue"],
     },
 ];
 
@@ -308,6 +307,7 @@ function actionsFor(input: BuildTopSearchResultsInput, normalizedQuery: string):
 
     return ACTIONS.flatMap((action, actionIndex) => {
         if (!action.permissions.every(permission => can(input.access, permission))) return [];
+        if (action.anyPermission && !action.anyPermission.some(permission => can(input.access, permission))) return [];
 
         const fields = [action.title, action.subtitle, ...action.keywords];
         const score = normalizedQuery ? scoreFields(normalizedQuery, fields) : 100 - actionIndex;

@@ -48,7 +48,7 @@ export const workspaceMessages = {
     "Refresh failed. Showing data last updated {time}.": ["रीफ़्रेश नहीं हुआ। {time} की जानकारी दिख रही है।", "Refresh nahi hua. {time} ki jaankari dikh rahi hai."],
     "{count} messages": ["{count} मैसेज", "{count} messages"],
     "{eligible} unique eligible · {queued} queued · {suppressed} suppressed · estimate {amount}": ["{eligible} अलग पात्र प्राप्तकर्ता · {queued} कतार में · {suppressed} रोके गए · अनुमान {amount}", "{eligible} alag eligible recipients · {queued} queue mein · {suppressed} roke gaye · estimate {amount}"],
-    "{count} messages queued. Delivery remains subject to send-time revalidation.": ["{count} मैसेज कतार में रखे गए। भेजते समय दोबारा जाँच के बाद ही डिलीवरी होगी।", "{count} messages queue mein rakhe gaye. Bhejte waqt dobara checks ke baad hi delivery hogi."],
+    "{count} message(s) queued. Delivery remains subject to send-time revalidation.": ["{count} मैसेज कतार में रखे गए। भेजते समय दोबारा जाँच के बाद ही डिलीवरी होगी।", "{count} messages queue mein rakhe gaye. Bhejte waqt dobara checks ke baad hi delivery hogi."],
     "Choose an available shift": ["उपलब्ध शिफ्ट चुनें", "Available shift chunein"],
     "Back to dashboard": ["डैशबोर्ड पर वापस जाएँ", "Dashboard par wapas jaayein"],
     "Checking access...": ["पहुँच जाँची जा रही है...", "Access check ho raha hai..."],

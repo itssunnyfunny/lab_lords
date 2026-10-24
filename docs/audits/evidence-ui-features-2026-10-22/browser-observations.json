@@ -1,0 +1,392 @@
+[
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1024
+    },
+    "shell": {
+      "accountLinks": 0,
+      "visibleAccountButtons": 1,
+      "organizationOptions": [
+        {
+          "text": "Shanti Learning Spaces",
+          "value": "org-pilot"
+        },
+        {
+          "text": "Organization overview",
+          "value": "overview:org-pilot"
+        }
+      ],
+      "quickActions": [
+        {
+          "text": "Add student",
+          "href": "/branch/pilot/students?action=add"
+        },
+        {
+          "text": "Record payment",
+          "href": "/branch/pilot/payments?action=collect"
+        },
+        {
+          "text": "Mark attendance",
+          "href": "/branch/pilot/attendance"
+        },
+        {
+          "text": "Assign seat",
+          "href": "/branch/pilot/allocations"
+        },
+        {
+          "text": "Generate report",
+          "href": "/branch/pilot/reports"
+        },
+        {
+          "text": "Manage shifts",
+          "href": "/branch/pilot/shifts"
+        }
+      ],
+      "overflow": false
+    },
+    "searchModel": {
+      "owner": [
+        {
+          "title": "Follow-ups",
+          "href": "/branch/pilot/follow-ups"
+        },
+        {
+          "title": "Tasks",
+          "href": "/branch/pilot/tasks"
+        },
+        {
+          "title": "Exports & Reports",
+          "href": "/branch/pilot/reports"
+        },
+        {
+          "title": "Add Student",
+          "href": "/branch/pilot/students"
+        },
+        {
+          "title": "Assign Seat",
+          "href": "/branch/pilot/allocations"
+        },
+        {
+          "title": "Seats & Maps",
+          "href": "/branch/pilot/seats"
+        },
+        {
+          "title": "Payments",
+          "href": "/branch/pilot/payments"
+        },
+        {
+          "title": "Generate Payments",
+          "href": "/branch/pilot/payments?generate=1"
+        },
+        {
+          "title": "Staff",
+          "href": "/branch/pilot/staff"
+        },
+        {
+          "title": "Analytics",
+          "href": "/branch/pilot/analytics"
+        },
+        {
+          "title": "AI Reports",
+          "href": "/branch/pilot/ai/reports"
+        },
+        {
+          "title": "AI Messages",
+          "href": "/branch/pilot/ai/messages"
+        }
+      ],
+      "studentsOnly": [
+        {
+          "title": "Add Student",
+          "href": "/branch/pilot/students"
+        }
+      ]
+    },
+    "links": [
+      {
+        "text": "",
+        "href": "/app"
+      },
+      {
+        "text": "Dashboard",
+        "href": "/branch/pilot"
+      },
+      {
+        "text": "Students",
+        "href": "/branch/pilot/students"
+      },
+      {
+        "text": "Attendance",
+        "href": "/branch/pilot/attendance"
+      },
+      {
+        "text": "Follow-ups",
+        "href": "/branch/pilot/follow-ups"
+      },
+      {
+        "text": "Tasks",
+        "href": "/branch/pilot/tasks"
+      },
+      {
+        "text": "Seats & Maps",
+        "href": "/branch/pilot/seats"
+      },
+      {
+        "text": "Shifts",
+        "href": "/branch/pilot/shifts"
+      },
+      {
+        "text": "Allocations",
+        "href": "/branch/pilot/allocations"
+      },
+      {
+        "text": "Payments",
+        "href": "/branch/pilot/payments"
+      },
+      {
+        "text": "Renewals & dues",
+        "href": "/branch/pilot/renewals"
+      },
+      {
+        "text": "Overdue",
+        "href": "/branch/pilot/overdue"
+      },
+      {
+        "text": "Analytics",
+        "href": "/branch/pilot/analytics"
+      },
+      {
+        "text": "AI Reports",
+        "href": "/branch/pilot/ai/reports"
+      },
+      {
+        "text": "Exports & Reports",
+        "href": "/branch/pilot/reports"
+      },
+      {
+        "text": "Branch Settings",
+        "href": "/branch/pilot/settings"
+      },
+      {
+        "text": "Import Assistant",
+        "href": "/branch/pilot/onboarding/import"
+      },
+      {
+        "text": "Staff & Permissions",
+        "href": "/branch/pilot/staff"
+      }
+    ],
+    "studentActions": [
+      "Attendance & QR",
+      "View Fees",
+      "Edit Details",
+      "Deactivate",
+      "WhatsApp consent",
+      "Allocate Seat",
+      "Change Seat"
+    ],
+    "followUpNavigation": {
+      "before": "Follow-ups pending",
+      "url": "/branch/pilot/follow-ups?filter=DUE",
+      "after": "Follow-ups pending"
+    },
+    "pageErrors": [],
+    "limitation": "Synthetic component harness; Clerk menu, real authentication, database, provider gates and production deployment are not exercised."
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "shell": {
+      "accountLinks": 0,
+      "visibleAccountButtons": 0,
+      "organizationOptions": [
+        {
+          "text": "Shanti Learning Spaces",
+          "value": "org-pilot"
+        },
+        {
+          "text": "Organization overview",
+          "value": "overview:org-pilot"
+        }
+      ],
+      "quickActions": [
+        {
+          "text": "Add student",
+          "href": "/branch/pilot/students?action=add"
+        },
+        {
+          "text": "Record payment",
+          "href": "/branch/pilot/payments?action=collect"
+        },
+        {
+          "text": "Mark attendance",
+          "href": "/branch/pilot/attendance"
+        },
+        {
+          "text": "Assign seat",
+          "href": "/branch/pilot/allocations"
+        },
+        {
+          "text": "Generate report",
+          "href": "/branch/pilot/reports"
+        },
+        {
+          "text": "Manage shifts",
+          "href": "/branch/pilot/shifts"
+        }
+      ],
+      "overflow": false
+    },
+    "searchModel": {
+      "owner": [
+        {
+          "title": "Follow-ups",
+          "href": "/branch/pilot/follow-ups"
+        },
+        {
+          "title": "Tasks",
+          "href": "/branch/pilot/tasks"
+        },
+        {
+          "title": "Exports & Reports",
+          "href": "/branch/pilot/reports"
+        },
+        {
+          "title": "Add Student",
+          "href": "/branch/pilot/students"
+        },
+        {
+          "title": "Assign Seat",
+          "href": "/branch/pilot/allocations"
+        },
+        {
+          "title": "Seats & Maps",
+          "href": "/branch/pilot/seats"
+        },
+        {
+          "title": "Payments",
+          "href": "/branch/pilot/payments"
+        },
+        {
+          "title": "Generate Payments",
+          "href": "/branch/pilot/payments?generate=1"
+        },
+        {
+          "title": "Staff",
+          "href": "/branch/pilot/staff"
+        },
+        {
+          "title": "Analytics",
+          "href": "/branch/pilot/analytics"
+        },
+        {
+          "title": "AI Reports",
+          "href": "/branch/pilot/ai/reports"
+        },
+        {
+          "title": "AI Messages",
+          "href": "/branch/pilot/ai/messages"
+        }
+      ],
+      "studentsOnly": [
+        {
+          "title": "Add Student",
+          "href": "/branch/pilot/students"
+        }
+      ]
+    },
+    "links": [
+      {
+        "text": "",
+        "href": "/app"
+      },
+      {
+        "text": "Dashboard",
+        "href": "/branch/pilot"
+      },
+      {
+        "text": "Students",
+        "href": "/branch/pilot/students"
+      },
+      {
+        "text": "Attendance",
+        "href": "/branch/pilot/attendance"
+      },
+      {
+        "text": "Follow-ups",
+        "href": "/branch/pilot/follow-ups"
+      },
+      {
+        "text": "Tasks",
+        "href": "/branch/pilot/tasks"
+      },
+      {
+        "text": "Seats & Maps",
+        "href": "/branch/pilot/seats"
+      },
+      {
+        "text": "Shifts",
+        "href": "/branch/pilot/shifts"
+      },
+      {
+        "text": "Allocations",
+        "href": "/branch/pilot/allocations"
+      },
+      {
+        "text": "Payments",
+        "href": "/branch/pilot/payments"
+      },
+      {
+        "text": "Renewals & dues",
+        "href": "/branch/pilot/renewals"
+      },
+      {
+        "text": "Overdue",
+        "href": "/branch/pilot/overdue"
+      },
+      {
+        "text": "Analytics",
+        "href": "/branch/pilot/analytics"
+      },
+      {
+        "text": "AI Reports",
+        "href": "/branch/pilot/ai/reports"
+      },
+      {
+        "text": "Exports & Reports",
+        "href": "/branch/pilot/reports"
+      },
+      {
+        "text": "Branch Settings",
+        "href": "/branch/pilot/settings"
+      },
+      {
+        "text": "Import Assistant",
+        "href": "/branch/pilot/onboarding/import"
+      },
+      {
+        "text": "Staff & Permissions",
+        "href": "/branch/pilot/staff"
+      }
+    ],
+    "studentActions": [
+      "Attendance & QR",
+      "View Fees",
+      "Edit Details",
+      "Deactivate",
+      "WhatsApp consent",
+      "Allocate Seat",
+      "Change Seat"
+    ],
+    "followUpNavigation": {
+      "before": "Follow-ups pending",
+      "url": "/branch/pilot/follow-ups?filter=DUE",
+      "after": "Follow-ups pending"
+    },
+    "pageErrors": [],
+    "limitation": "Synthetic component harness; Clerk menu, real authentication, database, provider gates and production deployment are not exercised."
+  }
+]

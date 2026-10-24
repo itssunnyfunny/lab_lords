@@ -533,7 +533,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 actions={!isEditing ? (
-                    <AppButton
+                    <><AppButton variant="secondary" density="compact" onClick={() => router.push(`/branch/${branchId}/dashboard-settings`)}>{t("Dashboard setup")}</AppButton><AppButton
                         variant="primary"
                         density="compact"
                         size="sm"
@@ -542,7 +542,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                         onClick={beginEditing}
                         className="min-h-11 lg:min-h-9"
                     >
-                        {t("Edit settings")}</AppButton>
+                        {t("Edit settings")}</AppButton></>
                 ) : null}
             >
                 <SettingsCapabilityNotice decision={settingsDecision} />
@@ -666,7 +666,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                                 onChange={value => updateForm("aiEnabled", value)}
                                 disabled={!hasAiAccess || mutationsDisabled}
                                 label={!hasAiAccess ? t("AI requires the Standard plan") : form.aiEnabled ? t("AI generation enabled") : t("AI generation disabled")}
-                                description={!hasAiAccess ? t("Upgrade the organization to Standard to enable AI reports and message drafting.") : form.aiEnabled ? t("Branch AI reports can run using the current branch data.") : t("AI report generation will return a disabled state for this branch.")}
+                                description={!hasAiAccess ? t("Upgrade the organization to Standard to enable AI reports.") : form.aiEnabled ? t("Branch AI reports can run using the current branch data.") : t("AI report generation will return a disabled state for this branch.")}
                             />
                         </SettingsField>
                     ) : (

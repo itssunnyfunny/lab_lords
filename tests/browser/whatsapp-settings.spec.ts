@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { refreshDevelopmentSession } from "./helpers/development-session";
 
 const authState = process.env.PLAYWRIGHT_AUTH_STATE;
 const storageState = authState && fs.existsSync(authState)
@@ -9,11 +10,12 @@ const storageState = authState && fs.existsSync(authState)
 const hasAuthState = typeof storageState === "string";
 
 test.use({ storageState });
-test.beforeEach(() => {
+test.beforeEach(async ({ page }) => {
   test.skip(!hasAuthState, "Set PLAYWRIGHT_AUTH_STATE to run authenticated WhatsApp UI coverage.");
+  await refreshDevelopmentSession(page);
 });
 
-const ORG_ID = "playwright-whatsapp-org";
+const ORG_ID = process.env.PLAYWRIGHT_OWNER_ORG_ID ?? "playwright-whatsapp-org";
 const SETTINGS_PATH = `/org/${ORG_ID}/settings`;
 const FINISH_EVENT = JSON.stringify({
   type: "WA_EMBEDDED_SIGNUP",
@@ -124,7 +126,7 @@ async function installWhatsAppMocks(page: Page) {
     route => json(route, {
       intentId: "intent_local_1",
       state: "one-time-state-kept-in-memory",
-      expiresAt: "2026-08-22T00:10:00.000Z",
+      expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
     })
   );
   await page.route(

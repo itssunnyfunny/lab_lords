@@ -1,5 +1,88 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Owner UI correction — local implementation, 2026-10-23
+
+The owner clarified that standalone AI Messages is retired and the current UI
+supports one organization per account. This supersedes the AI Messages and
+additional-organization navigation restoration below. The legacy page redirects
+to Follow-ups; its search, dashboard shortcut and UI upgrade policy are removed.
+Existing API/services and stored drafts remain outside this UI-only cleanup.
+
+Organization/branch headers display the current organization once and offer
+branch switching only. Personal Account settings has no workspace selector.
+Account settings stays in the header. Branch navigation ends with an owner-only
+Workspace section containing Back to organization; the botanical artwork is the
+last sidebar element. Organization/account sidebars and completed onboarding no
+longer advertise another organization. A sole organization opens directly from
+`/org`; legacy multiple-record discovery remains readable as a compatibility
+case. Account settings retains Profile, Preferences, Workspace defaults and
+read-only System Info. It omits old access-link cards and the redundant outer
+sidebar; a visible desktop/mobile return link goes directly to its originating
+workspace. Return hints allow only internal branch/organization paths and do not
+authorize access. Direct visits use the authorized directory as a fallback.
+Mobile navigation uses the desktop menu styling and Lab Lords wordmark inside
+the existing focus-managed drawer, with 44px links and no duplicate language row.
+
+The owner's 24 October brand correction removes the obsolete `.in` suffix from
+the shared branch sidebar. Desktop and mobile now use the landing-page name,
+Lab Lords; the organization logo already uses that name. Public page copy and
+feature claims do not change.
+
+Cold route loading and initial authentication-readiness screens use the selected
+light canvas. Cookie consent composes AppPanel and shared action styling while
+preserving consent storage, accept/reject behavior and analytics gating. There
+are no schema, migration, package or saved-environment changes. The service
+contract still permits additional organization creation; enforcing one organization
+server-side is a separate domain change, not implied by this presentation pass.
+
+## Restored feature navigation — local implementation, 2026-10-22
+
+The selected UI now exposes AI Messages, Dashboard setup, account settings,
+organization return, another-organization setup, WhatsApp, import and draft
+shortcuts, recent enrollments and exact overdue fee review. Search uses the same
+view permissions as its destinations and opens admission correctly. Organization
+overdue and billing-return links target their supported queue/anchor.
+
+The existing dashboard notification service again includes unassigned active
+students, full/near-full shift capacity and active staff invitations, each behind
+its independent permissions and applicable entitlement. Activity carries record
+IDs into authorized destinations. A new read-only dashboard attendance-gaps route
+pages all current agreed-expectation gaps using the original attendance predicate.
+Follow-ups supports phone search; Follow-ups and Renewals apply changed route
+filters while preserving open edits.
+
+Owner organization settings now calls the existing branch billing-removal and
+undo APIs through explicit review and persisted request identity. Import Assistant
+exposes existing saved-recipe deletion through confirmation. WhatsApp initial
+failures show retry states while explicit rollout-disabled responses stay hidden.
+The [restoration review](../redesign/navigation-restoration-review.md) maps all
+20 audit findings to these changes and records local validation. Schema,
+migrations, dependencies, saved environment files and provider activation are
+unchanged. A fresh isolated local database and development Clerk sessions now
+support desktop and phone-size owner review. Full repository and browser test
+results are recorded in the review; external business-provider behavior and
+production release remain unverified.
+
+The subsequent desktop/mobile repair adds organization identity readiness before
+mounting mutable forms, matching the branch shell. Dialogs prefer the close
+action unless a workflow supplies its own initial-focus target. Workspace
+selectors retain their compact desktop appearance and use 44 px touch controls
+on smaller screens. Trial-banner contrast, the specific oversized-import error
+and singular/plural queue confirmations are corrected. The Clerk account control
+is isolated from unrelated shell refreshes. Mobile search keeps keyboard movement
+inside its existing dialog instead of opening a second desktop search, and import
+mapping controls identify their source columns in every layout. Browser fixtures now use
+authorized synthetic organizations and current response/accessible-name contracts;
+server scope, billing commands and provider gates are unchanged.
+
+The nested `app/branch/[branchId]/loading.tsx` now reuses `RouteLoading` below
+the persistent branch workspace shell. Leaf-page loading is contained inside
+that shell so it does not hide navigation or its open overlays and discard
+keyboard focus. Six mobile diagnostic repeats passed after this repair without
+retries or connected-control hidden-ancestor events. The final complete
+desktop/mobile browser suite passed 255 cases with 39 conditional skips, zero
+failures and zero flaky cases; see the restoration review for the full matrix.
+
 ## Branch analytics payment boundary — local remediation, 2026-09-29
 
 The interactive branch snapshot and payment trend separate general analytics

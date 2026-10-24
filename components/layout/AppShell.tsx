@@ -2,13 +2,14 @@
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { UserButton, useUser } from "@clerk/nextjs";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { memo, ReactNode, useEffect, useRef, useState } from "react";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { BranchTopSearch } from "@/components/layout/BranchTopSearch";
 import { BranchNotifications } from "@/components/layout/BranchNotifications";
 import { LanguageControls } from "@/components/settings/LanguageControls";
-import { ChevronDown, Menu } from "lucide-react";
+import { ChevronDown, Menu, UserRound } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
     chromeAppRootClass,
@@ -35,6 +36,7 @@ import { Drawer } from "@/components/ui/Drawer";
 import { ContextualBackLink } from "@/components/layout/ContextualBackLink";
 import { publicDisplayFont } from "@/lib/publicMarketingFonts";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useWorkspaceReturnHref } from "@/hooks/useWorkspaceReturnHref";
 
 
 interface User {
@@ -45,10 +47,25 @@ interface User {
 
 interface AppShellProps {
     children: ReactNode;
-    sidebar: ReactNode;
+    sidebar?: ReactNode;
     user?: User;
     designPilot?: boolean;
 }
+
+// Clerk remounts its surface when configuration changes. Keep these objects
+// stable while preferences/billing refresh so an open account menu survives.
+const accountUserProfileProps = { appearance: accountProfileClerkAppearance };
+const workspaceUserProfileProps = { appearance: workspaceAccountProfileClerkAppearance };
+
+const AccountControl = memo(function AccountControl({ designPilot }: { designPilot: boolean }) {
+    return (
+        <UserButton
+            appearance={designPilot ? workspaceAccountMenuClerkAppearance : accountMenuClerkAppearance}
+            userProfileMode="modal"
+            userProfileProps={designPilot ? workspaceUserProfileProps : accountUserProfileProps}
+        />
+    );
+});
 
 function AccountSummary({ user }: { user?: User }) {
     const t = useTranslation();
@@ -71,13 +88,15 @@ function AccountSummary({ user }: { user?: User }) {
 
 export function AppShell({ children, sidebar, user, designPilot = false }: AppShellProps) {
     const t = useTranslation();
-    const router = useRouter();
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const previousPathname = useRef(pathname);
     const showBranchChrome = /^\/branch\/[^/]+/.test(pathname ?? "");
+    const showWorkspaceControls = showBranchChrome || /^\/org\/[^/]+/.test(pathname ?? "");
     const billing = useBillingExperience();
     const compactLayout = useMediaQuery("(max-width: 1023px)");
+    const accountReturnHref = useWorkspaceReturnHref(pathname);
+    const accountHref = showWorkspaceControls ? `/account?returnTo=${encodeURIComponent(pathname)}` : "/account";
 
     useEffect(() => {
         if (previousPathname.current === pathname) return;
@@ -102,21 +121,23 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
             <AmbientBackground />
 
             {/* Desktop and mobile navigation are mutually exclusive to avoid duplicate hidden controls and reads. */}
-            {!compactLayout && (
+            {sidebar && !compactLayout && (
                 <div className="relative z-30 hidden lg:block">
                     {sidebar}
                 </div>
             )}
 
-            {compactLayout && (
+            {sidebar && compactLayout && (
                 <Drawer
                     open={mobileNavOpen}
                     onClose={() => setMobileNavOpen(false)}
-                    title={t("Workspace navigation")}
+                    title={t(showBranchChrome ? "Branch navigation" : "Organization navigation")}
                     closeLabel={t("Close navigation")}
                     className="max-w-[19rem] lg:hidden"
+                    variant="navigation"
+                    overlayClassName={designPilot ? publicDisplayFont.variable : undefined}
                 >
-                    <div className="h-[calc(100dvh-9rem)] overflow-hidden">{sidebar}</div>
+                    <div className="h-full overflow-hidden">{sidebar}</div>
                 </Drawer>
             )}
 
@@ -129,7 +150,7 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                         !designPilot && "lg:max-w-md",
                         designPilot && "max-sm:w-full max-sm:flex-none"
                     )}>
-                        <button
+                        {sidebar && <button
                             type="button"
                             onClick={() => setMobileNavOpen(true)}
                             className={cn("flex-shrink-0 lg:hidden", chromeIconButtonClass)}
@@ -137,8 +158,8 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                             aria-expanded={mobileNavOpen}
                         >
                             <Menu size={18} />
-                        </button>
-                        <WorkspaceSwitcher separated={designPilot && showBranchChrome} className={designPilot ? "min-w-0 flex-1 lg:flex-none" : "min-w-0 flex-1 lg:w-48 lg:flex-none"} />
+                        </button>}
+                        {showWorkspaceControls ? <WorkspaceSwitcher className={designPilot ? "min-w-0 flex-1 lg:flex-none" : "min-w-0 flex-1 lg:w-48 lg:flex-none"} /> : <span className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Account")}</span>}
                         {showBranchChrome && <BranchTopSearch />}
                     </div>
 
@@ -153,19 +174,16 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                             </>
                         )}
                         <LanguageControls compact />
-                        <UserButton
-                            appearance={designPilot ? workspaceAccountMenuClerkAppearance : accountMenuClerkAppearance}
-                            userProfileMode="modal"
-                            userProfileProps={{ appearance: designPilot ? workspaceAccountProfileClerkAppearance : accountProfileClerkAppearance }}
-                        />
-                        <button
-                            type="button"
-                            onClick={() => router.push('/account')}
+                        <Link href={accountHref} aria-label={t("Account settings")} className={cn("lg:hidden", chromeIconButtonClass)}><UserRound size={18} aria-hidden="true" /></Link>
+                        <AccountControl designPilot={designPilot} />
+                        <Link
+                            href={accountHref}
+                            aria-label={t("Account settings")}
                             className={cn("hidden items-center gap-3 rounded-full border border-transparent py-1 pl-2 pr-1 transition-colors lg:flex", chromeInlineCardHoverClass)}
                         >
                             <AccountSummary user={user} />
                             <ChevronDown size={14} aria-hidden="true" />
-                        </button>
+                        </Link>
                     </div>
                 </header>
 
@@ -173,7 +191,7 @@ export function AppShell({ children, sidebar, user, designPilot = false }: AppSh
                 <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 overflow-y-auto p-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:p-6 sm:[padding-bottom:max(1.5rem,env(safe-area-inset-bottom))] lg:p-8 lg:[padding-bottom:max(2rem,env(safe-area-inset-bottom))]">
                     {billing?.experience && <ReadOnlyBanner experience={billing.experience} />}
                     {billing?.experience && <BillingBanner experience={billing.experience} />}
-                    <ContextualBackLink />
+                    <ContextualBackLink accountReturnHref={accountReturnHref} />
                     {children}
                 </main>
             </div>

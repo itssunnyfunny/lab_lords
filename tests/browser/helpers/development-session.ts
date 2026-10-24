@@ -4,7 +4,9 @@ import type { Page } from "@playwright/test";
  * This never fabricates authentication or changes application middleware.
  */
 export async function refreshDevelopmentSession(page: Page) {
-  await page.goto("/");
+  // Authentication readiness is checked below; unrelated image/font loads must
+  // not hold up refreshing the real saved development session.
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => {
     const clerk = (window as unknown as { Clerk?: { loaded: boolean } }).Clerk;
     return clerk?.loaded;

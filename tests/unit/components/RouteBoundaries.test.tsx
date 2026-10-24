@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import RouteLoading from "@/components/ui/RouteLoading";
+import BranchPageLoading from "@/app/branch/[branchId]/loading";
 import ErrorBoundary from "@/app/error";
 
 const route = vi.hoisted(() => ({ pathname: "/branch/branch_1" }));
@@ -8,14 +9,26 @@ vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
 
 describe("selected application route boundaries", () => {
     it("uses the light workspace theme for migrated cold loading routes", () => {
-        for (const pathname of ["/branch/branch_1", "/org", "/onboarding", "/invite/token_1"]) {
+        for (const pathname of ["/org", "/onboarding", "/invite/token_1"]) {
             route.pathname = pathname;
             expect(renderToStaticMarkup(<RouteLoading />)).toContain('data-app-design-pilot="workspace"');
         }
     });
 
-    it("leaves excluded authentication and AI Messages loading unchanged", () => {
-        for (const pathname of ["/sign-in", "/sign-up", "/branch/branch_1/ai/messages"]) {
+    it("announces branch page loading in the selected theme below the workspace layout", () => {
+        for (const pathname of ["/branch/branch_1", "/branch/branch_1/payments", "/branch/branch_1/ai/reports"]) {
+            route.pathname = pathname;
+            const markup = renderToStaticMarkup(<BranchPageLoading />);
+            expect(markup).toContain('data-app-design-pilot="workspace"');
+            expect(markup).toContain('role="status"');
+            expect(markup).toContain('aria-live="polite"');
+            expect(markup).toContain("Loading page");
+            expect(markup).toContain('class="ui-route-loading"');
+        }
+    });
+
+    it("leaves authentication loading unchanged", () => {
+        for (const pathname of ["/sign-in", "/sign-up"]) {
             route.pathname = pathname;
             expect(renderToStaticMarkup(<RouteLoading />)).not.toContain("data-app-design-pilot");
         }

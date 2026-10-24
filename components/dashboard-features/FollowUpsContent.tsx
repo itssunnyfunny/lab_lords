@@ -18,23 +18,33 @@ type FollowUpPage = { items: DashboardFollowUp[]; counts: { pending: number; due
 
 export function FollowUpsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
     const t = useTranslation(); const { formatDate } = useUserPreferences(); const query = useSearchParams();
-    const [filter, setFilter] = useState(query.get("filter") === "DUE" ? "DUE" : "ALL");
+    const requestedFilter = ["DUE", "COMPLETED"].includes(query.get("filter") ?? "") ? query.get("filter")! : "ALL";
+    const requestedSearch = query.get("search")?.slice(0, 100) ?? "";
+    const [filter, setFilter] = useState(requestedFilter);
     const [search, setSearch] = useState(query.get("search")?.slice(0, 100) ?? ""); const [cursor, setCursor] = useState("");
     const [editing, setEditing] = useState<DashboardFollowUp | null>(null);
-    const resource = useDashboardResource<FollowUpPage>(`/api/branches/${branchId}/dashboard/follow-ups?${new URLSearchParams({ filter, search, ...(cursor ? { cursor } : {}) })}`);
+    const followUpId = query.get("followUpId");
+    const queryIdentity = JSON.stringify([requestedFilter, requestedSearch]);
+    const [appliedQuery, setAppliedQuery] = useState(queryIdentity);
+    // Adjust for an external route change before committing a stale list. Keep an open editor intact.
+    if (!editing && appliedQuery !== queryIdentity) {
+        setAppliedQuery(queryIdentity);
+        setFilter(requestedFilter); setSearch(requestedSearch); setCursor("");
+    }
+    const resource = useDashboardResource<FollowUpPage>(`/api/branches/${branchId}/dashboard/follow-ups?${new URLSearchParams({ filter, search, ...(cursor ? { cursor } : {}), ...(followUpId ? { followUpId } : {}) })}`);
     const write = getBranchCapabilityDecision(access, "paymentsRecord");
     const actions = (row: DashboardFollowUp) => <div className="flex flex-wrap justify-end gap-2">
         <AppButton density="compact" variant="secondary" disabled={!write.allowed} onClick={() => setEditing(row)}>{t("Update follow-up")}</AppButton>
         {row.phone && <a href={`tel:${row.phone.replace(/[^+\d]/g, "")}`} className={appActionClassName("quiet")}>{t("Call")}</a>}
     </div>;
     return <RecordListPage title={t("Follow-ups")} description={t("Plan your next conversation and record its outcome. Completing a follow-up does not settle a fee.")}
-        actions={<Link className={appActionClassName("secondary")} href={`/branch/${branchId}/renewals`}>{t("Renewals & dues")}</Link>}
+        actions={<>{followUpId && <Link className={appActionClassName("secondary")} href={`/branch/${branchId}/follow-ups`}>{t.owned("Show all follow-ups")}</Link>}<Link className={appActionClassName("secondary")} href={`/branch/${branchId}/renewals`}>{t("Renewals & dues")}</Link></>}
         notices={!write.allowed && <p className="text-sm text-[color:var(--text-muted)]">{t.error(write.reason)}</p>}
         overlays={editing && <FollowUpEditor key={editing.id} branchId={branchId} row={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void resource.reload(); }} />}>
         <div className="grid gap-3 sm:grid-cols-3">{([ ["Follow-ups pending", resource.data?.counts.pending], ["Due today", resource.data?.counts.dueToday], ["Completed", resource.data?.counts.completed] ] as const).map(([label, count]) => <AppPanel key={label} density="compact" title={t.owned(label)}><strong className="text-2xl tabular-nums">{count ?? "—"}</strong></AppPanel>)}</div>
         <RecordListSurface label={t("Follow-ups")} busy={resource.loading} toolbar={<>
-            <label className="min-w-0 flex-1 text-sm">{t("Search by name or phone")}<input className={inputClass} type="search" maxLength={100} value={search} onChange={event => { setSearch(event.target.value); setCursor(""); }} /></label>
-            <div className="min-w-40"><AppSelect label={t("Status")} value={filter} onValueChange={value => { setFilter(value); setCursor(""); }} options={[{ value: "ALL", label: t("Follow-ups pending") }, { value: "DUE", label: t("Due today") }, { value: "COMPLETED", label: t("Completed") }]} /></div>
+            <label className="min-w-0 flex-1 text-sm">{t("Search by name or phone")}<input className={inputClass} type="search" disabled={Boolean(followUpId)} maxLength={100} value={search} onChange={event => { setSearch(event.target.value); setCursor(""); }} /></label>
+            <div className="min-w-40"><AppSelect label={t("Status")} disabled={Boolean(followUpId)} value={filter} onValueChange={value => { setFilter(value); setCursor(""); }} options={[{ value: "ALL", label: t("Follow-ups pending") }, { value: "DUE", label: t("Due today") }, { value: "COMPLETED", label: t("Completed") }]} /></div>
             <AppButton density="compact" variant="secondary" onClick={() => void resource.reload()} disabled={resource.loading}>{t("Refresh")}</AppButton>
         </>} footer={<div className="flex flex-wrap justify-end gap-2"><AppButton density="compact" variant="secondary" disabled={!cursor || resource.loading} onClick={() => setCursor("")}>{t("First page")}</AppButton><AppButton density="compact" variant="secondary" disabled={!resource.data?.nextCursor || resource.loading || !!resource.error} onClick={() => setCursor(resource.data?.nextCursor ?? "")}>{t("Next page")}</AppButton></div>}>
             {resource.loading ? <RecordListState kind="loading" title="Loading…" /> : resource.error ? <RecordListState kind="error" title="Something went wrong" description={t.error(resource.error)} onRetry={() => void resource.reload()} /> : !resource.data?.items.length ?

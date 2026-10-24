@@ -14,13 +14,13 @@ export type DashboardTask = { id: string; title: string; status: "OPEN" | "DONE"
     assigneeId: string | null; assigneeName: string | null; createdAt: string; updatedAt: string };
 export type DashboardActivity = { id: string; kind: "COLLECTION" | "STUDENT" | "ATTENDANCE" | "FOLLOW_UP" | "TASK" | "ALLOCATION" | "CONFIGURATION";
     occurredAt: string; studentName?: string; amount?: number; detail?: string; href: string };
-export type DashboardNotification = { key: string; kind: "OVERDUE" | "FOLLOW_UP" | "ATTENDANCE" | "RENEWAL" | "TASK";
+export type DashboardNotification = { key: string; kind: "OVERDUE" | "FOLLOW_UP" | "ATTENDANCE" | "RENEWAL" | "TASK" | "UNASSIGNED" | "SHIFT_FULL" | "SHIFT_NEAR_FULL" | "INVITES";
     count: number; href: string; read: boolean; snoozedUntil: string | null; dismissed: boolean };
 export type DashboardOverview = {
     branchId: string; timezone: string; today: string; updatedAt: string;
     money: DashboardSource<{ collectedThisMonth: number; pendingDues: number; overdueAmount: number; overdueStudents: number;
         comparisonPercent: number | null }>;
-    students: DashboardSource<{ active: number; comparison: number | null }>;
+    students: DashboardSource<{ active: number; comparison: number | null; recent?: { id: string; name: string; status: string; joinedAt: string }[] }>;
     followUps: DashboardSource<{ pending: number; dueToday: number; items: DashboardFollowUp[] }>;
     terms: DashboardSource<{ configured: boolean; renewalsThisWeek: number; items: DashboardTerm[] }>;
     collections: DashboardSource<{ month: string; billed: number; collected: number; pending: number; waived: number;
@@ -41,8 +41,8 @@ export const dashboardTaskSchema = z.object({ title: z.string().trim().min(1).ma
 export const dashboardTaskPatchSchema = dashboardTaskSchema.partial().extend({ status: z.enum(["OPEN", "DONE"]).optional() }).strict();
 export const dashboardListSchema = z.object({ search: z.string().trim().max(100).default(""),
     limit: z.coerce.number().int().min(1).max(100).default(50), cursor: id.optional() });
-export const dashboardTaskQuerySchema = dashboardListSchema.extend({ status: z.enum(["OPEN", "DONE", "ALL"]).default("ALL") });
-export const dashboardFollowUpQuerySchema = dashboardListSchema.extend({ filter: z.enum(["ALL", "DUE", "COMPLETED"]).default("ALL") });
+export const dashboardTaskQuerySchema = dashboardListSchema.extend({ status: z.enum(["OPEN", "DONE", "ALL"]).default("ALL"), taskId: id.optional() });
+export const dashboardFollowUpQuerySchema = dashboardListSchema.extend({ filter: z.enum(["ALL", "DUE", "COMPLETED"]).default("ALL"), followUpId: id.optional() });
 export const dashboardFollowUpPatchSchema = z.object({ note: z.string().trim().max(2000).optional(),
     outcome: z.enum(Object.keys(followUpOutcomes) as [keyof typeof followUpOutcomes, ...(keyof typeof followUpOutcomes)[]]).optional(),
     nextFollowUpAt: attendanceDateSchema.nullable().optional(), completed: z.boolean().optional() }).strict();

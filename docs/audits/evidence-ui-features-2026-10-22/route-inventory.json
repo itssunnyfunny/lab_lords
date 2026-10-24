@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-22",
+  "commit": "60760aa74be27b23deaa31460ff1e4b8c582816a",
+  "historicalComparison": "a3c6ed1337907e936a3ae2d77537ccb2e33415f0",
+  "count": 29,
+  "pages": [
+    {
+      "route": "/account",
+      "source": "app/account/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/app",
+      "source": "app/app/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/ai/messages",
+      "source": "app/branch/[branchId]/ai/messages/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/ai/reports",
+      "source": "app/branch/[branchId]/ai/reports/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/allocations",
+      "source": "app/branch/[branchId]/allocations/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/analytics",
+      "source": "app/branch/[branchId]/analytics/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/attendance",
+      "source": "app/branch/[branchId]/attendance/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/dashboard-settings",
+      "source": "app/branch/[branchId]/dashboard-settings/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/follow-ups",
+      "source": "app/branch/[branchId]/follow-ups/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/onboarding/import/[sessionId]",
+      "source": "app/branch/[branchId]/onboarding/import/[sessionId]/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/onboarding/import",
+      "source": "app/branch/[branchId]/onboarding/import/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/overdue",
+      "source": "app/branch/[branchId]/overdue/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]",
+      "source": "app/branch/[branchId]/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/payments",
+      "source": "app/branch/[branchId]/payments/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/renewals",
+      "source": "app/branch/[branchId]/renewals/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/reports",
+      "source": "app/branch/[branchId]/reports/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/seats",
+      "source": "app/branch/[branchId]/seats/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/settings",
+      "source": "app/branch/[branchId]/settings/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/shifts",
+      "source": "app/branch/[branchId]/shifts/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/staff",
+      "source": "app/branch/[branchId]/staff/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/students",
+      "source": "app/branch/[branchId]/students/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/branch/[branchId]/tasks",
+      "source": "app/branch/[branchId]/tasks/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/invite/[token]",
+      "source": "app/invite/[token]/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/onboarding",
+      "source": "app/onboarding/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/org/[orgId]/analytics",
+      "source": "app/org/[orgId]/analytics/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/org/[orgId]/billing/processing/[changeId]",
+      "source": "app/org/[orgId]/billing/processing/[changeId]/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/org/[orgId]",
+      "source": "app/org/[orgId]/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/org/[orgId]/settings",
+      "source": "app/org/[orgId]/settings/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    },
+    {
+      "route": "/org",
+      "source": "app/org/page.tsx",
+      "inspection": "Page entry, navigation entry points, primary controls and relevant source/destination contracts; source review is not connected runtime verification."
+    }
+  ]
+}

@@ -205,7 +205,7 @@ describe("UI theme contract", () => {
     expect(globals).toMatch(/::-webkit-scrollbar-thumb:hover,\s*::-webkit-scrollbar-thumb:active\s*{[^}]*background-color:\s*var\(--ui-accent\);/s);
     expect(appSource).not.toMatch(/scrollbar-(?:thin|thumb-cyan|track-slate)/);
     expect(readFileSync(join(projectRoot, "components", "layout", "BranchSidebar.tsx"), "utf8"))
-      .toContain("scrollbar-none");
+      .not.toContain("scrollbar-none");
   });
 
   it("uses the current Clerk dark-theme variable contract", () => {

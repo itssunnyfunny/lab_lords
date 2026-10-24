@@ -12,8 +12,8 @@ import { feeCollections } from "@/lib/api/feeCollections";
 import type { FeeCollectionView } from "@/lib/feeCollections";
 import { FeeReceipt } from "./FeeReceipt";
 
-export function CollectionHistory({ branchId, studentId, owner = false, refreshKey = 0 }: {
-    branchId: string; studentId?: string; owner?: boolean; refreshKey?: number;
+export function CollectionHistory({ branchId, studentId, owner = false, refreshKey = 0, targetCollectionId }: {
+    branchId: string; studentId?: string; owner?: boolean; refreshKey?: number; targetCollectionId?: string | null;
 }) {
     const t = useTranslation();
     const { formatDateTime, formatNumber } = useUserPreferences();
@@ -24,10 +24,18 @@ export function CollectionHistory({ branchId, studentId, owner = false, refreshK
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [selected, setSelected] = useState<FeeCollectionView | null>(null);
+    const [targetError, setTargetError] = useState("");
+    const [targetAttempt, setTargetAttempt] = useState(0);
     const [correction, setCorrection] = useState<FeeCollectionView | null>(null);
     const [reason, setReason] = useState("");
     const [voiding, setVoiding] = useState(false);
     const requestVersion = useRef(0);
+    useEffect(() => {
+        if (!targetCollectionId) return;
+        let cancelled = false;
+        feeCollections.get(branchId, targetCollectionId).then(receipt => { if (!cancelled) { setSelected(receipt); setTargetError(""); } }).catch(() => { if (!cancelled) setTargetError("Unable to retrieve the receipt. Retry View receipt; the collection remains recorded."); });
+        return () => { cancelled = true; };
+    }, [branchId, targetCollectionId, targetAttempt]);
     const load = useCallback(async (after?: string) => {
         const version = ++requestVersion.current;
         setLoading(true); setError("");
@@ -54,6 +62,7 @@ export function CollectionHistory({ branchId, studentId, owner = false, refreshK
         catch { setError("Unable to retrieve the receipt. Retry View receipt; the collection remains recorded."); }
     }
     return <>
+        {targetError && <div role="alert" className={cn("flex flex-wrap items-center gap-3 p-3 text-sm", formErrorBannerClass)}><span>{t.error(targetError)}</span><AppButton variant="secondary" density="compact" onClick={() => setTargetAttempt(current => current + 1)}>{t("Retry")}</AppButton></div>}
         <AppPanel density="compact" padding="none" title={t("Collections & receipts")}
             description={t("Each instalment has its own receipt. Historical and imported payments without a generated receipt remain in fee history.")}
             aria-busy={loading || undefined}>

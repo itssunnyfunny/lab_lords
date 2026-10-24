@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, ClipboardList, History, Pencil, Plus, RefreshCw, Settings } from "lucide-react";
 import { AppButton, AppPanel, AppSelect, Dialog, FormField } from "@/components/ui";
@@ -48,9 +49,10 @@ export function SourceTasksContent({ branchId }: { branchId: string }) {
 
 export function TasksContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
     const t = useTranslation(); const { formatDateTime } = useUserPreferences();
+    const taskId = useSearchParams().get("taskId");
     const [status, setStatus] = useState("OPEN"); const [search, setSearch] = useState(""); const [cursor, setCursor] = useState(""); const [editing, setEditing] = useState<DashboardTask | "new" | null>(null);
     const [restoreFocus, setRestoreFocus] = useState(false);
-    const resource = useDashboardResource<TaskPage>(`/api/branches/${branchId}/dashboard/tasks?${new URLSearchParams({ status, search, ...(cursor ? { cursor } : {}) })}`);
+    const resource = useDashboardResource<TaskPage>(`/api/branches/${branchId}/dashboard/tasks?${new URLSearchParams({ status, search, ...(cursor ? { cursor } : {}), ...(taskId ? { taskId } : {}) })}`);
     const sources = useDashboardResource<{ items: DashboardNotification[] }>(`/api/branches/${branchId}/dashboard/notifications`);
     const write = getBranchCapabilityDecision(access, "settingsManage");
     useEffect(() => {
@@ -59,13 +61,13 @@ export function TasksContent({ branchId, access }: { branchId: string; access: B
         return () => cancelAnimationFrame(frame);
     }, [restoreFocus, resource.loading]);
     return <RecordListPage title={t("Tasks")} description={t("Keep branch work in one place. Source alerts stay open until the underlying work is resolved.")}
-        actions={<><ActivityAction branchId={branchId} /><AppButton density="compact" variant="primary" icon={Plus} disabled={!write.allowed} onClick={() => setEditing("new")}>{t("Add task")}</AppButton></>}
+        actions={<>{taskId && <Link className={appActionClassName("secondary")} href={`/branch/${branchId}/tasks`}>{t.owned("Show all tasks")}</Link>}<ActivityAction branchId={branchId} /><AppButton density="compact" variant="primary" icon={Plus} disabled={!write.allowed} onClick={() => setEditing("new")}>{t("Add task")}</AppButton></>}
         notices={!write.allowed && <p className="text-sm text-[color:var(--text-muted)]">{t.error(write.reason)}</p>}
         overlays={editing && <TaskEditor key={editing === "new" ? "new" : editing.id} branchId={branchId} task={editing === "new" ? null : editing} assignees={resource.data?.assignees ?? []} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setRestoreFocus(true); void resource.reload(); void sources.reload(); }} />}>
         <SourceWork resource={sources} excludeManual />
         <RecordListSurface label={t("Manual tasks")} busy={resource.loading} toolbar={<>
-            <FormField label={t("Search tasks")} id="task-search" className="min-w-0 flex-1"><input className={inputClass} type="search" maxLength={100} value={search} onChange={event => { setSearch(event.target.value); setCursor(""); }} /></FormField>
-            <div className="min-w-36"><AppSelect label={t("Status")} value={status} onValueChange={value => { setStatus(value); setCursor(""); }} options={[{ value: "OPEN", label: t("Open") }, { value: "DONE", label: t("Completed") }, { value: "ALL", label: t("All") }]} /></div>
+            <FormField label={t("Search tasks")} id="task-search" className="min-w-0 flex-1"><input className={inputClass} type="search" disabled={Boolean(taskId)} maxLength={100} value={search} onChange={event => { setSearch(event.target.value); setCursor(""); }} /></FormField>
+            <div className="min-w-36"><AppSelect label={t("Status")} disabled={Boolean(taskId)} value={status} onValueChange={value => { setStatus(value); setCursor(""); }} options={[{ value: "OPEN", label: t("Open") }, { value: "DONE", label: t("Completed") }, { value: "ALL", label: t("All") }]} /></div>
             <AppButton density="compact" variant="secondary" icon={RefreshCw} disabled={resource.loading} onClick={() => void resource.reload()}>{t("Refresh")}</AppButton>
         </>} footer={<div className="flex w-full flex-wrap items-center justify-between gap-2">
             <Link className={appActionClassName("quiet")} href={`/branch/${branchId}/dashboard-settings`}><Settings size={14} aria-hidden="true" />{t("Dashboard setup")}</Link>
