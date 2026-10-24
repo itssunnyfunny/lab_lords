@@ -52,7 +52,7 @@ describe("BranchSidebar", () => {
     mocks.sidebarItems.length = 0;
   });
 
-  it("uses the task-oriented pilot grouping only on pilot routes", () => {
+  it("keeps task-oriented navigation on current branch routes", () => {
     mocks.access = {
       branchId: "branch_1",
       branchName: "Main Branch",
@@ -75,17 +75,17 @@ describe("BranchSidebar", () => {
     expect(migrated).toContain("Daily work");
     expect(migrated).not.toContain(">Operations<");
 
-    mocks.pathname = "/branch/branch_1/ai/messages";
+    mocks.pathname = "/branch/branch_1/ai/reports";
     mocks.sidebarItems.length = 0;
     const existing = renderToStaticMarkup(<BranchSidebar />);
-    expect(existing).toContain("Overview");
-    expect(existing).toContain("Operations");
-    expect(existing).toContain("Intelligence");
-    expect(existing).not.toContain("Daily work");
+    expect(existing).toContain("Daily work");
+    expect(existing).not.toContain(">Operations<");
+    expect(existing).toContain("Reports");
+    expect(existing).toContain("Setup and access");
   });
 
-  it("keeps the organization footer on excluded legacy routes for owners", () => {
-    mocks.pathname = "/branch/branch_1/ai/messages";
+  it("keeps the owner organization link in the final workspace menu section", () => {
+    mocks.pathname = "/branch/branch_1/ai/reports";
     mocks.access = {
       branchId: "branch_1",
       branchName: "Main Branch",
@@ -101,13 +101,17 @@ describe("BranchSidebar", () => {
       },
     };
 
-    renderToStaticMarkup(<BranchSidebar />);
+    const markup = renderToStaticMarkup(<BranchSidebar />);
     const organizationItem = mocks.sidebarItems.find(
       item => item.label === "Back to organization"
     );
 
     expect(organizationItem).toBeDefined();
     expect(organizationItem?.href).toBe("/org/org_1");
+    expect(markup).toContain('aria-label="Workspace"');
+    expect(markup.indexOf('aria-label="Workspace"')).toBeLessThan(markup.indexOf('class="reference-sidebar-quote"'));
+    expect(mocks.sidebarItems.map(item => item.href)).not.toContain("/account");
+    expect(mocks.sidebarItems.map(item => item.href)).not.toContain("/onboarding");
   });
 
   it("hides the organization control from staff", () => {
@@ -154,7 +158,9 @@ describe("BranchSidebar", () => {
     expect(labels).toContain("Tasks");
     expect(labels).toContain("Exports & Reports");
     expect(labels).not.toContain("AI Messages");
-    expect(labels).not.toContain("Back to organization");
+    expect(labels).toContain("Back to organization");
+    expect(labels).toContain("Dashboard setup");
+    expect(labels).not.toContain("Account settings");
   });
 
   it("hides AI reports and messages when payment visibility is denied", () => {

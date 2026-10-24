@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveContextualParent } from "@/lib/contextualNavigation";
+import { resolveContextualParent, workspaceReturnPath } from "@/lib/contextualNavigation";
 
 describe("resolveContextualParent", () => {
     it("returns no back destination for workspace roots", () => {
@@ -25,15 +25,20 @@ describe("resolveContextualParent", () => {
     it("routes organization children and billing processing safely", () => {
         expect(resolveContextualParent("/org/org_1/settings")?.href).toBe("/org/org_1");
         expect(resolveContextualParent("/org/org_1/billing/processing/change_1")).toEqual({
-            href: "/org/org_1/settings?section=billing",
+            href: "/org/org_1/settings#billing",
             label: "Back to billing settings",
         });
     });
 
-    it("routes account pages to the app entry", () => {
-        expect(resolveContextualParent("/account")).toEqual({
-            href: "/app",
-            label: "Back to workspaces",
-        });
+    it("does not route Account through the legacy organization chooser", () => {
+        expect(resolveContextualParent("/account")).toBeNull();
+    });
+
+    it("accepts only internal workspace return paths", () => {
+        expect(workspaceReturnPath("/branch/branch_1/payments")).toBe("/branch/branch_1/payments");
+        expect(workspaceReturnPath("/org/org_1/settings")).toBe("/org/org_1/settings");
+        for (const value of [null, "/app", "/org", "//evil.test/org/1", "https://evil.test", "/branch/x\\evil", "/branch/x?redirect=https://evil.test", "/branch/../account"]) {
+            expect(workspaceReturnPath(value)).toBeNull();
+        }
     });
 });

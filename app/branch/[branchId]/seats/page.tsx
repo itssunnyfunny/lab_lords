@@ -658,7 +658,7 @@ function SeatsContent({
                 <AlertCircle className={pageErrorIconClass} />
                 <h2 className="text-xl font-semibold">{t("Something went wrong")}</h2>
                 <p className={pageMutedTextClass}><LocalizedError error={error} /></p>
-                <AppButton variant="quiet" icon={ArrowLeft} onClick={() => router.push("/org")}>
+                <AppButton variant="quiet" icon={ArrowLeft} onClick={() => router.push("/app")}>
                     {t("Back to Workspace")}</AppButton>
             </div>
         );

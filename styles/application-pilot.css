@@ -49,6 +49,18 @@ html:has([data-app-design-pilot="workspace"])
   background: var(--bg-app);
 }
 
+/* Cold loading fills the canvas; nested loading keeps the persistent shell. */
+.ui-route-loading {
+  min-height: 100dvh;
+  padding: 1.5rem;
+  color: var(--text-primary);
+}
+
+main .ui-route-loading {
+  min-height: 100%;
+  padding: 0;
+}
+
 [data-app-design-pilot="workspace"] :where(a, button, input, select, textarea) {
   transition-duration: var(--ui-motion-fast);
 }
@@ -125,4 +137,8 @@ html[lang="hi-IN"] .app-design-pilot-overlay .font-display {
     flex: 0 0 auto;
     min-width: auto;
   }
+}
+[data-app-design-pilot="workspace"] .ui-navigation-drawer {
+  padding: 0;
+  overflow: hidden;
 }

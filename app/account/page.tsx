@@ -4,18 +4,14 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { LanguageControls } from "@/components/settings/LanguageControls";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { format } from "date-fns";
 import {
     AlertCircle,
-    Building2,
     Calendar,
-    GitBranch,
     Hash,
     LayoutDashboard,
     Mail,
     Monitor,
-    Shield,
     SlidersHorizontal,
     User,
 } from "lucide-react";
@@ -26,10 +22,7 @@ import {
     SettingsInput,
     SettingsPanel,
     SettingsSaveBar,
-    SettingsCard,
-    SettingsEmptyState,
     SettingsSelect,
-    SettingsSubtleText,
     SettingsWorkspace,
 } from "@/components/settings/SettingsWorkspace";
 import { AppButton, PageLoadingSkeleton } from "@/components/ui";
@@ -92,7 +85,6 @@ const SECTIONS = [
     { id: "profile", label: "Profile", icon: User },
     { id: "preferences", label: "Preferences", icon: SlidersHorizontal },
     { id: "workspace", label: "Workspace", icon: LayoutDashboard },
-    { id: "access", label: "Access", icon: Shield },
     { id: "system", label: "System Info", icon: Hash },
 ];
 
@@ -268,8 +260,6 @@ export default function AccountPage() {
         );
     }
 
-    const totalBranches = profile.organizations.reduce((sum, org) => sum + org.branches.length, 0);
-
     return (
         <>
             <SettingsWorkspace
@@ -385,7 +375,7 @@ export default function AccountPage() {
                 <SettingsPanel id="workspace" title={t("Workspace Defaults")} description={t("Defaults used by message and navigation experiences.")} icon={LayoutDashboard}>
                     {isEditing ? (
                         <>
-                            <SettingsField label={t("Message language")} description={t("Manual reminders use Hindi script; existing AI drafting uses Roman Hindi. This does not change screen or document language.")}>
+                            <SettingsField label={t("Message language")} description={t("This does not change screen or document language.")}>
                                 <SegmentedControl
                                     value={form.defaultMessageLanguage}
                                     onChange={value => updateForm("defaultMessageLanguage", value)}
@@ -412,41 +402,6 @@ export default function AccountPage() {
                             <ReadOnlyRow label={t("Landing page")} value={profile.defaultLandingPage === "account" ? "Account" : "Last workspace"} />
                         </>
                     )}
-                </SettingsPanel>
-
-                <SettingsPanel id="access" title={t("Access")} description={t("Read-only membership and role summary.")} icon={Shield}>
-                    <ReadOnlyRow label={t("Organizations")} value={profile.organizations.length} />
-                    <ReadOnlyRow label={t("Branches")} value={totalBranches} />
-                    <ReadOnlyRow label={t("Branch roles")} value={profile.staff.length} />
-                    <div className="px-5 py-4">
-                        <div className="grid gap-2 md:grid-cols-2">
-                            {profile.organizations.map(org => (
-                                <Link key={org.id} href={`/org/${org.id}`} aria-label={`Open ${org.name}`}>
-                                    <SettingsCard className="h-full transition-colors hover:border-[color:var(--ui-form-input-focus-border)]">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
-                                            <Building2 size={14} className="text-[color:var(--ui-form-accent)]" />
-                                            {org.name}
-                                        </div>
-                                        <SettingsSubtleText className="mt-1">{t("{value} / {count} branches", { value: org.businessType || "Education Business", count: org.branches.length })}</SettingsSubtleText>
-                                    </SettingsCard>
-                                </Link>
-                            ))}
-                            {profile.staff.map(member => (
-                                <Link key={member.id} href={`/branch/${member.branch.id}`} aria-label={`Open ${member.branch.name}`}>
-                                    <SettingsCard className="h-full transition-colors hover:border-[color:var(--ui-form-input-focus-border)]">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
-                                            <GitBranch size={14} className="text-[color:var(--ui-badge-purple-text)]" />
-                                            {member.branch.name}
-                                        </div>
-                                        <SettingsSubtleText className="mt-1">{member.role}</SettingsSubtleText>
-                                    </SettingsCard>
-                                </Link>
-                            ))}
-                            {profile.organizations.length === 0 && profile.staff.length === 0 && (
-                                <SettingsEmptyState>{t("No workspace access found.")}</SettingsEmptyState>
-                            )}
-                        </div>
-                    </div>
                 </SettingsPanel>
 
                 <SettingsPanel id="system" title={t("System Info")} description={t("Identifiers are read-only.")} icon={Monitor}>

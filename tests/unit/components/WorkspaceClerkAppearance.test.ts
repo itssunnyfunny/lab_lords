@@ -30,7 +30,9 @@ describe("selected workspace account appearance", () => {
   it("activates the light account skin only in the selected AppShell", () => {
     const source = readFileSync("components/layout/AppShell.tsx", "utf8");
     expect(source).toContain("designPilot ? workspaceAccountMenuClerkAppearance : accountMenuClerkAppearance");
-    expect(source).toContain("designPilot ? workspaceAccountProfileClerkAppearance : accountProfileClerkAppearance");
+    expect(source).toContain("const accountUserProfileProps = { appearance: accountProfileClerkAppearance }");
+    expect(source).toContain("const workspaceUserProfileProps = { appearance: workspaceAccountProfileClerkAppearance }");
+    expect(source).toContain("userProfileProps={designPilot ? workspaceUserProfileProps : accountUserProfileProps}");
     expect(accountMenuClerkAppearance.variables.colorBackground).toBe("#0f111a");
     expect(accountProfileClerkAppearance.variables.colorBackground).toBe("#0f111a");
   });
