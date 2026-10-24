@@ -86,7 +86,13 @@ date; this bounded feed is not a complete audit log. No past events are invented
 ## Personal notifications
 
 Notifications are derived from authorized overdue, scheduled follow-up,
-attendance-gap, membership-term and due-task conditions. Stable condition keys
+attendance-gap, membership-term and due-task conditions. Since 22 October 2026,
+they also include active students without current allocations (students and
+seat-allocation permissions), full/at-least-90%-occupied shifts (seat-allocation
+permission, using the existing overlap-aware capacity service), and unexpired,
+unaccepted staff invitations (manage-branch and staff-management permissions plus
+the staff-management entitlement). Invitation tokens are never selected.
+Stable condition keys
 deduplicate repeated renders. Changed amounts/counts, due-day context or recorded
 source changes can produce a new key. User/branch/key-scoped read, snooze and
 dismiss state persists in `DashboardNotificationState`; snooze is bounded to
@@ -143,6 +149,30 @@ confirmation, balance, idempotency, receipt and recovery behavior. It does not
 collect on navigation. `renewals?filter=OVERDUE` initializes the actual overdue
 filter, and attendance student links initialize the roster search. Attendance
 links use document navigation to preserve the camera permission-policy boundary.
+
+The selected sidebar now exposes Dashboard setup directly. Its expectations tab
+uses `/dashboard/attendance-gaps` to page every current gap in immutable student-ID
+order, 50 per page, with a full count and branch day/timezone. It uses the same
+explicit weekday, local deadline, active-student and qualifying recorded-attendance
+predicate as the bounded overview preview. A gap does not write an absence.
+The attendance bell links to this tab. Membership terms retain their existing
+create/renew contract; restoration adds no term-edit/delete capability.
+
+Recent enrollments returns the latest five created student records through the
+authorized overview student source. A separate dashboard preview uses the existing
+renewals `OVERDUE` query and offers exact recorded-fee review/selection plus the
+complete overdue queue. It does not collect automatically. Search matches the
+destination's view permissions; mutation capability remains separate.
+
+Recorded activity links now use `collectionId`, `studentId`, `allocationId`,
+`taskId` or `followUpId` as appropriate. Configuration event IDs are resolved to
+branch-scoped student IDs before opening setup; they are not treated as student
+IDs. Receipt and attendance destinations open their existing detail overlays.
+Linked tasks/follow-ups may include completed records, stay branch-scoped, and
+provide a return to the full list. Names and notes are not encoded in these URLs.
+Follow-ups searches names or phones. Follow-ups and Renewals apply external query
+changes to mounted views after any open editor/collection/reminder has closed,
+preserving command identity and resetting pagination.
 
 Global branch search continues to use the existing server-scoped search service,
 with permission-filtered Follow-ups, Tasks and report destinations added. Ctrl-K

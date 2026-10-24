@@ -1,0 +1,193 @@
+{
+  "verifiedAt": "2026-10-24T09:06:58.526Z",
+  "base": "60760aa74be27b23deaa31460ff1e4b8c582816a",
+  "candidate": "Tracked base plus explicit UI-only file list; unrelated import-test edits restored to base",
+  "runtimeSource": {
+    "checkedAt": "2026-10-24T08:33:02.213Z",
+    "snapshot": "build-r11",
+    "runtimeFiles": 727,
+    "mismatches": []
+  },
+  "main": {
+    "files": 346,
+    "tests": 2672,
+    "passed": 2672,
+    "failed": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "workflow": {
+    "files": 1,
+    "tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "navigation": {
+    "stats": {
+      "startTime": "2026-10-24T06:59:52.728Z",
+      "duration": 399857.184,
+      "expected": 44,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "desktop-1440": {
+        "passed": 11,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      },
+      "tablet-834": {
+        "passed": 11,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      },
+      "mobile-390": {
+        "passed": 11,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      },
+      "mobile-320": {
+        "passed": 11,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      }
+    },
+    "retries": 0,
+    "errors": 0,
+    "skipReasons": []
+  },
+  "connectedBrowser": {
+    "stats": {
+      "startTime": "2026-10-24T08:45:59.897Z",
+      "duration": 1245205.366,
+      "expected": 255,
+      "skipped": 39,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": {
+        "passed": 125,
+        "skipped": 22,
+        "failed": 0,
+        "flaky": 0
+      },
+      "mobile-chromium": {
+        "passed": 130,
+        "skipped": 17,
+        "failed": 0,
+        "flaky": 0
+      }
+    },
+    "retries": 0,
+    "errors": 0,
+    "skipReasons": [
+      "Clerk profile contrast is exercised once in desktop Chromium.",
+      "Mobile drawer coverage runs in the Pixel 7 project.",
+      "Mobile notifications coverage runs in the mobile project.",
+      "Requires independently verified isolated RC database and owner/foreign fixtures.",
+      "Requires real STAFF membership with VIEW_PAYMENTS denied in the isolated owner branch.",
+      "Responsive shell coverage runs in the mobile project.",
+      "Set PLAYWRIGHT_MANAGER_AUTH_STATE and PLAYWRIGHT_MANAGER_BRANCH_ID for manager coverage.",
+      "Set PLAYWRIGHT_MANAGER_AUTH_STATE and PLAYWRIGHT_MANAGER_BRANCH_ID to run Manager coverage.",
+      "Staff cannot open branch analytics in this session.",
+      "Staff does not have student-management access in this session."
+    ]
+  },
+  "publicNavigationRecheck": {
+    "stats": {
+      "startTime": "2026-10-24T08:29:42.205Z",
+      "duration": 9761.888,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": {
+        "passed": 1,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      }
+    },
+    "retries": 0,
+    "errors": 0,
+    "skipReasons": []
+  },
+  "publicReadiness": {
+    "stats": {
+      "startTime": "2026-10-24T08:44:58.727Z",
+      "duration": 17796.188,
+      "expected": 4,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": {
+        "passed": 2,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      },
+      "mobile-chromium": {
+        "passed": 2,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      }
+    },
+    "retries": 0,
+    "errors": 0,
+    "skipReasons": []
+  },
+  "attendanceRecheck": {
+    "files": 1,
+    "tests": 13,
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "success": true
+  },
+  "build": {
+    "command": "pnpm build through the guarded offline-build runner in the UI-only candidate",
+    "passed": true,
+    "staticPages": 74,
+    "workflowManifests": 2
+  },
+  "lint": {
+    "command": "pnpm lint . --ignore-pattern \"test-results/**\" in the UI-only candidate",
+    "exitCode": 0
+  },
+  "earlierAttempts": {
+    "dockerInterruption": "Initial browser process stopped without a completed report when Docker shut down. Windows then reserved the old integration port; a new independently verified disposable target used 35432 and only 54 tracked migrations.",
+    "concurrentTimeouts": "An overlapping run hit five existing attendance transaction timeouts and a public About-page navigation timeout before UI assertions. The attendance file passed all 13 tests unchanged in isolation. That run was stopped.",
+    "diskStorageStalls": "The serial disk-backed run stalled on PostgreSQL DataFileImmediateSync. Final main and Workflow tests use a new verified memory-backed PostgreSQL fixture on loopback 35433, with fsync and synchronous_commit still on, the same 54 tracked migrations, and unchanged test source, limits and transaction settings.",
+    "publicLoadReadiness": "A serial public Terms check waited for the full browser load event after the page was already rendered. Only that public-brand loop and the Resources keyboard test now navigate to DOMContentLoaded; all existing content, font/image readiness, layout, keyboard, accessibility assertions and timeouts remain unchanged. Both tests pass on desktop and mobile (4/4)."
+  },
+  "reviewUrl": "http://localhost:3117/branch/dashboard-shanti",
+  "boundaries": {
+    "disposableLocalDatabasesOnly": true,
+    "businessProvidersHeld": true,
+    "applicationSchemaMigrationEnvironmentChanges": false,
+    "unrelatedTrackedEditsExcluded": [
+      "tests/unit/importing/import-wiring.service.test.ts",
+      "tests/unit/importing/import-workflow-registration.test.ts",
+      "tests/unit/importing/import-workflow-retry-finalizer.test.ts"
+    ],
+    "untrackedMigrationExcluded": true,
+    "supersededEvidenceExcluded": true
+  },
+  "typecheckAfterPublicReadiness": {
+    "command": "pnpm exec tsc --noEmit --incremental in the UI-only candidate",
+    "exitCode": 0
+  }
+}
