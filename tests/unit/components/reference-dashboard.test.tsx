@@ -4,6 +4,7 @@ import { ReferenceSeating } from "@/components/dashboard/ReferenceSeating";
 import { ReferenceCollections } from "@/components/dashboard/ReferenceCollections";
 import { DashboardWorklists } from "@/components/dashboard/ReferenceWorklists";
 import { ActivityLink } from "@/components/dashboard/ActivityLink";
+import { UserPreferencesProvider } from "@/components/settings/UserPreferencesApplier";
 import type { DashboardOverview } from "@/lib/dashboardContracts";
 
 describe("reference dashboard accessible and permission-aware composition", () => {
@@ -26,6 +27,26 @@ describe("reference dashboard accessible and permission-aware composition", () =
     it("states the cohort rate denominator including waivers and gives the chart a data table", () => {
         const html = renderToStaticMarkup(<ReferenceCollections branchId="test" retry={() => undefined} source={{ status: "success", data: { month: "2026-09", billed: 1000, collected: 400, pending: 400, waived: 200, rate: 50, points: [{ date: "2026-09-01", billed: 1000, collected: 400, pending: 400, collectionRate: 50 }] } }} />);
         expect(html).toContain("collected ÷ (billed − waived)"); expect(html).toContain("50%"); expect(html).toContain("<table>");
+    });
+    it("keeps a 31-day collection axis readable without dropping daily bars or table values", () => {
+        const points = Array.from({ length: 31 }, (_, index) => ({
+            date: `2026-10-${String(index + 1).padStart(2, "0")}`,
+            billed: 100, collected: 40, pending: 60, collectionRate: 40,
+        }));
+        const html = renderToStaticMarkup(<UserPreferencesProvider signedIn={false}><ReferenceCollections branchId="test" retry={() => undefined} source={{ status: "success", data: { month: "2026-10", billed: 3100, collected: 1240, pending: 1860, waived: 0, rate: 40, points } }} /></UserPreferencesProvider>);
+        const chart = html.match(/<svg class="rd-chart"[^>]*>([\s\S]*?)<\/svg>/)![1];
+        const ticks = [...chart.matchAll(/<text x="([^"]+)" y="173"[^>]*>([^<]+)<\/text>/g)]
+            .map(([, x, label]) => ({ x: Number(x), label }));
+        expect(ticks[0].label).toBe("1 Oct");
+        expect(ticks.at(-1)!.label).toBe("31 Oct");
+        for (let index = 1; index < ticks.length; index++) {
+            expect(ticks[index].x - ticks[index - 1].x).toBeGreaterThan(40);
+        }
+        expect(chart.match(/<rect /g)).toHaveLength(62);
+        const table = html.match(/<tbody>([\s\S]*?)<\/tbody>/)![1];
+        expect(table.match(/<tr>/g)).toHaveLength(31);
+        expect(table).toContain("2026-10-30");
+        expect(table).toContain("2026-10-31");
     });
     it("does not link restricted worklist titles into forbidden destinations", () => {
         const data = { terms: { status: "restricted", data: null }, followUps: { status: "restricted", data: null } } as DashboardOverview;

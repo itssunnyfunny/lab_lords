@@ -18,6 +18,8 @@ import { useSearchParams } from "next/navigation";
 export function AttendanceContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
     const t = useTranslation();
     const searchParams = useSearchParams();
+    const linkedStudentId = searchParams.get("studentId");
+    const [dismissedStudentId, setDismissedStudentId] = useState<string | null>(null);
     const [date, setDate] = useState(""), [search, setSearch] = useState(searchParams.get("search")?.slice(0, 100) ?? ""), [query, setQuery] = useState(searchParams.get("search")?.slice(0, 100) ?? "");
     const [status, setStatus] = useState("ALL"), [shift, setShift] = useState(""), [open, setOpen] = useState(false);
     const [page, setPage] = useState<AttendancePage | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState(""), [notice, setNotice] = useState("");
@@ -94,8 +96,8 @@ export function AttendanceContent({ branchId, access }: { branchId: string; acce
         {command && <AttendanceActionDialog branchId={branchId} title={command.kind === "MARK" ? t(needsCorrection ? "Correct {count} selected student(s) · {date}" : "Mark {count} selected student(s) · {date}", { count: command.students.length, date: command.date }) : command.kind === "CHECK_IN" ? t("Check in student") : t("Check out recorded visit")}
             command={command} correction={!!needsCorrection} onClose={() => setCommand(null)} onSaved={r => { setNotice(r.message); void load(); }} />}
         {scanner && <AttendanceScanner branchId={branchId} onClose={() => { setScanner(false); void load(); }} onSaved={() => void load()} />}
-        <Drawer open={!!student} density="compact" languagePlacement="header" title={student?.name ?? "Student attendance"} onClose={() => { setStudent(null); void load(); }}>
-            {student && <StudentAttendance key={student.id} branchId={branchId} studentId={student.id} access={access} />}
+        <Drawer open={!!student || Boolean(linkedStudentId && linkedStudentId !== dismissedStudentId)} density="compact" languagePlacement="header" title={student?.name ?? t.owned("Student attendance")} onClose={() => { setStudent(null); setDismissedStudentId(linkedStudentId); void load(); }}>
+            {(student || linkedStudentId && linkedStudentId !== dismissedStudentId) && <StudentAttendance key={student?.id ?? linkedStudentId!} branchId={branchId} studentId={student?.id ?? linkedStudentId!} access={access} />}
         </Drawer>
     </div></PageShell>;
 }

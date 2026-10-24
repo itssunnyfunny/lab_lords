@@ -5,13 +5,14 @@ const mocks = vi.hoisted(() => {
         aggregate: vi.fn(), groupBy: vi.fn(), create: vi.fn(), createMany: vi.fn(), update: vi.fn(), upsert: vi.fn() });
     const db = { branch: table(), student: table(), payment: table(), feeCollection: table(), renewalFollowUp: table(), membershipTerm: table(),
         attendanceExpectation: table(), seat: table(), shift: table(), seatAllocation: table(), occupancySnapshot: table(), dashboardSettings: table(),
-        dashboardEvent: table(), dashboardTask: table(), dashboardNotificationState: table(), organization: table(), staff: table(), auditLog: table(),
+        dashboardEvent: table(), dashboardTask: table(), dashboardNotificationState: table(), organization: table(), staff: table(), staffInvite: table(), auditLog: table(),
         $transaction: vi.fn(), $queryRaw: vi.fn(), $executeRaw: vi.fn() };
-    return { db, resolve: vi.fn(), authorize: vi.fn(), capability: vi.fn(), profile: vi.fn() };
+    return { db, resolve: vi.fn(), authorize: vi.fn(), capability: vi.fn(), profile: vi.fn(), capacity: vi.fn() };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
 vi.mock("@/services/accessPolicy.service", () => ({ AccessPolicy: { resolveBranch: mocks.resolve, authorizeAction: mocks.authorize, authorizeCapability: mocks.capability } }));
 vi.mock("@/services/entitlement.service", () => ({ EntitlementService: { getOrganizationProfile: mocks.profile } }));
+vi.mock("@/services/seat.service", () => ({ SeatService: { getShiftsCapacity: mocks.capacity } }));
 import { DashboardService, DashboardNotFoundError } from "@/services/dashboard.service";
 const permissions = { view_payments: false, students: false, seat_allocation: false, analytics: false, manage_branch: false };
 const access = () => ({ branchId: "branch", actorId: "actor", organizationId: "org", permissions: { ...permissions } });
@@ -24,6 +25,7 @@ describe("dashboard scoped service boundary", () => {
         mocks.db.$transaction.mockImplementation((fn: (tx: typeof mocks.db) => unknown) => fn(mocks.db));
         mocks.db.branch.findUniqueOrThrow.mockResolvedValue({ organization: { timezone: "Asia/Kolkata" } });
         mocks.db.dashboardEvent.findMany.mockResolvedValue([]);
+        mocks.capacity.mockResolvedValue([]);
     });
     it("does not read or return forbidden aggregate counts", async () => {
         const data = await DashboardService.overview("actor", "branch");
@@ -160,5 +162,86 @@ describe("dashboard scoped service boundary", () => {
         expect((await DashboardService.notifications("actor", "branch")).items).toEqual([]);
         expect(mocks.db.membershipTerm.count).not.toHaveBeenCalled();
         expect(mocks.db.membershipTerm.findMany).not.toHaveBeenCalled();
+    });
+    it("pages every current attendance gap using the same agreed-day and recorded-attendance predicate", async () => {
+        mocks.db.attendanceExpectation.count.mockResolvedValue(12);
+        mocks.db.attendanceExpectation.findMany.mockResolvedValue(["s2", "s3", "s4"].map(studentId => ({ studentId, expectedBy: "09:00", student: { name: studentId } })));
+        const page = await DashboardService.attendanceGaps("actor", "branch", { cursor: "s1", limit: 2 }, new Date("2026-10-22T06:00:00Z"));
+        expect(page).toMatchObject({ total: 12, nextCursor: "s3", items: [{ id: "s2" }, { id: "s3" }] });
+        expect(mocks.authorize).toHaveBeenCalledWith("actor", "branch", "students");
+        expect(mocks.db.attendanceExpectation.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ branchId: "branch", enabled: true, studentId: { gt: "s1" }, weekdays: { has: 4 }, expectedBy: { lte: "11:30" }, student: expect.objectContaining({ status: "ACTIVE", NOT: expect.any(Object) }) }), take: 3,
+        }));
+    });
+    it("denies attendance gaps before reading the branch clock or any student record", async () => {
+        mocks.authorize.mockRejectedValue(new Error("Unauthorized"));
+        await expect(DashboardService.attendanceGaps("actor", "foreign", {})).rejects.toThrow("Unauthorized");
+        expect(mocks.db.branch.findUniqueOrThrow).not.toHaveBeenCalled();
+        expect(mocks.db.attendanceExpectation.findMany).not.toHaveBeenCalled();
+    });
+    it("restores allocation, capacity and invitation alerts without reading invitation tokens", async () => {
+        mocks.resolve.mockResolvedValue({ ...access(), permissions: { ...permissions, students: true, seat_allocation: true, manage_branch: true, staff_management: true } });
+        mocks.profile.mockResolvedValue({ entitlements: ["STAFF_MANAGEMENT"] });
+        mocks.db.attendanceExpectation.count.mockResolvedValue(0); mocks.db.attendanceExpectation.findMany.mockResolvedValue([]);
+        mocks.db.student.count.mockResolvedValue(2); mocks.db.student.findFirst.mockResolvedValue({ id: "unassigned" });
+        mocks.db.membershipTerm.count.mockResolvedValue(0); mocks.db.membershipTerm.findMany.mockResolvedValue([]);
+        mocks.db.dashboardTask.findMany.mockResolvedValue([]); mocks.db.dashboardTask.count.mockResolvedValue(0);
+        mocks.capacity.mockResolvedValue([{ shiftId: "full", totalSeats: 10, used: 10, isFull: true, occupancyPercent: 100 }, { shiftId: "near", totalSeats: 10, used: 9, isFull: false, occupancyPercent: 90 }]);
+        mocks.db.staffInvite.count.mockResolvedValue(1); mocks.db.staffInvite.findMany.mockResolvedValue([{ id: "invite", expiresAt: new Date("2026-11-01T00:00:00Z") }]);
+        mocks.db.dashboardNotificationState.findMany.mockResolvedValue([]);
+        const result = await DashboardService.notifications("actor", "branch");
+        expect(result.items.map(item => item.kind)).toEqual(["UNASSIGNED", "SHIFT_FULL", "SHIFT_NEAR_FULL", "INVITES"]);
+        expect(mocks.db.staffInvite.findMany).toHaveBeenCalledWith(expect.objectContaining({ select: { id: true, expiresAt: true }, where: expect.objectContaining({ branchId: "branch", acceptedAt: null }) }));
+        expect(mocks.capacity).toHaveBeenCalledWith("actor", "branch");
+    });
+    it("does not read capacity, unassigned students or invites without their independent permissions", async () => {
+        mocks.db.dashboardNotificationState.findMany.mockResolvedValue([]);
+        await DashboardService.notifications("actor", "branch");
+        expect(mocks.capacity).not.toHaveBeenCalled(); expect(mocks.db.staffInvite.count).not.toHaveBeenCalled(); expect(mocks.db.student.findFirst).not.toHaveBeenCalled();
+    });
+    it("searches authorized follow-ups by phone as well as name", async () => {
+        mocks.db.renewalFollowUp.count.mockResolvedValue(0); mocks.db.renewalFollowUp.findMany.mockResolvedValue([]);
+        await DashboardService.listFollowUps("actor", "branch", { search: "5550100" });
+        expect(mocks.db.renewalFollowUp.findMany).toHaveBeenLastCalledWith(expect.objectContaining({ where: expect.objectContaining({ branchId: "branch", student: { OR: [{ name: { contains: "5550100", mode: "insensitive" } }, { phone: { contains: "5550100" } }] } }) }));
+    });
+    it("finds a linked completed follow-up within its branch even when the list filter is due", async () => {
+        mocks.db.renewalFollowUp.count.mockResolvedValue(0); mocks.db.renewalFollowUp.findMany.mockResolvedValue([]);
+        await DashboardService.listFollowUps("actor", "branch", { followUpId: "linked", filter: "DUE", search: "other", cursor: "later" });
+        expect(mocks.db.renewalFollowUp.findMany).toHaveBeenLastCalledWith(expect.objectContaining({ where: { branchId: "branch", id: "linked" } }));
+    });
+    it("links recorded activity to exact authorized records and resolves configuration IDs to students", async () => {
+        mocks.resolve.mockResolvedValue({ ...access(), permissions: { ...permissions, students: true, view_payments: true, seat_allocation: true, manage_branch: true } });
+        const now = new Date("2026-10-22T06:00:00Z");
+        mocks.db.student.count.mockResolvedValue(1);
+        mocks.db.student.findMany.mockResolvedValue([{ id: "student", name: "Stored name", status: "INACTIVE", createdAt: now, joinedAt: now }]);
+        mocks.db.feeCollection.findMany.mockResolvedValue([{ id: "receipt", collectedAt: now, amount: 50, student: { name: "Stored name" } }]);
+        mocks.db.auditLog.findMany.mockResolvedValue([{ id: "audit", studentId: "student", createdAt: now, student: { name: "Stored name" }, action: "ATTENDANCE_CHANGED" }]);
+        mocks.db.seatAllocation.findMany.mockResolvedValue([{ id: "allocation", startDate: now, seat: { label: "A1" } }]);
+        mocks.db.dashboardEvent.findMany.mockResolvedValue([
+            { id: "follow-event", kind: "FOLLOW_UP", sourceId: "follow", occurredAt: now, detail: "COMPLETED" },
+            { id: "task-event", kind: "TASK", sourceId: "task", occurredAt: now, detail: "DONE" },
+            { id: "expectation-event", kind: "CONFIGURATION", sourceId: "expectation", occurredAt: now, detail: "ATTENDANCE_EXPECTATION" },
+            { id: "term-event", kind: "CONFIGURATION", sourceId: "term", occurredAt: now, detail: "MEMBERSHIP_TERM" },
+        ]);
+        mocks.db.attendanceExpectation.findMany.mockImplementation((query: { select: { studentId?: boolean } }) => Promise.resolve(query.select.studentId ? [{ id: "expectation", studentId: "student" }] : []));
+        mocks.db.membershipTerm.findMany.mockImplementation((query: { select: { studentId?: boolean } }) => Promise.resolve(query.select.studentId ? [{ id: "term", studentId: "student" }] : []));
+        const result = await DashboardService.overview("actor", "branch", "2026-10", now);
+        expect(result.activityStatus).toBe("success");
+        expect(result.activity.map(row => row.href)).toEqual([
+            "/branch/branch/payments?collectionId=receipt", "/branch/branch/students?studentId=student&status=INACTIVE",
+            "/branch/branch/attendance?studentId=student", "/branch/branch/follow-ups?followUpId=follow",
+            "/branch/branch/tasks?taskId=task", "/branch/branch/dashboard-settings?section=expectations&studentId=student",
+            "/branch/branch/dashboard-settings?section=terms&studentId=student", "/branch/branch/allocations?allocationId=allocation",
+        ]);
+        expect(result.students.data?.recent).toEqual([expect.objectContaining({ id: "student", joinedAt: now.toISOString() })]);
+    });
+    it("rechecks both invitation permissions inside a notification-state write", async () => {
+        const spy = vi.spyOn(DashboardService, "notifications").mockResolvedValue({ items: [{ key: "INVITES:current", kind: "INVITES", count: 1,
+            href: "/branch/branch/staff", read: false, snoozedUntil: null, dismissed: false }], unreadCount: 1 });
+        try {
+            await DashboardService.updateNotification("actor", "branch", { key: "INVITES:current", action: "READ" });
+            expect(mocks.authorize).toHaveBeenCalledWith("actor", "branch", "staff_management", mocks.db, true);
+            expect(mocks.authorize).toHaveBeenCalledWith("actor", "branch", "manage_branch", mocks.db, true);
+        } finally { spy.mockRestore(); }
     });
 });

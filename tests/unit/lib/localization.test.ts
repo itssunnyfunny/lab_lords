@@ -37,6 +37,19 @@ describe("localization contract", () => {
         }
         expect(error.message).toBe("provider secret or raw request content");
     });
+    it("keeps the owned import-size explanation specific without exposing unknown exceptions", () => {
+        const message = "This pasted table would exceed the 4.25 MiB request limit after safe JSON encoding. Split it into smaller imports and try again.";
+        for (const language of INTERFACE_LANGUAGES) {
+            expect(translateError(language, message)).toBe(translate(language, message));
+            expect(translateError(language, message)).toContain("4.25 MiB");
+        }
+    });
+    it("preserves singular and plural manual-queue confirmations", () => {
+        for (const count of [1, 2]) {
+            const message = `${count} message${count === 1 ? "" : "s"} queued. Delivery remains subject to send-time revalidation.`;
+            expect(translateOwnedText("en", message)).toBe(message);
+        }
+    });
     it("validates profile choices and updates only the authenticated user's requested field", async () => {
         for (const language of INTERFACE_LANGUAGES) {
             expect(UserService.parseSettingsPayload({ interfaceLanguage: language })).toEqual({ interfaceLanguage: language });

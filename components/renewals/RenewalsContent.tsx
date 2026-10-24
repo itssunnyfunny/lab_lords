@@ -41,6 +41,14 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
     const mutationBusy = useRef(false);
     const [editing, setEditing] = useState<RenewalRow | null>(null);
     const [reminder, setReminder] = useState<RenewalRow | null>(null);
+    const requestedFilter = renewalFilters.includes(searchParams.get("filter") as RenewalFilter) ? searchParams.get("filter") as RenewalFilter : "ALL";
+    const requestedSearch = searchParams.get("search")?.slice(0, 100) ?? "";
+    const queryIdentity = JSON.stringify([requestedFilter, requestedSearch]);
+    const [appliedQuery, setAppliedQuery] = useState(queryIdentity);
+    if (!editing && !collect && !reminder && appliedQuery !== queryIdentity) {
+        setAppliedQuery(queryIdentity);
+        setFilter(requestedFilter); setSearch(requestedSearch); setQuerySearch(requestedSearch);
+    }
     const labels: Record<RenewalFilter, string> = { ALL: "All fees", TODAY: "Due today",
         UPCOMING: t("Next {days} days", { days }), OUTSTANDING: "Outstanding dues", OVERDUE: "Overdue" };
 
