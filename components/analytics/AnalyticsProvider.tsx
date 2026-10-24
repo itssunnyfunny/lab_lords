@@ -3,6 +3,9 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { messagesFor, publicTranslator } from "@/lib/public-i18n/translate";
 import { publicConsentCatalog } from "@/lib/public-i18n/consent";
 import { publicRoute } from "@/lib/public-i18n/routes";
+import { AppPanel } from "@/components/ui/AppPanel";
+import { appActionClassName } from "@/components/ui/AppButton";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -73,33 +76,35 @@ export function AnalyticsProvider({ measurementId }: AnalyticsProviderProps) {
       {shouldShowBanner && (
         <aside
           aria-label={t("Cookie preferences")}
-          className="fixed inset-x-4 bottom-4 z-[80] mx-auto max-w-2xl rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--bg-app)]/95 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl sm:left-auto sm:right-5 sm:mx-0 sm:p-5"
+          className="app-design-pilot-overlay fixed inset-x-3 bottom-3 z-[80] mx-auto max-w-2xl [padding-bottom:env(safe-area-inset-bottom)] sm:left-auto sm:right-5 sm:mx-0"
         >
+          <AppPanel density="compact" title={t("Cookie preferences")}>
           <p className="text-sm leading-6 text-[color:var(--text-secondary)]">
             {t("We use essential cookies to run Lab Lords and optional analytics to understand website usage.")}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-primary-border)] bg-[color:var(--ui-button-primary-bg)] px-3.5 text-sm font-semibold text-[color:var(--ui-button-primary-text)] shadow-[var(--ui-button-primary-shadow)] transition-colors hover:bg-[color:var(--ui-button-primary-hover-bg)]"
+              className={cn(appActionClassName("primary"), "min-h-11")}
               onClick={() => saveConsent("accepted")}
             >
               {t("Accept analytics")}
             </button>
             <button
               type="button"
-              className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-button-secondary-border)] bg-[color:var(--ui-button-secondary-bg)] px-3.5 text-sm font-semibold text-[color:var(--ui-button-secondary-text)] transition-colors hover:bg-[color:var(--ui-button-secondary-hover-bg)]"
+              className={cn(appActionClassName("secondary"), "min-h-11")}
               onClick={() => saveConsent("rejected")}
             >
               {t("Reject")}
             </button>
             <Link
               href="/cookies"
-              className="inline-flex h-9 items-center justify-center rounded-[var(--ui-radius-control)] px-3 text-sm font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
+              className={cn(appActionClassName("quiet"), "min-h-11")}
               onClick={() => setShowPreferences(false)}
             >
               {t(route && route.locale !== "en" ? "Manage (English)" : "Manage")}</Link>
           </div>
+          </AppPanel>
         </aside>
       )}
     </>

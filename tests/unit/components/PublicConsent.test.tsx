@@ -53,6 +53,8 @@ describe.each(publicLocales)("%s consent interface", locale => {
     expect(html).toContain(t("Accept analytics"));
     expect(html).toContain(t("Reject"));
     expect(html).toContain('href="/cookies"');
+    expect(html).toContain("ui-panel--compact");
+    expect(html).toContain("min-h-11");
     if (locale !== "en") expect(html).toContain(t("Manage (English)"));
     const controls = buttons(view);
     expect(controls).toHaveLength(2);

@@ -30,9 +30,10 @@ function contrast(foreground: string, background: string) {
 }
 
 describe("application design pilot theme", () => {
-  it("selects migrated branch routes while excluding public and legacy AI Messages", () => {
+  it("selects current branch routes while excluding retired and public pages", () => {
     for (const path of ["/branch/test", ...["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue", "allocations", "shifts", "payments", "attendance", "analytics"].map(page => `/branch/test/${page}`), "/branch/test/ai/reports", "/branch/test/onboarding/import", "/branch/test/onboarding/import/session-1"]) expect(isApplicationDesignPilotPath(path)).toBe(true);
-    for (const path of ["/", "/hi", "/features", "/pricing", "/faq", "/account", "/branch/test/ai/messages", "/branch/test/staff/nested", "/branch/test/onboarding/import/session-1/nested", null]) expect(isApplicationDesignPilotPath(path)).toBe(false);
+    expect(isApplicationDesignPilotPath("/branch/test/ai/messages")).toBe(false);
+    for (const path of ["/", "/hi", "/features", "/pricing", "/faq", "/account", "/branch/test/staff/nested", "/branch/test/onboarding/import/session-1/nested", null]) expect(isApplicationDesignPilotPath(path)).toBe(false);
   });
   it("scopes route boundaries to the complete migrated application inventory", () => {
     for (const path of [
@@ -42,7 +43,7 @@ describe("application design pilot theme", () => {
       "/branch/branch_1/onboarding/import/session_1",
     ]) expect(isSelectedApplicationSurfacePath(path), path).toBe(true);
     for (const path of [
-      "/", "/hi", "/features", "/sign-in", "/sign-up", "/branch/branch_1/ai/messages",
+      "/", "/hi", "/features", "/sign-in", "/sign-up",
       "/branch/branch_1/tasks/nested", "/org/org_1/billing", "/invite", null,
     ]) expect(isSelectedApplicationSurfacePath(path), String(path)).toBe(false);
   });
