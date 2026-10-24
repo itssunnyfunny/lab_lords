@@ -35,7 +35,7 @@ const ORGANIZATION_OWNER_VIEW = {
         select: { id: true, name: true, email: true },
     },
     branches: {
-        select: { id: true, name: true, city: true, createdAt: true },
+        select: { id: true, name: true, city: true, createdAt: true, billingStatus: true },
         orderBy: { createdAt: "desc" },
     },
     subscription: true,

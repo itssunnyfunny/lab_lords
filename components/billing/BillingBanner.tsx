@@ -107,10 +107,10 @@ export function BillingBanner({ experience }: { experience: BillingExperience })
       <div className="flex min-w-0 items-start gap-3">
         <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${toneClasses.icon}`} aria-hidden="true" />
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">{contextLabel}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text)]">{contextLabel}</p>
           <p id={titleId} className="mt-0.5 font-semibold leading-5 text-[color:var(--ui-text)]">{experience.customerMessage}</p>
           {experience.trialEndsAt ? (
-            <p className="mt-1 text-xs text-[color:var(--ui-text-muted)]">{t("Trial ends {toLocaleDateString}.", { toLocaleDateString: new Date(experience.trialEndsAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) })}</p>
+            <p className="mt-1 text-xs text-[color:var(--ui-text)]">{t("Trial ends {toLocaleDateString}.", { toLocaleDateString: new Date(experience.trialEndsAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) })}</p>
           ) : null}
         </div>
       </div>

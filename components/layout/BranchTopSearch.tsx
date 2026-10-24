@@ -199,7 +199,9 @@ export function BranchTopSearch() {
         }
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
-            setOpen(true);
+            // The mobile dialog already owns this search. Opening the desktop
+            // popover here starts another request and replaces keyboard results.
+            if (!compactLayout) setOpen(true);
             setSelectedIndex(current => {
                 if (flatResults.length === 0) return -1;
                 if (event.key === "ArrowDown") {
@@ -261,7 +263,7 @@ export function BranchTopSearch() {
                                         type="button"
                                         role="option"
                                         aria-selected={selected}
-                                        onMouseEnter={() => setSelectedIndex(index)}
+                                        onPointerMove={event => { if (event.pointerType === "mouse") setSelectedIndex(index); }}
                                         onClick={() => executeResult(result)}
                                         className={cn(chromeListItemClass, "min-h-11", selected && chromeListItemActiveClass)}
                                     >
@@ -390,7 +392,7 @@ export function BranchTopSearch() {
                                                     type="button"
                                                     role="option"
                                                     aria-selected={selected}
-                                                    onMouseEnter={() => setSelectedIndex(index)}
+                                                    onPointerMove={event => { if (event.pointerType === "mouse") setSelectedIndex(index); }}
                                                     onMouseDown={event => {
                                                         event.preventDefault();
                                                         executeResult(result);

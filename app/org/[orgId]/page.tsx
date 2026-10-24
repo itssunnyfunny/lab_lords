@@ -452,7 +452,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             {attentionBranches.map((branch) => (
                                 <Link
                                     key={branch.branchId}
-                                    href={`/branch/${branch.branchId}/payments?status=overdue`}
+                                    href={`/branch/${branch.branchId}/overdue`}
                                     aria-label={`Review overdue payments for ${branch.branchName}`}
                                     className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)]"
                                 >

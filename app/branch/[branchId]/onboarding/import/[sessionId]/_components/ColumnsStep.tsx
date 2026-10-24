@@ -236,6 +236,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                                         {t("ERP field")}</label>
                                     <AppSelect
                                         id={selectId}
+                                        aria-label={t("ERP field for {column}", { column: displayLabel })}
                                         value={item.targetField}
                                         disabled={mutationsDisabled}
                                         aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
@@ -298,7 +299,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                                             </th>
                                             <td className="p-3">
                                                 <AppSelect
-                                                    aria-label={`ERP field for ${displayLabel}`}
+                                                    aria-label={t("ERP field for {column}", { column: displayLabel })}
                                                     value={item.targetField}
                                                     disabled={mutationsDisabled}
                                                     aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
