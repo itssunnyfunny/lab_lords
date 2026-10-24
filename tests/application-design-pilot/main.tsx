@@ -33,6 +33,7 @@ import AccountLayout from "@/app/account/layout";
 import AccountPage from "@/app/account/page";
 import OnboardingPage from "@/app/onboarding/page";
 import RouteLoading from "@/components/ui/RouteLoading";
+import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import RootError from "@/app/error";
 import ImportAssistantPage from "@/app/branch/[branchId]/onboarding/import/page";
 import ImportSessionPage from "@/app/branch/[branchId]/onboarding/import/[sessionId]/page";
@@ -153,6 +154,7 @@ function ApplicationDesignPilot() {
     return (
         <UserPreferencesBoundary>
             <FixtureLabel />
+            {searchParams.get("cookie") === "review" && <AnalyticsProvider measurementId="G-0000000000" />}
             <BranchWorkspaceShell branchId={branchId}>
                 <Suspense fallback={<PageLoadingSkeleton label="Loading pilot surface" variant="workspace" />}>
                     <PilotSurface />

@@ -24,6 +24,16 @@ function fulfillJson(route: Route, body: unknown, status = 200) {
 }
 
 async function mockBranchAccess(page: Page) {
+    // Every synthetic session may preview its selected row in the background.
+    // Keep that read inside the fixture; scenario-specific previews override it.
+    await page.route(`**/api/branches/${branchId}/import-sessions/*/rows/preview`, route => {
+        const body = route.request().postDataJSON();
+        return fulfillJson(route, {
+            rowId: body.rowId, rowNumber: 2, status: "READY", normalizedData: body.normalizedData,
+            issues: [], warnings: [], suggestedFixes: [],
+            paymentPreview: { enabled: false, amount: null, amountSource: "NONE", message: "Payments skipped.", blockers: [] },
+        });
+    });
     await page.route(`**/api/branches/${branchId}/access`, route => fulfillJson(route, {
         branchId,
         branchName: "Import Test Branch",
@@ -405,7 +415,7 @@ test("attention groups, all-affected bulk actions, hidden goal fields, and dirty
 
     await page.getByLabel("Custom answer for How should ambiguous names be handled?").fill("Keep the source spelling");
     await page.getByText("Issue 7", { exact: true }).click();
-    const discardDialog = page.getByRole("dialog", { name: "Discard unsaved import changes?" });
+    const discardDialog = page.getByRole("alertdialog", { name: "Discard unsaved import changes?" });
     await expect(discardDialog).toContainText("custom decision answer");
     await discardDialog.getByRole("button", { name: "Discard and continue" }).click();
     await expect.poll(() => issueRequests).toContain("ISSUE_7");
@@ -420,7 +430,9 @@ test("attention groups, all-affected bulk actions, hidden goal fields, and dirty
     await expect(page.getByText("Student status is not imported; every new student starts active.", { exact: false })).toBeVisible();
     const fieldSelect = page.getByRole("combobox", { name: /ERP field for A · Name/ });
     await fieldSelect.click();
-    await expect(page.getByText("Payments", { exact: true })).toHaveCount(0);
+    const fieldOptions = page.getByRole("listbox", { name: /ERP field for A · Name/ });
+    await expect(fieldOptions).toBeVisible();
+    await expect(fieldOptions.getByRole("group", { name: "Payments", exact: true })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
     await expect(page.getByText("Reviewed student register", { exact: true })).toBeVisible();
@@ -547,7 +559,7 @@ test("review shows exact aggregate payment totals and background progress uses l
     await page.getByRole("button", { name: "Build reviewed plan" }).click();
     await expect(page.getByText("Exact payment totals")).toBeVisible();
     for (const label of ["Historical due", "Historical paid", "Historical waived", "Current due", "Current paid", "Current waived"]) {
-        await expect(page.getByText(label, { exact: true })).toBeVisible();
+        await expect(page.getByLabel("Payment totals by cycle and").getByText(label, { exact: true })).toBeVisible();
     }
     await page.getByText(/Payment history by student/).click();
     const exactPayments = page.getByRole("table", { name: "Exact immutable payment cycle records in this reviewed import plan" });

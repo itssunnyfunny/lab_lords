@@ -64,18 +64,17 @@ test("real account settings keeps the application chrome, edit identity, languag
     await page.goto("/account?mode=after&lang=en");
     await expect(page.getByRole("heading", { name: "Account Settings" })).toBeVisible();
     if (info.project.name === "desktop-1440") {
-        await expect(page.getByRole("complementary", { name: "Account navigation" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Back to workspace", exact: true })).toBeVisible();
         fs.mkdirSync(closeoutOutput, { recursive: true });
         await page.evaluate(() => document.fonts.ready);
         await page.screenshot({ path: `${closeoutOutput}/account-desktop-1440.png`, animations: "disabled" });
     }
     if (info.project.name === "mobile-390") {
-        await page.getByRole("button", { name: "Open navigation" }).click();
-        await expect(page.getByRole("complementary", { name: "Account navigation" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Open navigation" })).toHaveCount(0);
+        await expect(page.getByRole("link", { name: "Back to workspace", exact: true })).toBeVisible();
         fs.mkdirSync(closeoutOutput, { recursive: true });
         await page.evaluate(() => document.fonts.ready);
         await page.screenshot({ path: `${closeoutOutput}/account-navigation-mobile-390.png`, animations: "disabled" });
-        await page.getByRole("button", { name: "Close navigation" }).click();
     }
     await page.getByRole("button", { name: "Edit settings" }).click();
     await page.getByRole("textbox", { name: "Display name" }).fill("Ananya Review");

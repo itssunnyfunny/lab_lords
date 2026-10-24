@@ -632,10 +632,13 @@ async function startBasicAuthorization(page: Page, scenario: CheckoutScenario) {
   await confirmation.getByRole("button", { name: "Continue to Razorpay" }).click();
 }
 
-test("authenticated workspace exposes normalized billing navigation", async ({ page }) => {
-  await page.goto("/app");
+test("authenticated workspace exposes normalized billing navigation", async ({ page }, testInfo) => {
+  await page.goto(`/org/${ORG_ID}`);
   await expect(page).not.toHaveURL(/\/sign-in/);
-  await expect(page.getByText(/Billing|trial|Standard|Basic/i).first()).toBeVisible();
+  if (testInfo.project.name === "mobile-chromium") await page.getByRole("button", { name: "Open navigation" }).click();
+  await expect(page.getByRole("link", { name: "System Settings", exact: true })).toHaveAttribute("href", SETTINGS_PATH);
+  await page.getByRole("link", { name: "System Settings", exact: true }).click();
+  await expect(page.locator("#billing")).toBeVisible();
 });
 
 test("shows exact current-trial and post-trial pricing without inventing a charge date", async ({ page }) => {

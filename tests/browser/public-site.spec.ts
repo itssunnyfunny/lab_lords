@@ -106,7 +106,7 @@ test("homepage site identity and approved public assets are available without re
 
 test("desktop Resources works with keyboard, focus, Escape and outside click", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/about");
+  await page.goto("/about", { waitUntil: "domcontentloaded" });
   const menu = page.locator(".reference-resources");
   await menu.locator("summary").focus();
   await page.keyboard.press("Enter");

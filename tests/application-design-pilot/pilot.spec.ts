@@ -204,7 +204,7 @@ test("compact shell mounts one reachable navigation drawer", async ({ page }, te
     test.skip(testInfo.project.name.startsWith("desktop"), "Compact-shell-only assertion");
     await openPilot(page, "/branch/pilot");
     const trigger = page.getByRole("button", { name: /Open navigation|नेविगेशन खोलें|Navigation kholein/ });
-    const organization = page.getByRole("combobox", { name: "Switch organization", exact: true });
+    const organization = page.getByLabel("Current organization", { exact: true });
     const switcher = page.getByRole("combobox", { name: "Switch branch", exact: true });
     const search = page.getByRole("button", { name: "Search current branch" });
     const [triggerBox, switcherBox, searchBox] = await Promise.all([
@@ -227,9 +227,9 @@ test("compact shell mounts one reachable navigation drawer", async ({ page }, te
     await expect(searchDialog).toHaveCount(0);
     await expect(search).toBeFocused();
     await trigger.click();
-    const drawer = page.getByRole("dialog", { name: /Workspace navigation|वर्कस्पेस मेन्यू|Workspace navigation/ });
+    const drawer = page.getByRole("dialog", { name: /Branch navigation|ब्रांच मेन्यू/ });
     await expect(drawer).toBeVisible();
-    await expect(page.getByLabel("Branch navigation")).toHaveCount(1);
+    await expect(page.getByRole("complementary", { name: "Branch navigation" })).toHaveCount(1);
     const settings = drawer.getByRole("link", { name: "Branch Settings" });
     // The full navigation has more destinations than fit on a phone: verify
     // its scroll region can expose the lower links without moving the dialog.

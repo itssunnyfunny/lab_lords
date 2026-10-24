@@ -28,7 +28,7 @@ export function referenceDashboardFixture(state = "populated", branchId = "pilot
             pendingDues: points.filter(point => point.date <= `${month}-22`).reduce((sum, point) => sum + point.pending, 0),
             overdueAmount: points.filter(point => point.date < `${month}-15`).reduce((sum, point) => sum + point.pending, 0),
             overdueStudents: empty || calm ? 0 : 4, comparisonPercent: null }),
-        students: success({ active: empty ? 0 : 12, comparison: null }),
+        students: success({ active: empty ? 0 : 12, comparison: null, recent: empty ? [] : [{ id: "student-aarav", name: "Aarav Mehta", status: "ACTIVE", joinedAt: `${month}-01T00:00:00Z` }] }),
         followUps: success({ pending: followUps.length, dueToday: followUps.length, items: followUps }),
         terms: success({ configured: state !== "unconfigured", renewalsThisWeek: empty ? 0 : 3, items: empty ? [] : names.slice(0,3).map((name, i) => ({ id: `term-${i}`, studentId: `student-${i}`, studentName: name, label: "Monthly", startDate: `${month}-01`, endDate: `${month}-${25 + i}`, daysLeft: 3 + i })) }),
         collections: success({ month, billed, collected: paid, pending: billed - paid, waived: 0, rate: billed ? paid / billed * 100 : null, points }),
