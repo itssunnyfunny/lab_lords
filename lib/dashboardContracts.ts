@@ -9,7 +9,9 @@ export type DashboardFollowUp = { id: string; studentId: string; studentName: st
     type: "MONTHLY" | "ADMISSION"; periodStart: string; note: string; outcome: string; nextFollowUpAt: string | null;
     completedAt: string | null; updatedAt: string };
 export type DashboardTerm = { id: string; studentId: string; studentName: string; label: string; startDate: string;
-    endDate: string; daysLeft: number };
+    endDate: string; daysLeft: number; status: "ACTIVE" | "VOIDED" | "CANCELLED"; revision: number };
+export type DashboardTermRevision = { id: string; revision: number; action: string; reason: string;
+    before: unknown; after: unknown; recordedAt: string; actorName: string | null };
 export type DashboardTask = { id: string; title: string; status: "OPEN" | "DONE"; dueAt: string | null;
     assigneeId: string | null; assigneeName: string | null; createdAt: string; updatedAt: string };
 export type DashboardActivity = { id: string; kind: "COLLECTION" | "STUDENT" | "ATTENDANCE" | "FOLLOW_UP" | "TASK" | "ALLOCATION" | "CONFIGURATION";
@@ -51,5 +53,12 @@ export const dashboardExpectationSchema = z.object({ studentId: id, weekdays: z.
     .refine(days => new Set(days).size === days.length), expectedBy: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), enabled: z.boolean() }).strict();
 export const dashboardTermSchema = z.object({ studentId: id, label: z.string().trim().min(1).max(80), startDate: attendanceDateSchema,
     endDate: attendanceDateSchema }).strict().refine(data => data.endDate >= data.startDate, "End date must follow start date");
+const termChange = { termId: id, expectedRevision: z.number().int().min(1), reason: z.string().trim().min(3).max(500) };
+export const dashboardTermChangeSchema = z.discriminatedUnion("action", [
+    z.object({ ...termChange, action: z.literal("CORRECT"), label: z.string().trim().min(1).max(80), startDate: attendanceDateSchema, endDate: attendanceDateSchema }).strict(),
+    z.object({ ...termChange, action: z.literal("VOID") }).strict(),
+    z.object({ ...termChange, action: z.literal("CANCEL") }).strict(),
+    z.object({ ...termChange, action: z.literal("END_EARLY"), endDate: attendanceDateSchema }).strict(),
+]);
 export const dashboardNotificationSchema = z.object({ key: z.string().min(1).max(160), action: z.enum(["READ", "SNOOZE", "DISMISS"]),
     snoozeUntil: z.iso.datetime({ offset: true }).optional() }).strict();

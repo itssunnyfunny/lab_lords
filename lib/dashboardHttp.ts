@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { BranchAccessNotFoundError } from "@/services/accessPolicy.service";
 import { DashboardInputError, DashboardNotFoundError } from "@/services/dashboard.service";
+import { DashboardConflictError } from "@/lib/dashboardErrors";
 
 class DashboardRequestError extends Error { constructor(message: string, readonly status: number) { super(message); } }
 export async function dashboardRequestBody(request: Request) {
@@ -37,6 +38,7 @@ export async function dashboardRequestBody(request: Request) {
     return JSON.parse(text);
 }
 export function dashboardErrorResponse(error: unknown) {
+    if (error instanceof DashboardConflictError) return NextResponse.json({ error: error.message }, { status: 409 });
     if (error instanceof DashboardRequestError) return NextResponse.json({ error: error.message }, { status: error.status });
     if (error instanceof ZodError || error instanceof SyntaxError || error instanceof DashboardInputError)
         return NextResponse.json({ error: error instanceof DashboardInputError ? error.message : "Invalid dashboard request" }, { status: 400 });

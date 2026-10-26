@@ -7,12 +7,15 @@ import { buildStaffPermissions } from "@/services/branchActionPolicy";
 import { attendanceTimezone } from "@/lib/attendance";
 import { dashboardDateOffset, dashboardDayStart, dashboardLocalTime, dashboardMonth, dashboardRate, dashboardToday } from "@/lib/dashboardMath";
 import { dashboardExpectationSchema, dashboardFollowUpPatchSchema, dashboardFollowUpQuerySchema, dashboardNotificationSchema, dashboardListSchema,
-    dashboardSettingsSchema, dashboardTaskPatchSchema, dashboardTaskQuerySchema, dashboardTaskSchema, dashboardTermSchema,
+    dashboardSettingsSchema, dashboardTaskPatchSchema, dashboardTaskQuerySchema, dashboardTaskSchema, dashboardTermSchema, dashboardTermChangeSchema,
     type DashboardActivity, type DashboardFollowUp, type DashboardNotification, type DashboardOverview, type DashboardSource,
     type DashboardTask, type DashboardTerm } from "@/lib/dashboardContracts";
 import type { z } from "zod";
 import { dashboardSetupQuerySchema } from "@/lib/dashboardSetup";
 import { SeatService } from "@/services/seat.service";
+import { runSerializableTransaction } from "@/lib/serializableTransaction";
+import { DashboardConflictError } from "@/lib/dashboardErrors";
+export { DashboardConflictError } from "@/lib/dashboardErrors";
 
 type Tx = Prisma.TransactionClient;
 export class DashboardInputError extends Error {}
@@ -33,9 +36,13 @@ function taskView(row: TaskRecord): DashboardTask {
     return { id: row.id, title: row.title, status: row.status as DashboardTask["status"], dueAt: row.dueAt?.toISOString() ?? null,
         assigneeId: row.assigneeId, assigneeName: row.assignee?.name ?? null, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
-function termView(row: { id: string; studentId: string; label: string; startDate: string; endDate: string; student: { name: string } }, today: string): DashboardTerm {
+function termView(row: { id: string; studentId: string; label: string; startDate: string; endDate: string; status?: string; revision?: number; student: { name: string } }, today: string): DashboardTerm {
     return { id: row.id, studentId: row.studentId, studentName: row.student.name, label: row.label, startDate: row.startDate,
-        endDate: row.endDate, daysLeft: Math.round((Date.parse(row.endDate) - Date.parse(today)) / 86_400_000) };
+        endDate: row.endDate, status: row.status === "VOIDED" ? "VOIDED" : row.status === "CANCELLED" ? "CANCELLED" : "ACTIVE", revision: row.revision ?? 1,
+        daysLeft: Math.round((Date.parse(row.endDate) - Date.parse(today)) / 86_400_000) };
+}
+function termSnapshot(row: { label: string; startDate: string; endDate: string; status: string }) {
+    return { label: row.label, startDate: row.startDate, endDate: row.endDate, status: row.status };
 }
 async function branchClock(branchId: string, tx: Tx = prisma, now = new Date()) {
     const branch = await tx.branch.findUniqueOrThrow({ where: { id: branchId }, select: { organization: { select: { timezone: true } } } });
@@ -185,9 +192,9 @@ export class DashboardService {
         return { pending, dueToday, items: rows.map(followUpView) };
     }
     private static async termSummary(branchId: string, today: string, client: Tx = prisma) {
-        const where = { branchId, endDate: { gte: today, lte: dashboardDateOffset(today, 7) }, student: { status: "ACTIVE" as const } };
+        const where = { branchId, status: "ACTIVE", endDate: { gte: today, lte: dashboardDateOffset(today, 7) }, student: { status: "ACTIVE" as const } };
         const [configured, renewalsThisWeek, rows] = await completeReads([
-            client.membershipTerm.count({ where: { branchId } }), client.membershipTerm.count({ where }),
+            client.membershipTerm.count({ where: { branchId, status: "ACTIVE" } }), client.membershipTerm.count({ where }),
             client.membershipTerm.findMany({ where, include: { student: { select: { name: true } } }, orderBy: [{ endDate: "asc" }, { id: "asc" }], take: 3 }),
         ]);
         return { configured: configured > 0, renewalsThisWeek, items: rows.map(row => termView(row, today)) };
@@ -409,7 +416,7 @@ export class DashboardService {
             ] } : {}) }, include: { student: { select: { name: true } } }, orderBy: [{ endDate: "desc" }, { id: "asc" }], take: query.limit + 1 }),
             prisma.membershipTerm.count({ where }),
             setupStudentPage(branchId, query),
-            query.studentId ? prisma.membershipTerm.findFirst({ where,
+            query.studentId ? prisma.membershipTerm.findFirst({ where: { ...where, status: "ACTIVE" },
                 include: { student: { select: { name: true } } }, orderBy: [{ endDate: "desc" }, { id: "asc" }] }) : null,
         ]);
         const items = rows.slice(0, query.limit).map(row => termView(row, today));
@@ -418,17 +425,66 @@ export class DashboardService {
     }
     static async saveTerm(actorId: string, branchId: string, input: z.input<typeof dashboardTermSchema>, now = new Date()) {
         const data = dashboardTermSchema.parse(input);
-        return prisma.$transaction(async tx => {
+        return runSerializableTransaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
             await AccessPolicy.authorizeAction(actorId, branchId, "students", tx);
             await studentExists(tx, branchId, data.studentId);
-            const overlap = await tx.membershipTerm.findFirst({ where: { branchId, studentId: data.studentId,
+            const overlap = await tx.membershipTerm.findFirst({ where: { branchId, studentId: data.studentId, status: "ACTIVE",
                 startDate: { lte: data.endDate }, endDate: { gte: data.startDate } }, select: { id: true } });
             if (overlap) throw new DashboardInputError("A membership term already covers these dates");
             const term = await tx.membershipTerm.create({ data: { branchId, ...data }, include: { student: { select: { name: true } } } });
+            await tx.membershipTermRevision.create({ data: { termId: term.id, branchId, revision: 1, action: "CREATED", actorId,
+                reason: "Membership term recorded.", after: termSnapshot(term) } });
             await event(tx, access, "CONFIGURATION", term.id, "MEMBERSHIP_TERM");
             const { today } = await branchClock(branchId, tx, now); return termView(term, today);
-        }, { isolationLevel: "Serializable" });
+        });
+    }
+
+    static async termHistory(actorId: string, branchId: string, termId: string, beforeRevision?: number) {
+        if (!termId || termId.length > 128 || (beforeRevision !== undefined && (!Number.isSafeInteger(beforeRevision) || beforeRevision < 1))) throw new DashboardInputError("Invalid history page");
+        await AccessPolicy.authorizeAction(actorId, branchId, "students");
+        if (!await prisma.membershipTerm.findFirst({ where: { id: termId, branchId }, select: { id: true } })) throw new DashboardNotFoundError();
+        const rows = await prisma.membershipTermRevision.findMany({ where: { branchId, termId, ...(beforeRevision ? { revision: { lt: beforeRevision } } : {}) },
+            include: { actor: { select: { name: true } } }, orderBy: { revision: "desc" }, take: 51 });
+        const items = rows.slice(0, 50).map(row => ({ id: row.id, revision: row.revision, action: row.action, reason: row.reason,
+            before: row.before, after: row.after, recordedAt: row.recordedAt.toISOString(), actorName: row.actor?.name ?? null }));
+        return { items, nextRevision: rows.length > 50 ? items.at(-1)!.revision : null };
+    }
+
+    static async changeTerm(actorId: string, branchId: string, input: z.input<typeof dashboardTermChangeSchema>, now = new Date()) {
+        const data = dashboardTermChangeSchema.parse(input);
+        return runSerializableTransaction(async tx => {
+            const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeAction(actorId, branchId, "students", tx);
+            const term = await tx.membershipTerm.findFirst({ where: { id: data.termId, branchId }, include: { student: { select: { name: true } } } });
+            if (!term) throw new DashboardNotFoundError();
+            if (term.revision !== data.expectedRevision || term.status !== "ACTIVE") throw new DashboardConflictError("This term changed. Refresh its history before trying again.");
+            const { today } = await branchClock(branchId, tx, now);
+            const next = { label: term.label, startDate: term.startDate, endDate: term.endDate, status: term.status };
+            if (data.action === "VOID") next.status = "VOIDED";
+            if (data.action === "CANCEL") {
+                if (term.startDate <= today) throw new DashboardInputError("This membership has already started. Record an early end instead.");
+                next.status = "CANCELLED";
+            }
+            if (data.action === "CORRECT") Object.assign(next, { label: data.label, startDate: data.startDate, endDate: data.endDate });
+            if (data.action === "END_EARLY") {
+                if (data.endDate >= term.endDate) throw new DashboardInputError("An early end must be before the recorded end date.");
+                next.endDate = data.endDate;
+            }
+            if (next.endDate < next.startDate) throw new DashboardInputError("End date must follow start date");
+            if (next.status === "ACTIVE" && await tx.membershipTerm.findFirst({ where: {
+                branchId, studentId: term.studentId, id: { not: term.id }, status: "ACTIVE",
+                startDate: { lte: next.endDate }, endDate: { gte: next.startDate },
+            }, select: { id: true } })) throw new DashboardInputError("A membership term already covers these dates");
+            const revision = term.revision + 1;
+            const updated = await tx.membershipTerm.updateMany({ where: { id: term.id, branchId, revision: term.revision }, data: { ...next, revision } });
+            if (updated.count !== 1) throw new DashboardConflictError("This term changed. Refresh its history before trying again.");
+            await tx.membershipTermRevision.create({ data: { termId: term.id, branchId, revision,
+                action: data.action === "VOID" ? "VOIDED" : data.action === "CANCEL" ? "CANCELLED" : data.action === "CORRECT" ? "CORRECTED" : "ENDED_EARLY",
+                actorId, reason: data.reason, before: termSnapshot(term), after: next } });
+            await event(tx, access, "CONFIGURATION", term.id, "MEMBERSHIP_TERM");
+            return termView({ ...term, ...next, revision }, today);
+        });
     }
 
     static async notifications(actorId: string, branchId: string, now = new Date()) {
