@@ -191,7 +191,7 @@ describe("buildTopSearchResults", () => {
             .toBe(`/branch/${branchId}/payments?generate=1`);
     });
 
-    it("only exposes AI messages when analytics and payment visibility are both available", () => {
+    it("keeps retired AI messages out of search regardless of report permissions", () => {
         const analyticsOnly = buildTopSearchResults({
             branchId,
             query: "messages",

@@ -2,7 +2,6 @@ import { AccessPolicy } from "@/services/accessPolicy.service";
 import { FeeCollectionService, lockFeeStudent } from "@/services/feeCollection.service";
 import { remainingFee } from "@/lib/feeBalance";
 import { prisma } from "@/lib/prisma";
-import { MESSAGE_DRAFT_ACTION_PREFIX } from "@/lib/messageDrafts";
 import { StaffService } from "@/services/staff.service";
 import {
     PaymentMethod,
@@ -612,14 +611,6 @@ export class PaymentService {
             },
         });
 
-        await tx.messageDraft.deleteMany({
-            where: {
-                studentId: payment.studentId,
-                branchId: payment.branchId,
-                action: { startsWith: MESSAGE_DRAFT_ACTION_PREFIX },
-            },
-        });
-
         await tx.branch.update({
             where: { id: payment.branchId },
             data: { lastDataChange: transitionAt },
@@ -699,9 +690,6 @@ export class PaymentService {
         if (payment.status === PaymentStatus.WAIVED) return payment;
         if (payment.ledgerBacked && remainingFee(payment) === 0) return payment;
         const transitionAt = new Date();
-
-        await tx.messageDraft.deleteMany({ where: { branchId: payment.branchId, studentId: payment.studentId,
-            action: { startsWith: MESSAGE_DRAFT_ACTION_PREFIX } } });
 
         const updatedPayment = await tx.payment.update({
             where: { id: paymentId },

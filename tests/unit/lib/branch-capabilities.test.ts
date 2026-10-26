@@ -93,7 +93,7 @@ describe("branch capability decisions", () => {
         expect(result.recoveryHref).toBeNull();
     });
 
-    it("requires payment visibility before exposing overdue AI messages", () => {
+    it("requires payment visibility before exposing financial AI reports", () => {
         const analyticsOnly = access({
             isOwner: false,
             role: "STAFF",

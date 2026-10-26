@@ -27,7 +27,7 @@ describe("branch page access mapping", () => {
         expect(BRANCH_PAGE_ACCESS.allocations).toBe("seat_allocation");
         expect(BRANCH_PAGE_ACCESS).not.toHaveProperty("aiInsights");
         expect(BRANCH_PAGE_ACCESS.aiReports).toEqual(["analytics", "view_payments"]);
-        expect(BRANCH_PAGE_ACCESS.aiMessages).toEqual(["analytics", "view_payments"]);
+        expect(BRANCH_PAGE_ACCESS).not.toHaveProperty("aiMessages");
     });
 
     it("uses the effective permission result instead of role names", () => {
@@ -39,8 +39,8 @@ describe("branch page access mapping", () => {
     });
 
     it("requires every permission configured for a page", () => {
-        expect(hasBranchPageAccess({ permissions: permissions(["analytics"]) }, "aiMessages")).toBe(false);
-        expect(hasBranchPageAccess({ permissions: permissions(["analytics", "view_payments"]) }, "aiMessages")).toBe(true);
+        expect(hasBranchPageAccess({ permissions: permissions(["analytics"]) }, "aiReports")).toBe(false);
+        expect(hasBranchPageAccess({ permissions: permissions(["analytics", "view_payments"]) }, "aiReports")).toBe(true);
     });
 
     it("lets WhatsApp viewers reach only the restricted WhatsApp settings workspace", () => {

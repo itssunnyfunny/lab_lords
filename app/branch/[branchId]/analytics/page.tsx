@@ -208,6 +208,8 @@ function AnalyticsContent({ branchId, access }: { branchId: string; access: Bran
 
             <KpiRow snapshot={snapshot} branchId={branchId} period={displayedPeriod} />
 
+            <p className="text-sm text-[color:var(--ui-text-muted)]">{t("Past dates are recalculated from current records. Student status and shift capacity use today's setup.")}</p>
+
             <div className={cn("grid grid-cols-1 gap-6", financialAccess && "lg:grid-cols-3")}>
                 <MainChart
                     data={chartData}

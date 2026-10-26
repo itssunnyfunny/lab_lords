@@ -118,10 +118,10 @@ describe("organization analytics owner-access responses", () => {
       .toBeLessThan(mocks.organizationSnapshot.mock.invocationCallOrder[0]);
   });
 
-  it("preserves the authorized trends placeholder without introducing an entitlement check", async () => {
+  it("retires the unused trends contract without inventing historical data or changing entitlements", async () => {
     const response = await invoke(trends);
-    expect(response.status).toBe(501);
-    expect(await response.json()).toEqual({ message: "Organization trends not yet implemented" });
+    expect(response.status).toBe(410);
+    expect(await response.json()).toEqual({ code: "ORGANIZATION_TRENDS_RETIRED", message: "Organization trends are retired. Use the organization snapshot." });
     expect(EntitlementService.assertOrganizationEntitlement).not.toHaveBeenCalled();
     expect(mocks.organizationSnapshot).not.toHaveBeenCalled();
   });

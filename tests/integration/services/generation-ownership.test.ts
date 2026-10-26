@@ -6,7 +6,7 @@ import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db"
 describe("AI generation ownership", () => {
   beforeEach(resetDatabase);
   afterAll(disconnectDatabase);
-  it.each(["REPORT", "DRAFTS"] as const)("admits one %s owner, fences takeover and stale cleanup", async kind => {
+  it.each(["REPORT"] as const)("admits one %s owner, fences takeover and stale cleanup", async kind => {
     const { branch } = await createTestWorld();
     const claims = await Promise.all([claimGeneration(branch.id, kind, 0), claimGeneration(branch.id, kind, 0)]);
     expect(claims.filter(Boolean)).toHaveLength(1);
@@ -24,20 +24,21 @@ describe("AI generation ownership", () => {
     await publishGeneration(branch.id, kind, next!, tx => tx.branchAIReport.create({ data: { branchId: branch.id, data: { current: true } } }));
     expect(await testPrisma.branchAIReport.count({ where: { branchId: branch.id } })).toBe(1);
   });
-  it("reserves draft cooldown before generation and rolls back a failed batch publication", async () => {
+  it("reserves report cooldown and rolls back failed publication while preserving historical drafts", async () => {
     const { branch } = await createTestWorld();
     const student = await createStudent({ branchId: branch.id });
     const old = await testPrisma.messageDraft.create({ data: { branchId: branch.id, studentId: student.id,
       action: "overdue", language: "en", message: "Original" } });
-    const token = await claimGeneration(branch.id, "DRAFTS", 60_000);
-    await expect(publishGeneration(branch.id, "DRAFTS", token!, async tx => {
-      await tx.messageDraft.deleteMany({ where: { branchId: branch.id } });
-      await tx.messageDraft.create({ data: { branchId: branch.id, studentId: student.id, action: "overdue", language: "en", message: "New" } });
+    const token = await claimGeneration(branch.id, "REPORT", 60_000);
+    await expect(publishGeneration(branch.id, "REPORT", token!, async tx => {
+      await tx.branchAIReport.create({ data: { branchId: branch.id, data: { current: true } } });
       throw new Error("batch persistence failure");
     })).rejects.toThrow("persistence");
     expect(await testPrisma.messageDraft.findUnique({ where: { id: old.id } })).toMatchObject({ message: "Original" });
-    await releaseGeneration(branch.id, "DRAFTS", token!);
-    expect(await claimGeneration(branch.id, "DRAFTS", 60_000)).toBeNull();
+    expect(await testPrisma.branchAIReport.count()).toBe(0);
+    await releaseGeneration(branch.id, "REPORT", token!);
+    const current = await testPrisma.branch.findUniqueOrThrow({ where: { id: branch.id } });
+    expect(await claimGeneration(branch.id, "REPORT", 60_000, new Date(), current.aiLastCalledAt)).toBeNull();
     await expect(testPrisma.messageDraft.create({ data: { branchId: branch.id, studentId: student.id,
       action: "overdue", language: "en", message: "Duplicate" } })).rejects.toMatchObject({ code: "P2002" });
   });

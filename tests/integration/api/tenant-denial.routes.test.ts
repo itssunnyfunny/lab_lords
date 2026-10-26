@@ -124,7 +124,7 @@ describe("connected tenant-safe route denials", () => {
       branches: [{ branchId: owner.branch.id }],
     });
     const ownedTrends = await organizationAnalytics(getOrganizationTrends, owner.org.id);
-    expect(ownedTrends.status).toBe(501);
-    expect(await ownedTrends.json()).toEqual({ message: "Organization trends not yet implemented" });
+    expect(ownedTrends.status).toBe(410);
+    expect(await ownedTrends.json()).toEqual({ code: "ORGANIZATION_TRENDS_RETIRED", message: "Organization trends are retired. Use the organization snapshot." });
   });
 });

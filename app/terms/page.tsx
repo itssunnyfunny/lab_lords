@@ -8,7 +8,7 @@ const updatedAt = "May 26, 2026";
 const sections: LegalSection[] = [
   {
     title: "Using Lab Lords",
-    body: "Lab Lords provides software for offline education businesses to manage branches, students, seats, shifts, payments, staff permissions, imports, analytics, AI reports, and message drafts. You must use the service only for lawful business purposes and in line with these terms.",
+    body: "Lab Lords provides software for offline education businesses to manage branches, students, seats, shifts, payments, staff permissions, imports, analytics and AI reports. You must use the service only for lawful business purposes and in line with these terms.",
   },
   {
     title: "Accounts and authority",
@@ -28,7 +28,7 @@ const sections: LegalSection[] = [
   },
   {
     title: "AI-assisted features",
-    body: "AI reports, risk insights, action suggestions, and message drafts are assistive outputs. They can be incomplete or incorrect and must be reviewed by a responsible human before use.",
+    body: "AI reports, risk insights and action suggestions are assistive outputs. They can be incomplete or incorrect and must be reviewed by a responsible human before use.",
   },
   {
     title: "Payments and subscriptions",

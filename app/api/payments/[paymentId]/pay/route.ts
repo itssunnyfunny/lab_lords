@@ -20,7 +20,7 @@ export async function PATCH(
         const method = body.method as PaymentMethod | undefined;
         const referenceId = body.referenceId as string | undefined;
 
-        // markPaymentAsPaid handles: marking PAID, deleting message drafts, updating lastDataChange
+        // markPaymentAsPaid handles: marking PAID, retaining historical drafts, updating lastDataChange
         const payment = await PaymentService.markPaymentAsPaid(user.id, paymentId, method, referenceId);
 
         return NextResponse.json(payment);
