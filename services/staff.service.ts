@@ -119,9 +119,12 @@ export class StaffService {
      */
     static async removeStaff(actorId: string, branchId: string, staffId: string) {
         await AccessPolicy.authorizeCapability(actorId, branchId, "staffManage");
+        // Resolve the cold module before opening the bounded write transaction.
+        const { WhatsAppReportService } = await import("@/services/whatsappReport.service");
 
         return db.$transaction(async (tx) => {
             await lockStaffInviteBranch(tx, branchId);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "staffManage", tx);
 
             const staffMember = await tx.staff.findUnique({
                 where: { id: staffId },
@@ -158,9 +161,6 @@ export class StaffService {
                 throw new Error("Staff member not found");
             }
 
-            const { WhatsAppReportService } = await import(
-                "@/services/whatsappReport.service"
-            );
             await WhatsAppReportService.staleBranchSubscriptionsForUserInTransaction({
                 tx,
                 branchId,
@@ -219,10 +219,12 @@ export class StaffService {
             throw new Error("Staff member not found");
         }
 
+        const { WhatsAppReportService } = await import("@/services/whatsappReport.service");
         return db.$transaction(async (tx) => {
+            await AccessPolicy.authorizeCapability(actorId, branchId, "staffManage", tx);
             if (data.role) {
                 await tx.staff.update({
-                    where: { id: staffId },
+                    where: { id: staffId, branchId },
                     data: { role: data.role },
                 });
             }
@@ -279,9 +281,6 @@ export class StaffService {
                 || !effective.view_payments
                 || !effective.analytics
             ) {
-                const { WhatsAppReportService } = await import(
-                    "@/services/whatsappReport.service"
-                );
                 await WhatsAppReportService.staleBranchSubscriptionsForUserInTransaction({
                     tx,
                     branchId,
