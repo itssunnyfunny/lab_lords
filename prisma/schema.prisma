@@ -9,6 +9,8 @@ datasource db {
 }
 
 model User {
+  allocationMoveCommands AllocationMoveCommand[]
+  membershipTermRevisions MembershipTermRevision[]
   dashboardTasksCreated DashboardTask[] @relation("DashboardTaskCreator")
   dashboardTasksAssigned DashboardTask[] @relation("DashboardTaskAssignee")
   dashboardNotificationStates DashboardNotificationState[]
@@ -112,6 +114,8 @@ model Organization {
 }
 
 model Branch {
+  allocationMoveCommands AllocationMoveCommand[]
+  membershipTermRevisions MembershipTermRevision[]
   dashboardSettings DashboardSettings?
   attendanceExpectations AttendanceExpectation[]
   membershipTerms MembershipTerm[]
@@ -194,6 +198,7 @@ model OnboardingRequest {
 }
 
 model Student {
+  allocationMoveCommands AllocationMoveCommand[]
   attendanceExpectation AttendanceExpectation?
   membershipTerms MembershipTerm[]
   attendanceMarks AttendanceMark[]
@@ -370,10 +375,49 @@ model MembershipTerm {
   startDate String
   endDate String
   createdAt DateTime @default(now())
+  status String @default("ACTIVE") // ACTIVE, VOIDED, CANCELLED; SQL enforces the allowed values.
+  revision Int @default(1)
+  revisions MembershipTermRevision[]
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
   student Student @relation(fields: [studentId, branchId], references: [id, branchId], onDelete: Restrict)
-  @@unique([studentId, startDate, endDate])
+  @@index([studentId, startDate, endDate])
+  @@unique([id, branchId])
   @@index([branchId, endDate])
+}
+
+model MembershipTermRevision {
+  id String @id @default(cuid())
+  termId String
+  branchId String
+  revision Int
+  action String
+  actorId String?
+  reason String
+  before Json?
+  after Json
+  recordedAt DateTime @default(now())
+  term MembershipTerm @relation(fields: [termId, branchId], references: [id, branchId], onDelete: Restrict)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  @@unique([termId, revision])
+  @@index([branchId, termId])
+}
+
+model AllocationMoveCommand {
+  id String @id @default(cuid())
+  actorId String
+  branchId String
+  studentId String
+  commandKey String
+  requestHash String
+  sourceIds String[]
+  resultIds String[]
+  createdAt DateTime @default(now())
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [studentId, branchId], references: [id, branchId], onDelete: Restrict)
+  @@unique([actorId, branchId, commandKey])
+  @@index([branchId, studentId])
 }
 
 model OccupancySnapshot {
