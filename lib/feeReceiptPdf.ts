@@ -1,14 +1,15 @@
 import type { FeeCollectionView } from "@/lib/feeCollections";
 import { translate, translateOwnedText } from "@/lib/i18n";
 import { LANGUAGE_TAGS, type InterfaceLanguage } from "@/lib/i18n/language";
+import { receiptCollectedAt, receiptPeriodDate } from "@/lib/feeReceiptDates";
 export function receiptSummary(collection: FeeCollectionView, language: InterfaceLanguage = "en") {
     const s = collection.snapshot;
     const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) => translate(language, key, params);
     return [`Lab Lords · ${t("Fee payment receipt")}`, ...(collection.voidedAt ? [t("VOID — {reason}", { reason: collection.voidReason ?? "" })] : []),
         s.branchName, s.organizationName, s.address, s.contactPhone, t("Receipt: {number}", { number: collection.receiptNumber }),
-        t("Student: {name} ({id})", { name: s.studentName, id: s.studentId }), new Date(s.collectedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST",
+        t("Student: {name} ({id})", { name: s.studentName, id: s.studentId }), receiptCollectedAt(s.collectedAt),
         t("Received: ₹{amount} · {method}", { amount: s.amount, method: translateOwnedText(language, s.method.replaceAll("_", " ")) }), s.reference ? t("Reference: {reference}", { reference: s.reference }) : null,
-        ...s.allocations.map(a => t("{type}: {start} – {end} | Applied ₹{amount} | Remaining ₹{remaining}", { type: translateOwnedText(language, a.type), start: new Date(a.periodStart).toLocaleDateString("en-IN"), end: new Date(a.periodEnd).toLocaleDateString("en-IN"), amount: a.amount, remaining: a.remaining })),
+        ...s.allocations.map(a => t("{type}: {start} – {end} | Applied ₹{amount} | Remaining ₹{remaining}", { type: translateOwnedText(language, a.type), start: receiptPeriodDate(a.periodStart), end: receiptPeriodDate(a.periodEnd), amount: a.amount, remaining: a.remaining })),
         t("Student balance immediately after collection: ₹{amount}", { amount: s.remainingBalance }), t("Recorded by: {name}", { name: s.recordedBy }), s.note ? t("Note: {note}", { note: s.note }) : null,
     ].filter(Boolean).join("\n");
 }

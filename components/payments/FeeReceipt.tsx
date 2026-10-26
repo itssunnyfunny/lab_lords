@@ -9,6 +9,7 @@ import { AppButton } from "@/components/ui";
 import type { FeeCollectionView } from "@/lib/feeCollections";
 import { feeCollections } from "@/lib/api/feeCollections";
 import { downloadFeeReceipt, feeReceiptFile, receiptSummary } from "@/lib/feeReceiptPdf";
+import { receiptCollectedAt, receiptPeriodDate } from "@/lib/feeReceiptDates";
 import { LogoMark } from "@/components/brand/AppLogo";
 import { cn } from "@/lib/utils";
 import { formErrorBannerClass, formHelpTextClass, formSuccessBannerClass, formSurfaceClass } from "@/components/ui/formSurface";
@@ -65,7 +66,7 @@ export function FeeReceipt({ branchId, collection }: { branchId: string; collect
                         {dt("Receipt: {number}", { number: collection.receiptNumber })}
                     </p>
                     <p className="mt-1 text-xs text-[color:var(--ui-form-help)]">
-                        {new Date(s.collectedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST
+                        {receiptCollectedAt(s.collectedAt)}
                     </p>
                 </div>
             </div>
@@ -100,7 +101,7 @@ export function FeeReceipt({ branchId, collection }: { branchId: string; collect
                 <div className="space-y-2">
                     {s.allocations.map(a => (
                         <p key={a.paymentId} className={cn("p-3 leading-6", formSurfaceClass)}>
-                            {dt("{type}: {start} – {end} | Applied ₹{amount} | Remaining ₹{remaining}", { type: translateOwnedText(documentLanguage, a.type), start: new Date(a.periodStart).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }), end: new Date(a.periodEnd).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }), amount: a.amount, remaining: a.remaining })}
+                            {dt("{type}: {start} – {end} | Applied ₹{amount} | Remaining ₹{remaining}", { type: translateOwnedText(documentLanguage, a.type), start: receiptPeriodDate(a.periodStart), end: receiptPeriodDate(a.periodEnd), amount: a.amount, remaining: a.remaining })}
                         </p>
                     ))}
                 </div>

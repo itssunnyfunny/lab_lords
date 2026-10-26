@@ -2,7 +2,7 @@
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -40,6 +40,8 @@ export function AddStudentDialog({
     allocationDecision,
 }: AddStudentDialogProps) {
     const t = useTranslation();
+    const admissionInFlight = useRef(false);
+    const savedStudent = useRef<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<CreateStudentDto>({
@@ -73,6 +75,7 @@ export function AddStudentDialog({
             setSelectedMultiShiftId(null);
             setSelectedSeatId(null);
             setCreatedStudentId(null);
+            savedStudent.current = null;
             setLinkFeeToSelection(false);
         }
     }, [isOpen, resetFieldErrors]);
@@ -96,7 +99,7 @@ export function AddStudentDialog({
     }, [branchId, isOpen]);
 
     useEffect(() => {
-        if (allocationDecision.allowed) return;
+        if (allocationDecision.allowed || savedStudent.current) return;
 
         setWantsAllocation(false);
         setSelectedShiftIds([]);
@@ -164,6 +167,7 @@ export function AddStudentDialog({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (admissionInFlight.current) return;
         markSubmitted();
         setError(null);
 
@@ -178,11 +182,12 @@ export function AddStudentDialog({
         }
         const payload = result.payload;
 
+        admissionInFlight.current = true;
         setIsLoading(true);
 
         try {
             // 1. Create student if not already created (handles race-condition retries cleanly)
-            let studentToAllocateTo = createdStudentId;
+            let studentToAllocateTo = savedStudent.current ?? createdStudentId;
             let finalStudentObj;
 
             if (!studentToAllocateTo) {
@@ -209,6 +214,7 @@ export function AddStudentDialog({
 
                 finalStudentObj = await students.create(branchId, studentPayload);
                 studentToAllocateTo = finalStudentObj.id;
+                savedStudent.current = studentToAllocateTo;
                 setCreatedStudentId(studentToAllocateTo);
             }
 
@@ -238,6 +244,7 @@ export function AddStudentDialog({
             const message = err instanceof Error ? err.message : "Something went wrong.";
             setError(message);
         } finally {
+            admissionInFlight.current = false;
             setIsLoading(false);
         }
     };
@@ -381,7 +388,7 @@ export function AddStudentDialog({
 
                         {createdStudentId && (
                             <div role="status" className={cn("p-3 text-sm", formSuccessBannerClass)}>
-                                {t("Student profile saved. Pick a different seat and try allocating again.")}</div>
+                                {t("Student profile saved. The shift and fee choice are saved. Pick a different seat and try allocating again.")}</div>
                         )}
 
                         {allocationDecision.blocker !== "permission" && (
@@ -437,7 +444,9 @@ export function AddStudentDialog({
                                                 selectedShiftIds={selectedShiftIds}
                                                 selectedMultiShiftId={selectedMultiShiftId}
                                                 selectedSeatId={selectedSeatId}
+                                                shiftsLocked={Boolean(createdStudentId) || isLoading}
                                                 onToggleShift={(s) => {
+                                                    if (createdStudentId || savedStudent.current || admissionInFlight.current) return;
                                                     markTouched("allocation");
                                                     setSelectedSeatId(null);
                                                     if (s.type === "MULTISHIFT") {
@@ -468,6 +477,7 @@ export function AddStudentDialog({
                                                     <input
                                                         type="checkbox"
                                                         checked={linkFeeToSelection}
+                                                        disabled={Boolean(createdStudentId) || isLoading}
                                                         onChange={(e) => setLinkFeeToSelection(e.target.checked)}
                                                         className={formCheckboxClass}
                                                     />
