@@ -2,10 +2,10 @@ import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const evidence = "docs/redesign/application-rollout-evidence/work-queues";
 const followUp = { id: "followup-local-1", studentId: "student-aarav", studentName: "Aarav Mehta", phone: "+919876543210", type: "MONTHLY", periodStart: "2026-09-01T00:00:00.000Z", note: "Agreed to call again", outcome: "PROMISED_PAYMENT", nextFollowUpAt: "2026-09-29T00:00:00.000Z", completedAt: null, updatedAt: "2026-09-23T09:00:00.000Z" };
 
 test("real work-queue routes retain records, commands, and compact layouts", async ({ page }, info) => {
+    const evidence = info.outputPath("work-queues");
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
     const commands: unknown[] = [];
@@ -32,7 +32,7 @@ test("real work-queue routes retain records, commands, and compact layouts", asy
                 .screenshot({ path: `${evidence}/${route}-mobile-results-390.png`, animations: "disabled" });
         } else if (route !== "renewals") {
             fs.mkdirSync(evidence, { recursive: true });
-            await page.locator(".ui-record-results").screenshot({ path: `${evidence}/${route}-desktop-results-1440.png`, animations: "disabled" });
+            await page.locator(".ui-record-results").screenshot({ path: `${evidence}/${route}-${info.project.name}-results.png`, animations: "disabled" });
         }
     }
     await page.goto("/branch/pilot/follow-ups?mode=after&lang=en");

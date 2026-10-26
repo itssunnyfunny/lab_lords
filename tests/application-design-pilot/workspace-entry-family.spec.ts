@@ -1,8 +1,9 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test, type Page, type Route } from "@playwright/test";
 
 const evidence = "test-results/workspace-entry-evidence";
-const closeoutEvidence = "docs/redesign/application-closeout-evidence";
+const closeoutEvidence = reviewEvidencePath("docs/redesign/application-closeout-evidence");
 function screenshotPath(name: string) {
     fs.mkdirSync(evidence, { recursive: true });
     return `${evidence}/${name}`;

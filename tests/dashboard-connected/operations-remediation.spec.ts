@@ -60,8 +60,7 @@ async function request(page: Page, path: string, method = "GET", data?: unknown)
     }
 }
 
-async function scopedCounts() {
-    const branchId = fixture.branchId;
+async function scopedCounts(branchId = fixture.branchId) {
     const [students, seats, shifts, multiShifts, components, allocations, expectations, terms, payments] = await Promise.all([
         db.student.count({ where: { branchId } }),
         db.seat.count({ where: { branchId } }),
@@ -617,13 +616,22 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
     await checkedDatabase();
     const staffState = process.env.PLAYWRIGHT_STAFF_AUTH_STATE;
     if (!staffState) throw new Error("Verified staff development authentication is required");
-    const member = await db.staff.findUniqueOrThrow({ where: { userId_branchId: { userId: fixture.staffId, branchId: fixture.branchId } } });
+    // This case retains immutable move evidence in its own synthetic branch,
+    // rather than deleting history or changing the shared fixture's capacity.
+    const fixtureBranch = await db.branch.findUniqueOrThrow({ where: { id: fixture.branchId } });
+    const originalMember = await db.staff.findUniqueOrThrow({ where: { userId_branchId: { userId: fixture.staffId, branchId: fixture.branchId } }, include: { permissionOverrides: true } });
+    const originalShift = await db.shift.findUniqueOrThrow({ where: { id: "dashboard-shift-0" } });
+    const branch = await db.branch.create({ data: { organizationId: fixtureBranch.organizationId, name: "Synthetic partial-move audit", aiEnabled: false } });
+    const branchId = branch.id;
+    const member = await db.staff.create({ data: { userId: fixture.staffId, branchId, role: originalMember.role,
+        permissionOverrides: { create: originalMember.permissionOverrides.map(row => ({ action: row.action, allowed: row.allowed })) } } });
+    const shift = await db.shift.create({ data: { branchId, name: originalShift.name, startTime: originalShift.startTime, endTime: originalShift.endTime, price: originalShift.price } });
     expect(member.role).toBe("STAFF");
     const permissionKey = { staffId_action: { staffId: member.id, action: "STUDENTS" as const } };
     const previousPermission = await db.staffPermissionOverride.findUnique({ where: permissionKey });
     expect(previousPermission?.allowed ?? true).toBe(true);
-    const branchBefore = await db.branch.findUniqueOrThrow({ where: { id: fixture.branchId }, select: { lastDataChange: true } });
-    const before = await scopedCounts();
+    const branchBefore = await db.branch.findUniqueOrThrow({ where: { id: branchId }, select: { lastDataChange: true } });
+    const before = await scopedCounts(branchId);
     const suffix = randomUUID().slice(0, 12);
     const studentId = `audit-ops03-${suffix}-student`;
     const oldSeatId = `audit-ops03-${suffix}-seat-old`;
@@ -646,14 +654,14 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
     };
     try {
         await db.$transaction(async tx => {
-            await tx.student.create({ data: { id: studentId, branchId: fixture.branchId,
+            await tx.student.create({ data: { id: studentId, branchId: branchId,
                 name: studentName, monthlyFee: 500 } });
             await tx.seat.createMany({ data: [
-                { id: oldSeatId, branchId: fixture.branchId, label: oldSeatLabel },
-                { id: newSeatId, branchId: fixture.branchId, label: newSeatLabel },
+                { id: oldSeatId, branchId: branchId, label: oldSeatLabel },
+                { id: newSeatId, branchId: branchId, label: newSeatLabel },
             ] });
-            await tx.seatAllocation.create({ data: { id: oldAllocationId, branchId: fixture.branchId,
-                studentId, seatId: oldSeatId, shiftId: "dashboard-shift-0" } });
+            await tx.seatAllocation.create({ data: { id: oldAllocationId, branchId: branchId,
+                studentId, seatId: oldSeatId, shiftId: shift.id } });
         });
         seeded = true;
         context = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3117",
@@ -663,7 +671,7 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
         await refreshDevelopmentSession(page);
         const profile = await request(page, "/api/users/me");
         expect((await profile.json() as { id: string }).id).toBe(fixture.staffId);
-        expect((await open(page, `/branch/${fixture.branchId}/allocations?allocationId=${oldAllocationId}`))?.status()).toBe(200);
+        expect((await open(page, `/branch/${branchId}/allocations?allocationId=${oldAllocationId}`))?.status()).toBe(200);
         await page.getByRole("button", { name: "Table view" }).click();
         const oldRow = page.locator(`#allocation-record-${oldAllocationId}-row`);
         await expect(oldRow).toBeVisible();
@@ -671,7 +679,7 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
         const dialog = page.getByRole("dialog", { name: "Change seat or shift" });
         await dialog.locator("#update-allocation-fee").fill("650");
         await dialog.getByRole("button", { name: newSeatLabel, exact: true }).click();
-        await page.route(`**/api/branches/${fixture.branchId}/students`, async route => {
+        await page.route(`**/api/branches/${branchId}/students`, async route => {
             if (route.request().method() === "PATCH" &&
                 (route.request().postDataJSON() as { id?: string }).id === studentId) {
                 feePatches++;
@@ -687,7 +695,7 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
             if (outgoing.method() === "PATCH" && new URL(outgoing.url()).pathname.startsWith("/api/seat-allocations/")) allocationPatches++;
         });
         const deniedFee = page.waitForResponse(response => response.request().method() === "PATCH" &&
-            new URL(response.url()).pathname === `/api/branches/${fixture.branchId}/students` && response.status() === 403);
+            new URL(response.url()).pathname === `/api/branches/${branchId}/students` && response.status() === 403);
         await dialog.getByRole("button", { name: "Update", exact: true }).click();
         await deniedFee;
         await expect(dialog.getByText("Seat and shifts updated.", { exact: true })).toBeVisible();
@@ -695,14 +703,14 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
         await expect(dialog.getByRole("group", { name: "Seat and shift selection" })).toHaveCount(0);
         expect(allocationPatches).toBe(1);
         expect(feePatches).toBe(1);
-        const moved = await db.seatAllocation.findMany({ where: { studentId, branchId: fixture.branchId },
+        const moved = await db.seatAllocation.findMany({ where: { studentId, branchId: branchId },
             select: { id: true, seatId: true, endDate: true } });
         expect(moved).toHaveLength(2);
         expect(moved.find(row => row.id === oldAllocationId)?.endDate).not.toBeNull();
         const replacement = moved.find(row => row.id !== oldAllocationId);
         expect(replacement).toMatchObject({ seatId: newSeatId, endDate: null });
         expect((await db.student.findUniqueOrThrow({ where: { id: studentId }, select: { monthlyFee: true } })).monthlyFee).toBe(500);
-        during = await scopedCounts();
+        during = await scopedCounts(branchId);
         expect(during).toEqual({ ...before, students: before.students + 1, seats: before.seats + 2,
             allocations: before.allocations + 2 });
         await page.screenshot({ path: testInfo.outputPath("ops03-committed-move-fee-denied.png"), fullPage: true });
@@ -712,9 +720,10 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
         await expect(dialog).toHaveCount(0);
         expect(allocationPatches).toBe(1);
         expect(feePatches).toBe(2);
+        expect(await db.allocationMoveCommand.count({ where: { branchId, studentId } })).toBe(1);
         expect((await db.student.findUniqueOrThrow({ where: { id: studentId }, select: { monthlyFee: true } })).monthlyFee).toBe(650);
-        expect(await db.seatAllocation.count({ where: { studentId, branchId: fixture.branchId } })).toBe(2);
-        expect((await open(page, `/branch/${fixture.branchId}/allocations`))?.status()).toBe(200);
+        expect(await db.seatAllocation.count({ where: { studentId, branchId: branchId } })).toBe(2);
+        expect((await open(page, `/branch/${branchId}/allocations`))?.status()).toBe(200);
         await page.reload({ waitUntil: "domcontentloaded" });
         await page.getByRole("button", { name: "Table view" }).click();
         const reloaded = page.getByRole("table", { name: "Loaded seat allocations" }).getByRole("row").filter({ hasText: studentName });
@@ -724,19 +733,18 @@ test("OPS-03 committed move survives a real denied fee edit and retries only the
         await context?.close();
         await restorePermission();
         if (seeded) await db.$transaction(async tx => {
-            await tx.seatAllocation.deleteMany({ where: { studentId, branchId: fixture.branchId } });
-            await tx.student.deleteMany({ where: { id: studentId, branchId: fixture.branchId } });
-            await tx.seat.deleteMany({ where: { id: { in: [oldSeatId, newSeatId] }, branchId: fixture.branchId } });
+            await tx.seatAllocation.updateMany({ where: { studentId, branchId, endDate: null }, data: { endDate: new Date() } });
+            await tx.student.update({ where: { id: studentId, branchId }, data: { status: "INACTIVE" } });
         });
-        await db.branch.update({ where: { id: fixture.branchId }, data: { lastDataChange: branchBefore.lastDataChange } });
-        const after = await scopedCounts();
+        await db.branch.update({ where: { id: branchId }, data: { lastDataChange: branchBefore.lastDataChange } });
+        const after = await scopedCounts(branchId);
         const permissionAfter = await db.staffPermissionOverride.findUnique({ where: permissionKey });
-        const branchAfter = await db.branch.findUniqueOrThrow({ where: { id: fixture.branchId }, select: { lastDataChange: true } });
+        const branchAfter = await db.branch.findUniqueOrThrow({ where: { id: branchId }, select: { lastDataChange: true } });
         writeFileSync(testInfo.outputPath("ops03-scoped-counts.json"), JSON.stringify({ before, during, after,
             allocationPatches, feePatches, staffPermissionBefore: previousPermission?.allowed ?? null,
             staffPermissionAfter: permissionAfter?.allowed ?? null,
             branchLastDataChangeRestored: branchAfter.lastDataChange.toISOString() === branchBefore.lastDataChange.toISOString() }, null, 2));
-        expect(after).toEqual(before);
+        expect(after).toEqual(seeded ? { ...before, students: before.students + 1, seats: before.seats + 2, allocations: before.allocations + 2 } : before);
         expect(permissionAfter?.allowed ?? null).toBe(previousPermission?.allowed ?? null);
         expect(branchAfter.lastDataChange).toEqual(branchBefore.lastDataChange);
     }

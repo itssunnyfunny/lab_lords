@@ -67,7 +67,7 @@ const options = Array.from({ length: 501 }, (_, i) => ({ id: `student-${String(i
 const rows = options.map((student, i) => ({
     id: `record-${String(i).padStart(3, "0")}`, studentId: student.id, studentName: student.name,
     weekdays: [1, 3], expectedBy: "08:15", enabled: false,
-    label: "Saved membership", startDate: "2026-01-01", endDate: "2026-09-30", daysLeft: 1,
+    label: "Saved membership", startDate: "2026-01-01", endDate: "2026-09-30", daysLeft: 1, status: "ACTIVE", revision: 1,
 }));
 function response(url: string) {
     const query = new URL(url, "http://test.local").searchParams;

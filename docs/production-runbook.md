@@ -1,5 +1,19 @@
 # Production runbook
 
+## Audit closeout migration handoff — 25 October 2026
+
+The [audit closeout](audits/audit-closeout-2026-10-25.md) records the two additive
+membership/history and allocation-recovery migrations and local compatibility
+evidence. A separately authorized release must drain old writers and in-flight
+draft publishers before migration/application cutover. Generate the matching
+Prisma client. Old binaries cannot safely write terms after terminal statuses or
+new revisions are used; retain receipts/history and prefer forward recovery.
+Refresh cached browser clients at cutover: allocation-change PATCH requests now
+carry the branch ID and a stable UUID `Idempotency-Key`. Old clients cannot safely
+retry a committed change. Keep matching client/server versions together.
+No Production operation is authorized here. Read-only dues, historical cohorts,
+GA settings/receipt and provider/import release gates remain explicit boundaries.
+
 This runbook covers the repository-owned procedures for operating Lab Lords. It
 does not grant access to Production and does not replace provider dashboards,
 database recovery documentation, or an approved incident-response policy.

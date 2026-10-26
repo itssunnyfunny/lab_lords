@@ -1,10 +1,11 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import { translateOwnedText } from "../../lib/i18n";
 import { buildTopSearchResults } from "../../lib/topSearch";
 import { installSettingsRouteFixture } from "../application-design-pilot/settings-route-closeout-fixture";
 
-const evidence = "docs/redesign/navigation-restoration-evidence/2026-10-24-brand-correction";
+const evidence = reviewEvidencePath("docs/redesign/navigation-restoration-evidence/2026-10-24-brand-correction");
 test.beforeEach(async ({ page }) => {
     await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1" ? route.continue() : route.abort());
     await page.route(/\/api\/branches\/pilot\/renewals(?:\?.*)?$/, route => route.fulfill({ json: { items: [{ key: "due", studentId: "student-aarav", studentName: "Aarav Mehta", phone: null, studentStatus: "ACTIVE", paymentId: "payment-monthly-aarav", type: "MONTHLY", periodStart: "2026-09-01T00:00:00Z", periodEnd: "2026-09-30T00:00:00Z", dueDate: "2026-09-01T00:00:00Z", amount: 700, expected: false, allocations: [], followUp: null }], counts: { ALL: 1, OVERDUE: 1 }, outstandingAmount: 700, expectedAmount: 0, nextCursor: null, asOf: "2026-09-22" } }));

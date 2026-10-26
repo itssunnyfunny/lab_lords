@@ -4,7 +4,6 @@ import { Prisma } from "@/app/generated/prisma/client";
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { collectionInputSchema, type CollectionInput, type FeeReceiptSnapshot } from "@/lib/feeCollections";
 import { allocateCollection, remainingFee } from "@/lib/feeBalance";
-import { MESSAGE_DRAFT_ACTION_PREFIX } from "@/lib/messageDrafts";
 import { recordPaymentResolutionEvent } from "@/services/paymentResolutionEvent.service";
 import { WhatsAppPaymentReconciliationService } from "@/services/whatsappPaymentReconciliation.service";
 import { isWhatsAppDeliverySchemaReady } from "@/lib/whatsappSchema";
@@ -19,8 +18,7 @@ export async function lockFeeStudent(tx: Prisma.TransactionClient, studentId: st
     if (rows.length !== 1) throw new Error("Payment not found");
 }
 
-export async function reconcileFeeBalance(tx: Prisma.TransactionClient, branchId: string, studentId: string, paymentId: string, now: Date) {
-    await tx.messageDraft.deleteMany({ where: { branchId, studentId, action: { startsWith: MESSAGE_DRAFT_ACTION_PREFIX } } });
+export async function reconcileFeeBalance(tx: Prisma.TransactionClient, branchId: string, paymentId: string, now: Date) {
     if (await isWhatsAppDeliverySchemaReady(tx)) {
         await WhatsAppPaymentReconciliationService.reconcileResolutionInTransaction({
             tx, branchId, paymentId, now, reason: "PAYMENT_CONFIRMATION_CORRECTED",
@@ -91,7 +89,7 @@ export class FeeCollectionService {
                 before: payment, after: { ...after, amount }, actorUserId: actorId, occurredAt: now, source,
                 details: { collectionId: collection.id, actualReceived: amount },
             });
-            await reconcileFeeBalance(tx, branchId, student.id, payment.id, now);
+            await reconcileFeeBalance(tx, branchId, payment.id, now);
         }
         await tx.branch.update({ where: { id: branchId }, data: { lastDataChange: now } });
         return collection;
@@ -158,7 +156,7 @@ export class FeeCollectionService {
                 await tx.auditLog.create({ data: { branchId, userId: actorId, paymentId: p.id, action: "FEE_COLLECTION_VOIDED",
                     details: { collectionId: id, amount: allocation.amount, reason: reason.trim(), remaining,
                         from: p.status, to: remaining > 0 ? "DUE" : p.waivedAmount > 0 ? "WAIVED" : "PAID" } } });
-                await reconcileFeeBalance(tx, branchId, collection.studentId, p.id, now);
+                await reconcileFeeBalance(tx, branchId, p.id, now);
             }
             await tx.branch.update({ where: { id: branchId }, data: { lastDataChange: now } });
             return tx.feeCollection.update({ where: { id }, data: { voidedAt: now, voidedById: actorId, voidReason: reason.trim() } });

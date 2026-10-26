@@ -30,7 +30,7 @@ const branchSignals = [
 
 const commandRows = [
   { title: "Seat B3 allocation", detail: "Priya Sharma, Morning shift", status: "Ready", tone: "text-[color:var(--ui-tone-success-text)]" },
-  { title: "June fee reminder", detail: "Rahul Mehta, 9 days overdue", status: "Draft", tone: "text-[color:var(--ui-tone-warning-text)]" },
+  { title: "June fee reminder", detail: "Rahul Mehta, 9 days overdue", status: "Review", tone: "text-[color:var(--ui-tone-warning-text)]" },
   { title: "Staff permission change", detail: "Manager can record payments", status: "Review", tone: "text-[color:var(--ui-tone-info-text)]" },
 ];
 
@@ -188,7 +188,7 @@ export function LandingMockup() {
                 <CreditCard size={18} className="text-[color:var(--ui-tone-info-text)]" />
               </div>
               <p className={`${landingMutedTextClass} mt-3 text-sm leading-6`}>
-                Dues, waivers, received payments, and AI follow-up drafts are tied to the same student record.
+                Dues, waivers, received payments and follow-up notes are tied to the same student record.
               </p>
             </LandingReveal>
           </div>

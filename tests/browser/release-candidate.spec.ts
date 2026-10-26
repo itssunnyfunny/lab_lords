@@ -36,7 +36,7 @@ test.describe("Release candidate owner", () => {
     await refreshDevelopmentSession(page);
   });
 
-  test("real owner operations persist and foreign tenants match missing responses", async ({ page }) => {
+  test("real owner operations persist and foreign tenants match missing responses", async ({ page }, info) => {
     test.setTimeout(120_000);
     const base = `/api/branches/${branchId}`;
     const suffix = Date.now().toString().slice(-8);
@@ -59,9 +59,10 @@ test.describe("Release candidate owner", () => {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     }
     await page.goto(`/branch/${branchId}/students`);
-    await expect(page.getByLabel("Students table").getByText(student.body.name, { exact: true })).toBeVisible();
+    const records = info.project.name === "mobile-chromium" ? page.locator("[data-student-record-card]") : page.getByRole("table", { name: "Students", exact: true });
+    await expect(records.getByText(student.body.name, { exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByLabel("Students table").getByText(student.body.name, { exact: true })).toBeVisible();
+    await expect(records.getByText(student.body.name, { exact: true })).toBeVisible();
     for (const [foreign, missing] of [
       [`/api/branches/${foreignBranch}`, "/api/branches/rc-not-present"],
       [`/api/organizations/${foreignOrg}/billing`, "/api/organizations/rc-not-present/billing"],
@@ -85,7 +86,7 @@ test.describe("Release candidate restricted staff", () => {
     await refreshDevelopmentSession(page);
   });
 
-  test("complete protected payloads remain unavailable while student access works", async ({ page }) => {
+  test("complete protected payloads remain unavailable while student access works", async ({ page }, info) => {
     await page.goto(`/branch/${branchId}/students`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect((await request(page, `/api/branches/${branchId}/students`)).status).toBe(200);
@@ -101,6 +102,7 @@ test.describe("Release candidate restricted staff", () => {
     const billing = await request(page, `/api/organizations/${orgId}/billing`);
     expect(billing.status).toBe(404);
     expect(Object.keys(billing.body)).toEqual(["error"]);
+    if (info.project.name === "mobile-chromium") await page.getByRole("button", { name: "Open navigation", exact: true }).click();
     const navigation = page.getByRole("complementary", { name: "Branch navigation" });
     await expect(navigation).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Students", exact: true })).toBeVisible();

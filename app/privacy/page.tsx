@@ -10,7 +10,7 @@ const sections: LegalSection[] = [
     title: "Information we collect",
     items: [
       "Account information such as name, email address, phone number, authentication identifiers, and workspace preferences.",
-      "Workspace information entered by you or your team, including organization, branch, student, seat, shift, payment, staff, import, audit, AI report, and message draft records.",
+      "Workspace information entered by you or your team, including organization, branch, student, seat, shift, payment, staff, import, audit, AI report, and retained historical message draft records.",
       "Support information such as bug reports, contact messages, and operational context you choose to share with us.",
       "Usage and device information such as pages visited, browser type, approximate location from network data, and event data when optional analytics cookies are accepted.",
     ],

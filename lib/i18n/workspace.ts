@@ -28,7 +28,6 @@ export const workspaceMessages = {
     "seats": ["सीटें", "Seats"], "overdue": ["तारीख निकल गई", "Overdue"],
     "currently in this shift": ["अभी इस शिफ्ट में", "Abhi is shift mein"],
     "Billing details are unavailable:": ["बिलिंग की जानकारी उपलब्ध नहीं है:", "Billing details available nahi hain:"],
-    "Upgrade the organization to Standard to enable AI reports and message drafting.": ["AI रिपोर्ट और मैसेज मसौदों के लिए संगठन को Standard पर अपग्रेड करें।", "AI reports aur message drafts ke liye organization ko Standard par upgrade karein."],
     " / Reserved": [" / आरक्षित", " / Reserved"],
     "Lab Lords logo": ["Lab Lords का लोगो", "Lab Lords ka logo"],
     "per billable branch/month": ["हर बिल वाली ब्रांच/महीना", "Har billable branch/mahina"],

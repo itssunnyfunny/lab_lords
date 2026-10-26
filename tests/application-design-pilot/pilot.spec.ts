@@ -281,6 +281,13 @@ test("representative pilot surfaces have no serious automated accessibility viol
         await page.goto(`${path}${separator}mode=after`);
         await expect(page.getByTestId("synthetic-pilot-label")).toBeVisible();
         await expect(page.locator("main h1:visible, [role='dialog'] h2:visible").first()).toBeVisible();
+        await expect(page.locator('[data-record-list] [aria-busy="true"]')).toHaveCount(0);
+        // A just-enabled control is still fading from its disabled opacity.
+        // Scan the settled view while retaining every axe rule and finding.
+        await page.evaluate(async () => {
+            await Promise.all(document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity)
+                .map(animation => animation.finished.catch(() => undefined)));
+        });
         const { violations } = await new AxeBuilder({ page }).analyze();
         expect(
             violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical"),

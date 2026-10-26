@@ -1,8 +1,9 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const evidence = "docs/redesign/application-rollout-evidence/attendance";
+const evidence = reviewEvidencePath("docs/redesign/application-rollout-evidence/attendance");
 const day = "2026-09-28";
 const rows = [
     { id: "student-aarav", name: "Aarav Mehta", phone: "+919876543210", status: "ACTIVE", attendance: "NOT_MARKED", mark: null, visits: [], openVisit: null, currentAllocations: [{ seat: "A3", shift: "Morning" }] },

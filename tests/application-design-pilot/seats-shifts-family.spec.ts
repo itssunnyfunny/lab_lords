@@ -1,8 +1,9 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const evidence = "docs/redesign/application-rollout-evidence/seats-shifts";
+const evidence = reviewEvidencePath("docs/redesign/application-rollout-evidence/seats-shifts");
 
 test("seat map, allocations, and shifts use the selected compact family", async ({ page }, info) => {
     const errors: string[] = [];

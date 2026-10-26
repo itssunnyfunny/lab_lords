@@ -21,21 +21,21 @@ try {
 
 const onboardingConfirm = process.env.DASHBOARD_AUDIT_ONBOARDING_CONFIRM;
 const auditOnboarding = onboardingConfirm === database
-    && database === "lab_lords_dashboard_closeout_browser_test"
+    && ["lab_lords_dashboard_closeout_browser_test", "lab_lords_audit_20261025_browser_test", "lab_lords_audit_20261025r2_browser_test"].includes(database)
     && target.hostname === "127.0.0.1" && target.port === "59117";
 if (onboardingConfirm && !auditOnboarding) {
     throw new Error("Audit onboarding opt-in requires the exact retained local synthetic fixture");
 }
 const messagingConfirm = process.env.DASHBOARD_AUDIT_MESSAGING_CONFIRM;
 const auditMessaging = messagingConfirm === database
-    && database === "lab_lords_dashboard_closeout_browser_test"
+    && ["lab_lords_dashboard_closeout_browser_test", "lab_lords_audit_20261025_browser_test", "lab_lords_audit_20261025r2_browser_test"].includes(database)
     && target.hostname === "127.0.0.1" && target.port === "59117";
 if (messagingConfirm && !auditMessaging) {
     throw new Error("Audit messaging opt-in requires the exact retained local synthetic fixture");
 }
 const gaConfirm = process.env.DASHBOARD_AUDIT_GA_CONFIRM;
 const auditGa = gaConfirm === database
-    && database === "lab_lords_dashboard_closeout_browser_test"
+    && ["lab_lords_dashboard_closeout_browser_test", "lab_lords_audit_20261025_browser_test", "lab_lords_audit_20261025r2_browser_test"].includes(database)
     && target.hostname === "127.0.0.1" && target.port === "59117";
 if (gaConfirm && !auditGa) {
     throw new Error("Audit GA opt-in requires the exact retained local synthetic fixture");

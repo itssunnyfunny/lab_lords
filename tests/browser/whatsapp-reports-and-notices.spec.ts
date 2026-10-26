@@ -23,16 +23,16 @@ test.beforeEach(async ({ page }, testInfo) => {
       ? "Set PLAYWRIGHT_MANAGER_AUTH_STATE and PLAYWRIGHT_MANAGER_BRANCH_ID for manager coverage."
       : "Set PLAYWRIGHT_OWNER_AUTH_STATE for owner operations coverage."
   );
+  BRANCH_ID = managerCase ? managerBranchId! : ownerBranchId;
   await refreshDevelopmentSession(page);
 });
 
 const ORG_ID = process.env.PLAYWRIGHT_OWNER_ORG_ID ?? "playwright-report-org";
-const BRANCH_ID = process.env.PLAYWRIGHT_OWNER_BRANCH_ID ?? "playwright-report-branch";
+const ownerBranchId = process.env.PLAYWRIGHT_OWNER_BRANCH_ID ?? "playwright-report-branch";
+// Each role's routes use its own authorized fixture branch.
+let BRANCH_ID = ownerBranchId;
 const SENDER_ID = "playwright-report-sender";
 
-if (managerBranchId && managerBranchId !== BRANCH_ID) {
-  throw new Error("Owner and manager browser states must target the same branch.");
-}
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({

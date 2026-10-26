@@ -324,6 +324,82 @@
     "nullable": false
   },
   {
+    "model": "MembershipTermRevision",
+    "field": "term",
+    "parent": "MembershipTerm",
+    "fields": [
+      "termId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "MembershipTermRevision",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "MembershipTermRevision",
+    "field": "actor",
+    "parent": "User",
+    "fields": [
+      "actorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": true
+  },
+  {
+    "model": "AllocationMoveCommand",
+    "field": "actor",
+    "parent": "User",
+    "fields": [
+      "actorId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AllocationMoveCommand",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId"
+    ],
+    "references": [
+      "id"
+    ],
+    "nullable": false
+  },
+  {
+    "model": "AllocationMoveCommand",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
     "model": "OccupancySnapshot",
     "field": "branch",
     "parent": "Branch",

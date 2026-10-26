@@ -158,6 +158,7 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                     <h1>{t("Cross-branch health")}</h1>
                     <p className="ui-record-description">
                         {t("Compare locations quickly, then move into the branch that needs work.")}</p>
+                    <p className="ui-record-description">{t("This current snapshot includes archived branches.")}</p>
                 </div>
                 <div className="ui-record-actions items-center">
                     <span className={pageMetaPillClass}>

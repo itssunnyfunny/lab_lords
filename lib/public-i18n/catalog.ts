@@ -1,7 +1,9 @@
 import type { PublicCatalog } from "./translate";
+import { auditCloseoutPublicMessages } from "./auditCloseout";
 
 // Approved English is the key. These prepared translations are loaded only on the server.
 export const publicCatalog = {
+  ...auditCloseoutPublicMessages,
   "Fees": ["फीस", "Fees"],
   "Why Lab Lords": [
     "Lab Lords क्यों",
@@ -319,14 +321,6 @@ export const publicCatalog = {
     "दर्ज आँकड़ों का सार पढ़ें और अपनी लाइब्रेरी के रिकॉर्ड के साथ जाँचें।",
     "Recorded figures ka summary padhein aur apni library ke records ke saath check karein."
   ],
-  "Message drafting": [
-    "मैसेज का ड्राफ्ट",
-    "Message ka draft"
-  ],
-  "Prepare a draft for review before you decide what to send.": [
-    "क्या भेजना है यह तय करने से पहले जाँचने के लिए ड्राफ्ट तैयार करें।",
-    "Kya bhejna hai yeh tay karne se pehle check karne ke liye draft taiyaar karein."
-  ],
   "A student asks which shift they are assigned to. Find their record, check the current seat and shift, and refer to the recorded fee details without searching a separate list.": [
     "स्टूडेंट पूछता है कि उसे कौन-सी शिफ्ट दी गई है। उसका रिकॉर्ड ढूँढें, मौजूदा सीट और शिफ्ट जाँचें और अलग लिस्ट खोजे बिना दर्ज फीस की जानकारी देखें।",
     "Student poochhta hai ki use kaun-si shift di gayi hai. Uska record dhoondhein, current seat aur shift check karein aur alag list khoje bina recorded fees ki jaankaari dekhein."
@@ -398,10 +392,6 @@ export const publicCatalog = {
   "For libraries with branch records": [
     "ब्रांच रिकॉर्ड वाली लाइब्रेरी के लिए",
     "Branch records waali libraries ke liye"
-  ],
-  "Ask for a summary of recorded figures or prepare a follow-up draft. Review amounts and wording yourself. AI output can be wrong and remains advisory; a draft does not mean that a message was delivered or a payment confirmed.": [
-    "दर्ज आँकड़ों का सार माँगें या फॉलो-अप का ड्राफ्ट तैयार करें। रकम और शब्द खुद जाँचें। AI का जवाब गलत हो सकता है और केवल सलाह है; ड्राफ्ट बनने से यह साबित नहीं होता कि मैसेज पहुँचा या पेमेंट की पुष्टि हुई।",
-    "Recorded figures ka summary maangein ya follow-up ka draft taiyaar karein. Amount aur wording khud check karein. AI ka jawaab galat ho sakta hai aur sirf salaah hai; draft banne se yeh saabit nahi hota ki message pahuncha ya payment confirm hua."
   ],
   "Understand fee follow-up": [
     "फीस फॉलो-अप समझें",
@@ -1895,10 +1885,6 @@ export const publicCatalog = {
     "क्या AI मेरे लिए बदलाव करता या मैसेज भेजता है?",
     "Kya AI mere liye badlaav karta ya messages bhejta hai?"
   ],
-  "Standard includes AI reports and message drafting. Review the output against your records and check a draft before using it. A generated draft is not proof that a message was sent or that a student has paid.": [
-    "Standard में AI रिपोर्ट और मैसेज ड्राफ्टिंग शामिल है। नतीजे को अपने रिकॉर्ड से जाँचें और ड्राफ्ट इस्तेमाल करने से पहले पढ़ें। बना हुआ ड्राफ्ट इस बात का सबूत नहीं कि मैसेज भेजा गया या स्टूडेंट ने फीस दी।",
-    "Standard mein AI reports aur message drafting shaamil hai. Output ko apne records se check karein aur draft use karne se pehle padhein. Bana hua draft is baat ka saboot nahi ki message bheja gaya ya student ne fees di."
-  ],
   "What do the plans cost?": [
     "प्लान की कीमत क्या है?",
     "Plans ki keemat kya hai?"
@@ -2663,10 +2649,6 @@ export const publicCatalog = {
     "ट्रायल शुरू करें और स्टूडेंट फीस रिकॉर्ड व पेमेंट इतिहास देखें।",
     "Trial shuru karein aur student fee records aur payment history dekhein."
   ],
-  "Before contacting a student about dues, check whether a recent payment has already been recorded. If you use Standard to prepare an AI draft, verify the amount and wording before using it. A draft does not confirm delivery or payment.": [
-    "बकाया के लिए स्टूडेंट से संपर्क करने से पहले जाँचें कि हाल का पेमेंट दर्ज तो नहीं हो गया। Standard से AI ड्राफ्ट बनाएँ तो इस्तेमाल से पहले रकम और शब्द जाँचें। ड्राफ्ट से डिलीवरी या पेमेंट की पुष्टि नहीं होती।",
-    "Dues ke liye student se contact karne se pehle check karein ki haal ka payment record to nahi ho gaya. Standard se AI draft banaayein to use karne se pehle amount aur wording check karein. Draft se delivery ya payment confirm nahi hota."
-  ],
   "Fee reminder": [
     "फीस रिमाइंडर",
     "Fee reminder"
@@ -2799,14 +2781,6 @@ export const publicCatalog = {
     "यह रिमाइंडर तैयार करने से पहले बकाया फीस ढूँढने और स्टूडेंट का पेमेंट इतिहास जाँचने में मदद करता है।",
     "Yeh reminder taiyaar karne se pehle pending fees dhoondhne aur student ki payment history check karne mein madad karta hai."
   ],
-  "Does an AI draft send a message automatically?": [
-    "क्या AI ड्राफ्ट अपने-आप मैसेज भेजता है?",
-    "Kya AI draft apne-aap message bhejta hai?"
-  ],
-  "No. AI assistance prepares message drafts for you to review. Creating a draft does not send it.": [
-    "नहीं। AI आपके जाँचने के लिए मैसेज ड्राफ्ट तैयार करता है। ड्राफ्ट बनाने से वह भेजा नहीं जाता।",
-    "Nahi. AI aapke check karne ke liye message drafts taiyaar karta hai. Draft banaane se woh bheja nahi jaata."
-  ],
   "Does a reminder mean the student has paid?": [
     "क्या रिमाइंडर का मतलब है कि स्टूडेंट ने फीस दे दी?",
     "Kya reminder ka matlab hai ki student ne fees de di?"
@@ -2818,10 +2792,6 @@ export const publicCatalog = {
   "Which plan includes AI assistance?": [
     "किस प्लान में AI की मदद है?",
     "Kis plan mein AI ki madad hai?"
-  ],
-  "Standard includes AI reports and message drafting. Both plans include payments, dues and audit history.": [
-    "Standard में AI रिपोर्ट और मैसेज ड्राफ्टिंग हैं। दोनों प्लान में पेमेंट, बकाया और बदलावों का इतिहास है।",
-    "Standard mein AI reports aur message drafting hain. Dono plans mein payments, dues aur audit history hai."
   ],
   "Make fee follow-ups easier to track": [
     "फीस फॉलो-अप का हिसाब आसान बनाएँ",
@@ -2874,10 +2844,6 @@ export const publicCatalog = {
   "Branch and cross-branch advanced analytics": [
     "ब्रांच और कई ब्रांचों के विस्तृत आँकड़े",
     "Branch aur kai branches ke detailed analytics"
-  ],
-  "AI reports and message drafting": [
-    "AI रिपोर्ट और मैसेज ड्राफ्टिंग",
-    "AI reports aur message drafting"
   ],
   "The form opens a pre-filled email with page, browser, and timestamp details.": [
     "फ़ॉर्म पेज, ब्राउज़र और समय की जानकारी के साथ पहले से भरा ईमेल खोलता है।",

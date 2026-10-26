@@ -20,6 +20,7 @@ import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } fr
 import { SeatPicker, ShiftCapacity } from "./SeatPicker";
 import { FORM_LIMITS, parseIntegerField } from "@/lib/formValidation";
 import { cn } from "@/lib/utils";
+import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 
 interface UpdateAllocationDialogProps {
     isOpen: boolean;
@@ -56,6 +57,12 @@ export function UpdateAllocationDialog({
     onSuccess,
 }: UpdateAllocationDialogProps) {
     const t = useTranslation();
+    const { ownerKey } = useUserPreferences();
+    const currentOwner = useRef(ownerKey);
+    currentOwner.current = ownerKey;
+    const active = useRef(isOpen);
+    active.current = isOpen;
+    useEffect(() => () => { active.current = false; }, []);
     const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>(currentShiftIds);
     const [selectedShiftNames, setSelectedShiftNames] = useState<string[]>([]);
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
@@ -67,6 +74,8 @@ export function UpdateAllocationDialog({
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [allocationUpdated, setAllocationUpdated] = useState(false);
+    const [moveUncertain, setMoveUncertain] = useState(false);
+    const moveCommand = useRef<{ key: string; body: string; ownerKey: string } | null>(null);
     const moveCompleted = useRef(false);
     const inFlight = useRef(false);
     const pendingFeeBody = useRef<string | null>(null);
@@ -82,11 +91,13 @@ export function UpdateAllocationDialog({
             moveCompleted.current = false;
             pendingFeeBody.current = null;
             setAllocationUpdated(false);
+            moveCommand.current = null;
+            setMoveUncertain(false);
             return;
         }
         // A parent reload must not turn a committed move back into an editable
         // operation with the ended allocation IDs.
-        if (moveCompleted.current) return;
+        if (moveCompleted.current || moveCommand.current) return;
         setSelectedShiftIds(currentShiftIds);
         setSelectedShiftNames([]);
         setSelectedSeatId(null);
@@ -160,9 +171,14 @@ export function UpdateAllocationDialog({
 
     const handleConfirm = async () => {
         if (inFlight.current) return;
+        if (moveCommand.current && moveCommand.current.ownerKey !== ownerKey) {
+            setSubmitError("Your account changed. Close this dialog and reopen it before making changes.");
+            return;
+        }
+        const actorKey = ownerKey;
         markSubmitted();
         setSubmitError(null);
-        if (!moveCompleted.current) {
+        if (!moveCompleted.current && !moveCommand.current) {
             const result = validateForm();
             if (Object.values(result.errors).some(Boolean)) return;
             pendingFeeBody.current = canManageStudentFees && (linkFeeToSelection || newFee.trim() !== "")
@@ -179,6 +195,12 @@ export function UpdateAllocationDialog({
                             }),
                 })
                 : null;
+            moveCommand.current = {
+                key: crypto.randomUUID(),
+                ownerKey,
+                body: JSON.stringify({ branchId, seatId: selectedSeatId, studentId, shiftIds: selectedShiftIds,
+                    allocationIds, ...(selectedMultiShiftId ? { multiShiftId: selectedMultiShiftId } : {}) }),
+            };
         }
 
         inFlight.current = true;
@@ -188,25 +210,37 @@ export function UpdateAllocationDialog({
             if (!moveCompleted.current) {
                 const res = await fetch(`/api/seat-allocations/${allocationId}`, {
                     method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        seatId: selectedSeatId,
-                        studentId,
-                        shiftIds: selectedShiftIds,
-                        allocationIds,
-                        ...(selectedMultiShiftId ? { multiShiftId: selectedMultiShiftId } : {}),
-                    }),
+                    headers: { "Content-Type": "application/json", "Idempotency-Key": moveCommand.current!.key },
+                    body: moveCommand.current!.body,
                 });
 
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
+                    if (res.status >= 400 && res.status < 500) {
+                        moveCommand.current = null;
+                        pendingFeeBody.current = null;
+                        setMoveUncertain(false);
+                    }
                     throw new Error(data.error || "Failed to update allocation");
+                }
+                const outcome = await res.json();
+                if (!active.current || currentOwner.current !== actorKey) return;
+                if (!outcome || typeof outcome !== "object" || typeof outcome.current !== "boolean"
+                    || typeof outcome.replayed !== "boolean" || !Array.isArray(outcome.allocations)) {
+                    throw new Error("The seat change could not be confirmed. Check the saved change before making another selection.");
                 }
                 moveCompleted.current = true;
                 setAllocationUpdated(true);
+                setMoveUncertain(false);
+                if (outcome.current === false) {
+                    pendingFeeBody.current = null;
+                    setSubmitError("This move was recorded, but the allocation has changed since. Close and review the current allocation before changing fees.");
+                    return;
+                }
             }
 
             if (pendingFeeBody.current) {
+                if (!active.current || currentOwner.current !== actorKey) return;
                 const feeRes = await fetch(`/api/branches/${branchId}/students`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -223,13 +257,14 @@ export function UpdateAllocationDialog({
             resetFieldErrors();
             onClose();
         } catch (e: unknown) {
+            if (!moveCompleted.current && moveCommand.current) setMoveUncertain(true);
             setSubmitError(e instanceof Error ? e.message : "Something went wrong.");
         } finally {
             inFlight.current = false;
             setSubmitting(false);
             // The allocation is already durable, even when the optional fee
             // request failed or its response was lost. Reload both outcomes.
-            if (moveCompleted.current) onSuccess();
+            if (active.current && currentOwner.current === actorKey && (moveCompleted.current || moveCommand.current)) onSuccess();
         }
     };
 
@@ -260,19 +295,23 @@ export function UpdateAllocationDialog({
                     <Button density="compact" variant="primary" onClick={handleConfirm} disabled={submitting}>
                         {submitting
                             ? <><Loader2 size={12} className="mr-1.5 animate-spin" aria-hidden="true" />  {t("Updating...")}</>
-                            : allocationUpdated ? t("Retry fee update") : confirmLabel
+                            : moveUncertain ? t("Check seat change")
+                                : allocationUpdated ? t(pendingFeeBody.current ? "Retry fee update" : "Close") : confirmLabel
                         }
                     </Button>
                 </>
             )}
         >
+                {moveUncertain && <p role="status" className={formHelpTextClass}>
+                    {t("The seat change could not be confirmed. Check the saved change before making another selection.")}
+                </p>}
                 {allocationUpdated && (
                     <div role="status" className={cn("p-3 text-sm", formSuccessBannerClass)}>
                         {t("Seat and shifts updated.")}
                     </div>
                 )}
                 {!allocationUpdated && <fieldset
-                    disabled={submitting}
+                    disabled={submitting || moveUncertain}
                     role="group"
                     aria-label={t("Seat and shift selection")}
                     aria-describedby={selectionError ? "update-allocation-selection-error" : undefined}

@@ -15,6 +15,7 @@ import type { BranchAccess } from "@/types";
 import { dashboardRequest, inputClass, ResourceError, useDashboardResource } from "./shared";
 import { SetupPager, useDashboardSetup } from "./setupPaging";
 import { AttendanceGaps } from "./AttendanceGaps";
+import { MembershipTermActions } from "./MembershipTermActions";
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const setupSections = [["utilization", "Utilization review"], ["expectations", "Attendance expectations"], ["terms", "Membership terms"]] as const;
 export function DashboardSettingsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
@@ -76,6 +77,9 @@ function Expectations({ branchId, writable, initialStudentId }: { branchId: stri
         {resource.data?.items.length === 0 && <p className="text-sm">{t("Attendance expectations are not configured.")}</p>}
     </div></AppPanel>;
 }
+function termStatusLabel(status: DashboardTerm["status"]) {
+    return status === "VOIDED" ? "Voided" : status === "CANCELLED" ? "Membership cancelled" : "Recorded";
+}
 function Terms({ branchId, writable, initialStudentId }: { branchId: string; writable: boolean; initialStudentId?: string }) {
     const t = useTranslation(); const { formatDate } = useUserPreferences(); const resource = useDashboardSetup<DashboardTerm>(branchId, "terms", initialStudentId);
     const query = useSearchParams();
@@ -100,7 +104,8 @@ function Terms({ branchId, writable, initialStudentId }: { branchId: string; wri
             { header: t.owned("Membership label"), accessor: item => item.label },
             { header: t.owned("Start date"), accessor: item => formatDate(item.startDate) },
             { header: t.owned("End date"), accessor: item => formatDate(item.endDate) },
-        ]} getRowAttributes={item => ({ "data-membership-student": item.studentId, className: query.get("studentId") === item.studentId ? "bg-[color:var(--ui-tone-success-subtle)]" : undefined })} actions={item => <AppButton density="compact" variant="secondary" disabled={!writable || busy} onClick={() => select(item.studentId)}>{t("Renew term")}</AppButton>} renderGridCard={item => <article className={`${pageGridCardClass} ui-record-card`}><p className="ui-record-card-name break-words">{item.studentName}</p><p className="ui-record-card-context">{item.label}</p><div className="ui-record-card-summary"><strong>{formatDate(item.endDate)}</strong><p className="ui-record-card-joined">{t("Start date")}: {formatDate(item.startDate)}</p></div><AppButton density="compact" variant="secondary" disabled={!writable || busy} onClick={() => select(item.studentId)}>{t("Renew term")}</AppButton></article>} />}
+            { header: t.owned("Status"), accessor: item => t(termStatusLabel(item.status)) },
+        ]} getRowAttributes={item => ({ "data-membership-student": item.studentId, className: query.get("studentId") === item.studentId ? "bg-[color:var(--ui-tone-success-subtle)]" : undefined })} actions={item => <div className="flex flex-wrap gap-2"><AppButton density="compact" variant="secondary" disabled={!writable || busy || item.status !== "ACTIVE"} onClick={() => select(item.studentId)}>{t("Renew term")}</AppButton><MembershipTermActions branchId={branchId} term={item} writable={writable} onSaved={resource.reload} /></div>} renderGridCard={item => <article className={`${pageGridCardClass} ui-record-card`}><p className="ui-record-card-name break-words">{item.studentName}</p><p className="ui-record-card-context">{item.label} · {t(termStatusLabel(item.status))}</p><div className="ui-record-card-summary"><strong>{formatDate(item.endDate)}</strong><p className="ui-record-card-joined">{t("Start date")}: {formatDate(item.startDate)}</p></div><div className="flex flex-wrap gap-2"><AppButton density="compact" variant="secondary" disabled={!writable || busy || item.status !== "ACTIVE"} onClick={() => select(item.studentId)}>{t("Renew term")}</AppButton><MembershipTermActions branchId={branchId} term={item} writable={writable} onSaved={resource.reload} /></div></article>} />}
         {(resource.data || resource.recordsPage.index > 0) && <SetupPager label={t("Membership terms")} count={resource.data?.items.length ?? 0} total={resource.data?.total ?? null} page={resource.recordsPage} disabled={busy} />}
         {resource.data?.items.length === 0 && <p className="text-sm">{t("Membership terms are not configured.")}</p>}
     </div></AppPanel>;

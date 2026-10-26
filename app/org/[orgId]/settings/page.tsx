@@ -44,6 +44,7 @@ import { OrganizationWhatsAppPanel } from "@/components/whatsapp/OrganizationWha
 import { BillingPriceSummary } from "@/components/billing/BillingPriceSummary";
 import { BillingPaymentMethodsOverview } from "@/components/billing/BillingPaymentMethodsOverview";
 import { BranchBillingControls } from "@/components/billing/BranchBillingControls";
+import { BillingHistoryBrowser } from "@/components/billing/BillingHistoryBrowser";
 import { CheckoutConfirmationDialog } from "@/components/billing/CheckoutConfirmationDialog";
 import { PaymentOutcomeDialog, type PaymentOutcome } from "@/components/billing/PaymentOutcomeDialog";
 import {
@@ -1261,6 +1262,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                         </div>
                     )}
 
+                    <div className="border-t border-[color:var(--ui-form-section-divider)] px-5 py-4"><BillingHistoryBrowser organizationId={orgId} /></div>
                     {(billingOverview?.invoices.length ?? 0) > 0 && (
                         <div className="border-t border-[color:var(--ui-form-section-divider)] px-5 py-4">
                             <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Invoices")}</h3>

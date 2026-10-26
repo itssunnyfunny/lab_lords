@@ -1,10 +1,11 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { installSettingsFixture } from "./settings-family-fixture";
 import { installSettingsRouteFixture } from "./settings-route-closeout-fixture";
 
-const output = "docs/redesign/application-rollout-evidence/settings";
+const output = reviewEvidencePath("docs/redesign/application-rollout-evidence/settings");
 test("dashboard settings keeps compact composition and saved threshold across languages", async ({ page }, info) => {
     const commands = await installSettingsFixture(page);
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
@@ -56,7 +57,7 @@ test("expectations and terms retain their original commands and mobile cards", a
     }
 });
 
-const closeoutOutput = "docs/redesign/application-closeout-evidence";
+const closeoutOutput = reviewEvidencePath("docs/redesign/application-closeout-evidence");
 
 test("real account settings keeps the application chrome, edit identity, language, and discard overlay", async ({ page }, info) => {
     const fixture = await installSettingsRouteFixture(page);

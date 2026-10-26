@@ -1,5 +1,56 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Remaining audit closeout — local implementation, 2026-10-25
+
+This domain change supersedes the API/service and additional-organization
+exceptions in the dated UI-only section below. One owner can create one owned
+organization. The existing owner-row lock serializes all keys; valid retained
+receipts replay before the limit is checked. Staff memberships and all existing
+multi-organization records and authorized discovery remain available.
+
+Seat changes use immutable actor/branch/key command receipts committed with
+the replacement allocation. A lost-response retry resolves that outcome and
+returns current active allocations; it cannot repeat ended source IDs. A later
+move is reported explicitly before any fee adjustment. Admission recovery reuses
+the saved student and freezes its persisted shift/fee choice while allowing a
+different seat. Receipt screen/PDF dates share India calendar formatting.
+
+Membership terms support reasoned correction, voiding a recording error,
+cancelling a genuine upcoming membership, and recording a genuine early end.
+Revision checks and serializable overlap checks protect concurrent changes.
+Append-only revisions retain before/after evidence; migrated terms have an
+honest baseline with unknown original author. These actions never change fees,
+allocations, attendance, student status or SaaS access. Owner billing settings
+offer complete keyset-paginated invoice and subscription-history browsing.
+When a terminal term change removes its Manage term action, keyboard focus
+returns to that term's History action after dialog cleanup removes background
+inertness, without changing normal dialog return focus.
+The native public Resources menu also preserves a user-opened menu through initial
+hydration; pathname changes still dismiss it. Browser coverage delays JavaScript
+to exercise that boundary before checking keyboard and route-change behavior.
+
+Unused organization trends are authenticated 410 tombstones; the supported
+snapshot remains. Branch trends are recalculated from mutable current records,
+and organization snapshots include archived branches. Both limitations appear
+in the UI; no historical snapshots were invented. AI Messages read/generation
+contracts and unused generator/callers are retired. Historical drafts and lease
+rows remain; AI Reports retain their publication fences.
+Home, Features, Pricing, FAQ, fee-reminder examples and Terms no longer advertise
+AI message drafting; Privacy describes retained historical drafts. These are
+factual wording corrections within the existing public layouts and translations.
+
+Student admission/profile/status and shift create/edit now recheck policy and
+writability inside serializable writer transactions. Real PostgreSQL tests
+reproduced and cover overlap and pre-transaction revocation/archive races;
+deactivation/allocation's tested interleaving was already protected. This is
+not a claim of universal commit-time permission revocation across all writers.
+Staff removal/permission updates resolve their cold messaging dependency before
+opening the bounded transaction, then recheck staff-management access inside it.
+This prevents module loading from exhausting the transaction deadline while
+retaining recipient invalidation and existing timeout limits.
+See [closeout evidence](../audits/audit-closeout-2026-10-25.md) for final local
+validation, migration handoff and remaining product/external boundaries.
+
 ## Owner UI correction — local implementation, 2026-10-23
 
 The owner clarified that standalone AI Messages is retired and the current UI

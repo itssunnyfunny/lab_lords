@@ -106,24 +106,40 @@ test("homepage site identity and approved public assets are available without re
 
 test("desktop Resources works with keyboard, focus, Escape and outside click", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/about", { waitUntil: "domcontentloaded" });
-  const menu = page.locator(".reference-resources");
-  await menu.locator("summary").focus();
-  await page.keyboard.press("Enter");
-  await expect(menu).toHaveAttribute("open", "");
-  await expect(menu.getByRole("link", { name: "About Lab Lords" })).toHaveAttribute("aria-current", "page");
-  await page.keyboard.press("Tab");
-  await expect(menu.getByRole("link", { name: "About Lab Lords" })).toBeFocused();
-  await page.keyboard.press("Escape");
-  await expect(menu).not.toHaveAttribute("open", "");
-  await expect(menu.locator("summary")).toBeFocused();
-  await menu.locator("summary").click();
-  await page.locator("h1").click();
-  await expect(menu).not.toHaveAttribute("open", "");
-  await menu.locator("summary").click();
-  await menu.getByRole("link", { name: "FAQs", exact: true }).click();
-  await expect(page).toHaveURL(/\/faq$/);
-  await expect(menu).not.toHaveAttribute("open", "");
+  let releaseScripts!: () => void;
+  const scriptsReady = new Promise<void>(resolve => { releaseScripts = resolve; });
+  await page.route(/\/_next\/static\/chunks\/.*\.js(?:\?|$)/, async route => {
+    await scriptsReady;
+    await route.continue();
+  });
+  try {
+    await page.goto("/about", { waitUntil: "commit" });
+    const menu = page.locator(".reference-resources");
+    await expect(menu.locator("summary")).toBeVisible();
+    await page.bringToFront();
+    await menu.locator("summary").focus();
+    await expect(menu.locator("summary")).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(menu).toHaveAttribute("open", "");
+    // The native menu must survive the header's first client mount, then retain
+    // its existing keyboard and navigation dismissal behavior.
+    releaseScripts();
+    await expect(page.locator(".reference-header")).toHaveAttribute("data-navigation-ready", "true");
+    await expect(menu).toHaveAttribute("open", "");
+    await expect(menu.getByRole("link", { name: "About Lab Lords" })).toHaveAttribute("aria-current", "page");
+    await page.keyboard.press("Tab");
+    await expect(menu.getByRole("link", { name: "About Lab Lords" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(menu).not.toHaveAttribute("open", "");
+    await expect(menu.locator("summary")).toBeFocused();
+    await menu.locator("summary").click();
+    await page.locator("h1").click();
+    await expect(menu).not.toHaveAttribute("open", "");
+    await menu.locator("summary").click();
+    await menu.getByRole("link", { name: "FAQs", exact: true }).click();
+    await expect(page).toHaveURL(/\/faq$/);
+    await expect(menu).not.toHaveAttribute("open", "");
+  } finally { releaseScripts(); }
 });
 
 test("FAQ topics and cross-page feature fragments respect the sticky header", async ({ page }) => {

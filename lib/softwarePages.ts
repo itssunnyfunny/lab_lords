@@ -515,7 +515,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
   },
   "fee-reminder": {
     slug: "fee-reminder",
-    example: "Before contacting a student about dues, check whether a recent payment has already been recorded. If you use Standard to prepare an AI draft, verify the amount and wording before using it. A draft does not confirm delivery or payment.",
+    example: "Before contacting a student about dues, check whether a recent payment has already been recorded. Use follow-up notes to keep track of the next step. A note does not confirm delivery or payment.",
     featureHref: "/features#ai-assistance",
     shortName: "Fee reminder",
     metaTitle: "Fee Reminder Software for Study Libraries",
@@ -583,8 +583,8 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "description": "Review previous collections and changes before a conversation."
       },
       {
-        "title": "Message drafting",
-        "description": "Standard includes AI assistance for drafts you review before deciding what to send."
+        "title": "Follow-up notes",
+        "description": "Record the next step and contact notes before following up."
       }
     ],
     useCaseTitle: "A clear follow-up routine",
@@ -610,8 +610,8 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
         "answer": "It helps you find pending fees and check student payment history before preparing a reminder."
       },
       {
-        "question": "Does an AI draft send a message automatically?",
-        "answer": "No. AI assistance prepares message drafts for you to review. Creating a draft does not send it."
+        "question": "Does a follow-up note send a message automatically?",
+        "answer": "No. A follow-up note records your team's next step. It does not send a message."
       },
       {
         "question": "Does a reminder mean the student has paid?",
@@ -619,7 +619,7 @@ export const softwarePages: Record<SoftwarePageSlug, SoftwarePage> = {
       },
       {
         "question": "Which plan includes AI assistance?",
-        "answer": "Standard includes AI reports and message drafting. Both plans include payments, dues and audit history."
+        "answer": "Standard includes AI reports. Both plans include payments, dues and audit history."
       }
     ],
     relatedSlugs: ["student-fee-management", "library-management", "study-hall-management"],

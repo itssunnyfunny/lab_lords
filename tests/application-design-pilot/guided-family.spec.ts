@@ -1,8 +1,9 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const evidence = "docs/redesign/application-rollout-evidence/guided";
+const evidence = reviewEvidencePath("docs/redesign/application-rollout-evidence/guided");
 const sessionPath = "/branch/pilot/onboarding/import/session-pilot";
 const selectedCaptures = new Set([
     "onboarding-entry:desktop-1440",
@@ -128,7 +129,10 @@ test("onboarding keeps four-step validation and staged trial request identity", 
         selectedPostTrialPlan: "PRO",
     });
     await expect(page.getByText("Something went wrong. Try again.")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: "Import assistance and trial confirmation" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Recover your saved setup" })).toBeVisible();
+    await page.getByRole("button", { name: "Retry saved setup", exact: true }).click();
+    await expect.poll(() => requests.length).toBe(2);
+    expect(requests[1]).toEqual(requests[0]);
     expect(errors).toEqual([]);
 });
 

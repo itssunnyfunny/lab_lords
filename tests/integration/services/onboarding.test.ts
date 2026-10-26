@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
 import { OnboardingService } from "@/services/onboarding.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
-import { createUser } from "@/tests/factories";
+import { createUser, createOrg, createBranch, createStaff } from "@/tests/factories";
+import { OrganizationService } from "@/services/organization.service";
+import { AccessPolicy } from "@/services/accessPolicy.service";
 import { randomUUID } from "node:crypto";
 import { OwnerTrialService } from "@/services/ownerTrial.service";
 import { BranchService } from "@/services/branch.service";
@@ -15,7 +17,7 @@ import { BranchService } from "@/services/branch.service";
  * 2. Default shifts are created
  * 3. Seats are created when seatCount supplied
  * 4. User is added as MANAGER on the branch
- * 5. Durable replay, owner scope, intentional additional workspaces and rollback
+ * 5. Durable replay, owner scope, single-organization creation and rollback
  */
 
 describe("OnboardingService Integration", () => {
@@ -166,19 +168,29 @@ describe("OnboardingService Integration", () => {
       expect(staffRecord!.role).toBe("MANAGER");
     });
 
-    it("two intentional keys create independent networks and retain one owner trial", async () => {
+    it("a different key cannot create another owned organization", async () => {
       const user = await createUser();
       const result1 = await OnboardingService.createNetwork(baseParams(user.id));
-      const result2 = await OnboardingService.createNetwork(baseParams(user.id));
-
-      // Two separate org + branch pairs must exist
-      expect(result1.org.id).not.toBe(result2.org.id);
-      expect(result1.branch.id).not.toBe(result2.branch.id);
+      await expect(OnboardingService.createNetwork(baseParams(user.id)))
+        .rejects.toMatchObject({ code: "ORGANIZATION_ALREADY_EXISTS", status: 409 });
+      expect(await testPrisma.branch.count({ where: { organizationId: result1.org.id } })).toBe(1);
 
       const orgCount = await testPrisma.organization.count({ where: { ownerId: user.id } });
-      expect(orgCount).toBe(2);
-      expect(await testPrisma.onboardingRequest.count({ where: { ownerId: user.id } })).toBe(2);
+      expect(orgCount).toBe(1);
+      expect(await testPrisma.onboardingRequest.count({ where: { ownerId: user.id } })).toBe(1);
       expect(await testPrisma.ownerTrialGrant.count({ where: { ownerId: user.id } })).toBe(1);
+    });
+
+    it("serializes different concurrent keys without granting a second organization or trial", async () => {
+      const owner = await createUser();
+      const results = await Promise.allSettled(Array.from({ length: 4 }, () => OnboardingService.createNetwork(baseParams(owner.id))));
+      expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+      for (const result of results) if (result.status === "rejected") {
+        expect(result.reason).toMatchObject({ code: "ORGANIZATION_ALREADY_EXISTS", status: 409 });
+      }
+      expect(await testPrisma.organization.count({ where: { ownerId: owner.id } })).toBe(1);
+      expect(await testPrisma.onboardingRequest.count({ where: { ownerId: owner.id } })).toBe(1);
+      expect(await testPrisma.ownerTrialGrant.count({ where: { ownerId: owner.id } })).toBe(1);
     });
 
     it("concurrent retries commit one network, receipt and trial", async () => {
@@ -192,6 +204,28 @@ describe("OnboardingService Integration", () => {
       expect(await testPrisma.seat.count()).toBe(3);
       expect(await testPrisma.onboardingRequest.count()).toBe(1);
       expect(await testPrisma.ownerTrialGrant.count()).toBe(1);
+    });
+
+    it("preserves every legacy owned organization and its authorized access while rejecting new creation", async () => {
+      const owner = await createUser();
+      const first = await createOrg({ ownerId: owner.id, name: "Legacy one" });
+      const second = await createOrg({ ownerId: owner.id, name: "Legacy two" });
+      await expect(OnboardingService.createNetwork(baseParams(owner.id)))
+        .rejects.toMatchObject({ code: "ORGANIZATION_ALREADY_EXISTS" });
+      expect((await OrganizationService.getOrganizationsByUserId(owner.id)).map(row => row.id).sort()).toEqual([first.id, second.id].sort());
+      for (const org of [first, second]) expect((await OrganizationService.getOrganizationForOwnerAccess(org.id, owner.id)).id).toBe(org.id);
+      expect(await testPrisma.organization.count({ where: { ownerId: owner.id } })).toBe(2);
+      expect(await testPrisma.onboardingRequest.count({ where: { ownerId: owner.id } })).toBe(0);
+    });
+
+    it("does not count legitimate staff memberships as an owned organization", async () => {
+      const owner = await createUser(); const employer = await createOrg({ ownerId: (await createUser()).id });
+      const workplace = await createBranch({ organizationId: employer.id });
+      await createStaff({ userId: owner.id, branchId: workplace.id });
+      const personal = await OnboardingService.createNetwork(baseParams(owner.id));
+      expect((await AccessPolicy.resolveBranch(owner.id, workplace.id)).isOwner).toBe(false);
+      expect((await OrganizationService.getOrganizationsByUserId(owner.id)).map(row => row.id)).toEqual([personal.org.id]);
+      expect(await testPrisma.staff.count({ where: { userId: owner.id, branchId: workplace.id } })).toBe(1);
     });
 
     it("replays the lost-response command without restoring changed settings or trial state", async () => {

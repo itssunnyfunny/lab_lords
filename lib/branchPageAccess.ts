@@ -21,7 +21,6 @@ export const BRANCH_PAGE_ACCESS = {
     importAssistant: "students",
     allocations: "seat_allocation",
     aiReports: ["analytics", "view_payments"],
-    aiMessages: ["analytics", "view_payments"],
 } as const satisfies Record<string, BranchPagePermissionRequirement>;
 
 export type BranchPageAccessKey = keyof typeof BRANCH_PAGE_ACCESS;

@@ -19,7 +19,6 @@ const BRANCH_TITLES: Record<string, string> = {
 
 const AI_TITLES: Record<string, string> = {
     reports: "AI reports",
-    messages: "AI messages",
 };
 
 function titleForPath(pathname: string) {

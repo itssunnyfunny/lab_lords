@@ -37,7 +37,7 @@ const heroMetrics = [
     icon: CreditCard,
   },
   {
-    label: "Follow-up drafts",
+    label: "Follow-ups",
     value: "14",
     detail: "Ready for owner review",
     tone: "text-[color:var(--ui-tone-warning-text)]",
@@ -64,7 +64,7 @@ const feeRows = [
 const timeline = [
   { time: "08:40", title: "Morning shift opened", detail: "42 students checked in" },
   { time: "09:10", title: "Seat B3 released", detail: "Auto-conflict check passed" },
-  { time: "09:25", title: "Due reminder drafted", detail: "Hindi message ready" },
+  { time: "09:25", title: "Follow-up recorded", detail: "Desk note saved" },
 ];
 
 const trustItems = [
@@ -303,7 +303,7 @@ export function LandingHero({
           </span>
           <span className="inline-flex items-center gap-2">
             <MessageSquareText size={14} className="text-[color:var(--ui-tone-warning-text)]" />
-            14 drafts ready for review
+            14 follow-ups to review
           </span>
         </div>
       </div>

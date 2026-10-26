@@ -3,7 +3,8 @@ import type { CheckoutBillingPlanId } from "@/lib/billingPlans";
 import type { NormalizedMultiShiftDraft, NormalizedShiftDraft } from "@/lib/formValidation";
 
 type OnboardingErrorCode = "ONBOARDING_INVALID_KEY" | "ONBOARDING_INVALID_REQUEST"
-    | "ONBOARDING_KEY_CONFLICT" | "ONBOARDING_RESULT_NOT_FOUND" | "ONBOARDING_UNAVAILABLE";
+    | "ONBOARDING_KEY_CONFLICT" | "ONBOARDING_RESULT_NOT_FOUND" | "ONBOARDING_UNAVAILABLE"
+    | "ORGANIZATION_ALREADY_EXISTS";
 
 export class OnboardingRequestError extends Error {
     constructor(readonly code: OnboardingErrorCode, message: string, readonly status: 400 | 404 | 409 | 503) {

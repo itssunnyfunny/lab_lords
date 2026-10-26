@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { getSessionUser } from "@/lib/auth";
+import { AllocationMoveError } from "@/lib/allocationMove";
 
 // PUT: Release a seat (Unassign)
 export async function PUT(
@@ -44,7 +45,8 @@ export async function PATCH(
 
         const { allocationId } = await params;
         const body = await req.json();
-        const { seatId, studentId, shiftIds, allocationIds, multiShiftId } = body;
+        if (!body || typeof body !== "object" || Array.isArray(body)) throw new AllocationMoveError("Invalid allocation change.", 400);
+        const { branchId, seatId, studentId, shiftIds, allocationIds, multiShiftId } = body;
 
         if (!seatId || !studentId || !Array.isArray(shiftIds) || shiftIds.length === 0) {
             return NextResponse.json(
@@ -58,26 +60,21 @@ export async function PATCH(
         const ids: string[] = Array.isArray(allocationIds) && allocationIds.length > 0
             ? allocationIds
             : [allocationId];
-
-        const result = await SeatAllocationService.updateAllocation(
-            user.id,
-            ids,
-            seatId,
-            studentId,
-            shiftIds,
-            typeof multiShiftId === "string" ? multiShiftId : undefined
-        );
+        if (!ids.includes(allocationId)) return NextResponse.json({ error: "Invalid source allocations" }, { status: 400 });
+        const result = await SeatAllocationService.moveAllocation(user.id, req.headers.get("Idempotency-Key"), {
+            branchId, allocationIds: ids, seatId, studentId, shiftIds,
+            ...(typeof multiShiftId === "string" ? { multiShiftId } : {}),
+        });
 
         return NextResponse.json(result);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Failed to update allocation";
-        const status = message.includes("Unauthorized") ? 403
-            : message.includes("not found") ? 404
-                : 400;
-        return NextResponse.json(
-            { error: message },
-            { status }
-        );
+        if (error instanceof AllocationMoveError) return NextResponse.json({ error: message }, { status: error.status });
+        if (error instanceof SyntaxError) return NextResponse.json({ error: "Invalid allocation change." }, { status: 400 });
+        if (/^Allocation not found\.?$/.test(message)) return NextResponse.json({ error: "Allocation not found" }, { status: 404 });
+        if (/Unauthorized|permission|read.only|writ|archived|entitlement|subscription|activation/i.test(message))
+            return NextResponse.json({ error: "This action is unavailable with your current access or branch status." }, { status: 403 });
+        return NextResponse.json({ error: "Unable to confirm this allocation change. Retry the saved change." }, { status: 500 });
     }
 }
 

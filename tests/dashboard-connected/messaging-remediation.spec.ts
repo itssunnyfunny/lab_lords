@@ -42,7 +42,7 @@ function assertAuditOutput(testInfo: TestInfo) {
 }
 
 async function database(writable = false) {
-    if (writable && (target.databaseName !== "lab_lords_dashboard_closeout_browser_test"
+    if (writable && (!["lab_lords_dashboard_closeout_browser_test", "lab_lords_audit_20261025_browser_test", "lab_lords_audit_20261025r2_browser_test"].includes(target.databaseName)
         || target.hostname !== "127.0.0.1" || target.port !== "59117")) {
         throw new Error("Connected messaging writes require the exact retained local synthetic fixture");
     }
@@ -133,9 +133,10 @@ async function authenticatedRequest(page: Page, requestPath: string, method = "G
         return await page.request.fetch(requestPath, {
             method, data, headers: { Authorization: `Bearer ${token}` }, timeout: 30_000,
         });
-    } catch {
+    } catch (error) {
         // Playwright transport errors can include headers. Keep JWTs out of output.
-        throw new Error(`${method} ${requestPath} failed at the local authenticated transport`);
+        const code = error instanceof Error ? /ECONNREFUSED|ECONNRESET|ETIMEDOUT|Timeout \d+ms/.exec(error.message)?.[0] : undefined;
+        throw new Error(`${method} ${requestPath} failed at the local authenticated transport${code ? ` (${code})` : ""}`);
     }
 }
 

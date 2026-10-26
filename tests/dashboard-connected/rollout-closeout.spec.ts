@@ -195,7 +195,8 @@ test("actual authorized reports and CSV use persisted fees and document language
         expect((await branchAnalytics.json() as { activeStudents: number }).activeStudents).toBe(8);
         const orgAnalytics = await request(page, `/api/analytics/org/${fixture.orgId}/snapshot`);
         expect(orgAnalytics.status()).toBe(200);
-        expect((await orgAnalytics.json() as { organization: { totalBranches: number } }).organization.totalBranches).toBe(2);
+        const branchCount = await db.query<{ count: number }>('SELECT COUNT(*)::int AS count FROM "Branch" WHERE "organizationId"=$1', [fixture.orgId]);
+        expect((await orgAnalytics.json() as { organization: { totalBranches: number } }).organization.totalBranches).toBe(branchCount.rows[0].count);
 
         const staffContext = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3117",
             storageState: ".clerk/dashboard-staff-auth.json" });

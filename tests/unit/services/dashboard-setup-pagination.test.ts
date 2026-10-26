@@ -56,7 +56,7 @@ const expectations = students.map((student, index) => ({
     weekdays: [1, 3, 5], expectedBy: "08:00", enabled: true, student: { name: student.name },
 }));
 const terms = students.map((student, index) => ({
-    id: `term-${String(index).padStart(3, "0")}`, branchId: "branch", studentId: student.id,
+    id: `term-${String(index).padStart(3, "0")}`, branchId: "branch", studentId: student.id, status: "ACTIVE", revision: 1,
     label: "Membership", startDate: index < 500 ? "2026-01-01" : "2025-01-01", endDate: index < 500 ? "2026-09-30" : "2025-12-31", student: { name: student.name },
 }));
 const now = new Date("2026-09-29T10:00:00Z");

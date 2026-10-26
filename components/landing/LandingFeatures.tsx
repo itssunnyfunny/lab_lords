@@ -38,7 +38,7 @@ const features = [
   {
     title: "Owner-approved AI",
     description:
-      "The system can draft overdue messages and branch health reports, but it never acts on its own. Your team reviews before anything leaves the app.",
+      "The system can summarize branch health, but it never acts on its own. Your team reviews each report.",
     icon: BrainCircuit,
     tone: "text-[color:var(--ui-badge-purple-text)] bg-[color:var(--ui-badge-purple-bg)] border-[color:var(--ui-badge-purple-border)]",
     layout: "",

@@ -1,5 +1,15 @@
 # Application page-family migration
 
+Audit follow-up, 25–26 October 2026: local seat/admission recovery, membership
+management/history and owner billing-history browsing reuse the existing shared
+Dialog, compact actions, panels and locale boundary. The selected desktop/mobile
+layout remains; terminal term changes return keyboard focus to History when
+their invoking action disappears. Native geometry is checked against the exact
+merged-main layout, with owner review and release still recorded separately.
+[Closeout evidence](../audits/audit-closeout-2026-10-25.md)
+tracks implementation, final browser checks and migration handoff separately
+from owner review and release. No new owner approval or release is recorded.
+
 Owner correction, 23 October 2026: this local UI pass removes retired AI Messages,
 organization switching/additional-organization shortcuts, duplicate sidebar
 account links and old account access-link cards. Read-only System Info remains.

@@ -1,8 +1,9 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const evidence = "docs/redesign/application-rollout-evidence/reporting";
+const evidence = reviewEvidencePath("docs/redesign/application-rollout-evidence/reporting");
 const aiReport = {
     healthScore: "MODERATE_RISK", executiveSummary: "Collections need follow-up while available shifts can serve more students.",
     priorityFocus: "Contact students with overdue dues before planning new capacity.",
@@ -28,6 +29,10 @@ test("real branch reporting pages preserve filtered export and report presentati
         await route.fulfill({ json: { columns: ["Student", "Amount", "Status"], rows: [["Aarav Mehta", 1000, "Due"]], count: 1, asOf: "2026-09-28T06:00:00.000Z" } });
     });
     await page.route(/\/api\/branches\/pilot(?:\?.*)?$/, route => route.fulfill({ json: { id: "pilot", name: "Shanti Study Library" } }));
+    await page.route(/\/api\/analytics\/branch\/pilot\/snapshot(?:\?.*)?$/, async route => {
+        const response = await route.fetch();
+        await route.fulfill({ response, json: { ...await response.json(), financialAccess: true } });
+    });
     await page.route(/\/api\/analytics\/branch\/pilot\/trends(?:\?.*)?$/, route => {
         const kind = new URL(route.request().url()).searchParams.get("type");
         const dates = ["2026-09-01", "2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28"];

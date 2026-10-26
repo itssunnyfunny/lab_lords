@@ -26,7 +26,7 @@ describe("owner-level trials", () => {
     const owner = await createUser();
     const before = Date.now();
     const first = await onboarding(owner.id, "A");
-    const second = await onboarding(owner.id, "B");
+    await expect(onboarding(owner.id, "B")).rejects.toMatchObject({ code: "ORGANIZATION_ALREADY_EXISTS", status: 409 });
     const after = Date.now();
 
     const grants = await testPrisma.ownerTrialGrant.findMany({ where: { ownerId: owner.id } });
@@ -40,7 +40,8 @@ describe("owner-level trials", () => {
     expect(grants[0].trialStartedAt!.getTime()).toBeLessThanOrEqual(after);
     expect(grants[0].trialEndsAt!.getTime() - grants[0].trialStartedAt!.getTime())
       .toBe(TRIAL_DAYS * 24 * 60 * 60 * 1000);
-    expect((await testPrisma.organization.findUniqueOrThrow({ where: { id: second.org.id } })).billingModelVersion).toBe("WORKSPACE_V2");
+    expect((await testPrisma.organization.findUniqueOrThrow({ where: { id: first.org.id } })).billingModelVersion).toBe("WORKSPACE_V2");
+    expect(await testPrisma.organization.count({ where: { ownerId: owner.id } })).toBe(1);
   });
 
   it("lets the owner claim one migrated grant for a never-billed organization", async () => {

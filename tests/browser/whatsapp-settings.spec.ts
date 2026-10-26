@@ -142,6 +142,12 @@ async function installWhatsAppMocks(page: Page) {
 
 async function openMetaLauncher(page: Page) {
   await page.goto(SETTINGS_PATH);
+  // A full navigation remounts Clerk. Wait for identity hydration before
+  // asserting the organization shell's contents, as on the public entry page.
+  await page.waitForFunction(() => {
+    const clerk = (window as unknown as { Clerk?: { loaded: boolean } }).Clerk;
+    return clerk?.loaded;
+  });
   await expect(page.getByRole("heading", { name: "WhatsApp", exact: true })).toBeVisible();
   await expect(page.getByText("Playwright Study Hall").last()).toBeVisible();
   await expect(page.getByText("TEST", { exact: true }).last()).toBeVisible();
