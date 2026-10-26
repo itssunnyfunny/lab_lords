@@ -7,5 +7,5 @@ export default defineConfig({
     timeout: 45_000, expect: { timeout: 10_000 }, reporter: "list",
     outputDir: path.resolve("test-results/reference-dashboard-regression"),
     use: { baseURL: "http://127.0.0.1:4187", locale: "en-IN", timezoneId: "Asia/Kolkata", viewport: { width: 1491, height: 1076 }, screenshot: "only-on-failure", trace: "retain-on-failure" },
-    webServer: { command: "node tests/application-design-pilot/server.mjs", url: "http://127.0.0.1:4187", reuseExistingServer: true, timeout: 120_000 },
+    webServer: { command: "node tests/application-design-pilot/server.mjs", cwd: path.resolve(import.meta.dirname, "../.."), url: "http://127.0.0.1:4187", reuseExistingServer: true, timeout: 120_000 },
 });

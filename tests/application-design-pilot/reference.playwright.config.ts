@@ -11,5 +11,5 @@ export default defineConfig({
         {name:"mobile-390",use:{viewport:{width:390,height:844},isMobile:true,hasTouch:true}},
         {name:"mobile-320",use:{viewport:{width:320,height:720},isMobile:true,hasTouch:true}},
     ],
-    webServer:{command:"node tests/application-design-pilot/server.mjs",url:"http://127.0.0.1:4187",reuseExistingServer:true,timeout:120000},
+    webServer:{command:"node tests/application-design-pilot/server.mjs",cwd:path.resolve(import.meta.dirname,"../.."),url:"http://127.0.0.1:4187",reuseExistingServer:true,timeout:120000},
 });

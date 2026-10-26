@@ -1,5 +1,17 @@
 # Public wording and feature claims
 
+Audit closeout, 25 October 2026: Home, Features, Pricing, FAQ and fee-reminder
+solution copy stopped advertising the retired AI Messages capability. Plan text
+“AI reports and message drafting” is now “AI reports”; draft preview labels now
+describe follow-up notes, and AI assistance describes reports/advisory suggestions.
+Terms remove the obsolete capability name; Privacy explicitly retains historical
+draft records. No policy expansion, new plan, launch, historical-ledger,
+GA/provider-verification or import-rollout claim is added. English/Hindi/Hinglish
+copy follows the same factual correction. See the [closeout record](../audits/audit-closeout-2026-10-25.md).
+Recovery, term correction/cancellation and older billing-history browsing extend
+the existing management workflows. Home, Features, Pricing and FAQ need no
+additional promise for those fixes; no new plan or entitlement is introduced.
+
 Reviewed 2026-09-21 at implementation revision `804b133`, with regression coverage
 in `3c27e4b`; approved wording baseline is `cd20304`.
 The implemented public site is the wording reference. Preserve accurate headings,

@@ -1,3 +1,4 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { Client } from "pg";
@@ -7,7 +8,7 @@ import { refreshDevelopmentSession } from "../browser/helpers/development-sessio
 const fixture = JSON.parse(readFileSync(".clerk/dashboard-fixture.json", "utf8"));
 const target = assertDisposableTestDatabaseTarget(process.env.TEST_DATABASE_URL, process.env);
 if (target.databaseName !== fixture.databaseName || !target.databaseName.includes("browser_test")) throw new Error("Connected fixture identity mismatch");
-const output = process.env.STUDENTS_REVIEW_OUTPUT ?? "docs/redesign/shared-system-evidence/connected";
+const output = process.env.STUDENTS_REVIEW_OUTPUT ?? reviewEvidencePath("docs/redesign/shared-system-evidence/connected");
 mkdirSync(output, { recursive: true });
 async function request(page: Page, path: string, method = "GET", data?: unknown) {
     const token = await page.evaluate(async () => (window as unknown as { Clerk: { session: { getToken(options: { skipCache: boolean }): Promise<string> } } }).Clerk.session.getToken({ skipCache: true }));
@@ -32,7 +33,7 @@ test("authenticated Students edits persist, keep allocations and expose the cano
     const finances = async () => (await db.query('SELECT COUNT(*)::int AS count, SUM(amount)::int AS billed, SUM("collectedAmount")::int AS collected, SUM("waivedAmount")::int AS waived FROM "Payment" WHERE "branchId" = $1', [fixture.branchId])).rows[0];
     const before = await finances();
     // Recover only this test's interrupted edit from its previous attempt.
-    await db.query('UPDATE "Student" SET name = $1, phone = NULL WHERE id = $2 AND "branchId" = $3 AND name = $4 AND phone = ANY($5::text[])', [fixture.students[0].name, fixture.students[0].id, fixture.branchId, "Students Pattern Verification", ["+919000000001", "+91 90000 00001", "9000000001"]]);
+    await db.query('UPDATE "Student" SET name = $1, phone = NULL WHERE id = $2 AND "branchId" = $3 AND name = $4 AND (phone IS NULL OR phone = ANY($5::text[]))', [fixture.students[0].name, fixture.students[0].id, fixture.branchId, "Students Pattern Verification", ["+919000000001", "+91 90000 00001", "9000000001"]]);
     const profileResponse = await request(page, "/api/users/me"); expect(profileResponse.ok()).toBe(true); const profile = await profileResponse.json();
     const rosterResponse = await request(page, `/api/branches/${fixture.branchId}/students?status=ACTIVE&limit=50`); expect(rosterResponse.ok()).toBe(true);
     const roster = await rosterResponse.json(); const student = roster.items.find((row: { id: string }) => row.id === fixture.students[0].id);
@@ -49,20 +50,20 @@ test("authenticated Students edits persist, keep allocations and expose the cano
         await page.getByRole("menuitem", { name: /Edit Details/ }).click();
         const edit = page.getByRole("dialog", { name: "Edit student" });
         await edit.getByLabel("Full Name *").fill("Students Pattern Verification");
-        // The earlier dashboard fixture intentionally had no phone numbers.
-        // Supply a clearly synthetic valid value to exercise the existing form.
-        await edit.getByLabel("Phone Number *").fill("9000000001");
+        // Imported phone-less records can be edited without inventing contact data.
+        await expect(edit.getByLabel("Phone Number", { exact: true })).toHaveValue("");
         await page.screenshot({ path: `${output}/students-edit.png` });
         await edit.getByRole("button", { name: "Save Changes" }).click();
         await expect(edit).toHaveCount(0);
         await expect(row).toContainText("Students Pattern Verification");
         await expect(row.locator("td").nth(1)).toHaveText(allocationText, { useInnerText: true });
-        const persisted = await db.query('SELECT name FROM "Student" WHERE id = $1 AND "branchId" = $2', [student.id, fixture.branchId]);
+        const persisted = await db.query('SELECT name, phone FROM "Student" WHERE id = $1 AND "branchId" = $2', [student.id, fixture.branchId]);
         expect(persisted.rows[0].name).toBe("Students Pattern Verification");
+        expect(persisted.rows[0].phone).toBeNull();
         await row.getByRole("button", { name: "Actions", exact: true }).click();
         await page.getByRole("menuitem", { name: /View Fees/ }).click();
         const fees = page.getByRole("dialog", { name: "Students Pattern Verification" });
-        await expect(fees.getByText("Payment history", { exact: true })).toBeVisible();
+        await expect(fees.getByRole("heading", { name: "Payment history", exact: true })).toBeVisible();
         await page.screenshot({ path: `${output}/students-fees.png` });
         await fees.getByRole("button", { name: "Collect fee", exact: true }).click();
         const collection = page.getByRole("dialog", { name: "Collect fee", exact: true });
@@ -102,8 +103,7 @@ test("authenticated Students edits persist, keep allocations and expose the cano
         writeFileSync(`${output}/verification.json`, JSON.stringify({ scope: "actual Next route; existing development authentication; reverified loopback disposable database; providers held", scalarEditPersisted: true, allocationContextPreserved: true, financialAggregateUnchanged: true, languages: ["en", "hi", "hinglish"], widths: [1491, 390], nestedFeeFocusRestored: true, attendanceHistoryLoaded: true, existingCsvDownloaded: true }, null, 2));
     } finally {
         try {
-            // Existing public editing requires a nonblank phone. Restore the
-            // earlier null fixture directly in this independently verified DB.
+            // Restore only this synthetic scalar edit in the verified fixture.
             const restored = await db.query('UPDATE "Student" SET name = $1, phone = $2 WHERE id = $3 AND "branchId" = $4', [student.name, student.phone, student.id, fixture.branchId]); expect(restored.rowCount).toBe(1);
             const preferences = await request(page, "/api/users/me", "PATCH", { interfaceLanguage: profile.interfaceLanguage }); expect(preferences.ok()).toBe(true);
         } finally { await db.end(); }
@@ -116,7 +116,7 @@ test("actual read-only, restricted and foreign branch routes retain access bound
     await page.screenshot({ path: `${output}/students-readonly.png` });
     const foreign = await request(page, `/api/branches/${fixture.foreignBranchId}/students?limit=10`);
     expect([403, 404]).toContain(foreign.status());
-    const context = await browser.newContext({ baseURL: "http://localhost:3117", storageState: ".clerk/dashboard-staff-auth.json", viewport: { width: 1491, height: 1055 } });
+    const context = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3117", storageState: ".clerk/dashboard-staff-auth.json", viewport: { width: 1491, height: 1055 } });
     try {
         const staff = await context.newPage(); await refreshDevelopmentSession(staff);
         await ready(staff, `/branch/${fixture.branchId}/students`);
@@ -134,6 +134,7 @@ test("public content and the selected account page remain readable", async ({ pa
         await expect(page.locator('h1').first()).toBeVisible();
         await expect(page.locator('[data-app-design-pilot="workspace"]')).toHaveCount(0);
     }
+    await refreshDevelopmentSession(page);
     await ready(page, "/account");
     await expect(page.locator('h1').first()).toBeVisible();
     await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
