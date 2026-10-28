@@ -1,13 +1,18 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+const session = vi.hoisted(() => ({ user: null as { id: string } | null }));
+vi.mock("@/lib/auth", () => ({ getSessionUser: async () => session.user }));
+import { GET as listStaffRoute } from "@/app/api/branches/[branchId]/staff/route";
 import { EntitlementService } from "@/services/entitlement.service";
 import { BillingExperienceService } from "@/services/billingExperience.service";
+import { WhatsAppAuthorizationService } from "@/services/whatsappAuthorization.service";
 import { StaffService } from "@/services/staff.service";
 import { createOrg, createSaasSubscription, createUser } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 
 async function createSubscription(
   organizationId: string,
-  plan: "BASIC" | "PRO",
+  plan: "BASIC" | "STANDARD" | "PRO",
   status: "AUTHENTICATED" | "ACTIVE" | "EXPIRED" = "ACTIVE",
   options: { confirmedPaidPeriod?: boolean; paidThrough?: Date | null } = {}
 ) {
@@ -67,7 +72,29 @@ describe("subscription entitlements", () => {
     await expect(StaffService.listStaff(user.id, branch.id)).rejects.toThrow("upgraded subscription");
   });
 
-  it("enables Standard multi-branch, staff, analytics, and AI capabilities", async () => {
+  it.each(["BASIC", "STANDARD", "PRO"] as const)("enforces %s server access independently of client plan selection", async plan => {
+    const owner = await createUser();
+    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    await createSubscription(org.id, plan);
+    const branch = await testPrisma.branch.create({ data: { organizationId: org.id, name: "Plan boundary" } });
+    session.user = { id: owner.id };
+    const response = await listStaffRoute(new NextRequest(`http://test.local/api/branches/${branch.id}/staff`), { params: Promise.resolve({ branchId: branch.id }) });
+    expect(response.status).toBe(plan === "BASIC" ? 403 : 200);
+    for (const entitlement of ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS", "WHATSAPP_AUTOMATION"] as const) {
+      const call = EntitlementService.assertOrganizationEntitlement(org.id, entitlement);
+      const allowed = entitlement === "WHATSAPP_AUTOMATION" ? plan === "PRO" : plan !== "BASIC";
+      if (allowed) await expect(call).resolves.toMatchObject({ effectivePlan: plan });
+      else await expect(call).rejects.toMatchObject({ code: "SUBSCRIPTION_UPGRADE_REQUIRED" });
+    }
+    const whatsapp = WhatsAppAuthorizationService.assertOwnerCanWrite(owner.id, org.id);
+
+    if (plan === "PRO") { await expect(whatsapp).resolves.toEqual({ id: org.id }); await expect(StaffService.authorize(owner.id, branch.id, "view_whatsapp")).resolves.toBe(true); }
+    else { await expect(whatsapp).rejects.toMatchObject({ code: "SUBSCRIPTION_UPGRADE_REQUIRED" }); await expect(StaffService.authorize(owner.id, branch.id, "view_whatsapp")).rejects.toThrow("upgraded subscription"); }
+    const stranger = await createUser();
+    await expect(WhatsAppAuthorizationService.assertOwnerCanWrite(stranger.id, org.id)).rejects.toThrow();
+  });
+
+  it("enables Pro multi-branch, staff, analytics, and AI capabilities", async () => {
     const user = await createUser();
     const org = await createOrg({ ownerId: user.id });
     await createSubscription(org.id, "PRO");
@@ -84,7 +111,7 @@ describe("subscription entitlements", () => {
     expect(profile.entitlements).toContain("AI_ACCESS");
     expect(profile.entitlements).toContain("WHATSAPP_AUTOMATION");
     await expect(BillingExperienceService.getBillingExperience(org.id, user.id)).resolves.toMatchObject({
-      effectivePlan: "STANDARD",
+      effectivePlan: "PRO",
       accessMode: "FULL",
     });
     await expect(StaffService.authorize(user.id, branch.id, "analytics")).resolves.toBe(true);
@@ -167,11 +194,12 @@ describe("subscription entitlements", () => {
     const profile = await EntitlementService.getOrganizationProfile(org.id);
 
     expect(profile).toMatchObject({
-      effectivePlan: "PRO",
+      effectivePlan: "STANDARD",
       accessMode: "FULL",
       canWrite: true,
     });
     expect(profile.entitlements).toContain("AI_ACCESS");
+    expect(profile.entitlements).not.toContain("WHATSAPP_AUTOMATION");
   });
 
   it("removes premium entitlements after a subscription expires", async () => {
@@ -195,6 +223,7 @@ describe("subscription entitlements", () => {
     await createSubscription(org.id, "PRO");
     vi.stubEnv("RAZORPAY_MODE", "LIVE");
     vi.stubEnv("RAZORPAY_KEY_ID", "rzp_live_entitlement_guard");
+    vi.stubEnv("VERCEL_ENV", "production");
 
     const profile = await EntitlementService.getOrganizationProfile(org.id);
 
@@ -219,6 +248,7 @@ describe("subscription entitlements", () => {
     });
     vi.stubEnv("RAZORPAY_MODE", "LIVE");
     vi.stubEnv("RAZORPAY_KEY_ID", "rzp_live_v2_entitlement_guard");
+    vi.stubEnv("VERCEL_ENV", "production");
 
     const profile = await EntitlementService.getOrganizationProfile(org.id);
 

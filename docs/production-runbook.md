@@ -1899,6 +1899,86 @@ Operational expectations:
 
 ## Razorpay webhook and billing rollout
 
+### Billing recovery and gateway hardening — 2026-10-22
+
+The dedicated owner page is `/org/[orgId]/billing`. Recovery remains read-first:
+use the existing owner recovery/reconciliation action and inspect its typed
+outcome. Exact recovery closes its corresponding provider-action receipt in the
+same transaction. Reconcile previously adopted exact-settlement updates to repair
+stale matching receipts; do not delete receipts, clear unrelated holds or replay
+an uncertain provider write manually.
+
+Domestic-card mandates rejected plan/quantity updates in the observed Test
+account. The application does not persist provider-verified international-card
+eligibility, so all new Workspace Billing V2 CARD plan, trial-plan and branch-quantity changes use
+replacement authorization. Do not infer native update support from `CARD`, or
+relabel a card as another method to obtain different routing. Card-only Checkout
+can authorize the replacement with `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED`
+off; that flag still gates UPI/eMandate replacement and proactive method switching.
+Existing native scheduled operations keep their recorded identity and their
+undo/reconciliation path; do not rewrite them as replacement operations.
+
+For release evidence, test initial paid Basic and Standard access separately
+from replacement authorization, source retirement and later cutover. Confirm a
+card plan change returns a replacement Checkout, creates one frozen candidate
+and sends no plan/quantity PATCH to the source. Check current paid access and
+branch writability before and after authorization, and require the existing
+exact evidence before paid promotion. Downgrades use the next safe-cycle
+boundary, which can be later than the immediately upcoming renewal. A native
+update/undo sandbox test cannot substitute for this replacement path. Keep lost
+response recovery and the next independently requested change as separate
+assertions, checking every provider-write category for a read-only recovery.
+Check that retry reopens the existing replacement Checkout returned by the owner
+operation endpoint without a new plan request. For pending trial branches, test
+both retry and discard: an absent candidate pointer must not permit local
+cleanup while provider creation is in flight or uncertain.
+
+For a future-start CARD/UPI mandate, Razorpay can fully refund the INR 5
+verification token before the callback is read. This token can establish only
+authorization, never a paid billing period. Recovery requires the exact verified
+callback binding (organization, change, mode, subscription and payment), an
+authenticated future mandate with zero paid cycles and complete empty invoice
+history, and unchanged frozen terms. The signature-verified callback claim now
+records that binding before provider reads. A delayed read can recover from it;
+an older quarantined callback without retained proof must remain held. Do not
+backfill proof from an unverified payment hint or generate a replacement
+signature. A refunded invoice remains invalid paid-settlement evidence. In
+release checks, verify both delayed/refunded authorization recovery and rejection
+of proof reused for a different payment, and confirm paidThrough stays unchanged.
+
+Include a future-start case: the candidate preserves the source's original start
+and the owner trial end; insufficient safe lead time must hold the change rather
+than move those dates. After the undo cutoff, an authenticated source can be
+retired immediately only while its source/candidate/frozen start matches the
+still-future effective date. Require exact candidate authorization, matching
+source terms, explicit zero provider paid count, no current paid period or local
+paid pointers/invoices, complete empty provider invoices, a fresh provider read,
+and an unchanged local scope before the fenced CANCEL_SOURCE dispatch. A lost
+response is recovered by reading exact unpaid terminal source state without
+another cancel. Paid sources still use cycle-end cancellation. Candidate
+authorization and source retirement do not bypass the later paid-promotion
+checks. Keep this scenario's evidence distinct from an ordinary paid renewal
+replacement; a Test card checkout alone does not prove either cancellation path.
+
+Invoice reconciliation requests pages of 100 with `skip`, requiring an empty
+terminal page and validating identities/counts/duplicates on every page. The
+adapter allows at most 25 requests per collection; reaching the bound or a failed
+page retains the unresolved state. A large history requires reviewed investigation,
+not a partial-list fallback. Local, Preview, Development and unknown deployment
+contexts require Test mode; only explicit `VERCEL_ENV=production` accepts Live.
+
+Authorization-expiry cancellation rechecks exact uncharged CREATED/AUTHENTICATED
+state, zero paid count, absent current period and an empty invoice collection,
+then rechecks provider/local state under its lease. Newly observed billing activity
+is left for reconciliation. Razorpay offers no atomic read-and-conditional-cancel
+operation here; a provider transition after the final read remains a distributed
+race requiring provider-side sandbox observation before release.
+
+No schema migration, seed, package update or saved environment change is required.
+Release still requires observed Test checkout/callback/webhook evidence and the
+existing approved Live-canary procedure. Local unit/browser simulations and a
+successful Test API read do not establish those external outcomes.
+
 The webhook endpoint is `POST /api/razorpay/webhook`. It requires a valid
 Razorpay signature over the exact bounded raw bytes before parsing. A numeric
 `Content-Length` above 512 KiB is rejected before body access; streamed bodies
@@ -2829,3 +2909,26 @@ until forward repair. Never drop attendance/audit/receipt evidence or revert to
 pre-collection payment writers. No down migration, historical backfill, provider
 action or new approval stage is required. Actual local/remote migration and
 deployment status is in `docs/ai/basic-attendance-verification-2026-09-11.md`.
+
+## Three-plan billing release — 2026-10-23
+
+Follow [the catalogue cutover runbook](billing/three-plan-cutover.md) before applying `20261023090000_three_plan_catalogue`. It is transactionally guarded for a commercially empty ledger; it intentionally fails for historical subscriptions, invoices, mappings or unresolved operations. Use `scripts/billing-three-plan-inventory.sql` for the read-only affected-ID/count inventory. Do not delete billing history or reinterpret old internal PRO to bypass the guard. Production inventory, Live mappings, deployment and authorized Live smoke verification remain release prerequisites. No shared migration or deployment was performed in this task.
+
+
+### Three-plan release preparation and cron hosting gate
+
+The [release preparation handoff](billing/three-plan-cutover.md#release-preparation-follow-up--2026-10-23)
+records the five sub-daily schedules rejected by Vercel Hobby and the owner
+decision to upgrade the same project to Pro after approximately one week.
+The Hobby failure is an intentional hold; no alternative scheduler is selected.
+Retain the eight schedules and existing credentials/leases. An account purchase,
+scheduler replacement, deployment or Production operation needs its own explicit
+authorization; this preparation performs none of them.
+
+The read-only inventory now includes a bounded, consistent JSON readiness
+summary. Run with SQL stop-on-error, keep full output private, and treat timeout
+or partial output as invalid. Empty-ledger success is only a data precondition:
+provider obligations, migration lineage, snapshot/restore, worker drain, Live
+mappings and release smoke evidence remain separate gates. Do not use the
+local fixture verifier against shared databases; it accepts only the existing
+identity-checked loopback Docker runtime and creates a fresh synthetic database.

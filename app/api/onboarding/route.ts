@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         const { orgName, ownerPhone, businessType, branchName, city, defaultFee, seatCount, seatNumbering, shifts, multiShifts, includeFullTimeMultiShift, selectedPostTrialPlan } = body;
 
         if (!isCheckoutBillingPlanId(selectedPostTrialPlan)) {
-            return invalidResponse("Choose Basic or Standard as the post-trial plan.");
+            return invalidResponse("Choose Basic, Standard or Pro as the post-trial plan.");
         }
 
         const orgNameResult = validateRequiredText(orgName, "Organization name", 120);

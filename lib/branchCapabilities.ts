@@ -62,7 +62,7 @@ const ALLOWED_BRANCH_STATES = new Set(["ACTIVE"]);
 
 function billingRecoveryHref(access: BranchAccess) {
     if (!access.isOwner && !access.billingExperience?.viewer.canManageBilling) return null;
-    return `/org/${encodeURIComponent(access.organizationId)}/settings#billing`;
+    return `/org/${encodeURIComponent(access.organizationId)}/billing`;
 }
 
 export function getBranchCapabilityDecision(
@@ -93,12 +93,13 @@ export function getBranchCapabilityDecision(
     }
 
     if (requirement.entitlement && !access.entitlements.includes(requirement.entitlement)) {
+        const requiredPlan = requirement.entitlement === "WHATSAPP_AUTOMATION" ? "Pro" : "Standard";
         return {
             allowed: false,
             blocker: "entitlement",
             reason: access.isOwner
-                ? "This feature requires the Standard plan."
-                : "The organization owner needs to enable the Standard plan.",
+                ? `This feature requires the ${requiredPlan} plan.`
+                : `The organization owner needs to enable the ${requiredPlan} plan.`,
             recoveryHref: billingRecoveryHref(access),
         };
     }

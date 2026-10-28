@@ -24,6 +24,7 @@ export type BillingPlanDto = {
   comingSoon: boolean;
   custom: boolean;
   description: string;
+  availabilityNote?: string | null;
   capabilities: PublicBillingCapability[];
   entitlements: BillingEntitlement[];
   limits: { maxBranches: number | null };
@@ -137,12 +138,21 @@ export type BillingOverview = {
     toPlan: BillingPlanId | null;
     toQuantity: number | null;
     lastError: string | null;
+    organizationSubscriptionId?: string | null;
+    failureCategory?: string | null;
     replacementSubscriptionId?: string | null;
     accessGrantedAt?: string | null;
     accessRevokedAt?: string | null;
     accessGraceEndsAt?: string | null;
   }>;
 };
+
+export type BillingInvoiceDto = BillingOverview["invoices"][number] & {
+  createdAt: string;
+  providerMode: "TEST" | "LIVE" | null;
+};
+
+export type BillingInvoicePage = { items: BillingInvoiceDto[]; nextCursor: string | null };
 
 export type BillingOperationDto = {
   id: string;
@@ -255,9 +265,22 @@ export type BillingRecoveryPayload = {
   summary: BillingCheckoutPayload["summary"];
 };
 
+export type BillingOperationResponse = {
+  operation: BillingOperationDto;
+  processingUrl?: string;
+  checkout?: BillingCheckoutPayload;
+};
+
+export type BillingRetryResult = BillingCheckoutPayload | BillingRecoveryPayload | BillingOperationResponse;
+
 export const billing = {
   getOverview(orgId: string): Promise<BillingOverview> {
     return apiClient.get(`/organizations/${orgId}/billing`);
+  },
+
+  getInvoices(orgId: string, cursor?: string): Promise<BillingInvoicePage> {
+    const query = cursor ? `?${new URLSearchParams({ cursor }).toString()}` : "";
+    return apiClient.get(`/organizations/${encodeURIComponent(orgId)}/billing/invoices${query}`);
   },
 
   createSubscription(orgId: string, plan: CheckoutBillingPlanId, returnPath?: string): Promise<BillingCheckoutPayload> {
@@ -310,7 +333,7 @@ export const billing = {
     return apiClient.delete(`/organizations/${orgId}/billing/mutations/${changeId}`);
   },
 
-  getOperation(orgId: string, changeId: string): Promise<{ operation: BillingOperationDto; processingUrl: string }> {
+  getOperation(orgId: string, changeId: string): Promise<BillingOperationResponse & { processingUrl: string }> {
     return apiClient.get(`/organizations/${orgId}/billing/mutations/${changeId}`);
   },
 
@@ -318,7 +341,7 @@ export const billing = {
     return apiClient.post(`/organizations/${orgId}/billing/mutations/${changeId}`, { paymentId });
   },
 
-  retryOperation(orgId: string, changeId: string) {
+  retryOperation(orgId: string, changeId: string): Promise<BillingRetryResult> {
     return apiClient.post(`/organizations/${orgId}/billing/mutations/${changeId}/retry`);
   },
 

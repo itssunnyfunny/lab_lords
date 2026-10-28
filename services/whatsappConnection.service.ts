@@ -163,7 +163,7 @@ export class WhatsAppConnectionService {
         embeddedSignupConfigId: null,
         graphApiVersion: null,
         connectionAvailability: "UNAVAILABLE" as const,
-        safeReason: "WhatsApp requires the Standard plan.",
+        safeReason: "WhatsApp requires the Pro plan.",
       };
     }
     try {

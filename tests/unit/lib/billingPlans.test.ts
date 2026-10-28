@@ -1,65 +1,57 @@
 import { describe, expect, it } from "vitest";
-import {
-  getActiveBillingPlan,
-  getBillingPlan,
-  isCheckoutBillingPlanId,
-  publicBillingPlans,
-} from "@/lib/billingPlans";
+import { BILLING_PLAN_IDS, billingPlanRank, getActiveBillingPlan, getBillingPlan, isCheckoutBillingPlanId, publicBillingPlans } from "@/lib/billingPlans";
+import { deriveWorkspaceBillingState } from "@/lib/billingState";
 
-describe("billing plan catalog", () => {
-  it("publishes only Basic and Standard at the approved prices", () => {
-    expect(publicBillingPlans().map(plan => ({
-      id: plan.id,
-      shortName: plan.shortName,
-      amount: plan.amount,
-    }))).toEqual([
-      { id: "BASIC", shortName: "Basic", amount: 299 },
-      { id: "PRO", shortName: "Standard", amount: 499 },
+describe("three-plan billing catalogue", () => {
+  it("publishes exact immutable monthly INR terms with no added branch limits", () => {
+    expect(publicBillingPlans().map(p => [p.id, p.shortName, p.amount, p.currency, p.period, p.interval, p.limits.maxBranches])).toEqual([
+      ["BASIC", "Basic", 99, "INR", "monthly", 1, null],
+      ["STANDARD", "Standard", 299, "INR", "monthly", 1, null],
+      ["PRO", "Pro", 499, "INR", "monthly", 1, null],
     ]);
   });
-
-  it("keeps legacy plans readable but unavailable for checkout", () => {
-    expect(getBillingPlan("AGENT_CONTROL")?.visible).toBe(false);
-    expect(getBillingPlan("CUSTOM")?.visible).toBe(false);
-    expect(isCheckoutBillingPlanId("AGENT_CONTROL")).toBe(false);
-    expect(() => getActiveBillingPlan("AGENT_CONTROL")).toThrow("not available");
+  it.each(["AGENT_CONTROL", "CUSTOM", "standard", ""])("rejects obsolete or invalid identity %s", id => {
+    expect(getBillingPlan(id)).toBeNull();
+    expect(isCheckoutBillingPlanId(id)).toBe(false);
+    expect(() => getActiveBillingPlan(id)).toThrow("Unknown subscription plan");
   });
-
-  it("assigns AI only to Standard among public plans", () => {
-    expect(getActiveBillingPlan("BASIC").entitlements).not.toContain("AI_ACCESS");
-    expect(getActiveBillingPlan("PRO").entitlements).toContain("AI_ACCESS");
+  it("separates core, operational premium and WhatsApp capabilities", () => {
+    const [basic, standard, pro] = publicBillingPlans();
+    expect(basic.entitlements).toEqual([]);
+    expect(standard.entitlements).toEqual(["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"]);
+    expect(pro.entitlements).toEqual([...standard.entitlements, "WHATSAPP_AUTOMATION"]);
+    expect(basic.capabilities.filter(c => c.included)).toHaveLength(8);
+    expect(standard.capabilities.filter(c => c.included)).toHaveLength(11);
+    expect(pro.capabilities.filter(c => c.included)).toHaveLength(12);
+    expect(pro.availabilityNote).toContain("integration setup and rollout availability");
+    expect(pro.availabilityNote).toContain("unlimited messages are not included");
   });
-
-  it("gates WhatsApp internally without advertising unfinished delivery", () => {
-    expect(getActiveBillingPlan("BASIC").entitlements).not.toContain("WHATSAPP_AUTOMATION");
-    expect(getActiveBillingPlan("PRO").entitlements).toContain("WHATSAPP_AUTOMATION");
-    expect(getBillingPlan("AGENT_CONTROL")?.entitlements).toContain("WHATSAPP_AUTOMATION");
-    expect(getBillingPlan("CUSTOM")?.entitlements).toContain("WHATSAPP_AUTOMATION");
-    expect(JSON.stringify(publicBillingPlans())).not.toContain("WHATSAPP_AUTOMATION");
-    expect(JSON.stringify(publicBillingPlans())).not.toContain("WhatsApp");
+  it.each(BILLING_PLAN_IDS)("selected or authorized %s does not fabricate paid access", plan => {
+    for (const status of ["CREATED", "AUTHENTICATED", "ACTIVE"]) {
+      expect(deriveWorkspaceBillingState({ now: new Date(), subscription: { plan, status, paidThrough: null } }))
+        .toMatchObject({ accessMode: "READ_ONLY", canWrite: false, source: "NONE" });
+    }
   });
-
-  it("publishes the exact shared capability matrix in a stable order", () => {
-    const [basic, standard] = publicBillingPlans();
-    const labels = [
-      "Student records and spreadsheet import",
-      "Seats, shifts and allocations",
-      "Payments, dues and audit history",
-      "Full or partial payments and receipts",
-      "Upcoming fees and follow-up notes",
-      "Attendance and staff-assisted QR",
-      "English, Hindi and Hinglish preferences",
-      "Multiple branches, each billed separately",
-      "Staff invitations, roles and permission controls",
-      "Branch and cross-branch advanced analytics",
-      "AI reports",
-    ];
-
-    expect(basic.capabilities.map(capability => capability.label)).toEqual(labels);
-    expect(standard.capabilities.map(capability => capability.label)).toEqual(labels);
-    expect(basic.capabilities.map(capability => capability.included)).toEqual([
-      true, true, true, true, true, true, true, true, false, false, false,
-    ]);
-    expect(standard.capabilities.every(capability => capability.included)).toBe(true);
+  it.each(BILLING_PLAN_IDS)("keeps Standard trial explicit with a %s quantity grant", plan => {
+    const now = new Date("2026-10-23T00:00:00Z");
+    const state = deriveWorkspaceBillingState({ now,
+      trial: { status: "ACTIVE", endsAt: new Date("2026-10-30T00:00:00Z") },
+      authorizedReplacement: { plan, accessGrantedAt: now, accessRevokedAt: null, graceEndsAt: null },
+    });
+    expect(state).toMatchObject({ source: "TRIAL", effectivePlan: plan === "PRO" ? "PRO" : "STANDARD" });
+  });
+  it("preserves independently confirmed paid Pro while a Standard trial is still dated active", () => {
+    const now = new Date("2026-10-23T00:00:00Z");
+    expect(deriveWorkspaceBillingState({ now, trial: { status: "ACTIVE", endsAt: new Date("2026-10-30T00:00:00Z") },
+      subscription: { plan: "PRO", status: "ACTIVE", paidThrough: new Date("2026-11-23T00:00:00Z") } })).toMatchObject({ effectivePlan: "PRO", source: "PAID" });
+  });
+  it("keeps retired AI message drafting out of every selectable plan", () => {
+    for (const plan of publicBillingPlans()) {
+      expect(plan.capabilities.find(capability => capability.id === "AI_ASSISTANCE")?.label).toBe("AI reports");
+      expect(JSON.stringify(plan)).not.toContain("message drafting");
+    }
+  });
+  it("orders all six directions consistently", () => {
+    expect(BILLING_PLAN_IDS.map(billingPlanRank)).toEqual([1, 2, 3]);
   });
 });

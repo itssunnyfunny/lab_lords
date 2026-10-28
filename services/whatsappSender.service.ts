@@ -68,7 +68,7 @@ export class WhatsAppSenderService {
         canManage: false,
         canManageOperations: false,
         operationsUiEnabled: false,
-        safeReason: "WhatsApp requires the Standard plan.",
+        safeReason: "WhatsApp requires the Pro plan.",
         senders: [],
       };
     }
@@ -177,7 +177,7 @@ export class WhatsAppSenderService {
         canManage: false,
         operationsUiEnabled: false,
         serviceNoticesEnabled: false,
-        safeReason: "WhatsApp requires the Standard plan.",
+        safeReason: "WhatsApp requires the Pro plan.",
         assignment: null,
         availableSenders: [],
       };

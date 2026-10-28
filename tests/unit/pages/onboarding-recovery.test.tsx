@@ -126,7 +126,7 @@ describe("onboarding page recovery", () => {
         let finish!: (response: Response) => void;
         fetchMock.mockImplementationOnce((_url, init) => {
             expect(readOnboardingCommand("account-A")).toMatchObject({ status: "pending", commandId: key, body: init.body });
-            expect(JSON.parse(init.body)).toMatchObject({ orgName: "New organization", branchName: "Main", seatCount: 2, selectedPostTrialPlan: "PRO" });
+            expect(JSON.parse(init.body)).toMatchObject({ orgName: "New organization", branchName: "Main", seatCount: 2, selectedPostTrialPlan: "STANDARD" });
             return new Promise(resolve => { finish = resolve; });
         });
         const page = mount();

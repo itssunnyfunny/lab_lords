@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BillingService } from "@/services/billing.service";
 import { BillingReconciliationService } from "@/services/billingReconciliation.service";
+import { EntitlementService } from "@/services/entitlement.service";
 import { BranchService } from "@/services/branch.service";
 import {
   BillingChangeInProgressError,
@@ -26,7 +27,7 @@ function createFakeRazorpayClient() {
     fetchPayment: vi.fn(async (paymentId: string) => ({
       id: paymentId,
       entity: "payment" as const,
-      amount: 29900,
+      amount: 9900,
       currency: "INR",
       status: "captured",
       order_id: null,
@@ -38,7 +39,7 @@ function createFakeRazorpayClient() {
     capturePayment: vi.fn(async (paymentId: string) => ({
       id: paymentId,
       entity: "payment" as const,
-      amount: 29900,
+      amount: 9900,
       currency: "INR",
       status: "captured",
       order_id: null,
@@ -57,16 +58,16 @@ function createFakeRazorpayClient() {
       },
     })),
     fetchPlan: vi.fn(async planId => {
-      const standard = planId.includes("pro") || planId.includes("standard");
+      const plan = planId.includes("pro") ? "PRO" : planId.includes("standard") ? "STANDARD" : "BASIC";
       return {
         id: planId,
         entity: "plan" as const,
         interval: 1,
         period: "monthly",
         item: {
-          amount: standard ? 49900 : 29900,
+          amount: plan === "PRO" ? 49900 : plan === "STANDARD" ? 29900 : 9900,
           currency: "INR",
-          name: standard ? "Lab Lords Standard" : "Lab Lords Basic",
+          name: `Lab Lords ${plan}`,
         },
       };
     }),
@@ -194,9 +195,9 @@ function exactBasicAuthorizationIntent(capturedAt = new Date()) {
     authorizedPlan: "BASIC" as const,
     authorizedQuantity: 1,
     authorizedRazorpayOfferId: null,
-    authorizedUnitAmountSubunits: 29900,
-    authorizedGrossAmountSubunits: 29900,
-    authorizedExpectedAmountSubunits: 29900,
+    authorizedUnitAmountSubunits: 9900,
+    authorizedGrossAmountSubunits: 9900,
+    authorizedExpectedAmountSubunits: 9900,
     authorizedOfferValidThroughPaidCount: null,
     authorizedCurrency: "INR",
     authorizedPeriod: "monthly",
@@ -298,11 +299,11 @@ describe("BillingService SaaS subscriptions", () => {
 
     expect(checkout.keyId).toBe("rzp_test_key");
     expect(checkout.subscriptionId).toBe("sub_basic");
-    expect(checkout.amount).toBe(29900);
+    expect(checkout.amount).toBe(9900);
     expect(checkout).toMatchObject({
       purpose: "INITIAL",
       testMode: true,
-      description: "Basic: 1 branch x Rs.299 = Rs.299/month",
+      description: "Basic: 1 branch x Rs.99 = Rs.99/month",
       prefill: { contact: "+919876543210" },
       config: {
         display: {
@@ -312,16 +313,16 @@ describe("BillingService SaaS subscriptions", () => {
       },
       summary: {
         plan: "BASIC",
-        unitAmount: 299,
+        unitAmount: 99,
         quantity: 1,
-        estimatedMonthlyTotal: 299,
-        planFeeDueToday: 299,
+        estimatedMonthlyTotal: 99,
+        planFeeDueToday: 99,
         trialEndsAt: null,
         firstChargeAt: null,
       },
     });
     expect(fakeRazorpay.createPlan).toHaveBeenCalledWith(expect.objectContaining({
-      item: expect.objectContaining({ amount: 29900, currency: "INR" }),
+      item: expect.objectContaining({ amount: 9900, currency: "INR" }),
       notes: expect.objectContaining({ plan: "BASIC", billing_type: "saas_plan" }),
     }));
     expect(fakeRazorpay.createSubscription).toHaveBeenCalledWith(expect.objectContaining({
@@ -335,8 +336,8 @@ describe("BillingService SaaS subscriptions", () => {
     });
     expect(stored).toMatchObject({
       plan: "BASIC",
-      amount: 299,
-      amountSubunits: 29900,
+      amount: 99,
+      amountSubunits: 9900,
       razorpayPlanId: "plan_basic",
       razorpaySubscriptionId: "sub_basic",
       status: "CREATED",
@@ -350,7 +351,23 @@ describe("BillingService SaaS subscriptions", () => {
     })).resolves.toEqual({ selectedPostTrialPlan: "BASIC" });
   });
 
-  it("blocks coming-soon and custom plans from checkout", async () => {
+  it.each([["BASIC", 9900], ["STANDARD", 29900], ["PRO", 49900]] as const)("checks out %s at its exact unit price times two active branches", async (plan, amount) => {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    await createBranch({ organizationId: org.id });
+    await createBranch({ organizationId: org.id });
+    const checkout = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan });
+    expect(checkout).toMatchObject({ plan: { id: plan }, amount, summary: { quantity: 2, unitAmount: amount / 100, estimatedMonthlyTotal: amount * 2 / 100, planFeeDueToday: amount * 2 / 100 } });
+    expect(provider.createPlan).toHaveBeenCalledWith(expect.objectContaining({ period: "monthly", interval: 1, item: expect.objectContaining({ amount, currency: "INR" }) }));
+    expect(provider.createSubscription).toHaveBeenCalledWith(expect.objectContaining({ quantity: 2, plan_id: `plan_${plan.toLowerCase()}` }));
+    await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan });
+    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
+    await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } })).resolves.toMatchObject({ paidThrough: null });
+  });
+
+  it("rejects removed catalogue identities before provider work", async () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
     const user = await createUser();
@@ -358,22 +375,23 @@ describe("BillingService SaaS subscriptions", () => {
 
     await expect(
       BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "AGENT_CONTROL" })
-    ).rejects.toThrow("not available");
+    ).rejects.toThrow("Unknown subscription plan");
     await expect(
       BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "CUSTOM" })
-    ).rejects.toThrow("not available");
+    ).rejects.toThrow("Unknown subscription plan");
     expect(fakeRazorpay.createPlan).not.toHaveBeenCalled();
   });
 
-  it("publishes only the Basic and Standard monthly plans", async () => {
+  it("publishes all three monthly plans", async () => {
     const user = await createUser();
     const org = await createOrg({ ownerId: user.id });
 
     const overview = await BillingService.listPlansForOrganization(user.id, org.id);
 
     expect(overview.plans.map(plan => ({ id: plan.id, name: plan.shortName, amount: plan.amount }))).toEqual([
-      { id: "BASIC", name: "Basic", amount: 299 },
-      { id: "PRO", name: "Standard", amount: 499 },
+      { id: "BASIC", name: "Basic", amount: 99 },
+      { id: "STANDARD", name: "Standard", amount: 299 },
+      { id: "PRO", name: "Pro", amount: 499 },
     ]);
     expect(overview.entitlements).toMatchObject({
       plan: null,
@@ -421,7 +439,7 @@ describe("BillingService SaaS subscriptions", () => {
 
     expect(overview.experience).toMatchObject({
       effectivePlan: "NONE",
-      selectedPostTrialPlan: "STANDARD",
+      selectedPostTrialPlan: "PRO",
       paymentAction: "AUTHORIZE_CARD",
       projectedUnitAmount: 499,
       customerMessage: "Authorize the selected plan to activate billing for this workspace.",
@@ -488,14 +506,14 @@ describe("BillingService SaaS subscriptions", () => {
       authorizationStatus: "NOT_AUTHORIZED",
       nextChargeAt: null,
     });
-    expect(overview.entitlements.effectivePlan).toBe("PRO");
+    expect(overview.entitlements.effectivePlan).toBe("STANDARD");
     const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
     expect(checkout.summary).toMatchObject({
       planFeeDueToday: 0,
       trialEndsAt: expect.any(String),
       firstChargeAt: null,
     });
-    expect(checkout.description).toMatch(/^Basic: 1 branch x Rs\.299 = Rs\.299\/month; starts /);
+    expect(checkout.description).toMatch(/^Basic: 1 branch x Rs\.99 = Rs\.99\/month; starts /);
     expect(fakeRazorpay.createSubscription).toHaveBeenCalledWith(expect.objectContaining({
       start_at: expect.any(Number),
     }));
@@ -555,7 +573,7 @@ describe("BillingService SaaS subscriptions", () => {
     await testPrisma.saasRazorpayPlan.create({
       data: {
         providerMode: "TEST",
-        catalogKey: "razorpay-plan:v1:TEST:BASIC:INR:39900:monthly:1",
+        catalogKey: "razorpay-plan:v2:TEST:BASIC:INR:39900:monthly:1",
         plan: "BASIC",
         amount: 399,
         amountSubunits: 39900,
@@ -587,10 +605,10 @@ describe("BillingService SaaS subscriptions", () => {
 
     const checkout = await BillingService.createSubscriptionCheckout(newOwner.id, newOrg.id, { plan: "BASIC" });
 
-    expect(checkout.amount).toBe(29900);
+    expect(checkout.amount).toBe(9900);
     await expect(testPrisma.saasRazorpayPlan.findFirst({ where: { plan: "BASIC", active: true } })).resolves.toMatchObject({
-      amount: 299,
-      amountSubunits: 29900,
+      amount: 99,
+      amountSubunits: 9900,
       razorpayPlanId: "plan_basic_299",
     });
     await expect(testPrisma.organizationSubscription.findUnique({
@@ -846,6 +864,10 @@ describe("BillingService SaaS subscriptions", () => {
 
     vi.stubEnv("RAZORPAY_MODE", "LIVE");
     vi.stubEnv("RAZORPAY_KEY_ID", "rzp_live_key");
+    // Model a legitimate Live runtime encountering a stored Test intent. Local
+    // Live configuration is rejected earlier, before operation reconciliation.
+    // The adapter remains injected and the database remains the disposable test DB.
+    vi.stubEnv("VERCEL_ENV", "production");
     await expect(BillingService.getBillingOperation(user.id, org.id, change.id))
       .resolves.toMatchObject({
         operation: { id: change.id },
@@ -1202,7 +1224,7 @@ describe("BillingService SaaS subscriptions", () => {
     expect(switched).toMatchObject({
       subscriptionId: "sub_pro",
       amount: 49900,
-      plan: { id: "PRO", shortName: "Standard" },
+      plan: { id: "PRO", shortName: "Pro" },
     });
     expect(fakeRazorpay.cancelSubscription).not.toHaveBeenCalled();
     expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(2);
@@ -1460,6 +1482,165 @@ describe("BillingService SaaS subscriptions", () => {
     expect(history.map(entry => entry.source)).toEqual(["CHECKOUT", "VERIFICATION"]);
   });
 
+  it.each([undefined, null])("settles a signed callback through invoice binding when payment subscription_id is %s", async subscriptionId => {
+    const fakeRazorpay = createFakeRazorpayClient();
+    setRazorpayClientForTests(fakeRazorpay);
+    const user = await createUser();
+    const org = await createOrg({ ownerId: user.id, billingModelVersion: "WORKSPACE_V2" });
+    await createBranch({ organizationId: org.id });
+    const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "PRO" });
+    const providerNow = Math.floor(Date.now() / 1000);
+    const periodStart = providerNow - 60;
+    const periodEnd = periodStart + 30 * 24 * 60 * 60;
+    vi.mocked(fakeRazorpay.fetchSubscription).mockResolvedValue({
+      id: "sub_pro", entity: "subscription", plan_id: "plan_pro", status: "active",
+      total_count: 120, quantity: 1, paid_count: 1, current_start: periodStart,
+      current_end: periodEnd, charge_at: periodEnd, offer_id: null, payment_method: "card",
+    });
+    vi.mocked(fakeRazorpay.fetchSubscriptionInvoices).mockResolvedValue({
+      entity: "collection", count: 1, items: [{
+        id: "inv_callback", entity: "invoice", subscription_id: "sub_pro", payment_id: "pay_callback",
+        status: "paid", amount: 49_900, amount_paid: 49_900, amount_due: 0, currency: "INR",
+        billing_start: periodStart, billing_end: periodEnd, issued_at: periodStart, paid_at: providerNow,
+      }],
+    });
+    vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
+      id: "pay_callback", entity: "payment", amount: 49_900, currency: "INR", status: "captured",
+      order_id: null, invoice_id: "inv_callback", subscription_id: subscriptionId,
+      method: "card", captured: true,
+    });
+    const callback = {
+      changeId: checkout.changeId, razorpay_subscription_id: "sub_pro", razorpay_payment_id: "pay_callback",
+      razorpay_signature: hmacSha256Hex("pay_callback|sub_pro", "secret"),
+    };
+
+    await expect(BillingService.verifySubscriptionSuccess(user.id, org.id, callback))
+      .resolves.toMatchObject({ verified: true, operation: { operationStatus: "APPLIED" } });
+    await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } }))
+      .resolves.toMatchObject({ plan: "PRO", status: "ACTIVE", paidThrough: new Date(periodEnd * 1000),
+        confirmedCommercialIntentChangeId: checkout.changeId });
+    await expect(testPrisma.organizationSubscriptionInvoice.findUniqueOrThrow({ where: { razorpayInvoiceId: "inv_callback" } }))
+      .resolves.toMatchObject({ organizationId: org.id, razorpayPaymentId: "pay_callback", status: "paid", paymentMethod: "CARD" });
+    await expect(EntitlementService.getOrganizationProfile(org.id))
+      .resolves.toMatchObject({ canWrite: true, effectivePlan: "PRO",
+        entitlements: expect.arrayContaining(["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"]) });
+    await expect(BillingService.verifySubscriptionSuccess(user.id, org.id, callback))
+      .resolves.toMatchObject({ verified: true, operation: { operationStatus: "APPLIED" } });
+    expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(1);
+    expect(fakeRazorpay.updateSubscription).not.toHaveBeenCalled();
+    expect(fakeRazorpay.cancelSubscription).not.toHaveBeenCalled();
+  });
+
+  it.each(["authorized", "refunded", "refunded-after-quarantine", "refunded-after-fetch-delay"] as const)("preserves signed future-start authorization without a payment subscription field across read-only reconciliation: %s", async tokenState => {
+    const fakeRazorpay = createFakeRazorpayClient();
+    setRazorpayClientForTests(fakeRazorpay);
+    const user = await createUser();
+    const org = await createOrg({ ownerId: user.id, billingModelVersion: "WORKSPACE_V2" });
+    await createBranch({ organizationId: org.id });
+    const now = new Date();
+    const trialEndsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await testPrisma.ownerTrialGrant.create({ data: {
+      ownerId: user.id, organizationId: org.id, source: "ONBOARDING", status: "ACTIVE",
+      claimedAt: now, trialStartedAt: now, trialEndsAt, consumedAt: now,
+    } });
+    const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
+    vi.mocked(fakeRazorpay.fetchSubscription).mockResolvedValue({
+      id: "sub_basic", entity: "subscription", plan_id: "plan_basic", status: "authenticated",
+      total_count: 120, quantity: 1, paid_count: 0, start_at: Math.floor(trialEndsAt.getTime() / 1000),
+      current_start: null, current_end: null, offer_id: null,
+    });
+    vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
+      id: "pay_futureauth", entity: "payment", amount: 500, currency: "INR", status: tokenState === "authorized" ? "authorized" : "refunded",
+      order_id: null, invoice_id: null, method: "card", captured: false,
+      amount_refunded: tokenState === "refunded-after-quarantine" ? 499 : 500, refund_status: "full",
+    });
+
+    const callback = { changeId: checkout.changeId, razorpay_subscription_id: "sub_basic", razorpay_payment_id: "pay_futureauth",
+      razorpay_signature: hmacSha256Hex("pay_futureauth|sub_basic", "secret") };
+    await expect(BillingService.verifySubscriptionSuccess(user.id, org.id, { ...callback, razorpay_signature: "invalid" }))
+      .rejects.toThrow("Invalid Razorpay signature");
+    await expect(testPrisma.organizationBillingChangeAudit.count({ where: { changeId: checkout.changeId,
+      outcome: "SUBSCRIPTION_CALLBACK_SIGNATURE_VERIFIED" } })).resolves.toBe(0);
+    if (tokenState === "refunded-after-quarantine") {
+      await expect(BillingService.verifySubscriptionSuccess(user.id, org.id, callback))
+        .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+      await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } }))
+        .resolves.toMatchObject({ authPaymentId: null, paidThrough: null, confirmedCommercialIntentChangeId: null });
+      vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({ id: "pay_futureauth", entity: "payment", amount: 500,
+        currency: "INR", status: "refunded", captured: false, amount_refunded: 500, refund_status: "full",
+        order_id: null, invoice_id: null, method: "card" });
+    } else if (tokenState === "refunded-after-fetch-delay") {
+      vi.mocked(fakeRazorpay.fetchPayment).mockRejectedValueOnce(new Error("temporary provider read delay"));
+      await expect(BillingService.verifySubscriptionSuccess(user.id, org.id, callback))
+        .resolves.toMatchObject({ pending: true });
+      vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValueOnce({ id: "pay_unrelated_refund", entity: "payment", amount: 500,
+        currency: "INR", status: "refunded", captured: false, amount_refunded: 500, refund_status: "full",
+        order_id: null, invoice_id: null, method: "card" });
+      await expect(BillingReconciliationService.reconcileProviderSubscription("sub_basic", {
+        paymentId: "pay_unrelated_refund", commercialIntentChangeId: checkout.changeId,
+      })).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+      await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } }))
+        .resolves.toMatchObject({ authPaymentId: null, paidThrough: null, confirmedCommercialIntentChangeId: null });
+    } else {
+      await expect(BillingService.verifySubscriptionSuccess(user.id, org.id, callback))
+        .resolves.toMatchObject({ verified: true, operation: { operationStatus: "APPLIED" } });
+    }
+    await expect(testPrisma.organizationBillingChangeAudit.count({ where: { changeId: checkout.changeId,
+      organizationId: org.id, outcome: "SUBSCRIPTION_CALLBACK_SIGNATURE_VERIFIED",
+      dedupeKey: `verified-subscription-callback:${checkout.changeId}:TEST:sub_basic:pay_futureauth` } })).resolves.toBe(1);
+    vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "false");
+    if (tokenState.startsWith("refunded-after-")) {
+      await expect(BillingService.reconcileMutation(user.id, org.id, checkout.changeId))
+        .resolves.toMatchObject({ reconciliation: { evidenceKind: "AUTHORIZATION_ONLY", confirmedPaidPeriod: false } });
+    } else {
+      await expect(BillingReconciliationService.reconcileProviderSubscription("sub_basic", {
+        paymentId: "pay_futureauth", commercialIntentChangeId: checkout.changeId,
+      })).resolves.toMatchObject({ evidenceKind: "AUTHORIZATION_ONLY", confirmedPaidPeriod: false });
+    }
+    await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } }))
+      .resolves.toMatchObject({ status: "AUTHENTICATED", paidThrough: null, authPaymentId: "pay_futureauth",
+        confirmedCommercialIntentChangeId: checkout.changeId });
+    vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "false");
+    await expect(BillingReconciliationService.reconcileProviderSubscription("sub_basic", {
+      paymentId: "pay_futureauth", commercialIntentChangeId: checkout.changeId,
+    })).resolves.toMatchObject({ evidenceKind: "AUTHORIZATION_ONLY", confirmedPaidPeriod: false });
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: checkout.changeId } }))
+      .resolves.toMatchObject({ status: "APPLIED", failureCategory: null });
+
+    // Trial access is a separate grant. Once it expires, mandate authorization
+    // alone must leave this V2 workspace read-only with no paid features.
+    await testPrisma.ownerTrialGrant.updateMany({ where: { organizationId: org.id },
+      data: { trialEndsAt: new Date(Date.now() - 1_000) } });
+    await expect(EntitlementService.getOrganizationProfile(org.id))
+      .resolves.toMatchObject({ canWrite: false, effectivePlan: "BASIC", entitlements: [] });
+    expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(1);
+    expect(fakeRazorpay.updateSubscription).not.toHaveBeenCalled();
+    expect(fakeRazorpay.cancelSubscription).not.toHaveBeenCalled();
+  });
+
+  it.each(["authorized", "refunded"] as const)("does not bind an unverified payment hint without direct subscription or invoice evidence: %s", async paymentStatus => {
+    const fakeRazorpay = createFakeRazorpayClient();
+    setRazorpayClientForTests(fakeRazorpay);
+    const user = await createUser();
+    const org = await createOrg({ ownerId: user.id, billingModelVersion: "WORKSPACE_V2" });
+    await createBranch({ organizationId: org.id });
+    const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "BASIC" });
+    vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
+      id: "pay_unverified", entity: "payment", amount: 500, currency: "INR", status: paymentStatus,
+      order_id: null, invoice_id: null, method: "card", captured: false,
+      amount_refunded: 500, refund_status: "full",
+    });
+    await BillingService.recordCheckoutEvent(user.id, org.id, checkout.changeId, {
+      event: "AWAITING_PROVIDER_CONFIRMATION", reason: "result_unknown", paymentId: "pay_unverified",
+    });
+    await expect(BillingService.reconcileMutation(user.id, org.id, checkout.changeId))
+      .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } }))
+      .resolves.toMatchObject({ authPaymentId: null, confirmedCommercialIntentChangeId: null, paidThrough: null });
+    await expect(EntitlementService.getOrganizationProfile(org.id))
+      .resolves.toMatchObject({ canWrite: false, effectivePlan: "BASIC", entitlements: [] });
+  });
+
   it("waits seven days for a verified eMandate that remains CREATED without granting paid access", async () => {
     const fakeRazorpay = createFakeRazorpayClient();
     vi.mocked(fakeRazorpay.fetchSubscription).mockResolvedValue({
@@ -1474,11 +1655,10 @@ describe("BillingService SaaS subscriptions", () => {
     vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
       id: "pay_emandateauth",
       entity: "payment",
-      amount: 29900,
+      amount: 9900,
       currency: "INR",
       status: "authorized",
       order_id: null,
-      subscription_id: "sub_basic",
       method: "emandate",
       captured: false,
     });
@@ -1511,6 +1691,10 @@ describe("BillingService SaaS subscriptions", () => {
       providerPaymentMethod: "EMANDATE",
       paidThrough: null,
     });
+    await expect(BillingReconciliationService.reconcileProviderSubscription("sub_basic", {
+      paymentId: "pay_emandateauth", commercialIntentChangeId: checkout.changeId,
+    })).resolves.toMatchObject({ evidenceKind: "AUTHORIZATION_ONLY", confirmedPaidPeriod: false,
+      subscription: { status: "CREATED", paidThrough: null } });
     expect(fakeRazorpay.cancelSubscription).not.toHaveBeenCalled();
   });
 
@@ -1519,7 +1703,7 @@ describe("BillingService SaaS subscriptions", () => {
     vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
       id: "pay_walletauth",
       entity: "payment",
-      amount: 29900,
+      amount: 9900,
       currency: "INR",
       status: "authorized",
       order_id: null,
@@ -1999,6 +2183,115 @@ describe("BillingService SaaS subscriptions", () => {
     expect(fakeRazorpay.fetchPayment).toHaveBeenCalledTimes(1);
   });
 
+  it("holds duplicate Checkout after callback quarantine and recovers access before a later plan change", async () => {
+    const fakeRazorpay = createFakeRazorpayClient();
+    setRazorpayClientForTests(fakeRazorpay);
+    const user = await createUser();
+    const org = await createOrg({ ownerId: user.id, billingModelVersion: "WORKSPACE_V2" });
+    await createBranch({ organizationId: org.id });
+    const checkout = await BillingService.createSubscriptionCheckout(user.id, org.id, { plan: "PRO" });
+    const providerNow = Math.floor(Date.now() / 1000);
+    const periodStart = providerNow - 60;
+    const periodEnd = periodStart + 30 * 24 * 60 * 60;
+    vi.mocked(fakeRazorpay.fetchSubscription).mockResolvedValue({
+      id: "sub_pro", entity: "subscription", plan_id: "plan_pro", status: "active",
+      total_count: 120, quantity: 1, paid_count: 1, current_start: periodStart,
+      current_end: periodEnd, charge_at: periodEnd, offer_id: null, payment_method: "card",
+    });
+    vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
+      id: "pay_recovery", entity: "payment", amount: 49_900, currency: "INR", status: "captured",
+      order_id: null, subscription_id: "sub_foreign", method: "card", captured: true,
+    });
+    const callback = {
+      changeId: checkout.changeId, razorpay_subscription_id: "sub_pro", razorpay_payment_id: "pay_recovery",
+      razorpay_signature: hmacSha256Hex("pay_recovery|sub_pro", "secret"),
+    };
+    await expect(BillingService.verifySubscriptionSuccess(user.id, org.id, callback))
+      .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: checkout.changeId } }))
+      .resolves.toMatchObject({ status: "FAILED", failureCategory: "MANUAL_REVIEW_REQUIRED",
+        failureCode: "PAYMENT_SUBSCRIPTION_MISMATCH", resolvedAt: null });
+    await expect(EntitlementService.getOrganizationProfile(org.id))
+      .resolves.toMatchObject({ canWrite: false, accessMode: "READ_ONLY", entitlements: [] });
+
+    // Both same-plan retry and changed-plan Start must keep the original
+    // operation held; neither may issue another Checkout payload or plan create.
+    for (const plan of ["PRO", "PRO", "BASIC"] as const) {
+      await expect(BillingService.createSubscriptionCheckout(user.id, org.id, { plan }))
+        .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    }
+    await expect(testPrisma.organizationBillingChange.count({ where: {
+      organizationId: org.id, type: "SUBSCRIPTION_AUTHORIZATION",
+    } })).resolves.toBe(1);
+    expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(1);
+    expect(fakeRazorpay.createPlan).toHaveBeenCalledTimes(1);
+    expect(fakeRazorpay.updateSubscription).not.toHaveBeenCalled();
+    expect(fakeRazorpay.cancelSubscription).not.toHaveBeenCalled();
+
+    // Historical duplicate authorization rows may predate the guard. The
+    // existing owner dismissal operation retires only that local Checkout.
+    const original = await testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: checkout.changeId } });
+    const legacyDuplicate = await testPrisma.organizationBillingChange.create({ data: {
+      organizationId: org.id, organizationSubscriptionId: original.organizationSubscriptionId,
+      sequence: original.sequence + 1, idempotencyKey: "historical-duplicate-checkout",
+      type: "SUBSCRIPTION_AUTHORIZATION", status: "AWAITING_PAYMENT", operationStatus: "CHECKOUT_OPEN",
+      fromPlan: "PRO", toPlan: "PRO", fromQuantity: 1, toQuantity: 1, createdByUserId: user.id,
+    } });
+    await testPrisma.organization.update({ where: { id: org.id }, data: { billingMutationSequence: legacyDuplicate.sequence } });
+    await expect(BillingService.recordCheckoutEvent(user.id, org.id, legacyDuplicate.id, { event: "ABANDONED" }))
+      .resolves.toMatchObject({ operation: { id: legacyDuplicate.id, queueStatus: "UNDONE", operationStatus: "ABANDONED" } });
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: checkout.changeId } }))
+      .resolves.toMatchObject({ status: "FAILED", failureCategory: "MANUAL_REVIEW_REQUIRED", resolvedAt: null });
+    expect(fakeRazorpay.cancelSubscription).not.toHaveBeenCalled();
+
+    // Provider reads later supply the exact invoice/payment binding. Missing
+    // payment.subscription_id is permitted only through this invoice evidence.
+    vi.mocked(fakeRazorpay.fetchSubscriptionInvoices).mockResolvedValue({
+      entity: "collection", count: 1, items: [{
+        id: "inv_recovery", entity: "invoice", subscription_id: "sub_pro", payment_id: "pay_recovery",
+        status: "paid", amount: 49_900, amount_paid: 49_900, amount_due: 0, currency: "INR",
+        billing_start: periodStart, billing_end: periodEnd, issued_at: periodStart, paid_at: providerNow,
+      }],
+    });
+    vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
+      id: "pay_recovery", entity: "payment", amount: 49_900, currency: "INR", status: "captured",
+      order_id: null, invoice_id: "inv_recovery", method: "card", captured: true,
+    });
+    vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "false");
+    await expect(BillingService.retryBillingOperation(user.id, org.id, checkout.changeId))
+      .resolves.toMatchObject({ resolutionOutcome: "PROVIDER_STATE_ADOPTED",
+        operation: { id: checkout.changeId, operationStatus: "APPLIED" } });
+    for (const entitlement of ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"] as const) {
+      await expect(EntitlementService.assertOrganizationEntitlement(org.id, entitlement))
+        .resolves.toMatchObject({ effectivePlan: "PRO", canWrite: true });
+    }
+    await expect(BillingService.listPlansForOrganization(user.id, org.id))
+      .resolves.toMatchObject({ experience: { effectivePlan: "PRO",
+        entitlements: expect.arrayContaining(["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"]) } });
+    expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(1);
+    expect(fakeRazorpay.updateSubscription).not.toHaveBeenCalled();
+    expect(fakeRazorpay.cancelSubscription).not.toHaveBeenCalled();
+
+    vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "true");
+    // Domestic cards cannot change plan in place. The recovered owner can
+    // prepare one fresh mandate without losing the already-paid Standard term.
+    vi.stubEnv("RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED", "false");
+    await expect(BillingService.changeWorkspacePlan(user.id, org.id, "BASIC", "plan-after-callback-recovery"))
+      .resolves.toMatchObject({ purpose: "REPLACEMENT", testMode: true, subscriptionId: "sub_basic",
+        plan: { id: "BASIC" }, summary: { planFeeDueToday: 0, firstChargeAt: new Date(periodEnd * 1000).toISOString() },
+        operation: { operationStatus: "CHECKOUT_OPEN" } });
+    expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(2);
+    expect(fakeRazorpay.createSubscription).toHaveBeenLastCalledWith(expect.objectContaining({
+      plan_id: "plan_basic", quantity: 1, start_at: periodEnd,
+    }));
+    expect(fakeRazorpay.updateSubscription).not.toHaveBeenCalled();
+    expect(fakeRazorpay.cancelSubscription).not.toHaveBeenCalled();
+    await expect(testPrisma.organizationSubscription.findFirstOrThrow({ where: { currentOrganizationId: org.id } }))
+      .resolves.toMatchObject({ razorpaySubscriptionId: "sub_pro", paidThrough: new Date(periodEnd * 1000) });
+    await expect(EntitlementService.getOrganizationProfile(org.id))
+      .resolves.toMatchObject({ effectivePlan: "PRO", canWrite: true });
+  }, 60_000);
+
   it("does not reopen Checkout when provider success wins a retry race", async () => {
     const fakeRazorpay = createFakeRazorpayClient();
     setRazorpayClientForTests(fakeRazorpay);
@@ -2067,8 +2360,8 @@ describe("BillingService SaaS subscriptions", () => {
         currentOrganizationId: org.id,
         providerMode: "TEST",
         plan: "BASIC",
-        amount: 299,
-        amountSubunits: 29900,
+        amount: 99,
+        amountSubunits: 9900,
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
@@ -2154,8 +2447,8 @@ describe("BillingService SaaS subscriptions", () => {
         currentOrganizationId: org.id,
         providerMode: "TEST",
         plan: "BASIC",
-        amount: 299,
-        amountSubunits: 29900,
+        amount: 99,
+        amountSubunits: 9900,
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
@@ -2170,7 +2463,7 @@ describe("BillingService SaaS subscriptions", () => {
       subscription_card_change: true,
       testMode: true,
       prefill: { email: "billing-recovery@example.test", contact: "+919876543210" },
-      description: "Recover payment for Basic: 1 branch x Rs.299 = Rs.299/month",
+      description: "Recover payment for Basic: 1 branch x Rs.99 = Rs.99/month",
       config: { display: { sequence: ["block.cards"] } },
     });
   });
@@ -2186,8 +2479,8 @@ describe("BillingService SaaS subscriptions", () => {
         currentOrganizationId: organization.id,
         providerMode: "TEST",
         plan: "BASIC",
-        amount: 299,
-        amountSubunits: 29900,
+        amount: 99,
+        amountSubunits: 9900,
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
@@ -2220,8 +2513,8 @@ describe("BillingService SaaS subscriptions", () => {
         currentOrganizationId: organization.id,
         providerMode: "TEST",
         plan: "BASIC",
-        amount: 299,
-        amountSubunits: 29900,
+        amount: 99,
+        amountSubunits: 9900,
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
@@ -2269,7 +2562,7 @@ describe("BillingService SaaS subscriptions", () => {
 
     const overview = await BillingService.listPlansForOrganization(user.id, org.id);
     expect(overview.experience).toMatchObject({
-      customerState: "STANDARD_ACTIVE",
+      customerState: "PRO_ACTIVE",
       paymentAction: "NONE",
       latestOperation: {
         type: "CANCELLATION",
@@ -2307,7 +2600,7 @@ describe("BillingService SaaS subscriptions", () => {
           entity: {
             id: "pay_webhook",
             entity: "payment",
-            amount: 29900,
+            amount: 9900,
             currency: "INR",
             status: "captured",
             order_id: null,
@@ -2377,8 +2670,8 @@ describe("BillingService SaaS subscriptions", () => {
         subscription_id: "sub_basic",
         payment_id: "pay_invoice_only",
         status: "paid",
-        amount: 29900,
-        amount_paid: 29900,
+        amount: 9900,
+        amount_paid: 9900,
         amount_due: 0,
         currency: "INR",
         billing_start: periodStart,
@@ -2390,7 +2683,7 @@ describe("BillingService SaaS subscriptions", () => {
     vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
       id: "pay_invoice_only",
       entity: "payment",
-      amount: 29900,
+      amount: 9900,
       currency: "INR",
       status: "captured",
       order_id: null,
@@ -2410,8 +2703,8 @@ describe("BillingService SaaS subscriptions", () => {
             subscription_id: "sub_basic",
             payment_id: "pay_invoice_only",
             status: "paid",
-            amount: 29900,
-            amount_paid: 29900,
+            amount: 9900,
+            amount_paid: 9900,
             amount_due: 0,
             currency: "INR",
             billing_start: periodStart,
@@ -2481,8 +2774,8 @@ describe("BillingService SaaS subscriptions", () => {
         subscription_id: "sub_basic",
         payment_id: "pay_missing_capture",
         status: "paid",
-        amount: 29900,
-        amount_paid: 29900,
+        amount: 9900,
+        amount_paid: 9900,
         amount_due: 0,
         currency: "INR",
         billing_start: periodStart,
@@ -2494,7 +2787,7 @@ describe("BillingService SaaS subscriptions", () => {
     vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
       id: "pay_missing_capture",
       entity: "payment",
-      amount: 29900,
+      amount: 9900,
       currency: "INR",
       status: "captured",
       order_id: null,
@@ -2554,8 +2847,8 @@ describe("BillingService SaaS subscriptions", () => {
         subscription_id: "sub_basic",
         payment_id: "pay_current_primary",
         status: "paid",
-        amount: 29900,
-        amount_paid: 29900,
+        amount: 9900,
+        amount_paid: 9900,
         amount_due: 0,
         currency: "INR",
         billing_start: periodStart,
@@ -2665,8 +2958,8 @@ describe("BillingService SaaS subscriptions", () => {
         subscription_id: "sub_basic",
         payment_id: "pay_old_period",
         status: "paid",
-        amount: 29900,
-        amount_paid: 29900,
+        amount: 9900,
+        amount_paid: 9900,
         amount_due: 0,
         currency: "INR",
         billing_start: 1767225600,
@@ -2678,7 +2971,7 @@ describe("BillingService SaaS subscriptions", () => {
     vi.mocked(fakeRazorpay.fetchPayment).mockResolvedValue({
       id: "pay_old_period",
       entity: "payment",
-      amount: 29900,
+      amount: 9900,
       currency: "INR",
       status: "captured",
       order_id: null,
@@ -2711,18 +3004,18 @@ describe("BillingService SaaS subscriptions", () => {
     await testPrisma.saasRazorpayPlan.create({
       data: {
         providerMode: "TEST",
-        catalogKey: "razorpay-plan:v1:TEST:PRO:INR:49900:monthly:1",
+        catalogKey: "razorpay-plan:v2:TEST:PRO:INR:49900:monthly:1",
         plan: "PRO",
         amount: 499,
         amountSubunits: 49900,
-        razorpayPlanId: "plan_standard",
+        razorpayPlanId: "plan_pro",
         active: true,
       },
     });
     vi.mocked(fakeRazorpay.fetchSubscription).mockResolvedValue({
       id: "sub_basic",
       entity: "subscription",
-      plan_id: "plan_standard",
+      plan_id: "plan_pro",
       status: "authenticated",
       total_count: 120,
       quantity: 2,
@@ -2746,7 +3039,7 @@ describe("BillingService SaaS subscriptions", () => {
           entity: {
             id: "sub_basic",
             entity: "subscription",
-            plan_id: "plan_standard",
+            plan_id: "plan_pro",
             status: "authenticated",
             total_count: 120,
             quantity: 2,
@@ -2878,10 +3171,10 @@ describe("BillingService SaaS subscriptions", () => {
     await testPrisma.saasRazorpayPlan.create({
       data: {
         providerMode: "TEST",
-        catalogKey: "razorpay-plan:v1:TEST:BASIC:INR:29900:monthly:1",
+        catalogKey: "razorpay-plan:v2:TEST:BASIC:INR:9900:monthly:1",
         plan: "BASIC",
-        amount: 299,
-        amountSubunits: 29900,
+        amount: 99,
+        amountSubunits: 9900,
         currency: "INR",
         period: "monthly",
         interval: 1,
@@ -2895,8 +3188,8 @@ describe("BillingService SaaS subscriptions", () => {
         currentOrganizationId: org.id,
         providerMode: "TEST",
         plan: "BASIC",
-        amount: 299,
-        amountSubunits: 29900,
+        amount: 99,
+        amountSubunits: 9900,
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
@@ -3011,10 +3304,10 @@ describe("BillingService SaaS subscriptions", () => {
     await testPrisma.saasRazorpayPlan.create({
       data: {
         providerMode: "TEST",
-        catalogKey: "razorpay-plan:v1:TEST:BASIC:INR:29900:monthly:1",
+        catalogKey: "razorpay-plan:v2:TEST:BASIC:INR:9900:monthly:1",
         plan: "BASIC",
-        amount: 299,
-        amountSubunits: 29900,
+        amount: 99,
+        amountSubunits: 9900,
         currency: "INR",
         period: "monthly",
         interval: 1,
@@ -3028,8 +3321,8 @@ describe("BillingService SaaS subscriptions", () => {
         currentOrganizationId: org.id,
         providerMode: "TEST",
         plan: "BASIC",
-        amount: 299,
-        amountSubunits: 29900,
+        amount: 99,
+        amountSubunits: 9900,
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: "plan_basic",
@@ -3480,7 +3773,7 @@ describe("BillingService SaaS subscriptions", () => {
             entity: {
               id: "pay_provider_authorization",
               entity: "payment",
-              amount: 29900,
+              amount: 9900,
               currency: "INR",
               status: "captured",
               captured: true,

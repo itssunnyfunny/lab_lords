@@ -148,7 +148,7 @@ for (const language of ["en", "hi", "hinglish"] as const) {
 
             await db.organizationSubscriptionInvoice.createMany({ data: invoiceIds.map((id, index) => ({ id, organizationId: fixture.orgId, razorpayInvoiceId: `provider_${id}`, status: "paid", amountSubunits: 49900, currency: "INR", providerMode: "TEST" as const, createdAt: new Date(1_750_000_000_000 + index) })) });
             await db.organizationSubscriptionHistory.createMany({ data: historyIds.map((id, index) => ({ id, organizationId: fixture.orgId, razorpaySubscriptionId: `provider_${suffix}`, plan: "PRO" as const, toStatus: "ACTIVE" as const, source: "SYSTEM" as const, amountSubunits: 49900, currency: "INR", createdAt: new Date(1_750_000_000_000 + index) })) });
-            await open(page, `/org/${fixture.orgId}/settings`);
+            await open(page, `/org/${fixture.orgId}/billing`);
             await page.getByRole("button", { name: t("View all invoices and history"), exact: true }).click();
             dialog = page.getByRole("dialog", { name: t("Billing history"), exact: true });
             for (const kind of ["invoices", "history"] as const) {

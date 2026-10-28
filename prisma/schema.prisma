@@ -2146,9 +2146,8 @@ enum PaymentMethod {
 
 enum SaasPlan {
   BASIC
+  STANDARD
   PRO
-  AGENT_CONTROL
-  CUSTOM
 }
 
 enum SaasSubscriptionStatus {

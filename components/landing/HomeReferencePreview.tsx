@@ -74,7 +74,7 @@ export async function HomeReferencePreview() {
             <span className="botanical-learn-more">{t("Learn more")} <ArrowRight size={15} aria-hidden="true" /></span>
           </Link>;
         })}</div>
-        <div className="botanical-feature-footer"><p>{t("Compare what’s included in Basic and Standard.")}</p><Link href={localHref("/features")}>{t("View all features")} <ArrowRight size={16} aria-hidden="true" /></Link></div>
+        <div className="botanical-feature-footer"><p>{t("Compare what’s included in Basic, Standard and Pro.")}</p><Link href={localHref("/features")}>{t("View all features")} <ArrowRight size={16} aria-hidden="true" /></Link></div>
       </div>
     </section>
   </div>;

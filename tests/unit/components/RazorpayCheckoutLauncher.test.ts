@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   classifyRazorpayFailure,
+  getRazorpayCheckoutPayload,
   isRazorpayCheckoutPayload,
   normalizeRazorpayFailure,
   openRazorpayCheckout,
@@ -295,5 +296,23 @@ describe("Razorpay failure normalization", () => {
   it("recognizes only complete Checkout retry payloads", () => {
     expect(isRazorpayCheckoutPayload(payload)).toBe(true);
     expect(isRazorpayCheckoutPayload({ ...payload, subscriptionId: undefined })).toBe(false);
+  });
+});
+
+describe("replacement checkout response extraction", () => {
+  it("reuses the exact returned checkout from both direct and operation responses", () => {
+    expect(getRazorpayCheckoutPayload(payload)).toBe(payload);
+    const envelope = { operation: { id: payload.changeId, operationStatus: "CHECKOUT_OPEN" }, checkout: payload };
+    expect(getRazorpayCheckoutPayload(envelope)).toBe(payload);
+    const { harness, verify } = openWithHarness({ payload: getRazorpayCheckoutPayload(envelope)! });
+    expect(harness.open).toHaveBeenCalledOnce();
+    expect(harness.options.config).toEqual(payload.config);
+    expect(verify).not.toHaveBeenCalled();
+  });
+
+  it.each([null, {}, { operation: { operationStatus: "SCHEDULED" } },
+    { checkout: { ...payload, subscriptionId: undefined } }, { checkout: { ...payload, processingUrl: undefined } },
+    { checkout: { checkout: payload } }])("does not invent checkout from absent or malformed operation responses", value => {
+    expect(getRazorpayCheckoutPayload(value)).toBeNull();
   });
 });

@@ -236,6 +236,13 @@ authentication boundaries, not open application routes.
 
 ### Billing and provider trust
 
+- Recovery must atomically close only its matching durable provider action when
+  exact provider evidence proves the outcome. Domain adoption cannot commit with
+  a failed receipt-confirmation fence; late timeout finalization must not leave
+  the same recovered action unresolved. Independent action purposes retain their
+  own evidence requirements. Ordinary later mutations still require fresh
+  authorization, mode, organization lease and attempt checks.
+
 - Organization billing APIs are owner-only.
 - Browser success, client callbacks, webhook event type, and provider
   subscription status alone must never grant paid access or advance
@@ -256,6 +263,22 @@ authentication boundaries, not open application routes.
   subscription, payment, plan, quantity, offer, amount, currency, billing
   period, mode, and settlement state through the shared exact-commercial-
   evidence validator.
+- Razorpay payments may omit `subscription_id`. Paid settlement then requires
+  the exact reciprocal fetched invoice/payment IDs and the invoice's authorized
+  subscription. Without an invoice, only the server-verified callback pair or
+  previously confirmed matching `authPaymentId` and commercial-intent pointer
+  can bind authorization; a client-recorded payment ID cannot. Explicit conflicting
+  or malformed provider identity still fails closed. Authorization-only binding
+  never establishes a paid period and retains existing trial/replacement policy.
+- A fully refunded INR 5 CARD/UPI verification token can establish authorization
+  only when the exact signed callback pair is proven, the candidate is
+  authenticated and uncharged with unchanged future terms, and complete invoice
+  history is empty. It cannot establish settlement or paidThrough. After HMAC and
+  owner/operation scope checks, the callback claim records the exact pair in the
+  append-only service audit for later scoped reads. Append-only behavior here is
+  a service contract, not a database immutability guarantee. No signature or
+  secret is stored. Old payment hints or quarantines without that proof cannot
+  be backfilled as verified callbacks.
 - Webhook requests are bounded to 512 KiB before authentication: an excessive
   numeric `Content-Length` is rejected before body access, chunked or
   underreported bodies are cancelled at the first byte above the limit, and
@@ -847,3 +870,7 @@ Publication and failure cleanup require that token and the original revision;
 duplicate or superseded attempts cannot publish run failure. The old uncalled
 V1 executor and its unfenced retry/compensation path have been removed. Drain
 old analysis/Workflow workers before installing migration 47 and compatible code.
+
+### Catalogue v2 entitlement and migration boundary (2026-10-23)
+
+BASIC/ STANDARD/ PRO are distinct identities. STANDARD and PRO grant staff, advanced analytics and AI; only PRO grants WhatsApp automation. Every existing user/API/background gate remains authoritative; queued WhatsApp dispatch rechecks current entitlement. Normal trials are STANDARD, not implicit PRO. Catalogue v2 provider keys are mode-scoped and must not reuse old PRO evidence merely because amounts match. The guarded empty-ledger migration and populated-ledger release hold are documented in [the cutover runbook](docs/billing/three-plan-cutover.md).

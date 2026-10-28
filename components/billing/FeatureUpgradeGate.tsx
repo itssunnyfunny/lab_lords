@@ -8,6 +8,8 @@ import { BILLING_FEATURE_POLICIES, hasFeatureEntitlement, type BillingFeatureKey
 import type { BillingExperienceView } from "@/types/billingExperience";
 import { isFullBillingExperience } from "@/lib/billingExperienceView";
 import { usePathname } from "next/navigation";
+import { getActiveBillingPlan } from "@/lib/billingPlans";
+import { getOrganizationBillingPath } from "@/lib/billingFlow";
 
 export function FeatureUpgradeGate({
   feature,
@@ -24,7 +26,7 @@ export function FeatureUpgradeGate({
   const policy = BILLING_FEATURE_POLICIES[feature];
   const owner = experience.viewer.isOwner;
   const returnPath = pathname || `/org/${encodeURIComponent(experience.organizationId)}`;
-  const upgradeHref = `/org/${encodeURIComponent(experience.organizationId)}/settings?billingPlan=PRO&returnTo=${encodeURIComponent(returnPath)}#billing`;
+  const upgradeHref = getOrganizationBillingPath(experience.organizationId, "STANDARD", returnPath);
 
   return (
     <div className="mx-auto flex min-h-96 max-w-xl flex-col items-center justify-center gap-5 text-center">
@@ -38,7 +40,7 @@ export function FeatureUpgradeGate({
       </div>
       {owner && isFullBillingExperience(experience) ? (
         <div className="space-y-3">
-          <p className="text-sm text-[color:var(--ui-text-muted)]">{t("Standard: ₹499 × {confirmedQuantity} branch(s) = ₹{value}/month. Immediate upgrades may include a prorated charge.", { confirmedQuantity: experience.confirmedQuantity, value: experience.confirmedQuantity * 499 })}</p>
+          <p className="text-sm text-[color:var(--ui-text-muted)]">{t("Standard: ₹{unitAmount} × {confirmedQuantity} branch(s) = ₹{value}/month. Review the charge timing before authorizing.", { unitAmount: getActiveBillingPlan("STANDARD").amount!, confirmedQuantity: experience.confirmedQuantity, value: experience.confirmedQuantity * getActiveBillingPlan("STANDARD").amount! })}</p>
           <Link className="inline-flex h-10 items-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-button-primary-bg)] px-4 text-sm font-semibold text-[color:var(--ui-button-primary-text)]" href={upgradeHref}>{t("Upgrade to Standard")}</Link>
         </div>
       ) : (

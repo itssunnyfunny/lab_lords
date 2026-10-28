@@ -1,7 +1,7 @@
 import type { BillingEntitlement } from "@/lib/billingPlans";
 
-export type BillingExperiencePlan = "BASIC" | "STANDARD" | "STANDARD_TRIAL" | "NONE";
-export type SelectedPostTrialPlan = "BASIC" | "STANDARD" | null;
+export type BillingExperiencePlan = "BASIC" | "STANDARD" | "PRO" | "STANDARD_TRIAL" | "NONE";
+export type SelectedPostTrialPlan = "BASIC" | "STANDARD" | "PRO" | null;
 export type BillingExperienceAccessMode = "FULL" | "WARNING" | "READ_ONLY";
 
 // Neutral UI names temporarily alias the legacy wire values. The values can
@@ -30,6 +30,7 @@ export type BillingCustomerState =
   | "TRIAL_ACTIVE"
   | "BASIC_ACTIVE"
   | "STANDARD_ACTIVE"
+  | "PRO_ACTIVE"
   | "PAYMENT_RETRYING"
   | "PAYMENT_HALTED"
   | "CONFIRMING"
@@ -50,7 +51,7 @@ export type BillingExperienceOperation = {
   failureCode: string | null;
   providerPaymentId: string | null;
   branchId: string | null;
-  toPlan: "BASIC" | "STANDARD" | null;
+  toPlan: "BASIC" | "STANDARD" | "PRO" | null;
   toQuantity: number | null;
   lastError: string | null;
 };

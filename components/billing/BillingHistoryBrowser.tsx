@@ -1,5 +1,6 @@
 "use client";
 
+import { billingPlanName } from "@/lib/billingPlans";
 import { useState } from "react";
 import { AppButton, AppSelect, Dialog } from "@/components/ui";
 import { useTranslation } from "@/components/settings/LocalizedText";
@@ -38,7 +39,7 @@ function BillingHistoryDialog({ organizationId, onClose }: { organizationId: str
             {resource.loading && !page && <p role="status">{t("Loading…")}</p>}
             {page && page.items.length === 0 && <p>{t("No billing records on this page.")}</p>}
             {page?.items.map(row => <article key={row.id} data-billing-record={row.id} className="space-y-1 border-b border-[color:var(--ui-panel-border)] py-3 text-sm">
-                <p className="break-words font-semibold">{row.plan ? `${t.owned(row.plan === "PRO" ? "Standard" : row.plan)} · ` : ""}{row.status ? t.owned(row.status) : `${row.fromStatus ? `${t.owned(row.fromStatus)} → ` : ""}${t.owned(row.toStatus ?? "")}`}</p>
+                <p className="break-words font-semibold">{row.plan ? `${t.owned(billingPlanName(row.plan))} · ` : ""}{row.status ? t.owned(row.status) : `${row.fromStatus ? `${t.owned(row.fromStatus)} → ` : ""}${t.owned(row.toStatus ?? "")}`}</p>
                 <p>{row.currency} {formatNumber(row.amountSubunits / 100)} · {formatDateTime(row.createdAt)}</p>
                 <p>{row.providerMode === "TEST" ? t("Test mode") : row.providerMode === "LIVE" ? t("Live mode") : t("Historical record")}</p>
                 {row.source && <p>{t.owned(sources[row.source] ?? row.source.replaceAll("_", " "))}</p>}

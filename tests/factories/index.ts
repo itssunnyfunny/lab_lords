@@ -220,14 +220,14 @@ export async function createStaff(overrides: {
 
 export async function createSaasSubscription(overrides: {
   organizationId: string;
-  plan?: "BASIC" | "PRO";
+  plan?: "BASIC" | "STANDARD" | "PRO";
   status?: "AUTHENTICATED" | "ACTIVE" | "PENDING" | "PAUSED" | "HALTED" | "EXPIRED";
   confirmedPaidPeriod?: boolean;
   paidThrough?: Date | null;
 }) {
   const plan = overrides.plan ?? "PRO";
   const status = overrides.status ?? "ACTIVE";
-  const amount = plan === "BASIC" ? 299 : 499;
+  const amount = plan === "BASIC" ? 99 : plan === "STANDARD" ? 299 : 499;
   const now = new Date();
   const periodStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const defaultPeriodEnd = status === "EXPIRED"

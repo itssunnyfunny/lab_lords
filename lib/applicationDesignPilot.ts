@@ -22,6 +22,6 @@ export function isSelectedApplicationSurfacePath(pathname: string | null | undef
     if (segments[0] === "invite") return segments.length === 2;
     if (segments[0] !== "org" || !segments[1]) return false;
     if (segments.length === 2) return true;
-    if (segments.length === 3) return ["analytics", "settings"].includes(segments[2]);
+    if (segments.length === 3) return ["analytics", "settings", "billing"].includes(segments[2]);
     return segments.length === 5 && segments[2] === "billing" && segments[3] === "processing";
 }

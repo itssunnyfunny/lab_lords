@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslation } from "@/components/settings/LocalizedText";
 import {
   CreditCard,
   Landmark,
@@ -60,6 +63,7 @@ export function BillingPaymentMethodsOverview({
   changeLoading = false,
   onChangeMethod,
 }: BillingPaymentMethodsOverviewProps) {
+  const t = useTranslation();
   const resolvedAvailability = availability ?? CARD_ONLY_AVAILABILITY;
   const providerManaged = resolvedAvailability.mode === "PROVIDER_MANAGED"
     && resolvedAvailability.providerControlsVisibility;
@@ -78,28 +82,28 @@ export function BillingPaymentMethodsOverview({
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
-                Payment methods
+                {t.owned("Payment methods")}
               </p>
               <h3 id="billing-payment-methods-title" className="mt-1 text-base font-semibold text-[color:var(--text-primary)]">
-                {providerManaged ? "Choose securely in Razorpay Checkout" : "Card checkout is currently active"}
+                {t.owned(providerManaged ? "Choose securely in Razorpay Checkout" : "Card checkout is currently active")}
               </h3>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-[color:var(--text-secondary)]">
-                {providerManaged
+                {t.owned(providerManaged
                   ? "After reviewing your plan, Razorpay shows the recurring methods eligible for this account, amount, bank or app, and device."
-                  : "This environment is still in card-only rollout mode. UPI AutoPay and eMandate appear after multi-method checkout and the corresponding Razorpay account capabilities are enabled."}
+                  : "This environment is still in card-only rollout mode. UPI AutoPay and eMandate appear after multi-method checkout and the corresponding Razorpay account capabilities are enabled.")}
               </p>
             </div>
           </div>
           <span className="inline-flex w-fit shrink-0 items-center rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--ui-badge-cyan-text)]">
-            {providerManaged ? "Razorpay managed" : "Card-only mode"}
+            {t.owned(providerManaged ? "Razorpay managed" : "Card-only mode")}
           </span>
         </div>
 
         {currentMethodLabel ? (
           <div className="flex flex-col gap-3 border-b border-[color:var(--ui-form-section-divider)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-muted)]">Current recurring method</p>
-              <p className="mt-1 text-sm font-semibold text-[color:var(--text-primary)]">{currentMethodLabel}</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--text-muted)]">{t.owned("Current recurring method")}</p>
+              <p className="mt-1 text-sm font-semibold text-[color:var(--text-primary)]">{t.owned(currentMethodLabel)}</p>
             </div>
             {canChangeMethod && onChangeMethod ? (
               <AppButton
@@ -109,13 +113,13 @@ export function BillingPaymentMethodsOverview({
                 isLoading={changeLoading}
                 onClick={onChangeMethod}
               >
-                Change payment method
+                {t.owned("Change payment method")}
               </AppButton>
             ) : null}
           </div>
         ) : null}
 
-        <ul className="grid divide-y divide-[color:var(--ui-form-section-divider)] sm:grid-cols-3 sm:divide-x sm:divide-y-0" aria-label="Supported recurring payment methods">
+        <ul className="grid divide-y divide-[color:var(--ui-form-section-divider)] sm:grid-cols-3 sm:divide-x sm:divide-y-0" aria-label={t.owned("Supported recurring payment methods")}>
           {METHOD_DETAILS.map(({ method, icon: Icon, description }) => {
             const isCurrent = currentMethod === method;
             const isPotential = potentialMethods.has(method);
@@ -139,13 +143,13 @@ export function BillingPaymentMethodsOverview({
                     <Icon size={16} aria-hidden="true" />
                   </div>
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusClasses}`}>
-                    {status}
+                    {t.owned(status)}
                   </span>
                 </div>
                 <p className="mt-3 text-sm font-semibold text-[color:var(--text-primary)]">
-                  {getProviderPaymentMethodLabel(method)}
+                  {t.owned(getProviderPaymentMethodLabel(method))}
                 </p>
-                <p className="mt-1 text-xs leading-5 text-[color:var(--text-secondary)]">{description}</p>
+                <p className="mt-1 text-xs leading-5 text-[color:var(--text-secondary)]">{t.owned(description)}</p>
               </li>
             );
           })}
@@ -154,7 +158,7 @@ export function BillingPaymentMethodsOverview({
         <div className="flex items-start gap-2.5 border-t border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 py-3 text-xs leading-5 text-[color:var(--text-secondary)]">
           <ShieldCheck className="mt-0.5 shrink-0 text-[color:var(--ui-form-accent)]" size={15} aria-hidden="true" />
           <p>
-            Payment credentials and approvals stay inside Razorpay. Lab Lords records only provider-confirmed mandate and payment status.
+            {t.owned("Payment credentials and approvals stay inside Razorpay. Lab Lords records only provider-confirmed mandate and payment status.")}
           </p>
         </div>
       </div>

@@ -168,7 +168,8 @@ unit/API/integration coverage.
   or an updated domain invariant resolves it.
   (`app/api/cron/payments/daily/route.ts`, `services/payment.service.ts`)
 - **Must preserve—enforced:** Workspace Billing V2 base access fails closed:
-  - an active owner trial grants the trial's PRO access;
+  - an active owner trial grants explicit STANDARD access; a separately recorded Pro
+    grant or independently verified paid Pro period can add Pro access;
   - ordinary paid access requires the subscription mode to match the runtime
     provider mode and a current `paidThrough` returned by the shared exact-
     settlement resolver. A raw date or provider status is insufficient: the
@@ -440,6 +441,16 @@ unit/API/integration coverage.
 
 ## SaaS subscriptions and provider events
 
+- **Must preserve—enforced:** Exact outcome recovery and confirmation of its
+  matching provider-action receipt commit together. A recovered undo or settled
+  update must not leave its own ADMITTED/UNKNOWN receipt blocking later billing
+  work. Confirmation is scoped to organization, immutable action identity,
+  provider mode/subscription and dispatch attempt; it cannot resolve an unrelated
+  cancellation or replacement. A lost confirmation race rolls back adoption.
+  (`services/billingProviderAction.service.ts`, `billingMutation.service.ts`,
+  `billingReconciliation.service.ts`, recovery-dispatch unit and mutation integration tests)
+
+
 - **Must preserve—enforced:** Organization details, settings, branch lists, and
   subscription-billing owner entry points resolve the organization with both
   `id` and `ownerId` before loading billing data or performing provider work.
@@ -461,6 +472,16 @@ unit/API/integration coverage.
   and one pending-replacement slot. Previous subscription rows remain as
   history and replacement lineage rather than being rewritten as the current
   row. (`prisma/schema.prisma`, billing integration tests)
+- **Must preserve—enforced:** New Workspace Billing V2 plan, trial-plan and branch-quantity changes
+  for CARD, UPI and eMandate use an explicitly authorized replacement mandate.
+  Stored CARD identity is not proof of provider-supported in-place updates;
+  domestic/international capability is not persisted. Unknown methods remain
+  blocked. Card-only replacement is permitted with the multi-method flag off,
+  while UPI/eMandate replacement and proactive payment-method switching retain
+  that gate. Existing native scheduled changes retain their own undo/recovery
+  protocol and are not rewritten as replacement history.
+  (`services/billingReplacementPolicy.ts`, `services/billingMutation.service.ts`,
+  `services/billing.service.ts`, replacement-policy and billing integration tests)
 - **Must preserve—enforced:** Provider subscription status alone never grants
   paid access. Entitlement and billing-experience reads accept `paidThrough`
   only when the stored current pointers resolve back to an applied immutable
@@ -500,6 +521,22 @@ unit/API/integration coverage.
   retrieves provider-side objects, and matches expected organization intent,
   subscription, payment, plan, quantity, and payment state before trusting the
   result.
+- **Must preserve—enforced:** A payment without direct `subscription_id` needs
+  reciprocal fetched invoice/payment identity to settle a paid period. For
+  authorization only, the verified callback's exact payment/subscription pair or
+  the previously confirmed local payment/immutable-intent pointers bind the
+  payment. Unverified client payment IDs and contradictory provider identity
+  never substitute for those proofs. Provider settlement ordering uses the same
+  second precision in live evidence validation and stored paid-access resolution.
+  (`services/billingCommercialEvidence.service.ts`,
+  `services/billingPaidEvidence.service.ts`, billing callback and evidence tests)
+- **Service-layer contract—not DB-enforced:** A signature-verified callback claim
+  records its exact organization/change/mode/subscription/payment binding in an
+  append-only service audit before provider reads. Recovery cannot substitute an
+  unverified payment hint or invent historical proof. A fully refunded INR 5
+  card/UPI verification token is authorization-only evidence for an exact,
+  future-start authenticated unpaid candidate with complete empty invoices;
+  it never creates paidThrough. The paid-invoice path still requires capture.
 - **Must preserve—enforced:** Replacement creation freezes its provider start,
   expiry and total count and records dispatch before creation. Recovery fetches
   the retained provider ID or discovers one exact uncharged candidate, without
@@ -513,6 +550,20 @@ unit/API/integration coverage.
   provider-confirmed terminality, and legacy cancellation preserves the supplied
   idempotency key without compensating reversal.
   (`services/billingReplacement.service.ts`, billing-mutation fault tests)
+- **Must preserve—enforced:** Retiring an unpaid future-start source immediately
+  is permitted only after the replacement's undo cutoff, before its effective
+  date, and after exact candidate authorization or settlement. The source must
+  be AUTHENTICATED with no local paid period, confirmed paid pointers or invoice.
+  Source, candidate and frozen intent must have the same still-future start;
+  mode, provider identity, plan, quantity, total count and offer must agree.
+  Provider reads require explicit zero paid count, absent current periods and a
+  complete empty invoice collection, followed by a fresh source read and an
+  unchanged local source/candidate check before dispatch. The existing durable
+  CANCEL_SOURCE admission applies; ambiguity is read-only on retry and never
+  grants paid promotion. The response or recovery must prove exact terminal
+  unpaid source state. Paid sources retain cycle-end cancellation, and owner
+  trial dates are not extended to make replacement possible.
+  (`services/billingReplacement.service.ts`, billing-mutation integration tests)
 - **Must preserve—enforced:** A webhook is only a signed reconciliation trigger,
   not proof of quantity or entitlement. The public body is bounded to 512 KiB;
   its signature and payload hash are verified over the same untouched bytes
@@ -564,6 +615,11 @@ unit/API/integration coverage.
   candidate slot. (`services/billing.service.ts`,
   `services/billingReplacement.service.ts`, `services/branch.service.ts`, billing
   and branch lifecycle integration tests)
+- **Must preserve—enforced:** Pending branch retry/discard includes trial
+  subscription updates. A missing candidate pointer does not prove no provider
+  effect: in-flight, uncertain or unclassified creation cannot be discarded
+  locally; only queued or definitely rejected creation remains locally
+  discardable. (`services/branch.service.ts`, branch lifecycle integration tests)
 - **Must preserve—enforced:** Replacement access remains fail-closed until the
   replacement is authenticated or active and its lineage, plan, and quantity
   exactly match the approved intent. A mismatch removes provisional trust and
@@ -1148,3 +1204,9 @@ Before changing any rule above:
   protocols documented in [access/worker contracts](ai/access-and-worker-contracts.md).
   This change does not resolve or approve the daily dues cron writability
   discrepancy recorded below.
+
+## Three-plan catalogue v2 — 2026-10-23
+
+- **Must preserve—enforced:** BASIC/STANDARD/PRO have unit prices 99/299/499 INR monthly, shared across an organization's billable branches. Standard and Pro receive staff, advanced analytics and AI; only Pro receives WhatsApp entitlement. Provider configuration and operation permission checks remain additional requirements.
+- **Must preserve—enforced:** a catalogue migration must not reinterpret old internal PRO payment evidence as new Pro. The v2 migration refuses a populated billing ledger; see [cutover](billing/three-plan-cutover.md). Paid facts, uncertain provider writes and frozen commercial snapshots are not rewritten.
+- **Service-layer contract—not DB-enforced:** the normal 30-day owner trial is Standard. A recorded replacement grant may raise explicit access but cannot reduce remaining paid/trial access. A selected plan or mandate authorization alone is not paid settlement. Downgrades preserve records and follow the established boundary.

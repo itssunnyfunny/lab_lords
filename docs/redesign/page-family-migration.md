@@ -39,6 +39,16 @@ architectural approval.
 
 ## Presentation approval and release ledger
 
+The 2026-10-22 dedicated Billing page extends family E. Local billing workflow,
+three-language and narrow-screen evidence is recorded in the
+[billing verification report](../audits/billing-recovery-2026-10-22.md).
+Owner presentation review and production release remain separate and pending.
+The final local Billing pass distinguishes the billed plan from complimentary
+feature access, exposes confirmed cancellation for eligible authenticated trial
+mandates without changing trial dates, and localizes the shared summary and
+payment-method panels. The saved browser report records 33 passing cases across
+desktop, 390px and 320px widths, including English, Hindi and Hinglish coverage.
+
 These columns describe this local migration revision, not historical production
 availability of each feature. Test success is not owner approval or deployment.
 
@@ -205,3 +215,16 @@ hardware and held external payment, messaging, AI and import providers remain
 outside this isolated verification. Current connected evidence does not confer
 owner presentation approval or production release; the refined Students card
 approval above remains the only new owner presentation approval in this ledger.
+
+### Billing catalogue v2 — 2026-10-23
+
+Dedicated Billing, onboarding and public plan cards use three explicit tiers with existing shared controls/design tokens. Existing core Basic screens remain; no minimalist redesign is claimed. Local verification is recorded in the three-plan audit; owner review, merge and production release remain separate and pending.
+
+## Billing PR integration — 28 October 2026
+
+PR #284 combines the restored organization navigation and branch billing controls
+with its dedicated Billing page. Complete invoice/subscription history now opens
+from Billing and retains three-plan names. Desktop/mobile fixture verification is
+recorded in [the integration report](../audits/billing-pr-main-sync-2026-10-28.md).
+This is local merge verification; owner visual approval and release remain
+separate. The unfinished Basic prototype stays outside this PR update.

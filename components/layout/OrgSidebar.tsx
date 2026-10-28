@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { LayoutDashboard, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, BarChart3, CreditCard, Settings } from "lucide-react";
 import { SidebarItem } from "./SidebarItem";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -48,6 +48,12 @@ export function OrgSidebar() {
                     href={`${basePath}/analytics`}
                     locked={!hasFeatureEntitlement(billing?.experience?.entitlements ?? [], "ORG_ANALYTICS")}
                     badge={!hasFeatureEntitlement(billing?.experience?.entitlements ?? [], "ORG_ANALYTICS") ? "Standard" : undefined}
+                />
+                <SidebarItem
+                    icon={CreditCard}
+                    label={t("Billing and plans")}
+                    isActive={pathname === `${basePath}/billing` || pathname?.startsWith(`${basePath}/billing/`)}
+                    href={`${basePath}/billing`}
                 />
             </div>
 

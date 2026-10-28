@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
 
 describe("selected application route boundaries", () => {
     it("uses the light workspace theme for migrated cold loading routes", () => {
-        for (const pathname of ["/org", "/onboarding", "/invite/token_1"]) {
+        for (const pathname of ["/org", "/org/org_1/billing", "/onboarding", "/invite/token_1"]) {
             route.pathname = pathname;
             expect(renderToStaticMarkup(<RouteLoading />)).toContain('data-app-design-pilot="workspace"');
         }

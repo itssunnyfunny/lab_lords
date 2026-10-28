@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
+import { type BranchCapabilityKey, getBranchCapabilityDecision } from "@/lib/branchCapabilities";
+import { translateOwnedText } from "@/lib/i18n";
 import type { BillingExperience, BranchAccess, StaffAction } from "@/types";
 
 const allPermissions = {
@@ -150,7 +151,33 @@ describe("branch capability decisions", () => {
 
         expect(result.allowed).toBe(false);
         expect(result.blocker).toBe("entitlement");
-        expect(result.recoveryHref).toBe("/org/org_1/settings#billing");
+        expect(result.recoveryHref).toBe("/org/org_1/billing");
+    });
+
+    it.each([
+        ["whatsappView", "Pro"], ["whatsappSend", "Pro"], ["whatsappManage", "Pro"],
+        ["whatsappReportReceive", "Pro"], ["whatsappReportOperate", "Pro"],
+        ["whatsappServiceNotice", "Pro"], ["whatsappServiceNoticeView", "Pro"],
+        ["staffView", "Standard"], ["staffManage", "Standard"],
+        ["aiUse", "Standard"], ["aiGenerate", "Standard"],
+        ["analyticsView", "Standard"], ["analyticsFinanceView", "Standard"],
+    ] satisfies [BranchCapabilityKey, string][])("names the required tier for %s", (capability, plan) => {
+        for (const isOwner of [true, false]) {
+            const decision = getBranchCapabilityDecision(access({
+                entitlements: [], isOwner, role: isOwner ? "OWNER" : "STAFF",
+                billingExperience: billingExperience({ viewer: { isOwner, canManageBilling: isOwner } }),
+            }), capability);
+            expect(decision.blocker).toBe("entitlement");
+            expect(decision.reason).toBe(isOwner
+                ? `This feature requires the ${plan} plan.`
+                : `The organization owner needs to enable the ${plan} plan.`);
+            expect(decision.recoveryHref).toBe(isOwner ? "/org/org_1/billing" : null);
+            for (const language of ["hi", "hinglish"] as const) {
+                const translated = translateOwnedText(language, decision.reason!);
+                expect(translated).not.toBe(decision.reason);
+                expect(translated).toContain(plan);
+            }
+        }
     });
 
     it("keeps reads available but blocks mutations in read-only mode", () => {

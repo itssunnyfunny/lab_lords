@@ -14,6 +14,6 @@ export function getOrganizationBillingPath(
   returnPath?: string
 ) {
   const query = new URLSearchParams({ billingPlan: planId });
-  if (returnPath?.startsWith("/") && !returnPath.startsWith("//")) query.set("returnTo", returnPath);
-  return `/org/${encodeURIComponent(organizationId)}/settings?${query.toString()}#billing`;
+  if (returnPath?.startsWith("/") && !returnPath.startsWith("//") && !returnPath.includes("\\")) query.set("returnTo", returnPath);
+  return `/org/${encodeURIComponent(organizationId)}/billing?${query.toString()}#billing`;
 }

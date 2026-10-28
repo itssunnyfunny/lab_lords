@@ -39,6 +39,21 @@ function decision(
 
 describe("authorized replacement access policy", () => {
   it.each([
+    ["BASIC", "STANDARD", "PLAN_UPGRADE", "GRANT"],
+    ["BASIC", "PRO", "PLAN_UPGRADE", "GRANT"],
+    ["STANDARD", "PRO", "PLAN_UPGRADE", "GRANT"],
+    ["STANDARD", "BASIC", "PLAN_DOWNGRADE", "NONE"],
+    ["PRO", "STANDARD", "PLAN_DOWNGRADE", "NONE"],
+    ["PRO", "BASIC", "PLAN_DOWNGRADE", "NONE"],
+  ] as const)("keeps %s to %s authorization and access separate", (sourcePlan, targetPlan, changeType, expected) => {
+    const input = decision({ sourcePlan, targetPlan, candidatePlan: targetPlan, changeType });
+    expect(getReplacementAccessAction(input)).toBe(expected);
+    expect(getReplacementAccessAction({ ...input, candidateStatus: "CREATED" })).toBe("NONE");
+    expect(getReplacementAccessAction({ ...input, changeStatus: "FAILED", failureCategory: "UNKNOWN_OUTCOME" })).toBe("NONE");
+    expect(getReplacementAccessAction({ ...input, changeStatus: "UNDONE" })).toBe("NONE");
+  });
+
+  it.each([
     ["AUTHENTICATED", "UPI"],
     ["ACTIVE", "EMANDATE"],
     ["ACTIVE", "CARD"],

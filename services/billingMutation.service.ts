@@ -18,7 +18,7 @@ import {
 } from "@/lib/billingErrors";
 import { ensureRazorpayPlanCatalogEntry } from "@/services/razorpayPlanCatalog.service";
 import { BillingReplacementService } from "@/services/billingReplacement.service";
-import { isReplacementMutationEligible } from "@/services/billingReplacementPolicy";
+import { isReplacementMutationEligible, isReplacementMutationEnabled } from "@/services/billingReplacementPolicy";
 import {
   buildCommercialIntentSnapshot,
   captureProcessingCommercialIntent,
@@ -257,7 +257,7 @@ function providerConfirmsScheduledChangeStillPending(
     && !terminal;
 }
 
-function isScheduledUndoFailureCode(code: string | null) {
+export function isScheduledUndoFailureCode(code: string | null) {
   return code === SCHEDULED_UNDO_OUTCOME_UNKNOWN_CODE
     || code === SCHEDULED_UNDO_RECONCILIATION_FAILED_CODE
     || code === "SCHEDULED_UNDO_LEASE_EXPIRED";
@@ -515,11 +515,21 @@ export class BillingMutationService {
         || source.currentOrganizationId !== organizationId) {
         throw new BillingMutationSourceChangedError();
       }
-      if (areRazorpayMultiMethodSubscriptionsEnabled()
-        && isReplacementMutationEligible({
+      const replacementPolicy = {
           sourcePaymentMethod: source.providerPaymentMethod,
           mutationType: claimed.type,
-        })) {
+      };
+      if (isReplacementMutationEligible(replacementPolicy)) {
+        if (!isReplacementMutationEnabled(replacementPolicy, areRazorpayMultiMethodSubscriptionsEnabled())) {
+          throw new Error("This payment method requires the multi-method replacement rollout before billing can change");
+        }
+        if (claimed.provisioningIntentVersion == null && !claimed.replacementSubscriptionId
+          && claimed.commercialIntentVersion != null && claimed.authorizedRazorpaySubscriptionId != null) {
+          // A previously authorized in-place command retains its original
+          // identity and receipt. Recover it or explicitly undo a safely
+          // rejected operation before authorizing a new replacement.
+          throw new Error("An earlier in-place billing change must be resolved or undone before replacement authorization");
+        }
         const replacement = await BillingReplacementService.provisionClaimedChange(
           claimed.id,
           leaseToken,
@@ -743,19 +753,33 @@ export class BillingMutationService {
     });
   }
 
-  static async retry(changeId: string) {
+  static retry(changeId: string) {
+    return this.retryFailedChange(changeId, false);
+  }
+
+  /** Owner/manual-review recovery must only read provider truth. It must not
+   * replay queued changes or depend on the provider-write release switch. */
+  static reconcileScheduledUndo(changeId: string) {
+    return this.retryFailedChange(changeId, true);
+  }
+
+  private static async retryFailedChange(changeId: string, scheduledUndoReadOnly: boolean) {
     const change = await prisma.organizationBillingChange.findUnique({
       where: { id: changeId },
       include: { organizationSubscription: true },
     });
     if (!change || change.status !== "FAILED") throw new Error("Failed billing change not found");
+    if (scheduledUndoReadOnly && (!isScheduledUndoFailureCode(change.failureCode)
+      || change.replacementSubscriptionId)) {
+      throw new BillingManualReviewRequiredError(change.id, "Scheduled-change undo recovery does not match this operation");
+    }
     if (change.failureCode?.startsWith("SOURCE_CANCELLATION_")) {
       return BillingReplacementService.reconcileSourceCancellation(change.id);
     }
-    if (change.type !== "UNSUPPORTED_METHOD_CANCELLATION") {
+    if (!scheduledUndoReadOnly && change.type !== "UNSUPPORTED_METHOD_CANCELLATION") {
       assertRazorpayBillingWritesEnabled(change.organizationId);
     }
-    if (change.provisioningIntentVersion === 2 && !change.replacementSubscriptionId
+    if (!scheduledUndoReadOnly && change.provisioningIntentVersion === 2 && !change.replacementSubscriptionId
       && (change.providerMutationAdmittedAt || change.failureCategory === MANUAL_REVIEW_CATEGORY)) {
       return BillingReplacementService.reconcileProvisioning(change.id);
     }
@@ -945,6 +969,12 @@ export class BillingMutationService {
               cancellationScheduledAt: change.type === "CANCELLATION" ? null : undefined,
             },
           });
+          await confirmReconciledBillingProviderAction(tx, {
+            organizationId: change.organizationId,
+            identity: change.id,
+            purpose: "UNDO_SCHEDULE",
+            provider,
+          });
           await recordBillingMutationAudit(tx, {
             changeId: change.id,
             organizationId: change.organizationId,
@@ -983,7 +1013,7 @@ export class BillingMutationService {
           "Scheduled-change undo was confirmed but local reconciliation could not be finalized"
         );
       }
-      await this.replayAfterScheduledUndo(undone);
+      if (!scheduledUndoReadOnly) await this.replayAfterScheduledUndo(undone);
       return undone;
     }
 
@@ -1459,6 +1489,9 @@ export class BillingMutationService {
     }
     if (change.type !== "UNSUPPORTED_METHOD_CANCELLATION") {
       assertRazorpayBillingWritesEnabled(change.organizationId);
+    }
+    if (isReplacementMutationEligible({ sourcePaymentMethod: subscription.providerPaymentMethod, mutationType: change.type })) {
+      throw new Error("Plan and quantity changes require a newly authorized replacement mandate");
     }
     const intendedQuantity = change.toQuantity ?? subscription.quantity;
     let target = {

@@ -58,6 +58,17 @@ describe("billing processing reconciliation", () => {
     expect(preferProviderConfirmedOperation(declined, operation("APPLIED")).operationStatus).toBe("APPLIED");
   });
 
+  it("accepts a reopened owner retry without weakening stale-poll or confirmed-success protection", () => {
+    const declined = operation("DECLINED");
+    const reopened = operation("CHECKOUT_OPEN");
+    expect(preferProviderConfirmedOperation(declined, reopened)).toBe(declined);
+    expect(preferProviderConfirmedOperation(declined, reopened, true)).toBe(reopened);
+    expect(preferProviderConfirmedOperation(declined, { ...reopened, id: "other-change" }, true)).toBe(declined);
+    const applied = operation("APPLIED");
+    expect(preferProviderConfirmedOperation(applied, reopened, true)).toBe(applied);
+    expect(preferProviderConfirmedOperation(declined, operation("VERIFYING"), true)).toBe(declined);
+  });
+
   it("offers a declined customer another recurring payment method", () => {
     const copy = getBillingProcessingCopy(operation("DECLINED"), false);
 

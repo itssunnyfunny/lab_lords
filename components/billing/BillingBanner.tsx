@@ -1,6 +1,7 @@
 "use client";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
+import { billingPlanName } from "@/lib/billingPlans";
 import Link from "next/link";
 import { useId, useSyncExternalStore } from "react";
 import { AlertTriangle, Clock3, WalletCards, X } from "lucide-react";
@@ -43,7 +44,7 @@ export function getBillingBannerActionLabel(
 ) {
   const authorizationAction = experience.paymentAction === BILLING_PAYMENT_ACTION.AUTHORIZE_PAYMENT_METHOD;
   if (authorizationAction && experience.selectedPostTrialPlan) {
-    return `Authorize ${experience.selectedPostTrialPlan === "STANDARD" ? "Standard" : "Basic"}`;
+    return `Authorize ${billingPlanName(experience.selectedPostTrialPlan)}`;
   }
   if (experience.paymentAction === BILLING_PAYMENT_ACTION.UPDATE_PAYMENT_METHOD) {
     return "Update payment method";
@@ -91,7 +92,7 @@ export function BillingBanner({ experience }: { experience: BillingExperience })
         action: "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-badge-cyan-text)] hover:bg-[color:var(--ui-form-muted-surface-bg)]",
         dismiss: "hover:bg-[color:var(--ui-form-muted-surface-bg)]",
       };
-  const billingHref = `/org/${encodeURIComponent(experience.organizationId)}/settings#billing`;
+  const billingHref = `/org/${encodeURIComponent(experience.organizationId)}/billing`;
   const actionLabel = getBillingBannerActionLabel(experience);
 
   const dismiss = () => {
