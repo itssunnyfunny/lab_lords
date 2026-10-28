@@ -204,7 +204,7 @@ test("compact shell mounts one reachable navigation drawer", async ({ page }, te
     test.skip(testInfo.project.name.startsWith("desktop"), "Compact-shell-only assertion");
     await openPilot(page, "/branch/pilot");
     const trigger = page.getByRole("button", { name: /Open navigation|नेविगेशन खोलें|Navigation kholein/ });
-    const organization = page.getByRole("combobox", { name: "Switch organization", exact: true });
+    const organization = page.getByLabel("Current organization", { exact: true });
     const switcher = page.getByRole("combobox", { name: "Switch branch", exact: true });
     const search = page.getByRole("button", { name: "Search current branch" });
     const [triggerBox, switcherBox, searchBox] = await Promise.all([
@@ -227,9 +227,9 @@ test("compact shell mounts one reachable navigation drawer", async ({ page }, te
     await expect(searchDialog).toHaveCount(0);
     await expect(search).toBeFocused();
     await trigger.click();
-    const drawer = page.getByRole("dialog", { name: /Workspace navigation|वर्कस्पेस मेन्यू|Workspace navigation/ });
+    const drawer = page.getByRole("dialog", { name: /Branch navigation|ब्रांच मेन्यू/ });
     await expect(drawer).toBeVisible();
-    await expect(page.getByLabel("Branch navigation")).toHaveCount(1);
+    await expect(page.getByRole("complementary", { name: "Branch navigation" })).toHaveCount(1);
     const settings = drawer.getByRole("link", { name: "Branch Settings" });
     // The full navigation has more destinations than fit on a phone: verify
     // its scroll region can expose the lower links without moving the dialog.
@@ -281,6 +281,13 @@ test("representative pilot surfaces have no serious automated accessibility viol
         await page.goto(`${path}${separator}mode=after`);
         await expect(page.getByTestId("synthetic-pilot-label")).toBeVisible();
         await expect(page.locator("main h1:visible, [role='dialog'] h2:visible").first()).toBeVisible();
+        await expect(page.locator('[data-record-list] [aria-busy="true"]')).toHaveCount(0);
+        // A just-enabled control is still fading from its disabled opacity.
+        // Scan the settled view while retaining every axe rule and finding.
+        await page.evaluate(async () => {
+            await Promise.all(document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity)
+                .map(animation => animation.finished.catch(() => undefined)));
+        });
         const { violations } = await new AxeBuilder({ page }).analyze();
         expect(
             violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical"),

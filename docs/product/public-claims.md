@@ -1,5 +1,17 @@
 # Public wording and feature claims
 
+Audit closeout, 25 October 2026: Home, Features, Pricing, FAQ and fee-reminder
+solution copy stopped advertising the retired AI Messages capability. Plan text
+“AI reports and message drafting” is now “AI reports”; draft preview labels now
+describe follow-up notes, and AI assistance describes reports/advisory suggestions.
+Terms remove the obsolete capability name; Privacy explicitly retains historical
+draft records. No policy expansion, new plan, launch, historical-ledger,
+GA/provider-verification or import-rollout claim is added. English/Hindi/Hinglish
+copy follows the same factual correction. See the [closeout record](../audits/audit-closeout-2026-10-25.md).
+Recovery, term correction/cancellation and older billing-history browsing extend
+the existing management workflows. Home, Features, Pricing and FAQ need no
+additional promise for those fixes; no new plan or entitlement is introduced.
+
 ## Three-plan catalogue — working tree, 2026-10-23
 
 Home, Features, Pricing, FAQ, relevant solution pages, onboarding and dedicated Billing use the shared three-plan catalogue: Basic ₹99, Standard ₹299, Pro ₹499 per active/billable branch per month. Standard and Pro include staff, advanced analytics and AI; only Pro includes WhatsApp entitlement. The public copy explicitly requires WhatsApp setup/rollout availability and applies messaging charges/usage terms without promising unlimited usage. English, Hindi and Hinglish preserve the same facts. The normal trial remains 30 days of Standard. Basic uses existing core screens; its simpler interface has not shipped.
@@ -78,8 +90,9 @@ revision is `3007db3`. Prices, plan IDs and inclusions remain sourced from
 | Staff / release-verified | `services/accessPolicy.service.ts`, `lib/branchCapabilities.ts` | Standard or Pro; permissions still checked per operation | Current production revision | Add your team and choose what each person can view or change. | Home, Features, Pricing, FAQ |
 | Reports and AI assistance / implemented in deployed code | `lib/billingPlans.ts`, AI report page/service and branch capability policy | Standard or Pro; analytics and payment-view permission; advisory output | Current production revision; no provider generation executed here | Read summaries of recorded figures and review them alongside your library's records. | Features, Pricing, FAQ |
 | Imports / implemented, gated; current enablement unknown | `lib/importFeature.ts`, `importing/`, import routes | Student permission, writable branch, Import V2 flag and mutation limit; AI mapping retains its rules | Source and existing local verification only; target enablement unconfirmed | Existing narrow reviewed-student-list wording retained. No new claim for PDF beta, OCR, every format or whole-file rollback | Existing Home/Features/FAQ/setup copy |
+
 | WhatsApp / implemented, independently gated; commercial availability unknown | `lib/whatsappFeature.ts`, `services/whatsapp*.ts`, public catalogue filtering | Pro entitlement plus separate permissions, flags, mode/canaries, consent and templates | No fresh gate/provider/delivery evidence | Pro includes conditional integration/automation entitlement; setup/rollout and usage terms apply. No unlimited messages or delivery guarantee | Pricing and conditional Pro plan description |
-| Standalone AI Messages / retirement-planned, still implemented | `docs/localization.md`, branch navigation and AI messages page | Standard or Pro and existing AI permissions | Code remains in current deployed revision; removal not evidenced | Existing accurate drafting descriptions retained; no new central selling point | Features, FAQ, fee-reminder solution |
+| Standalone AI Messages / retired in current branch | Authenticated 410 routes; AI draft generation removed; historical drafts retained | AI Reports remain available to Standard and Pro with existing permissions | Local implementation, not release evidence | Home, Features, Pricing, FAQ and fee-reminder copy describe AI reports only; no message drafting claim | Features, Pricing, FAQ, Terms and fee-reminder solution |
 
 ## Meaning to preserve
 
@@ -110,6 +123,15 @@ older registry content remains unrendered; it is not current promoted wording.
 No blind redirects, silent 404s or edits to legal commitments are introduced.
 
 ## Keeping claims current
+
+**22 October 2026 — No marketing change needed.** Home, Features, Pricing and
+FAQ wording was checked against the restored navigation and controls. The change
+exposes supported workflows and repairs their destinations; plan inclusion,
+provider rollout, AI advisory behavior, reminder consent, recorded payment facts,
+and one-trial-per-owner rules stay unchanged. Branch billing removal retains its
+existing cycle-boundary/provider confirmation rules and does not delete history.
+The [local restoration review](../redesign/navigation-restoration-review.md)
+records implementation and verification, without a new availability or release claim.
 
 For a customer-visible feature change, check Home, Features, Pricing, FAQ and the
 relevant solution/setup content. Record the exact phrase changed and the factual

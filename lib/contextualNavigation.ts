@@ -3,12 +3,15 @@ export type ContextualParent = {
     label: string;
 };
 
+// Return hints only select an internal workspace page. Destinations still enforce
+// their normal server-side membership and permission checks.
+export function workspaceReturnPath(value: string | null): string | null {
+    return value && /^\/(?:branch|org)\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_/-]+)?\/?$/.test(value)
+        ? value : null;
+}
+
 export function resolveContextualParent(pathname: string | null): ContextualParent | null {
     if (!pathname) return null;
-
-    if (pathname === "/account" || pathname.startsWith("/account/")) {
-        return { href: "/app", label: "Back to workspaces" };
-    }
 
     const branchMatch = pathname.match(/^\/branch\/([^/]+)(?:\/(.+))?\/?$/);
     if (branchMatch) {

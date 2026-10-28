@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { AddStudentDialog } from "@/app/branch/[branchId]/students/AddStudentDialog";
 import { SeatPicker, type ShiftCapacity } from "@/components/allocations/SeatPicker";
+import { students } from "@/lib/api/students";
 
 const hooks = vi.hoisted(() => ({
     current: { cursor: 0, values: [] as unknown[], effects: [] as Array<() => void>, collectEffects: false },
@@ -18,6 +19,11 @@ vi.mock("react", async original => ({
     },
     useEffect: (effect: () => void) => {
         if (hooks.current.collectEffects) hooks.current.effects.push(effect);
+    },
+    useRef: (initial: unknown) => {
+        const state = hooks.current; const index = state.cursor++;
+        if (!(index in state.values)) state.values[index] = { current: initial };
+        return state.values[index];
     },
 }));
 vi.mock("@/components/settings/LocalizedText", () => ({
@@ -64,6 +70,7 @@ function admission() {
 
 let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
+    vi.mocked(students.create).mockReset();
     fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => url.endsWith("/capacity") ? [] : {
         shiftId: "full_day", shiftName: "Full day", isReserved: false, totalSeats: 2,
         occupiedCount: 1, availableCount: 1,
@@ -77,6 +84,36 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("admission bundle seat availability", () => {
+    it("reuses the saved student after allocation failure and freezes its saved shift/fee choice", async () => {
+        const state = { cursor: 0, values: [] as unknown[], effects: [] as Array<() => void>, collectEffects: false };
+        type FormElement = ReactElement<{ id?: string; type?: string; children?: ReactNode;
+            onChange?: (event: { target: { value: string; checked: boolean } }) => void;
+            onSubmit?: (event: { preventDefault: () => void }) => Promise<void> }>;
+        const render = () => { hooks.current = state; state.cursor = 0; return elements(AddStudentDialog({
+            isOpen: true, branchId: "branch_1", onClose: vi.fn(), onSuccess: vi.fn(),
+            allocationDecision: { allowed: true, blocker: null, reason: null, recoveryHref: null },
+        })) as FormElement[]; };
+        const field = (id: string, value: string) => render().find(row => row.props.id === id)!.props.onChange!({ target: { value, checked: false } });
+        field("add-student-name", "Saved admission"); field("add-student-phone", "9876543210");
+        const allocationCheckbox = render().find(row => row.type === "input" && row.props.type === "checkbox")!;
+        allocationCheckbox.props.onChange!({ target: { checked: true, value: "" } });
+        const picker = () => render().find(row => row.type === SeatPicker) as ReactElement<ComponentProps<typeof SeatPicker>>;
+        picker().props.onToggleShift(bundle); picker().props.onSelectSeat("first-seat");
+        const linkCheckbox = render().filter(row => row.type === "input" && row.props.type === "checkbox").at(-1)!;
+        linkCheckbox.props.onChange!({ target: { checked: true, value: "" } });
+        vi.mocked(students.create).mockResolvedValue({ id: "saved_student", name: "Saved admission" } as Awaited<ReturnType<typeof students.create>>);
+        fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Seat was just occupied" }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+        const submit = () => render().find(row => row.props.id === "add-student-form")!.props.onSubmit!({ preventDefault: vi.fn() });
+        await submit();
+        expect(picker().props.shiftsLocked).toBe(true);
+        picker().props.onToggleShift(morning);
+        expect(picker().props.selectedMultiShiftId).toBe("full_day");
+        picker().props.onSelectSeat("second-seat"); await submit();
+        expect(students.create).toHaveBeenCalledOnce();
+        expect(students.create).toHaveBeenCalledWith("branch_1", expect.objectContaining({ feeLinkedMultiShiftId: "full_day", feeLinkedShiftId: null }));
+        expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ studentId: "saved_student", seatId: "second-seat", multiShiftId: "full_day", shiftIds: ["morning", "evening"] });
+    });
     it("passes the selected bundle to the actual picker request and disables occupied seats", async () => {
         const selected = admission();
         selected().onToggleShift(bundle);

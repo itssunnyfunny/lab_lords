@@ -61,7 +61,7 @@ describe("E2E Flow: Month-End Billing", () => {
   beforeEach(async () => { await resetDatabase(); });
   afterEach(() => { resetAllMocks(); });
 
-  it("FLOW: Generate payments → Student appears overdue → Mark paid → Draft cleared", async () => {
+  it("FLOW: Generate payments → Student appears overdue → Mark paid → Historical draft preserved", async () => {
     const BASE = new Date("2026-01-01T00:00:00.000Z");
     const { user, branch } = await createTestWorld();
 
@@ -74,8 +74,8 @@ describe("E2E Flow: Month-End Billing", () => {
     );
     expect(result.generatedCount).toBe(1);
 
-    // Step 3: Create a message draft (simulating AI-generated reminder)
-    await testPrisma.messageDraft.create({
+    // Step 3: Retain a historical draft from before AI Messages retirement.
+    const historicalDraft = await testPrisma.messageDraft.create({
       data: {
         branchId: branch.id,
         studentId: student.id,
@@ -92,10 +92,10 @@ describe("E2E Flow: Month-End Billing", () => {
     // Step 5: Mark as paid
     await PaymentService.markPaymentAsPaid(user.id, payments[0].id);
 
-    // Step 6: Verify draft was cleared
+    // Step 6: Payment no longer deletes retained historical draft evidence.
     const drafts = await testPrisma.messageDraft.findMany({
       where: { studentId: student.id, action: "FOLLOW_UP_OVERDUE_PAYMENTS" },
     });
-    expect(drafts).toHaveLength(0);
+    expect(drafts).toEqual([historicalDraft]);
   });
 });

@@ -35,6 +35,7 @@ const errorMessages: Record<string, string> = {
     ONBOARDING_KEY_CONFLICT: "This saved setup needs review. Contact support before starting another setup.",
     ONBOARDING_RESULT_NOT_FOUND: "The saved workspace is not available to this account. Contact support before starting another setup.",
     ONBOARDING_UNAVAILABLE: "Setup is temporarily unavailable. Retry this saved setup later.",
+    ORGANIZATION_ALREADY_EXISTS: "Your account already owns an organization. Open it to manage branches.",
 };
 
 export class OnboardingRequestError extends Error {

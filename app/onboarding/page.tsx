@@ -166,7 +166,6 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
     const [savedCommand, setSavedCommand] = useState<OnboardingCommand | null>(null);
     const [storageReady, setStorageReady] = useState(false);
     const [storageError, setStorageError] = useState<string | null>(null);
-    const [newAfterCommandId, setNewAfterCommandId] = useState<string>();
     const active = useRef(false);
     const busy = useRef(false);
     const loadSavedCommand = useCallback(() => {
@@ -418,10 +417,9 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
         setLoading(true);
         setError(null);
         try {
-            const receipt = await runOnboardingCommand({ accountId, draft, newAfterCommandId, isCurrent: () => active.current });
+            const receipt = await runOnboardingCommand({ accountId, draft, isCurrent: () => active.current });
             if (!active.current) return;
             setSavedCommand(receipt);
-            setNewAfterCommandId(undefined);
             router.push(onboardingDestination(receipt));
         } catch (failure) {
             if (!active.current) return;
@@ -488,7 +486,6 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
     const selectedPlan = onboardingPlans.find(plan => plan.id === selectedPostTrialPlan) ?? null;
 
     const canAddMultiShift = formData.shifts.length >= 2;
-    const showRecovery = savedCommand && (savedCommand.status === "pending" || newAfterCommandId !== savedCommand.commandId);
 
     return (
         <div data-app-design-pilot="workspace" className={cn(entryRootClass, "items-start py-8 sm:items-center")}>
@@ -532,23 +529,15 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan }: {
                                 <p>{t.owned(storageError ?? "Checking for a saved setup...")}</p>
                                 {storageError && <AppButton density="compact" onClick={loadSavedCommand}>{t.owned("Retry saved setup check")}</AppButton>}
                             </div>
-                        ) : showRecovery ? (
+                        ) : savedCommand ? (
                             <div className="space-y-4">
                                 <h2 className={entryTitleClass}>{t.owned(savedCommand.status === "completed" ? "Your workspace is ready" : "Recover your saved setup")}</h2>
                                 <p className={entryMutedTextClass}>{t.owned(savedCommand.status === "completed"
-                                    ? "Continue to the workspace you already created, or choose to set up another organization."
+                                    ? "Continue to the workspace you already created."
                                     : "Your setup request is saved. Retry it to confirm the result. The same request will be used so an interrupted response does not create another workspace.")}</p>
                                 <AppButton density="compact" disabled={loading} isLoading={loading} onClick={() => completeSetup()}>
                                     {t.owned(savedCommand.status === "completed" ? "Continue to workspace" : "Retry saved setup")}
                                 </AppButton>
-                                {savedCommand.status === "completed" && <AppButton density="compact" variant="quiet" disabled={loading} onClick={() => {
-                                    setNewAfterCommandId(savedCommand.commandId);
-                                    setStep(1);
-                                    setError(null);
-                                    setStartingPoint(null);
-                                    setFormData({ orgName: "", ownerPhone: "", businessType: "", branchName: "", city: "", seatCount: "",
-                                        seatNumbering: createSimpleSeatNumbering(), shifts: DEFAULT_ONBOARDING_SHIFTS, multiShifts: DEFAULT_ONBOARDING_MULTI_SHIFTS });
-                                }}>{t.owned("Set up another organization")}</AppButton>}
                             </div>
                         ) : <fieldset disabled={loading} className="min-w-0">
                         <div className="mb-6">

@@ -7,9 +7,11 @@ import AllocationsPage from "@/app/branch/[branchId]/allocations/page";
 import { STAFF_ACTIONS, type BranchAccess } from "@/types";
 
 const mocks = vi.hoisted(() => ({
+    ownerKey: "account_1",
     cursor: 0, values: [] as unknown[], effects: [] as Array<() => void>,
     resetFieldErrors: vi.fn(), list: vi.fn(), replace: vi.fn(),
 }));
+vi.mock("@/components/settings/UserPreferencesApplier", () => ({ useUserPreferences: () => ({ ownerKey: mocks.ownerKey }) }));
 // Exercise real component callbacks and effects while keeping React state across
 // renders. This suite has no browser, database, or external HTTP dependency.
 vi.mock("react", async original => ({
@@ -99,11 +101,12 @@ function dialog(canManageStudentFees = true) {
     render();
     return { render, picker, confirm, input, fee, onSuccess, onClose, props };
 }
-const ok = () => new Response("{}", { status: 200 });
+const ok = () => new Response(JSON.stringify({ current: true, replayed: false, allocations: [{ id: "new_1" }] }), { status: 200 });
 const forbidden = () => new Response(JSON.stringify({ error: "Permission denied" }), { status: 403 });
 let request: ReturnType<typeof vi.fn>;
 beforeEach(() => {
     vi.clearAllMocks();
+    mocks.ownerKey = "account_1";
     mocks.cursor = 0;
     mocks.values = [];
     mocks.effects = [];
@@ -113,6 +116,47 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("allocation move partial success", () => {
+    it("retries a lost move response with the same immutable command before applying its saved fee change", async () => {
+        request.mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce(ok()).mockResolvedValueOnce(ok());
+        const view = dialog(); view.picker().props.onSelectSeat("seat_2"); view.fee("650");
+        await view.confirm().props.onClick!();
+        expect(text(view.confirm())).toBe("Check seat change");
+        expect(view.render().find(element => element.type === "fieldset")?.props.disabled).toBe(true);
+        view.props.currentShiftIds = ["morning"];
+        await view.confirm().props.onClick!();
+        expect(request).toHaveBeenCalledTimes(3);
+        expect(request.mock.calls[0][1].body).toBe(request.mock.calls[1][1].body);
+        expect(request.mock.calls[0][1].headers["Idempotency-Key"]).toMatch(/^[a-f0-9-]{36}$/);
+        expect(request.mock.calls[1][1].headers["Idempotency-Key"]).toBe(request.mock.calls[0][1].headers["Idempotency-Key"]);
+        expect(request.mock.calls[2][0]).toBe("/api/branches/branch_1/students");
+        expect(view.onClose).toHaveBeenCalledOnce();
+    });
+
+    it("does not apply the old fee choice when a recovered move has since been replaced", async () => {
+        request.mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce(new Response(JSON.stringify({ current: false, replayed: true, allocations: [] })));
+        const view = dialog(); view.picker().props.onSelectSeat("seat_2"); view.fee("650");
+        await view.confirm().props.onClick!(); await view.confirm().props.onClick!();
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(text(view.confirm())).toBe("Close");
+        expect(view.onSuccess).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not continue a pending fee change under a different signed-in account", async () => {
+        let release!: (response: Response) => void;
+        request.mockReturnValueOnce(new Promise<Response>(resolve => { release = resolve; }));
+        const view = dialog(); view.picker().props.onSelectSeat("seat_2"); view.fee("650");
+        const pending = view.confirm().props.onClick!();
+        mocks.ownerKey = "account_2"; view.render(); release(ok()); await pending;
+        expect(request).toHaveBeenCalledOnce(); expect(view.onClose).not.toHaveBeenCalled();
+        await view.confirm().props.onClick!(); expect(request).toHaveBeenCalledOnce();
+    });
+    it("does not treat an invalid success payload as confirmation or apply its optional fee change", async () => {
+        request.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+        const view = dialog(); view.picker().props.onSelectSeat("seat_2"); view.fee("650");
+        await view.confirm().props.onClick!();
+        expect(request).toHaveBeenCalledOnce(); expect(view.onClose).not.toHaveBeenCalled();
+        expect(text(view.confirm())).toBe("Check seat change");
+    });
     it("retains confirmed move success after a fee rejection and retries only the exact fee request", async () => {
         request.mockResolvedValueOnce(ok()).mockResolvedValueOnce(forbidden()).mockResolvedValueOnce(ok());
         const view = dialog();

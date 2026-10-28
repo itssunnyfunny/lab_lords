@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { refreshDevelopmentSession } from "./helpers/development-session";
 import {
   WHATSAPP_OPERATIONAL_CONSENT_POLICY_VERSION,
   WHATSAPP_OPERATIONAL_CONSENT_STATEMENT,
@@ -18,23 +19,27 @@ const hasManagerSession = Boolean(
 );
 
 test.use({ storageState: hasOwnerSession ? ownerAuthStatePath! : EMPTY_STATE });
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  const managerCase = testInfo.titlePath.some(title => title.startsWith("Manager authenticated WhatsApp"));
   test.skip(
-    !hasOwnerSession,
-    "Set PLAYWRIGHT_OWNER_AUTH_STATE to run authenticated WhatsApp collections coverage."
+    managerCase ? !hasManagerSession : !hasOwnerSession,
+    managerCase
+      ? "Set PLAYWRIGHT_MANAGER_AUTH_STATE and PLAYWRIGHT_MANAGER_BRANCH_ID for manager coverage."
+      : "Set PLAYWRIGHT_OWNER_AUTH_STATE to run authenticated WhatsApp collections coverage."
   );
+  BRANCH_ID = managerCase ? managerBranchId! : ownerBranchId;
   await page.route("https://graph.facebook.com/**", route =>
     route.abort("blockedbyclient")
   );
+  await refreshDevelopmentSession(page);
 });
 
 const ORG_ID = process.env.PLAYWRIGHT_OWNER_ORG_ID ?? "playwright-pr3-org";
-const BRANCH_ID = process.env.PLAYWRIGHT_OWNER_BRANCH_ID ?? "playwright-pr3-branch";
+const ownerBranchId = process.env.PLAYWRIGHT_OWNER_BRANCH_ID ?? "playwright-pr3-branch";
+// Each role's routes use its own authorized fixture branch.
+let BRANCH_ID = ownerBranchId;
 const SENDER_ID = "sender_pr3_1";
 
-if (managerBranchId && managerBranchId !== BRANCH_ID) {
-  throw new Error("Owner and manager browser states must target the same branch.");
-}
 const STUDENT_ONE_ID = "student_pr3_1";
 const STUDENT_TWO_ID = "student_pr3_2";
 const PAYMENT_ID = "payment_pr3_1";

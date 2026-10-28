@@ -70,6 +70,7 @@ const tx = {
     update: mocks.txBranchUpdate,
   },
   student: {
+    findUnique: mocks.prismaStudentFindUnique,
     findMany: mocks.txStudentFindMany,
     create: mocks.txStudentCreate,
     update: mocks.txStudentUpdate,

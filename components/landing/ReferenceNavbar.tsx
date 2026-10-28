@@ -25,7 +25,13 @@ export function ReferenceNavbar() {
   const { t, href: localHref } = usePublicText();
   const pathname = usePathname();
   const header = useRef<HTMLElement>(null);
+  const previousPathname = useRef(pathname);
   useEffect(() => {
+    header.current?.setAttribute("data-navigation-ready", "true");
+    // Native menus can be opened before hydration. Dismiss them on navigation,
+    // while preserving that existing user choice during the initial mount.
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
     header.current?.querySelectorAll("details[open]").forEach(menu => menu.removeAttribute("open"));
   }, [pathname]);
   useEffect(() => {

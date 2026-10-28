@@ -1,9 +1,31 @@
 import fs from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { refreshDevelopmentSession } from "./helpers/development-session";
 
 const EMPTY_STATE = { cookies: [], origins: [] };
+
+async function expectFocusInActivePage(page: Page, control: Locator, testInfo: TestInfo, stage: string) {
+  const readFocus = () => control.evaluate(element => ({
+    controlIsActive: document.activeElement === element,
+    pageHasFocus: document.hasFocus(),
+    activeTag: document.activeElement?.tagName ?? null,
+    activeIsBody: document.activeElement === document.body,
+    activeInsideDialog: Boolean(document.activeElement?.closest('[role="dialog"]')),
+  }));
+  const before = await readFocus();
+  // Playwright's focus matcher also requires document.hasFocus(). Activate the
+  // page without moving DOM focus, so a wrong focused control still fails.
+  if (!before.pageHasFocus) await page.bringToFront();
+  try {
+    await expect(control).toBeFocused();
+  } finally {
+    await testInfo.attach(`${stage}-focus-state`, {
+      body: JSON.stringify({ before, after: await readFocus() }),
+      contentType: "application/json",
+    });
+  }
+}
 
 const roleSessions = [
   { label: "Owner", stateEnv: "PLAYWRIGHT_OWNER_AUTH_STATE", branchEnv: "PLAYWRIGHT_OWNER_BRANCH_ID" },
@@ -51,6 +73,7 @@ async function mockChartData(page: Page, branchId: string) {
     contentType: "application/json",
     body: JSON.stringify({
       period: "month",
+      financialAccess: true,
       totalStudents: 12,
       activeStudents: 10,
       assignedSeats: 8,
@@ -81,6 +104,7 @@ for (const session of roleSessions) {
     test.beforeEach(async ({ page }) => {
       test.skip(!available, `Set ${session.stateEnv} and ${session.branchEnv} to run ${session.label} coverage.`);
       await refreshDevelopmentSession(page);
+      await page.bringToFront();
     });
 
     test("dashboard loads without creating payments and passes an axe smoke check", async ({ page }) => {
@@ -101,60 +125,40 @@ for (const session of roleSessions) {
       ).toEqual([]);
     });
 
-    test("workspace menu supports keyboard selection, dismissal, and viewport-safe placement", async ({ page }) => {
+    test("branch selector and header account navigation support keyboard access", async ({ page }, testInfo) => {
       await page.goto(`/branch/${branchId}`);
-      const workspace = page.locator("header").getByRole("combobox", {
-        name: /^(Org \/ Branch|Branch|Workspace)$/,
-      });
-      await expect(workspace).toBeVisible();
-      await expect(workspace).not.toContainText(/Loading workspaces|Workspaces unavailable/);
-
-      await workspace.focus();
-      await page.keyboard.press("End");
-      const listbox = page.getByRole("listbox", { name: /^(Org \/ Branch|Branch|Workspace)$/ });
-      const accountOption = listbox.getByRole("option", { name: /Account settings/i });
-      await expect(listbox).toBeVisible();
-      await expect(accountOption).toBeVisible();
-      await expect(workspace).toHaveAttribute("aria-activedescendant", await accountOption.getAttribute("id") ?? "");
-
-      const enabledOptions = listbox.locator('[role="option"]:not([aria-disabled="true"])');
-      const firstOptionId = await enabledOptions.first().getAttribute("id");
-      const secondOptionId = await enabledOptions.nth(1).getAttribute("id");
-      await page.keyboard.press("Home");
-      await expect(workspace).toHaveAttribute("aria-activedescendant", firstOptionId ?? "");
-      await page.keyboard.press("ArrowDown");
-      await expect(workspace).toHaveAttribute("aria-activedescendant", secondOptionId ?? "");
-      await page.keyboard.press("End");
-      await expect(workspace).toHaveAttribute("aria-activedescendant", await accountOption.getAttribute("id") ?? "");
-
-      const menuBox = await listbox.boundingBox();
-      const viewport = page.viewportSize();
-      expect(menuBox).not.toBeNull();
-      expect(viewport).not.toBeNull();
-      expect(menuBox!.x).toBeGreaterThanOrEqual(0);
-      expect(menuBox!.y).toBeGreaterThanOrEqual(0);
-      expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(viewport!.width);
-      expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(viewport!.height);
-
-      await page.keyboard.press("Escape");
-      await expect(listbox).toBeHidden();
-      await expect(workspace).toBeFocused();
-
-      await workspace.click();
-      await page.keyboard.press("Tab");
-      await expect(listbox).toBeHidden();
-
-      await workspace.click();
-      await expect(listbox).toBeVisible();
-      await page.getByRole("heading", { level: 1 }).click();
-      await expect(listbox).toBeHidden();
-
-      await workspace.focus();
-      await workspace.click();
-      await page.keyboard.type("account");
-      await expect(workspace).toHaveAttribute("aria-activedescendant", await accountOption.getAttribute("id") ?? "");
+      const header = page.locator("header");
+      await expect(header.getByLabel("Current organization", { exact: true })).toBeVisible();
+      await expect(header.getByRole("combobox", { name: "Switch organization" })).toHaveCount(0);
+      const branch = header.getByRole("combobox", { name: "Switch branch" });
+      for (const [index, control] of [branch].entries()) {
+        await expect(control).toBeEnabled();
+        await expect(control).not.toContainText(/Loading workspaces|Workspaces unavailable/);
+        await page.bringToFront();
+        await control.focus();
+        await expectFocusInActivePage(page, control, testInfo, `workspace-${index}-focus`);
+        await page.keyboard.press("Escape");
+        await expectFocusInActivePage(page, control, testInfo, `workspace-${index}-escape`);
+        const viewport = page.viewportSize();
+        await expect(async () => {
+          const box = await control.boundingBox();
+          expect(box).not.toBeNull();
+          expect(box!.x).toBeGreaterThanOrEqual(0);
+          expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width);
+        }).toPass({ timeout: 5_000 });
+      }
+      await expect(branch).toHaveValue(branchId!);
+      const account = page.getByRole("link", { name: "Account settings", exact: true }).filter({ visible: true }).first();
+      await account.focus();
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/account(?:\?|$)/);
+      const back = page.getByRole("link", { name: "Back to workspace", exact: true });
+      await expect(back).toBeVisible();
+      await expect(back).toHaveAttribute("href", `/branch/${branchId}`);
+      await expect(page.getByRole("button", { name: "Open navigation", exact: true })).toHaveCount(0);
+      await expect(page.locator('a[href="/app"], a[href="/org"]')).toHaveCount(0);
+      await back.click();
+      await expect(page).toHaveURL(new RegExp(`/branch/${branchId}$`));
     });
 
     test("branch search follows the combobox keyboard pattern", async ({ page }, testInfo) => {
@@ -165,6 +169,7 @@ for (const session of roleSessions) {
 
       await page.goto(`/branch/${branchId}`);
       const mobile = testInfo.project.name === "mobile-chromium";
+      await page.bringToFront();
       const mobileTrigger = page.getByRole("button", { name: "Search current branch" });
       if (mobile) {
         await mobileTrigger.click();
@@ -194,14 +199,14 @@ for (const session of roleSessions) {
       await expect(listbox).toBeHidden();
       if (mobile) {
         await expect(page.getByRole("dialog", { name: "Search this branch" })).toBeHidden();
-        await expect(mobileTrigger).toBeFocused();
+        await expectFocusInActivePage(page, mobileTrigger, testInfo, "search-mobile-close");
       } else {
         await expect(search).toHaveAttribute("aria-expanded", "false");
-        await expect(search).toBeFocused();
+        await expectFocusInActivePage(page, search, testInfo, "search-desktop-close");
       }
     });
 
-    test("shared dialog receives, contains, and restores keyboard focus", async ({ page }) => {
+    test("shared dialog receives, contains, and restores keyboard focus", async ({ page }, testInfo) => {
       await page.goto(`/branch/${branchId}/students`);
       const trigger = page.getByRole("button", { name: "Add student", exact: true });
 
@@ -212,11 +217,12 @@ for (const session of roleSessions) {
       }
       test.skip(await trigger.isDisabled(), `${session.label} student mutations are currently restricted.`);
 
+      await page.bringToFront();
       await trigger.focus();
       await trigger.click();
       const dialog = page.getByRole("dialog", { name: "Add new student" });
       await expect(dialog).toBeVisible();
-      await expect(dialog.getByRole("textbox", { name: /Full Name/i })).toBeFocused();
+      await expectFocusInActivePage(page, dialog.getByRole("textbox", { name: /Full Name/i }), testInfo, "student-dialog-open");
 
       await page.keyboard.press("Shift+Tab");
       await page.keyboard.press("Shift+Tab");
@@ -226,7 +232,7 @@ for (const session of roleSessions) {
 
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
-      await expect(trigger).toBeFocused();
+      await expectFocusInActivePage(page, trigger, testInfo, "student-dialog-close");
     });
 
     test("mobile navigation drawer supports focus and Escape", async ({ page }, testInfo) => {
@@ -234,12 +240,13 @@ for (const session of roleSessions) {
 
       await page.goto(`/branch/${branchId}`);
       const trigger = page.getByRole("button", { name: "Open navigation" });
+      await page.bringToFront();
       await trigger.focus();
       await trigger.click();
 
-      const drawer = page.getByRole("dialog", { name: "Workspace navigation" });
+      const drawer = page.getByRole("dialog", { name: "Branch navigation" });
       await expect(drawer).toBeVisible();
-      await expect(drawer.getByRole("button", { name: "Close navigation" })).toBeFocused();
+      await expectFocusInActivePage(page, drawer.getByRole("button", { name: "Close navigation" }), testInfo, "navigation-open");
       await expect(drawer.getByRole("complementary", { name: "Branch navigation" })).toBeVisible();
 
       await page.keyboard.press("Tab");
@@ -249,21 +256,22 @@ for (const session of roleSessions) {
 
       await page.keyboard.press("Escape");
       await expect(drawer).toBeHidden();
-      await expect(trigger).toBeFocused();
+      await expectFocusInActivePage(page, trigger, testInfo, "navigation-close");
     });
 
     test("mobile notifications use a modal and restore trigger focus", async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== "mobile-chromium", "Mobile notifications coverage runs in the mobile project.");
 
       await page.goto(`/branch/${branchId}`);
-      const trigger = page.getByRole("button", { name: /branch notifications/i });
+      const trigger = page.getByRole("button", { name: "Notifications", exact: true });
       await expect(trigger).toBeEnabled();
+      await page.bringToFront();
       await trigger.focus();
       await trigger.click();
 
       const dialog = page.getByRole("dialog", { name: "Notifications" });
       await expect(dialog).toBeVisible();
-      await expect(dialog.getByRole("button", { name: "Close dialog" })).toBeFocused();
+      await expectFocusInActivePage(page, dialog.getByRole("button", { name: "Close dialog" }), testInfo, "notification-open");
       await page.keyboard.press("Shift+Tab");
       await expect.poll(() => page.evaluate(() => (
         document.activeElement?.closest('[role="dialog"]')?.getAttribute("aria-modal")
@@ -271,7 +279,7 @@ for (const session of roleSessions) {
 
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
-      await expect(trigger).toBeFocused();
+      await expectFocusInActivePage(page, trigger, testInfo, "notification-close");
     });
 
     test("core mobile shell has no overlapping controls and exposes deterministic back navigation", async ({ page }, testInfo) => {
@@ -342,7 +350,7 @@ for (const session of roleSessions) {
         expect(href).not.toContain("month=");
         await exactDueLink.click();
         const focusedPayment = page.locator('[aria-current="true"][aria-label*="selected search result"]').filter({ visible: true });
-        await expect(focusedPayment).toBeFocused();
+        await expectFocusInActivePage(page, focusedPayment, testInfo, "payment-navigation");
       }
     });
 
@@ -385,13 +393,13 @@ test.describe("Read-only authenticated UI", () => {
 
   test("mutation controls expose their blocker before submission", async ({ page }) => {
     await page.goto(`/branch/${branchId}/students`);
-    await expect(page.getByText(/read-only/i).first()).toBeVisible();
+    await expect(page.getByRole("main").getByText("Workspace is read-only", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add student" })).toBeDisabled();
     await expect(page.getByText(/Student changes are disabled/i)).toBeVisible();
   });
 });
 
-test.describe("Clerk account dark theme", () => {
+test.describe("Clerk account appearance", () => {
   const statePath = process.env.PLAYWRIGHT_OWNER_AUTH_STATE;
   const branchId = process.env.PLAYWRIGHT_OWNER_BRANCH_ID;
   const available = Boolean(statePath && fs.existsSync(statePath) && branchId);
@@ -403,9 +411,19 @@ test.describe("Clerk account dark theme", () => {
     await refreshDevelopmentSession(page);
   });
 
-  test("profile and security surfaces retain readable dark-theme contrast", async ({ page }) => {
+  test("profile and security retain readable contrast across preference refresh", async ({ page }) => {
+    let releasePreferences!: () => void;
+    const preferencesReady = new Promise<void>(resolve => { releasePreferences = resolve; });
+    await page.route("**/api/users/me", async route => {
+      await preferencesReady;
+      await route.fulfill({ json: { name: "Updated review owner", interfaceLanguage: "en", locale: "en-IN", timezone: "Asia/Kolkata" } });
+    });
     await page.goto(`/branch/${branchId}`);
     await page.getByRole("button", { name: "Open user menu" }).click();
+    await expect(page.getByRole("button", { name: "Manage account", exact: true })).toBeVisible();
+    releasePreferences();
+    await expect(page.locator("header").getByText("Updated review owner", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Manage account", exact: true })).toBeVisible();
     await page.getByText("Manage account", { exact: true }).click();
 
     const dialog = page.getByRole("dialog").first();

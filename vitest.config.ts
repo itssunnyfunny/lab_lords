@@ -5,12 +5,14 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     environment: "node",
+    // Archived audit diagnostics and copied agent artifacts are not maintained tests.
+    include: ["tests/**/*.{test,spec}.?(c|m)[jt]s?(x)"],
     globalSetup: "./tests/setup/global.ts",
     setupFiles: [],
     // Workflow fixtures require the dedicated @workflow/vitest transform and
     // are run through `pnpm test:workflow`, not the general Vitest suite.
     // Browser fixture specs use Playwright's test() and run through their dedicated config.
-    exclude: [...configDefaults.exclude, "tests/browser/**", "tests/localization-browser/**", "tests/application-design-pilot/**", "tests/dashboard-connected/**", "tests/billing-verification/**", "tests/workflow/**"],
+    exclude: [...configDefaults.exclude, "tests/browser/**", "tests/localization-browser/**", "tests/application-design-pilot/**", "tests/navigation-restoration/**", "tests/dashboard-connected/**", "tests/billing-verification/**", "tests/workflow/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

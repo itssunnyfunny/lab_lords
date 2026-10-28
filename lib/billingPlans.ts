@@ -35,7 +35,7 @@ export const BILLING_CAPABILITIES = [
   { id: "MULTIPLE_BRANCHES", label: "Multiple branches, each billed separately", standardOnly: false },
   { id: "STAFF_CONTROLS", label: "Staff invitations, roles and permission controls", standardOnly: true },
   { id: "ADVANCED_ANALYTICS", label: "Branch and cross-branch advanced analytics", standardOnly: true },
-  { id: "AI_ASSISTANCE", label: "AI reports and message drafting", standardOnly: true },
+  { id: "AI_ASSISTANCE", label: "AI reports", standardOnly: true },
   { id: "WHATSAPP_INTEGRATION", label: "WhatsApp integration and automation", standardOnly: false, proOnly: true },
 ] as const;
 
@@ -110,7 +110,7 @@ export const BILLING_PLANS: BillingPlan[] = [
       "Multiple branches, each billed separately",
       "Staff invitations, roles and permission controls",
       "Branch and cross-branch advanced analytics",
-      "AI reports and message drafting",
+      "AI reports",
     ],
     entitlements: ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"],
     limits: { maxBranches: null },

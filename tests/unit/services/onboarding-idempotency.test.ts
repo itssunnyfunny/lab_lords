@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
     transaction: vi.fn(), lock: vi.fn(), userUpdate: vi.fn(), orgCreate: vi.fn(),
     branchCreate: vi.fn(), branchFind: vi.fn(), shifts: vi.fn(), seats: vi.fn(),
     staff: vi.fn(), trial: vi.fn(), receiptFind: vi.fn(), receiptCreate: vi.fn(),
-    enabled: vi.fn(),
+    enabled: vi.fn(), orgFind: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
 vi.mock("@/lib/billingFeature", () => ({ isWorkspaceBillingEnabled: mocks.enabled }));
@@ -21,7 +21,7 @@ type Receipt = { ownerId: string; idempotencyKey: string; requestHash: string; o
 let receipts: Map<string, Receipt>;
 const tx = {
     $queryRaw: mocks.lock, user: { update: mocks.userUpdate },
-    organization: { create: mocks.orgCreate },
+    organization: { create: mocks.orgCreate, findFirst: mocks.orgFind },
     branch: { create: mocks.branchCreate, findFirst: mocks.branchFind },
     shift: { createMany: mocks.shifts }, seat: { createMany: mocks.seats },
     staff: { create: mocks.staff },
@@ -31,6 +31,7 @@ beforeEach(() => {
     vi.resetAllMocks();
     receipts = new Map();
     mocks.enabled.mockReturnValue(true);
+    mocks.orgFind.mockResolvedValue(null);
     mocks.transaction.mockImplementation(async callback => callback(tx));
     mocks.lock.mockResolvedValue([{ id: "owner_1" }]);
     mocks.orgCreate.mockResolvedValue({ id: "org_1", name: "Private organization name" });
@@ -52,6 +53,13 @@ function expectNoSetupWrites() {
 }
 
 describe("onboarding durable replay", () => {
+    it("rejects another command for an owner who already owns an organization, without writes", async () => {
+        mocks.orgFind.mockResolvedValue({ id: "legacy_org" });
+        await expect(OnboardingService.createNetwork(params()))
+            .rejects.toMatchObject({ code: "ORGANIZATION_ALREADY_EXISTS", status: 409 });
+        expect(mocks.orgFind).toHaveBeenCalledWith({ where: { ownerId: "owner_1" }, select: { id: true } });
+        expectNoSetupWrites();
+    });
     it("locks before writes and records only the scoped hash/result in the creation transaction", async () => {
         const result = await OnboardingService.createNetwork(params());
         expect(result).toEqual({ org: { id: "org_1" }, branch: { id: "branch_1" } });

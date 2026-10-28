@@ -45,6 +45,12 @@ describe("three-plan billing catalogue", () => {
     expect(deriveWorkspaceBillingState({ now, trial: { status: "ACTIVE", endsAt: new Date("2026-10-30T00:00:00Z") },
       subscription: { plan: "PRO", status: "ACTIVE", paidThrough: new Date("2026-11-23T00:00:00Z") } })).toMatchObject({ effectivePlan: "PRO", source: "PAID" });
   });
+  it("keeps retired AI message drafting out of every selectable plan", () => {
+    for (const plan of publicBillingPlans()) {
+      expect(plan.capabilities.find(capability => capability.id === "AI_ASSISTANCE")?.label).toBe("AI reports");
+      expect(JSON.stringify(plan)).not.toContain("message drafting");
+    }
+  });
   it("orders all six directions consistently", () => {
     expect(BILLING_PLAN_IDS.map(billingPlanRank)).toEqual([1, 2, 3]);
   });

@@ -228,6 +228,11 @@ test("public landing visual regression", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByRole("main")).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
+  // The baseline shows the page after a consent choice. Exercise the real
+  // control when analytics is configured, without masking any page content.
+  const rejectAnalytics = page.getByRole("button", { name: "Reject", exact: true });
+  if (await rejectAnalytics.isVisible()) await rejectAnalytics.click();
+  await expect(rejectAnalytics).toBeHidden();
   await expect.poll(() => page.getByRole("heading", { level: 1 }).evaluate(element =>
     getComputedStyle(element).fontFamily,
   )).toMatch(/playfair[ _]display/i);
@@ -266,7 +271,7 @@ test("public pricing exposes only Basic and Standard branch pricing", async ({ p
     "Multiple branches, each billed separately",
     "Staff invitations, roles and permission controls",
     "Branch and cross-branch advanced analytics",
-    "AI reports and message drafting",
+    "AI reports",
   ]) {
     await expect(page.locator("#pricing").getByText(capability, { exact: false })).toHaveCount(2);
     await expect(page.locator("#comparison").getByRole("rowheader", { name: capability, exact: true })).toBeVisible();
@@ -569,7 +574,7 @@ for (const route of publicBrandRoutes) {
   test(`${route} shares the botanical public brand and reflows at 320px and 400% zoom`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
-    const response = await page.goto(route);
+    const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.evaluate(() => document.fonts.ready);

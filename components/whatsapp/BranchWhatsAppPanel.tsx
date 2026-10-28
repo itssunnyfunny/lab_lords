@@ -555,6 +555,7 @@ export function BranchWhatsAppPanel({
   const [form, setForm] = useState<BranchSettingsForm | null>(null);
   const [selectedSenderId, setSelectedSenderId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [automationConfirmed, setAutomationConfirmed] = useState(false);
   const [notice, setNotice] = useState<{ tone: "status" | "error"; message: string } | null>(null);
   const [reportSubscriptionResponse, setReportSubscriptionResponse] = useState<WhatsAppReportSubscriptionResponse | null>(null);
@@ -593,7 +594,7 @@ export function BranchWhatsAppPanel({
 
   useEffect(() => {
     let cancelled = false;
-    availabilityHandlerRef.current(false);
+    availabilityHandlerRef.current(canView);
     setResponse(null);
     setSettings(null);
     setForm(null);
@@ -608,16 +609,19 @@ export function BranchWhatsAppPanel({
         if (!cancelled) applyOverview(overview);
       } catch {
         if (!cancelled) {
-          availabilityHandlerRef.current(false);
+          availabilityHandlerRef.current(true);
           setNotice({ tone: "error", message: "WhatsApp branch settings are unavailable right now." });
         }
       }
     };
     void load();
     return () => { cancelled = true; };
-  }, [applyOverview, canView, fetchOverview]);
+  }, [applyOverview, canView, fetchOverview, loadAttempt]);
 
-  if (!canView || !response?.enabled) return null;
+  if (!canView || response?.enabled === false) return null;
+  if (!response) return <SettingsPanel id="whatsapp" title="WhatsApp" description={t("Configure consent-based delivery using only approved Lab Lords Utility templates.")} icon={MessageCircle}>
+    <div className="space-y-3 px-5 py-4"><p role={notice?.tone === "error" ? "alert" : "status"}>{notice ? t.owned(notice.message) : t("Loading…")}</p>{notice?.tone === "error" && <AppButton variant="secondary" onClick={() => setLoadAttempt(current => current + 1)}>{t("Retry")}</AppButton>}</div>
+  </SettingsPanel>;
   const mayManageBranch = canManage;
   const mayManageAssignment = isOwner && response.canManage;
   const branchReportSubscription = reportSubscriptionResponse?.subscription

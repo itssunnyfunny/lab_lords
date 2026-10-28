@@ -453,8 +453,8 @@ authentication boundaries, not open application routes.
 - There is no provider capability for free-form text, media, marketing,
   authentication/OTP, arbitrary templates or recipients, AI-generated external
   content, payment links, credit sharing, billing aggregation, automatic replies,
-  or arbitrary broadcasts. Existing AI `MessageDraft` rows remain human-reviewed
-  copy/open-WhatsApp suggestions and can never feed provider delivery.
+  or arbitrary broadcasts. Existing AI `MessageDraft` rows are retained historical
+  evidence and can never feed provider delivery; their UI/API is retired.
 - Consent begins `UNKNOWN`; existing students are not opted in or backfilled.
   Send eligibility requires current `OPTED_IN` operational consent for the exact
   sender and normalized phone, a versioned consent statement, and an active
@@ -616,16 +616,13 @@ authentication boundaries, not open application routes.
 
 ### Cron, imports, and AI
 
-- Report and draft generation use independent branch-scoped durable tokens.
+- AI Reports generation uses branch-scoped durable tokens.
   Claim and cooldown reservation precede Gemini; only an unexpired matching
   owner may publish, and release cannot clear a successor. No provider call
-  occurs inside the publication transaction. Draft replacement is one atomic
-  batch with a unique branch/student/action/language key. A current overdue
-  source fingerprint must match selected draft inputs after the provider call;
-  short Student-then-Branch NOWAIT locks and transaction-local authorization
-  fence publication against fee writers. Legacy or changed-source text is
-  marked outdated and cannot be copied as current. A failed publication keeps
-  its reserved cooldown and never returns pre-provider debt as a current draft.
+  occurs inside the publication transaction. Legacy AI Messages GET/POST return
+  tenant-safe authenticated 410 responses; no generator or draft publisher
+  remains. Historical MessageDraft and DRAFTS lease records are retained and
+  never reused as authorization or current debt. Payment writers retain drafts.
 - Signed inbound report confirmation and report-stop commands are deduplicated
   by sender plus provider message ID inside the same transaction as challenge
   mutation. A different batch envelope cannot spend another confirmation attempt.
@@ -806,9 +803,9 @@ Treat these as review context and remediation candidates, not accepted risks:
   health/readiness endpoint, incident contact, or monitoring-retention policy;
 - repository configuration does not establish whether CSP, HSTS, WAF, or
   equivalent external platform controls are active;
-- overdue drafting sends selected student names and debt context to Gemini,
-  while consent, retention, regional processing, and vendor-governance policy
-  remain operator-owned and unverifiable from this repository; and
+- AI Reports may send selected operational context to Gemini; retiring Messages
+  does not establish consent, retention, regional processing, or vendor governance.
+  Those policies remain operator-owned and unverifiable from this repository; and
 - the Workflow execution ADR remains Proposed. Production enablement is not
   approved until a human owner/security review covers provider processing and
   residency, Fluid Compute/runtime configuration, retention and operator

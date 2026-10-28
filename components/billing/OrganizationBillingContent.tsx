@@ -18,6 +18,7 @@ import { billing, type BillingOverview, type BillingPlanDto, type OrganizationSu
 import { billingPlanName, billingPlanRank, isCheckoutBillingPlanId, type CheckoutBillingPlanId } from "@/lib/billingPlans";
 import { cn } from "@/lib/utils";
 import { getProviderPaymentMethodLabel, isSupportedRecurringPaymentMethod } from "@/lib/billingPaymentMethods";
+import { BillingHistoryBrowser } from "@/components/billing/BillingHistoryBrowser";
 import { BillingInvoiceHistory } from "@/components/billing/BillingInvoiceHistory";
 import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
 
@@ -832,6 +833,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                 </SettingsPanel>
                 <BillingInvoiceHistory organizationId={orgId} refreshKey={billingOverview} />
                 <SettingsPanel id="history" title={t("Subscription history")} icon={History}>
+                    <div className="px-5 py-4"><BillingHistoryBrowser organizationId={orgId} /></div>
                     {(billingOverview?.history.length ?? 0) > 0 ? (
                         <div className="border-t border-[color:var(--ui-form-section-divider)] px-5 py-4">
                             <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Subscription history")}</h3>

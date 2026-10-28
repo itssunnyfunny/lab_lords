@@ -29,7 +29,7 @@ export async function installSettingsRouteFixture(page: Page) {
         timezone: "Asia/Kolkata", currency: "INR", weekStartsOn: 1, paymentGraceDays: 5,
         ownerId: "pilot-owner", owner: { id: "pilot-owner", name: "Ananya Sharma", email: "owner@example.invalid" },
         subscription: null, createdAt: "2025-09-01T00:00:00.000Z",
-        branches: [{ id: "pilot", name: "Shanti Study Library", city: "Lucknow", createdAt: "2025-09-01T00:00:00.000Z" }],
+        branches: [{ id: "pilot", name: "Shanti Study Library", city: "Lucknow", billingStatus: "ACTIVE", createdAt: "2025-09-01T00:00:00.000Z" }],
         _count: { branches: 1 },
     };
     const experience = {

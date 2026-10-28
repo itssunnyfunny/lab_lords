@@ -39,7 +39,9 @@ describe("Dashboard operations — real disposable PostgreSQL", () => {
         expect(snapshot.collections).toMatchObject({ status: "success", data: { billed: 1200, collected: 700, pending: 500, waived: 0 } });
         expect(snapshot.collections.data!.points.reduce((sum, point) => sum + point.collected, 0)).toBe(700);
         expect(snapshot.collections.data!.rate).toBeCloseTo(700 / 1200 * 100, 0);
-        expect(snapshot.students.data).toEqual({ active: 1, comparison: null });
+        expect(snapshot.students.data).toEqual({ active: 1, comparison: null, recent: [{
+            id: f.student.id, name: f.student.name, status: f.student.status, joinedAt: f.student.joinedAt.toISOString(),
+        }] });
         await createPayment({ branchId: f.branch.id, studentId: f.student.id, amount: 300, status: "WAIVED",
             periodStart: new Date("2024-01-01T00:00:00Z"), periodEnd: new Date("2024-02-01T00:00:00Z"), dueDate: current.dueDate });
         await createPayment({ branchId: f.branch.id, studentId: f.student.id, amount: 400, status: "PAID", paidAt: new Date(),

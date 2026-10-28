@@ -1,3 +1,4 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { Client } from "pg";
@@ -9,7 +10,7 @@ import type { DashboardTask } from "../../lib/dashboardContracts";
 const fixture = JSON.parse(readFileSync(".clerk/dashboard-fixture.json", "utf8"));
 const target = assertDisposableTestDatabaseTarget(process.env.TEST_DATABASE_URL, process.env);
 if (target.databaseName !== fixture.databaseName || !target.databaseName.includes("browser_test")) throw new Error("Connected Batch 2 fixture identity mismatch");
-const output = "docs/redesign/batch-two-evidence/connected";
+const output = reviewEvidencePath("docs/redesign/batch-two-evidence/connected");
 mkdirSync(output, { recursive: true });
 async function request(page: Page, path: string, method = "GET", data?: unknown) {
     const token = await page.evaluate(async () => (window as unknown as { Clerk: { session: { getToken(options: { skipCache: boolean }): Promise<string> } } }).Clerk.session.getToken({ skipCache: true }));
@@ -34,6 +35,7 @@ async function finances(db: Client) {
 test.beforeEach(async ({ page }) => {
     await page.route(/(?:api\.razorpay\.com|checkout\.razorpay\.com|graph\.facebook\.com|generativelanguage\.googleapis\.com)/, route => route.abort("blockedbyclient"));
     await refreshDevelopmentSession(page);
+    expect((await request(page, "/api/users/me", "PATCH", { interfaceLanguage: "en" })).ok()).toBe(true);
 });
 
 test("Staff actual route persists access commands, restores fixture access and renders three languages", async ({ page }) => {
@@ -93,7 +95,7 @@ test("Staff actual readonly and restricted routes preserve owner-only management
     expect(foreign.status()).toBe(missing.status());
     expect([403, 404, 500]).toContain(foreign.status());
     expect(await foreign.json()).toEqual(await missing.json());
-    const context = await browser.newContext({ baseURL: "http://localhost:3117", storageState: ".clerk/dashboard-staff-auth.json" });
+    const context = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3117", storageState: ".clerk/dashboard-staff-auth.json" });
     try {
         const staff = await context.newPage(); await refreshDevelopmentSession(staff);
         await ready(staff, `/branch/${fixture.branchId}/staff`);
@@ -168,7 +170,7 @@ test("Tasks actual readonly, source-only and foreign routes preserve boundaries"
     const foreign = await request(page, `/api/branches/${fixture.foreignBranchId}/dashboard/tasks?status=OPEN`);
     const missing = await request(page, "/api/branches/missing-batch-two-branch/dashboard/tasks?status=OPEN");
     expect(foreign.status()).toBe(missing.status()); expect([403, 404]).toContain(foreign.status()); expect(await foreign.json()).toEqual(await missing.json());
-    const context = await browser.newContext({ baseURL: "http://localhost:3117", storageState: ".clerk/dashboard-staff-auth.json" });
+    const context = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3117", storageState: ".clerk/dashboard-staff-auth.json" });
     try {
         const staff = await context.newPage(); await refreshDevelopmentSession(staff);
         await ready(staff, `/branch/${fixture.branchId}/tasks`);

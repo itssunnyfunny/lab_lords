@@ -1,10 +1,11 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { installSettingsFixture } from "./settings-family-fixture";
 import { installSettingsRouteFixture } from "./settings-route-closeout-fixture";
 
-const output = "docs/redesign/application-rollout-evidence/settings";
+const output = reviewEvidencePath("docs/redesign/application-rollout-evidence/settings");
 test("dashboard settings keeps compact composition and saved threshold across languages", async ({ page }, info) => {
     const commands = await installSettingsFixture(page);
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
@@ -56,7 +57,7 @@ test("expectations and terms retain their original commands and mobile cards", a
     }
 });
 
-const closeoutOutput = "docs/redesign/application-closeout-evidence";
+const closeoutOutput = reviewEvidencePath("docs/redesign/application-closeout-evidence");
 
 test("real account settings keeps the application chrome, edit identity, language, and discard overlay", async ({ page }, info) => {
     const fixture = await installSettingsRouteFixture(page);
@@ -64,18 +65,17 @@ test("real account settings keeps the application chrome, edit identity, languag
     await page.goto("/account?mode=after&lang=en");
     await expect(page.getByRole("heading", { name: "Account Settings" })).toBeVisible();
     if (info.project.name === "desktop-1440") {
-        await expect(page.getByRole("complementary", { name: "Account navigation" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Back to workspace", exact: true })).toBeVisible();
         fs.mkdirSync(closeoutOutput, { recursive: true });
         await page.evaluate(() => document.fonts.ready);
         await page.screenshot({ path: `${closeoutOutput}/account-desktop-1440.png`, animations: "disabled" });
     }
     if (info.project.name === "mobile-390") {
-        await page.getByRole("button", { name: "Open navigation" }).click();
-        await expect(page.getByRole("complementary", { name: "Account navigation" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Open navigation" })).toHaveCount(0);
+        await expect(page.getByRole("link", { name: "Back to workspace", exact: true })).toBeVisible();
         fs.mkdirSync(closeoutOutput, { recursive: true });
         await page.evaluate(() => document.fonts.ready);
         await page.screenshot({ path: `${closeoutOutput}/account-navigation-mobile-390.png`, animations: "disabled" });
-        await page.getByRole("button", { name: "Close navigation" }).click();
     }
     await page.getByRole("button", { name: "Edit settings" }).click();
     await page.getByRole("textbox", { name: "Display name" }).fill("Ananya Review");

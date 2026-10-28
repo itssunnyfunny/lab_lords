@@ -1,9 +1,10 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { installStaffFixture } from "./staff-family-fixture";
 
-const output = "docs/redesign/batch-two-evidence/staff";
+const output = reviewEvidencePath("docs/redesign/batch-two-evidence/staff");
 async function open(page: Page, query: Record<string, string> = {}) {
     await page.goto(`/branch/pilot/staff?${new URLSearchParams({ mode: "after", lang: "en", ...query })}`);
     await expect(page.locator('[data-record-list] [aria-busy="true"]')).toHaveCount(0);

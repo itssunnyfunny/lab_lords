@@ -6,12 +6,16 @@ import { EntitlementService } from "@/services/entitlement.service";
 import { buildStaffPermissions } from "@/services/branchActionPolicy";
 import { attendanceTimezone } from "@/lib/attendance";
 import { dashboardDateOffset, dashboardDayStart, dashboardLocalTime, dashboardMonth, dashboardRate, dashboardToday } from "@/lib/dashboardMath";
-import { dashboardExpectationSchema, dashboardFollowUpPatchSchema, dashboardFollowUpQuerySchema, dashboardNotificationSchema,
-    dashboardSettingsSchema, dashboardTaskPatchSchema, dashboardTaskQuerySchema, dashboardTaskSchema, dashboardTermSchema,
+import { dashboardExpectationSchema, dashboardFollowUpPatchSchema, dashboardFollowUpQuerySchema, dashboardNotificationSchema, dashboardListSchema,
+    dashboardSettingsSchema, dashboardTaskPatchSchema, dashboardTaskQuerySchema, dashboardTaskSchema, dashboardTermSchema, dashboardTermChangeSchema,
     type DashboardActivity, type DashboardFollowUp, type DashboardNotification, type DashboardOverview, type DashboardSource,
     type DashboardTask, type DashboardTerm } from "@/lib/dashboardContracts";
 import type { z } from "zod";
 import { dashboardSetupQuerySchema } from "@/lib/dashboardSetup";
+import { SeatService } from "@/services/seat.service";
+import { runSerializableTransaction } from "@/lib/serializableTransaction";
+import { DashboardConflictError } from "@/lib/dashboardErrors";
+export { DashboardConflictError } from "@/lib/dashboardErrors";
 
 type Tx = Prisma.TransactionClient;
 export class DashboardInputError extends Error {}
@@ -32,9 +36,13 @@ function taskView(row: TaskRecord): DashboardTask {
     return { id: row.id, title: row.title, status: row.status as DashboardTask["status"], dueAt: row.dueAt?.toISOString() ?? null,
         assigneeId: row.assigneeId, assigneeName: row.assignee?.name ?? null, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
-function termView(row: { id: string; studentId: string; label: string; startDate: string; endDate: string; student: { name: string } }, today: string): DashboardTerm {
+function termView(row: { id: string; studentId: string; label: string; startDate: string; endDate: string; status?: string; revision?: number; student: { name: string } }, today: string): DashboardTerm {
     return { id: row.id, studentId: row.studentId, studentName: row.student.name, label: row.label, startDate: row.startDate,
-        endDate: row.endDate, daysLeft: Math.round((Date.parse(row.endDate) - Date.parse(today)) / 86_400_000) };
+        endDate: row.endDate, status: row.status === "VOIDED" ? "VOIDED" : row.status === "CANCELLED" ? "CANCELLED" : "ACTIVE", revision: row.revision ?? 1,
+        daysLeft: Math.round((Date.parse(row.endDate) - Date.parse(today)) / 86_400_000) };
+}
+function termSnapshot(row: { label: string; startDate: string; endDate: string; status: string }) {
+    return { label: row.label, startDate: row.startDate, endDate: row.endDate, status: row.status };
 }
 async function branchClock(branchId: string, tx: Tx = prisma, now = new Date()) {
     const branch = await tx.branch.findUniqueOrThrow({ where: { id: branchId }, select: { organization: { select: { timezone: true } } } });
@@ -98,6 +106,15 @@ async function checkAssignee(tx: Tx, access: BranchAccessContext, assigneeId?: s
         throw new DashboardInputError("Choose a current branch member with task access");
 }
 
+function attendanceScope(branchId: string, timezone: string, today: string, now: Date) {
+    const date = new Date(`${today}T00:00:00Z`);
+    const qualified = { OR: [{ attendanceMarks: { some: { branchId, date, status: "PRESENT" as const } } },
+        { attendanceVisits: { some: { branchId, date, voidedAt: null } } }] };
+    const expectation = { branchId, enabled: true, weekdays: { has: date.getUTCDay() }, student: { status: "ACTIVE" as const } };
+    const gapWhere = { ...expectation, expectedBy: { lte: dashboardLocalTime(now, timezone) }, student: { status: "ACTIVE" as const, NOT: qualified } };
+    return { qualified, expectation, gapWhere };
+}
+
 export class DashboardService {
     static async overview(actorId: string, branchId: string, month?: string, now = new Date()): Promise<DashboardOverview> {
         return prisma.$transaction(async tx => {
@@ -107,7 +124,13 @@ export class DashboardService {
             const profile = await EntitlementService.getOrganizationProfile(access.organizationId, tx);
             const chartLocked = !profile.entitlements.includes("ADVANCED_ANALYTICS");
             const money = await source(tx, access.permissions.view_payments, () => this.money(branchId, timezone, today, tx));
-            const students = await source(tx, access.permissions.students, async () => ({ active: await tx.student.count({ where: { branchId, status: "ACTIVE" } }), comparison: null }));
+            const students = await source(tx, access.permissions.students, async () => {
+                const [active, recent] = await completeReads([
+                    tx.student.count({ where: { branchId, status: "ACTIVE" } }),
+                    tx.student.findMany({ where: { branchId }, select: { id: true, name: true, status: true, joinedAt: true }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 5 }),
+                ]);
+                return { active, comparison: null, recent: recent.map(row => ({ ...row, joinedAt: row.joinedAt.toISOString() })) };
+            });
             const followUps = await source(tx, access.permissions.view_payments, () => this.followUpSummary(branchId, today, tx));
             const terms = await source(tx, access.permissions.students, () => this.termSummary(branchId, today, tx));
             const collections = await source(tx, access.permissions.analytics && access.permissions.view_payments, () => this.collections(branchId, selectedMonth, timezone, tx), chartLocked);
@@ -169,22 +192,16 @@ export class DashboardService {
         return { pending, dueToday, items: rows.map(followUpView) };
     }
     private static async termSummary(branchId: string, today: string, client: Tx = prisma) {
-        const where = { branchId, endDate: { gte: today, lte: dashboardDateOffset(today, 7) }, student: { status: "ACTIVE" as const } };
+        const where = { branchId, status: "ACTIVE", endDate: { gte: today, lte: dashboardDateOffset(today, 7) }, student: { status: "ACTIVE" as const } };
         const [configured, renewalsThisWeek, rows] = await completeReads([
-            client.membershipTerm.count({ where: { branchId } }), client.membershipTerm.count({ where }),
+            client.membershipTerm.count({ where: { branchId, status: "ACTIVE" } }), client.membershipTerm.count({ where }),
             client.membershipTerm.findMany({ where, include: { student: { select: { name: true } } }, orderBy: [{ endDate: "asc" }, { id: "asc" }], take: 3 }),
         ]);
         return { configured: configured > 0, renewalsThisWeek, items: rows.map(row => termView(row, today)) };
     }
 
     private static async attendance(branchId: string, timezone: string, today: string, now: Date, client: Tx = prisma) {
-        const date = new Date(`${today}T00:00:00Z`);
-        const weekday = date.getUTCDay();
-        const time = dashboardLocalTime(now, timezone);
-        const qualified = { OR: [{ attendanceMarks: { some: { branchId, date, status: "PRESENT" as const } } },
-            { attendanceVisits: { some: { branchId, date, voidedAt: null } } }] };
-        const expectation = { branchId, enabled: true, weekdays: { has: weekday }, student: { status: "ACTIVE" as const } };
-        const gapWhere = { ...expectation, expectedBy: { lte: time }, student: { status: "ACTIVE" as const, NOT: qualified } };
+        const { qualified, expectation, gapWhere } = attendanceScope(branchId, timezone, today, now);
         const [configured, expectedToday, attendedToday, gaps, rows] = await completeReads([
             client.attendanceExpectation.count({ where: { branchId, enabled: true } }),
             client.attendanceExpectation.count({ where: expectation }), client.student.count({ where: { branchId, ...qualified } }),
@@ -193,6 +210,20 @@ export class DashboardService {
         ]);
         return { configured: configured > 0, expectedToday, attendedToday, gaps,
             gapsStudents: rows.map(row => ({ id: row.studentId, name: row.student.name, expectedBy: row.expectedBy })) };
+    }
+
+    static async attendanceGaps(actorId: string, branchId: string, input: z.input<typeof dashboardListSchema>, now = new Date()) {
+        const query = dashboardListSchema.parse(input);
+        await AccessPolicy.authorizeAction(actorId, branchId, "students");
+        const { timezone, today } = await branchClock(branchId, prisma, now);
+        const { gapWhere } = attendanceScope(branchId, timezone, today, now);
+        const [total, rows] = await completeReads([
+            prisma.attendanceExpectation.count({ where: gapWhere }),
+            prisma.attendanceExpectation.findMany({ where: { ...gapWhere, ...(query.cursor ? { studentId: { gt: query.cursor } } : {}) },
+                select: { studentId: true, expectedBy: true, student: { select: { name: true } } }, orderBy: { studentId: "asc" }, take: query.limit + 1 }),
+        ]);
+        const items = rows.slice(0, query.limit).map(row => ({ id: row.studentId, name: row.student.name, expectedBy: row.expectedBy }));
+        return { items, total, today, timezone, nextCursor: rows.length > query.limit ? items.at(-1)!.id : null };
     }
 
     private static async seating(branchId: string, today: string, client: Tx = prisma) {
@@ -238,17 +269,31 @@ export class DashboardService {
         const href = `/branch/${encodeURIComponent(branchId)}`;
         const [collections, students, attendance, events, allocations] = await completeReads([
             permissions.view_payments ? client.feeCollection.findMany({ where: { branchId, voidedAt: null }, select: { id: true, collectedAt: true, amount: true, student: { select: { name: true } } }, orderBy: { collectedAt: "desc" }, take: 5 }) : [],
-            permissions.students ? client.student.findMany({ where: { branchId }, select: { id: true, name: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }) : [],
-            permissions.students ? client.auditLog.findMany({ where: { branchId, action: "ATTENDANCE_CHANGED" }, select: { id: true, createdAt: true, student: { select: { name: true } }, action: true }, orderBy: { createdAt: "desc" }, take: 5 }) : [],
+            permissions.students ? client.student.findMany({ where: { branchId }, select: { id: true, name: true, status: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }) : [],
+            permissions.students ? client.auditLog.findMany({ where: { branchId, action: "ATTENDANCE_CHANGED" }, select: { id: true, studentId: true, createdAt: true, student: { select: { name: true } }, action: true }, orderBy: { createdAt: "desc" }, take: 5 }) : [],
             client.dashboardEvent.findMany({ where: { branchId, kind: { in: [...(permissions.view_payments ? ["FOLLOW_UP"] : []), ...(permissions.manage_branch ? ["TASK", "CONFIGURATION"] : [])] } }, orderBy: { occurredAt: "desc" }, take: 5 }),
             permissions.seat_allocation ? client.seatAllocation.findMany({ where: { branchId }, select: { id: true, startDate: true, seat: { select: { label: true } } }, orderBy: { startDate: "desc" }, take: 5 }) : [],
         ]);
+        const expectationIds = permissions.students ? events.filter(row => row.detail === "ATTENDANCE_EXPECTATION").map(row => row.sourceId) : [];
+        const termIds = permissions.students ? events.filter(row => row.detail === "MEMBERSHIP_TERM").map(row => row.sourceId) : [];
+        const [expectations, terms] = await completeReads([
+            expectationIds.length ? client.attendanceExpectation.findMany({ where: { branchId, id: { in: expectationIds } }, select: { id: true, studentId: true } }) : [],
+            termIds.length ? client.membershipTerm.findMany({ where: { branchId, id: { in: termIds } }, select: { id: true, studentId: true } }) : [],
+        ]);
+        const configurationStudents = new Map([...expectations, ...terms].map(row => [row.id, row.studentId]));
+        const eventHref = (row: typeof events[number]) => {
+            if (row.kind === "FOLLOW_UP") return `${href}/follow-ups?followUpId=${encodeURIComponent(row.sourceId)}`;
+            if (row.kind === "TASK") return `${href}/tasks?taskId=${encodeURIComponent(row.sourceId)}`;
+            const section = permissions.students && row.detail === "MEMBERSHIP_TERM" ? "terms" : permissions.students && row.detail === "ATTENDANCE_EXPECTATION" ? "expectations" : "utilization";
+            const studentId = configurationStudents.get(row.sourceId);
+            return `${href}/dashboard-settings?section=${section}${studentId ? `&studentId=${encodeURIComponent(studentId)}` : ""}`;
+        };
         return [
-            ...collections.map(r => ({ id: `collection:${r.id}`, kind: "COLLECTION" as const, occurredAt: r.collectedAt.toISOString(), studentName: r.student.name, amount: r.amount, href: `${href}/payments` })),
-            ...students.map(r => ({ id: `student:${r.id}`, kind: "STUDENT" as const, occurredAt: r.createdAt.toISOString(), studentName: r.name, href: `${href}/students` })),
-            ...attendance.map(r => ({ id: `attendance:${r.id}`, kind: "ATTENDANCE" as const, occurredAt: r.createdAt.toISOString(), studentName: r.student?.name, detail: r.action, href: `${href}/attendance` })),
-            ...events.map(r => ({ id: `event:${r.id}`, kind: r.kind as DashboardActivity["kind"], occurredAt: r.occurredAt.toISOString(), detail: r.detail, href: `${href}/${r.kind === "FOLLOW_UP" ? "follow-ups" : r.kind === "TASK" ? "tasks" : "dashboard-settings"}` })),
-            ...allocations.map(r => ({ id: `allocation:${r.id}`, kind: "ALLOCATION" as const, occurredAt: r.startDate.toISOString(), detail: r.seat.label, href: `${href}/allocations` })),
+            ...collections.map(r => ({ id: `collection:${r.id}`, kind: "COLLECTION" as const, occurredAt: r.collectedAt.toISOString(), studentName: r.student.name, amount: r.amount, href: `${href}/payments?collectionId=${encodeURIComponent(r.id)}` })),
+            ...students.map(r => ({ id: `student:${r.id}`, kind: "STUDENT" as const, occurredAt: r.createdAt.toISOString(), studentName: r.name, href: `${href}/students?studentId=${encodeURIComponent(r.id)}&status=${r.status}` })),
+            ...attendance.map(r => ({ id: `attendance:${r.id}`, kind: "ATTENDANCE" as const, occurredAt: r.createdAt.toISOString(), studentName: r.student?.name, detail: r.action, href: `${href}/attendance${r.studentId ? `?studentId=${encodeURIComponent(r.studentId)}` : ""}` })),
+            ...events.map(r => ({ id: `event:${r.id}`, kind: r.kind as DashboardActivity["kind"], occurredAt: r.occurredAt.toISOString(), detail: r.detail, href: eventHref(r) })),
+            ...allocations.map(r => ({ id: `allocation:${r.id}`, kind: "ALLOCATION" as const, occurredAt: r.startDate.toISOString(), detail: r.seat.label, href: `${href}/allocations?allocationId=${encodeURIComponent(r.id)}` })),
         ].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, 8);
     }
 
@@ -257,8 +302,8 @@ export class DashboardService {
         const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch");
         const { timezone } = await branchClock(branchId);
         const [rows, organization, staff] = await completeReads([
-            prisma.dashboardTask.findMany({ where: { branchId, ...(query.status !== "ALL" ? { status: query.status } : {}),
-                ...(query.search ? { title: { contains: query.search, mode: "insensitive" } } : {}), ...(query.cursor ? { id: { gt: query.cursor } } : {}) },
+            prisma.dashboardTask.findMany({ where: { branchId, ...(query.taskId ? { id: query.taskId } : query.status !== "ALL" ? { status: query.status } : {}),
+                ...(!query.taskId && query.search ? { title: { contains: query.search, mode: "insensitive" } } : {}), ...(!query.taskId && query.cursor ? { id: { gt: query.cursor } } : {}) },
                 select: taskSelect, orderBy: { id: "asc" }, take: query.limit + 1 }),
             prisma.organization.findUniqueOrThrow({ where: { id: access.organizationId }, select: { owner: { select: { id: true, name: true } } } }),
             prisma.staff.findMany({ where: { branchId }, select: { role: true, permissionOverrides: { select: { action: true, allowed: true } },
@@ -296,9 +341,9 @@ export class DashboardService {
         const { today } = await branchClock(branchId, prisma, now);
         const summary = await this.followUpSummary(branchId, today);
         const rows = await prisma.renewalFollowUp.findMany({ where: { branchId,
-            ...(query.filter === "COMPLETED" ? { completedAt: { not: null } } : { completedAt: null }),
-            ...(query.filter === "DUE" ? { nextFollowUpAt: { lt: new Date(`${dashboardDateOffset(today, 1)}T00:00:00Z`) } } : {}),
-            ...(query.search ? { student: { name: { contains: query.search, mode: "insensitive" } } } : {}), ...(query.cursor ? { id: { gt: query.cursor } } : {}) },
+            ...(query.followUpId ? { id: query.followUpId } : query.filter === "COMPLETED" ? { completedAt: { not: null } } : { completedAt: null }),
+            ...(!query.followUpId && query.filter === "DUE" ? { nextFollowUpAt: { lt: new Date(`${dashboardDateOffset(today, 1)}T00:00:00Z`) } } : {}),
+            ...(!query.followUpId && query.search ? { student: { OR: [{ name: { contains: query.search, mode: "insensitive" } }, { phone: { contains: query.search } }] } } : {}), ...(!query.followUpId && query.cursor ? { id: { gt: query.cursor } } : {}) },
             select: followUpSelect, orderBy: { id: "asc" }, take: query.limit + 1 });
         const hasMore = rows.length > query.limit; if (hasMore) rows.pop();
         return { items: rows.map(followUpView), counts: { pending: summary.pending, dueToday: summary.dueToday,
@@ -371,7 +416,7 @@ export class DashboardService {
             ] } : {}) }, include: { student: { select: { name: true } } }, orderBy: [{ endDate: "desc" }, { id: "asc" }], take: query.limit + 1 }),
             prisma.membershipTerm.count({ where }),
             setupStudentPage(branchId, query),
-            query.studentId ? prisma.membershipTerm.findFirst({ where,
+            query.studentId ? prisma.membershipTerm.findFirst({ where: { ...where, status: "ACTIVE" },
                 include: { student: { select: { name: true } } }, orderBy: [{ endDate: "desc" }, { id: "asc" }] }) : null,
         ]);
         const items = rows.slice(0, query.limit).map(row => termView(row, today));
@@ -380,17 +425,66 @@ export class DashboardService {
     }
     static async saveTerm(actorId: string, branchId: string, input: z.input<typeof dashboardTermSchema>, now = new Date()) {
         const data = dashboardTermSchema.parse(input);
-        return prisma.$transaction(async tx => {
+        return runSerializableTransaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
             await AccessPolicy.authorizeAction(actorId, branchId, "students", tx);
             await studentExists(tx, branchId, data.studentId);
-            const overlap = await tx.membershipTerm.findFirst({ where: { branchId, studentId: data.studentId,
+            const overlap = await tx.membershipTerm.findFirst({ where: { branchId, studentId: data.studentId, status: "ACTIVE",
                 startDate: { lte: data.endDate }, endDate: { gte: data.startDate } }, select: { id: true } });
             if (overlap) throw new DashboardInputError("A membership term already covers these dates");
             const term = await tx.membershipTerm.create({ data: { branchId, ...data }, include: { student: { select: { name: true } } } });
+            await tx.membershipTermRevision.create({ data: { termId: term.id, branchId, revision: 1, action: "CREATED", actorId,
+                reason: "Membership term recorded.", after: termSnapshot(term) } });
             await event(tx, access, "CONFIGURATION", term.id, "MEMBERSHIP_TERM");
             const { today } = await branchClock(branchId, tx, now); return termView(term, today);
-        }, { isolationLevel: "Serializable" });
+        });
+    }
+
+    static async termHistory(actorId: string, branchId: string, termId: string, beforeRevision?: number) {
+        if (!termId || termId.length > 128 || (beforeRevision !== undefined && (!Number.isSafeInteger(beforeRevision) || beforeRevision < 1))) throw new DashboardInputError("Invalid history page");
+        await AccessPolicy.authorizeAction(actorId, branchId, "students");
+        if (!await prisma.membershipTerm.findFirst({ where: { id: termId, branchId }, select: { id: true } })) throw new DashboardNotFoundError();
+        const rows = await prisma.membershipTermRevision.findMany({ where: { branchId, termId, ...(beforeRevision ? { revision: { lt: beforeRevision } } : {}) },
+            include: { actor: { select: { name: true } } }, orderBy: { revision: "desc" }, take: 51 });
+        const items = rows.slice(0, 50).map(row => ({ id: row.id, revision: row.revision, action: row.action, reason: row.reason,
+            before: row.before, after: row.after, recordedAt: row.recordedAt.toISOString(), actorName: row.actor?.name ?? null }));
+        return { items, nextRevision: rows.length > 50 ? items.at(-1)!.revision : null };
+    }
+
+    static async changeTerm(actorId: string, branchId: string, input: z.input<typeof dashboardTermChangeSchema>, now = new Date()) {
+        const data = dashboardTermChangeSchema.parse(input);
+        return runSerializableTransaction(async tx => {
+            const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeAction(actorId, branchId, "students", tx);
+            const term = await tx.membershipTerm.findFirst({ where: { id: data.termId, branchId }, include: { student: { select: { name: true } } } });
+            if (!term) throw new DashboardNotFoundError();
+            if (term.revision !== data.expectedRevision || term.status !== "ACTIVE") throw new DashboardConflictError("This term changed. Refresh its history before trying again.");
+            const { today } = await branchClock(branchId, tx, now);
+            const next = { label: term.label, startDate: term.startDate, endDate: term.endDate, status: term.status };
+            if (data.action === "VOID") next.status = "VOIDED";
+            if (data.action === "CANCEL") {
+                if (term.startDate <= today) throw new DashboardInputError("This membership has already started. Record an early end instead.");
+                next.status = "CANCELLED";
+            }
+            if (data.action === "CORRECT") Object.assign(next, { label: data.label, startDate: data.startDate, endDate: data.endDate });
+            if (data.action === "END_EARLY") {
+                if (data.endDate >= term.endDate) throw new DashboardInputError("An early end must be before the recorded end date.");
+                next.endDate = data.endDate;
+            }
+            if (next.endDate < next.startDate) throw new DashboardInputError("End date must follow start date");
+            if (next.status === "ACTIVE" && await tx.membershipTerm.findFirst({ where: {
+                branchId, studentId: term.studentId, id: { not: term.id }, status: "ACTIVE",
+                startDate: { lte: next.endDate }, endDate: { gte: next.startDate },
+            }, select: { id: true } })) throw new DashboardInputError("A membership term already covers these dates");
+            const revision = term.revision + 1;
+            const updated = await tx.membershipTerm.updateMany({ where: { id: term.id, branchId, revision: term.revision }, data: { ...next, revision } });
+            if (updated.count !== 1) throw new DashboardConflictError("This term changed. Refresh its history before trying again.");
+            await tx.membershipTermRevision.create({ data: { termId: term.id, branchId, revision,
+                action: data.action === "VOID" ? "VOIDED" : data.action === "CANCEL" ? "CANCELLED" : data.action === "CORRECT" ? "CORRECTED" : "ENDED_EARLY",
+                actorId, reason: data.reason, before: termSnapshot(term), after: next } });
+            await event(tx, access, "CONFIGURATION", term.id, "MEMBERSHIP_TERM");
+            return termView({ ...term, ...next, revision }, today);
+        });
     }
 
     static async notifications(actorId: string, branchId: string, now = new Date()) {
@@ -408,7 +502,7 @@ export class DashboardService {
         }
         if (access.permissions.students) {
             const [attendance, terms] = await completeReads([this.attendance(branchId, timezone, today, now), this.termSummary(branchId, today)]);
-            add("ATTENDANCE", attendance.gaps, [today, attendance.gaps, attendance.gapsStudents.map(r => r.id)], "attendance");
+            add("ATTENDANCE", attendance.gaps, [today, attendance.gaps, attendance.gapsStudents.map(r => r.id)], "dashboard-settings?section=expectations&filter=gaps");
             add("RENEWAL", terms.renewalsThisWeek, terms.items.map(r => [r.id, r.endDate]), "dashboard-settings?section=terms");
         }
         if (access.permissions.manage_branch) {
@@ -418,6 +512,26 @@ export class DashboardService {
                 prisma.dashboardTask.count({ where }),
             ]);
             add("TASK", count, [count, due.map(r => [r.id, r.updatedAt.toISOString()])], "tasks");
+        }
+        if (access.permissions.students && access.permissions.seat_allocation) {
+            const where = { branchId, status: "ACTIVE" as const, seatAllocations: { none: { branchId, endDate: null } } };
+            const [count, first] = await completeReads([prisma.student.count({ where }), prisma.student.findFirst({ where, select: { id: true }, orderBy: { id: "asc" } })]);
+            add("UNASSIGNED", count, [count, first?.id], first ? `allocations?studentId=${encodeURIComponent(first.id)}` : "allocations");
+        }
+        if (access.permissions.seat_allocation) {
+            const shifts = await SeatService.getShiftsCapacity(actorId, branchId);
+            const full = shifts.filter(shift => shift.totalSeats > 0 && shift.isFull);
+            const near = shifts.filter(shift => !shift.isFull && shift.occupancyPercent >= 90);
+            add("SHIFT_FULL", full.length, full.map(shift => [shift.shiftId, shift.used]), "shifts");
+            add("SHIFT_NEAR_FULL", near.length, near.map(shift => [shift.shiftId, shift.used]), "shifts");
+        }
+        if (access.permissions.manage_branch && access.permissions.staff_management) {
+            const profile = await EntitlementService.getOrganizationProfile(access.organizationId);
+            if (profile.entitlements.includes("STAFF_MANAGEMENT")) {
+                const where = { branchId, acceptedAt: null, expiresAt: { gt: now } };
+                const [count, sample] = await completeReads([prisma.staffInvite.count({ where }), prisma.staffInvite.findMany({ where, select: { id: true, expiresAt: true }, orderBy: { id: "asc" }, take: 100 })]);
+                add("INVITES", count, [count, sample.map(invite => [invite.id, invite.expiresAt.toISOString()])], "staff");
+            }
         }
         const states = await prisma.dashboardNotificationState.findMany({ where: { branchId, userId: actorId, key: { in: candidates.map(c => c.key) } } });
         const items = candidates.map(candidate => {
@@ -434,7 +548,10 @@ export class DashboardService {
         if (data.action === "SNOOZE" && (snooze <= now || snooze.getTime() > now.getTime() + 30 * 86_400_000)) throw new DashboardInputError("Choose a snooze time within 30 days");
         return prisma.$transaction(async tx => {
             const kind = current.items.find(item => item.key === data.key)!.kind;
-            await AccessPolicy.authorizeAction(actorId, branchId, kind === "TASK" ? "manage_branch" : kind === "FOLLOW_UP" || kind === "OVERDUE" ? "view_payments" : "students", tx, true);
+            const permission = kind === "TASK" ? "manage_branch" : kind === "INVITES" ? "staff_management" : kind === "SHIFT_FULL" || kind === "SHIFT_NEAR_FULL" ? "seat_allocation" : kind === "FOLLOW_UP" || kind === "OVERDUE" ? "view_payments" : "students";
+            await AccessPolicy.authorizeAction(actorId, branchId, permission, tx, true);
+            if (kind === "UNASSIGNED") await AccessPolicy.authorizeAction(actorId, branchId, "seat_allocation", tx, true);
+            if (kind === "INVITES") await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
             const values = data.action === "READ" ? { readAt: now } : data.action === "SNOOZE" ? { snoozedUntil: snooze } : { dismissedAt: now };
             await tx.dashboardNotificationState.upsert({ where: { userId_branchId_key: { userId: actorId, branchId, key: data.key } },
                 create: { userId: actorId, branchId, key: data.key, ...values }, update: values });

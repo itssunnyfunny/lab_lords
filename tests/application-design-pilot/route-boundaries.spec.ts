@@ -1,7 +1,8 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 
-const evidence = "docs/redesign/application-closeout-evidence";
+const evidence = reviewEvidencePath("docs/redesign/application-closeout-evidence");
 
 test("selected cold loading and error boundaries use the application palette", async ({ page }, info) => {
     await page.goto("/onboarding?mode=after&lang=hi&boundary=loading");

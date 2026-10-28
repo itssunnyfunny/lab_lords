@@ -1,3 +1,4 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { assertDisposableTestDatabaseTarget } from "../setup/testDatabaseSafety";
@@ -34,7 +35,7 @@ async function checkProvider(page: Page, label: string) {
     expect(await manage.evaluate(element => getComputedStyle(element).color)).toBe(primary);
     expect(await popover.locator(".cl-userPreviewMainIdentifier").evaluate(element => getComputedStyle(element).color)).toBe(primary);
     await popover.screenshot({
-        path: `docs/redesign/application-closeout-evidence/provider-actual/account-menu-${label}.png`,
+        path: reviewEvidencePath(`docs/redesign/application-closeout-evidence/provider-actual/account-menu-${label}.png`),
         animations: "disabled", mask: [popover.locator(".cl-userPreview")], maskColor: "#e9f1eb",
     });
 
@@ -50,7 +51,7 @@ async function checkProvider(page: Page, label: string) {
     const accent = await tokenColor(page, "--ui-form-accent");
     expect(await modal.locator(".cl-profileSectionPrimaryButton").first().evaluate(element => getComputedStyle(element).color)).toBe(accent);
     await modal.screenshot({
-        path: `docs/redesign/application-closeout-evidence/provider-actual/account-profile-${label}.png`,
+        path: reviewEvidencePath(`docs/redesign/application-closeout-evidence/provider-actual/account-profile-${label}.png`),
         animations: "disabled",
         mask: [modal.locator(".cl-avatarBox"), modal.locator(".cl-profileSectionItem").filter({ hasText: /@/ })],
         maskColor: "#e9f1eb",

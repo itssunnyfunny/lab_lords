@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/AppShell";
-import { AccountSidebar } from "@/components/layout/AccountSidebar";
 
 export const metadata: Metadata = {
     title: "Account settings",
@@ -8,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
-    return <AppShell sidebar={<AccountSidebar />} designPilot>{children}</AppShell>;
+    return <AppShell designPilot>{children}</AppShell>;
 }

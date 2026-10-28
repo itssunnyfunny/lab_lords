@@ -136,6 +136,8 @@ interface SeatPickerProps {
     excludeAllocationIds?: string[];
     /** Seat ID of the student's current allocation — shown with a special "Current" indicator */
     currentSeatId?: string;
+    /** A saved admission keeps its persisted fee/shift choice; seats may still change. */
+    shiftsLocked?: boolean;
 }
 
 export function SeatPicker({
@@ -148,6 +150,7 @@ export function SeatPicker({
     onSelectSeat,
     excludeAllocationIds,
     currentSeatId,
+    shiftsLocked = false,
 }: SeatPickerProps) {
     const t = useTranslation();
     const [shifts, setShifts] = useState<ShiftCapacity[]>([]);
@@ -273,6 +276,7 @@ export function SeatPicker({
                                             shift={shift}
                                             isSelected={selectedShiftIds.includes(shift.shiftId)}
                                             onToggle={onToggleShift}
+                                            locked={shiftsLocked}
                                         />
                                     ))}
                                 </div>
@@ -298,6 +302,7 @@ export function SeatPicker({
                                                     : selectedShiftIds.includes(shift.shiftId)
                                             }
                                             onToggle={onToggleShift}
+                                            locked={shiftsLocked}
                                         />
                                     ))}
                                 </div>
@@ -404,13 +409,15 @@ function ShiftCard({
     shift,
     isSelected,
     onToggle,
+    locked = false,
 }: {
     shift: ShiftCapacity;
     isSelected: boolean;
     onToggle: (s: ShiftCapacity) => void;
+    locked?: boolean;
 }) {
     const t = useTranslation();
-    const blocked = shift.isFull || shift.studentAlreadyAllocated;
+    const blocked = locked || shift.isFull || shift.studentAlreadyAllocated;
     const pct = shift.occupancyPercent;
     const isMulti = shift.type === "MULTISHIFT";
 

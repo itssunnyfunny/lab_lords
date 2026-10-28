@@ -27,7 +27,7 @@ export function OrgSidebar() {
     return (
         <aside className={chromeOrgSidebarClass} aria-label={t("Organization navigation")}>
             <div className={chromeSidebarHeaderClass}>
-                <Link href="/app" aria-label={t("Open workspace home")}>
+                <Link href={basePath} aria-label={t("Open workspace home")}>
                     <AppLogo
                         subtitle={t("Operations")}
                         markVariant="botanical"

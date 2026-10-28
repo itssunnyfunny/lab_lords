@@ -34,10 +34,17 @@ export default function OrgSelectionPage() {
 
     useEffect(() => {
         const fetchOrgs = async () => {
+            let redirecting = false;
             try {
                 const data = await organizations.getAll();
                 if (data.length === 0) {
+                    redirecting = true;
                     router.replace("/onboarding");
+                    return;
+                }
+                if (data.length === 1) {
+                    redirecting = true;
+                    router.replace(`/org/${data[0].id}`);
                     return;
                 }
                 setOrgs(data);
@@ -45,7 +52,7 @@ export default function OrgSelectionPage() {
                 console.error("Failed to fetch organizations", err);
                 setError("Failed to load organizations");
             } finally {
-                setLoading(false);
+                if (!redirecting) setLoading(false);
             }
         };
 

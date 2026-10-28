@@ -119,7 +119,7 @@ const groups: FeatureGroup[] = [
     description: "Get help reviewing recorded information and preparing follow-ups.",
     items: [
       { title: "AI-assisted reports", description: "Read summaries of recorded figures and review them alongside your library's records." },
-      { title: "Message drafting", description: "Prepare a draft for review before you decide what to send." },
+      { title: "Action suggestions", description: "Review suggestions alongside your branch records." },
     ],
   },
 ];
@@ -134,7 +134,7 @@ const examples: Record<string, { text: string; href: string; link: string }> = {
   branches: { text: "Your morning desk handles one location while you review another. Each branch has its own students, seats and fee records. Switch to the right branch before entering information; every billable branch contributes to the subscription charge.", href: "/pricing#branch-billing", link: "Understand branch billing" },
   staff: { text: "Invite a staff member to the branch where they work and choose the allowed actions. Someone who helps with daily student records should not need to share the owner's account or manage organization billing.", href: "/pricing#comparison", link: "Compare Standard with Basic" },
   reports: { text: "Use recorded collection and seat-usage figures to review a branch, then compare locations where your access allows it. These reports reflect the information entered in Lab Lords; check incomplete records before drawing conclusions.", href: "/software/library-management", link: "For libraries with branch records" },
-  "ai-assistance": { text: "Ask for a summary of recorded figures or prepare a follow-up draft. Review amounts and wording yourself. AI output can be wrong and remains advisory; a draft does not mean that a message was delivered or a payment confirmed.", href: "/software/fee-reminder", link: "Understand fee follow-up" },
+  "ai-assistance": { text: "Review a summary of recorded figures and suggested next steps. Check the report against your records before using it. AI output can be wrong and remains advisory; it does not send messages or confirm payments.", href: "/software/fee-reminder", link: "Understand fee follow-up" },
 };
 
 export default async function FeaturesPage() {

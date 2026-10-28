@@ -1,5 +1,35 @@
 # Domain invariants
 
+## Audit follow-ups — 25 October 2026
+
+- **Must preserve—enforced:** An owner can create at most one owned organization
+  through onboarding. The owner User row lock serializes different keys; valid
+  retained receipts replay first. Existing multiple owned records remain
+  readable/authorized; staff memberships do not count as ownership.
+- **Must preserve—enforced:** Actor/branch/key seat-move receipts are immutable
+  and commit atomically with allocation history. Replays reauthorize, reject a
+  changed request hash and return current active rows. Read-only lookup grants
+  no new write. Admission recovery keeps the saved student's shift/fee choice.
+- **Must preserve—enforced:** Membership changes require an expected revision
+  and reason. Revisions are append-only. VOIDED means a recording error;
+  CANCELLED is only for a genuine term before it starts; early end records a
+  genuine shorter term. Only ACTIVE terms block overlap or produce reminders.
+  Correction excludes itself. Fees, allocations, attendance, student status and
+  SaaS access remain independent.
+- **Service-layer contract—not DB-enforced:** Shift/membership overlap is
+  checked within serializable transactions with bounded whole-operation retries.
+  Student create/profile/status and shift create/edit recheck policy/writability
+  inside the writer. This addresses tested pre-transaction revocations, not
+  universal commit-time revocation across all writers.
+- **Must preserve—enforced:** AI Messages endpoints are authenticated tenant-safe
+  410 tombstones. Historical drafts/leases remain; payment writers retain drafts.
+  AI Reports publication ownership remains active. Unused organization trends
+  returns 410 while supported snapshots remain available.
+
+These entries supersede descriptions of active draft generation and unrestricted
+additional-owner onboarding below. Read-only daily dues policy and historical
+analytics remain the documented boundaries; see [closeout evidence](audits/audit-closeout-2026-10-25.md).
+
 This document records business behavior that must survive refactors. It is a
 bridge between the schema, services, routes, and tests; it is not a substitute
 for inspecting them before a change.
@@ -382,8 +412,8 @@ unit/API/integration coverage.
   and `WAIVED -> PAID` transitions remain readable. New interactive collection
   cannot collect a waived balance; repeating a mutation to its current target state is an
   idempotent no-op. A waiver after payment retains the existing `paidAt`,
-  method, and reference metadata. Marking paid also removes follow-up message
-  drafts. (`services/payment.service.ts`, payment integration tests)
+  method, and reference metadata. Retired historical message drafts remain
+  unchanged. (`services/payment.service.ts`, payment integration tests)
 - **Must preserve—enforced:** Every effective transition to `PAID` or `WAIVED`
   through a supported payment, student-inactivation, or import path appends one
   immutable `PaymentResolutionEvent` in the same transaction as the payment
@@ -748,7 +778,7 @@ unit/API/integration coverage.
   `services/whatsappPaymentReconciliation.service.ts`,
   `services/whatsappRecipient.service.ts`)
 - **Must preserve—enforced:** Existing AI `MessageDraft` records remain
-  human-reviewed copy suggestions, not managed templates or outbox rows. The
+  historical evidence, not current copy suggestions, templates or outbox rows. The
   provider client exposes only controlled managed Utility-template creation and
   one approved individual template send; there is no free-form, media,
   marketing, authentication/OTP, arbitrary-recipient/template, automatic-reply,
@@ -1038,16 +1068,15 @@ unit/API/integration coverage.
   validated narrative with deterministic fallbacks. Opening the reports page
   can trigger generation through its GET route when cache and staleness rules
   allow it.
-- **Must preserve—enforced:** Overdue-message GET is cache-only. Regeneration is
-  an explicit POST for selected students, produces reviewable/copyable drafts,
-  and does not send WhatsApp, SMS, email, or any other external message.
+- **Must preserve—enforced:** Retired overdue-message GET and POST return 410
+  after authentication and tenant-safe authorization; they never read/generate
+  message content or invoke a provider.
 - **Service-layer contract—not DB-enforced:** AI output is advisory. It must not
   decide authorization, tenant scope, entitlement, payment truth, provider
   reconciliation, or an automatic external action.
-- **Known discrepancy—do not rely on:** Overdue drafting still sends selected
-  student names and debt context to Gemini. The repository does not establish
-  the operator's consent, retention, regional, or vendor data-processing policy
-  for that flow. Vercel Workflow Production use likewise remains subject to the
+- **Known discrepancy—do not rely on:** Retiring overdue drafting does not
+  establish consent, retention, regional or vendor policy for remaining AI Reports.
+  Vercel Workflow Production use remains subject to the
   human approval and provider/data-residency review recorded in the Proposed
   import-execution ADR; do not infer approval from installed code.
 
@@ -1070,19 +1099,11 @@ unit/API/integration coverage.
 
 ## Analytics
 
-- **Must preserve—enforced:** Report/draft admission is serialized per branch
-  and generation kind. Only the current unexpired token publishes; stale cleanup
-  cannot clear a successor. Draft admission reserves the five-minute cooldown
-  before Gemini, including failed publication, and GET/POST expose that deadline.
-  Draft replacement is transactional with one non-null-student logical draft per
-  branch/student/action/language. A draft's advisory source marker covers exact
-  overdue fee identity, remaining balance, due date, elapsed overdue days and
-  student facts; legacy or changed-source text is marked outdated and cannot be
-  copied as a current draft. DRAFTS publication rechecks the current source and
-  authorization under a short Student-then-Branch lock before and after writes;
-  provider calls remain outside the transaction. A failed or contended publish
-  rolls back the batch and leaves cooldown intact. Reports keep their existing
-  cache/staleness rules.
+- **Must preserve—enforced:** AI Reports admission is serialized per branch and
+  generation kind. Only the current unexpired token publishes; stale cleanup
+  cannot clear a successor. Provider calls stay outside publication transactions.
+  Reports retain their cache/staleness rules. DRAFTS lease records are historical;
+  no draft claim, provider generation, publication or cleanup path remains active.
 - **Must preserve—enforced:** Report confirmation/stop redelivery is deduplicated
   by sender and provider message ID, atomically with challenge mutation, even
   across different webhook batches. Full STOP and outbox delivery rules remain

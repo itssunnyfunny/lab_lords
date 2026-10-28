@@ -126,6 +126,15 @@ export class OnboardingService {
                 }
                 return { org: { id: branch.organizationId }, branch: { id: branch.id } };
             }
+            // The owner row lock serializes different command keys too. Keep
+            // legacy organizations readable; never merge or delete their data.
+            const ownedOrganization = await tx.organization.findFirst({
+                where: { ownerId: userId }, select: { id: true },
+            });
+            if (ownedOrganization) {
+                throw new OnboardingRequestError("ORGANIZATION_ALREADY_EXISTS",
+                    "Your account already owns an organization. Open it to manage branches.", 409);
+            }
             if (!isWorkspaceBillingEnabled()) {
                 throw new OnboardingRequestError("ONBOARDING_UNAVAILABLE", "Workspace creation is temporarily unavailable.", 503);
             }

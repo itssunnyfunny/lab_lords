@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ user: vi.fn(), overview: vi.fn(), capture: vi.fn(), createTask: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), overview: vi.fn(), gaps: vi.fn(), capture: vi.fn(), createTask: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ getSessionUser: mocks.user }));
-vi.mock("@/services/dashboard.service", () => ({ DashboardService: { overview: mocks.overview, captureOccupancy: mocks.capture, createTask: mocks.createTask },
+vi.mock("@/services/dashboard.service", () => ({ DashboardService: { overview: mocks.overview, attendanceGaps: mocks.gaps, captureOccupancy: mocks.capture, createTask: mocks.createTask },
     DashboardInputError: class extends Error {}, DashboardNotFoundError: class extends Error {} }));
 import { GET, POST } from "@/app/api/branches/[branchId]/dashboard/route";
 import { POST as createTask } from "@/app/api/branches/[branchId]/dashboard/tasks/route";
+import { GET as getGaps } from "@/app/api/branches/[branchId]/dashboard/attendance-gaps/route";
 import { BranchAccessNotFoundError } from "@/services/accessPolicy.service";
 const context = { params: Promise.resolve({ branchId: "branch" }) };
 const request = (body: unknown, headers: Record<string, string> = {}) => new Request("http://localhost/api/branches/branch/dashboard", {
@@ -49,5 +50,17 @@ describe("dashboard API", () => {
         mocks.overview.mockRejectedValue(new Error("private SQL values"));
         const failed = await GET(new Request("http://localhost/dashboard"), context);
         expect(failed.status).toBe(500); expect(JSON.stringify(await failed.json())).not.toContain("private SQL");
+    });
+    it("requires authentication for the complete gap list and returns private scoped results", async () => {
+        const request = new Request("http://localhost/dashboard/attendance-gaps?limit=50&cursor=s1");
+        mocks.user.mockResolvedValue(null);
+        expect((await getGaps(request, context)).status).toBe(401);
+        expect(mocks.gaps).not.toHaveBeenCalled();
+        mocks.user.mockResolvedValue({ id: "actor" }); mocks.gaps.mockResolvedValue({ items: [], total: 0, nextCursor: null });
+        const result = await getGaps(request, context);
+        expect(result.status).toBe(200); expect(result.headers.get("cache-control")).toContain("no-store");
+        expect(mocks.gaps).toHaveBeenCalledWith("actor", "branch", { limit: "50", cursor: "s1" });
+        mocks.gaps.mockRejectedValue(new BranchAccessNotFoundError());
+        expect(await (await getGaps(request, context)).json()).toEqual({ error: "Not found" });
     });
 });

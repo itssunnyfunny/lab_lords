@@ -450,7 +450,7 @@ async function summary({ ownerId, orgId, scenario }: Fixture) {
 
         featureAssertions,
 
-        clientFeatureGates: Object.fromEntries((["STAFF_CONTROLS", "ORG_ANALYTICS", "AI_REPORTS", "AI_MESSAGES"] as const).map(feature => [feature, hasFeatureEntitlement(entitlements.entitlements, feature)])),
+        clientFeatureGates: Object.fromEntries((["STAFF_CONTROLS", "ORG_ANALYTICS", "AI_REPORTS"] as const).map(feature => [feature, hasFeatureEntitlement(entitlements.entitlements, feature)])),
 
         invoices: overview.invoices.map(invoice => ({ status: invoice.status, amountSubunits: invoice.amountSubunits, currency: invoice.currency, paidAt: invoice.paidAt })),
 

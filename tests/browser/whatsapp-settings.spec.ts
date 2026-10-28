@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { refreshDevelopmentSession } from "./helpers/development-session";
 
 const authState = process.env.PLAYWRIGHT_AUTH_STATE;
 const storageState = authState && fs.existsSync(authState)
@@ -9,11 +10,12 @@ const storageState = authState && fs.existsSync(authState)
 const hasAuthState = typeof storageState === "string";
 
 test.use({ storageState });
-test.beforeEach(() => {
+test.beforeEach(async ({ page }) => {
   test.skip(!hasAuthState, "Set PLAYWRIGHT_AUTH_STATE to run authenticated WhatsApp UI coverage.");
+  await refreshDevelopmentSession(page);
 });
 
-const ORG_ID = "playwright-whatsapp-org";
+const ORG_ID = process.env.PLAYWRIGHT_OWNER_ORG_ID ?? "playwright-whatsapp-org";
 const SETTINGS_PATH = `/org/${ORG_ID}/settings`;
 const FINISH_EVENT = JSON.stringify({
   type: "WA_EMBEDDED_SIGNUP",
@@ -124,7 +126,7 @@ async function installWhatsAppMocks(page: Page) {
     route => json(route, {
       intentId: "intent_local_1",
       state: "one-time-state-kept-in-memory",
-      expiresAt: "2026-08-22T00:10:00.000Z",
+      expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
     })
   );
   await page.route(
@@ -140,6 +142,12 @@ async function installWhatsAppMocks(page: Page) {
 
 async function openMetaLauncher(page: Page) {
   await page.goto(SETTINGS_PATH);
+  // A full navigation remounts Clerk. Wait for identity hydration before
+  // asserting the organization shell's contents, as on the public entry page.
+  await page.waitForFunction(() => {
+    const clerk = (window as unknown as { Clerk?: { loaded: boolean } }).Clerk;
+    return clerk?.loaded;
+  });
   await expect(page.getByRole("heading", { name: "WhatsApp", exact: true })).toBeVisible();
   await expect(page.getByText("Playwright Study Hall").last()).toBeVisible();
   await expect(page.getByText("TEST", { exact: true }).last()).toBeVisible();

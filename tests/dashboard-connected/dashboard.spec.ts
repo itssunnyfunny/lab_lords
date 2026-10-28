@@ -55,6 +55,7 @@ test.beforeEach(async ({ page }) => {
     const profile = await request(page, "/api/users/me");
     expect(profile.status).toBe(200);
     expect(profile.body.id).toBe(fixture.ownerId);
+    expect((await request(page, "/api/users/me", "PATCH", { interfaceLanguage: "en" })).status).toBe(200);
 });
 
 test("real dashboard API agrees with its PostgreSQL fee cohort, attendance and complete capacity", async ({ page }) => {

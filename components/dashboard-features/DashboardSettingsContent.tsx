@@ -14,6 +14,8 @@ import type { DashboardExpectation } from "@/lib/dashboardSetup";
 import type { BranchAccess } from "@/types";
 import { dashboardRequest, inputClass, ResourceError, useDashboardResource } from "./shared";
 import { SetupPager, useDashboardSetup } from "./setupPaging";
+import { AttendanceGaps } from "./AttendanceGaps";
+import { MembershipTermActions } from "./MembershipTermActions";
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const setupSections = [["utilization", "Utilization review"], ["expectations", "Attendance expectations"], ["terms", "Membership terms"]] as const;
 export function DashboardSettingsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
@@ -29,7 +31,7 @@ export function DashboardSettingsContent({ branchId, access }: { branchId: strin
         router.replace(`/branch/${encodeURIComponent(branchId)}/dashboard-settings?${nextQuery.toString()}`, { scroll: false });
     }
     const overview = useDashboardResource<DashboardOverview>(`/api/branches/${branchId}/dashboard`);
-    const seating = overview.data?.seating; const attendance = overview.data?.attendance;
+    const seating = overview.data?.seating;
     return <RecordListPage title={t("Dashboard setup")} description={t("Choose attendance expectations, record membership terms and set an advisory utilization threshold. These settings do not change fees or student status.")}>
         <AppPanel density="compact" padding="none"><nav className="flex flex-wrap gap-2 p-3" aria-label={t("Dashboard setup")}>{availableSections.map(([value, label]) => <AppButton key={value} density="compact" variant={section === value ? "primary" : "secondary"} aria-pressed={section === value} onClick={() => selectSection(value)}>{t.owned(label)}</AppButton>)}</nav></AppPanel>
         {overview.loading && !overview.data && <RecordListState kind="loading" title={t("Loading…")} />}
@@ -38,10 +40,7 @@ export function DashboardSettingsContent({ branchId, access }: { branchId: strin
             {seating?.data && <><p className="mb-3 text-2xl font-semibold">{seating.data.occupied} / {seating.data.capacity} <span className="text-sm font-normal">{t.owned("shift slots")}</span></p><DataTable density="compact" caption={t.owned("Shift slots")} data={seating.data.rows} columns={[{ header: t.owned("Shift"), accessor: row => row.name, rowHeader: true }, { header: t.owned("Allocated / capacity"), accessor: row => { const cell = row.cells.at(-1); return `${cell?.occupied ?? "—"} / ${cell?.capacity ?? "—"}`; } }]} /></>}
             {access.permissions.seat_allocation && <Link className="inline-flex min-h-11 items-center text-sm underline" href={`/branch/${branchId}/seats`}>{t("Open seat map")}</Link>}
         </AppPanel>{access.permissions.manage_branch && <Threshold branchId={branchId} writable={write.allowed} />}</>}
-        {section === "expectations" && access.permissions.students && <><AppPanel density="compact" title={t("Expected students without attendance")} description={t("Configure only agreed attendance days. A gap appears after the expected time in the branch timezone, without marking anyone absent.")}>
-            {attendance?.data?.gapsStudents.map(student => <div key={student.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--ui-panel-border)] py-3"><span className="text-sm font-semibold">{student.name}</span><span className="text-sm">{t("Expected by")}: {student.expectedBy}</span><a className="inline-flex min-h-11 items-center text-sm underline" href={`/branch/${branchId}/attendance?search=${encodeURIComponent(student.name)}`}>{t("Attendance")}</a></div>)}
-            {attendance?.data && !attendance.data.gaps && <p className="text-sm">{t(attendance.data.configured ? "No attendance gaps are currently recorded." : "Attendance expectations are not configured.")}</p>}
-        </AppPanel>{access.permissions.manage_branch ? <Expectations key={`${branchId}:${query.get("studentId") ?? ""}`} branchId={branchId} writable={write.allowed} initialStudentId={query.get("studentId") ?? ""} /> : <p className="text-sm">{t("Ask a branch manager to change these settings.")}</p>}</>}
+        {section === "expectations" && access.permissions.students && <><AttendanceGaps branchId={branchId} />{access.permissions.manage_branch ? <Expectations key={`${branchId}:${query.get("studentId") ?? ""}`} branchId={branchId} writable={write.allowed} initialStudentId={query.get("studentId") ?? ""} /> : <p className="text-sm">{t("Ask a branch manager to change these settings.")}</p>}</>}
         {section === "terms" && access.permissions.students && <Terms key={`${branchId}:${query.get("studentId") ?? ""}`} branchId={branchId} writable={write.allowed} initialStudentId={query.get("studentId") ?? ""} />}
         {!write.allowed && <p className="text-sm">{t.error(write.reason)}</p>}
     </RecordListPage>;
@@ -78,6 +77,9 @@ function Expectations({ branchId, writable, initialStudentId }: { branchId: stri
         {resource.data?.items.length === 0 && <p className="text-sm">{t("Attendance expectations are not configured.")}</p>}
     </div></AppPanel>;
 }
+function termStatusLabel(status: DashboardTerm["status"]) {
+    return status === "VOIDED" ? "Voided" : status === "CANCELLED" ? "Membership cancelled" : "Recorded";
+}
 function Terms({ branchId, writable, initialStudentId }: { branchId: string; writable: boolean; initialStudentId?: string }) {
     const t = useTranslation(); const { formatDate } = useUserPreferences(); const resource = useDashboardSetup<DashboardTerm>(branchId, "terms", initialStudentId);
     const query = useSearchParams();
@@ -102,7 +104,8 @@ function Terms({ branchId, writable, initialStudentId }: { branchId: string; wri
             { header: t.owned("Membership label"), accessor: item => item.label },
             { header: t.owned("Start date"), accessor: item => formatDate(item.startDate) },
             { header: t.owned("End date"), accessor: item => formatDate(item.endDate) },
-        ]} getRowAttributes={item => ({ "data-membership-student": item.studentId, className: query.get("studentId") === item.studentId ? "bg-[color:var(--ui-tone-success-subtle)]" : undefined })} actions={item => <AppButton density="compact" variant="secondary" disabled={!writable || busy} onClick={() => select(item.studentId)}>{t("Renew term")}</AppButton>} renderGridCard={item => <article className={`${pageGridCardClass} ui-record-card`}><p className="ui-record-card-name break-words">{item.studentName}</p><p className="ui-record-card-context">{item.label}</p><div className="ui-record-card-summary"><strong>{formatDate(item.endDate)}</strong><p className="ui-record-card-joined">{t("Start date")}: {formatDate(item.startDate)}</p></div><AppButton density="compact" variant="secondary" disabled={!writable || busy} onClick={() => select(item.studentId)}>{t("Renew term")}</AppButton></article>} />}
+            { header: t.owned("Status"), accessor: item => t(termStatusLabel(item.status)) },
+        ]} getRowAttributes={item => ({ "data-membership-student": item.studentId, className: query.get("studentId") === item.studentId ? "bg-[color:var(--ui-tone-success-subtle)]" : undefined })} actions={item => <div className="flex flex-wrap gap-2"><AppButton density="compact" variant="secondary" disabled={!writable || busy || item.status !== "ACTIVE"} onClick={() => select(item.studentId)}>{t("Renew term")}</AppButton><MembershipTermActions branchId={branchId} term={item} writable={writable} onSaved={resource.reload} /></div>} renderGridCard={item => <article className={`${pageGridCardClass} ui-record-card`}><p className="ui-record-card-name break-words">{item.studentName}</p><p className="ui-record-card-context">{item.label} · {t(termStatusLabel(item.status))}</p><div className="ui-record-card-summary"><strong>{formatDate(item.endDate)}</strong><p className="ui-record-card-joined">{t("Start date")}: {formatDate(item.startDate)}</p></div><div className="flex flex-wrap gap-2"><AppButton density="compact" variant="secondary" disabled={!writable || busy || item.status !== "ACTIVE"} onClick={() => select(item.studentId)}>{t("Renew term")}</AppButton><MembershipTermActions branchId={branchId} term={item} writable={writable} onSaved={resource.reload} /></div></article>} />}
         {(resource.data || resource.recordsPage.index > 0) && <SetupPager label={t("Membership terms")} count={resource.data?.items.length ?? 0} total={resource.data?.total ?? null} page={resource.recordsPage} disabled={busy} />}
         {resource.data?.items.length === 0 && <p className="text-sm">{t("Membership terms are not configured.")}</p>}
     </div></AppPanel>;

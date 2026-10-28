@@ -25,6 +25,7 @@ import type { ImportSessionListItem } from "@/importing/contracts/import-session
 import type { CapabilityDecision } from "@/types";
 import { labelImportStatus, statusTone } from "@/importing/utils/import-wizard-view-model";
 import { MAX_IMPORT_ROWS } from "@/importing/constants/import-limits";
+import { ImportRecipeManager } from "@/components/imports/ImportRecipeManager";
 import {
     pageDescriptionClass,
     pageEyebrowClass,
@@ -304,8 +305,8 @@ function ImportAssistantContent({
                         <p className={pageDescriptionClass}>
                             {t("Upload a spreadsheet or paste a table. AI can help with column suggestions, but manual review always works.")}</p>
                     </div>
-                    <AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={() => router.push(`/branch/${branchId}`)}>
-                        {t("Skip import")}</AppButton>
+                    <div className="flex flex-wrap gap-2"><ImportRecipeManager branchId={branchId} canDelete={importDecision.allowed} /><AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={() => router.push(`/branch/${branchId}`)}>
+                        {t("Skip import")}</AppButton></div>
                 </div>
 
                 {mutationBlockReason && importDecision.blocker !== "permission" && (

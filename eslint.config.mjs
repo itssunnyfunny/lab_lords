@@ -13,6 +13,11 @@ const eslintConfig = defineConfig([
     "build/**",
     "app/generated/prisma/**",
     "next-env.d.ts",
+    // Ignored local evidence/build snapshots are not maintained source or tests.
+    ".agent/**",
+    "test-results/**",
+    "playwright-report/**",
+    "blob-report/**",
   ]),
 ]);
 

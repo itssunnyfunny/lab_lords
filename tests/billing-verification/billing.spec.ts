@@ -56,21 +56,21 @@ const languages = [
     basicDescription: "Core operations billed per active branch.",
     standardDescription: "For growing teams that need staff controls, analytics, and AI assistance.",
     sharedCapability: "Student records and spreadsheet import",
-    premiumCapabilities: ["Staff invitations, roles and permission controls", "Branch and cross-branch advanced analytics", "AI reports and message drafting"],
+    premiumCapabilities: ["Staff invitations, roles and permission controls", "Branch and cross-branch advanced analytics", "AI reports"],
   },
   { code: "hi", lang: "hi-IN", title: "बिलिंग और प्लान", billedPlan: "बिलिंग वाला प्लान", methodsTitle: "अभी कार्ड से पेमेंट चालू है",
     renewalAction: "रिन्यूअल पर Basic में बदलें",
     basicDescription: "हर सक्रिय ब्रांच के हिसाब से शुल्क, रोज़ के ज़रूरी कामों के लिए।",
     standardDescription: "बढ़ती टीमों के लिए स्टाफ नियंत्रण, विस्तृत आँकड़े और AI की मदद।",
     sharedCapability: "छात्रों के रिकॉर्ड और स्प्रेडशीट से इम्पोर्ट",
-    premiumCapabilities: ["स्टाफ को निमंत्रण, भूमिकाएँ और अनुमति नियंत्रण", "एक या कई ब्रांच के विस्तृत आँकड़े", "AI रिपोर्ट और संदेश के ड्राफ़्ट"],
+    premiumCapabilities: ["स्टाफ को निमंत्रण, भूमिकाएँ और अनुमति नियंत्रण", "एक या कई ब्रांच के विस्तृत आँकड़े", "AI रिपोर्ट"],
   },
   { code: "hinglish", lang: "hi-Latn-IN", title: "Billing aur plans", billedPlan: "Billing wala plan", methodsTitle: "Abhi card checkout active hai",
     renewalAction: "Renewal par Basic mein badlein",
     basicDescription: "Har active branch ke hisaab se billing, roz ke zaroori kaamon ke liye.",
     standardDescription: "Badhti teams ke liye staff controls, analytics aur AI ki madad.",
     sharedCapability: "Student records aur spreadsheet import",
-    premiumCapabilities: ["Staff invitations, roles aur permission controls", "Branch aur cross-branch advanced analytics", "AI reports aur message drafting"],
+    premiumCapabilities: ["Staff invitations, roles aur permission controls", "Branch aur cross-branch advanced analytics", "AI reports"],
   },
 ] as const;
 
@@ -152,7 +152,7 @@ test("Basic reviews a card replacement and launches only the returned checkout w
   await expect(plans.getByText(/— Standard or Pro/)).toHaveCount(3);
   await expect(plans.getByText("Staff invitations, roles and permission controls", { exact: true })).toHaveCount(2);
   await expect(plans.getByText("Branch and cross-branch advanced analytics", { exact: true })).toHaveCount(2);
-  await expect(plans.getByText("AI reports and message drafting", { exact: true })).toHaveCount(2);
+  await expect(plans.getByText("AI reports", { exact: true })).toHaveCount(2);
   await expect(plans.getByRole("button", { name: "Current plan", exact: true })).toBeDisabled();
   await plans.getByRole("button", { name: "Upgrade to Standard", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Authorize a replacement mandate for Standard", exact: true });
@@ -362,5 +362,22 @@ test("Pro shows its billed identity, WhatsApp conditions and both downgrade dest
   await expect(plans.getByRole("button", { name: "Change to Basic at renewal", exact: true })).toBeEnabled();
   await expect(plans.getByText(/unlimited messages are not included/)).toBeVisible();
   await expect(page.locator("#billing")).toContainText("₹499/month");
+  await assertNoOverflow(page);
+});
+
+test("complete billing history keeps Standard and Pro identities distinct", async ({ page }) => {
+  await installBillingFixture(page);
+  await page.route("**/api/organizations/org-pilot/billing/history*", route => route.fulfill({ json: { items: [
+    { id: "history-standard", plan: "STANDARD", toStatus: "ACTIVE", amountSubunits: 29900, currency: "INR", createdAt: "2026-10-28T00:00:00Z", providerMode: "TEST" },
+    { id: "history-pro", plan: "PRO", toStatus: "ACTIVE", amountSubunits: 49900, currency: "INR", createdAt: "2026-10-27T00:00:00Z", providerMode: "TEST" },
+  ], nextCursor: null } }));
+  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.getByRole("button", { name: "View all invoices and history", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Billing history", exact: true });
+  await dialog.getByRole("combobox", { name: "Records", exact: true }).click();
+  await page.getByRole("option", { name: "Subscription history", exact: true }).click();
+  await expect(dialog.locator('[data-billing-record="history-standard"]')).toContainText("Standard · ACTIVE");
+  await expect(dialog.locator('[data-billing-record="history-pro"]')).toContainText("Pro · ACTIVE");
+  await expect(dialog.getByRole("button", { name: "Older records", exact: true })).toBeDisabled();
   await assertNoOverflow(page);
 });

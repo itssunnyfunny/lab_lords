@@ -38,6 +38,7 @@ import {
 } from "@/components/settings/SettingsWorkspace";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BranchBillingControls } from "@/components/billing/BranchBillingControls";
 import { OrganizationWhatsAppPanel } from "@/components/whatsapp/OrganizationWhatsAppPanel";
 import {
     pageErrorIconClass,
@@ -61,6 +62,7 @@ interface BranchSummary {
     name: string;
     city: string | null;
     createdAt: string;
+    billingStatus: string;
 }
 
 interface OrgDetails {
@@ -504,8 +506,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                         {org.branches.length === 0 ? (
                             <SettingsEmptyState>{t("No branches yet.")}</SettingsEmptyState>
                         ) : org.branches.map(branch => (
-                            <SettingsCard
-                                key={branch.id}
+                            <div key={branch.id} className="overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-panel-border)]"><SettingsCard
                                 onClick={() => router.push(`/branch/${branch.id}/settings`)}
                             >
                                 <div className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
@@ -516,6 +517,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                                     {branch.city || "No city set"} / {format(new Date(branch.createdAt), "PP")}
                                 </SettingsSubtleText>
                             </SettingsCard>
+                            <BranchBillingControls organizationId={orgId} branchId={branch.id} branchName={branch.name} billingStatus={branch.billingStatus ?? "ACTIVE"} canChange={organizationCanEdit && !isEditing} finalBranch={org.branches.filter(item => ["ACTIVE", "PENDING_ACTIVATION", "REMOVAL_SCHEDULED"].includes(item.billingStatus ?? "ACTIVE")).length <= 1} onChanged={status => { setOrg(current => current ? { ...current, branches: current.branches.map(item => item.id === branch.id ? { ...item, billingStatus: status } : item) } : current); void loadBilling(); }} /></div>
                         ))}
                     </div>
                 </SettingsPanel>

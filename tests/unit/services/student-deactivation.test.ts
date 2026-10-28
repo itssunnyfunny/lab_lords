@@ -24,8 +24,8 @@ import { StudentService } from "@/services/student.service";
 const branch = { id: "branch", name: "Main", organizationId: "org", organization: { ownerId: "owner" } };
 const student = { id: "student", branchId: "branch", branch, name: "Asha", status: "ACTIVE" };
 const tx = {
-    student: { update: mocks.updateStudent }, seatAllocation: { updateMany: mocks.endAllocations },
-    payment: { findMany: mocks.duePayments }, branch: { update: mocks.touchBranch },
+    student: { update: mocks.updateStudent, findUnique: mocks.student }, seatAllocation: { updateMany: mocks.endAllocations },
+    payment: { findMany: mocks.duePayments }, branch: { update: mocks.touchBranch, findUnique: mocks.branch }, staff: { findUnique: mocks.staff },
 };
 function staff(overrides: { action: StaffPermissionAction; allowed: boolean }[] = []) {
     mocks.staff.mockResolvedValue({ id: "staff", role: "STAFF", permissionOverrides: overrides });
@@ -47,7 +47,7 @@ describe("student deactivation resolution authorization", () => {
         ]);
         const result = await StudentService.updateStudentStatus("staff-user", "student", StudentStatus.INACTIVE, "KEEP");
         expect(result.status).toBe("INACTIVE");
-        expect(mocks.updateStudent).toHaveBeenCalledExactlyOnceWith({ where: { id: "student" }, data: { status: "INACTIVE" } });
+        expect(mocks.updateStudent).toHaveBeenCalledExactlyOnceWith({ where: { id: "student", branchId: "branch" }, data: { status: "INACTIVE" } });
         expect(mocks.endAllocations).toHaveBeenCalledExactlyOnceWith({
             where: { studentId: "student", endDate: null }, data: { endDate: expect.any(Date) },
         });

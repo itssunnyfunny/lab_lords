@@ -156,7 +156,7 @@ test("synthetic real Google tag makes an intercepted collect attempt without inv
     const clerkOrigin = clerkDevelopmentOrigin();
     const captured: CapturedRequest[] = [];
     const counters = { phase: "direct-invite-unknown", otherBlocked: 0, clerkReads: 0 };
-    const context = await browser.newContext({ baseURL, serviceWorkers: "block" });
+    const context = await browser.newContext({ baseURL, serviceWorkers: "block", storageState: { cookies: [], origins: [] } });
     const responses: number[] = [];
     const invitePath = "/invite/v2.synthetic-hash.synthetic-secret";
     const encodedReturnPath = `/sign-in?redirect_url=${encodeURIComponent(invitePath)}`;
@@ -216,6 +216,32 @@ test("synthetic real Google tag makes an intercepted collect attempt without inv
         await openPrivate(page, invitePath, "Invite not found");
         await openPublic("public-after-accepted-invite");
 
+        // Exercise the actual marketing router action after the real Google tag
+        // is active. A private client transition must suppress tracking without
+        // relying on a new document resetting the tag.
+        const documentMarker = `synthetic-spa-${Date.now()}`;
+        await page.evaluate(marker => { (window as unknown as { auditDocumentMarker: string }).auditDocumentMarker = marker; }, documentMarker);
+        counters.phase = "spa-sign-in-accepted";
+        await page.waitForFunction(() => (window as unknown as { Clerk?: { loaded?: boolean } }).Clerk?.loaded === true);
+        expect(await page.evaluate(() => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user))).toBe(false);
+        const signIn = page.getByRole("button", { name: "Sign in", exact: true }).filter({ visible: true });
+        const navigationMenu = page.locator('summary[aria-controls="reference-mobile-navigation"]');
+        if (await navigationMenu.isVisible() && !await signIn.isVisible()) await navigationMenu.click();
+        await expect(page.getByRole("button", { name: "Sign in", exact: true }).filter({ visible: true })).toBeEnabled();
+        await page.getByRole("button", { name: "Sign in", exact: true }).filter({ visible: true }).click();
+        await expect(page).toHaveURL(/\/sign-in(?:\?|$)/);
+        // An already loaded tag remains resident during client navigation.
+        // Check tracking output instead of assuming its script can be unloaded.
+        expect(await page.evaluate(() => (window as unknown as { labLordsGaPagePath?: string }).labLordsGaPagePath)).toBeUndefined();
+        expect(await page.evaluate(() => (window as unknown as { auditDocumentMarker: string }).auditDocumentMarker)).toBe(documentMarker);
+        counters.phase = "spa-return-public";
+        await page.locator('a[href="/"]').first().click();
+        await expect(page).toHaveURL(new RegExp(`^${baseURL}/?$`));
+        await expect(page.locator("script#google-analytics")).toHaveAttribute("src", `https://www.googletagmanager.com/gtag/js?id=${syntheticId}`);
+        await expect.poll(() => captured.filter(item => item.phase === "spa-return-public" && item.kind === "blocked-google" && isCollectAttempt(item.url)).length).toBeGreaterThan(0);
+        expect(captured.filter(item => item.kind === "blocked-google" && isCollectAttempt(item.url)
+            && [item.url, item.body ?? "", item.referer].some(value => /sign-in|redirect_url/i.test(value)))).toEqual([]);
+
         // The Google script itself must have loaded; queued app gtag calls do
         // not count as the tag-generated network positive control.
         await expect.poll(() => captured.filter(item => item.kind === "tag-read"
@@ -239,7 +265,7 @@ test("synthetic real Google tag makes an intercepted collect attempt without inv
             clerkDevelopmentRequests: counters.clerkReads,
             inviteMarkerAbsentFromCapturedGoogleRequestFields: true,
             consentStates: ["unknown", "rejected", "accepted"],
-            navigation: "full-document",
+            navigation: "full-document and real marketing-to-sign-in SPA transition",
         }, null, 2));
     } finally {
         await context.close();

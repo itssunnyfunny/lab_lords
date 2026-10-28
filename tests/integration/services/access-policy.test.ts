@@ -2,7 +2,6 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { AccessPolicy, type BranchAccessContext } from "@/services/accessPolicy.service";
 import { StaffService } from "@/services/staff.service";
 import { runBranchAI } from "@/ai/orchestrator/branchAI.orchestrator";
-import { draftOverdueMessages } from "@/ai/messageDrafting/branchMessageDrafter";
 import { createTestWorld, createUser, createStaff, createSaasSubscription } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 
@@ -34,10 +33,8 @@ describe("server-derived access policy", () => {
     expect(Object.isFrozen(context)).toBe(true);
     expect(Object.isFrozen(context.permissions)).toBe(true);
     await expect(runBranchAI({ ...context } as BranchAccessContext)).rejects.toThrow("Invalid server access context");
-    await expect(draftOverdueMessages({ actorId: manager.id, branchId: branch.id } as BranchAccessContext)).rejects.toThrow("Invalid server access context");
     await testPrisma.staffPermissionOverride.create({ data: { staffId: membership.id, action: "VIEW_PAYMENTS", allowed: false } });
     await expect(runBranchAI(context)).rejects.toThrow("disabled");
-    await expect(draftOverdueMessages(context, { allowGeneration: false })).rejects.toThrow("disabled");
     expect(await testPrisma.branchGenerationLease.count()).toBe(0);
     expect(await testPrisma.messageDraft.count()).toBe(0);
   });

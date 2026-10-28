@@ -244,3 +244,11 @@ Validation:
 
  No schema, migration history, package, environment or cron schedule
 was changed. No merge, deployment, provider payment or Production access occurred.
+
+## Integration with remote main — 28 October 2026
+
+PR #284 incorporates the merged navigation and audit-closeout work at main
+`5b1af1b`. See [the integration report](billing-pr-main-sync-2026-10-28.md)
+for conflict resolutions, combined migration rehearsal and regression evidence.
+The unfinished Basic prototype is excluded. Existing provider/cutover/hosting
+release holds remain; no actual payment check was repeated.

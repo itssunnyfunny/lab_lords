@@ -1,16 +1,21 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const output = path.resolve("docs/redesign/reference-dashboard-evidence");
+const output = path.resolve(reviewEvidencePath("docs/redesign/reference-dashboard-evidence"));
 test("full composition, real interactions and loaded fonts", async ({ page }, info) => {
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto("/branch/pilot?mode=after&lang=en");
     await expect(page.locator(".rd-priorities article")).toHaveCount(5);
     await expect(page.locator(".rd-metrics article")).toHaveCount(6);
-    await expect(page.locator(".rd-quick nav a")).toHaveCount(6);
+    await expect(page.locator(".rd-quick nav a")).toHaveCount(7);
+    expect(await page.locator(".rd-quick nav a").evaluateAll(links => links.map(link => link.getAttribute("href")))).toEqual([
+        "/branch/pilot/students?action=add", "/branch/pilot/payments?action=collect", "/branch/pilot/attendance",
+        "/branch/pilot/allocations", "/branch/pilot/reports", "/branch/pilot/shifts", "/branch/pilot/onboarding/import",
+    ]);
     await expect(page.locator(".rd-followups tbody tr")).toHaveCount(4);
     await expect(page.locator(".rd-renewals tbody tr")).toHaveCount(3);
     await page.evaluate(async () => { await document.fonts.load('400 20px "Dashboard Caveat"'); await document.fonts.ready; });
@@ -84,8 +89,9 @@ test("native reference geometry and basic accessibility", async ({ page }, info)
     expect(Math.abs(chart.y - ribbon - 532)).toBeLessThanOrEqual(5);
     expect(Math.abs(chart.width - 556)).toBeLessThanOrEqual(6);
     expect(Math.abs(seating.width - 366)).toBeLessThanOrEqual(6);
-    expect(lists.y - ribbon).toBeLessThanOrEqual(878);
-    expect(lists.y - ribbon + lists.height).toBeLessThanOrEqual(1060);
+    // Both bounds match an isolated render of main 070d264 with seven shortcuts.
+    expect(Math.abs(lists.y - ribbon - 886)).toBeLessThanOrEqual(3);
+    expect(Math.abs(lists.y - ribbon + lists.height - 1069)).toBeLessThanOrEqual(3);
     const result = await new AxeBuilder({ page }).include(".reference-dashboard").withTags(["wcag2a", "wcag2aa"]).analyze();
     fs.writeFileSync(path.join(output, "accessibility.json"), JSON.stringify(result.violations.map(v => ({ id: v.id, impact: v.impact, description: v.description, nodes: v.nodes.map(n => n.target) })), null, 2));
     expect(result.violations).toEqual([]);

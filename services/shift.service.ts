@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { StaffService } from "@/services/staff.service";
 import { CreateShiftDto } from "@/types";
 import type { StaffAction } from "@/types";
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma, Shift } from "@/app/generated/prisma/client";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import { sortSeatsByLabel } from "@/lib/seatNumbering";
 import { runAllocationTransaction } from "@/lib/allocationTransaction";
@@ -89,7 +89,7 @@ export class ShiftService {
     }
 
     static async createShift(userId: string, branchId: string, data: CreateShiftDto) {
-        return prisma.$transaction(tx =>
+        return runAllocationTransaction(tx =>
             this.createShiftInTransaction(userId, branchId, data, tx)
         );
     }
@@ -139,11 +139,14 @@ export class ShiftService {
     static async updateShift(
         userId: string,
         shiftId: string,
-        data: Partial<{ name: string; startTime: string | null; endTime: string | null; price: number; isReserved: boolean }>
-    ) {
-        const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
+        data: Partial<{ name: string; startTime: string | null; endTime: string | null; price: number; isReserved: boolean }>,
+        transaction?: Prisma.TransactionClient
+    ): Promise<Shift> {
+        if (!transaction) return runAllocationTransaction(tx => this.updateShift(userId, shiftId, data, tx));
+        const tx = transaction;
+        const shift = await tx.shift.findUnique({ where: { id: shiftId } });
         if (!shift) throw new Error("Shift not found");
-        await AccessPolicy.authorizeRecord(userId, shift.branchId, "manage_branch", "Shift", undefined, true);
+        await AccessPolicy.authorizeRecord(userId, shift.branchId, "manage_branch", "Shift", tx, true);
 
         const nameResult = data.name !== undefined ? validateRequiredText(data.name, "Shift name", 50) : null;
         if (nameResult && !nameResult.ok) throw new Error(nameResult.error);
@@ -158,7 +161,7 @@ export class ShiftService {
 
         const normalizedName = nameResult?.ok ? nameResult.value : undefined;
         if (normalizedName && normalizedName !== shift.name) {
-            const duplicate = await prisma.shift.findFirst({
+            const duplicate = await tx.shift.findFirst({
                 where: { branchId: shift.branchId, name: normalizedName, status: "ACTIVE", id: { not: shiftId } },
             });
             if (duplicate) throw new Error(`Shift with name "${normalizedName}" already exists in this branch.`);
@@ -170,13 +173,12 @@ export class ShiftService {
             throw new Error("Shift must have both start and end time, or neither.");
         }
         if (data.startTime !== undefined || data.endTime !== undefined) {
-            await this.checkTimeOverlap(shift.branchId, newStart ?? null, newEnd ?? null, shiftId);
+            await this.checkTimeOverlap(shift.branchId, newStart ?? null, newEnd ?? null, shiftId, tx);
         }
 
         const normalizedPrice = priceResult?.ok ? priceResult.value : undefined;
         const priceChanged = normalizedPrice !== undefined && normalizedPrice !== shift.price;
 
-        return prisma.$transaction(async (tx) => {
             const updated = await tx.shift.update({
                 where: { id: shiftId },
                 data: {
@@ -206,7 +208,6 @@ export class ShiftService {
             });
 
             return updated;
-        });
     }
 
     // ─── Analyze shift deletion impact (read-only) ────────────────────────────

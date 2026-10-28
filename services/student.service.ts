@@ -1,4 +1,5 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
+import { runSerializableTransaction } from "@/lib/serializableTransaction";
 import { prisma } from "@/lib/prisma";
 import {
     isDueResolution,
@@ -223,7 +224,7 @@ export class StudentService {
         branchId: string,
         data: CreateStudentDto
     ) {
-        const branch = await this.verifyBranchAccess(userId, branchId);
+        await this.verifyBranchAccess(userId, branchId);
         await EntitlementService.assertBranchWritable(branchId);
         const nameResult = validateRequiredText(data.name, "Student name");
         if (!nameResult.ok) throw new Error(nameResult.error);
@@ -252,7 +253,10 @@ export class StudentService {
                 : [];
 
         // 1. Create student + admission payment in one transaction
-        const student = await prisma.$transaction(async (tx) => {
+        const student = await runSerializableTransaction(async (tx) => {
+            await AccessPolicy.authorizeAction(userId, branchId, "students", tx, true);
+            const branch = await tx.branch.findUnique({ where: { id: branchId } });
+            if (!branch) throw new Error("Branch not found");
             await this.assertUniqueBranchIdentity(tx, branchId, nameResult.value, phoneResult.value);
 
             const feeData = await this.resolveMonthlyFeeData(
@@ -438,6 +442,7 @@ export class StudentService {
         data: UpdateStudentProfileDto
     ) {
         const verifiedStudent = await this.verifyStudentAccess(userId, studentId);
+        const verifiedBranchId = verifiedStudent.branchId;
         await EntitlementService.assertBranchWritable(verifiedStudent.branchId);
         const nameResult = data.name !== undefined ? validateRequiredText(data.name, "Student name") : null;
         if (nameResult && !nameResult.ok) throw new Error(nameResult.error);
@@ -456,7 +461,10 @@ export class StudentService {
             : null;
         if (linkedMultiShiftResult && !linkedMultiShiftResult.ok) throw new Error(linkedMultiShiftResult.error);
 
-        return prisma.$transaction(async (tx) => {
+        return runSerializableTransaction(async (tx) => {
+            await AccessPolicy.authorizeRecord(userId, verifiedBranchId, "students", "Student", tx, true);
+            const verifiedStudent = await tx.student.findUnique({ where: { id: studentId, branchId: verifiedBranchId }, include: { branch: true } });
+            if (!verifiedStudent) throw new Error("Student not found");
             const finalName = nameResult?.ok ? nameResult.value : verifiedStudent.name;
             const finalPhone = phoneResult?.ok ? phoneResult.value : verifiedStudent.phone;
             if ((nameResult || phoneResult) && finalPhone) {
@@ -500,7 +508,7 @@ export class StudentService {
             }
 
             const updated = await tx.student.update({
-                where: { id: studentId },
+                where: { id: studentId, branchId: verifiedStudent.branchId },
                 data: {
                     ...(nameResult?.ok ? { name: nameResult.value } : {}),
                     ...(phoneResult?.ok ? { phone: phoneResult.value ?? null } : {}),
@@ -662,6 +670,7 @@ export class StudentService {
         }
 
         const verifiedStudent = await this.verifyStudentAccess(userId, studentId);
+        const verifiedBranchId = verifiedStudent.branchId;
         await EntitlementService.assertBranchWritable(verifiedStudent.branchId);
         const now = new Date();
 
@@ -704,10 +713,15 @@ export class StudentService {
             }
         }
 
-        return prisma.$transaction(async (tx) => {
+        return runSerializableTransaction(async (tx) => {
+            await AccessPolicy.authorizeRecord(userId, verifiedBranchId, "students", "Student", tx, true);
+            const verifiedStudent = await tx.student.findUnique({ where: { id: studentId, branchId: verifiedBranchId }, include: { branch: true } });
+            if (!verifiedStudent) throw new Error("Student not found");
+            if (paymentResolution) await AccessPolicy.authorizeAction(userId, verifiedBranchId,
+                paymentResolution.status === PaymentStatus.PAID ? "mark_payment_paid" : "waive_payments", tx);
             // 1. Update student status
             const student = await tx.student.update({
-                where: { id: studentId },
+                where: { id: studentId, branchId: verifiedStudent.branchId },
                 data: { status },
             });
 

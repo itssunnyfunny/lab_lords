@@ -30,7 +30,7 @@ export function BranchWorkspaceShell({ branchId, children }: { branchId: string;
     // before Clerk resolves the initial identity, or that reset can lose input.
     // This is a readiness gate only; server authorization remains authoritative.
     if (!isLoaded) return (
-        <div role="status" aria-busy="true" className="flex min-h-screen items-center justify-center gap-3">
+        <div data-app-design-pilot={designPilot ? "workspace" : undefined} role="status" aria-busy="true" className="flex min-h-screen items-center justify-center gap-3 bg-[color:var(--bg-app)] text-[color:var(--text-primary)]">
             <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin motion-reduce:animate-none" />
             <span>{t("Loading workspaces")}</span>
         </div>

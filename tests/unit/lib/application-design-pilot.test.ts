@@ -36,9 +36,9 @@ describe("selected branch presentation route scope", () => {
     null,
     "/app",
     "/org/org_1",
-    "/branch/branch_1/ai/messages",
     "/branch/branch_1/students/history",
     "/branch",
+    "/branch/branch_1/ai/messages",
   ])("excludes %s", (pathname) => {
     expect(isApplicationDesignPilotPath(pathname)).toBe(false);
   });

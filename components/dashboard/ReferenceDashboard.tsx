@@ -14,6 +14,7 @@ import type { DashboardOverview, DashboardSource } from "@/lib/dashboardContract
 import { ReferenceCollections } from "./ReferenceCollections";
 import { ReferenceSeating } from "./ReferenceSeating";
 import { ActionCenter, DashboardActivity, DashboardQuickActions, DashboardWorklists } from "./ReferenceWorklists";
+import { DashboardOperationalPreviews } from "./DashboardOperationalPreviews";
 
 export function SourceState({ source, retry }: { source: DashboardSource<unknown>; retry?: () => void }) {
     const t = useTranslation();
@@ -94,5 +95,6 @@ export function ReferenceDashboard({ branchId }: { branchId: string }) {
         <ActionCenter data={data} base={base} refresh={refresh} />
         <section className="rd-metrics" aria-label={t("Current branch summary")}>{metrics.map(metric => <article className="ui-panel--compact" key={metric.label} data-tone={metric.tone}><div><strong>{metric.value}</strong><metric.icon size={21} aria-hidden="true" /></div><h2>{t.owned(metric.label)}</h2><p>{metric.note}</p></article>)}</section>
         <div className="rd-grid"><ReferenceCollections source={data.collections} branchId={branchId} retry={refresh} /><ReferenceSeating seating={data.seating} attendance={data.attendance} base={base} retry={refresh} /><aside className="rd-rail"><DashboardActivity data={data} base={base} /><DashboardQuickActions access={access} base={base} /></aside><DashboardWorklists data={data} base={base} retry={refresh} /></div>
+        <DashboardOperationalPreviews branchId={branchId} access={access} students={data.students} retry={refresh} />
     </PageShell>;
 }

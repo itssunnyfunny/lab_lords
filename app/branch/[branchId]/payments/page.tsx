@@ -91,6 +91,7 @@ function PaymentsContent({
     const generationRequested = searchParams.get("generate") === "1";
     const collectionRequested = searchParams.get("action") === "collect";
     const [pickerClosed, setPickerClosed] = useState(false);
+    const [pickerRequested, setPickerRequested] = useState(false);
     const paymentActionHelpText = getAnyPermissionHelpText(["mark_payment_paid", "waive_payments"]);
     const canMarkPaid = recordDecision.allowed;
     const canWaivePayments = waiveDecision.allowed;
@@ -429,6 +430,7 @@ function PaymentsContent({
             title={t("Payment history")}
             description={t("Review dues, record collections, and keep waived payments separate from active follow-up.")}
             actions={<>
+                {showRecordAction && <AppButton density="compact" variant="primary" disabled={!recordDecision.allowed} title={recordDecision.reason ?? undefined} onClick={() => { setPickerClosed(false); setPickerRequested(true); }}>{t("Record payment")}</AppButton>}
                 {showGenerateAction && (
                     <AppButton
                         variant="secondary"
@@ -595,11 +597,11 @@ function PaymentsContent({
             )}
             </RecordListSurface>
 
-            {collectionRequested && !pickerClosed && recordDecision.allowed && <PaymentCollectionPicker branchId={branchId} onClose={() => setPickerClosed(true)} onSelect={(studentId, paymentId) => { setPickerClosed(true); setCollectStudentId(studentId); setPaymentToMark(paymentId); }} />}
+            {(collectionRequested || pickerRequested) && !pickerClosed && recordDecision.allowed && <PaymentCollectionPicker branchId={branchId} onClose={() => setPickerClosed(true)} onSelect={(studentId, paymentId) => { setPickerClosed(true); setCollectStudentId(studentId); setPaymentToMark(paymentId); }} />}
             {paymentToMark && collectStudentId && <CollectFeeDialog
                 key={paymentToMark} branchId={branchId} studentId={collectStudentId}
                 paymentId={paymentToMark} onClose={() => setPaymentToMark(null)} onSaved={() => { void loadPayments(); }} />}
-            <CollectionHistory branchId={branchId} owner={owner} />
+            <CollectionHistory key={`${branchId}:${searchParams.get("collectionId") ?? "all"}`} branchId={branchId} owner={owner} targetCollectionId={searchParams.get("collectionId")} />
 
             <ConfirmDialog
                 isOpen={!!paymentToWaive}

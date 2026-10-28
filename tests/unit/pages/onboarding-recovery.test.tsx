@@ -182,15 +182,15 @@ describe("onboarding page recovery", () => {
         expect(fetchMock.mock.calls[1][1].body).toBe(body);
     });
 
-    it("retains successful results on reload and starts a new form only by explicit choice", async () => {
+    it("retains successful results on reload without offering another organization", async () => {
         seed("completed"); const page = mount();
         expect(page.has("Your workspace is ready")).toBe(true);
         expect(fetchMock).not.toHaveBeenCalled();
         await page.click("Continue to workspace");
         expect(fetchMock).not.toHaveBeenCalled();
         expect(mocks.push).toHaveBeenCalledWith("/branch/branch-1/onboarding/import");
-        page.click("Set up another organization");
-        expect(page.render().some(node => node.props.name === "orgName" && node.props.value === "")).toBe(true);
+        expect(page.has("Set up another organization")).toBe(false);
+        expect(page.render().some(node => node.props.name === "orgName")).toBe(false);
         expect(readOnboardingCommand("account-A")).toMatchObject({ status: "completed", commandId: key });
     });
 

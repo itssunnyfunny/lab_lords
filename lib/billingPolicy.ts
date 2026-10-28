@@ -5,8 +5,7 @@ export type BillingFeatureKey =
   | "ORG_ANALYTICS"
   | "BRANCH_ANALYTICS"
   | "STAFF_CONTROLS"
-  | "AI_REPORTS"
-  | "AI_MESSAGES";
+  | "AI_REPORTS";
 
 export type FeaturePolicy = {
   label: string;
@@ -36,12 +35,6 @@ export const BILLING_FEATURE_POLICIES: Record<BillingFeatureKey, FeaturePolicy> 
   AI_REPORTS: {
     label: "AI Reports",
     benefit: "Generate concise management reports from live branch data.",
-    entitlement: "AI_ACCESS",
-    permission: "analytics",
-  },
-  AI_MESSAGES: {
-    label: "AI Messages",
-    benefit: "Draft contextual payment and follow-up messages faster.",
     entitlement: "AI_ACCESS",
     permission: "analytics",
   },

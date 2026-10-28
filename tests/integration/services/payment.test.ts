@@ -793,7 +793,7 @@ describe("PaymentService Integration", () => {
       ).toBe(1);
     });
 
-    it("deletes FOLLOW_UP_OVERDUE_PAYMENTS message drafts when paid", async () => {
+    it("preserves retired message records when the associated payment is paid", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       const { user, branch } = await createTestWorld();
       const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
@@ -805,7 +805,7 @@ describe("PaymentService Integration", () => {
         periodEnd: addMonths(BASE, 1),
       });
 
-      // Plant a message draft that should be deleted
+      // Retirement retains historical text; current fee state no longer deletes it.
       await testPrisma.messageDraft.create({
         data: {
           branchId: branch.id,
@@ -820,7 +820,7 @@ describe("PaymentService Integration", () => {
       const drafts = await testPrisma.messageDraft.findMany({
         where: { studentId: student.id, action: "FOLLOW_UP_OVERDUE_PAYMENTS" },
       });
-      expect(drafts).toHaveLength(0);
+      expect(drafts).toHaveLength(1);
     });
 
     it("records paymentMethod CASH with null referenceId", async () => {

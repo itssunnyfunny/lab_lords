@@ -1,5 +1,154 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Billing PR integration with main — local, 2026-10-28
+
+PR #284 incorporates main at `5b1af1b` (navigation restoration and audit
+closeout) while retaining the three-plan catalogue and dedicated Billing route.
+Organization Settings retains branch removal/undo controls; complete invoice
+and subscription-history browsing is available from Billing. History renders
+Standard and Pro using the shared catalogue. Retired AI Messages stays retired;
+plan copy describes AI reports only. The one-owned-organization rule and new
+transaction/access checks from main are preserved. The separate unfinished
+Basic workspace prototype is excluded from this PR update.
+
+This integration adds no schema, dependency, environment or cron change beyond
+the two existing branches. The existing three-plan cutover and Vercel Pro release
+holds remain. See [merge verification](../audits/billing-pr-main-sync-2026-10-28.md).
+
+## Remaining audit closeout — local implementation, 2026-10-25
+
+This domain change supersedes the API/service and additional-organization
+exceptions in the dated UI-only section below. One owner can create one owned
+organization. The existing owner-row lock serializes all keys; valid retained
+receipts replay before the limit is checked. Staff memberships and all existing
+multi-organization records and authorized discovery remain available.
+
+Seat changes use immutable actor/branch/key command receipts committed with
+the replacement allocation. A lost-response retry resolves that outcome and
+returns current active allocations; it cannot repeat ended source IDs. A later
+move is reported explicitly before any fee adjustment. Admission recovery reuses
+the saved student and freezes its persisted shift/fee choice while allowing a
+different seat. Receipt screen/PDF dates share India calendar formatting.
+
+Membership terms support reasoned correction, voiding a recording error,
+cancelling a genuine upcoming membership, and recording a genuine early end.
+Revision checks and serializable overlap checks protect concurrent changes.
+Append-only revisions retain before/after evidence; migrated terms have an
+honest baseline with unknown original author. These actions never change fees,
+allocations, attendance, student status or SaaS access. Owner billing settings
+offer complete keyset-paginated invoice and subscription-history browsing.
+When a terminal term change removes its Manage term action, keyboard focus
+returns to that term's History action after dialog cleanup removes background
+inertness, without changing normal dialog return focus.
+The native public Resources menu also preserves a user-opened menu through initial
+hydration; pathname changes still dismiss it. Browser coverage delays JavaScript
+to exercise that boundary before checking keyboard and route-change behavior.
+
+Unused organization trends are authenticated 410 tombstones; the supported
+snapshot remains. Branch trends are recalculated from mutable current records,
+and organization snapshots include archived branches. Both limitations appear
+in the UI; no historical snapshots were invented. AI Messages read/generation
+contracts and unused generator/callers are retired. Historical drafts and lease
+rows remain; AI Reports retain their publication fences.
+Home, Features, Pricing, FAQ, fee-reminder examples and Terms no longer advertise
+AI message drafting; Privacy describes retained historical drafts. These are
+factual wording corrections within the existing public layouts and translations.
+
+Student admission/profile/status and shift create/edit now recheck policy and
+writability inside serializable writer transactions. Real PostgreSQL tests
+reproduced and cover overlap and pre-transaction revocation/archive races;
+deactivation/allocation's tested interleaving was already protected. This is
+not a claim of universal commit-time permission revocation across all writers.
+Staff removal/permission updates resolve their cold messaging dependency before
+opening the bounded transaction, then recheck staff-management access inside it.
+This prevents module loading from exhausting the transaction deadline while
+retaining recipient invalidation and existing timeout limits.
+See [closeout evidence](../audits/audit-closeout-2026-10-25.md) for final local
+validation, migration handoff and remaining product/external boundaries.
+
+## Owner UI correction — local implementation, 2026-10-23
+
+The owner clarified that standalone AI Messages is retired and the current UI
+supports one organization per account. This supersedes the AI Messages and
+additional-organization navigation restoration below. The legacy page redirects
+to Follow-ups; its search, dashboard shortcut and UI upgrade policy are removed.
+Existing API/services and stored drafts remain outside this UI-only cleanup.
+
+Organization/branch headers display the current organization once and offer
+branch switching only. Personal Account settings has no workspace selector.
+Account settings stays in the header. Branch navigation ends with an owner-only
+Workspace section containing Back to organization; the botanical artwork is the
+last sidebar element. Organization/account sidebars and completed onboarding no
+longer advertise another organization. A sole organization opens directly from
+`/org`; legacy multiple-record discovery remains readable as a compatibility
+case. Account settings retains Profile, Preferences, Workspace defaults and
+read-only System Info. It omits old access-link cards and the redundant outer
+sidebar; a visible desktop/mobile return link goes directly to its originating
+workspace. Return hints allow only internal branch/organization paths and do not
+authorize access. Direct visits use the authorized directory as a fallback.
+Mobile navigation uses the desktop menu styling and Lab Lords wordmark inside
+the existing focus-managed drawer, with 44px links and no duplicate language row.
+
+The owner's 24 October brand correction removes the obsolete `.in` suffix from
+the shared branch sidebar. Desktop and mobile now use the landing-page name,
+Lab Lords; the organization logo already uses that name. Public page copy and
+feature claims do not change.
+
+Cold route loading and initial authentication-readiness screens use the selected
+light canvas. Cookie consent composes AppPanel and shared action styling while
+preserving consent storage, accept/reject behavior and analytics gating. There
+are no schema, migration, package or saved-environment changes. The service
+contract still permits additional organization creation; enforcing one organization
+server-side is a separate domain change, not implied by this presentation pass.
+
+## Restored feature navigation — local implementation, 2026-10-22
+
+The selected UI now exposes AI Messages, Dashboard setup, account settings,
+organization return, another-organization setup, WhatsApp, import and draft
+shortcuts, recent enrollments and exact overdue fee review. Search uses the same
+view permissions as its destinations and opens admission correctly. Organization
+overdue and billing-return links target their supported queue/anchor.
+
+The existing dashboard notification service again includes unassigned active
+students, full/near-full shift capacity and active staff invitations, each behind
+its independent permissions and applicable entitlement. Activity carries record
+IDs into authorized destinations. A new read-only dashboard attendance-gaps route
+pages all current agreed-expectation gaps using the original attendance predicate.
+Follow-ups supports phone search; Follow-ups and Renewals apply changed route
+filters while preserving open edits.
+
+Owner organization settings now calls the existing branch billing-removal and
+undo APIs through explicit review and persisted request identity. Import Assistant
+exposes existing saved-recipe deletion through confirmation. WhatsApp initial
+failures show retry states while explicit rollout-disabled responses stay hidden.
+The [restoration review](../redesign/navigation-restoration-review.md) maps all
+20 audit findings to these changes and records local validation. Schema,
+migrations, dependencies, saved environment files and provider activation are
+unchanged. A fresh isolated local database and development Clerk sessions now
+support desktop and phone-size owner review. Full repository and browser test
+results are recorded in the review; external business-provider behavior and
+production release remain unverified.
+
+The subsequent desktop/mobile repair adds organization identity readiness before
+mounting mutable forms, matching the branch shell. Dialogs prefer the close
+action unless a workflow supplies its own initial-focus target. Workspace
+selectors retain their compact desktop appearance and use 44 px touch controls
+on smaller screens. Trial-banner contrast, the specific oversized-import error
+and singular/plural queue confirmations are corrected. The Clerk account control
+is isolated from unrelated shell refreshes. Mobile search keeps keyboard movement
+inside its existing dialog instead of opening a second desktop search, and import
+mapping controls identify their source columns in every layout. Browser fixtures now use
+authorized synthetic organizations and current response/accessible-name contracts;
+server scope, billing commands and provider gates are unchanged.
+
+The nested `app/branch/[branchId]/loading.tsx` now reuses `RouteLoading` below
+the persistent branch workspace shell. Leaf-page loading is contained inside
+that shell so it does not hide navigation or its open overlays and discard
+keyboard focus. Six mobile diagnostic repeats passed after this repair without
+retries or connected-control hidden-ancestor events. The final complete
+desktop/mobile browser suite passed 255 cases with 39 conditional skips, zero
+failures and zero flaky cases; see the restoration review for the full matrix.
+
 ## Three-plan catalogue — isolated implementation, 2026-10-23
 
 The working tree uses BASIC 99 / STANDARD 299 / PRO 499 INR per active branch/month.

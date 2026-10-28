@@ -1,9 +1,10 @@
+import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { installTasksFixture } from "./tasks-family-fixture";
 
-const output = "docs/redesign/batch-two-evidence/tasks";
+const output = reviewEvidencePath("docs/redesign/batch-two-evidence/tasks");
 async function open(page: Page, query: Record<string, string> = {}) {
     await page.goto(`/branch/pilot/tasks?${new URLSearchParams({ mode: "after", lang: "en", ...query })}`);
     await expect(page.getByRole("heading", { name: /Tasks|काम/ }).first()).toBeVisible();

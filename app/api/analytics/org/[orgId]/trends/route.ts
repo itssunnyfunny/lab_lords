@@ -15,12 +15,11 @@ export async function GET(
         const { orgId } = await params
         await AccessPolicy.authorizeOrganization(user.id, orgId)
 
-        // "No need to overbuild yet"
-        // Organization-level trends require aggregating branch trends over time,
-        // which is computationally expensive and not yet optimized.
+        // There is no supported caller or reliable organization historical
+        // snapshot source. Retire the placeholder instead of inventing history.
         return NextResponse.json(
-            { message: "Organization trends not yet implemented" },
-            { status: 501 }
+            { code: "ORGANIZATION_TRENDS_RETIRED", message: "Organization trends are retired. Use the organization snapshot." },
+            { status: 410 }
         )
     } catch (error) {
         if (error instanceof OrganizationAccessNotFoundError) {
