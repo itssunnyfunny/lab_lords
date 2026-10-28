@@ -52,7 +52,8 @@ describe("dedicated billing plan selection", () => {
 
     it("shows the actual Standard features and Basic exclusions from the canonical catalogue", () => {
         expect(render()).toContain("Staff invitations, roles and permission controls");
-        expect(render()).toContain("AI reports and message drafting");
+        expect(render()).toContain("AI reports");
+        expect(render()).not.toContain("message drafting");
         expect(render()).not.toContain(" — Standard or Pro");
         expect(render(basic)).toContain(" — Standard or Pro");
     });

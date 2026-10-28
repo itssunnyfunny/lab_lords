@@ -85,3 +85,14 @@ The [billing audit](subscription-three-plan-2026-10-23.md) remains the source
 for prior Razorpay Test payment evidence and its stated limits. The Basic
 prototype is deliberately excluded so its review and integration can resume
 separately after this update.
+
+## Follow-up during the broader run
+
+The broader run found one additional stale assertion in
+`tests/unit/components/OrganizationBillingContent.test.tsx`: it still expected
+AI message drafting in a plan card. It now requires AI reports and explicitly
+rejects message drafting. The affected file was rerun using
+`pnpm test tests/unit/components/OrganizationBillingContent.test.tsx --pool=threads --hookTimeout=60000`: **19 passed**.
+Focused ESLint passed. This changes only a test expectation; the passing build
+and 39 browser checks were not repeated. Final broader-run and GitHub CI results
+are recorded on the PR so publishing evidence does not trigger another code run.
