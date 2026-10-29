@@ -351,12 +351,13 @@ function contextFor(request: PilotRequest) {
         const referer = new URL(request.headers.referer ?? "http://127.0.0.1/branch/pilot");
         return {
             language: referer.searchParams.get("lang") ?? "en",
+            plan: referer.searchParams.get("plan"),
             role: referer.searchParams.get("role") ?? "owner",
             state: referer.searchParams.get("state") ?? "populated",
             scenario: referer.searchParams.get("scenario") ?? "normal",
         };
     } catch {
-        return { language: "en", role: "owner", state: "populated", scenario: "normal" };
+        return { plan: null, language: "en", role: "owner", state: "populated", scenario: "normal" };
     }
 }
 
@@ -394,7 +395,7 @@ function billingExperience(readOnly: boolean) {
     };
 }
 
-function branchAccess(role: string) {
+function branchAccess(role: string, plan: string | null = null) {
     const restricted = role === "restricted";
     const readOnly = role === "readonly";
     const permissions = {
@@ -414,6 +415,15 @@ function branchAccess(role: string) {
         staff_management: !restricted,
     };
 
+    const experience = billingExperience(readOnly);
+    if (plan && ["BASIC", "STANDARD", "PRO", "STANDARD_TRIAL", "NONE"].includes(plan)) {
+        experience.effectivePlan = plan;
+        experience.entitlements = plan === "BASIC" || plan === "NONE" ? [] : plan === "PRO" ? experience.entitlements : ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"];
+        experience.currentUnitAmount = plan === "BASIC" ? 99 : plan === "PRO" ? 499 : 299;
+        experience.currentMonthlyTotal = experience.currentUnitAmount;
+        experience.customerMessage = `${plan} workspace is active.`;
+        experience.viewer = { isOwner: !restricted, canManageBilling: !restricted };
+    }
     return {
         branchId: BRANCH_ID,
         branchName: "Shanti Study Library",
@@ -422,9 +432,9 @@ function branchAccess(role: string) {
         role: restricted ? "STAFF" : "OWNER",
         staffId: restricted ? "staff-pilot" : undefined,
         permissions,
-        effectivePlan: restricted ? "BASIC" : "PRO",
-        entitlements: restricted ? [] : ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS", "WHATSAPP_AUTOMATION"],
-        billingExperience: billingExperience(readOnly),
+        effectivePlan: plan ?? (restricted ? "BASIC" : "PRO"),
+        entitlements: plan ? experience.entitlements : restricted ? [] : ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS", "WHATSAPP_AUTOMATION"],
+        billingExperience: experience,
     };
 }
 
@@ -584,8 +594,8 @@ export function createSyntheticApiMiddleware() {
                             organizationId: "org-pilot",
                             organizationName: "Shanti Learning Spaces",
                             role: "OWNER",
-                            permissions: branchAccess(context.role).permissions,
-                            entitlements: branchAccess(context.role).entitlements,
+                            permissions: branchAccess(context.role, context.plan).permissions,
+                            entitlements: branchAccess(context.role, context.plan).entitlements,
                             href: `/branch/${BRANCH_ID}`,
                         }],
                     }],
@@ -596,7 +606,7 @@ export function createSyntheticApiMiddleware() {
             }
 
             if (path === `/api/branches/${BRANCH_ID}/access`) {
-                sendJson(response, 200, branchAccess(context.role));
+                sendJson(response, 200, branchAccess(context.role, context.plan));
                 return;
             }
 
@@ -819,7 +829,7 @@ export function createSyntheticApiMiddleware() {
             }
 
             if (path === `/api/branches/${BRANCH_ID}/seat-allocations/students`) {
-                const access = branchAccess(context.role);
+                const access = branchAccess(context.role, context.plan);
                 if (!access.permissions.seat_allocation) {
                     sendJson(response, 403, { error: "Forbidden" });
                     return;

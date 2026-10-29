@@ -1,3 +1,5 @@
+import { withPreviewPlan } from "./preview-location";
+import { allowNavigation } from "./organization-preview/navigation";
 import { useMemo, useSyncExternalStore } from "react";
 
 const NAVIGATION_EVENT = "pilot:navigation";
@@ -19,9 +21,12 @@ function serverSnapshot() {
     return "/branch/pilot";
 }
 
-function navigate(href: string, replace = false) {
-    window.history[replace ? "replaceState" : "pushState"]({}, "", href);
+export function navigate(href: string, replace = false) {
+    if (!allowNavigation()) return;
+    const previewIndex = (window.history.state?.previewIndex ?? 0) + (replace ? 0 : 1);
+    window.history[replace ? "replaceState" : "pushState"]({ previewIndex }, "", withPreviewPlan(href));
     window.dispatchEvent(new Event(NAVIGATION_EVENT));
+    if (!replace) window.scrollTo(0, 0);
 }
 
 export function usePathname() {

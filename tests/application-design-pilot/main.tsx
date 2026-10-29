@@ -1,4 +1,11 @@
 import { Suspense, useMemo } from "react";
+import { OrganizationPreview } from "./organization-preview/OrganizationPreview";
+import { installFixtureTransport } from "./organization-preview/transport";
+import { previewEnabled, identityKey } from "./organization-preview/store";
+import { navigate as navigatePreview } from "./next-navigation";
+import { installNavigationProtection } from "./organization-preview/navigation";
+installFixtureTransport();
+installNavigationProtection(navigatePreview);
 import { createRoot } from "react-dom/client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -43,7 +50,6 @@ import { ComponentGallery } from "./ComponentGallery";
 import "@/app/globals.css";
 
 const BRANCH_ID = "pilot";
-const BRANCH_PARAMS = Promise.resolve({ branchId: BRANCH_ID });
 const ONBOARDING_SEARCH_PARAMS = Promise.resolve({});
 
 function CollectionScenario({ usePilotTheme }: { usePilotTheme: boolean }) {
@@ -84,7 +90,7 @@ function PilotSurface() {
     if (pathname.endsWith("/follow-ups")) return <FollowUpsPage params={dashboardParams} />;
     if (pathname.endsWith("/renewals")) return <RenewalsPage params={dashboardParams} />;
     if (pathname.endsWith("/overdue")) return <OverduePage />;
-    if (pathname.endsWith("/seats")) return <SeatsPage params={BRANCH_PARAMS} />;
+    if (pathname.endsWith("/seats")) return <SeatsPage params={dashboardParams} />;
     if (pathname.endsWith("/allocations")) return <AllocationsPage />;
     if (pathname.endsWith("/shifts")) return <ShiftsPage />;
     if (pathname.endsWith("/payments")) return <PaymentsPage params={dashboardParams} />;
@@ -136,6 +142,9 @@ function ApplicationDesignPilot() {
     const searchParams = useSearchParams();
     const branchId = pathname.split("/")[2] ?? BRANCH_ID;
     const orgId = pathname.split("/")[2] ?? "org-pilot";
+    // The narrowed Basic design is a standalone prototype; the previous production-component
+    // harness remains explicit for its historical regression suite until integration is approved.
+    if (previewEnabled()) return <OrganizationPreview key={identityKey()} fullSurface={<Suspense fallback={<PageLoadingSkeleton label="Loading branch" />}><PilotSurface /></Suspense>} />;
     if (searchParams.get("boundary") === "loading") return <UserPreferencesBoundary><FixtureLabel /><RouteLoading /></UserPreferencesBoundary>;
     if (searchParams.get("boundary") === "error") return <UserPreferencesBoundary><FixtureLabel /><RootError error={new Error("Synthetic internal detail")} reset={() => window.history.back()} /></UserPreferencesBoundary>;
     if (pathname === "/onboarding") return <UserPreferencesBoundary><FixtureLabel /><OnboardingPage searchParams={ONBOARDING_SEARCH_PARAMS} /></UserPreferencesBoundary>;

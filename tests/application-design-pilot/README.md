@@ -1,5 +1,29 @@
 # Application design pilot harness
 
+The current organization-connected review starts at
+<http://127.0.0.1:4187/org/org-pilot?journey=org>. The approved Basic design keeps
+Overview, Students, Seats and Fees; Standard/Pro mount existing full components.
+Use the shared branch selector and central Billing to explore one organization
+plan shared by its branches. Basic is the default; case=standard and case=pro
+are isolated organization scenarios. case=future-mixed is explicitly future-only.
+
+All data is synthetic. No real sign-in, database, provider or payment is used.
+Tab session storage preserves sample records on refresh, scoped to identity,
+role and scenario. Preview scenarios exposes reset and single/empty/trial/grant/
+expired/pending/archived/scheduled/loading/error/slow states. Set role=staff to
+review restricted access; identity=another-user gives a separate sample store.
+lang=en, hi or hinglish controls both the prototype and full component language.
+The older plan=BASIC entry opens this journey too.
+
+See the [review packet and test commands](../../docs/redesign/organization-branch-preview-review.md)
+and [backend compatibility brief](../../docs/billing/branch-plan-compatibility.md).
+The new test configs under organization-preview run without database setup.
+
+The historical component harness below remains available without journey=org,
+The old basic-workspace.spec.ts and its config describe the superseded shared-form
+scaffold and are retained only in the recovery checkpoint, outside current
+acceptance. Use the organization-preview configs for current synthetic review.
+
 This is an isolated, component-level browser harness for design review. It mounts the real `BranchWorkspaceShell`, `AppShell`, `BranchSidebar`, branch dashboard page, Students page, Seats page, and `CollectFeeDialog`. A Vite-only Clerk shim and in-memory `/api` adapter keep the harness independent of Clerk, PostgreSQL, Prisma, Razorpay, messaging, AI, and every external provider. It is not a production authentication bypass and does not add a Next.js route.
 
 Every screen carries a **Synthetic design pilot** badge. Names, phone numbers, references, money, access decisions, and receipts are invented fixtures.
@@ -24,6 +48,12 @@ Open the after/pilot surfaces:
 - Partial/uncertain collection: <http://127.0.0.1:4187/branch/pilot/payments?mode=after&surface=collection&scenario=uncertain&lang=en>
 
 Use `mode=baseline` on the same URLs for a quick theme-off comparison against the current component tree. That local toggle is useful while tuning tokens, but it is not the historical before state.
+
+Basic workspace review uses `plan=BASIC`, for example
+<http://127.0.0.1:4187/branch/pilot?mode=after&lang=en&plan=BASIC>.
+Preview links and router navigation retain that synthetic plan across screens.
+Resize the review viewport to compare desktop and narrow mobile layouts.
+This parameter is confined to the preview entry point/fixtures, never production access logic.
 
 Additional query controls:
 

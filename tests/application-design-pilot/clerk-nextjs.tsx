@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { previewEnabled } from "./organization-preview/store";
 
 const syntheticUser = {
     id: "pilot-owner",
@@ -21,10 +22,12 @@ export function SignedOut() {
 }
 
 export function UserButton() {
+    const router = useRouter();
     return (
         <button
             type="button"
             aria-label="Synthetic account menu"
+            onClick={() => { if (previewEnabled()) router.push("/account"); }}
             title="Synthetic owner account"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-xs font-bold text-[color:var(--text-primary)]"
         >
