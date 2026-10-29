@@ -20,6 +20,8 @@ import { BasicStudentForm, type StudentInput } from "./BasicStudentForm";
 import { BasicHistory, BasicPaymentForm, BasicReceipt, useBasicFormat } from "./BasicFees";
 import { BasicSeatMap } from "./BasicSeats";
 import { BasicSetup } from "./BasicSetup";
+import { BasicStudentStatus } from "./BasicStudentStatus";
+import { BasicAdmissionReview } from "./BasicAdmissionReview";
 import "@/styles/basic-product.css";
 import { useBasicNavigationGuard } from "./useBasicNavigationGuard";
 
@@ -29,7 +31,7 @@ const areas: { key: string; label: string; capability: BranchCapabilityKey; icon
     { key: "seats", label: "Seats", capability: "seatsView", icon: Armchair },
     { key: "fees", label: "Fees", capability: "paymentsView", icon: IndianRupee },
 ];
-type Modal = { kind: "student"; id?: string } | { kind: "payment"; id: string } | { kind: "receipt"; receipt: FeeCollectionView } | null;
+type Modal = { kind: "student"; id?: string } | { kind: "status"; id: string; status: "ACTIVE" | "INACTIVE" } | { kind: "admission-review"; matches: StudentListItem[] } | { kind: "payment"; id: string } | { kind: "receipt"; receipt: FeeCollectionView } | null;
 export function BasicWorkspace({ access, blocked = false, onInteractionState }: { access: BranchAccess; blocked?: boolean; onInteractionState?: (state: { dirty: boolean; pending: boolean }) => void }) {
     const t = useTranslation(), { money, date } = useBasicFormat(), { ownerKey, profileName } = useUserPreferences();
     const pathname = usePathname(), router = useRouter(), root = "/branch/" + access.branchId;
@@ -86,6 +88,16 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
         if(chooseSeat && can("allocationsManage")) {setSelectedStudent(result.id);setSource("");setSeat("");go(root+"/seats");}
         else go(root+"/students/"+result.id);
     }
+    async function changeStatus() {
+        if(modal?.kind!=="status" || !can("studentsManage") || disabled) return;
+        setNotice("");
+        const result=await operation.run<StudentListItem>(operation.command("status","/branches/"+access.branchId+"/students","PATCH",{id:modal.id,status:modal.status,dueResolution:"KEEP"}));
+        if(result) { setModal(null);setNotice(t.owned(result.status==="INACTIVE" ? "Student marked inactive. Existing fees and history are unchanged." : "Student reactivated. Choose an available seat and shift.")); }
+    }
+    function finishAdmissionReview() {
+        if(!window.confirm(t.owned("Close recovery without confirming this admission? Your draft stays saved. Review existing records before submitting it again."))) return;
+        operation.clear();clean();setModal(null);setNotice("");
+    }
     async function recordPayment(amount: number, method: "CASH"|"UPI"|"BANK_TRANSFER", ids: string[]) {
         if(!can("paymentsRecord") || disabled || modal?.kind!=="payment") return;
         const command=operation.command("payment","/branches/"+access.branchId+"/collections","POST",{studentId:modal.id,paymentIds:ids,amount,method,reference:"",note:""});
@@ -128,7 +140,13 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
             let found=false;
             const expectedName=validateRequiredText(body.name,"Student name"), expectedPhone=validatePhone(body.phone);
             const phoneMatches=(phone:string|null)=>{const actual=validatePhone(phone);return actual.ok&&expectedPhone.ok&&actual.value===expectedPhone.value;};
-            if(command.kind==="student") found=latest.students.some(s=>expectedName.ok && s.name===expectedName.value && phoneMatches(s.phone) && (body.monthlyFee===undefined || s.monthlyFee===body.monthlyFee));
+            if(command.kind==="student") {
+                // This legacy admission endpoint has no operation receipt. Never infer
+                // success from an older matching profile, even if every fee also matches.
+                const matches=latest.students.filter(s=>expectedName.ok && s.name.toLocaleLowerCase()===expectedName.value.toLocaleLowerCase() && phoneMatches(s.phone));
+                setData(latest);setNotice("");setModal({kind:"admission-review",matches});return;
+            }
+            if(command.kind==="status") found=latest.students.some(s=>s.id===body.id && s.status===body.status && (body.status!=="INACTIVE" || activeAllocations(s).length===0));
             if(command.kind==="edit") found=latest.students.some(s=>s.id===body.id && expectedName.ok && s.name===expectedName.value && (body.phone===undefined || phoneMatches(s.phone)) && (body.monthlyFee===undefined || s.monthlyFee===body.monthlyFee));
             if(command.kind==="assign") found=activeAllocations(latest.allocationStudents.find(s=>s.id===body.studentId)).some(a=>a.seatId===body.seatId && Array.isArray(body.shiftIds) && body.shiftIds.includes(a.shiftId));
             if(command.kind==="setup") {
@@ -136,7 +154,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
                 else if(command.url.includes("/shifts")) found=latest.shifts.some(s=>Object.entries(body).every(([key,value])=>(s as unknown as Record<string,unknown>)[key]===value));
             }
             setData(latest);
-            if(found) { if(command.kind==="student"||command.kind==="edit")sessionStorage.removeItem("basic-student-draft:v1:"+scope+":"+(command.kind==="edit"?String(body.id):"new")); operation.clear();clean();setModal(null);setNotice(t.owned("Saved operation confirmed. Current records have been refreshed.")); }
+            if(found) { if(command.kind==="edit")sessionStorage.removeItem("basic-student-draft:v1:"+scope+":"+String(body.id)); operation.clear();clean();setModal(null);setNotice(t.owned("Saved operation confirmed. Current records have been refreshed.")); }
             else operation.setError("The result is not confirmed. Review the current records before starting another operation.");
         } catch(cause) { operation.setError(cause instanceof Error?cause.message:"Unable to check the saved operation."); }
     }
@@ -167,7 +185,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
                 {access.billingExperience?.accessMode==="READ_ONLY" && <p className="bp-warning" role="status">{t.owned("Records are read-only. Open organization Billing to restore access.")}</p>}
                 {notice && <p role="status" className="bp-notice"><Check size={17}/>{notice}</p>}
                 {operation.saved && !operation.pending && <section role="alert" className="bp-recovery"><strong>{t.owned("An operation needs confirmation")}</strong><p>{t.error(operation.error || "Check the saved operation before making another change.")}</p><button className="bp-button bp-button-secondary" disabled={blocked} onClick={()=>void recover()}>{t.owned("Check saved operation")}</button>
-                    {!["payment","move"].includes(operation.saved.kind) && <button className="bp-text-button" onClick={()=>{if(window.confirm(t.owned("Have you reviewed the current records? Clearing recovery does not undo an operation."))){operation.clear();clean();setModal(null);}}}>{t.owned("I reviewed the records")}</button>}
+                    {!["payment","move","student"].includes(operation.saved.kind) && <button className="bp-text-button" onClick={()=>{if(window.confirm(t.owned("Have you reviewed the current records? Clearing recovery does not undo an operation."))){operation.clear();clean();setModal(null);}}}>{t.owned("I reviewed the records")}</button>}
                 </section>}
                 {operation.error && !operation.saved && <p className="bp-error" role="alert">{t.error(operation.error)}</p>}
                 {!pageAllowed ? <div className="bp-empty"><h1>{t.owned(blockedPageReason)}</h1><Link className="bp-button" href={root}>{t.owned("Back to overview")}</Link></div>
@@ -188,8 +206,8 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
                     </>}
                     {area==="students"&&studentId&&(currentStudent?<>
                         <button className="bp-back" onClick={()=>go(root+"/students")}><ArrowLeft size={17}/>{t("All students")}</button>
-                        <div className="bp-student-heading"><span className="bp-avatar bp-avatar-large">{initials(currentStudent.name)}</span><div><h1>{currentStudent.name}</h1><p>{currentStudent.phone??t.owned("No mobile number")}</p></div><button className="bp-button bp-button-quiet" disabled={disabled||!can("studentsManage")} onClick={()=>setModal({kind:"student",id:currentStudent.id})}>{t.owned("Edit details")}</button></div>
-                        <div className="bp-detail-grid">{can("seatsView")&&<section className="bp-detail-card"><Armchair size={23}/><h2>{t("Seats")}</h2>{activeAllocations(currentStudent).map(a=><p key={a.id}>{a.seat.label} · {a.shift.name}{a.multiShift?" · "+a.multiShift.name:""}</p>)}{!activeAllocations(currentStudent).length&&<p>{t.owned("Choose a shift and an available seat.")}</p>}<button className="bp-button bp-button-secondary" disabled={disabled||!can("allocationsManage")} onClick={()=>{chooseStudent(currentStudent.id);go(root+"/seats");}}>{t.owned("Choose or change a seat")}<ArrowRight size={17}/></button></section>}
+                        <div className="bp-student-heading"><span className="bp-avatar bp-avatar-large">{initials(currentStudent.name)}</span><div><h1>{currentStudent.name}</h1><p>{currentStudent.phone??t.owned("No mobile number")} · {t.owned(currentStudent.status)}</p></div><button className="bp-button bp-button-quiet" disabled={disabled||!can("studentsManage")} onClick={()=>setModal({kind:"student",id:currentStudent.id})}>{t.owned("Edit details")}</button><button className="bp-button bp-button-secondary" disabled={disabled||!can("studentsManage")} onClick={()=>{setNotice("");setModal({kind:"status",id:currentStudent.id,status:currentStudent.status==="ACTIVE"?"INACTIVE":"ACTIVE"});}}>{t.owned(currentStudent.status==="ACTIVE"?"Mark inactive":"Reactivate student")}</button></div>
+                        <div className="bp-detail-grid">{can("seatsView")&&<section className="bp-detail-card"><Armchair size={23}/><h2>{t("Seats")}</h2>{activeAllocations(currentStudent).map(a=><p key={a.id}>{a.seat.label} · {a.shift.name}{a.multiShift?" · "+a.multiShift.name:""}</p>)}{!activeAllocations(currentStudent).length&&<p>{t.owned(currentStudent.status==="ACTIVE"?"Choose a shift and an available seat.":"Reactivate this student before assigning a seat.")}</p>}<button className="bp-button bp-button-secondary" disabled={disabled||!can("allocationsManage")||currentStudent.status!=="ACTIVE"} onClick={()=>{chooseStudent(currentStudent.id);go(root+"/seats");}}>{t.owned("Choose or change a seat")}<ArrowRight size={17}/></button></section>}
                         {can("paymentsView")&&<section className="bp-detail-card"><IndianRupee size={23}/><h2>{money(balance(currentStudent.id))} {t("Due")}</h2><p>{t("Monthly fee")}: {money(currentStudent.monthlyFee)}</p><p>{t.owned("Monthly fees start one month after joining. Changes apply to future dues.")}</p><button className="bp-button bp-button-primary" disabled={disabled||!can("paymentsRecord")||!balance(currentStudent.id)} onClick={()=>setModal({kind:"payment",id:currentStudent.id})}>{t.owned("Record payment")}</button></section>}</div>
                         {can("paymentsView")&&<><FeeDetails fees={studentFees(currentStudent.id)}/><BasicHistory key={currentStudent.id} branchId={access.branchId} studentId={currentStudent.id} revision={revision} onReceipt={receipt=>setModal({kind:"receipt",receipt})}/></>}
                     </>:<div className="bp-empty">{t.owned("Student not found")}</div>)}
@@ -218,6 +236,8 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
         <nav className="bp-mobile-nav" aria-label={t.owned("Main navigation")}>{navigation}</nav>
         {modal?.kind==="student"&&data&&<BasicStudentForm key={modal.id??"new"} student={modalStudent} defaultFee={data.branch.defaultFee??0} admissionFee={data.branch.defaultAdmissionFee??0} pending={operation.pending} locked={!!operation.saved||!can("studentsManage")} error={operation.error} onSave={(input,next)=>void saveStudent(input,next)} onRecover={operation.saved?()=>void recover():undefined} onClose={close} scope={scope} onDirty={markDirty}/>}
         {modal?.kind==="payment"&&<BasicPaymentForm key={modal.id} name={paymentStudent?.name??feeStudents.find(s=>s.id===modal.id)?.name??t("Student")} fees={studentFees(modal.id)} pending={operation.pending} locked={!!operation.saved||!can("paymentsRecord")} error={operation.error} onRecord={(amount,method,ids)=>void recordPayment(amount,method,ids)} onRecover={operation.saved?()=>void recover():undefined} onClose={close} onDirty={markDirty}/>}
+        {modal?.kind==="status"&&data&&<BasicStudentStatus name={data.students.find(s=>s.id===modal.id)?.name??t("Student")} status={modal.status} pending={operation.pending} locked={!!operation.saved||!can("studentsManage")} error={operation.error} onConfirm={()=>void changeStatus()} onRecover={operation.saved?()=>void recover():undefined} onClose={close}/>}
+        {modal?.kind==="admission-review"&&operation.saved?.kind==="student"&&<BasicAdmissionReview command={operation.saved} matches={modal.matches} onRecord={id=>go(root+"/students/"+id)} onFinish={finishAdmissionReview} onClose={()=>setModal(null)}/>}
         {modal?.kind==="receipt"&&<BasicReceipt branchId={access.branchId} receipt={modal.receipt} onClose={()=>setModal(null)}/>}
         {dirty&&<span className="bp-sr-only" role="status">{t.owned("Unsaved changes")}</span>}
     </div>;

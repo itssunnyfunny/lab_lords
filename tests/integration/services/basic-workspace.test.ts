@@ -84,6 +84,7 @@ import { PaymentService } from "@/services/payment.service";
 import { NextRequest } from "next/server";
 const session=vi.hoisted(()=>({user:null as {id:string}|null}));
 vi.mock("@/lib/auth",()=>({getSessionUser:async()=>session.user}));
+import { PATCH as studentRoute } from "@/app/api/branches/[branchId]/students/route";
 import { GET as dashboardRoute } from "@/app/api/branches/[branchId]/dashboard/route";
 import { GET as reportRoute } from "@/app/api/branches/[branchId]/reports/route";
 
@@ -172,4 +173,39 @@ describe("Basic's deliberately narrow server boundary",()=>{
   expect(moved.allocations).toHaveLength(2);expect(moved.allocations.every(row=>row.multiShiftId===bundle.id&&row.seatId===destination.id)).toBe(true);
   expect(await db.seatAllocation.count({where:{studentId:winner.studentId,endDate:{not:null}}})).toBe(1);
  });
+ it("Basic inactivation keeps ledger evidence, ends a multi-shift bundle, and reactivation keeps anniversary rules",async()=>{
+  const f=await world();const student=await createStudent({branchId:f.branch.id,monthlyFee:1000,joinedAt:new Date("2026-01-15T12:00:00Z")});
+  const evening=await createShift({branchId:f.branch.id,name:"Evening",startTime:"18:00",endTime:"23:00"});
+  const bundle=await db.multiShift.create({data:{branchId:f.branch.id,name:"Lifecycle bundle",price:1500,components:{create:[{shiftId:f.shift.id},{shiftId:evening.id}]}}});
+  await SeatAllocationService.assignSeatToShifts(f.user.id,f.seat.id,student.id,[f.shift.id,evening.id],bundle.id);
+  await PaymentService.generateDuePaymentsForBranch(f.user.id,f.branch.id,new Date("2026-04-20T12:00:00Z"));
+  const fee=await db.payment.findFirstOrThrow({where:{studentId:student.id},orderBy:{dueDate:"asc"}});
+  const receipt=await FeeCollectionService.collect(f.user.id,f.branch.id,{studentId:student.id,paymentIds:[fee.id],amount:300,method:"CASH",reference:"",note:"",idempotencyKey:randomUUID()});
+  const beforeFees=await db.payment.findMany({where:{studentId:student.id},orderBy:{id:"asc"}});
+  const beforeAllocations=await db.seatAllocation.findMany({where:{studentId:student.id},orderBy:{id:"asc"}});
+  session.user={id:f.user.id};const change=async(status:"ACTIVE"|"INACTIVE")=>studentRoute(new NextRequest("http://local/students",{method:"PATCH",body:JSON.stringify({id:student.id,status,dueResolution:"KEEP"})}),{params:Promise.resolve({branchId:f.branch.id})});
+  expect((await change("INACTIVE")).status).toBe(200);
+  expect(await db.payment.findMany({where:{studentId:student.id},orderBy:{id:"asc"}})).toEqual(beforeFees);
+  expect(await FeeCollectionService.get(f.user.id,f.branch.id,receipt.id)).toEqual(receipt);
+  const ended=await db.seatAllocation.findMany({where:{studentId:student.id},orderBy:{id:"asc"}});expect(ended).toHaveLength(2);expect(ended.every(a=>a.endDate!==null&&a.multiShiftId===bundle.id)).toBe(true);expect(ended.map(a=>a.id)).toEqual(beforeAllocations.map(a=>a.id));
+  await PaymentService.generateDuePaymentsForBranch(f.user.id,f.branch.id,new Date("2026-06-20T12:00:00Z"));expect(await db.payment.count({where:{studentId:student.id}})).toBe(3);
+  expect((await change("ACTIVE")).status).toBe(200);expect(await db.student.findUniqueOrThrow({where:{id:student.id}})).toMatchObject({status:"ACTIVE",joinedAt:student.joinedAt,billingStartAt:student.billingStartAt});
+  expect(await db.seatAllocation.findMany({where:{studentId:student.id},orderBy:{id:"asc"}})).toEqual(ended);
+  await PaymentService.generateDuePaymentsForBranch(f.user.id,f.branch.id,new Date("2026-06-20T12:00:00Z"));
+  const afterFees=await db.payment.findMany({where:{studentId:student.id}});expect(afterFees).toHaveLength(5);expect(afterFees.every(p=>p.dueDate.getUTCDate()===15)).toBe(true);expect(afterFees.find(p=>p.id===fee.id)).toMatchObject({collectedAmount:300,status:"DUE",amount:1000});
+  expect(await FeeCollectionService.get(f.user.id,f.branch.id,receipt.id)).toEqual(receipt);expect(await db.feeCollection.count({where:{studentId:student.id}})).toBe(1);
+ });
+ it.each(["anonymous","stranger","denied staff","foreign branch","read only","archived"] as const)("Basic status rejects %s without changing the student or allocations",async scenario=>{
+  const f=await world(),student=await createStudent({branchId:f.branch.id});await SeatAllocationService.assignSeatToShifts(f.user.id,f.seat.id,student.id,[f.shift.id]);session.user={id:f.user.id};let branchId=f.branch.id;
+  if(scenario==="anonymous")session.user=null;
+  if(scenario==="stranger")session.user=await createUser();
+  if(scenario==="denied staff"){const user=await createUser(),staff=await createStaff({branchId:f.branch.id,userId:user.id});await db.staffPermissionOverride.create({data:{staffId:staff.id,action:"STUDENTS",allowed:false}});session.user=user;}
+  if(scenario==="foreign branch")branchId=(await createBranch({organizationId:f.org.id})).id;
+  if(scenario==="read only")await db.organizationSubscription.update({where:{id:f.subscription.id},data:{status:"HALTED"}});
+  if(scenario==="archived")await db.branch.update({where:{id:f.branch.id},data:{billingStatus:"ARCHIVED",billingArchivedAt:new Date()}});
+  const response=await studentRoute(new NextRequest("http://local/students",{method:"PATCH",body:JSON.stringify({id:student.id,status:"INACTIVE",dueResolution:"KEEP"})}),{params:Promise.resolve({branchId})});
+  expect(response.status).toBeGreaterThanOrEqual(400);if(scenario==="foreign branch")expect(response.status).toBe(404);
+  expect(await db.student.findUniqueOrThrow({where:{id:student.id}})).toMatchObject({status:"ACTIVE"});expect(await db.seatAllocation.count({where:{studentId:student.id,endDate:null}})).toBe(1);
+ });
+
 });

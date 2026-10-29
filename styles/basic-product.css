@@ -148,3 +148,6 @@
 @media(max-width:780px){.bp-prototype .bp-secondary-mobile{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:16px;}.bp-prototype .bp-secondary-mobile a{min-height:44px;display:flex;align-items:center;}.bp-prototype .bp-topbar {height:auto;flex-wrap:wrap;padding:12px 16px;}.bp-prototype .reference-workspace-switcher{flex:1 1 100%;}.bp-prototype .bp-profile{margin-left:auto;}.bp-prototype .bp-metrics{grid-template-columns:1fr;}}
 
 .bp-prototype .bp-receipt dt small {display:block;margin-top:3px;}
+
+/* Lifecycle controls remain reachable with touch and keyboard on narrow screens. */
+.bp-prototype .bp-student-heading .bp-button { min-height:44px; padding-inline:12px; }

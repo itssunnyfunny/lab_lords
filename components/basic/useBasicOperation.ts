@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-export type BasicOperation = { version: 1; scope: string; kind: "student" | "edit" | "assign" | "move" | "payment" | "setup"; url: string; method: "POST" | "PATCH"; body: Record<string, unknown>; key: string };
+export type BasicOperation = { version: 1; scope: string; kind: "student" | "edit" | "status" | "assign" | "move" | "payment" | "setup"; url: string; method: "POST" | "PATCH"; body: Record<string, unknown>; key: string };
 export class OperationError extends Error { constructor(message: string, readonly status: number) { super(message); } }
 export async function basicRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
     const response = await fetch("/api" + url, { cache: "no-store", ...options });
