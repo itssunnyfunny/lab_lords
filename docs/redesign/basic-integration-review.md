@@ -6,6 +6,10 @@ The owner subsequently requested focused commits and a new PR. This delivery is
 packaged on the same isolated branch for a draft PR against main; PR #284 is the
 merged baseline. No merge, deployment or production operation is authorized here.
 
+The subsequent three review findings and their corrections are tracked in the
+[PR #287 review-fix report](basic-pr-287-review-fixes.md). Its results supersede the
+initial admission-recovery acceptance described below.
+
 ## What now works
 
 Basic's approved cream/forest Overview, Students, Seats and Fees run through normal
@@ -40,9 +44,10 @@ No browser flag, selected card or optimistic Checkout outcome grants access.
 
 A profile-only edit omits an unchanged monthly fee, preserving any existing
 shift-linked price. An explicit fee change keeps the existing manual-price
-semantics. Lost create/edit responses are reconciled using the same name/phone normalization
-as the server, without reposting the update. Confirmed recovery clears only the
-matching saved form, so the next admission starts empty.
+semantics. Lost profile-edit responses are reconciled using server name/phone
+normalization. Admission matching is only a review aid: after the PR review fix,
+an uncertain create retains its request and draft until explicit owner review.
+It cannot be automatically confirmed from an older matching record.
 
 Existing staff memberships survive downgrade; authorized core work follows their
 existing permissions. No richer-plan balances, waivers, partial collections,

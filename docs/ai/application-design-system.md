@@ -273,3 +273,12 @@ Basic scaffold is superseded and recoverable in the pre-integration checkpoint.
 See the [integration review](../redesign/basic-integration-review.md) and
 [migration ledger](../redesign/page-family-migration.md) for evidence and review
 status. Native preview dialogs remain preview-only; production uses shared Dialog.
+
+### Basic review confirmations — 2026-10-29
+
+BasicStudentStatus and BasicAdmissionReview compose the existing BasicDialog/shared
+Dialog owner. Status controls remain on student detail; no extra navigation area is
+introduced. The admission review separates original intent from matching records
+and never uses the success treatment for an unproven admission. New text uses the
+existing English/Hindi/Hinglish catalogue. Receipt dates share feeReceiptDates with
+the PDF; account formatting remains the owner of non-receipt dates.

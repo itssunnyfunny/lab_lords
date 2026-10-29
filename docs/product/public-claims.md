@@ -193,3 +193,10 @@ unchanged. Central Billing says the organization's plan applies to its branches
 and distinguishes subscription charges from student fees. Independent branch
 plans and deployment availability are not claimed. See the
 [local integration evidence](../redesign/basic-integration-review.md).
+
+**29 October 2026 — No marketing change needed for PR #287 review fixes.**
+Home, Features, Pricing and FAQ continue to describe student records, seats and
+student fees for Basic. Restoring the existing student status action, honestly
+reviewing uncertain admissions and correcting receipt calendar dates complete that
+scope without new modules, plan inclusion, prices or availability claims. These
+changes remain unreleased; see the [review-fix report](../redesign/basic-pr-287-review-fixes.md).

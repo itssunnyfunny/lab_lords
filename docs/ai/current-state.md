@@ -1736,3 +1736,23 @@ See [localization boundaries](../localization.md) and the
 [public implementation and validation report](../redesign/public-localization.md).
 This is local implementation status, not deployment evidence. No schema,
 migration, environment, provider or production-data change is required.
+
+## Basic PR #287 review corrections — 2026-10-29
+
+Basic student detail now exposes the existing KEEP inactivation and reactivation
+workflow through its own confirmation dialog. Inactivation ends current allocations;
+reactivation does not restore seats or reset the original fee anniversary. Existing
+balances, partial payments and receipts are retained by the same student service.
+
+Uncertain Basic admissions no longer infer success from matching profile fields.
+The legacy POST has no durable admission receipt: matching students are review
+candidates only. The original request and draft remain saved; recovery never reposts
+or continues allocation automatically. Explicit manual closure keeps the draft and
+does not assert that admission succeeded. Profile-edit and exact payment recovery
+retain their existing paths.
+
+Basic receipt timestamps, fee periods and receipt-history labels use the shared
+India-calendar helpers also used by PDF content. The full workspace's collection
+history label uses that same timestamp owner. General account date preferences and
+document-language selection remain unchanged. No schema or provider change.
+See [review-fix evidence](../redesign/basic-pr-287-review-fixes.md).

@@ -1240,3 +1240,20 @@ Before changing any rule above:
   identity/branch-bound. Navigation, refresh or workspace selection never
   automatically dispatches an uncertain mutation. The server remains authoritative
   for tenant scope, permissions, entitlements and idempotency.
+
+### Basic lifecycle, uncertain admission and receipt display — 2026-10-29
+
+- **Must preserve—enforced:** Basic status changes reuse StudentService and the
+  authorized branch status route with KEEP. Inactivation ends every active
+  allocation while preserving dues and payment evidence. Reactivation preserves
+  history and the existing fee-generation anchors; it does not restore seats.
+- **Service-layer contract—not DB-enforced:** A matching profile is not evidence
+  that an uncertain admission request committed. The legacy admission endpoint
+  has no operation-specific recovery receipt. Basic retains the request's original
+  financial intent and draft for explicit record review, without automatic retry,
+  success notification or continuation to seat assignment. Manual recovery closure
+  is not confirmation of admission and keeps the saved draft.
+- **Must preserve—enforced:** Receipt collection timestamps and fee-period dates
+  use the recorded India calendar on screen and in PDF content, independently of
+  account timezone. Receipt-history labels and void evidence retain this calendar;
+  stored timestamps, financial snapshots and document language are unchanged.

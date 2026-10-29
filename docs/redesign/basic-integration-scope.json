@@ -1,7 +1,7 @@
 {
   "branch": "codex/basic-workspace",
   "baseCommit": "22d1d093ae991cd4525a5149a2cdd2470846c60d",
-  "inventoryKind": "Reviewed Basic PR publication scope",
+  "inventoryKind": "Initial PR #287 publication scope at abb3506e; historical snapshot",
   "sha256ContentRule": "Raw local file bytes at packaging; excludes this manifest itself. These are not Git blob hashes.",
   "productionOrSharedDataTouched": false,
   "groups": {
@@ -1447,5 +1447,7 @@
       "origin": "integration addition",
       "commitGroup": 9
     }
-  ]
+  ],
+  "publicationRevision": "abb3506e3c62b045f932b3fe4649b9d37b4596c2",
+  "followUpReport": "docs/redesign/basic-pr-287-review-fixes.md"
 }

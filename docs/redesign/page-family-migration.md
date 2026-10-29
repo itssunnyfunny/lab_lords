@@ -284,3 +284,11 @@ Verification and fresh connected screenshots are recorded in the
 [Basic integration review](basic-integration-review.md). Historical October 28
 screenshots are reference material only. Final owner visual review, PR submission,
 merge and deployment are separate; none is implied by local test results.
+
+### Basic PR #287 review follow-up — 2026-10-29
+
+The approved Basic design is retained. Lifecycle and uncertain-admission review
+use scoped shared dialogs; receipt dates share the PDF's India-calendar owner.
+Fresh status/receipt evidence and final validation are tracked in the
+[review-fix report](basic-pr-287-review-fixes.md). This is implementation verification,
+not final owner approval, merge or release.
