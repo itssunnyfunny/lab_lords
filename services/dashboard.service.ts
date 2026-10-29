@@ -116,9 +116,20 @@ function attendanceScope(branchId: string, timezone: string, today: string, now:
 }
 
 export class DashboardService {
+    static async basicOverview(actorId: string, branchId: string, now = new Date()) {
+        return prisma.$transaction(async tx => {
+            const access = await AccessPolicy.resolveBranch(actorId, branchId, tx);
+            const { timezone, today } = await branchClock(branchId, tx, now);
+            const activeStudents = access.permissions.students ? await tx.student.count({ where: { branchId, status: "ACTIVE" } }) : null;
+            const money = access.permissions.view_payments ? await this.money(branchId, timezone, today, tx) : null;
+            return { branchId, today, activeStudents, money: money ? { collectedThisMonth: money.collectedThisMonth, pendingDues: money.pendingDues } : null };
+        }, { isolationLevel: "RepeatableRead" });
+    }
+
     static async overview(actorId: string, branchId: string, month?: string, now = new Date()): Promise<DashboardOverview> {
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.resolveBranch(actorId, branchId, tx);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const { timezone, today } = await branchClock(branchId, tx, now);
             const selectedMonth = month ?? today.slice(0, 7);
             const profile = await EntitlementService.getOrganizationProfile(access.organizationId, tx);
@@ -215,6 +226,7 @@ export class DashboardService {
     static async attendanceGaps(actorId: string, branchId: string, input: z.input<typeof dashboardListSchema>, now = new Date()) {
         const query = dashboardListSchema.parse(input);
         await AccessPolicy.authorizeAction(actorId, branchId, "students");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         const { timezone, today } = await branchClock(branchId, prisma, now);
         const { gapWhere } = attendanceScope(branchId, timezone, today, now);
         const [total, rows] = await completeReads([
@@ -254,6 +266,7 @@ export class DashboardService {
     static async captureOccupancy(actorId: string, branchId: string, now = new Date()) {
         return prisma.$transaction(async tx => {
             await AccessPolicy.authorizeAction(actorId, branchId, "seat_allocation", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const { timezone, today } = await branchClock(branchId, tx, now);
             const [capacity, shifts, counts] = await completeReads([tx.seat.count({ where: { branchId } }),
                 tx.shift.findMany({ where: { branchId, status: "ACTIVE" }, select: { id: true, name: true, startTime: true, endTime: true } }),
@@ -300,6 +313,7 @@ export class DashboardService {
     static async listTasks(actorId: string, branchId: string, input: z.input<typeof dashboardTaskQuerySchema>) {
         const query = dashboardTaskQuerySchema.parse(input);
         const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         const { timezone } = await branchClock(branchId);
         const [rows, organization, staff] = await completeReads([
             prisma.dashboardTask.findMany({ where: { branchId, ...(query.taskId ? { id: query.taskId } : query.status !== "ALL" ? { status: query.status } : {}),
@@ -317,6 +331,7 @@ export class DashboardService {
         const data = dashboardTaskSchema.parse(input);
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             await checkAssignee(tx, access, data.assigneeId);
             const task = await tx.dashboardTask.create({ data: { ...data, branchId, creatorId: actorId,
                 dueAt: data.dueAt ? new Date(data.dueAt) : null }, select: taskSelect });
@@ -327,6 +342,7 @@ export class DashboardService {
         const data = dashboardTaskPatchSchema.parse(input);
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const found = await tx.dashboardTask.findFirst({ where: { branchId, id: taskId }, select: { id: true } });
             if (!found) throw new DashboardNotFoundError();
             await checkAssignee(tx, access, data.assigneeId);
@@ -338,6 +354,7 @@ export class DashboardService {
     static async listFollowUps(actorId: string, branchId: string, input: z.input<typeof dashboardFollowUpQuerySchema>, now = new Date()) {
         const query = dashboardFollowUpQuerySchema.parse(input);
         await AccessPolicy.authorizeAction(actorId, branchId, "view_payments");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         const { today } = await branchClock(branchId, prisma, now);
         const summary = await this.followUpSummary(branchId, today);
         const rows = await prisma.renewalFollowUp.findMany({ where: { branchId,
@@ -353,6 +370,7 @@ export class DashboardService {
         const data = dashboardFollowUpPatchSchema.parse(input);
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.authorizeCapability(actorId, branchId, "paymentsRecord", tx);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const found = await tx.renewalFollowUp.findFirst({ where: { id: followUpId, branchId }, select: { id: true } });
             if (!found) throw new DashboardNotFoundError();
             const row = await tx.renewalFollowUp.update({ where: { id: found.id }, data: { authorId: actorId,
@@ -365,19 +383,23 @@ export class DashboardService {
 
     static async settings(actorId: string, branchId: string) {
         await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         return await prisma.dashboardSettings.findUnique({ where: { branchId }, select: { utilizationThreshold: true } }) ?? { utilizationThreshold: 35 };
     }
     static async saveSettings(actorId: string, branchId: string, input: z.input<typeof dashboardSettingsSchema>) {
         const data = dashboardSettingsSchema.parse(input);
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const settings = await tx.dashboardSettings.upsert({ where: { branchId }, create: { branchId, ...data }, update: data });
             await event(tx, access, "CONFIGURATION", branchId, "UTILIZATION_THRESHOLD"); return settings;
         });
     }
     static async expectations(actorId: string, branchId: string, input: z.input<typeof dashboardSetupQuerySchema> = {}) {
         await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         await AccessPolicy.authorizeAction(actorId, branchId, "students");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         const query = dashboardSetupQuerySchema.parse(input);
         const where = { branchId, ...(query.studentId ? { studentId: query.studentId } : {}) };
         if (query.cursor && !await prisma.attendanceExpectation.findFirst({ where: { ...where, id: query.cursor }, select: { id: true } }))
@@ -397,7 +419,9 @@ export class DashboardService {
         const data = dashboardExpectationSchema.parse(input);
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             await AccessPolicy.authorizeAction(actorId, branchId, "students", tx);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             await studentExists(tx, branchId, data.studentId);
             const row = await tx.attendanceExpectation.upsert({ where: { studentId: data.studentId }, create: { branchId, ...data }, update: data });
             await event(tx, access, "CONFIGURATION", row.id, "ATTENDANCE_EXPECTATION"); return row;
@@ -405,6 +429,7 @@ export class DashboardService {
     }
     static async terms(actorId: string, branchId: string, now = new Date(), input: z.input<typeof dashboardSetupQuerySchema> = {}) {
         await AccessPolicy.authorizeAction(actorId, branchId, "students");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         const query = dashboardSetupQuerySchema.parse(input);
         const { today } = await branchClock(branchId, prisma, now);
         const where = { branchId, ...(query.studentId ? { studentId: query.studentId } : {}) };
@@ -427,7 +452,9 @@ export class DashboardService {
         const data = dashboardTermSchema.parse(input);
         return runSerializableTransaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             await AccessPolicy.authorizeAction(actorId, branchId, "students", tx);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             await studentExists(tx, branchId, data.studentId);
             const overlap = await tx.membershipTerm.findFirst({ where: { branchId, studentId: data.studentId, status: "ACTIVE",
                 startDate: { lte: data.endDate }, endDate: { gte: data.startDate } }, select: { id: true } });
@@ -443,6 +470,7 @@ export class DashboardService {
     static async termHistory(actorId: string, branchId: string, termId: string, beforeRevision?: number) {
         if (!termId || termId.length > 128 || (beforeRevision !== undefined && (!Number.isSafeInteger(beforeRevision) || beforeRevision < 1))) throw new DashboardInputError("Invalid history page");
         await AccessPolicy.authorizeAction(actorId, branchId, "students");
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         if (!await prisma.membershipTerm.findFirst({ where: { id: termId, branchId }, select: { id: true } })) throw new DashboardNotFoundError();
         const rows = await prisma.membershipTermRevision.findMany({ where: { branchId, termId, ...(beforeRevision ? { revision: { lt: beforeRevision } } : {}) },
             include: { actor: { select: { name: true } } }, orderBy: { revision: "desc" }, take: 51 });
@@ -455,7 +483,9 @@ export class DashboardService {
         const data = dashboardTermChangeSchema.parse(input);
         return runSerializableTransaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             await AccessPolicy.authorizeAction(actorId, branchId, "students", tx);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const term = await tx.membershipTerm.findFirst({ where: { id: data.termId, branchId }, include: { student: { select: { name: true } } } });
             if (!term) throw new DashboardNotFoundError();
             if (term.revision !== data.expectedRevision || term.status !== "ACTIVE") throw new DashboardConflictError("This term changed. Refresh its history before trying again.");
@@ -489,6 +519,7 @@ export class DashboardService {
 
     static async notifications(actorId: string, branchId: string, now = new Date()) {
         const access = await AccessPolicy.resolveBranch(actorId, branchId);
+        await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
         const { today, timezone } = await branchClock(branchId, prisma, now);
         const candidates: Omit<DashboardNotification, "read" | "snoozedUntil" | "dismissed">[] = [];
         const href = `/branch/${encodeURIComponent(branchId)}`;
@@ -550,8 +581,11 @@ export class DashboardService {
             const kind = current.items.find(item => item.key === data.key)!.kind;
             const permission = kind === "TASK" ? "manage_branch" : kind === "INVITES" ? "staff_management" : kind === "SHIFT_FULL" || kind === "SHIFT_NEAR_FULL" ? "seat_allocation" : kind === "FOLLOW_UP" || kind === "OVERDUE" ? "view_payments" : "students";
             await AccessPolicy.authorizeAction(actorId, branchId, permission, tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             if (kind === "UNASSIGNED") await AccessPolicy.authorizeAction(actorId, branchId, "seat_allocation", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             if (kind === "INVITES") await AccessPolicy.authorizeAction(actorId, branchId, "manage_branch", tx, true);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const values = data.action === "READ" ? { readAt: now } : data.action === "SNOOZE" ? { snoozedUntil: snooze } : { dismissedAt: now };
             await tx.dashboardNotificationState.upsert({ where: { userId_branchId_key: { userId: actorId, branchId, key: data.key } },
                 create: { userId: actorId, branchId, key: data.key, ...values }, update: values });

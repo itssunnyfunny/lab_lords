@@ -14,9 +14,7 @@ function parseAll(value: string | null) {
 }
 
 // POST: Assign a seat across one or more shifts
-export async function POST(
-    req: NextRequest
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ branchId: string }> }) {
     try {
         const user = await getSessionUser();
         if (!user) {
@@ -46,7 +44,8 @@ export async function POST(
             seatId,
             studentId,
             resolvedShiftIds,
-            typeof multiShiftId === "string" ? multiShiftId : undefined
+            typeof multiShiftId === "string" ? multiShiftId : undefined,
+            (await params).branchId
         );
 
         return NextResponse.json(allocations, { status: 201 });

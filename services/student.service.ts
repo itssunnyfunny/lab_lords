@@ -436,6 +436,11 @@ export class StudentService {
         return created;
     }
 
+    static async assertStudentInBranch(userId: string, studentId: string, branchId: string) {
+        const student = await this.verifyStudentAccess(userId, studentId);
+        if (student.branchId !== branchId) throw new Error("Student not found");
+    }
+
     static async updateStudentProfile(
         userId: string,
         studentId: string,

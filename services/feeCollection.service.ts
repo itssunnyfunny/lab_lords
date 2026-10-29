@@ -95,6 +95,13 @@ export class FeeCollectionService {
         return collection;
     }
 
+    /** Read-only recovery never records money or bypasses the current viewing permission. */
+    static async recover(actorId: string, branchId: string, key: string) {
+        await AccessPolicy.authorizeCapability(actorId, branchId, "paymentsView");
+        if (key.length < 8 || key.length > 150) throw new CollectionInputError("Invalid recovery key");
+        return prisma.feeCollection.findFirst({ where: { branchId, actorId, idempotencyKey: key } });
+    }
+
     static async dues(actorId: string, branchId: string, studentId: string) {
         await AccessPolicy.authorizeAction(actorId, branchId, "view_payments");
         const student = await prisma.student.findFirst({ where: { id: studentId, branchId }, select: { id: true, name: true } });

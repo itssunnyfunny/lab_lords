@@ -23,7 +23,7 @@ export async function PATCH(
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { shiftId } = await context.params;
+    const { shiftId, branchId } = await context.params;
 
     try {
         const body = await request.json();
@@ -44,7 +44,7 @@ export async function PATCH(
             ...(endResult?.ok ? { endTime: endResult.value } : {}),
             ...(priceResult?.ok ? { price: priceResult.value } : {}),
             isReserved: body.isReserved,
-        });
+        }, undefined, branchId);
         return NextResponse.json(updated);
     } catch (error: unknown) {
         const message = getErrorMessage(error);
