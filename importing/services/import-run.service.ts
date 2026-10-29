@@ -95,14 +95,14 @@ function parsePlanSnapshot(value: unknown): ImportPlanSnapshot {
 
 export class ImportRunService {
     static async getDispatchableRun(userId: string, branchId: string, importRunId: string) {
-        await AccessPolicy.authorizeAction(userId, branchId, "students", undefined, true);
+        await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", undefined);
         return prisma.$transaction(async tx => {
             await tx.$queryRaw<Array<{ id: string }>>`
                 SELECT "id" FROM "ImportRun"
                 WHERE "id" = ${importRunId} AND "branchId" = ${branchId}
                 FOR UPDATE
             `;
-            await AccessPolicy.authorizeAction(userId, branchId, "students", tx, true);
+            await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", tx);
             const run = await tx.importRun.findFirst({
                 where: { id: importRunId, branchId },
                 include: {
@@ -145,7 +145,7 @@ export class ImportRunService {
     }
 
     static async getLatestAnalysisRun(userId: string, branchId: string, sessionId: string) {
-        await StaffService.authorize(userId, branchId, "students");
+        await AccessPolicy.authorizeCapability(userId, branchId, "importView");
         const run = await prisma.importRun.findFirst({
             where: {
                 branchId,
@@ -164,7 +164,7 @@ export class ImportRunService {
     }
 
     static async confirmPdfExtraction(userId: string, branchId: string, sessionId: string) {
-        await AccessPolicy.authorizeAction(userId, branchId, "students", undefined, true);
+        await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", undefined);
         return prisma.$transaction(async tx => {
             await tx.$queryRaw<Array<{ id: string }>>`
                 SELECT "id" FROM "ImportSession"
@@ -176,7 +176,7 @@ export class ImportRunService {
                 select: { id: true, sourceConfiguration: true, archivedAt: true },
             });
             if (!session || session.archivedAt) throw new Error("Import session not found");
-            await AccessPolicy.authorizeAction(userId, branchId, "students", tx, true);
+            await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", tx);
             const run = await tx.importRun.findFirst({
                 where: {
                     importSessionId: session.id,
@@ -208,7 +208,7 @@ export class ImportRunService {
     }
 
     static async createOrGetRun(input: CreateImportRunInput) {
-        await AccessPolicy.authorizeAction(input.userId, input.branchId, "students", undefined, true);
+        await AccessPolicy.authorizeCapability(input.userId, input.branchId, "importStudents", undefined);
         const idempotencyKey = normalizeIdempotencyKey(input.idempotencyKey);
         const maxAttempts = normalizeMaxAttempts(input.maxAttempts);
         if (!Number.isInteger(input.targetRevision) || input.targetRevision < 0) {
@@ -245,7 +245,7 @@ export class ImportRunService {
                     },
                 });
                 if (!session) throw new Error("Import session not found");
-                await AccessPolicy.authorizeAction(input.userId, input.branchId, "students", tx, true);
+                await AccessPolicy.authorizeCapability(input.userId, input.branchId, "importStudents", tx);
                 if (session.archivedAt) throw new Error("Import session is archived");
                 if (session.engineVersion !== IMPORT_ENGINE_VERSION || !session.goal) {
                     throw new Error("Import session does not use the V2 engine");
@@ -476,7 +476,7 @@ export class ImportRunService {
     }
 
     static async getRun(userId: string, branchId: string, importRunId: string) {
-        await StaffService.authorize(userId, branchId, "students");
+        await AccessPolicy.authorizeCapability(userId, branchId, "importView");
         const run = await prisma.importRun.findFirst({
             where: { id: importRunId, branchId },
             include: {
@@ -507,7 +507,7 @@ export class ImportRunService {
     }
 
     static async getRunProgress(userId: string, branchId: string, importRunId: string) {
-        await StaffService.authorize(userId, branchId, "students");
+        await AccessPolicy.authorizeCapability(userId, branchId, "importView");
         const run = await prisma.importRun.findFirst({
             where: { id: importRunId, branchId },
             select: {
@@ -543,7 +543,7 @@ export class ImportRunService {
     }
 
     static async getRunErrors(userId: string, branchId: string, importRunId: string) {
-        await StaffService.authorize(userId, branchId, "students");
+        await AccessPolicy.authorizeCapability(userId, branchId, "importView");
         const run = await prisma.importRun.findFirst({
             where: { id: importRunId, branchId },
             select: { id: true },
@@ -568,7 +568,7 @@ export class ImportRunService {
     }
 
     static async requestCancel(userId: string, branchId: string, importRunId: string) {
-        await AccessPolicy.authorizeAction(userId, branchId, "students", undefined, true);
+        await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", undefined);
         const now = new Date();
 
         return prisma.$transaction(async tx => {
@@ -577,7 +577,7 @@ export class ImportRunService {
                 WHERE "id" = ${importRunId} AND "branchId" = ${branchId}
                 FOR UPDATE
             `;
-            await AccessPolicy.authorizeAction(userId, branchId, "students", tx, true);
+            await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", tx);
             const run = await tx.importRun.findFirst({ where: { id: importRunId, branchId } });
             if (!run) throw new Error("Import run not found");
             if (![...ACTIVE_RUN_STATUSES].includes(run.status)) return run;

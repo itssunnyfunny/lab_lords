@@ -2,12 +2,14 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { AttendanceService as S } from "@/services/attendance.service";
 import { attendanceDay, type AttendanceCommand } from "@/lib/attendance";
-import { createTestWorld, createStudent, createUser, createStaff, createSeat, createShift, createPayment } from "@/tests/factories";
+import { createTestWorld, createSaasSubscription, createStudent, createUser, createStaff, createSeat, createShift, createPayment } from "@/tests/factories";
 import { testPrisma as db, resetDatabase, disconnectDatabase } from "@/tests/setup/db";
 import type { Prisma } from "@/app/generated/prisma/client";
 
 async function fixture() {
-    const w = await createTestWorld(), student = await createStudent({ branchId: w.branch.id });
+    const w = await createTestWorld();
+    await createSaasSubscription({organizationId:w.org.id,plan:"STANDARD"});
+    const student = await createStudent({ branchId: w.branch.id });
     return { ...w, student, today: attendanceDay(new Date(), "Asia/Kolkata") };
 }
 type F = Awaited<ReturnType<typeof fixture>>;

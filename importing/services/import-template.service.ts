@@ -1,5 +1,5 @@
+import { AccessPolicy } from "@/services/accessPolicy.service";
 import { prisma } from "@/lib/prisma";
-import { StaffService } from "@/services/staff.service";
 import type { ImportGoal } from "@/app/generated/prisma/enums";
 
 export type ImportTemplateFormat = "csv" | "xlsx";
@@ -66,7 +66,7 @@ export class ImportTemplateService {
     goal: ImportGoal,
     format: ImportTemplateFormat,
   ) {
-    await StaffService.authorize(userId, branchId, "students");
+    await AccessPolicy.authorizeCapability(userId, branchId, "importView");
     const branch = await prisma.branch.findUnique({
       where: { id: branchId },
       select: {

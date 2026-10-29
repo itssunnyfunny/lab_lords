@@ -1,6 +1,6 @@
+import { AccessPolicy } from "@/services/accessPolicy.service";
 import { prisma } from "@/lib/prisma";
 import { sortSeatsByLabel } from "@/lib/seatNumbering";
-import { StaffService } from "@/services/staff.service";
 import { SeatService } from "@/services/seat.service";
 import type {
     ImportIssue,
@@ -239,7 +239,7 @@ export class ImportWiringService {
         sessionId: string,
         input: { rowId: string; normalizedData: ImportNormalizedRow }
     ): Promise<ImportRowDraftPreview> {
-        await StaffService.authorize(userId, branchId, "students");
+        await AccessPolicy.authorizeCapability(userId, branchId, "importView");
         const session = await this.loadSession(branchId, sessionId);
         const row = session.rows.find(item => item.id === input.rowId);
         if (!row) throw new Error("Import row not found");
@@ -328,7 +328,7 @@ export class ImportWiringService {
         sessionId: string,
         input: { rowId: string; shiftIds?: string[]; multiShiftId?: string | null }
     ): Promise<ImportAvailabilityPreview> {
-        await StaffService.authorize(userId, branchId, "students");
+        await AccessPolicy.authorizeCapability(userId, branchId, "importView");
         const [session, context, baseShifts] = await Promise.all([
             this.loadSession(branchId, sessionId),
             getValidationContext(branchId),

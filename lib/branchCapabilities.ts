@@ -5,16 +5,20 @@ type CapabilityRequirement = {
     permissions?: readonly StaffAction[];
     entitlement?: BillingEntitlement;
     mutation?: boolean;
+    fullWorkspace?: boolean;
 };
 
 export const BRANCH_CAPABILITIES = {
-    dashboard: {},
+    dashboard: { fullWorkspace: true },
+    basicOverview: {},
+    fullWorkspace: { fullWorkspace: true },
+    importView: { permissions: ["students"], fullWorkspace: true },
     studentsView: { permissions: ["students"] },
-    attendanceView: { permissions: ["students"] },
-    attendanceRecord: { permissions: ["students"], mutation: true },
-    attendanceCorrect: { permissions: ["students", "manage_branch"], mutation: true },
+    attendanceView: { fullWorkspace: true, permissions: ["students"] },
+    attendanceRecord: { fullWorkspace: true, permissions: ["students"], mutation: true },
+    attendanceCorrect: { fullWorkspace: true, permissions: ["students", "manage_branch"], mutation: true },
     studentsManage: { permissions: ["students"], mutation: true },
-    importStudents: { permissions: ["students"], mutation: true },
+    importStudents: { fullWorkspace: true, permissions: ["students"], mutation: true },
     allocationsView: { permissions: ["seat_allocation"] },
     allocationsManage: { permissions: ["seat_allocation"], mutation: true },
     seatsView: { permissions: ["seat_allocation"] },
@@ -25,7 +29,7 @@ export const BRANCH_CAPABILITIES = {
     paymentsGenerate: { permissions: ["view_payments", "generate_payments"], mutation: true },
     paymentsRecord: { permissions: ["view_payments", "mark_payment_paid"], mutation: true },
     paymentsWaive: { permissions: ["view_payments", "waive_payments"], mutation: true },
-    overdueView: { permissions: ["view_payments"] },
+    overdueView: { fullWorkspace: true, permissions: ["view_payments"] },
     analyticsView: { permissions: ["analytics"], entitlement: "ADVANCED_ANALYTICS" },
     analyticsFinanceView: { permissions: ["analytics", "view_payments"], entitlement: "ADVANCED_ANALYTICS" },
     staffView: { permissions: ["manage_branch"], entitlement: "STAFF_MANAGEMENT" },
@@ -90,6 +94,10 @@ export function getBranchCapabilityDecision(
             reason: "Your role does not include this action.",
             recoveryHref: null,
         };
+    }
+
+    if (requirement.fullWorkspace && !["STANDARD", "STANDARD_TRIAL", "PRO"].includes(access.billingExperience?.effectivePlan ?? access.effectivePlan)) {
+        return { allowed: false, blocker: "entitlement", reason: "This feature requires the Standard plan.", recoveryHref: billingRecoveryHref(access) };
     }
 
     if (requirement.entitlement && !access.entitlements.includes(requirement.entitlement)) {

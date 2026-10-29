@@ -1,3 +1,4 @@
+import { AccessPolicy } from "@/services/accessPolicy.service";
 import { createHash } from "node:crypto";
 import { Prisma, type ImportRecipe } from "@/app/generated/prisma/client";
 import type { ImportGoal, ImportSourceType } from "@/app/generated/prisma/enums";
@@ -10,7 +11,6 @@ import { IMPORT_ENGINE_VERSION } from "@/importing/contracts/import-v2.contract"
 import { normalizeColumnName } from "@/importing/utils/column-normalizer";
 import { prisma } from "@/lib/prisma";
 import { EntitlementService } from "@/services/entitlement.service";
-import { StaffService } from "@/services/staff.service";
 
 export const IMPORT_RECIPE_SCHEMA_VERSION = 1;
 export const MAX_IMPORT_RECIPES_PER_LIST = 100;
@@ -316,7 +316,7 @@ const RECIPE_SELECT = {
 } as const;
 
 async function organizationIdForAuthorizedBranch(userId: string, branchId: string) {
-    await StaffService.authorize(userId, branchId, "students");
+    await AccessPolicy.authorizeCapability(userId, branchId, "importView");
     const branch = await prisma.branch.findUnique({
         where: { id: branchId },
         select: { organizationId: true },

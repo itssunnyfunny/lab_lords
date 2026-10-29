@@ -20,7 +20,7 @@ function assertValidRevision(revision: number) {
 
 export class ImportEvaluationService {
     static async publishRevision(input: PublishImportEvaluationsInput) {
-        await AccessPolicy.authorizeAction(input.userId, input.branchId, "students", undefined, true);
+        await AccessPolicy.authorizeCapability(input.userId, input.branchId, "importStudents", undefined);
         assertValidRevision(input.targetRevision);
 
         const suppliedRows = new Map(input.evaluations.map(evaluation => [evaluation.rowId, evaluation]));

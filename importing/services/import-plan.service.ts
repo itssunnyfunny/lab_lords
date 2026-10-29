@@ -93,7 +93,7 @@ export class ImportPlanService {
         planId: string,
         options: { cursor?: string; limit?: number } = {}
     ) {
-        await StaffService.authorize(userId, branchId, "students");
+        await AccessPolicy.authorizeCapability(userId, branchId, "importView");
         const limit = paymentDetailPageSize(options.limit);
         const cursor = options.cursor?.trim();
         if (cursor && cursor.length > 500) throw new Error("Import payment detail cursor is invalid");
@@ -162,7 +162,7 @@ export class ImportPlanService {
     }
 
     static async getPlanForCommit(userId: string, branchId: string, sessionId: string, planId: string) {
-        await AccessPolicy.authorizeAction(userId, branchId, "students", undefined, true);
+        await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", undefined);
         const plan = await prisma.importPlan.findFirst({
             where: {
                 id: planId,
@@ -199,7 +199,7 @@ export class ImportPlanService {
     }
 
     static async compilePlan(input: CompileImportPlanInput) {
-        await AccessPolicy.authorizeAction(input.userId, input.branchId, "students", undefined, true);
+        await AccessPolicy.authorizeCapability(input.userId, input.branchId, "importStudents", undefined);
         if (!Number.isInteger(input.targetRevision) || input.targetRevision < 0) {
             throw new Error("Import plan revision is invalid");
         }
@@ -251,7 +251,7 @@ export class ImportPlanService {
             if (session.engineVersion !== IMPORT_ENGINE_VERSION || !session.goal) {
                 throw new Error("Import session does not use the V2 engine");
             }
-            await AccessPolicy.authorizeAction(input.userId, input.branchId, "students", tx, true);
+            await AccessPolicy.authorizeCapability(input.userId, input.branchId, "importStudents", tx);
             if (
                 session.draftRevision !== input.targetRevision
                 || session.activeEvaluationRevision !== input.targetRevision

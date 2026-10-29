@@ -102,7 +102,7 @@ export class ImportQuestionService {
             applyToAffectedRows?: boolean;
         }
     ) {
-        await AccessPolicy.authorizeAction(userId, branchId, "students", undefined, true);
+        await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", undefined);
         if (!Number.isInteger(input.expectedRevision) || input.expectedRevision < 0) {
             throw new ImportValidationError("Expected import revision must be a non-negative integer");
         }
@@ -184,7 +184,7 @@ export class ImportQuestionService {
             });
             if (!current) throw new Error("Import session not found");
             if (current.archivedAt) throw new Error("Import session is archived");
-            await AccessPolicy.authorizeAction(userId, branchId, "students", tx, true);
+            await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", tx);
             if (
                 (current.engineVersion === 1 && ["COMMITTING", "COMMITTED", "PARTIAL", "FAILED", "CANCELLED"].includes(current.status))
                 || ["COMMITTING", "COMMITTED", "CANCELLED"].includes(current.status)

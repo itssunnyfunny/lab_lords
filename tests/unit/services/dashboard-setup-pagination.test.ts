@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
     const table = () => ({ findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn() });
-    return { branch: vi.fn(), clock: vi.fn(), staff: vi.fn(), student: table(), expectation: table(), term: table() };
+    return { profile: vi.fn(), branch: vi.fn(), clock: vi.fn(), staff: vi.fn(), student: table(), expectation: table(), term: table() };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: {
     branch: { findUnique: mocks.branch, findUniqueOrThrow: mocks.clock }, staff: { findUnique: mocks.staff },
     student: mocks.student, attendanceExpectation: mocks.expectation, membershipTerm: mocks.term,
 } }));
+
+vi.mock("@/services/entitlement.service", () => ({ EntitlementService: { getOrganizationProfile: mocks.profile } }));
 
 import { DashboardService } from "@/services/dashboard.service";
 
@@ -67,6 +69,7 @@ function read(kind: "expectations" | "terms", query: Record<string, unknown> = {
 }
 beforeEach(() => {
     vi.resetAllMocks();
+    mocks.profile.mockResolvedValue({effectivePlan:"STANDARD"});
     mocks.branch.mockResolvedValue({ id: "branch", name: "Main", organizationId: "org", organization: { ownerId: "owner" } });
     mocks.clock.mockResolvedValue({ organization: { timezone: "Asia/Kolkata" } });
     bind(mocks.student, [...students, { ...students[0], id: "foreign-student", branchId: "other" }, { ...students[0], id: "inactive", status: "INACTIVE" }]);
