@@ -2,6 +2,7 @@
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
+import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
 import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AppButton, AppPanel, ErrorState, PageLoadingSkeleton, PageShell } from "@/components/ui";
@@ -70,6 +71,9 @@ function getBranchStatus(overdueCount: number, utilization: number) {
 export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: string }> }) {
     const t = useTranslation();
     const { orgId } = use(params);
+    const billingContext = useBillingExperience();
+    const accessReady = !billingContext || !billingContext.loading;
+    const analyticsAllowed = !billingContext || !!billingContext.experience?.entitlements.includes("ADVANCED_ANALYTICS");
     const { formatDateTime, formatNumber } = useUserPreferences();
     const [branchList, setBranchList] = useState<BranchWithCounts[]>([]);
     const [snapshotState, setSnapshotState] = useState<ResourceState<OrganizationAnalyticsSnapshot>>({ status: "loading" });
@@ -77,6 +81,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
     const [error, setError] = useState<string | null>(null);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const hasLoadedRef = useRef(false);
+    const requestVersion = useRef(0);
 
     const formatMoney = (value: number) => formatNumber(value, {
         style: "currency",
@@ -89,15 +94,18 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
     });
 
     const loadDashboard = useCallback(async () => {
+        if (!accessReady) return;
+        const version = ++requestVersion.current;
         setLoading(!hasLoadedRef.current);
         setError(null);
         setSnapshotState(current => startResourceRefresh(current));
 
         const [branchesResult, snapshotResult] = await Promise.allSettled([
             organizations.getBranches(orgId),
-            analytics.getOrganizationSnapshot(orgId),
+            analyticsAllowed ? analytics.getOrganizationSnapshot(orgId) : Promise.resolve(null),
         ]);
 
+        if (version !== requestVersion.current) return;
         if (branchesResult.status === "fulfilled") {
             setBranchList(branchesResult.value);
         } else {
@@ -105,14 +113,16 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
             setError("Failed to load organization branches.");
         }
 
-        if (snapshotResult.status === "fulfilled") {
+        if (!analyticsAllowed) {
+            setSnapshotState({ status: "restricted", reason: "This feature requires the Standard plan." });
+        } else if (snapshotResult.status === "fulfilled" && snapshotResult.value) {
             setSnapshotState({
                 status: "success",
                 data: snapshotResult.value,
                 updatedAt: new Date().toISOString(),
             });
         } else {
-            console.error("Failed to fetch organization context", snapshotResult.reason);
+            console.error("Failed to fetch organization context");
             setSnapshotState(current => failResourceRefresh(
                 current,
                 "Organization analytics are unavailable. Branch records remain accessible.",
@@ -121,10 +131,12 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
 
         hasLoadedRef.current = true;
         setLoading(false);
-    }, [orgId]);
+    }, [orgId, accessReady, analyticsAllowed]);
 
     useEffect(() => {
-        loadDashboard();
+        void loadDashboard();
+        const requests = requestVersion;
+        return () => { requests.current++; };
     }, [loadDashboard]);
 
     const handleBranchCreated = () => {
@@ -204,7 +216,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                         <span>{t("Workspace entry")}</span>
                         <span className="h-1 w-1 rounded-full bg-[color:var(--text-muted)]" />
                         <span>
-                            {snapshot
+                            {!analyticsAllowed ? t("Organization") : snapshot
                                 ? t("Analytics as of {date}", { date: formatDateTime(snapshot.asOf) })
                                 : t("Analytics unavailable")}
                         </span>
@@ -233,7 +245,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 </div>
             </header>
 
-            {snapshotState.status === "stale" ? (
+            {analyticsAllowed && (snapshotState.status === "stale" ? (
                 <div className={cn(formWarningBannerClass, "flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between")} role="status">
                     <span>{t("{reason} Showing analytics from {formatDateTime}.", { reason: snapshotState.reason, formatDateTime: formatDateTime(snapshotState.updatedAt) })}</span>
                     <AppButton density="compact" variant="quiet" size="sm" onClick={loadDashboard}>{t("Retry analytics")}</AppButton>
@@ -245,11 +257,11 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 </div>
             ) : snapshotRefreshing && snapshotUpdatedAt ? (
                 <div className={cn(formWarningBannerClass, "px-4 py-3 text-sm")} role="status">{t("Refreshing organization analytics. Current values are from {formatDateTime}.", { formatDateTime: formatDateTime(snapshotUpdatedAt) })}</div>
-            ) : null}
+            ) : null)}
 
             <AppPanel density="compact"
                 title={t("Choose branch")}
-                description={t("Select a branch to continue to students, payments, seats, shifts, and follow-ups.")}
+                description={analyticsAllowed ? t("Select a branch to continue to students, payments, seats, shifts, and follow-ups.") : t.owned("Choose a branch for students, seats and fees.")}
                 action={
                     branchList.length > 0 && (
                         <span className={pageMetaPillClass}>{t("{formatNumber} available", { formatNumber: formatNumber(branchList.length) })}</span>
@@ -314,7 +326,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                                 </div>
                                             </div>
                                             <Badge variant={status?.variant ?? "default"} className="self-start shrink-0">
-                                                {t.owned(status?.label ?? "Metrics unavailable")}
+                                                {t.owned(!analyticsAllowed ? "Branch" : status?.label ?? "Metrics unavailable")}
                                             </Badge>
                                         </div>
 
@@ -324,15 +336,15 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                                 <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{formatNumber(activeStudents)}</p>
                                             </div>
                                             <div className="px-3 py-3">
-                                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Utilization")}</p>
+                                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t(analyticsAllowed ? "Utilization" : "Seats")}</p>
                                                 <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">
-                                                    {utilization !== null ? formatPercent(utilization) : t("Unavailable")}
+                                                    {!analyticsAllowed ? formatNumber(branch._count.seats) : utilization !== null ? formatPercent(utilization) : t("Unavailable")}
                                                 </p>
                                             </div>
                                             <div className="px-3 py-3">
-                                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Overdue")}</p>
+                                                <p className={cn(pageSubtleTextClass, "text-xs")}>{t(analyticsAllowed ? "Overdue" : "Shifts")}</p>
                                                 <p className={(overdueCount ?? 0) > 0 ? "mt-1 text-lg font-semibold text-[color:var(--ui-tone-danger-text)]" : "mt-1 text-lg font-semibold text-[color:var(--text-primary)]"}>
-                                                    {overdueCount === null ? t("Unavailable") : formatNumber(overdueCount)}
+                                                    {!analyticsAllowed ? formatNumber(branch._count.shifts) : overdueCount === null ? t("Unavailable") : formatNumber(overdueCount)}
                                                 </p>
                                             </div>
                                         </div>
@@ -352,6 +364,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 )}
             </AppPanel>
 
+            {analyticsAllowed && <>
             <section className="space-y-3">
                 <div>
                     <h2 className={pageSectionTitleClass}>{t("Organization snapshot")}</h2>
@@ -494,6 +507,8 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                     </div>
                 </AppPanel>
             </section>
+
+            </>}
 
             <CreateBranchDialog
                 isOpen={createDialogOpen}

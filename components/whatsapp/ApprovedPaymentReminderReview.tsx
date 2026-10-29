@@ -1,4 +1,5 @@
 "use client";
+import { useWorkspaceAccess } from "@/components/layout/BranchAccessProvider";
 import { OwnedLabel } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
@@ -104,7 +105,15 @@ export function ApprovedPaymentReminderPreview({
   );
 }
 
-export function ApprovedPaymentReminderReview({
+type ReminderReviewProps = { branchId: string; paymentIds: readonly string[]; canSend: boolean; blockedReason?: string };
+
+export function ApprovedPaymentReminderReview(props: ReminderReviewProps) {
+  const workspace = useWorkspaceAccess();
+  if (workspace?.presentation === "simple") return null;
+  return <PaymentReminderReviewContent {...props} />;
+}
+
+function PaymentReminderReviewContent({
   branchId,
   paymentIds,
   canSend,

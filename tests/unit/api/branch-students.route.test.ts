@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
   getSessionUser: vi.fn(),
   getStudentsByBranch: vi.fn(),
+  assertStudentInBranch: vi.fn(),
   updateStudentProfile: vi.fn(),
   updateStudentStatus: vi.fn(),
 }));
@@ -15,6 +16,7 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/services/student.service", () => ({
   StudentService: {
     getStudentsByBranch: mocks.getStudentsByBranch,
+    assertStudentInBranch: mocks.assertStudentInBranch,
     updateStudentProfile: mocks.updateStudentProfile,
     updateStudentStatus: mocks.updateStudentStatus,
   },
@@ -151,7 +153,7 @@ describe("PATCH /api/branches/[branchId]/students", () => {
     });
     const { PATCH } = await import("@/app/api/branches/[branchId]/students/route");
 
-    const response = await PATCH(request);
+    const response = await PATCH(request, { params: Promise.resolve({ branchId: "branch_1" }) });
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "Invalid due resolution" });
@@ -171,7 +173,7 @@ describe("PATCH /api/branches/[branchId]/students", () => {
     });
     const { PATCH } = await import("@/app/api/branches/[branchId]/students/route");
 
-    const response = await PATCH(request);
+    const response = await PATCH(request, { params: Promise.resolve({ branchId: "branch_1" }) });
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "Invalid due resolution" });
@@ -191,7 +193,7 @@ describe("PATCH /api/branches/[branchId]/students", () => {
     });
     const { PATCH } = await import("@/app/api/branches/[branchId]/students/route");
 
-    const response = await PATCH(request);
+    const response = await PATCH(request, { params: Promise.resolve({ branchId: "branch_1" }) });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(student);

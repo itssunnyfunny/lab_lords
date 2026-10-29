@@ -4,7 +4,7 @@ import { FeeCollectionService } from "@/services/feeCollection.service";
 import { PaymentService } from "@/services/payment.service";
 import { RenewalsService } from "@/services/renewals.service";
 import { getOpenPaymentLedger, getPaymentPeriodStats, getPaymentStats } from "@/analytics/payment.analytics";
-import { createTestWorld, createStudent, createPayment, createUser, createStaff } from "@/tests/factories";
+import { createTestWorld, createSaasSubscription, createStudent, createPayment, createUser, createStaff } from "@/tests/factories";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import { remainingFee } from "@/lib/feeBalance";
 import { collectionAcknowledgementIsCurrent } from "@/services/collectionAcknowledgement.service";
@@ -41,6 +41,7 @@ describe("Fee collections — real PostgreSQL", () => {
         expect(await getOpenPaymentLedger(f.branch.id)).toMatchObject({ dueAmount: 500 });
         expect((await getPaymentPeriodStats(f.branch.id)).paidAmount).toBe(700);
         expect((await testPrisma.payment.findUniqueOrThrow({ where: { id: f.payment.id } })).status).toBe("DUE");
+        await createSaasSubscription({organizationId:f.org.id,plan:"STANDARD"});
         const renewals = await RenewalsService.list(f.user.id, f.branch.id, { days: 7, filter: "OUTSTANDING", search: "", limit: 50 });
         expect(renewals.items.find(p => p.paymentId === f.payment.id)?.amount).toBe(500);
         const second = await FeeCollectionService.collect(f.user.id, f.branch.id, { ...f.input, amount: 500, method: "UPI", idempotencyKey: randomUUID() });

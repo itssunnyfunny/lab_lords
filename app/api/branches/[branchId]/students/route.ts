@@ -144,7 +144,8 @@ export async function GET(
 }
 
 export async function PATCH(
-    req: NextRequest
+    req: NextRequest,
+    { params }: { params: Promise<{ branchId: string }> }
 ) {
     try {
         const user = await getSessionUser();
@@ -155,6 +156,8 @@ export async function PATCH(
         if (!body.id) {
             return NextResponse.json({ error: "Student ID is required" }, { status: 400 });
         }
+
+        await StudentService.assertStudentInBranch(user.id, body.id, (await params).branchId);
 
         // ── Path A: edit profile (name / phone)
         if (

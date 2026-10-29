@@ -92,6 +92,8 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
 
     return (
         <div
+            data-ui-toast
+            data-tone={tone}
             role={tone === "error" ? "alert" : "status"}
             aria-live={tone === "error" ? "assertive" : "polite"}
             className={cn(

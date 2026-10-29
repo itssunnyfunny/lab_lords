@@ -3,7 +3,7 @@ import { ImportPlanService } from "@/importing/services/import-plan.service";
 import { ImportRunExecutor } from "@/importing/services/import-run-executor.service";
 import { ImportRunService } from "@/importing/services/import-run.service";
 import { ImportRunRunner } from "@/importing/services/import-runner.service";
-import { createTestWorld } from "@/tests/factories";
+import { createTestWorld, createSaasSubscription } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 import { freezeTime, restoreTime } from "@/tests/setup/time";
 
@@ -61,7 +61,8 @@ describe("Import V2 commit flow integration", () => {
     });
 
     it("atomically applies imported payment events and success markers, then safely replays them", async () => {
-        const { user, branch } = await createTestWorld({ defaultFee: 1200 });
+        const { user, branch, org } = await createTestWorld({ defaultFee: 1200 });
+        await createSaasSubscription({organizationId: org.id, plan: "STANDARD"});
         const normalizedData = {
             student: {
                 name: "Aarav Sharma",

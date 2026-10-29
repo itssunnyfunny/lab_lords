@@ -780,5 +780,12 @@
   "Standard and Pro include AI reports. All three plans include payments, dues and audit history.",
   "Standard and Pro include AI reports. Review each report against your records before using it. AI does not send messages or confirm payments.",
   "The system can summarize branch health, but it never acts on its own. Your team reviews each report.",
-  "Workspace information entered by you or your team, including organization, branch, student, seat, shift, payment, staff, import, audit, AI report, and retained historical message draft records."
+  "Workspace information entered by you or your team, including organization, branch, student, seat, shift, payment, staff, import, audit, AI report, and retained historical message draft records.",
+  "All three plans cover students, seats and fees. Standard adds imports, attendance, tasks, follow-ups, staff, analytics and AI. Pro adds WhatsApp, subject to setup and rollout availability.",
+  "Basic keeps daily work simple: students, seat allocation and fees, including partial payments and receipts. Your organization’s plan applies to all its branches; each person still needs the relevant permissions.",
+  "Yes. All plans let you add students individually. Spreadsheet import requires Standard or Pro. Review the information and resolve flagged issues before confirming an import.",
+  "Standard and Pro include fee follow-ups, notes and next-contact dates. Basic shows recorded dues, balances and payments. A follow-up date does not change the fee date or renew a seat.",
+  "Attendance requires Standard or Pro. Authorized staff can scan a student's QR code, check their name and confirm check-in or check-out, or record attendance manually. Scanning needs staff supervision and does not verify identity. Attendance does not change fees or seat assignments.",
+  "Standard and Pro let you review spreadsheet imports before adding records. Map the fields, resolve flagged issues and confirm. Check the result afterward and keep your original file.",
+  "Standard and Pro include upcoming-fee views and follow-ups. Save notes and next-contact dates without changing the original fee date."
 ]

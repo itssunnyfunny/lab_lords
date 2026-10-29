@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ImportSessionService } from "@/importing/services/import-session.service";
-import { createTestWorld } from "@/tests/factories";
+import { createTestWorld, createSaasSubscription } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 const mocks = vi.hoisted(() => ({ map: vi.fn() }));
 vi.mock("@/importing/ai/import-column-mapper.ai", () => ({ mapImportColumns: mocks.map }));
@@ -10,7 +10,8 @@ describe("import analysis ownership", () => {
   beforeEach(async () => { vi.restoreAllMocks(); vi.clearAllMocks(); await resetDatabase(); });
   afterAll(disconnectDatabase);
   it.each(["success", "failure"])("a superseded %s cannot publish or release the current attempt", async outcome => {
-    const { user, branch } = await createTestWorld();
+    const { user, branch, org } = await createTestWorld();
+    await createSaasSubscription({organizationId: org.id, plan: "STANDARD"});
     const session = await testPrisma.importSession.create({ data: {
       branchId: branch.id, uploadedByUserId: user.id, sourceType: "PASTED_TABLE", engineVersion: 2,
       goal: "STUDENTS", fileMeta: { columns: ["Name"] },

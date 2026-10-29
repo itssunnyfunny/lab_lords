@@ -17,6 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ bran
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const { branchId } = await params;
         const query = Object.fromEntries(req.nextUrl.searchParams);
+        if (query.recoveryKey) return NextResponse.json(await FeeCollectionService.recover(user.id, branchId, query.recoveryKey), { headers: { "Cache-Control": "private, no-store" } });
         if (query.dues === "true") return NextResponse.json(await FeeCollectionService.dues(user.id, branchId, query.studentId ?? ""), { headers: { "Cache-Control": "private, no-store" } });
         return NextResponse.json(await FeeCollectionService.list(user.id, branchId, query), { headers: { "Cache-Control": "private, no-store" } });
     } catch (error) { return feeCollectionError(error); }

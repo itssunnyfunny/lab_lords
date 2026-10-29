@@ -16,6 +16,7 @@ export class BranchReportService {
         const query = reportQuerySchema.parse(input);
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, query.kind === "fees" ? "view_payments" : "students", tx);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const [user, organization] = await Promise.all([
                 tx.user.findUniqueOrThrow({ where: { id: actorId }, select: { documentLanguage: true } }),
                 tx.organization.findUniqueOrThrow({ where: { id: access.organizationId }, select: { timezone: true } }),

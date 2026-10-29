@@ -148,7 +148,7 @@ describe("branch seat pagination routes", () => {
       }
     );
 
-    const response = await POST(request);
+    const response = await POST(request, context);
 
     expect(response.status).toBe(201);
     expect(mocks.assignSeatToShifts).toHaveBeenCalledWith(
@@ -156,7 +156,8 @@ describe("branch seat pagination routes", () => {
       "seat_1",
       "student_1",
       ["morning", "evening"],
-      "multi_full"
+      "multi_full",
+      "branch_1"
     );
   });
 

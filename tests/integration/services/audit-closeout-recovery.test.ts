@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
-import { createAllocation, createOrg, createPayment, createSeat, createStudent, createTestWorld, createUser } from "@/tests/factories";
+import { createSaasSubscription, createAllocation, createOrg, createPayment, createSeat, createStudent, createTestWorld, createUser } from "@/tests/factories";
 import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { DashboardService } from "@/services/dashboard.service";
 import { BillingHistoryService } from "@/services/billingHistory.service";
@@ -92,7 +92,7 @@ describe("durable allocation changes", () => {
 
 describe("membership correction and preserved history", () => {
     async function termWorld() {
-        const world = await createTestWorld(); const student = await createStudent({ branchId: world.branch.id });
+        const world = await createTestWorld(); await createSaasSubscription({organizationId:world.org.id,plan:"STANDARD"}); const student = await createStudent({ branchId: world.branch.id });
         const term = await DashboardService.saveTerm(world.user.id, world.branch.id, {
             studentId: student.id, label: "Annual reading", startDate: "2026-01-01", endDate: "2026-12-31",
         });

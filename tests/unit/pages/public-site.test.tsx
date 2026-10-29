@@ -45,9 +45,9 @@ describe("complete public marketing journey", () => {
       expect(home).toContain(title);
     }
     expect(features).toContain("full or partial");
-    expect(features).toContain("a follow-up date does not change the fee date");
+    expect(features).toContain("without changing the original fee date");
     expect(getPublicFaqs(["partial-payments"])[0].answer).toContain("does not transfer or verify a bank payment");
-    expect(getPublicFaqs(["attendance"])[0].answer).toContain("not unattended self-check-in or identity verification");
+    expect(getPublicFaqs(["attendance"])[0].answer).toContain("Scanning needs staff supervision and does not verify identity");
     expect(getPublicFaqs(["receipts"])[0].answer).toContain("Historical imported payments do not get a new receipt");
     expect(getPublicFaqs(["language"])[0].answer).toContain("existing AI-written text keep their own language");
   });

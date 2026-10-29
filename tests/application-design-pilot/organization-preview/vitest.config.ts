@@ -1,0 +1,3 @@
+import {defineConfig} from "vitest/config";
+import tsconfigPaths from "vite-tsconfig-paths";
+export default defineConfig({plugins:[tsconfigPaths()],test:{environment:"node",include:["tests/application-design-pilot/organization-preview/model.test.ts","tests/unit/components/WorkspaceSwitcher.test.tsx","tests/unit/lib/workspaceRouting.test.ts","tests/unit/lib/workspacePresentation.test.ts","tests/unit/components/BranchWorkspaceShell.test.tsx","tests/unit/components/WorkspaceClerkAppearance.test.ts","tests/unit/components/RouteBoundaries.test.tsx","tests/unit/lib/contextual-navigation.test.ts"]}});

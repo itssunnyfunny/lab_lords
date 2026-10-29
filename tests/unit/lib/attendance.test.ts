@@ -20,9 +20,10 @@ describe("attendance dates, facts and permissions", () => {
         expect(recordedMinutes("2026-09-11T01:00:00Z", "2026-09-10T01:00:00Z")).toBeNull();
     });
     it("aligns navigation and normal/correction capabilities without payment or analytics access", () => {
-        const access: BranchAccess = { branchId: "b", branchName: "B", organizationId: "o", role: "STAFF", isOwner: false, effectivePlan: "BASIC", entitlements: [],
+        const access: BranchAccess = { branchId: "b", branchName: "B", organizationId: "o", role: "STAFF", isOwner: false, effectivePlan: "STANDARD", entitlements: [],
             permissions: { ...buildStaffPermissions("STAFF", []), view_payments: false, analytics: false } };
         expect(hasBranchPageAccess(access, "attendance")).toBe(true);
+        expect(getBranchCapabilityDecision({...access,effectivePlan:"BASIC"}, "attendanceRecord").allowed).toBe(false);
         expect(getBranchCapabilityDecision(access, "attendanceRecord").allowed).toBe(true);
         expect(getBranchCapabilityDecision(access, "attendanceCorrect").allowed).toBe(false);
         access.permissions.manage_branch = true; expect(getBranchCapabilityDecision(access, "attendanceCorrect").allowed).toBe(true);

@@ -4,7 +4,7 @@ import { reportQuerySchema } from "@/lib/branchReports";
 
 const mocks = vi.hoisted(() => ({ authorize: vi.fn(), user: vi.fn(), organization: vi.fn(), student: vi.fn(), payment: vi.fn(), attendance: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: (callback: (tx: unknown) => unknown) => callback({ user: { findUniqueOrThrow: mocks.user }, organization: { findUniqueOrThrow: mocks.organization }, student: { findMany: mocks.student }, payment: { findMany: mocks.payment }, attendanceMark: { findMany: mocks.attendance } }) } }));
-vi.mock("@/services/accessPolicy.service", () => ({ AccessPolicy: { authorizeAction: mocks.authorize } }));
+vi.mock("@/services/accessPolicy.service", () => ({ AccessPolicy: { authorizeAction: mocks.authorize, authorizeCapability: mocks.authorize } }));
 const query = reportQuerySchema.parse({ from: "2026-09-01", through: "2026-09-27", search: "Aman", status: "DUE" });
 describe("branch reports authorization and projection", () => {
     beforeEach(() => { vi.clearAllMocks(); mocks.authorize.mockResolvedValue({ organizationId: "org" }); mocks.organization.mockResolvedValue({ timezone: "Asia/Kolkata" }); mocks.user.mockResolvedValue({ documentLanguage: "en" }); mocks.payment.mockResolvedValue([]); mocks.student.mockResolvedValue([]); mocks.attendance.mockResolvedValue([]); });

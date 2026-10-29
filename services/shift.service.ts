@@ -140,12 +140,13 @@ export class ShiftService {
         userId: string,
         shiftId: string,
         data: Partial<{ name: string; startTime: string | null; endTime: string | null; price: number; isReserved: boolean }>,
-        transaction?: Prisma.TransactionClient
+        transaction?: Prisma.TransactionClient,
+        expectedBranchId?: string
     ): Promise<Shift> {
-        if (!transaction) return runAllocationTransaction(tx => this.updateShift(userId, shiftId, data, tx));
+        if (!transaction) return runAllocationTransaction(tx => this.updateShift(userId, shiftId, data, tx, expectedBranchId));
         const tx = transaction;
         const shift = await tx.shift.findUnique({ where: { id: shiftId } });
-        if (!shift) throw new Error("Shift not found");
+        if (!shift || (expectedBranchId && shift.branchId !== expectedBranchId)) throw new Error("Shift not found");
         await AccessPolicy.authorizeRecord(userId, shift.branchId, "manage_branch", "Shift", tx, true);
 
         const nameResult = data.name !== undefined ? validateRequiredText(data.name, "Shift name", 50) : null;

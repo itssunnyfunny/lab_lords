@@ -141,6 +141,13 @@ unit/API/integration coverage.
   `manage_whatsapp` does not grant organization-owned sender connection,
   registration, template-sync, assignment, or disconnect authority.
   (`services/staff.service.ts`, staff integration tests)
+- **Known discrepancy—do not rely on:** Broad public “Staff access requires
+  Standard or Pro” copy does not describe downgrade behavior precisely. Existing
+  membership can still authorize permitted core operations on Basic; invitation
+  acceptance, listing/managing staff and premium operations remain gated.
+  `tests/integration/services/basic-workspace.test.ts` records the current
+  behavior. Owner policy/copy resolution is pending; presentation work must not
+  silently revoke existing memberships or grant premium access.
 - **Must preserve—enforced:** Branch detail responses are permission-shaped.
   A caller with only payment access, for example, must not receive unrelated
   student, seat, allocation, or staff data.
@@ -1210,3 +1217,43 @@ Before changing any rule above:
 - **Must preserve—enforced:** BASIC/STANDARD/PRO have unit prices 99/299/499 INR monthly, shared across an organization's billable branches. Standard and Pro receive staff, advanced analytics and AI; only Pro receives WhatsApp entitlement. Provider configuration and operation permission checks remain additional requirements.
 - **Must preserve—enforced:** a catalogue migration must not reinterpret old internal PRO payment evidence as new Pro. The v2 migration refuses a populated billing ledger; see [cutover](billing/three-plan-cutover.md). Paid facts, uncertain provider writes and frozen commercial snapshots are not rewritten.
 - **Service-layer contract—not DB-enforced:** the normal 30-day owner trial is Standard. A recorded replacement grant may raise explicit access but cannot reduce remaining paid/trial access. A selected plan or mandate authorization alone is not paid settlement. Downgrades preserve records and follow the established boundary.
+
+## Narrow Basic workspace — 2026-10-29
+
+- **Must preserve—enforced:** Basic's interactive scope is students, seats/shifts,
+  student fees/receipts and necessary setup/account/subscription access. Attendance,
+  imports, operational dashboard tasks/follow-ups, renewal centres and reports
+  require effective Standard/Pro access through AccessPolicy, independently of
+  navigation. Existing AI, analytics, staff-management and Pro-only WhatsApp
+  entitlement requirements remain. Existing authorized staff memberships are
+  retained on downgrade; their core object permissions still apply.
+- **Must preserve—enforced:** All branches use their organization's effective
+  subscription access, with independent branch status, permissions and writable
+  state. The interface consumes this projection and never grants access. Trial,
+  temporary grant and scheduled boundaries retain their existing semantics.
+- **Must preserve—enforced:** Basic uses the existing operational records and
+  anniversary fee rules. Downgrades do not delete balances, waived amounts,
+  partial collections, receipts or allocation history. Receipt recovery reads
+  require the exact actor, branch and idempotency key, and may succeed read-only;
+  a new collection still rechecks branch writability.
+- **Service-layer contract—not DB-enforced:** UI drafts and frozen requests are
+  identity/branch-bound. Navigation, refresh or workspace selection never
+  automatically dispatches an uncertain mutation. The server remains authoritative
+  for tenant scope, permissions, entitlements and idempotency.
+
+### Basic lifecycle, uncertain admission and receipt display — 2026-10-29
+
+- **Must preserve—enforced:** Basic status changes reuse StudentService and the
+  authorized branch status route with KEEP. Inactivation ends every active
+  allocation while preserving dues and payment evidence. Reactivation preserves
+  history and the existing fee-generation anchors; it does not restore seats.
+- **Service-layer contract—not DB-enforced:** A matching profile is not evidence
+  that an uncertain admission request committed. The legacy admission endpoint
+  has no operation-specific recovery receipt. Basic retains the request's original
+  financial intent and draft for explicit record review, without automatic retry,
+  success notification or continuation to seat assignment. Manual recovery closure
+  is not confirmation of admission and keeps the saved draft.
+- **Must preserve—enforced:** Receipt collection timestamps and fee-period dates
+  use the recorded India calendar on screen and in PDF content, independently of
+  account timezone. Receipt-history labels and void evidence retain this calendar;
+  stored timestamps, financial snapshots and document language are unchanged.

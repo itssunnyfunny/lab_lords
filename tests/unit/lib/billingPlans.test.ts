@@ -20,9 +20,9 @@ describe("three-plan billing catalogue", () => {
     expect(basic.entitlements).toEqual([]);
     expect(standard.entitlements).toEqual(["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS", "AI_ACCESS"]);
     expect(pro.entitlements).toEqual([...standard.entitlements, "WHATSAPP_AUTOMATION"]);
-    expect(basic.capabilities.filter(c => c.included)).toHaveLength(8);
-    expect(standard.capabilities.filter(c => c.included)).toHaveLength(11);
-    expect(pro.capabilities.filter(c => c.included)).toHaveLength(12);
+    expect(basic.capabilities.filter(c => c.included).map(c => c.id)).toEqual(["STUDENT_RECORDS", "SEATS_SHIFTS_ALLOCATIONS", "PAYMENTS_DUES_AUDIT", "RECEIPTS_HISTORY", "DISPLAY_LANGUAGES", "MULTIPLE_BRANCHES"]);
+    expect(standard.capabilities.filter(c => c.included)).toHaveLength(12);
+    expect(pro.capabilities.filter(c => c.included)).toHaveLength(13);
     expect(pro.availabilityNote).toContain("integration setup and rollout availability");
     expect(pro.availabilityNote).toContain("unlimited messages are not included");
   });

@@ -1,0 +1,1453 @@
+{
+  "branch": "codex/basic-workspace",
+  "baseCommit": "22d1d093ae991cd4525a5149a2cdd2470846c60d",
+  "inventoryKind": "Initial PR #287 publication scope at abb3506e; historical snapshot",
+  "sha256ContentRule": "Raw local file bytes at packaging; excludes this manifest itself. These are not Git blob hashes.",
+  "productionOrSharedDataTouched": false,
+  "groups": {
+    "production": 60,
+    "verification": 27,
+    "preview only": 28,
+    "historical reference": 37,
+    "documentation": 8,
+    "fresh connected evidence": 22
+  },
+  "commitGroups": [
+    {
+      "number": 1,
+      "subject": "feat(access): enforce the essential Basic feature scope",
+      "files": 25
+    },
+    {
+      "number": 2,
+      "subject": "fix(basic): preserve tenant scope and fee recovery in core operations",
+      "files": 13
+    },
+    {
+      "number": 3,
+      "subject": "feat(basic): add independent students seats and fees workspace",
+      "files": 17
+    },
+    {
+      "number": 4,
+      "subject": "feat(workspace): select organization access and preserve scoped navigation",
+      "files": 12
+    },
+    {
+      "number": 5,
+      "subject": "feat(billing): explain Basic workspace changes and align plan copy",
+      "files": 10
+    },
+    {
+      "number": 6,
+      "subject": "test(basic): add guarded connected and service regression coverage",
+      "files": 10
+    },
+    {
+      "number": 7,
+      "subject": "test(preview): preserve approved organization-wide Basic journeys",
+      "files": 28
+    },
+    {
+      "number": 8,
+      "subject": "docs(design): preserve historical Basic review evidence",
+      "files": 37
+    },
+    {
+      "number": 9,
+      "subject": "docs(basic): publish integration audit and connected review evidence",
+      "files": 30
+    }
+  ],
+  "excludedLocalArtifacts": [
+    {
+      "path": "tests/application-design-pilot/organization-preview/test-results/organization-preview/results.json",
+      "reason": "Generated browser report; retained locally and ignored."
+    },
+    {
+      "path": "tests/unit/importing/import-question.service.test.ts",
+      "reason": "No content diff from the base; no publication change."
+    },
+    {
+      "path": "tests/unit/importing/import-run-executor.service.test.ts",
+      "reason": "No content diff from the base; no publication change."
+    },
+    {
+      "path": "tests/unit/importing/import-run.service.test.ts",
+      "reason": "No content diff from the base; no publication change."
+    }
+  ],
+  "retiredRecoverable": [
+    "components/basic/BasicNavigation.tsx",
+    "components/basic/BasicOverview.tsx",
+    "styles/basic-workspace.css",
+    "tests/application-design-pilot/basic-workspace.spec.ts",
+    "tests/application-design-pilot/basic-workspace.playwright.config.ts"
+  ],
+  "files": [
+    {
+      "path": "components/whatsapp/ApprovedPaymentReminderReview.tsx",
+      "group": "production",
+      "origin": "preserved checkpoint",
+      "commitGroup": 1,
+      "checkpointSha256": "419be3b88c2413ba250e9a1d63098acddbf46514455c06651e14063bc8bc128a",
+      "sha256": "419be3b88c2413ba250e9a1d63098acddbf46514455c06651e14063bc8bc128a"
+    },
+    {
+      "path": "importing/services/import-evaluation.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "f65f84adb0d7ee005f46b8b2f0fa87b37c5007c6e84ba9268ad107fc35909b8a"
+    },
+    {
+      "path": "importing/services/import-plan.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "ebcd3fa114aeaf5f71c631e5d8c2dc925d3fe311590ff17d9afdf263ebdbe4e7"
+    },
+    {
+      "path": "importing/services/import-question.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "8644e97b86fafe3904130ab149d191132197f852150970565e92a69974dd86b0"
+    },
+    {
+      "path": "importing/services/import-recipe.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "d3f5a74dc1b730b3146508adc2551b5d0795a43c21f58fe13aa7968cbe28af7c"
+    },
+    {
+      "path": "importing/services/import-run-executor.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "4ce585a39332f5c761329a2bf88e40503e2dccab53c02be29eca0b557b1b662c"
+    },
+    {
+      "path": "importing/services/import-run.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "70e23b8ccf2a93cfec914e2fb8a28d9372b4e31f74a30c5f4a6fc2db534c9c46"
+    },
+    {
+      "path": "importing/services/import-session.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "39dd63fbc680fff31a775933c2c8d04710beca569918977d5d0e5dacb66f2aba"
+    },
+    {
+      "path": "importing/services/import-template.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "578e72f90ee6943dabd9fe3cdb2d780e0b20ec4020ece00d8be134ee18a8cfdb"
+    },
+    {
+      "path": "importing/services/import-wiring.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "b1d3399e69e515d0a60f3fc6fd426ae6a277d53f3700b0b0d3f91ccbe67d3bcd"
+    },
+    {
+      "path": "lib/billingPlans.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "43320be481334c3d9bfa329ad951a35281d1ddda1ae24c94544d509ddaf2b863"
+    },
+    {
+      "path": "lib/branchCapabilities.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "549a139a307333956c729d719350ed5b06ff2a0038a6381145a3c36f2425de1c"
+    },
+    {
+      "path": "services/accessPolicy.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "5326557ec83655edbce18deef4d2333c36240df783f5aa6ffa2fc7d9897c1a15"
+    },
+    {
+      "path": "services/branchReport.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "24d97ddcf6b8f153b23d2afbe6754d2c46b0854e07d1b078f1a291820599a9d8"
+    },
+    {
+      "path": "services/renewals.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "e7695fd932e3468287bc74ce4f3ff3294a340831caf7e2e610b8fe1dee8d7bd7"
+    },
+    {
+      "path": "tests/helpers/accessPolicyCallerMock.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "28a964ca0670e46a517d64a7b1c8ae5b5f089e536e2f1772e1c06f97a524aaf8"
+    },
+    {
+      "path": "tests/integration/importing/import-analysis-ownership.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "6d0c4ffd0a6941cc26adafb269173d404b841b4874478f9f30234981e897ecd9"
+    },
+    {
+      "path": "tests/integration/importing/import-commit-flow.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "b88bcee73e70fbe9eb31daeac27721b04841aa688b1c3c09d2dc1384ed4efe65"
+    },
+    {
+      "path": "tests/integration/services/attendance.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "484a41fb9f44ee90689bc3b7fcfa99b9bba9c15e6feb57b95c182c15618f7a59"
+    },
+    {
+      "path": "tests/integration/services/audit-closeout-recovery.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "2b894289ba682631fcb6da9dcdfdefdf8dbb52f7e0e8e208f7ca71a46652fc1b"
+    },
+    {
+      "path": "tests/integration/services/renewals.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "3d3a8f476b5d0239b8b45301f49e7b558dd1ed3364d7beb29cc7d5df8cfd88b4"
+    },
+    {
+      "path": "tests/unit/lib/attendance.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "5bcfb98923253afe0c78c06c33f4d939076af5a498ffc685f19bbe91a6276ae0"
+    },
+    {
+      "path": "tests/unit/lib/billingPlans.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "8654d64208ccef21d57b3f9fb917ac466a6e7626a9142c888dbb88699126d2d6"
+    },
+    {
+      "path": "tests/unit/services/branch-report-service.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "3c54fccffcac9ce471edb560a4f4e9143be7e4845ba8c766d3fd6469085ddf69"
+    },
+    {
+      "path": "tests/unit/services/dashboard-setup-pagination.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 1,
+      "sha256": "e280a379a2b91493d87db852ea19a99f2a7d551345ad45965cfa27ca0abdda3a"
+    },
+    {
+      "path": "app/api/branches/[branchId]/collections/route.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "a5a4be9356eecdc5433da4ccf93df7b2bf9623deb9e904da3de1f13cc14ccbcb"
+    },
+    {
+      "path": "app/api/branches/[branchId]/seat-allocations/route.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "2aa1cf2e8f46644391d733bc470fd5f1260fd1821f4e0b71eb2406befb7e6fb9"
+    },
+    {
+      "path": "app/api/branches/[branchId]/shifts/[shiftId]/route.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "9fb0740755ef77bc6890f2fcb3ebe44d1251da11ff410ee2de67e571db9cb389"
+    },
+    {
+      "path": "app/api/branches/[branchId]/students/route.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "10fb3e9bb7409771ecef0df804c9ea037e625ee71edee5e3d0de8687aa68bea0"
+    },
+    {
+      "path": "services/dashboard.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "f873c541f7aafdbbd7e596ba6b3add040f6f2701e86d707c197e3915f229a95a"
+    },
+    {
+      "path": "services/feeCollection.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "c1cde878bb339a71d02103e15f72a3f29526ed94f51abd005337bccde0a5ff39"
+    },
+    {
+      "path": "services/seatAllocation.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "6d4ff161b79442dc4354445b28aa5c9f20c6c96dd79d63d12a8efcbce156cf46"
+    },
+    {
+      "path": "services/shift.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "e39cd818c916aaf3d8bfe10992a17c8b0f817178afbfc571838a6ce7810a41c2"
+    },
+    {
+      "path": "services/student.service.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "f41db03b940bf81b64419923ed8e4bf066b2ac7944a8c51bc52bc62bc8f33842"
+    },
+    {
+      "path": "tests/integration/services/fee-collection.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "64bb7dc4c4edb99482ad5a0f1a51a42b435aa74e9ea88ed8b5887344b02ca662"
+    },
+    {
+      "path": "tests/unit/api/branch-seat-pagination.route.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "ef476b0562939628f4341ebed156e708e2afd94660296f0bcf2fd5fd3d012ff5"
+    },
+    {
+      "path": "tests/unit/api/branch-students.route.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "1c95c71de72f048738ef42d6065ef07f4cb3bf5e92bda2429eed4b7b861c0499"
+    },
+    {
+      "path": "app/api/branches/[branchId]/basic-overview/route.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 2,
+      "sha256": "9a6abe0204cb352a62cab8c59226bf172c4130ec2d397b3e9410170579b95351"
+    },
+    {
+      "path": "components/layout/WorkspaceSwitcher.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "cb598d7879659f9cca5b7150bc6c4105e38817de0d46c47f8bb673ae7a9d26a7"
+    },
+    {
+      "path": "components/ui/Toast.tsx",
+      "group": "production",
+      "origin": "preserved checkpoint",
+      "commitGroup": 3,
+      "checkpointSha256": "9e01bcdfd9385df4f551bb6d43ed8111c936777b0ccc99a39b50c858bb15b968",
+      "sha256": "9e01bcdfd9385df4f551bb6d43ed8111c936777b0ccc99a39b50c858bb15b968"
+    },
+    {
+      "path": "lib/i18n/index.ts",
+      "group": "production",
+      "origin": "updated checkpoint",
+      "commitGroup": 3,
+      "checkpointSha256": "eb34fa1a103136569bb27f87a991832ebff95dfa8b085d278a3ca316b8348905",
+      "sha256": "683c0ae8293ef04db5b3651c5e2acc9f5d0845cfb32760808c7f5d37848d9978"
+    },
+    {
+      "path": "components/basic/BasicDialog.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "73dd80b5269978d3b74b570976afed48b21f18fba6fecb0a3e98a6c8318e2a55"
+    },
+    {
+      "path": "components/basic/BasicFees.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "8e61ece03016e940ecc9c70714d58b8f7d6689a951ce7b175c0c4d4e96481fc9"
+    },
+    {
+      "path": "components/basic/BasicSeats.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "1d7d1143ed472ca7c635252470d65e1d3ab8ca76234c0cc72a92293a00482c4a"
+    },
+    {
+      "path": "components/basic/BasicSetup.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "1fdf7768cb457be8bd2634c9ae38705d507b0828623a17712aa7126b4deaa39d"
+    },
+    {
+      "path": "components/basic/BasicStudentForm.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "b6a550ec866865bee929d4a5078fd1ff956b0cead1134bbfafb93605cdeeb031"
+    },
+    {
+      "path": "components/basic/BasicWorkspace.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "4b8cbf884ceb2ed9032640b42d8d86e39913904f440839173ae9c2d8c98d4fe8"
+    },
+    {
+      "path": "components/basic/data.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "3360452d9ecc082db0fb43ee7730bd50ef5f5cf5fc58b18fbeae9226fe7c5311"
+    },
+    {
+      "path": "components/basic/useBasicNavigationGuard.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "9c266fc95e2f5a2b092d291049bc80f681a2dc706fa95070d6b9fa348d85a46b"
+    },
+    {
+      "path": "components/basic/useBasicOperation.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "4bb7b3d8b923b97d522916d07380a5776f549765cb2864e7eb9197b2f7035276"
+    },
+    {
+      "path": "lib/basicNavigation.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "d3ac901e7f7785c7090ecd9393f989f17d90bb4e54cd8e5196498b1802e0349b"
+    },
+    {
+      "path": "lib/i18n/basicProduct.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "fe90a479742223231616f8b7c84f513140fa275e482dd8ed52ff2942f0c34c57"
+    },
+    {
+      "path": "lib/i18n/basicWorkspace.ts",
+      "group": "production",
+      "origin": "preserved checkpoint",
+      "commitGroup": 3,
+      "checkpointSha256": "95419f6940442b94462d98513812e58bc14c2940a941f545e1ee80d93b1bc767",
+      "sha256": "95419f6940442b94462d98513812e58bc14c2940a941f545e1ee80d93b1bc767"
+    },
+    {
+      "path": "styles/basic-product.css",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "2c5c645599664e13633073fa3da9aaa83c6ec4bbc62a131e8ff7b38e55a171a3"
+    },
+    {
+      "path": "tests/unit/lib/basicNavigation.test.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 3,
+      "sha256": "5f0b1e772b43e2b72fdf75ceb36b605dd20e51d15a1774289947780d35a1227d"
+    },
+    {
+      "path": "app/org/[orgId]/page.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 4,
+      "sha256": "3d94bde5de611546a92cd6a4b3c4aa9852e85a2f35b3ebf0fa19be0bf907b039"
+    },
+    {
+      "path": "components/billing/BillingExperienceProvider.tsx",
+      "group": "production",
+      "origin": "preserved checkpoint",
+      "commitGroup": 4,
+      "checkpointSha256": "68863cbfda2a94825f459020bae9b6934e4de3eb2d810f44a5454857ed77eccd",
+      "sha256": "68863cbfda2a94825f459020bae9b6934e4de3eb2d810f44a5454857ed77eccd"
+    },
+    {
+      "path": "components/layout/BranchWorkspaceShell.tsx",
+      "group": "production",
+      "origin": "updated checkpoint",
+      "commitGroup": 4,
+      "checkpointSha256": "60948f42675b4808983c9d027e2f639c436adb40c7616d1fa4ad0da566599d7f",
+      "sha256": "340b79b175c2bf404b505da2fa42e7521aafca01fb51c57322fc4327208beee1"
+    },
+    {
+      "path": "hooks/useBranchAccess.ts",
+      "group": "production",
+      "origin": "preserved checkpoint",
+      "commitGroup": 4,
+      "checkpointSha256": "6020884980e532e22cb811df148c593de2f92d84ebeb140d6fc6c52bb7e3d3af",
+      "sha256": "6020884980e532e22cb811df148c593de2f92d84ebeb140d6fc6c52bb7e3d3af"
+    },
+    {
+      "path": "hooks/useWorkspaceReturnHref.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 4,
+      "sha256": "4008892106073d2f0f8ff4d8d3d106d30f31abdcc79c916eaab1647472bef7e4"
+    },
+    {
+      "path": "tests/unit/components/BranchWorkspaceShell.test.tsx",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 4,
+      "sha256": "01c78b4abd3246dd0bcd1c79de9dd9ca94b610a546d3267c3dc78ff335564184"
+    },
+    {
+      "path": "app/branch/[branchId]/fees/page.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 4,
+      "sha256": "274ccf8198f96e97101add9b54a16dfdfdd89bbb9af7ef0456d03455526b5abe"
+    },
+    {
+      "path": "app/branch/[branchId]/setup/page.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 4,
+      "sha256": "f447cdb453e92fa50403d7776eff781e06bb1d54f0378024a8e95d080d53b83b"
+    },
+    {
+      "path": "app/branch/[branchId]/students/[studentId]/page.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 4,
+      "sha256": "2060dde6d1dc423c06b11e94f45aca49bc3ef6411a71253ab21e9bbbbc5de3cd"
+    },
+    {
+      "path": "components/layout/BranchAccessProvider.tsx",
+      "group": "production",
+      "origin": "preserved checkpoint",
+      "commitGroup": 4,
+      "checkpointSha256": "76066e4d548218458f4fced755331359accadfc8ff192fa45b11d5cb86da442f",
+      "sha256": "76066e4d548218458f4fced755331359accadfc8ff192fa45b11d5cb86da442f"
+    },
+    {
+      "path": "lib/workspacePresentation.ts",
+      "group": "production",
+      "origin": "updated checkpoint",
+      "commitGroup": 4,
+      "checkpointSha256": "aff34c2985129e138c08682fb179a61a3eb733e20f885b7013f2ef3d924526ed",
+      "sha256": "829db9980180abcc3d70c662083a54ac86e84b3c7f3ab072301d9db221520de8"
+    },
+    {
+      "path": "tests/unit/lib/workspacePresentation.test.ts",
+      "group": "verification",
+      "origin": "preserved checkpoint",
+      "commitGroup": 4,
+      "checkpointSha256": "adde33bafc7115c0051d717a72859c26eaa5a989430b10f4ba6370dda79f7921",
+      "sha256": "adde33bafc7115c0051d717a72859c26eaa5a989430b10f4ba6370dda79f7921"
+    },
+    {
+      "path": "app/features/page.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 5,
+      "sha256": "37bfa17f5542b2937d01d850a4444a105d8b2b233d86e297e869e1d61af453a1"
+    },
+    {
+      "path": "app/pricing/page.tsx",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 5,
+      "sha256": "fb79c55fce691060ce70ff3bbd5aa8f65e4d12eccc975dec3c82580f467e4b19"
+    },
+    {
+      "path": "components/billing/CheckoutConfirmationDialog.tsx",
+      "group": "production",
+      "origin": "preserved checkpoint",
+      "commitGroup": 5,
+      "checkpointSha256": "18344d1b639b978b668e07e24653b38a4ff1566e3551fbaa4b1c895678162c3a",
+      "sha256": "18344d1b639b978b668e07e24653b38a4ff1566e3551fbaa4b1c895678162c3a"
+    },
+    {
+      "path": "components/billing/OrganizationBillingContent.tsx",
+      "group": "production",
+      "origin": "updated checkpoint",
+      "commitGroup": 5,
+      "checkpointSha256": "bb236d327f1e1a6886aa4956b7eaef67822b34e4b5f7275712659875eec25f72",
+      "sha256": "6ffb3849628ac479ff04c150bf11034d1a7c6ad565be2b18b8f65d0a190928bd"
+    },
+    {
+      "path": "lib/marketingCopy.json",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 5,
+      "sha256": "3feed7e44ae21d5a2a16ec5d6bf00a9370ef35c3d8910d01e0468d18fc8256f4"
+    },
+    {
+      "path": "lib/public-i18n/catalog.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 5,
+      "sha256": "a7e0a3905681feb9e98bb7d36a8b6f3de68b668e7cf3de42b7d89dfc2c12f0b5"
+    },
+    {
+      "path": "lib/public-i18n/required-keys.json",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 5,
+      "sha256": "266199ffbabcf4bcff44501c25b30b5b3759b1fc63de40d9d6439f96106f9513"
+    },
+    {
+      "path": "lib/publicFaqs.ts",
+      "group": "production",
+      "origin": "integration addition",
+      "commitGroup": 5,
+      "sha256": "048879c8043683d34ceec2e4ddafab3489e72bb37079578b57d73107b0eedde1"
+    },
+    {
+      "path": "tests/unit/pages/public-site.test.tsx",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 5,
+      "sha256": "4bc9e66e19ddcbcf5f2c209bfbd372f38b2a7da3b37b25f0e4313f223719c12f"
+    },
+    {
+      "path": "components/billing/WorkspacePreviews.tsx",
+      "group": "production",
+      "origin": "updated checkpoint",
+      "commitGroup": 5,
+      "checkpointSha256": "5e8cc7c157ebf07e482bba2978cd3193b848ee12b0f0ae49a4de2f3ec8647075",
+      "sha256": "2bc0dd036e8652526177c8021f15dcc90f9466a2b4827a0f21d02ff1d520e414"
+    },
+    {
+      "path": "tests/billing-verification/run-integration.mjs",
+      "group": "verification",
+      "origin": "updated checkpoint",
+      "commitGroup": 6,
+      "checkpointSha256": "05bfc55e95e79e74c6a0c741acc626c73a7c0cb2b1e5daa3a372f75fc427e150",
+      "sha256": "b5a0059edda5b87db144f7fe4ab2c80cb42f7e907ae0d8ab405699caaf33f692"
+    },
+    {
+      "path": "tests/dashboard-connected/refresh-auth.mjs",
+      "group": "verification",
+      "origin": "preserved checkpoint",
+      "commitGroup": 6,
+      "checkpointSha256": "98ec4f97fd9536bad0aca2f2679c85ba0b3d3125cf22eff4431433755fcd6421",
+      "sha256": "98ec4f97fd9536bad0aca2f2679c85ba0b3d3125cf22eff4431433755fcd6421"
+    },
+    {
+      "path": "tests/dashboard-connected/server.mjs",
+      "group": "verification",
+      "origin": "preserved checkpoint",
+      "commitGroup": 6,
+      "checkpointSha256": "ecddb46c7dda60faf8c2fb0aa25479c58319242e58b70d9bed1ec6db89fc6601",
+      "sha256": "ecddb46c7dda60faf8c2fb0aa25479c58319242e58b70d9bed1ec6db89fc6601"
+    },
+    {
+      "path": "tests/dashboard-connected/basic-clerk.mjs",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 6,
+      "sha256": "5fa3b4d1dc038add354fba27af868a3d19172064541dd06e270f231884d755f7"
+    },
+    {
+      "path": "tests/dashboard-connected/basic-local.mjs",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 6,
+      "sha256": "9291a6e0e89ad04f88627d6ab26937394c24232534a4edee83b9db07bbc5ae2c"
+    },
+    {
+      "path": "tests/dashboard-connected/basic-seed.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 6,
+      "sha256": "12add25645befaac36bbb2be9439d75ffa38504ea5dd341d132232a0ab4c93c9"
+    },
+    {
+      "path": "tests/dashboard-connected/basic-workspace.playwright.config.ts",
+      "group": "verification",
+      "origin": "updated checkpoint",
+      "commitGroup": 6,
+      "checkpointSha256": "b497c25e60ad466842155fae7f2f9db1f3c9835302d936442af637ef49e832c4",
+      "sha256": "a291bd45d6871b6347e628349f4b808d9123284d6fb5ca0a6a8a7a1e617a4c3f"
+    },
+    {
+      "path": "tests/dashboard-connected/basic-workspace.spec.ts",
+      "group": "verification",
+      "origin": "updated checkpoint",
+      "commitGroup": 6,
+      "checkpointSha256": "91a6b905be11de221e94d841970c7b1312e26123f1fdb5713dbc2d8182f2a7bf",
+      "sha256": "dde22bb91b2c2ae5ee90c97cf3d3e81148d84d861a9c9846a8d226c605470a15"
+    },
+    {
+      "path": "tests/dashboard-connected/redact-reporter.ts",
+      "group": "verification",
+      "origin": "integration addition",
+      "commitGroup": 6,
+      "sha256": "18f7727767df2008aaf0c9b7e84d5c7e2ee9de2685a2e91d6dcd20a731359b7c"
+    },
+    {
+      "path": "tests/integration/services/basic-workspace.test.ts",
+      "group": "verification",
+      "origin": "updated checkpoint",
+      "commitGroup": 6,
+      "checkpointSha256": "43ae959a8167a167cf55ff7d064033bb832c2e3111c6ef4ec2440e86ef2f2fa6",
+      "sha256": "957ff28835abfcf6a68a8c94ee6e3ba5e1cd9ad855b80747901f925b014b91a8"
+    },
+    {
+      "path": "tests/application-design-pilot/README.md",
+      "group": "preview only",
+      "origin": "updated checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "d3a9f96a9e02960b32e32e0be39f61ae8bbf4d55da02663b3bd178c6649b29cd",
+      "sha256": "e363c76e474222163204dd89e8df9339f64a297de0d2fecd30248afd9c3a5eb9"
+    },
+    {
+      "path": "tests/application-design-pilot/clerk-nextjs.tsx",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "ea2982bb6ce6728e5711a546dae84733937f77d3109278ec5be4c46b69f6ebf3",
+      "sha256": "ea2982bb6ce6728e5711a546dae84733937f77d3109278ec5be4c46b69f6ebf3"
+    },
+    {
+      "path": "tests/application-design-pilot/main.tsx",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "8a8e906e4ab5626b32030d0bce42db0148f2f104e7c32bf61657451e344fbcee",
+      "sha256": "8a8e906e4ab5626b32030d0bce42db0148f2f104e7c32bf61657451e344fbcee"
+    },
+    {
+      "path": "tests/application-design-pilot/next-link.tsx",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "4aeab704179584bff77bf569e44272e7e39a975ac771cbf0c246a8e3ce8184f1",
+      "sha256": "4aeab704179584bff77bf569e44272e7e39a975ac771cbf0c246a8e3ce8184f1"
+    },
+    {
+      "path": "tests/application-design-pilot/next-navigation.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "2bc5fd8d92748ca2328ced9e8e49b8868b537e0a9af7843ffcdaf8a5cdbc9655",
+      "sha256": "2bc5fd8d92748ca2328ced9e8e49b8868b537e0a9af7843ffcdaf8a5cdbc9655"
+    },
+    {
+      "path": "tests/application-design-pilot/synthetic-api.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "6f133102299adf4ca13a593b0e5f0725030b25e05d3bf426fc3e8f4b8557d0bc",
+      "sha256": "6f133102299adf4ca13a593b0e5f0725030b25e05d3bf426fc3e8f4b8557d0bc"
+    },
+    {
+      "path": "tests/application-design-pilot/vite.config.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "a3c19cd2466423ea30ec3a8abc375ba1e43409da328931a522f8f1f4639cf198",
+      "sha256": "a3c19cd2466423ea30ec3a8abc375ba1e43409da328931a522f8f1f4639cf198"
+    },
+    {
+      "path": "tests/application-design-pilot/basic-prototype/BasicPrototype.tsx",
+      "group": "preview only",
+      "origin": "updated checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "f74e8a2fd9ac0e19353661f5afaafb63989b972e02266b8b36d44e4b318da110",
+      "sha256": "5af38359f836f956f1b83201b6dc90dc41713bc753fa1f6997324c7154821056"
+    },
+    {
+      "path": "tests/application-design-pilot/basic-prototype/Dialogs.tsx",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "343c63477ff952704ea17806b2c9b2f78e391028e437212902f8fde498d15fed",
+      "sha256": "343c63477ff952704ea17806b2c9b2f78e391028e437212902f8fde498d15fed"
+    },
+    {
+      "path": "tests/application-design-pilot/basic-prototype/SeatMap.tsx",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "d483eef62bda046b8dd0d0b83ba4b4109d90552e00dce563c36b3bdfd690bbcd",
+      "sha256": "d483eef62bda046b8dd0d0b83ba4b4109d90552e00dce563c36b3bdfd690bbcd"
+    },
+    {
+      "path": "tests/application-design-pilot/basic-prototype/basic-prototype.css",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "936eb98a448387c8292b34b0e2c2c0206929b5ed4866a0630777cb0fd2ba0b4a",
+      "sha256": "936eb98a448387c8292b34b0e2c2c0206929b5ed4866a0630777cb0fd2ba0b4a"
+    },
+    {
+      "path": "tests/application-design-pilot/basic-prototype/sample.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "8e9ffd29293b2a4982029b4b6245fcb35de2a0aa794fb5485a2f01cd171e3011",
+      "sha256": "8e9ffd29293b2a4982029b4b6245fcb35de2a0aa794fb5485a2f01cd171e3011"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/OrganizationPreview.tsx",
+      "group": "preview only",
+      "origin": "updated checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "5d12d6292c77157991b67a67f77a618200f52c302b2aebaef9bffb2b09813579",
+      "sha256": "d4572882e252f69f6820bd8de78e3f554f4b1a544e40988602d9c8d2c1becf5b"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/PreviewNavigation.tsx",
+      "group": "preview only",
+      "origin": "updated checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "0c64fe87b1532e98e5b899a65823471756c29e07ea9dbc1bddb4aa263137e6c1",
+      "sha256": "33650e3aa575cbf2e7a89413be4bf5ecbf98083d9e6e54b1c4f134b3e8944bf8"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/copy.tsx",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "3294faa8d89387db2f9f8e1ce91333a4efb50fec102a5c72f8bc135c3a9d346f",
+      "sha256": "3294faa8d89387db2f9f8e1ce91333a4efb50fec102a5c72f8bc135c3a9d346f"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/journey.spec.ts",
+      "group": "preview only",
+      "origin": "updated checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "af2557676957d4946f20150779abeb1b61f7c3cbe72aea339b2c86173dba76a1",
+      "sha256": "2dc66abcbda763a7f5de74cb20fb9667dc2d871206f6820ad703e51b8ae3065f"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/model.test.ts",
+      "group": "preview only",
+      "origin": "updated checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "97e3d3da72d396074bbce2d425488ff49256bd08ed54c74b6a9aa9c0c70363b0",
+      "sha256": "21d0afa7759f8a99ed883da9f21175d96c664f66aaf1bef8a699959eb2619354"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/model.ts",
+      "group": "preview only",
+      "origin": "updated checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "069a3053ed4d3cd80cd47c06f0d5acb9ac5908e462f8eff3d473444723186b20",
+      "sha256": "12a0a4f8895e8a3d8d75fefcc9d60807817c253ecc38df0f999b58901ba83394"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/navigation.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "1ca876e96e5b88905aee4c7c3452a6e83ccc4f1965099e32435600b334075bf4",
+      "sha256": "1ca876e96e5b88905aee4c7c3452a6e83ccc4f1965099e32435600b334075bf4"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/organization-preview.css",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "9bd1619a35eac969948aa32d577145252e1cf29444f15190604bc2fcdf0fdd23",
+      "sha256": "9bd1619a35eac969948aa32d577145252e1cf29444f15190604bc2fcdf0fdd23"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/playwright.config.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "fd8cd26cd0c94d6692a3fc82b47f0a5cf50e016b9ec180848e2be94480456e09",
+      "sha256": "fd8cd26cd0c94d6692a3fc82b47f0a5cf50e016b9ec180848e2be94480456e09"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/store.ts",
+      "group": "preview only",
+      "origin": "updated checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "628fc6992e6fc8cd8fac60a9746f615bc393ac1c72674f7705e918ff780497b0",
+      "sha256": "90d28d5c6c7d08d25565b56dc204db672c4952c3b19db472158e249d1f111ed2"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/transport.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "046809a238650dccc8567f4cc159d958a1cf98b3043c5481e2368256cb9d110e",
+      "sha256": "046809a238650dccc8567f4cc159d958a1cf98b3043c5481e2368256cb9d110e"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/vitest.config.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "99b83714a7314693dfc26594a61d48ad2a0df449217d76c9f3c39609068ef1f0",
+      "sha256": "99b83714a7314693dfc26594a61d48ad2a0df449217d76c9f3c39609068ef1f0"
+    },
+    {
+      "path": "tests/application-design-pilot/preview-location.ts",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "13b1abf34ad43917ba202a40a4711ebb6d38766d960a0fadcc90b7b20c508a75",
+      "sha256": "13b1abf34ad43917ba202a40a4711ebb6d38766d960a0fadcc90b7b20c508a75"
+    },
+    {
+      "path": "tests/application-design-pilot/reference-basic.html",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "702570b7924a7319e9fe121023e1ddde09921e50a22e2ad9e6908c41fecbb234",
+      "sha256": "702570b7924a7319e9fe121023e1ddde09921e50a22e2ad9e6908c41fecbb234"
+    },
+    {
+      "path": "tests/application-design-pilot/reference-basic.tsx",
+      "group": "preview only",
+      "origin": "preserved checkpoint",
+      "commitGroup": 7,
+      "checkpointSha256": "b1784f815d4ea1ff00f01b6dd29ac9c96b86c20cc1e8b85e9085ac9cd9727d9a",
+      "sha256": "b1784f815d4ea1ff00f01b6dd29ac9c96b86c20cc1e8b85e9085ac9cd9727d9a"
+    },
+    {
+      "path": "tests/application-design-pilot/organization-preview/.gitignore",
+      "group": "preview only",
+      "origin": "publication packaging",
+      "commitGroup": 7,
+      "sha256": "4633cac70630dac391aea6904cc6eb4d219552c0ebf785b990b7ebae3840807a"
+    },
+    {
+      "path": "docs/billing/branch-plan-compatibility.md",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "a945496e32d0b10c1da96520d6e74651b7a4b01d54cb3f53cedfe045e831d49c",
+      "sha256": "a945496e32d0b10c1da96520d6e74651b7a4b01d54cb3f53cedfe045e831d49c"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/desktop-add-student.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "520e9c2b2276a7d0349ce04cb0d72054e79784d6d7a79473aaefd215b86bf695",
+      "sha256": "520e9c2b2276a7d0349ce04cb0d72054e79784d6d7a79473aaefd215b86bf695"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/desktop-fees.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "3b0aa62f8259658d1bbe379b3a76931fb74ab62bf8def98eb88d5539ea5f25dd",
+      "sha256": "3b0aa62f8259658d1bbe379b3a76931fb74ab62bf8def98eb88d5539ea5f25dd"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/desktop-overview.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "8a4cf818199daa171e50627cc7c8b432fec952bdc01a914052eaf788e9660b70",
+      "sha256": "8a4cf818199daa171e50627cc7c8b432fec952bdc01a914052eaf788e9660b70"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/desktop-seat-assignment.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "ead6e68b24ea53c0577348149d395cf7a1e4081d41ecea6d1d61af93d1f15886",
+      "sha256": "ead6e68b24ea53c0577348149d395cf7a1e4081d41ecea6d1d61af93d1f15886"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/desktop-student-detail.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "adf88076ca6975d9f07bec5ace5d12c1f64ecca6aca248b96784816fc96f07c6",
+      "sha256": "adf88076ca6975d9f07bec5ace5d12c1f64ecca6aca248b96784816fc96f07c6"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/mobile-add-student.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "8f6e5ec5cbaaf1eb5938826d25fb550191c1eac07bfb99cbc953f39d30680eaf",
+      "sha256": "8f6e5ec5cbaaf1eb5938826d25fb550191c1eac07bfb99cbc953f39d30680eaf"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/mobile-receipt.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "ef5a32ffe449564bbf178f70c77ae9150cd7ddf4fa668c011491c06cb7f70ade",
+      "sha256": "ef5a32ffe449564bbf178f70c77ae9150cd7ddf4fa668c011491c06cb7f70ade"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/mobile-record-fee.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "89f871c23d9c0f3c58dc80dba1e81c659bf33964b4db91c3196de84dc5241dc5",
+      "sha256": "89f871c23d9c0f3c58dc80dba1e81c659bf33964b4db91c3196de84dc5241dc5"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-evidence/mobile-students.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "6c17ae9e366d264b7e76e900696b8bf828a88952d938b7d9b362a672111a262d",
+      "sha256": "6c17ae9e366d264b7e76e900696b8bf828a88952d938b7d9b362a672111a262d"
+    },
+    {
+      "path": "docs/redesign/basic-prototype-review.md",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "d75f2242fc7cb788e0e8570e31fdb2857be5a54da452fd10b17e23ef8d9280b1",
+      "sha256": "d75f2242fc7cb788e0e8570e31fdb2857be5a54da452fd10b17e23ef8d9280b1"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-admission.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "29184539c293c3e2db3e1dfaad40fafe26476a79d3bbac64e032c4eb394dfc13",
+      "sha256": "29184539c293c3e2db3e1dfaad40fafe26476a79d3bbac64e032c4eb394dfc13"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-connected-allocations.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "fa1c598bbcf559e93b14662a8bfa0edacd8ef7c28fbee71a3f0b9f3ead564fd7",
+      "sha256": "fa1c598bbcf559e93b14662a8bfa0edacd8ef7c28fbee71a3f0b9f3ead564fd7"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-connected-receipt.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "7b099d1a9838e71d7b8bd6baad3ee17124461b046df7529f172de7d19dfad802",
+      "sha256": "7b099d1a9838e71d7b8bd6baad3ee17124461b046df7529f172de7d19dfad802"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-connected-setup.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "75731c6c9c2defda46a88b411cc699ec8098b85ccc23c015b3855278f829db57",
+      "sha256": "75731c6c9c2defda46a88b411cc699ec8098b85ccc23c015b3855278f829db57"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-desktop.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "90da7b7dea6e6d87031158dc75955f070659b15f8296a61ce8a526608044e8ee",
+      "sha256": "90da7b7dea6e6d87031158dc75955f070659b15f8296a61ce8a526608044e8ee"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-mobile-en.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "ea5eb96b3d63162486f6cbd0a05f082604b571c9b2a67629c870f1c842dbe2c3",
+      "sha256": "ea5eb96b3d63162486f6cbd0a05f082604b571c9b2a67629c870f1c842dbe2c3"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-mobile-hi.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "bb0c55ae1873af480dae50993e8aa15bba9e4a0c21e2b44a52d011908fbf8622",
+      "sha256": "bb0c55ae1873af480dae50993e8aa15bba9e4a0c21e2b44a52d011908fbf8622"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-mobile-hinglish.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "606b7984ea3ddfa15f24119047b3ab971c189618c6d200bd8eb3573cf4becfbd",
+      "sha256": "606b7984ea3ddfa15f24119047b3ab971c189618c6d200bd8eb3573cf4becfbd"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/basic-students.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "3ef000994d1ed9d233f198593626ba51f4c37858d52595dd2d808e16ed0cd84c",
+      "sha256": "3ef000994d1ed9d233f198593626ba51f4c37858d52595dd2d808e16ed0cd84c"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/billing-previews.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "87f78e5b0b1e9ab09dfd9c808a865ba96bab9cb3029a6133775731083f6ca562",
+      "sha256": "87f78e5b0b1e9ab09dfd9c808a865ba96bab9cb3029a6133775731083f6ca562"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/full-after.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "77af1ae15cd362bf58b3f0789e7a600509d24ee2b2f4e82542583833690beaac",
+      "sha256": "77af1ae15cd362bf58b3f0789e7a600509d24ee2b2f4e82542583833690beaac"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/full-before.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "77af1ae15cd362bf58b3f0789e7a600509d24ee2b2f4e82542583833690beaac",
+      "sha256": "77af1ae15cd362bf58b3f0789e7a600509d24ee2b2f4e82542583833690beaac"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/full-students-after.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "c2ff3a5d7ee9fa37ea1d6802a3bb536c874e3848188562d21da14e2f5fcbe9ce",
+      "sha256": "c2ff3a5d7ee9fa37ea1d6802a3bb536c874e3848188562d21da14e2f5fcbe9ce"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/full-students-before.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "92bf786c3ce1b555286322fd60cb36dd7ff740230796b8b14656bfc0345b4a10",
+      "sha256": "92bf786c3ce1b555286322fd60cb36dd7ff740230796b8b14656bfc0345b4a10"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/full-visual-comparison.json",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "cf880140acfb4b2bc5e1ab48886034e3302c15bda9e44b1b130f19c71398e399",
+      "sha256": "cf880140acfb4b2bc5e1ab48886034e3302c15bda9e44b1b130f19c71398e399"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-evidence/hero-versus-basic.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "1245a407f50f7db49b1fd85224bea99f16d0246a749ab7d378712e4954928b43",
+      "sha256": "1245a407f50f7db49b1fd85224bea99f16d0246a749ab7d378712e4954928b43"
+    },
+    {
+      "path": "docs/redesign/basic-workspace-review.md",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "acf804de1f491a5133b3c4d65560a6c3e4c1c0a43fadfc957cb8f2711e497388",
+      "sha256": "acf804de1f491a5133b3c4d65560a6c3e4c1c0a43fadfc957cb8f2711e497388"
+    },
+    {
+      "path": "docs/redesign/organization-branch-evidence/basic-desktop.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "ec4b7353c58da745784fe83aed4501e10f81b77ab5e11fb24bec8b5fc8adcf52",
+      "sha256": "ec4b7353c58da745784fe83aed4501e10f81b77ab5e11fb24bec8b5fc8adcf52"
+    },
+    {
+      "path": "docs/redesign/organization-branch-evidence/basic-hindi-mobile.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "6b47f7e137204b23bdfcf78c69a7dd66c45b02cb881654acbed620992ba9717e",
+      "sha256": "6b47f7e137204b23bdfcf78c69a7dd66c45b02cb881654acbed620992ba9717e"
+    },
+    {
+      "path": "docs/redesign/organization-branch-evidence/basic-mobile.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "6650469cb9cae0cde3c3e2cca1cdcc3c727340c56daaafe7d428b7aa5da73a15",
+      "sha256": "6650469cb9cae0cde3c3e2cca1cdcc3c727340c56daaafe7d428b7aa5da73a15"
+    },
+    {
+      "path": "docs/redesign/organization-branch-evidence/billing-desktop.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "3a564c12f3ef36fc2a8526bd446a951dd4c16792ee4465d5c830be0aef67c1b6",
+      "sha256": "3a564c12f3ef36fc2a8526bd446a951dd4c16792ee4465d5c830be0aef67c1b6"
+    },
+    {
+      "path": "docs/redesign/organization-branch-evidence/organization-desktop.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "cd2e30bb880bc3f889d2b9843bc3ca6f2e57a928a11a0e5abc672086087d03c4",
+      "sha256": "cd2e30bb880bc3f889d2b9843bc3ca6f2e57a928a11a0e5abc672086087d03c4"
+    },
+    {
+      "path": "docs/redesign/organization-branch-evidence/organization-mobile.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "69f3da6ff10b24080ec67f935e9f4d849893a990f33610cbee4917c82ce57cfd",
+      "sha256": "69f3da6ff10b24080ec67f935e9f4d849893a990f33610cbee4917c82ce57cfd"
+    },
+    {
+      "path": "docs/redesign/organization-branch-evidence/pro-desktop.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "0e1481b47feb4e73458a5b6b5d377a8c65c116f67caa99078e241c6e216d6b65",
+      "sha256": "0e1481b47feb4e73458a5b6b5d377a8c65c116f67caa99078e241c6e216d6b65"
+    },
+    {
+      "path": "docs/redesign/organization-branch-evidence/standard-desktop.png",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "a1c226c3e0896dffbfedda98ad9b183177dc24f2c0ab2667841203e03288da32",
+      "sha256": "a1c226c3e0896dffbfedda98ad9b183177dc24f2c0ab2667841203e03288da32"
+    },
+    {
+      "path": "docs/redesign/organization-branch-preview-review.md",
+      "group": "historical reference",
+      "origin": "preserved checkpoint",
+      "commitGroup": 8,
+      "checkpointSha256": "617d9085813058aa793598539ba8dd9f8e3e70aeb9abcfd3fa0284acd11bde3d",
+      "sha256": "617d9085813058aa793598539ba8dd9f8e3e70aeb9abcfd3fa0284acd11bde3d"
+    },
+    {
+      "path": "docs/ai/application-design-system.md",
+      "group": "documentation",
+      "origin": "updated checkpoint",
+      "commitGroup": 9,
+      "checkpointSha256": "7e91bb9e335a4b117ac5e3eebf72796aef0e3c0c01b9d2aa2566b5bedfff033c",
+      "sha256": "667e0b195f3b962f3243adcfd66922fd338247012e179dd2df1d662f72e644c2"
+    },
+    {
+      "path": "docs/ai/current-state.md",
+      "group": "documentation",
+      "origin": "updated checkpoint",
+      "commitGroup": 9,
+      "checkpointSha256": "a21eba5330a39f69fafd4c743edad58e3215118d31fad307198a245130c86e61",
+      "sha256": "b6414280e2396a2335ec0523edd4aa75b886f3e6953afb62d347c158f41290e6"
+    },
+    {
+      "path": "docs/domain-invariants.md",
+      "group": "documentation",
+      "origin": "updated checkpoint",
+      "commitGroup": 9,
+      "checkpointSha256": "222e9f9befd445bd32e8114452bd096bf6e66c2f8e0a11b036bb7b0c91fcc91d",
+      "sha256": "37c313ba7d1fa48175c44ba4a5d8cd024d5850887710c974e4e88aee9dcadd26"
+    },
+    {
+      "path": "docs/product/public-claims.md",
+      "group": "documentation",
+      "origin": "updated checkpoint",
+      "commitGroup": 9,
+      "checkpointSha256": "94223d5a1ca54352aff42d26f8e9a5f5ff4c5c85b64f591240c299079b4ba455",
+      "sha256": "60704795ea06bd03533d523dbd81b2f39207931c2c48fab020ccf6f7e4358afa"
+    },
+    {
+      "path": "docs/production-runbook.md",
+      "group": "documentation",
+      "origin": "updated checkpoint",
+      "commitGroup": 9,
+      "checkpointSha256": "7d531bc5f1d947d27714b68fae7d66ca860ac0f7967a87c838aa0fa292d0b1ea",
+      "sha256": "294d4c8664fea3ed086c80cf53cbf5bdca6360f1ea50e82e3f5714f9b46a13c8"
+    },
+    {
+      "path": "docs/redesign/page-family-migration.md",
+      "group": "documentation",
+      "origin": "updated checkpoint",
+      "commitGroup": 9,
+      "checkpointSha256": "cdeaf6afee5b3d0679cf7176c97b232cdfd852bf824949a3f3337531e781283e",
+      "sha256": "f966a8f64d3005fdea6c3c5d7ed04ffccd4cae5176a5569e39c610bdb5cf06b8"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/account.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "705952c8c402e32b977c64dc5a0e772df7b1e4b178f7320a48ea47fd36fcc6db"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/billing.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "b309b6a8e944feff9a32c15f69192e117055c7bbf40d7be06a24c01c15841541"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/fees-desktop.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "20bf5dfd9f17fc58e586523953353d050a505271783476ebeae75290099fcca4"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/fees-mobile.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "4f682819fa47d68d889185a5bdef9883a14783fc5b57f4c444d0c6ab8c28bdf6"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/full-pro.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "1718f07dd8988deb65ea0117aa849513ae6c7a17439a785949c2962dcae6c818"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/full-standard.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "152b48a53fb247030a52f48d239fe643c5447ff5caf74dfc9aef680968652075"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/organization-pro.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "8b05b3267be52ebfe486808879bb1531344800ceb2e7de4aed4fd1cc5520b893"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/organization-standard.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "8b05b3267be52ebfe486808879bb1531344800ceb2e7de4aed4fd1cc5520b893"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/organization.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "fb64f52b31b20bcbfe6ee5b78cb4b7bbe7d57272927462a4d988b54bd85afd7e"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/overview-desktop.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "0369d161126eb7fb35f1846911b1b873f49ce9aa9db445b585f4f70745ad34d7"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/overview-mobile-hi.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "91cb4692a41b0f216185387fc38d1d76401d0159793aec1afd533fba22ca0a17"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/overview-mobile-hinglish.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "bb13f35f32cc9504f009b6bea9e294bfef2ec05a70609c6cf52fb1521bf00fc9"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/overview-mobile.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "c3b344cca0307955c8b5f72ce453ff696b268b9a94bf9d788fc5df8f5977ced8"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/payment-form.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "1bd9df6c706d8736150efb86f034a28fb04e0282b3674b93cbe4ba21cfc27a22"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/receipt-mobile.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "57b33755fea53b6aec9c4f9bba908a9b0d82cc1288ce61252b56d0015539d0a0"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/receipt.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "02e4f83de985104abd70457c747daf0cd189449565a2451fc9d99b0443d07824"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/seats-desktop.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "db545673c05f5b85bf0c6ee057286c30d9c827c8d89b7336fe2125658f919556"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/seats-mobile.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "3b68a40c0ef4f94a839f48507629a6f542b4d9702bdcc12fae82c756a1305c35"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/setup-desktop.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "167fd73cf7c7b7f55fd1f2978d9a989ddb4a7e63a29cdaa4506812569f08316a"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/student-form.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "e47e3390ba16a609fbb396f65e895f6773b3c8ac38666ce368e0f1d7b1c2dfea"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/students-desktop.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "e915aed8daf838985a90297c136f3f0cc01bef1f801c263ab8cb309c5c17b6db"
+    },
+    {
+      "path": "docs/redesign/basic-integration-evidence/students-mobile.png",
+      "group": "fresh connected evidence",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "497d51fe567a83dba5aa6ba16849b1821969feae73f6e00cba21b340c2718798"
+    },
+    {
+      "path": "docs/redesign/basic-integration-review.md",
+      "group": "documentation",
+      "origin": "integration addition",
+      "commitGroup": 9,
+      "sha256": "9ea421b84119ac967b57ad76e8c300ba45824429b1aabc9826118d3bc7a86af4"
+    },
+    {
+      "path": "docs/redesign/basic-integration-scope.json",
+      "group": "documentation",
+      "origin": "integration addition",
+      "commitGroup": 9
+    }
+  ],
+  "publicationRevision": "abb3506e3c62b045f932b3fe4649b9d37b4596c2",
+  "followUpReport": "docs/redesign/basic-pr-287-review-fixes.md"
+}

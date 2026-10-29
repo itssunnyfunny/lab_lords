@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { sortSeatsByLabel } from "@/lib/seatNumbering";
 import { EntitlementService } from "@/services/entitlement.service";
-import { StaffService } from "@/services/staff.service";
 import { mapImportColumns } from "@/importing/ai/import-column-mapper.ai";
 import type {
     CreateImportSessionInput,
@@ -434,7 +433,7 @@ export function assertImportRowLimit(rowCount: number) {
 
 export class ImportSessionService {
     private static async authorize(userId: string, branchId: string) {
-        await StaffService.authorize(userId, branchId, "students");
+        await AccessPolicy.authorizeCapability(userId, branchId, "importView");
     }
 
     private static async authorizeMutation(userId: string, branchId: string) {
@@ -487,7 +486,7 @@ export class ImportSessionService {
         const now = new Date();
 
         const persisted = await prisma.$transaction(async tx => {
-            await AccessPolicy.authorizeAction(userId, branchId, "students", tx, true);
+            await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", tx);
             const created = await tx.importSession.create({
                 data: {
                     branchId,
@@ -1069,7 +1068,7 @@ export class ImportSessionService {
             });
             if (!current) throw new Error("Import session not found");
             if (current.archivedAt) throw new Error("Import session is archived");
-            await AccessPolicy.authorizeAction(userId, branchId, "students", tx, true);
+            await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", tx);
             if (!importSessionIsEditable(current.engineVersion, current.status)) {
                 throw new Error("Import session is not editable");
             }
@@ -1138,7 +1137,7 @@ export class ImportSessionService {
                 WHERE "id" = ${sessionId} AND "branchId" = ${branchId}
                 FOR UPDATE
             `;
-            await AccessPolicy.authorizeAction(userId, branchId, "students", tx, true);
+            await AccessPolicy.authorizeCapability(userId, branchId, "importStudents", tx);
             const session = await tx.importSession.findFirst({
                 where: { id: sessionId, branchId },
                 select: {

@@ -85,7 +85,8 @@ export class SeatAllocationService {
         seatId: string,
         studentId: string,
         shiftIds: string[],
-        multiShiftId?: string
+        multiShiftId?: string,
+        expectedBranchId?: string
     ) {
         return runAllocationTransaction(tx =>
             this.assignSeatToShiftsInTransaction(
@@ -94,7 +95,7 @@ export class SeatAllocationService {
                 studentId,
                 shiftIds,
                 multiShiftId,
-                tx
+                tx, expectedBranchId
             )
         );
     }
@@ -105,7 +106,8 @@ export class SeatAllocationService {
         studentId: string,
         shiftIds: string[],
         multiShiftId: string | undefined,
-        tx: Prisma.TransactionClient
+        tx: Prisma.TransactionClient,
+        expectedBranchId?: string
     ) {
         if (!shiftIds || shiftIds.length === 0) {
             throw new Error("At least one shift must be selected.");
@@ -113,7 +115,7 @@ export class SeatAllocationService {
 
         const uniqueShiftIds = [...new Set(shiftIds)];
         const seat = await tx.seat.findUnique({ where: { id: seatId } });
-        if (!seat) throw new Error("Seat not found");
+        if (!seat || (expectedBranchId && seat.branchId !== expectedBranchId)) throw new Error("Seat not found");
         const branchId = seat.branchId;
         await AccessPolicy.authorizeRecord(userId, branchId, "seat_allocation", "Seat", tx, true);
 

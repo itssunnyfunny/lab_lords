@@ -4,7 +4,7 @@ import type { BillingEntitlement } from "@/lib/billingPlans";
 import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors";
 import type { BranchAccess, StaffAction } from "@/types";
 import type { Prisma } from "@/app/generated/prisma/client";
-import { EntitlementService } from "@/services/entitlement.service";
+import { EntitlementService, SubscriptionEntitlementError } from "@/services/entitlement.service";
 import { buildOwnerPermissions, buildStaffPermissions } from "@/services/branchActionPolicy";
 
 type Client = Prisma.TransactionClient | typeof prisma;
@@ -67,7 +67,7 @@ export class AccessPolicy {
 
   static async authorizeCapability(actorId: string, branchId: string, capability: BranchCapabilityKey, client: Client = prisma) {
     const context = await this.resolveBranch(actorId,branchId,client);
-    const requirement = BRANCH_CAPABILITIES[capability] as {permissions?:readonly StaffAction[];entitlement?:BillingEntitlement;mutation?:boolean};
+    const requirement = BRANCH_CAPABILITIES[capability] as {permissions?:readonly StaffAction[];entitlement?:BillingEntitlement;mutation?:boolean;fullWorkspace?:boolean};
     const entitlements = new Set<BillingEntitlement>();
     for (const permission of requirement.permissions ?? []) {
       this.assertPermission(context,permission);
@@ -75,6 +75,10 @@ export class AccessPolicy {
     }
     if (requirement.entitlement) entitlements.add(requirement.entitlement);
     for (const entitlement of entitlements) await EntitlementService.assertOrganizationEntitlement(context.organizationId,entitlement,client);
+    if (requirement.fullWorkspace) {
+      const profile = await EntitlementService.getOrganizationProfile(context.organizationId, client);
+      if (!["STANDARD", "PRO"].includes(profile.effectivePlan)) throw new SubscriptionEntitlementError("This feature requires the Standard plan.");
+    }
     if (requirement.mutation) await EntitlementService.assertBranchWritable(branchId,client);
     return context;
   }

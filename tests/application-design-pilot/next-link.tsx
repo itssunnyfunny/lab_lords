@@ -1,3 +1,5 @@
+import { withPreviewPlan } from "./preview-location";
+import { navigate as navigatePreview } from "./next-navigation";
 import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from "react";
 
 type LinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
@@ -13,7 +15,7 @@ function resolveHref(href: LinkProps["href"]) {
 }
 
 export default function Link({ href, replace, children, onClick, ...props }: LinkProps) {
-    const resolvedHref = resolveHref(href);
+    const resolvedHref = withPreviewPlan(resolveHref(href));
 
     const navigate = (event: MouseEvent<HTMLAnchorElement>) => {
         onClick?.(event);
@@ -29,8 +31,7 @@ export default function Link({ href, replace, children, onClick, ...props }: Lin
         ) return;
 
         event.preventDefault();
-        window.history[replace ? "replaceState" : "pushState"]({}, "", resolvedHref);
-        window.dispatchEvent(new Event("pilot:navigation"));
+        navigatePreview(resolvedHref, replace);
     };
 
     return <a {...props} href={resolvedHref} onClick={navigate}>{children}</a>;

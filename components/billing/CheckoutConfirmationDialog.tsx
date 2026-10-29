@@ -9,6 +9,7 @@ type CheckoutConfirmationDialogProps = {
   loading: boolean;
   purpose?: "PLAN" | "RECOVERY" | "REPLACEMENT";
   planName: string;
+  downgradeNotice?: string | null;
   unitAmount: number;
   quantity: number;
   monthlyTotal: number;
@@ -57,6 +58,7 @@ export function CheckoutConfirmationDialog({
   loading,
   purpose = "PLAN",
   planName,
+  downgradeNotice,
   unitAmount,
   quantity,
   monthlyTotal,
@@ -205,6 +207,7 @@ export function CheckoutConfirmationDialog({
             <p className="mt-2 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{t("This subscription change requires a new recurring payment authorization in Razorpay.")}</p>
           ) : null}
           <p className="mt-2 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{t.owned(firstPlanCharge)}</p>
+          {downgradeNotice && <p className="mt-3 rounded-lg border border-[color:var(--ui-panel-border)] p-3 text-sm leading-6">{t.owned(downgradeNotice)}</p>}
           {opensCheckout ? (
             <>
               <div className="mt-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3 text-xs leading-5 text-[color:var(--ui-dialog-description)]">

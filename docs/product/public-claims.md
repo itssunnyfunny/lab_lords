@@ -14,7 +14,7 @@ additional promise for those fixes; no new plan or entitlement is introduced.
 
 ## Three-plan catalogue — working tree, 2026-10-23
 
-Home, Features, Pricing, FAQ, relevant solution pages, onboarding and dedicated Billing use the shared three-plan catalogue: Basic ₹99, Standard ₹299, Pro ₹499 per active/billable branch per month. Standard and Pro include staff, advanced analytics and AI; only Pro includes WhatsApp entitlement. The public copy explicitly requires WhatsApp setup/rollout availability and applies messaging charges/usage terms without promising unlimited usage. English, Hindi and Hinglish preserve the same facts. The normal trial remains 30 days of Standard. Basic uses existing core screens; its simpler interface has not shipped.
+Home, Features, Pricing, FAQ, relevant solution pages, onboarding and dedicated Billing use the shared three-plan catalogue: Basic ₹99, Standard ₹299, Pro ₹499 per active/billable branch per month. Standard and Pro include staff, advanced analytics and AI; only Pro includes WhatsApp entitlement. The public copy explicitly requires WhatsApp setup/rollout availability and applies messaging charges/usage terms without promising unlimited usage. English, Hindi and Hinglish preserve the same facts. The normal trial remains 30 days of Standard. Basic has an owner-approved design prototype for students, seats and basic fees; its earlier shared-form design was superseded. Its organization-connected extension awaits review. Neither design is released.
 
 These are working-tree release claims, not a statement of production deployment. See [cutover status](../billing/three-plan-cutover.md). The [2026-10-22 recovery report](../audits/billing-recovery-2026-10-22.md) records the prior two-plan prices and actual Test events; it is historical evidence, not the current catalogue.
 
@@ -32,6 +32,38 @@ The 2026-10-23 shared Renewals/Overdue capability wording correction names Pro
 for WhatsApp while retaining Standard for staff/AI/analytics. Home, Features,
 Pricing and FAQ keep the existing three-plan facts; no marketing promise,
 feature availability or pricing change is introduced by this correction.
+
+## Organization navigation preview — 2026-10-28
+
+Home, Features, Pricing and FAQ need no copy changes for this synthetic
+navigation task. Independent branch plans are an intended product requirement,
+not a current backend capability or released claim. The preview labels that
+limitation explicitly; per-branch pricing must not be presented as proof of
+independent subscriptions. See [compatibility evidence](../billing/branch-plan-compatibility.md).
+
+## Narrowed Basic prototype copy review — 2026-10-28
+
+Home, Features, Pricing and FAQ remain unchanged in this prototype iteration.
+The narrowed scope is not integrated or released and must not be advertised as
+shipped. The hero is the visual reference, not an authorization or billing rule.
+Reconcile the four-area scope with public claims when integration is approved
+and verified. See the [current packet](../redesign/basic-prototype-review.md).
+
+## Earlier Basic workspace copy review — superseded design, 2026-10-28
+
+**No marketing change needed for this unreleased presentation implementation.**
+Home, Features, Pricing and FAQ retain the three-plan catalogue and existing
+workflow claims; the public hero itself is unchanged. Existing Billing gains
+illustrative Simple/Full previews and accurate downgrade/record-retention copy,
+including English, Hindi and Hinglish. See the [review packet](../redesign/basic-workspace-review.md).
+
+One existing policy/copy discrepancy remains for owner resolution: the broad
+phrase “Staff access requires Standard or Pro” is stronger than the current
+server rule. Existing members keep permitted core operations after downgrade;
+new invitation acceptance and staff management require the premium entitlement.
+This task preserves and tests that behavior. Downgrade copy therefore says
+“Staff invitations and permission controls”; do not infer that membership is
+revoked or silently change authorization to match the broad marketing phrase.
 
 ## Approved public baseline
 
@@ -139,3 +171,32 @@ reason, or explicitly record **No marketing change needed**. Preserve accurate
 approved wording. Update evidence status without inventing availability, a launch
 date, inclusion or an Accepted architectural decision. See the
 [wording change record](../redesign/library-only-content-refresh.md).
+
+**29 October 2026 — No marketing change needed for Basic reconciliation.**
+The isolated organization/Basic preview now incorporates merged main's navigation
+and Account behavior. It is still a synthetic, unreleased review surface.
+Home, Features, Pricing and FAQ acquire no new availability claim from this
+change; independent per-branch plans must not be advertised as implemented.
+The three-plan catalogue and the merged AI-report-only wording remain intact.
+
+**29 October 2026 — Narrow Basic integration (unreleased).** This supersedes the
+preview-only no-copy-change note above. Basic is students, seats and student fees,
+including partial payments and receipts. Home's import/attendance cards now say
+Standard/Pro; Features distinguishes student records from spreadsheet import and
+qualifies follow-ups; Pricing names the narrow Basic scope and organization-wide
+plan; FAQ answers qualify attendance/import/follow-ups. The prepared Hindi and
+Hinglish catalogue and required-key manifest include these exact phrases.
+
+Prices remain Basic ₹99, Standard ₹299 and Pro ₹499 per billable branch/month.
+The normal Standard trial and existing WhatsApp setup/rollout qualifications are
+unchanged. Central Billing says the organization's plan applies to its branches
+and distinguishes subscription charges from student fees. Independent branch
+plans and deployment availability are not claimed. See the
+[local integration evidence](../redesign/basic-integration-review.md).
+
+**29 October 2026 — No marketing change needed for PR #287 review fixes.**
+Home, Features, Pricing and FAQ continue to describe student records, seats and
+student fees for Basic. Restoring the existing student status action, honestly
+reviewing uncertain admissions and correcting receipt calendar dates complete that
+scope without new modules, plan inclusion, prices or availability claims. These
+changes remain unreleased; see the [review-fix report](../redesign/basic-pr-287-review-fixes.md).

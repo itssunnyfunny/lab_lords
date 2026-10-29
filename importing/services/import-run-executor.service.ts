@@ -454,6 +454,7 @@ export class ImportRunExecutor {
                 throw new Error("Import run was cancelled");
             }
 
+            await AccessPolicy.authorizeCapability(run.requestedByUserId, run.branchId, "importStudents", tx);
             const payload = asRecord(stored.payload);
             const result = stored.kind === "CONFIG"
                 ? await applyConfigurationItem(tx, run.requestedByUserId, run.branchId, payload)

@@ -47,7 +47,8 @@
           "id": "imports",
           "title": "Student imports",
           "description": "Bring in your existing student list and review the details before adding it.",
-          "href": "/features#imports"
+          "href": "/features#imports",
+          "planNote": "Standard"
         },
         {
           "id": "staff",
@@ -66,7 +67,8 @@
           "id": "attendance",
           "title": "Attendance",
           "description": "Mark daily attendance and record check-in and check-out, with staff-assisted QR scanning.",
-          "href": "/features#attendance"
+          "href": "/features#attendance",
+          "planNote": "Standard"
         },
         {
           "id": "languages",
@@ -144,7 +146,7 @@
         },
         {
           "question": "Can I add my existing student list?",
-          "answer": "Yes. You can enter students individually or use spreadsheet import. Review your information and resolve any flagged issues before confirming an import."
+          "answer": "Yes. All plans let you add students individually. Spreadsheet import requires Standard or Pro. Review the information and resolve flagged issues before confirming an import."
         },
         {
           "question": "Can I manage more than one branch?",

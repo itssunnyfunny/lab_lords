@@ -6,9 +6,10 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { workspaces } from "@/lib/api/workspaces";
 import type { WorkspaceDirectory } from "@/types";
+import { branchSwitchDestination } from "@/lib/basicNavigation";
 import { cn } from "@/lib/utils";
 
-export function WorkspaceSwitcher({ className }: { className?: string }) {
+export function WorkspaceSwitcher({ className, beforeNavigate }: { className?: string; beforeNavigate?: () => boolean }) {
     const pathname = usePathname();
     const router = useRouter();
     const { ownerKey } = useUserPreferences();
@@ -32,7 +33,7 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
         return () => { cancelled = true; };
     }, [ownerKey]);
 
-    return <BranchWorkspaceControls directory={directoryOwner === ownerKey ? directory : null} error={error} pathname={pathname} className={className} onNavigate={href => router.push(href)} />;
+    return <BranchWorkspaceControls directory={directoryOwner === ownerKey ? directory : null} error={error} pathname={pathname} className={className} onNavigate={href => { if (!beforeNavigate || beforeNavigate()) router.push(href); }} />;
 }
 
 export function BranchWorkspaceControls({ directory, error, pathname, className, onNavigate }: {
@@ -66,7 +67,7 @@ export function BranchWorkspaceControls({ directory, error, pathname, className,
             {t("Branch")}
             <select aria-label={t("Switch branch")} value={current?.id ?? ""} disabled={!directory || Boolean(error) || !branchOptions.length}
                 className="mt-0.5 block h-11 w-[180px] max-w-full rounded-md border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-form-input-bg)] px-2 text-[11px] font-semibold text-[color:var(--text-primary)] lg:h-[29px]"
-                onChange={event => { const branch = branchOptions.find(item => item.id === event.target.value); if (branch) onNavigate(branch.href); }}>
+                onChange={event => { const branch = branchOptions.find(item => item.id === event.target.value); if (branch) onNavigate(branchSwitchDestination(pathname, branch.href, branch.role==="OWNER"?undefined:branch.permissions)); }}>
                 {!current && <option value="">{branchOptions.length ? t("Choose branch") : status}</option>}
                 {branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
             </select>

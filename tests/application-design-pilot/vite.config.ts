@@ -12,6 +12,8 @@ const config = {
     publicDir: path.resolve("public"),
     resolve: {
         alias: [
+            { find: "@/components/layout/WorkspaceSwitcher", replacement: path.resolve(root, "organization-preview/PreviewNavigation.tsx") },
+            { find: "@/components/settings/LanguageControls", replacement: path.resolve(root, "organization-preview/PreviewNavigation.tsx") },
             { find: "next/image", replacement: path.resolve(root, "next-image.tsx") },
             { find: "@/lib/applicationDesignPilot", replacement: path.resolve(root, "pilot-design-mode.ts") },
             { find: "next/link", replacement: path.resolve(root, "next-link.tsx") },

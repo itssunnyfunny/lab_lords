@@ -1,10 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { createBranch, createOrg, createPayment, createStaff, createStudent, createTestWorld, createUser } from "@/tests/factories";
+import { createBranch, createOrg, createPayment, createStaff, createStudent, createTestWorld as createCoreWorld, createSaasSubscription, createUser } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 import { RenewalsService } from "@/services/renewals.service";
 import { PaymentService } from "@/services/payment.service";
 import { renewalQuerySchema, type FollowUpInput } from "@/lib/renewals";
 
+async function createTestWorld(){const world=await createCoreWorld();await createSaasSubscription({organizationId:world.org.id,plan:"STANDARD"});return world;}
 const day = (s: string) => new Date(`${s}T00:00:00`);
 const today = day("2026-09-08");
 const query = renewalQuerySchema.parse({});

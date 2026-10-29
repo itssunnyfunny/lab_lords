@@ -35,6 +35,7 @@ export class RenewalsService {
         const after = decodeCursor(query);
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "view_payments", tx);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const today = startOfDay(asOf);
             const through = endOfDay(addDays(today, query.days));
             const search: Prisma.StudentWhereInput = query.search ? { OR: [
@@ -146,6 +147,7 @@ export class RenewalsService {
         const data = followUpSchema.parse(input);
         return prisma.$transaction(async tx => {
             await AccessPolicy.authorizeCapability(actorId, branchId, "paymentsRecord", tx);
+            await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const student = await tx.student.findFirst({ where: { id: data.studentId, branchId },
                 select: { id: true, status: true, joinedAt: true, billingStartAt: true } });
             if (!student) throw new Error("Student not found");

@@ -11,12 +11,13 @@ import { cn } from "@/lib/utils";
 import { feeCollections } from "@/lib/api/feeCollections";
 import type { FeeCollectionView } from "@/lib/feeCollections";
 import { FeeReceipt } from "./FeeReceipt";
+import { receiptCollectedAt } from "@/lib/feeReceiptDates";
 
 export function CollectionHistory({ branchId, studentId, owner = false, refreshKey = 0, targetCollectionId }: {
     branchId: string; studentId?: string; owner?: boolean; refreshKey?: number; targetCollectionId?: string | null;
 }) {
     const t = useTranslation();
-    const { formatDateTime, formatNumber } = useUserPreferences();
+    const { formatNumber } = useUserPreferences();
     const [rows, setRows] = useState<FeeCollectionView[]>([]);
     const [search, setSearch] = useState("");
     const [month, setMonth] = useState("");
@@ -91,7 +92,7 @@ export function CollectionHistory({ branchId, studentId, owner = false, refreshK
                             {row.voidedAt && <Badge variant="danger">{t("VOID")}</Badge>}
                         </div>
                         <div className="ui-record-card-context">
-                            <span>{t("{toLocaleString2} · Recorded by {recordedBy}", { toLocaleString2: formatDateTime(row.collectedAt), recordedBy: row.snapshot.recordedBy })}</span>
+                            <span>{t("{toLocaleString2} · Recorded by {recordedBy}", { toLocaleString2: receiptCollectedAt(row.snapshot.collectedAt), recordedBy: row.snapshot.recordedBy })}</span>
                         </div>
                         <div className="ui-record-card-summary">
                             <p className="ui-record-card-due">{formatNumber(row.amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>
