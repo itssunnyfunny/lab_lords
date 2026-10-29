@@ -8,7 +8,7 @@ const auth = vi.hoisted(() => ({ isLoaded: false }));
 const reads = vi.hoisted(() => ({ billing: vi.fn(), activation: vi.fn() }));
 vi.mock("@clerk/nextjs", () => ({ useUser: () => auth }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/branch/example/tasks" }));
-vi.mock("@/components/settings/LocalizedText", () => ({ useTranslation: () => (key: string) => key }));
+vi.mock("@/components/settings/LocalizedText", () => ({ useTranslation: () => Object.assign((key: string) => key, {owned:(key:string)=>key}) }));
 vi.mock("@/components/layout/AppShell", () => ({ AppShell: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 vi.mock("@/components/layout/BranchSidebar", () => ({ BranchSidebar: () => null }));
 vi.mock("@/components/layout/OrgSidebar", () => ({ OrgSidebar: () => null }));
@@ -33,13 +33,14 @@ describe("branch workspace identity readiness", () => {
         expect(reads.activation).not.toHaveBeenCalled();
     });
 
-    it("mounts the ordinary billing and activation boundaries after authentication hydration", () => {
+    it("withholds route forms until the server access snapshot arrives after hydration", () => {
         auth.isLoaded = true;
         const markup = renderToStaticMarkup(<BranchWorkspaceShell branchId="example"><button>Add task</button></BranchWorkspaceShell>);
-        expect(markup).toContain("Add task");
+        expect(markup).not.toContain("Add task");
+        expect(markup).toContain("Loading workspace");
         expect(markup).not.toContain('aria-busy="true"');
         expect(reads.billing).toHaveBeenCalledOnce();
-        expect(reads.activation).toHaveBeenCalledOnce();
+        expect(reads.activation).not.toHaveBeenCalled();
     });
 });
 

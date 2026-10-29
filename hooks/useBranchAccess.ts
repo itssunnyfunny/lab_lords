@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useWorkspaceAccess } from "@/components/layout/BranchAccessProvider";
 import { branches } from "@/lib/api/branches";
 import type { BranchAccess, StaffAction } from "@/types";
 import {
@@ -9,6 +10,8 @@ import {
 } from "@/lib/branchCapabilities";
 
 export function useBranchAccess(branchId: string | undefined) {
+    const shared = useWorkspaceAccess();
+    const scoped = shared?.branchId === branchId ? shared : null;
     const [state, setState] = useState<{
         branchId?: string;
         access: BranchAccess | null;
@@ -19,7 +22,7 @@ export function useBranchAccess(branchId: string | undefined) {
     });
 
     useEffect(() => {
-        if (!branchId) return;
+        if (!branchId || scoped) return;
 
         let cancelled = false;
 
@@ -42,11 +45,11 @@ export function useBranchAccess(branchId: string | undefined) {
         return () => {
             cancelled = true;
         };
-    }, [branchId]);
+    }, [branchId, scoped]);
 
-    const access = state.branchId === branchId ? state.access : null;
-    const error = state.branchId === branchId ? state.error : null;
-    const loading = Boolean(branchId && state.branchId !== branchId);
+    const access = scoped ? scoped.access : state.branchId === branchId ? state.access : null;
+    const error = scoped ? (scoped.access ? null : scoped.error) : state.branchId === branchId ? state.error : null;
+    const loading = scoped ? scoped.loading : Boolean(branchId && state.branchId !== branchId);
 
     const can = useMemo(() => {
         return (action: StaffAction) => access?.permissions[action] ?? false;

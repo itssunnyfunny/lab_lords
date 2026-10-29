@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useWorkspaceAccess } from "@/components/layout/BranchAccessProvider";
 import { billing } from "@/lib/api/billing";
 import { branches } from "@/lib/api/branches";
 import type { BillingExperience } from "@/types/billingExperience";
@@ -24,12 +25,15 @@ export function BillingExperienceProvider({
   branchId?: string;
   children: ReactNode;
 }) {
+  const sharedAccess = useWorkspaceAccess();
+  const shared = sharedAccess?.branchId === branchId ? sharedAccess : null;
   const [experience, setExperience] = useState<BillingExperience | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestVersion = useRef(0);
 
   const refresh = useCallback(async () => {
+    if (shared) { await shared.refresh(); return; }
     const version = ++requestVersion.current;
     if (!organizationId && !branchId) {
       setExperience(null);
@@ -50,17 +54,19 @@ export function BillingExperienceProvider({
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
-  }, [branchId, organizationId]);
+  }, [branchId, organizationId, shared]);
 
   useEffect(() => {
+    if (shared) return;
     setExperience(null);
     setError(null);
     void refresh();
     return () => { requestVersion.current += 1; };
-  }, [refresh]);
+  }, [refresh, shared]);
 
   const value = useMemo(() => ({ experience, loading, error, refresh }), [experience, loading, error, refresh]);
-  return <BillingExperienceContext.Provider value={value}>{children}</BillingExperienceContext.Provider>;
+  const resolved = shared ? { experience: shared.access?.billingExperience ? toClientBillingExperience(shared.access.billingExperience) : null, loading: shared.loading, error: shared.error, refresh: shared.refresh } : value;
+  return <BillingExperienceContext.Provider value={resolved}>{children}</BillingExperienceContext.Provider>;
 }
 
 export function useBillingExperience() {
