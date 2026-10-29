@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { chromium } from "@playwright/test";
 
@@ -7,7 +7,7 @@ import { chromium } from "@playwright/test";
 const saved = process.env.PLAYWRIGHT_EXISTING_AUTH_STATE || ".clerk/rc-owner.json";
 const output = process.env.PLAYWRIGHT_REFRESHED_AUTH_STATE || ".clerk/dashboard-owner-auth.json";
 if (!output.replaceAll("\\", "/").startsWith(".clerk/")) throw new Error("Authentication output must remain in ignored .clerk");
-const env = parse(readFileSync(".env"));
+const env = existsSync(".env") ? parse(readFileSync(".env")) : {};
 const key = process.env.CLERK_SECRET_KEY || env.CLERK_SECRET_KEY;
 const publishable = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 if (!key?.startsWith("sk_test_") || !publishable?.startsWith("pk_test_")) throw new Error("Only Clerk development credentials are allowed");

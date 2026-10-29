@@ -58,7 +58,10 @@ for (const key of ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"]) {
 Object.assign(env, {
     NODE_ENV: built ? "production" : "development", NEXT_TELEMETRY_DISABLED: "1", NEXT_DISABLE_TURBOPACK: "1",
     DATABASE_URL: target.href, DIRECT_URL: target.href, ACCELERATE_URL: "",
-    RAZORPAY_MODE: "TEST", RAZORPAY_BILLING_WRITES_ENABLED: "false", META_WHATSAPP_MODE: "TEST",
+    // Non-credential identifier permits Test-mode entitlement reads. No secret
+    // is present and provider mutations remain disabled.
+    RAZORPAY_MODE: "TEST", RAZORPAY_KEY_ID: "rzp_test_local_read_only", RAZORPAY_KEY_SECRET: "",
+    RAZORPAY_BILLING_WRITES_ENABLED: "false", META_WHATSAPP_MODE: "TEST",
     WHATSAPP_INTEGRATION_ENABLED: auditMessaging ? "true" : "false",
     WHATSAPP_REPORTS_ENABLED: auditMessaging ? "true" : "false",
     WHATSAPP_SERVICE_NOTICES_ENABLED: auditMessaging ? "true" : "false",
