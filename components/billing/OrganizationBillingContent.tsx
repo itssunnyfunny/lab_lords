@@ -10,6 +10,8 @@ import { SettingsPanel, SettingsSubtleText, SettingsWorkspace } from "@/componen
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BillingPriceSummary } from "@/components/billing/BillingPriceSummary";
 import { BillingPaymentMethodsOverview } from "@/components/billing/BillingPaymentMethodsOverview";
+import { WorkspacePreviews } from "@/components/billing/WorkspacePreviews";
+import { workspaceDowngradeNotice } from "@/lib/workspacePresentation";
 import { CheckoutConfirmationDialog } from "@/components/billing/CheckoutConfirmationDialog";
 import { PaymentOutcomeDialog, type PaymentOutcome } from "@/components/billing/PaymentOutcomeDialog";
 import { getRazorpayCheckoutPayload, isRazorpayCheckoutPayload, isRazorpayCheckoutReady, openRazorpayCheckout, RazorpayCheckoutScript, type RazorpayCheckoutEventResult, type RazorpayCheckoutMode, type RazorpayCheckoutPayloadLike } from "@/components/billing/RazorpayCheckoutLauncher";
@@ -635,7 +637,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             />
             <SettingsWorkspace
                 title={t("Billing and plans")}
-                subtitle={t("Manage your plan, payment method, invoices, and workspace access.")}
+                subtitle={t.owned("One organization plan applies to all its branches. Manage subscription payments, invoices and access here. Student fees stay in each branch.")}
                 sections={BILLING_SECTIONS}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
@@ -767,6 +769,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                                 ))}
                             </div>
                         )}
+                        <WorkspacePreviews />
                     </section>
 
                 </SettingsPanel>
@@ -863,6 +866,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                     loading={billingAction === confirmationPlanDetails.id}
                     purpose={confirmationUsesReplacement ? "REPLACEMENT" : "PLAN"}
                     planName={confirmationPlanDetails.shortName}
+                    downgradeNotice={workspaceDowngradeNotice(billingOverview.experience.effectivePlan, confirmationPlanDetails.id)}
                     unitAmount={confirmationPlanDetails.amount ?? 0}
                     quantity={billingOverview.experience.projectedQuantity}
                     monthlyTotal={(confirmationPlanDetails.amount ?? 0) * billingOverview.experience.projectedQuantity}

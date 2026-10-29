@@ -35,7 +35,7 @@ const featureCopy = Object.fromEntries(copy.home.features.items.map(item => [ite
 
 const groups: FeatureGroup[] = [
   {
-    id: "students", nav: "Students", title: featureCopy.students.title, capability: "STUDENT_RECORDS_IMPORT",
+    id: "students", nav: "Students", title: featureCopy.students.title, capability: "STUDENT_RECORDS",
     description: featureCopy.students.description,
     items: [
       { title: "Student details", description: "Add contact information and find a student's record when you need it." },
@@ -60,7 +60,7 @@ const groups: FeatureGroup[] = [
       { title: "Pending fees", description: "See unpaid fees and use the remaining balance to decide which student needs a follow-up." },
       { title: "Payment history", description: "Review recorded payments and their details when you need to check an amount." },
       { title: "Receipts", description: "Download or print a receipt for a recorded payment, and find it again in the student's collection history. Historical imported payments do not get a new receipt." },
-      { title: "Upcoming fees and follow-ups", description: "See today's fees, upcoming fee dates and pending amounts. Save a note, contact outcome and the next date to follow up. Expected fees stay separate from amounts already due; a follow-up date does not change the fee date." },
+      { title: "Upcoming fees and follow-ups", description: "Standard and Pro include upcoming-fee views and follow-ups. Save notes and next-contact dates without changing the original fee date." },
     ],
   },
   {

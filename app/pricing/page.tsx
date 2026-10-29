@@ -43,8 +43,8 @@ export default async function PricingPage() {
         <div className="marketing-container">
           <p className="marketing-eyebrow">{t("Compare the daily tools")}</p>
           <h2 className="marketing-title mt-3">{t("Choose by the work you need to do.")}</h2>
-          <p className="marketing-lead mt-4">{t("All three plans cover student records, seats and fees. Standard adds staff, advanced analytics and AI. Pro also includes WhatsApp integration and automation, subject to setup and rollout availability.")}</p>
-          <p className="marketing-lead mt-4">{t("All three plans include full or partial payments, receipts, fee follow-ups, attendance and language preferences. Staff access requires Standard or Pro, with the permissions needed for each task. Report language preferences do not add access to reports outside your plan.")}</p>
+          <p className="marketing-lead mt-4">{t("All three plans cover students, seats and fees. Standard adds imports, attendance, tasks, follow-ups, staff, analytics and AI. Pro adds WhatsApp, subject to setup and rollout availability.")}</p>
+          <p className="marketing-lead mt-4">{t("Basic keeps daily work simple: students, seat allocation and fees, including partial payments and receipts. Your organization’s plan applies to all its branches; each person still needs the relevant permissions.")}</p>
           <table className="public-comparison">
             <caption className="sr-only">{t("Public plan feature comparison")}</caption>
             <thead><tr><th scope="col">{t("Feature")}</th>{plans.map(plan => <th key={plan.id} scope="col">{plan.shortName}</th>)}</tr></thead>
