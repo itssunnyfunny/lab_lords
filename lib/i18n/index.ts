@@ -1,3 +1,5 @@
+import { basicProductMessages } from "./basicProduct";
+import { basicWorkspaceMessages } from "./basicWorkspace";
 import { common } from "./common";
 import { workspaceMessages } from "./workspace";
 import { whatsappDetails } from "./whatsapp-details";
@@ -21,7 +23,7 @@ import { navigationRestorationMessages } from "./navigationRestoration";
 import { auditCloseoutMessages } from "./auditCloseout";
 import type { InterfaceLanguage } from "./language";
 
-export const messages = { ...auditCloseoutMessages, ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes, ...navigationRestorationMessages } as const;
+export const messages = { ...basicProductMessages, ...basicWorkspaceMessages, ...auditCloseoutMessages, ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes, ...navigationRestorationMessages } as const;
 export type MessageKey = keyof typeof messages;
 const lookup: Readonly<Record<string, readonly [string, string]>> = messages;
 const localizedMessages = new Set<string>(Object.values(lookup).flat());
