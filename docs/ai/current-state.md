@@ -1,5 +1,49 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Authenticated Basic integration — local, 2026-10-29
+
+The approved cream/forest Basic interface is now implemented in components/basic
+and styles/basic-product.css on codex/basic-workspace (baseline 22d1d09).
+Overview, Students, Seats and Fees use the existing authenticated branch routes,
+student/allocation/payment services and operational records. Basic has independent
+admission, edit, seat, payment and setup forms; it does not render Standard forms.
+Profile-only edits preserve existing shift-linked fee pricing; deliberate fee
+changes use the existing manual-price service rules.
+The shared organization, personal Account and central subscription Billing remain
+separate destinations. Standard/Pro retain the full workspace.
+
+BranchAccessProvider supplies one identity/branch-bound server access snapshot.
+Effective organization access, including trial/grant/read-only rules, chooses the
+workspace; selected plans and URL flags cannot choose it. Access errors block
+interaction; navigation and presentation changes retain unsaved student drafts
+and frozen recovery requests without dispatching them. Account return destinations
+are checked against the authorized workspace directory.
+
+AccessPolicy now checks the full-workspace requirement on interactive attendance,
+imports, dashboard tasks/follow-ups, renewals and reports. Basic student fees,
+allocation, setup and exact read-only receipt recovery remain available under
+existing object permissions and writability rules. Existing richer-plan history
+is preserved. No new schema, subscription state machine, provider integration or
+production configuration is introduced. The preview defaults to an organization-
+wide plan; mixed branch plans are explicitly a future-only scenario.
+
+The dated prototype/scaffold sections below are historical. Current local evidence,
+review scope and remaining release gates are in the
+[Basic integration review](../redesign/basic-integration-review.md). Local checks
+are not production release or a claim of owner approval of the final integration.
+
+## Basic preview reconciled with merged main — local, 2026-10-29
+
+The isolated uncommitted Basic workspace is now based on 22d1d09, after the owner
+merged PR #284. Its approved four-area design remains independent; Standard/Pro
+reuse the merged full screens. Preview Account adopts main's separate personal
+page and permitted originating-workspace return. Recent students and renewals
+fixture projections support the restored dashboard cards without real API calls.
+Main's billing/history, AI retirement and access protections remain in place.
+See the [updated preview review](../redesign/organization-branch-preview-review.md)
+for test evidence and limits. Mixed branch plans remain a simulation; production
+integration, visual approval of this extension and release are separate.
+
 ## Billing PR integration with main — local, 2026-10-28
 
 PR #284 incorporates main at `5b1af1b` (navigation restoration and audit
@@ -148,6 +192,57 @@ keyboard focus. Six mobile diagnostic repeats passed after this repair without
 retries or connected-control hidden-ancestor events. The final complete
 desktop/mobile browser suite passed 255 cases with 39 conditional skips, zero
 failures and zero flaky cases; see the restoration review for the full matrix.
+
+## Organization-connected Basic preview — 2026-10-28
+
+The owner approved the narrowed Basic design. The isolated Vite harness now
+connects it to a shared organization entry and central mock Billing, with a
+consistent branch selector, identity/branch-scoped session fixtures, navigation
+guards and English/Hindi/Hinglish support. Basic keeps its dedicated four-area
+UI; Standard/Pro mount existing full components. This organization journey is
+ready for visual review, not integrated into production.
+
+The architecture inspection confirms one organization subscription/plan and
+quantity-based billing, not independent branch plans. No schema or billing
+semantics were changed. See the [preview report](../redesign/organization-branch-preview-review.md)
+and [compatibility brief](../billing/branch-plan-compatibility.md).
+
+## Basic workspace — narrowed prototype, 2026-10-28
+
+The owner rejected reuse of Standard screens/forms and explicitly superseded
+the earlier all-core-modules requirement. Basic's review scope is Overview,
+Students, Seats and Fees, with only necessary setup/account/subscription access.
+The standalone Vite prototype in tests/application-design-pilot/basic-prototype
+now owns these screens and the add-student → seat → fee journey at plan=BASIC.
+Its synthetic fixtures require no database, sign-in or provider. The owner has
+approved this design; the organization extension above adds tab-session
+persistence. Integration with domain services remains separate.
+See the [current review packet](../redesign/basic-prototype-review.md).
+
+The prior implementation below is retained uncommitted for history and is not
+the approved product. Its tests do not establish acceptance of the new design.
+
+## Earlier Basic workspace implementation — superseded design, 2026-10-28
+
+`codex/basic-workspace` is based on billing revision `c63fb1f`; PR #284 is not
+assumed merged. Basic uses the landing hero's simple overview/navigation and
+scoped shared controls. Standard, Standard trial and Pro keep the full workspace.
+`BranchAccessProvider` supplies one server-derived access snapshot to the shell,
+billing banners and capability hooks. Selected plans and preview parameters do
+not select the production interface. Polling (30 seconds while visible), focus,
+billing events and known effective dates refresh access. Server mutations retain
+the existing independent authorization and writability checks.
+
+Core pages remain mounted across plan changes, preserving permitted drafts.
+Account/branch identity changes and explicit membership loss clear records and
+drafts. Transport errors retain drafts behind a blocking retry dialog. NONE with
+READ_ONLY renders a recovery-oriented simple shell without granting writes.
+Basic overview uses existing dashboard and shift/multi-shift seat-map services;
+no hidden premium dashboard is mounted. Billing retains its single management
+flow, with static workspace previews and capability-specific downgrade copy.
+No schema, price, entitlement, provider, migration or production setting changed.
+[Local verification and review evidence](../redesign/basic-workspace-review.md)
+remain separate from owner review and release.
 
 ## Three-plan catalogue — isolated implementation, 2026-10-23
 

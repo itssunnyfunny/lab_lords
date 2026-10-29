@@ -2932,3 +2932,59 @@ provider obligations, migration lineage, snapshot/restore, worker drain, Live
 mappings and release smoke evidence remain separate gates. Do not use the
 local fixture verifier against shared databases; it accepts only the existing
 identity-checked loopback Docker runtime and creates a fresh synthetic database.
+
+### Basic workspace local verification — 2026-10-28
+
+No new production configuration, migration, cron or provider action is needed
+for the Basic presentation. Existing three-plan cutover gates still apply.
+Rollback of this presentation can restore the full workspace without deleting
+records or reverting the underlying billing/collection migrations.
+
+The existing guarded runner adds `basic-test` (all Basic connected journeys),
+`basic-test seat-change` and `basic-test setup` (focused checks). It verifies the
+retained disposable Docker container, loopback binding and exact database;
+tests additionally verify the original synthetic marker and create new synthetic
+branches. Never repoint this harness at shared/Preview/Production databases.
+`tests/billing-verification/run-integration.mjs` also accepts an explicit
+allowlist of affected operational test filenames, creates a new empty database
+from schema-only fixture evidence and resets only that new database. Its default
+billing selection is unchanged. Exact commands/results are in the review packet.
+
+The local connected server uses a non-secret synthetic `rzp_test_` identity for
+billing-mode reads, an empty provider secret and held provider writes. It cannot
+perform Checkout. Existing Clerk Test credentials may be supplied in process;
+`refresh-auth.mjs` supports this without requiring a saved `.env`. Keep the
+allowlisted synthetic identity/session checks. Do not copy those test-only
+settings into any deployment.
+
+### Integrated Basic verification — 2026-10-29 (supersedes the earlier scaffold runner)
+
+No new migration, package, production environment setting or provider action is
+required. Keep all existing three-plan cutover/provider prerequisites and the
+intentional Vercel Pro hold. Reverting Basic presentation must not revert billing
+migrations or delete operational history; removing the narrowed feature policy
+would require a separate product decision.
+
+The task-local runner is now node tests/dashboard-connected/basic-local.mjs
+with start, test and build modes. It checks the exact Docker container ID,
+postgres:16-alpine image, loopback port and disposable database identity. Prepare
+and seed are one-time operations and refuse a populated existing fixture. Never
+repoint it at shared, Preview or Production databases. The connected server
+holds billing, messaging, AI and import provider writes; the build uses a read-only
+connection. The old basic-test aliases on start-local.mjs are retired.
+
+For this task only, the owner explicitly authorized reading the two Clerk
+Test app keys from the primary checkout. basic-clerk.mjs allowlists those keys,
+checks Test prefixes and the existing synthetic owner's development instance,
+and passes values only in child-process environment. It does not copy an env
+file or another checkout's browser sessions. Normal existing development-session
+refresh is used; a new login requires the owner's normal sign-in. Do not reuse
+this task-specific authorization for other accounts or environments.
+
+The billing/CI runner now creates a fresh empty database and applies repository
+migrations before tests. A schema-only clone omitted migration-owned singleton
+records and readiness metadata, so it is insufficient for full CI. The source
+fixture is never reset or copied. --ci runs the general Vitest suite; --failed
+rechecks failed integration files from the initial Basic report. Exact targets and
+results are retained as local proof, without credentials. See the
+[integration review](redesign/basic-integration-review.md).

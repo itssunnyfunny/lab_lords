@@ -54,6 +54,7 @@ availability of each feature. Test success is not owner approval or deployment.
 
 | Family | Local verification evidence | Owner presentation approval | Production release |
 | --- | --- | --- | --- |
+| Basic workspace | [Organization-connected preview](organization-branch-preview-review.md): organization → branch → student/seat/fee → central mock Billing; sample state only | Narrowed Basic design approved 2026-10-28; organization journey awaits review | Not integrated, merged or deployed |
 | Students | `36d0d0d` implementation; `b102af3` [local evidence](student-card-refinement.md) | **Approved 2026-09-27** in this chat: refined comparison retained as the next batch's visual pattern | Local migration not released; no release operation authorized |
 | Staff | `82bf318` implementation and [local connected evidence](batch-two-review.md): 15 fixture browser checks, two actual-route checks and scoped service/permission tests passed | Reused approved Students hierarchy; completed Staff presentation review pending | Local migration not released |
 | Tasks | `ea1c578` implementation and [local fixture/build evidence](batch-two-review.md): 20 browser checks, 26 scoped contracts/service/route tests and offline production build passed. The earlier connected target was blocked by Windows port reservation; current connected evidence is tracked in the handoff below. | Reused approved Students hierarchy; completed Tasks presentation review pending | Local migration not released |
@@ -228,3 +229,58 @@ from Billing and retains three-plan names. Desktop/mobile fixture verification i
 recorded in [the integration report](../audits/billing-pr-main-sync-2026-10-28.md).
 This is local merge verification; owner visual approval and release remain
 separate. The unfinished Basic prototype stays outside this PR update.
+
+### Organization-connected Basic preview — 2026-10-28
+
+The owner approved the narrowed Basic design and requested the shared
+organization journey. The preview now scopes records and effective access by
+synthetic branch, provides consistent switching and central mock Billing,
+and preserves the Basic/full-workspace presentation boundary. Local browser
+and unit evidence, screenshots and precise implementation limits are in the
+[review report](organization-branch-preview-review.md). Real subscriptions remain
+organization-wide; [separate implementation is required](../billing/branch-plan-compatibility.md).
+No owner approval of this new extension or production release is inferred.
+
+### Basic workspace — narrowed prototype, 2026-10-28
+
+The latest owner direction limits Basic to Overview, Students, Seats and Fees.
+tests/application-design-pilot/basic-prototype owns dedicated screens/forms and
+scoped bp styles, without mounting the full workspace components. Native dialogs
+and the hero palette are a prototype-specific exception to shared presentation
+owners, not a new production UI framework. Owner review must precede domain
+integration. See [current evidence](basic-prototype-review.md).
+
+### Earlier Basic workspace direction — superseded, 2026-10-28
+
+The explicit hero-matching request adds a Basic-only presentation boundary over
+families A–H's existing shared controls and workflows. `styles/basic-workspace.css`
+scopes the hero palette, typography and geometry to the simple workspace,
+including portals. Its literal palette values and static Billing illustrations
+are deliberate copies of the selected public reference, not a shared palette
+replacement. The full workspace/public hero keep their original owners. See the
+review packet for reference comparisons, test evidence and remaining limits;
+local verification does not confer owner approval or production release.
+
+### Basic preview / main reconciliation — 2026-10-29
+
+The isolated Basic worktree now includes merged PR #284 and the prior restored
+navigation/audit changes. Basic keeps its approved design; Account's separate
+layout and return behavior follow main. Standard/Pro use the merged components,
+with their restored dashboard cards supplied by synthetic branch records.
+Local evidence: 63 unit/component checks, 22 full journey checks and 2 added
+card checks passed on desktop/mobile; production build passed. See the
+[review report](organization-branch-preview-review.md) for static checks and
+remaining limits. This is not production integration or new owner approval.
+
+### Approved Basic connected integration — 2026-10-29
+
+Design approval: the owner approved the independent cream/forest Basic direction
+and requested real integration. Local implementation: independent Basic screens,
+forms and scoped portals now use authenticated services and persistent records;
+shared organization/Account/Billing and the Standard/Pro interface remain.
+The preview's default is one organization plan; future mixed branches are separate.
+
+Verification and fresh connected screenshots are recorded in the
+[Basic integration review](basic-integration-review.md). Historical October 28
+screenshots are reference material only. Final owner visual review, PR submission,
+merge and deployment are separate; none is implied by local test results.

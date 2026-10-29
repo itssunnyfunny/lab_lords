@@ -225,3 +225,51 @@ system. New application-owned labels use the existing three-language dictionary.
 See the [restoration review](../redesign/navigation-restoration-review.md) for
 workflow and verification evidence; local implementation is separate from owner
 presentation acceptance and release.
+
+## Basic prototype exception — 2026-10-28
+
+The owner explicitly rejected Standard's screens and forms for Basic. The current
+review prototype uses independent bp styles and native dialogs under
+tests/application-design-pilot/basic-prototype, with four primary areas:
+Overview, Students, Seats and Fees. This intentionally isolates hero-derived
+visual exploration from Standard/Pro and the shared production UI. It is not
+integrated; approved interfaces will later reuse existing domain services.
+See the [current review packet](../redesign/basic-prototype-review.md).
+
+## Earlier Basic workspace extension — superseded design, 2026-10-28
+
+The explicit Basic hero-matching request selects a second presentation of the
+same core application. `BranchAccessProvider` / `workspacePresentation` own its
+server-derived selection; `components/basic` own the small navigation and hero
+overview; `styles/basic-workspace.css` owns the opt-in palette and portal scope.
+Existing forms, Dialog, Drawer, Toast and record pages remain shared. Literal
+hero colors are a scoped reference-copy exception; they must not migrate into
+the shared tokens or affect Standard/Pro. Basic does not introduce a product
+interface toggle or a separate business layer. See the [review packet](../redesign/basic-workspace-review.md)
+and [migration ledger](../redesign/page-family-migration.md) for local evidence,
+pending owner review and unreleased status.
+
+## Basic preview reconciliation — 2026-10-29
+
+After incorporating merged main 22d1d09, the approved Basic prototype keeps its
+four-area hero design. Its personal Account page follows main's account-only
+layout, omitting workspace navigation and returning to the permitted originating
+branch/area. Standard/Pro retain main's shared owners and restored dashboards;
+only preview data adapters changed. See the updated
+[review packet](../redesign/organization-branch-preview-review.md).
+
+## Approved Basic integration — 2026-10-29
+
+The owner's approved narrower Basic design is implemented in components/basic
+with styles/basic-product.css. The four primary destinations are Overview,
+Students, Seats and Fees. Basic owns its simple forms and numbered seat map;
+shared Dialog, language preferences, WorkspaceSwitcher, receipt generation and
+authorized domain services remain shared. Dialog overlays and toasts opt into
+Basic's bp-prototype scope; the global/full/public palettes remain unchanged.
+
+BranchWorkspaceShell selects this interface from effective server access. There
+is no Simple/Advanced preference or production preview flag. The old shared-form
+Basic scaffold is superseded and recoverable in the pre-integration checkpoint.
+See the [integration review](../redesign/basic-integration-review.md) and
+[migration ledger](../redesign/page-family-migration.md) for evidence and review
+status. Native preview dialogs remain preview-only; production uses shared Dialog.
