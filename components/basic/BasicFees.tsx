@@ -7,6 +7,7 @@ import { feeCollections } from "@/lib/api/feeCollections";
 import type { PaymentListItem } from "@/lib/api/payments";
 import type { FeeCollectionView } from "@/lib/feeCollections";
 import { downloadFeeReceipt, feeReceiptFile } from "@/lib/feeReceiptPdf";
+import { receiptCollectedAt, receiptPeriodDate } from "@/lib/feeReceiptDates";
 import { remainingFee } from "@/lib/feeBalance";
 import { BasicDialog } from "./BasicDialog";
 import { initials } from "./data";
@@ -47,7 +48,7 @@ export function BasicPaymentForm({ name, fees, pending, locked, error, onRecord,
     </BasicDialog>;
 }
 export function BasicReceipt({ branchId, receipt: initial, onClose }: { branchId: string; receipt: FeeCollectionView; onClose: () => void }) {
-    const t = useTranslation(), { money, date } = useBasicFormat(), {documentLanguage}=useUserPreferences();
+    const t = useTranslation(), { money } = useBasicFormat(), {documentLanguage}=useUserPreferences();
     const [receipt,setReceipt]=useState(initial), [busy,setBusy]=useState(false), [error,setError]=useState("");
     const snap=receipt.snapshot;
     async function download(){setBusy(true);setError("");try{const current=await feeCollections.get(branchId,receipt.id);setReceipt(current);downloadFeeReceipt(await feeReceiptFile(current,documentLanguage));}catch{setError("Receipt action could not be completed. Your collection remains recorded. Retry the receipt action below.");}finally{setBusy(false);}}
@@ -56,15 +57,15 @@ export function BasicReceipt({ branchId, receipt: initial, onClose }: { branchId
             {!receipt.voidedAt && <span className="bp-success-mark"><Check size={28} /></span>}
             <p className="bp-receipt-amount">{money(receipt.amount)}</p><strong>{snap.studentName}</strong>
             <p>{snap.organizationName} · {snap.branchName}</p>
-            <dl><div><dt>{t("Receipt")}</dt><dd>{receipt.receiptNumber}</dd></div><div><dt>{t("Date")}</dt><dd>{date(receipt.collectedAt)}</dd></div><div><dt>{t.owned("Paid by")}</dt><dd>{t.owned(receipt.method.replaceAll("_"," "))}</dd></div>
-                {snap.allocations.map(row => <div key={row.paymentId}><dt>{t.owned(row.type === "ADMISSION" ? "Admission fee" : "Monthly fee")}<small>{date(row.periodStart)} – {date(row.periodEnd)}</small></dt><dd>{money(row.amount)}</dd></div>)}</dl>
+            <dl><div><dt>{t("Receipt")}</dt><dd>{receipt.receiptNumber}</dd></div><div><dt>{t("Date")}</dt><dd>{receiptCollectedAt(snap.collectedAt)}</dd></div><div><dt>{t.owned("Paid by")}</dt><dd>{t.owned(receipt.method.replaceAll("_"," "))}</dd></div>
+                {snap.allocations.map(row => <div key={row.paymentId}><dt>{t.owned(row.type === "ADMISSION" ? "Admission fee" : "Monthly fee")}<small>{receiptPeriodDate(row.periodStart)} – {receiptPeriodDate(row.periodEnd)}</small></dt><dd>{money(row.amount)}</dd></div>)}</dl>
             <p className="bp-receipt-balance">{t.owned("Balance when recorded")}: {money(snap.remainingBalance)}</p>
-            {receipt.voidedAt && <p className="bp-warning">{t.owned("Voided receipt")} · {date(receipt.voidedAt)} · {receipt.voidReason}</p>}
+            {receipt.voidedAt && <p className="bp-warning">{t.owned("Voided receipt")} · {receiptCollectedAt(receipt.voidedAt)} · {receipt.voidReason}</p>}
         </div>{error&&<p role="alert" className="bp-error">{t.owned(error)}</p>}<footer className="bp-dialog-footer"><button disabled={busy} className="bp-button bp-button-quiet" onClick={()=>void download()}>{t.owned("Download PDF")}</button><button className="bp-button bp-button-primary" onClick={onClose}>{t("Done")}</button></footer>
     </BasicDialog>;
 }
 export function BasicHistory({ branchId, studentId, revision, onReceipt }: { branchId: string; studentId?: string; revision: number; onReceipt: (receipt: FeeCollectionView) => void }) {
-    const t = useTranslation(), { money, date } = useBasicFormat();
+    const t = useTranslation(), { money } = useBasicFormat();
     const requestEpoch=useRef(0);
     const [items, setItems] = useState<FeeCollectionView[]>([]), [cursor,setCursor] = useState<string | null>(null), [error,setError] = useState(""), [loading,setLoading] = useState(true);
     useEffect(() => {
@@ -75,7 +76,7 @@ export function BasicHistory({ branchId, studentId, revision, onReceipt }: { bra
     }, [branchId,studentId,revision]);
     async function more() { const epoch=requestEpoch.current; setLoading(true); try { const page = await feeCollections.list(branchId, { ...(studentId ? {studentId}:{}), ...(cursor ? {cursor}: {}) }); if(epoch!==requestEpoch.current)return;setItems(current => [...current,...page.items]); setCursor(page.nextCursor); } catch { if(epoch===requestEpoch.current)setError("Unable to load payment history."); } finally { if(epoch===requestEpoch.current)setLoading(false); } }
     return <section className="bp-history"><h2>{t.owned("Payment history")}</h2>
-        {error ? <p role="alert">{t.error(error)}</p> : items.map(item => <button key={item.id} onClick={() => onReceipt(item)}><span><strong>{money(item.amount)} {item.voidedAt ? t.owned("Voided") : ""}</strong><small>{item.snapshot.studentName} · {date(item.collectedAt)}</small></span><span>{t.owned("View receipt")}<ChevronRight size={16} /></span></button>)}
+        {error ? <p role="alert">{t.error(error)}</p> : items.map(item => <button key={item.id} onClick={() => onReceipt(item)}><span><strong>{money(item.amount)} {item.voidedAt ? t.owned("Voided") : ""}</strong><small>{item.snapshot.studentName} · {receiptCollectedAt(item.snapshot.collectedAt)}</small></span><span>{t.owned("View receipt")}<ChevronRight size={16} /></span></button>)}
         {loading && <p role="status">{t("Loading…")}</p>}
         {!loading && !error && !items.length && <p>{t.owned("No payments recorded yet.")}</p>}
         {cursor && <button disabled={loading} onClick={() => void more()}>{t("Load more")}</button>}
