@@ -2816,6 +2816,14 @@ export const publicCatalog = {
     "स्टूडेंट रिकॉर्ड और स्प्रेडशीट इम्पोर्ट",
     "Student records aur spreadsheet import"
   ],
+  "Spreadsheet import": [
+    "स्प्रेडशीट से इम्पोर्ट",
+    "Spreadsheet se import"
+  ],
+  "Organization-wide plan, priced per active branch": [
+    "पूरे संगठन के लिए एक प्लान, हर सक्रिय ब्रांच के हिसाब से शुल्क",
+    "Poore organization ka ek plan, har active branch ke hisaab se price"
+  ],
   "Seats, shifts and allocations": [
     "सीट, शिफ्ट और आवंटन",
     "Seats, shifts aur allocations"
