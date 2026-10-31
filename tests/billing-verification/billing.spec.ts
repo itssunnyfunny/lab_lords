@@ -53,23 +53,23 @@ async function assertNoOverflow(page: Page) {
 const languages = [
   { code: "en", lang: "en-IN", title: "Billing and plans", billedPlan: "Billed plan", methodsTitle: "Card checkout is currently active",
     renewalAction: "Change to Basic at renewal",
-    basicDescription: "Core operations billed per active branch.",
+    basicDescription: "Simple student, seat and fee management. One plan for your organization, billed per active branch.",
     standardDescription: "For growing teams that need staff controls, analytics, and AI assistance.",
-    sharedCapability: "Student records and spreadsheet import",
+    studentRecords: "Student records", spreadsheetImport: "Spreadsheet import", standardOnly: " — Standard or Pro",
     premiumCapabilities: ["Staff invitations, roles and permission controls", "Branch and cross-branch advanced analytics", "AI reports"],
   },
   { code: "hi", lang: "hi-IN", title: "बिलिंग और प्लान", billedPlan: "बिलिंग वाला प्लान", methodsTitle: "अभी कार्ड से पेमेंट चालू है",
     renewalAction: "रिन्यूअल पर Basic में बदलें",
-    basicDescription: "हर सक्रिय ब्रांच के हिसाब से शुल्क, रोज़ के ज़रूरी कामों के लिए।",
+    basicDescription: "विद्यार्थी, सीट और फीस का सरल प्रबंधन। संगठन का एक प्लान, प्रति सक्रिय शाखा बिलिंग।",
     standardDescription: "बढ़ती टीमों के लिए स्टाफ नियंत्रण, विस्तृत आँकड़े और AI की मदद।",
-    sharedCapability: "छात्रों के रिकॉर्ड और स्प्रेडशीट से इम्पोर्ट",
+    studentRecords: "विद्यार्थी रिकॉर्ड", spreadsheetImport: "स्प्रेडशीट से आयात", standardOnly: " — Standard या Pro",
     premiumCapabilities: ["स्टाफ को निमंत्रण, भूमिकाएँ और अनुमति नियंत्रण", "एक या कई ब्रांच के विस्तृत आँकड़े", "AI रिपोर्ट"],
   },
   { code: "hinglish", lang: "hi-Latn-IN", title: "Billing aur plans", billedPlan: "Billing wala plan", methodsTitle: "Abhi card checkout active hai",
     renewalAction: "Renewal par Basic mein badlein",
-    basicDescription: "Har active branch ke hisaab se billing, roz ke zaroori kaamon ke liye.",
+    basicDescription: "Student, seat aur fees ka simple management. Organization ka ek plan, har active branch ki billing.",
     standardDescription: "Badhti teams ke liye staff controls, analytics aur AI ki madad.",
-    sharedCapability: "Student records aur spreadsheet import",
+    studentRecords: "Student records", spreadsheetImport: "Spreadsheet import", standardOnly: " — Standard ya Pro",
     premiumCapabilities: ["Staff invitations, roles aur permission controls", "Branch aur cross-branch advanced analytics", "AI reports"],
   },
 ] as const;
@@ -101,7 +101,9 @@ for (const language of languages) {
     await expect(plans.getByRole("heading", { name: "Pro", exact: true })).toBeVisible();
     await expect(plans.getByText(language.basicDescription, { exact: true })).toBeVisible();
     await expect(plans.getByText(language.standardDescription, { exact: true })).toBeVisible();
-    await expect(plans.getByText(language.sharedCapability, { exact: true })).toHaveCount(3);
+    await expect(plans.getByText(language.studentRecords, { exact: true })).toHaveCount(3);
+    await expect(plans.getByText(language.spreadsheetImport, { exact: true })).toHaveCount(2);
+    await expect(plans.getByText(language.spreadsheetImport + language.standardOnly, { exact: true })).toHaveCount(1);
     await expect(plans.getByRole("button", { name: language.renewalAction, exact: true })).toBeEnabled();
     for (const label of language.premiumCapabilities) {
       await expect(plans.getByText(label, { exact: true })).toHaveCount(2);
@@ -109,7 +111,10 @@ for (const language of languages) {
     if (language.code !== "en") {
       await expect(plans.getByText(languages[0].basicDescription, { exact: true })).toHaveCount(0);
       await expect(plans.getByText(languages[0].standardDescription, { exact: true })).toHaveCount(0);
-      await expect(plans.getByText(languages[0].sharedCapability, { exact: true })).toHaveCount(0);
+      if (language.code === "hi") {
+        await expect(plans.getByText(languages[0].studentRecords, { exact: true })).toHaveCount(0);
+        await expect(plans.getByText(languages[0].spreadsheetImport, { exact: true })).toHaveCount(0);
+      }
     }
     await assertNoOverflow(page);
     await page.evaluate(() => document.fonts.ready);
@@ -149,7 +154,8 @@ test("Basic reviews a card replacement and launches only the returned checkout w
   });
   await page.goto("/org/org-pilot/billing?mode=after&lang=en");
   const plans = page.locator("#plans");
-  await expect(plans.getByText(/— Standard or Pro/)).toHaveCount(3);
+  await expect(plans.getByText(/— Standard or Pro/)).toHaveCount(6);
+  await expect(plans.getByText("Spreadsheet import — Standard or Pro", { exact: true })).toHaveCount(1);
   await expect(plans.getByText("Staff invitations, roles and permission controls", { exact: true })).toHaveCount(2);
   await expect(plans.getByText("Branch and cross-branch advanced analytics", { exact: true })).toHaveCount(2);
   await expect(plans.getByText("AI reports", { exact: true })).toHaveCount(2);

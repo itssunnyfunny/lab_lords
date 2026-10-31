@@ -111,8 +111,16 @@ describe("complete public marketing journey", () => {
     const html = await renderPublic(<Home />);
     const nodes = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map(match => JSON.parse(match[1]));
     expect(nodes).toEqual([{ "@context": "https://schema.org", "@type": "WebSite", name: "Lab Lords", alternateName: "lablords.in", url: "https://lablords.in/" }]);
-    expect(html).not.toMatch(/Choose Basic|Choose Standard|Choose what your library needs/);
-    expect(html).toContain('<a id="pricing" href="/pricing">Pricing</a>');
+    expect(html.match(/id="pricing"/g)).toHaveLength(1);
+    expect(html).toContain('<section id="pricing"');
+    for (const [name, amount] of [["Basic", "₹99"], ["Standard", "₹299"], ["Pro", "₹499"]]) {
+      expect(html).toContain(`Choose ${name}`);
+      expect(html).toContain(amount);
+    }
+    expect(html).toContain("Per billable branch / month");
+    expect(html).toContain("Eligible new owners can try Standard features for 30 days");
+    expect(html).toContain("WhatsApp requires integration setup and rollout availability.");
+    expect(html).toContain('href="/pricing"');
     expect(homeMetadata.description).toBe("Manage students, seats, attendance and fees for your self-study library. Keep payments, receipts and upcoming fee dates organised with Lab Lords.");
   });
   it("allows an exact search title without adding a duplicate brand suffix", async () => {

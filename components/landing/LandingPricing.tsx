@@ -28,7 +28,7 @@ export async function LandingPricing({ showIntroduction = true, showComparisonLi
             <p className="marketing-plan-note mt-3">{t("Eligible new owners can try Standard features for 30 days after setting up their first branch. No card needed.")}</p>
           </div>
         )}
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-6">
           {plans.map(plan => (
             <article key={plan.id} className="marketing-card flex flex-col p-6 sm:p-8">
               <div className="flex flex-wrap items-center justify-between gap-3">

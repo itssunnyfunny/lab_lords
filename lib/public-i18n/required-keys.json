@@ -787,5 +787,7 @@
   "Standard and Pro include fee follow-ups, notes and next-contact dates. Basic shows recorded dues, balances and payments. A follow-up date does not change the fee date or renew a seat.",
   "Attendance requires Standard or Pro. Authorized staff can scan a student's QR code, check their name and confirm check-in or check-out, or record attendance manually. Scanning needs staff supervision and does not verify identity. Attendance does not change fees or seat assignments.",
   "Standard and Pro let you review spreadsheet imports before adding records. Map the fields, resolve flagged issues and confirm. Check the result afterward and keep your original file.",
-  "Standard and Pro include upcoming-fee views and follow-ups. Save notes and next-contact dates without changing the original fee date."
+  "Standard and Pro include upcoming-fee views and follow-ups. Save notes and next-contact dates without changing the original fee date.",
+  "Spreadsheet import",
+  "Organization-wide plan, priced per active branch"
 ]

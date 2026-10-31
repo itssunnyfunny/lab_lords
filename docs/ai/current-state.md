@@ -1,5 +1,19 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Homepage plans and public translations — local, 2026-10-31
+
+Home now reuses `LandingPricing` summary cards for Basic ₹99, Standard ₹299 and
+Pro ₹499 per billable branch per month. Each card uses the shared catalogue and
+existing plan-selection flow; the full comparison stays on `/pricing`.
+`/#pricing` targets the new section rather than the footer link, with one ID.
+The shared pricing grid fits columns to available width, including browser zoom.
+Public Hindi/Hinglish entries now cover spreadsheet import and organization-wide
+branch pricing. A regression check covers dynamic catalogue labels and WhatsApp
+availability notes. Features and FAQ retain the same commercial facts. No billing
+policy, schema, provider configuration or production deployment changes.
+Local validation and remaining release conditions are tracked in the
+[three-plan audit follow-up](../audits/three-plan-system-audit-2026-10-31.md).
+
 ## Authenticated Basic integration — local, 2026-10-29
 
 The approved cream/forest Basic interface is now implemented in components/basic

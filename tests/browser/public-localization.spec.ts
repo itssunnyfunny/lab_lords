@@ -152,8 +152,19 @@ for (const locale of publicLocales) {
     }).toBe(true);
     await page.reload();
     await expect(page.locator("#imports h2")).toBeInViewport();
-    await page.goto(publicHref(locale, "/pricing"));
-    for (const amount of ["₹299", "₹499"]) await expect(page.locator("#pricing")).toContainText(amount);
+    for (const path of ["/", "/pricing"]) {
+      await page.goto(publicHref(locale, path));
+      const pricing = page.locator("#pricing");
+      await expect(pricing).toHaveCount(1);
+      for (const amount of ["₹99", "₹299", "₹499"]) await expect(pricing).toContainText(amount);
+      for (const plan of ["Basic", "Standard", "Pro"]) await expect(pricing.getByRole("button", { name: t("Choose {plan}", { plan }), exact: true })).toBeVisible();
+    }
+    if (locale !== "en") {
+      await expect(page.locator("#pricing").getByText(t("Spreadsheet import"), { exact: false })).toHaveCount(3);
+      await expect(page.locator("#pricing").getByText(t("Organization-wide plan, priced per active branch"), { exact: false })).toHaveCount(3);
+      await expect(page.locator("#pricing").getByText("Spreadsheet import", { exact: true })).toHaveCount(0);
+      await expect(page.locator("#pricing").getByText("Organization-wide plan, priced per active branch", { exact: true })).toHaveCount(0);
+    }
     await expect(page.getByRole("button", { name: t("Choose {plan}", { plan: "Standard" }), exact: true })).toBeVisible();
     await page.goto(publicHref(locale, "/contact"));
     await expect(page.getByRole("link", { name: t("Open email"), exact: true })).toHaveAttribute("href", /^mailto:/);
@@ -181,8 +192,8 @@ for (const locale of publicLocales) {
     await context.close();
   });
   test(`${locale}: selected plans retain their sign-up continuation`, async ({ page }) => {
-    for (const [plan, label] of [["BASIC", "Basic"], ["PRO", "Standard"]] as const) {
-      await page.goto(publicHref(locale, "/pricing"));
+    for (const route of ["/", "/pricing"]) for (const [plan, label] of [["BASIC", "Basic"], ["STANDARD", "Standard"], ["PRO", "Pro"]] as const) {
+      await page.goto(publicHref(locale, route));
       const button = page.getByRole("button", { name: t("Choose {plan}", { plan: label }), exact: true });
       await expect(button).toBeEnabled(); await button.click();
       await expect(page).toHaveURL(url => `${url.pathname}${url.search}` === getBillingSignUpPath(plan));

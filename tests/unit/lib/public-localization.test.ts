@@ -71,6 +71,15 @@ describe("public language contracts", () => {
     }
     expect(publicFaqAnswer(faq, publicTranslator())).toBe(faq.answer);
   });
+  it("requires public translations for dynamic billing capabilities and availability notes", () => {
+    const messages = new Set(publicBillingPlans().flatMap(plan => [
+      ...plan.capabilities.map(capability => capability.label),
+      ...(plan.availabilityNote ? [plan.availabilityNote] : []),
+    ]));
+    for (const message of messages) {
+      expect(catalog[message], `Billing catalogue: ${message}`).toHaveLength(2);
+    }
+  });
   it("maps exactly the supported pages and never prefixes protected or external destinations", () => {
     expect(translatedPublicPaths).toHaveLength(13);
     for (const locale of publicLocales) for (const path of translatedPublicPaths) {

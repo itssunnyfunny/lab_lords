@@ -9,6 +9,7 @@ const homepageSections = [
   "Less paperwork. More clarity.",
   "Ready in four simple steps.",
   "See how it works in your library",
+  "Choose what your library needs.",
   "A few things you might be wondering.",
   "Give your library a simpler way to work.",
 ];
@@ -97,8 +98,8 @@ test("homepage uses the approved prototype messaging and section progression", a
     await expect(page.locator("#features").getByRole("heading", { name: title, exact: true })).toBeVisible();
     await expect(page.locator("#features").getByText(description, { exact: true })).toBeVisible();
   }
-  await expect(page.getByRole("button", { name: /^Choose (Basic|Standard)$/ })).toHaveCount(0);
-  await expect(page.locator("main .marketing-pricing")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Choose (Basic|Standard|Pro)$/ })).toHaveCount(3);
+  await expect(page.locator("main #pricing article")).toHaveCount(3);
   const proof = page.getByRole("region", { name: "See how it works in your library" });
   await expect(proof.getByText("Sample data", { exact: true })).toBeVisible();
   await expect(proof.getByText("Receipt for the ₹700 recorded payment")).toBeVisible();
@@ -218,6 +219,11 @@ test("public landing reflows at 320px and browser-style 400% zoom", async ({ pag
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.evaluate(() => { document.documentElement.style.zoom = "4"; });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  for (const name of ["Choose Basic", "Choose Standard", "Choose Pro"]) {
+    const button = page.locator("#pricing").getByRole("button", { name, exact: true });
+    await button.scrollIntoViewIfNeeded();
+    await expect(button).toBeInViewport({ ratio: 1 });
+  }
 });
 
 test("public landing visual regression", async ({ page }, testInfo) => {
@@ -255,41 +261,62 @@ test("public landing visual regression", async ({ page }, testInfo) => {
   });
 });
 
-test("public pricing exposes only Basic and Standard branch pricing", async ({ page }, testInfo) => {
+test("homepage shows all three monthly branch plans with direct plan actions", async ({ page }, testInfo) => {
+  await page.goto("/");
+  const pricing = page.locator("main #pricing");
+  await expect(page.locator("#pricing")).toHaveCount(1);
+  for (const [name, amount] of [["Basic", "₹99"], ["Standard", "₹299"], ["Pro", "₹499"]] as const) {
+    const card = pricing.getByRole("article").filter({ has: page.getByRole("heading", { name, exact: true }) });
+    await expect(card.getByText(amount, { exact: true })).toBeVisible();
+    await expect(card.getByText("Per billable branch / month", { exact: true })).toBeVisible();
+    await expect(card.getByRole("button", { name: `Choose ${name}`, exact: true })).toBeEnabled();
+    await card.screenshot({ path: testInfo.outputPath(`homepage-${name.toLowerCase()}.png`) });
+  }
+  await expect(pricing).toContainText("Eligible new owners can try Standard features for 30 days");
+  await expect(pricing).toContainText("Everything in Standard, plus WhatsApp integration and automation.");
+  await expect(pricing).toContainText("unlimited messages are not included");
+  await expect(pricing.getByRole("link", { name: "View pricing", exact: true })).toHaveAttribute("href", "/pricing");
+  await pricing.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("homepage-plans.png") });
+});
+
+test("public pricing exposes Basic, Standard and Pro with their separate capabilities", async ({ page }, testInfo) => {
   await page.goto("/pricing");
-  await expect(page.getByText("Basic", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Standard", { exact: true }).first()).toBeVisible();
-  await expect(page.locator("#pricing").getByText(/\u20B9299/)).toBeVisible();
-  await expect(page.locator("#pricing").getByText(/\u20B9499/)).toBeVisible();
+  for (const [name, amount] of [["Basic", "₹99"], ["Standard", "₹299"], ["Pro", "₹499"]] as const) {
+    const card = page.locator("#pricing").getByRole("article").filter({ has: page.getByRole("heading", { name, exact: true }) });
+    await expect(card.getByText(amount, { exact: true })).toBeVisible();
+    await expect(card.getByRole("button", { name: `Choose ${name}`, exact: true })).toBeVisible();
+  }
   await expect(page.getByText(/Agent Control/i)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Choose Basic", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Choose Standard", exact: true })).toBeVisible();
   for (const capability of [
-    "Student records and spreadsheet import",
+    "Student records",
+    "Spreadsheet import",
     "Seats, shifts and allocations",
     "Payments, dues and audit history",
-    "Multiple branches, each billed separately",
+    "Organization-wide plan, priced per active branch",
     "Staff invitations, roles and permission controls",
     "Branch and cross-branch advanced analytics",
     "AI reports",
   ]) {
-    await expect(page.locator("#pricing").getByText(capability, { exact: false })).toHaveCount(2);
+    await expect(page.locator("#pricing li").getByText(capability, { exact: false })).toHaveCount(3);
     await expect(page.locator("#comparison").getByRole("rowheader", { name: capability, exact: true })).toBeVisible();
   }
   const basic = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Basic", exact: true }) });
   const standard = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Standard", exact: true }) });
-  await expect(basic.getByText("Not included in Basic", { exact: true })).toHaveCount(3);
-  await expect(standard.getByText(/Not included/)).toHaveCount(0);
-  await expect(page.getByText(/billable branch \/ month/)).toHaveCount(2);
+  const pro = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Pro", exact: true }) });
+  await expect(basic.getByText("Not included in Basic", { exact: true })).toHaveCount(7);
+  await expect(standard.getByText("Not included in Standard", { exact: true })).toHaveCount(1);
+  await expect(pro.getByText(/Not included/)).toHaveCount(0);
+  await expect(pro).toContainText("WhatsApp requires integration setup and rollout availability.");
+  await expect(page.getByText(/billable branch \/ month/)).toHaveCount(3);
   await page.screenshot({ path: testInfo.outputPath("public-pricing.png"), fullPage: true });
 });
 
 for (const route of ["/", "/pricing"]) {
-  for (const [label, planId] of [["Choose Basic", "BASIC"], ["Choose Standard", "PRO"]] as const) {
+  for (const [label, planId] of [["Choose Basic", "BASIC"], ["Choose Standard", "STANDARD"], ["Choose Pro", "PRO"]] as const) {
     test(`${route} ${label} preserves the signed-out selected-plan continuation`, async ({ page }) => {
       test.skip(!hasClerkCredentials, "Clerk credentials are required to verify the signed-out plan journey.");
       await page.goto(route);
-      if (route === "/") await page.locator("footer").getByRole("link", { name: "Pricing", exact: true }).click();
       const button = page.getByRole("button", { name: label, exact: true });
       await expect(button).toBeEnabled();
       await button.click();
@@ -448,19 +475,20 @@ test("legacy homepage anchors still lead to the matching content", async ({ page
   }
 });
 
-test("the old pricing bookmark reaches the footer Pricing link with keyboard access", async ({ page }) => {
+test("the pricing bookmark reaches the homepage plans and keyboard access opens their comparison", async ({ page }) => {
   await page.goto("/#pricing");
-  const link = page.locator("#pricing");
-  await expect(link).toHaveCount(1);
-  await expect(link).toHaveText("Pricing");
+  const pricing = page.locator("#pricing");
+  await expect(pricing).toHaveCount(1);
+  await expect(pricing.getByRole("heading", { name: "Choose what your library needs.", exact: true })).toBeInViewport();
+  const link = pricing.getByRole("link", { name: "View pricing", exact: true });
   await expect(link).toHaveAttribute("href", "/pricing");
-  await expect(link).toBeInViewport();
   await link.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/pricing$/);
   await expect(page.locator("#pricing")).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Choose Basic", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Choose Standard", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Choose Pro", exact: true })).toBeVisible();
 });
 
 test("standalone pages link to the setup walkthrough with working history", async ({ page }) => {
