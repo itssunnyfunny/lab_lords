@@ -1,5 +1,18 @@
 # Public wording and feature claims
 
+## Homepage pricing follow-up — local, 2026-10-31
+
+Home displays all three catalogue-backed summary cards: Basic ₹99, Standard ₹299
+and Pro ₹499 per billable branch per month, with direct plan-selection actions.
+It retains the eligible-owner 30-day Standard trial wording and Pro's setup,
+rollout and messaging-usage conditions. The full capability comparison remains
+on Pricing. Public Hindi and Hinglish now translate spreadsheet import and the
+organization-wide/per-active-branch pricing label. Features and FAQ were checked;
+their plan facts already match and need no copy change. Existing staff and legacy
+fallback policies remain unchanged. These are local copy/presentation changes,
+not new feature availability, owner visual approval or production release.
+See the [audit follow-up](../audits/three-plan-system-audit-2026-10-31.md).
+
 Audit closeout, 25 October 2026: Home, Features, Pricing, FAQ and fee-reminder
 solution copy stopped advertising the retired AI Messages capability. Plan text
 “AI reports and message drafting” is now “AI reports”; draft preview labels now
@@ -109,21 +122,24 @@ All rows last reviewed at `804b133`; product-source comparison
 revision is `3007db3`. Prices, plan IDs and inclusions remain sourced from
 `lib/billingPlans.ts`; this document is not a second commercial catalogue.
 
+The plan boundaries below describe the current local catalogue. Retained release
+evidence for a feature does not establish production release of this catalogue.
+
 | Feature / status | Implementation evidence | Access / plan rule | Release evidence | Approved public wording | Pages |
 | --- | --- | --- | --- | --- | --- |
 | Students / release-verified | `services/student.service.ts`, `lib/branchCapabilities.ts` | Student permission; branch writability for changes; core public plans | Current production revision above | Keep student details, seat assignments and fee records together. | Home, Features, relevant solutions |
 | Seats and shifts / release-verified | `services/seatAllocation.service.ts`, `services/shift.service.ts`, `services/multiShift.service.ts` | Allocation permission; same-branch overlap checks; core public plans | Current production revision | See available seats and assign them to students for the right shift. | Home, Features, setup, relevant solutions |
-| Partial payments / owner-confirmed and deployment-verified | `services/feeCollection.service.ts`, `lib/feeBalance.ts`; `docs/ai/fee-collections.md` | `paymentsRecord`: payment-view/record permission and writable branch; both plans | Owner baseline + collections deployment + current revision | Record full or partial payments and check how much each student has left to pay. | Home, Features, Pricing, FAQ, setup, student-fee solution |
-| Receipts / owner-confirmed and deployment-verified | Collection snapshot/history readers; `docs/ai/fee-collections.md` | Payment-view permission; no public receipt links; both plans | Same as collections | Download a receipt for a recorded payment and find it again in the student's collection history. | Home, Features, Pricing, FAQ, setup, student-fee solution |
-| Renewals/follow-ups / owner-confirmed and deployment-verified | `services/renewals.service.ts`, `lib/renewals.ts` | View payments to read; `paymentsRecord` to save; both plans | Owner baseline + renewals deployment + current revision | See today's fees, upcoming fee dates and pending amounts. Save a note, contact outcome and the next date to follow up. | Features, Pricing, FAQ, setup, fee-reminder solution |
-| Attendance / owner-confirmed and deployment-verified | `services/attendance.service.ts`, `components/attendance/AttendanceScanner.tsx`, `docs/ai/basic-attendance.md` | Student permission; correction also needs branch-management permission; writable branch; all three plans. Staff accounts require Standard or Pro | Owner baseline + attendance deployment + current revision | Mark daily attendance and record check-in and check-out, with staff-assisted QR scanning. | Home, Features, Pricing, FAQ, setup |
-| Languages / deployment-verified | `services/user.service.ts`, `lib/i18n/`, `docs/localization.md` | Personal interface/document choices; both plans. Report access retains its own plan/permissions | Current production deployment includes `c4af748` and owns customer aliases | Choose your interface language, and set the receipt and report language separately. | Home, Features, Pricing, FAQ, setup |
+| Partial payments / owner-confirmed and deployment-verified | `services/feeCollection.service.ts`, `lib/feeBalance.ts`; `docs/ai/fee-collections.md` | `paymentsRecord`: payment-view/record permission and writable branch; all three plans | Owner baseline + collections deployment + current revision | Record full or partial payments and check how much each student has left to pay. | Home, Features, Pricing, FAQ, setup, student-fee solution |
+| Receipts / owner-confirmed and deployment-verified | Collection snapshot/history readers; `docs/ai/fee-collections.md` | Payment-view permission; no public receipt links; all three plans | Same as collections | Download a receipt for a recorded payment and find it again in the student's collection history. | Home, Features, Pricing, FAQ, setup, student-fee solution |
+| Renewals/follow-ups / owner-confirmed and deployment-verified | `services/renewals.service.ts`, `lib/renewals.ts` | Standard or Pro; view payments to read; `paymentsRecord` to save | Owner baseline + renewals deployment + current revision | See today's fees, upcoming fee dates and pending amounts. Save a note, contact outcome and the next date to follow up. | Features, Pricing, FAQ, setup, fee-reminder solution |
+| Attendance / owner-confirmed and deployment-verified | `services/attendance.service.ts`, `components/attendance/AttendanceScanner.tsx`, `docs/ai/basic-attendance.md` | Standard or Pro; student permission; correction also needs branch-management permission; writable branch for changes | Owner baseline + attendance deployment + current revision | Mark daily attendance and record check-in and check-out, with staff-assisted QR scanning. | Home, Features, Pricing, FAQ, setup |
+| Languages / deployment-verified | `services/user.service.ts`, `lib/i18n/`, `docs/localization.md` | Personal interface/document choices; all three plans. Report access retains its own plan/permissions | Current production deployment includes `c4af748` and owns customer aliases | Choose your interface language, and set the receipt and report language separately. | Home, Features, Pricing, FAQ, setup |
 | Branches / release-verified | `services/branch.service.ts`, public billing catalogue | Authorized branch scope; per-billable-branch pricing | Current production revision | Manage your branches from one account, with separate records for each. | Home, Features, Pricing, FAQ, setup, relevant solutions |
-| Staff / release-verified | `services/accessPolicy.service.ts`, `lib/branchCapabilities.ts` | Standard or Pro; permissions still checked per operation | Current production revision | Add your team and choose what each person can view or change. | Home, Features, Pricing, FAQ |
+| Staff / release-verified | `services/accessPolicy.service.ts`, `lib/branchCapabilities.ts` | Standard or Pro for invitations and permission controls; retained members keep permitted core access | Current production revision | Add your team and choose what each person can view or change. | Home, Features, Pricing, FAQ |
 | Reports and AI assistance / implemented in deployed code | `lib/billingPlans.ts`, AI report page/service and branch capability policy | Standard or Pro; analytics and payment-view permission; advisory output | Current production revision; no provider generation executed here | Read summaries of recorded figures and review them alongside your library's records. | Features, Pricing, FAQ |
-| Imports / implemented, gated; current enablement unknown | `lib/importFeature.ts`, `importing/`, import routes | Student permission, writable branch, Import V2 flag and mutation limit; AI mapping retains its rules | Source and existing local verification only; target enablement unconfirmed | Existing narrow reviewed-student-list wording retained. No new claim for PDF beta, OCR, every format or whole-file rollback | Existing Home/Features/FAQ/setup copy |
+| Imports / implemented, gated; current enablement unknown | `lib/importFeature.ts`, `importing/`, import routes | Standard or Pro; student permission, writable branch, Import V2 flag and mutation limit; AI mapping retains its rules | Source and existing local verification only; target enablement unconfirmed | Existing narrow reviewed-student-list wording retained. No new claim for PDF beta, OCR, every format or whole-file rollback | Existing Home/Features/FAQ/setup copy |
 
-| WhatsApp / implemented, independently gated; commercial availability unknown | `lib/whatsappFeature.ts`, `services/whatsapp*.ts`, public catalogue filtering | Pro entitlement plus separate permissions, flags, mode/canaries, consent and templates | No fresh gate/provider/delivery evidence | Pro includes conditional integration/automation entitlement; setup/rollout and usage terms apply. No unlimited messages or delivery guarantee | Pricing and conditional Pro plan description |
+| WhatsApp / implemented, independently gated; commercial availability unknown | `lib/whatsappFeature.ts`, `services/whatsapp*.ts`, public catalogue filtering | Pro entitlement plus separate permissions, flags, mode/canaries, consent and templates | No fresh gate/provider/delivery evidence | Pro includes conditional integration/automation entitlement; setup/rollout and usage terms apply. No unlimited messages or delivery guarantee | Home, Pricing and conditional Pro plan description |
 | Standalone AI Messages / retired in current branch | Authenticated 410 routes; AI draft generation removed; historical drafts retained | AI Reports remain available to Standard and Pro with existing permissions | Local implementation, not release evidence | Home, Features, Pricing, FAQ and fee-reminder copy describe AI reports only; no message drafting claim | Features, Pricing, FAQ, Terms and fee-reminder solution |
 
 ## Meaning to preserve

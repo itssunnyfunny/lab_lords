@@ -1,5 +1,15 @@
 # Application page-family migration
 
+Homepage pricing follow-up, 31 October 2026: the local Home page reuses the
+existing public `LandingPricing` summary cards, catalogue and `PlanCTA` owners.
+The actual pricing section now owns `/#pricing`; the footer keeps its normal
+Pricing link. The shared grid now fits available width for narrow/zoomed layouts.
+Hindi/Hinglish capability-label gaps and stale translated plan-ID
+test expectations are corrected. Local evidence is tracked in the
+[three-plan audit follow-up](../audits/three-plan-system-audit-2026-10-31.md).
+The user requested these local changes; separate final visual approval and
+production release are not recorded by passing tests or refreshed snapshots.
+
 Audit follow-up, 25–26 October 2026: local seat/admission recovery, membership
 management/history and owner billing-history browsing reuse the existing shared
 Dialog, compact actions, panels and locale boundary. The selected desktop/mobile
