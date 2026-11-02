@@ -120,6 +120,14 @@ comparison command ran the unchanged `basic-workspace.test.ts` and
 separate reset hook timed out during a machine pause. Billing's 81 cases passed.
 Student dues generation and that unrelated assertion are intentionally retained.
 
+The automatic Vercel preview for commit `1d463d7` was rejected before compilation:
+the project's Hobby account permits only daily crons, while the existing
+`/api/cron/billing/hourly` schedule is `0 * * * *`. Existing WhatsApp schedules
+are also more frequent than daily. `vercel.json` is unchanged from main. See
+the [Vercel check](https://vercel.com/shani-yadavs-projects/lab-lords/FPySakP7cNPcPm5QCakjwrbBBWcV).
+This is a hosting capability blocker, separate from the passing local build.
+No cron schedule, hosting subscription or deployment setting was changed.
+
 Machine pauses and memory pressure interrupted earlier runs; final results
 above distinguish those interruptions from application assertions. Full-suite
 worker startup failed for `razorpay-webhook.route.test.ts`; its maintained tests

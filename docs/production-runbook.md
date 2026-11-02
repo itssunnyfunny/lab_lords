@@ -2,6 +2,14 @@
 
 ## Explicit onboarding trial plan — 2 November 2026
 
+Hosted preview observation on 2 November: Vercel rejected this change's automatic
+preview before compilation because the project's Hobby account permits only
+daily crons, while the existing billing job runs hourly and WhatsApp jobs run
+more frequently. `vercel.json` is unchanged. Local build verification does not
+resolve this hosting capability mismatch. An owner must separately align hosting
+capability with the required existing schedules; changing billing or WhatsApp
+cadence is not an onboarding deployment workaround.
+
 `20261102120000_explicit_owner_trial_plan` adds non-null
 `OwnerTrialGrant.trialPlan` using the existing SaasPlan enum, default STANDARD.
 Historical grants keep Standard regardless of post-trial preference. It changes
