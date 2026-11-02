@@ -42,7 +42,7 @@ export async function HomeReferencePreview() {
             <Link className="botanical-button-secondary" href={localHref(copy.hero.secondaryHref)}>{t(copy.hero.secondaryLabel)}</Link>
           </div>
           <ul className="botanical-trial-proof" aria-label={t("Trial details")}>
-            <li><Check size={12} strokeWidth={3} aria-hidden="true" />{t("30-day Standard trial")}</li>
+            <li><Check size={12} strokeWidth={3} aria-hidden="true" />{t("30-day trial of your chosen plan")}</li>
             <li><Check size={12} strokeWidth={3} aria-hidden="true" />{t("No card needed")}</li>
           </ul>
         </div>

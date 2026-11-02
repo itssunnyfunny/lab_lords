@@ -7,7 +7,7 @@
     "signedInLabel": "Open workspace",
     "secondaryLabel": "Explore features",
     "secondaryHref": "/features",
-    "trialNote": "30-day Standard trial · No card needed",
+    "trialNote": "30-day trial of your chosen plan · No card needed",
     "previewLabel": "Sample data"
   },
   "home": {
@@ -48,7 +48,7 @@
           "title": "Student imports",
           "description": "Bring in your existing student list and review the details before adding it.",
           "href": "/features#imports",
-          "planNote": "Standard"
+          "planNote": "Every plan"
         },
         {
           "id": "staff",
@@ -119,7 +119,7 @@
           "description": "Assign seats, record payments and check pending fees."
         }
       ],
-      "trialNote": "Eligible new owners get a 30-day Standard trial after setting up their first branch.",
+      "trialNote": "Eligible new owners can try Basic, Standard or Pro for 30 days after setting up their first location.",
       "primaryLabel": "Start your free trial"
     },
     "proof": {
@@ -142,11 +142,11 @@
         },
         {
           "question": "Do I need a card for the trial?",
-          "answer": "No. Eligible new owners get one 30-day Standard trial after setting up their first branch. The trial is shared across branches in that workspace. Adding branches does not extend it."
+          "answer": "No. Eligible new owners get one 30-day trial of Basic, Standard or Pro after setting up their first location. Adding branches or changing plans does not extend it."
         },
         {
           "question": "Can I add my existing student list?",
-          "answer": "Yes. All plans let you add students individually. Spreadsheet import requires Standard or Pro. Review the information and resolve flagged issues before confirming an import."
+          "answer": "Yes. Every plan lets you add students individually or import a spreadsheet. Review the information and resolve flagged issues before confirming an import."
         },
         {
           "question": "Can I manage more than one branch?",
@@ -164,7 +164,7 @@
       "primaryLabel": "Start your free trial",
       "secondaryLabel": "View pricing",
       "secondaryHref": "/pricing",
-      "trialNote": "30-day Standard trial · No card needed"
+      "trialNote": "30-day trial of your chosen plan · No card needed"
     }
   }
 }

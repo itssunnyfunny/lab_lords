@@ -25,6 +25,7 @@ export function normalizeOnboardingKey(value: unknown): string {
 }
 
 type CanonicalOnboardingRequest = {
+    trialPlan?: CheckoutBillingPlanId;
     selectedPostTrialPlan: CheckoutBillingPlanId;
     ownerPhone: string;
     orgName: string;
@@ -60,5 +61,9 @@ export function hashOnboardingRequest(input: CanonicalOnboardingRequest): string
         })) ?? null,
         includeFullTimeMultiShift: input.includeFullTimeMultiShift !== false,
     };
-    return `v1:${createHash("sha256").update(JSON.stringify(canonical)).digest("hex")}`;
+    // Retained V1 commands keep their exact hash and Standard trial promise.
+    // New explicit-tier commands bind the tier without reinterpreting V1 input.
+    const version = input.trialPlan === undefined ? "v1" : "v2";
+    const request = input.trialPlan === undefined ? canonical : { ...canonical, trialPlan: input.trialPlan };
+    return `${version}:${createHash("sha256").update(JSON.stringify(request)).digest("hex")}`;
 }

@@ -70,7 +70,7 @@ describe("onboarding durable replay", () => {
             ownerId: "owner_1", idempotencyKey: key, requestHash: expect.stringMatching(/^v1:[a-f0-9]{64}$/),
             organizationId: "org_1", branchId: "branch_1",
         } });
-        expect(mocks.trial).toHaveBeenCalledWith(tx, "owner_1", "org_1", expect.any(Date));
+        expect(mocks.trial).toHaveBeenCalledWith(tx, "owner_1", "org_1", expect.any(Date), "STANDARD");
         expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "ReadCommitted" });
     });
 

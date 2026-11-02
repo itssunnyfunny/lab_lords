@@ -59,12 +59,14 @@ export type BillingExperienceOperation = {
 export type BillingExperience = {
   organizationId: string;
   accessMode: BillingExperienceAccessMode;
+  billingAccessSource?: "TRIAL" | "PAID" | "PAYMENT_RETRY" | "NONE";
   effectivePlan: BillingExperiencePlan;
   selectedPostTrialPlan: SelectedPostTrialPlan;
   providerStatus: string | null;
   customerState: BillingCustomerState;
   customerMessage: string;
   trialEndsAt: string | null;
+  trialPlan?: "BASIC" | "STANDARD" | "PRO" | null;
   trialDaysRemaining: number | null;
   paidThrough: string | null;
   confirmedQuantity: number;
@@ -101,6 +103,7 @@ export type BranchBillingExperience = Pick<
   | "customerState"
   | "customerMessage"
   | "trialEndsAt"
+  | "trialPlan"
   | "entitlements"
 > & {
   hasActiveOperation: boolean;

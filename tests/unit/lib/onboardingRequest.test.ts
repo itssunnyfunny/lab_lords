@@ -11,6 +11,15 @@ const payload = {
     multiShifts: [{ name: "Both", price: 250, componentShiftNames: ["Morning", "Evening"] }],
 };
 describe("onboarding request identity", () => {
+    it("keeps V1 identity separate from explicit trial-tier commands", () => {
+        const legacy = hashOnboardingRequest(payload);
+        expect(legacy).toMatch(/^v1:/);
+        const standard = hashOnboardingRequest({ ...payload, trialPlan: "STANDARD" });
+        expect(standard).toMatch(/^v2:/);
+        expect(standard).not.toBe(legacy);
+        expect(hashOnboardingRequest({ ...payload, trialPlan: "BASIC" })).not.toBe(standard);
+        expect(hashOnboardingRequest({ ...payload, trialPlan: "PRO" })).not.toBe(standard);
+    });
     it("does not depend on object insertion order or client-only metadata", () => {
         const reordered = Object.fromEntries(Object.entries(payload).reverse()) as typeof payload;
         expect(hashOnboardingRequest(reordered)).toBe(hashOnboardingRequest(payload));

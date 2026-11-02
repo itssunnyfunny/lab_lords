@@ -23,6 +23,7 @@ export function toBranchAccessBillingExperience(
     customerState: experience.customerState,
     customerMessage: experience.customerMessage,
     trialEndsAt: experience.trialEndsAt,
+    trialPlan: experience.trialPlan,
     entitlements: [...experience.entitlements],
     hasActiveOperation: experience.activeOperation != null,
     branch: experience.branch

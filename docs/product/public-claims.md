@@ -1,5 +1,24 @@
 # Public wording and feature claims
 
+## Guided onboarding policy update — local, 2026-11-02
+
+The requested product change makes a new owner's trial tier explicit and makes
+reviewed spreadsheet import a core capability in Basic, Standard and Pro.
+Home's trial note, Features' catalogue inclusions, Pricing's comparison/trial
+steps, FAQ answers and the setup walkthrough now reflect this in English,
+Hindi and Hinglish. Existing prices, per-billable-branch terms, no-card/no-charge
+boundary and Pro's WhatsApp setup, availability and messaging-cost conditions
+are retained. Business type is no longer requested in the setup walkthrough.
+Older dated Standard-only trial and premium-import descriptions below record
+the earlier policy; they do not describe the new implementation.
+
+This is source and local validation evidence. Production Import V2 enablement,
+WhatsApp availability, visual owner acceptance, migration and release remain
+separate. No new supported-format, AI accuracy, provider-delivery, unlimited
+messaging or automatic payment claim is introduced. Historical owner trials
+retain their original Standard commitment; this wording is for new explicit
+choices after the matching application and migration are released.
+
 ## Homepage pricing follow-up — local, 2026-10-31
 
 Home displays all three catalogue-backed summary cards: Basic ₹99, Standard ₹299
@@ -137,7 +156,7 @@ evidence for a feature does not establish production release of this catalogue.
 | Branches / release-verified | `services/branch.service.ts`, public billing catalogue | Authorized branch scope; per-billable-branch pricing | Current production revision | Manage your branches from one account, with separate records for each. | Home, Features, Pricing, FAQ, setup, relevant solutions |
 | Staff / release-verified | `services/accessPolicy.service.ts`, `lib/branchCapabilities.ts` | Standard or Pro for invitations and permission controls; retained members keep permitted core access | Current production revision | Add your team and choose what each person can view or change. | Home, Features, Pricing, FAQ |
 | Reports and AI assistance / implemented in deployed code | `lib/billingPlans.ts`, AI report page/service and branch capability policy | Standard or Pro; analytics and payment-view permission; advisory output | Current production revision; no provider generation executed here | Read summaries of recorded figures and review them alongside your library's records. | Features, Pricing, FAQ |
-| Imports / implemented, gated; current enablement unknown | `lib/importFeature.ts`, `importing/`, import routes | Standard or Pro; student permission, writable branch, Import V2 flag and mutation limit; AI mapping retains its rules | Source and existing local verification only; target enablement unconfirmed | Existing narrow reviewed-student-list wording retained. No new claim for PDF beta, OCR, every format or whole-file rollback | Existing Home/Features/FAQ/setup copy |
+| Imports / implemented, gated; current enablement unknown | `lib/importFeature.ts`, `importing/`, import routes | Basic, Standard and Pro; student permission, writable branch, Import V2 flag and mutation limit; AI mapping retains its rules | Source and local verification only; target enablement unconfirmed | Reviewed spreadsheet import in every plan. No new claim for PDF beta, OCR, every format or whole-file rollback | Home/Features/Pricing/FAQ/setup copy |
 
 | WhatsApp / implemented, independently gated; commercial availability unknown | `lib/whatsappFeature.ts`, `services/whatsapp*.ts`, public catalogue filtering | Pro entitlement plus separate permissions, flags, mode/canaries, consent and templates | No fresh gate/provider/delivery evidence | Pro includes conditional integration/automation entitlement; setup/rollout and usage terms apply. No unlimited messages or delivery guarantee | Home, Pricing and conditional Pro plan description |
 | Standalone AI Messages / retired in current branch | Authenticated 410 routes; AI draft generation removed; historical drafts retained | AI Reports remain available to Standard and Pro with existing permissions | Local implementation, not release evidence | Home, Features, Pricing, FAQ and fee-reminder copy describe AI reports only; no message drafting claim | Features, Pricing, FAQ, Terms and fee-reminder solution |

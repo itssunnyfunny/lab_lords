@@ -35,6 +35,25 @@ describe("POST /api/onboarding", () => {
     });
   }
 
+  it.each(["BASIC", "STANDARD", "PRO"])("passes an independently explicit %s trial tier", async trialPlan => {
+    mocks.createNetwork.mockResolvedValue({ org: { id: "org_1" }, branch: { id: "branch_1" } });
+    const { POST } = await import("@/app/api/onboarding/route");
+    expect((await POST(request({ ...validBody, trialPlan, shifts: [{ name: "Daily", startTime: "06:00", endTime: "22:00", price: 0 }], multiShifts: [] }))).status).toBe(201);
+    expect(mocks.createNetwork).toHaveBeenCalledWith(expect.objectContaining({ trialPlan, selectedPostTrialPlan: "BASIC" }));
+  });
+
+  it.each([null, "CUSTOM", "basic", {}])("rejects an invalid explicit trial tier", async trialPlan => {
+    const { POST } = await import("@/app/api/onboarding/route");
+    expect((await POST(request({ ...validBody, trialPlan }))).status).toBe(400);
+    expect(mocks.createNetwork).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, ""])("does not normalize an unanswered V2 session fee to zero", async price => {
+    const { POST } = await import("@/app/api/onboarding/route");
+    expect((await POST(request({ ...validBody, trialPlan: "BASIC", shifts: [{ name: "Daily", startTime: "06:00", endTime: "22:00", price }], multiShifts: [] }))).status).toBe(400);
+    expect(mocks.createNetwork).not.toHaveBeenCalled();
+  });
+
   it.each(["BASIC", "STANDARD", "PRO"])("passes the explicit %s selection to onboarding", async selectedPostTrialPlan => {
     mocks.createNetwork.mockResolvedValue({ org: { id: "org_1" }, branch: { id: "branch_1" } });
     const { POST } = await import("@/app/api/onboarding/route");

@@ -70,6 +70,17 @@ function access(overrides: Partial<BranchAccess> = {}): BranchAccess {
 }
 
 describe("branch capability decisions", () => {
+    it("allows Basic imports without opening unrelated premium capabilities", () => {
+        const basic = access({ effectivePlan: "BASIC", entitlements: [], billingExperience: billingExperience({ effectivePlan: "BASIC", entitlements: [] }) });
+        expect(getBranchCapabilityDecision(basic, "importView").allowed).toBe(true);
+        expect(getBranchCapabilityDecision(basic, "importStudents").allowed).toBe(true);
+        for (const capability of ["dashboard", "attendanceView", "staffManage", "aiUse", "whatsappSend"] as const) {
+            expect(getBranchCapabilityDecision(basic, capability).allowed).toBe(false);
+        }
+        expect(getBranchCapabilityDecision({ ...basic, permissions: { ...basic.permissions, students: false } }, "importStudents").blocker).toBe("permission");
+        expect(getBranchCapabilityDecision({ ...basic, billingExperience: billingExperience({ effectivePlan: "BASIC", accessMode: "READ_ONLY" }) }, "importStudents").blocker).toBe("read_only");
+        expect(getBranchCapabilityDecision({ ...basic, billingExperience: billingExperience({ effectivePlan: "BASIC", branch: { id: basic.branchId, name: "Main", billingStatus: "ARCHIVED" } }) }, "importStudents").blocker).toBe("branch_state");
+    });
     it("allows a fully entitled owner", () => {
         expect(getBranchCapabilityDecision(access(), "paymentsRecord")).toEqual({
             allowed: true,

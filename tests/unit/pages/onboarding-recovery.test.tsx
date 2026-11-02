@@ -99,7 +99,7 @@ function mount() {
         },
         has: (label: string) => render().some(node => node.props.children === label),
         input: (name: string, value: string) => {
-            const input = render().find(node => node.props.name === name)!;
+            const input = render().find(node => typeof node.props.onChange === "function" && (node.props.name === name || node.props.id === name))!;
             (input.props.onChange as (event: unknown) => void)({ target: { name, value } });
             render();
         },
@@ -132,10 +132,11 @@ describe("onboarding page recovery", () => {
         const page = mount();
         page.input("orgName", "New organization"); page.input("ownerPhone", "9999999999");
         page.click("Continue");
-        page.input("branchName", "Main"); page.input("seatCount", "2");
-        page.click("Choose plan"); page.choose("Standard"); page.click("Continue");
-        page.choose("Begin with a clean workspace");
-        const submit = page.click("Start Standard trial");
+        page.click("Back"); page.input("branchName", "Main"); page.click("Continue");
+        page.input("seatCount", "2"); page.input("daily-price", "500");
+        page.click("Continue"); page.choose("Standard"); page.click("Continue");
+        page.choose("Add students manually");
+        const submit = page.click("Create my workspace");
         await flush();
         expect(page.render().find(node => node.type === "fieldset")?.props.disabled).toBe(true);
         expect(fetchMock).toHaveBeenCalledTimes(1);

@@ -39,10 +39,13 @@ export async function POST(req: Request) {
         if (!body || typeof body !== "object" || Array.isArray(body)) {
             return invalidResponse("Setup details must be an object.");
         }
-        const { orgName, ownerPhone, businessType, branchName, city, defaultFee, seatCount, seatNumbering, shifts, multiShifts, includeFullTimeMultiShift, selectedPostTrialPlan } = body;
+        const { orgName, ownerPhone, businessType, branchName, city, defaultFee, seatCount, seatNumbering, shifts, multiShifts, includeFullTimeMultiShift, selectedPostTrialPlan, trialPlan } = body;
 
         if (!isCheckoutBillingPlanId(selectedPostTrialPlan)) {
             return invalidResponse("Choose Basic, Standard or Pro as the post-trial plan.");
+        }
+        if (trialPlan !== undefined && !isCheckoutBillingPlanId(trialPlan)) {
+            return invalidResponse("Choose Basic, Standard or Pro for your trial.");
         }
 
         const orgNameResult = validateRequiredText(orgName, "Organization name", 120);
@@ -68,13 +71,14 @@ export async function POST(req: Request) {
                 return invalidResponse(`${label} selections are invalid.`);
             }
         }
-        const shiftsResult = Array.isArray(shifts) ? validateShiftDrafts(shifts) : { ok: true as const, value: undefined };
+        const shiftsResult = Array.isArray(shifts) ? validateShiftDrafts(shifts, { requirePrice: trialPlan !== undefined, requireTimes: trialPlan !== undefined }) : { ok: true as const, value: undefined };
         if (!shiftsResult.ok) return invalidResponse(shiftsResult.error);
         if (includeFullTimeMultiShift !== undefined && typeof includeFullTimeMultiShift !== "boolean") {
             return invalidResponse("Full Time multi-shift selection is invalid.");
         }
 
         const result = await OnboardingService.createNetwork({
+            trialPlan,
             userId: user.id,
             idempotencyKey,
             selectedPostTrialPlan,

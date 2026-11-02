@@ -102,8 +102,8 @@ for (const language of languages) {
     await expect(plans.getByText(language.basicDescription, { exact: true })).toBeVisible();
     await expect(plans.getByText(language.standardDescription, { exact: true })).toBeVisible();
     await expect(plans.getByText(language.studentRecords, { exact: true })).toHaveCount(3);
-    await expect(plans.getByText(language.spreadsheetImport, { exact: true })).toHaveCount(2);
-    await expect(plans.getByText(language.spreadsheetImport + language.standardOnly, { exact: true })).toHaveCount(1);
+    await expect(plans.getByText(language.spreadsheetImport, { exact: true })).toHaveCount(3);
+    await expect(plans.getByText(language.spreadsheetImport + language.standardOnly, { exact: true })).toHaveCount(0);
     await expect(plans.getByRole("button", { name: language.renewalAction, exact: true })).toBeEnabled();
     for (const label of language.premiumCapabilities) {
       await expect(plans.getByText(label, { exact: true })).toHaveCount(2);
@@ -154,8 +154,8 @@ test("Basic reviews a card replacement and launches only the returned checkout w
   });
   await page.goto("/org/org-pilot/billing?mode=after&lang=en");
   const plans = page.locator("#plans");
-  await expect(plans.getByText(/— Standard or Pro/)).toHaveCount(6);
-  await expect(plans.getByText("Spreadsheet import — Standard or Pro", { exact: true })).toHaveCount(1);
+  await expect(plans.getByText(/— Standard or Pro/)).toHaveCount(5);
+  await expect(plans.getByText("Spreadsheet import", { exact: true })).toHaveCount(3);
   await expect(plans.getByText("Staff invitations, roles and permission controls", { exact: true })).toHaveCount(2);
   await expect(plans.getByText("Branch and cross-branch advanced analytics", { exact: true })).toHaveCount(2);
   await expect(plans.getByText("AI reports", { exact: true })).toHaveCount(2);
@@ -344,7 +344,7 @@ test("authenticated trial cancellation requires confirmation and preserves trial
   const controls = page.locator("#subscription");
   await controls.getByRole("button", { name: "Cancel before first charge", exact: true }).click();
   const confirmation = page.getByRole("alertdialog", { name: "Cancel the authorized subscription?", exact: true });
-  await expect(confirmation).toContainText("Your Standard trial keeps its original end date.");
+  await expect(confirmation).toContainText("Your trial keeps its original end date.");
   expect(calls).toEqual([]);
   await page.keyboard.press("Escape");
   await expect(confirmation).toHaveCount(0);

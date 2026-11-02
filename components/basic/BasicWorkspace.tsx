@@ -1,9 +1,9 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Armchair, ArrowLeft, ArrowRight, Check, ChevronRight, House, IndianRupee, Plus, Search, Settings, UserRound, Users } from "lucide-react";
+import { Armchair, ArrowLeft, ArrowRight, Check, ChevronRight, House, IndianRupee, Plus, Search, Settings, UploadCloud, UserRound, Users } from "lucide-react";
 import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher";
 import { LanguageControls } from "@/components/settings/LanguageControls";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -32,12 +32,12 @@ const areas: { key: string; label: string; capability: BranchCapabilityKey; icon
     { key: "fees", label: "Fees", capability: "paymentsView", icon: IndianRupee },
 ];
 type Modal = { kind: "student"; id?: string } | { kind: "status"; id: string; status: "ACTIVE" | "INACTIVE" } | { kind: "admission-review"; matches: StudentListItem[] } | { kind: "payment"; id: string } | { kind: "receipt"; receipt: FeeCollectionView } | null;
-export function BasicWorkspace({ access, blocked = false, onInteractionState }: { access: BranchAccess; blocked?: boolean; onInteractionState?: (state: { dirty: boolean; pending: boolean }) => void }) {
+export function BasicWorkspace({ access, blocked = false, onInteractionState, importContent }: { access: BranchAccess; blocked?: boolean; onInteractionState?: (state: { dirty: boolean; pending: boolean }) => void; importContent?: ReactNode }) {
     const t = useTranslation(), { money, date } = useBasicFormat(), { ownerKey, profileName } = useUserPreferences();
     const pathname = usePathname(), router = useRouter(), root = "/branch/" + access.branchId;
     const scope = encodeURIComponent(ownerKey) + ":" + access.branchId;
     const rawArea = pathname.split("/")[3] ?? "";
-    const area = rawArea === "payments" ? "fees" : ["settings","shifts"].includes(rawArea) ? "setup" : rawArea === "allocations" ? "seats" : rawArea;
+    const area = rawArea === "onboarding" && pathname.split("/")[4] === "import" ? "imports" : rawArea === "payments" ? "fees" : ["settings","shifts"].includes(rawArea) ? "setup" : rawArea === "allocations" ? "seats" : rawArea;
     const studentId = area === "students" ? pathname.split("/")[4] : undefined;
     const [data,setData] = useState<BasicData | null>(null), [loading,setLoading] = useState(true), [error,setError] = useState("");
     const [revision,setRevision] = useState(0), [modal,setModal] = useState<Modal>(null), [query,setQuery] = useState(""), [limit,setLimit] = useState(50);
@@ -162,7 +162,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
     const orgRoot="/org/"+access.organizationId;
     const pageCapability=area==="setup"?"settingsManage":areas.find(a=>a.key===area)?.capability??({whatsapp:"whatsappView",staff:"staffView",analytics:"analyticsView",attendance:"attendanceView",imports:"importView"} as Record<string,BranchCapabilityKey>)[area]??"fullWorkspace";
     const blockedPageReason=getBranchCapabilityDecision(access,pageCapability).reason??"This feature requires the Standard plan.";
-    const pageAllowed=area==="setup" ? access.permissions.manage_branch : areas.some(a=>a.key===area && hasBranchCapability(access,a.capability));
+    const pageAllowed=area==="imports" ? hasBranchCapability(access,"importView") : area==="setup" ? access.permissions.manage_branch : areas.some(a=>a.key===area && hasBranchCapability(access,a.capability));
     const roster=(data?.students??[]).filter(s=>(s.name+" "+(s.phone??"")).toLowerCase().includes(query.toLowerCase()));
     const feeStudents=[...new Map(feeRows.map(p=>[p.studentId,{id:p.studentId,name:p.student?.name??data?.students.find(s=>s.id===p.studentId)?.name??t("Student")}])).values()].filter(s=>s.name.toLowerCase().includes(query.toLowerCase()));
     const modalStudent=modal?.kind==="student"?data?.students.find(s=>s.id===modal.id):undefined;
@@ -173,6 +173,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
             <Link className="bp-brand" href={root}><Image src="/brand-reference/open-book-leaf.svg" alt="" width={36} height={29}/>Lab Lords</Link>
             <nav aria-label={t.owned("Main navigation")}>{navigation}</nav>
             <div className="bp-sidebar-bottom">
+                {can("importView") && <Link href={root+"/onboarding/import"}><UploadCloud size={18}/>{t.owned("Import students")}</Link>}
                 {access.isOwner && <Link href={orgRoot}><ArrowLeft size={18}/>{t.owned("Back to organization")}</Link>}
                 {access.permissions.manage_branch && <Link href={root+"/setup"}><Settings size={18}/>{t.owned("Library setup")}</Link>}
                 <Link href={"/account?returnTo="+encodeURIComponent(pathname)}><UserRound size={18}/>{t("Account")}</Link>
@@ -192,12 +193,13 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState }: 
                 : loading && !data ? <p role="status" className="bp-empty">{t.owned("Loading workspace")}</p>
                 : error ? <div className="bp-empty" role="alert"><p>{t.error(error)}</p><button className="bp-button" onClick={()=>setRevision(v=>v+1)}>{t("Retry")}</button></div>
                 : data && <>
+                    {area==="imports" && importContent}
                     {area==="" && <><div className="bp-page-heading"><div><p className="bp-eyebrow">{t.owned("A LITTLE MORE ORGANISED, EVERY DAY")}</p><h1>{t.owned("Your library overview")}</h1></div><span className="bp-date">{date(data.summary.today+"T12:00:00",{month:"long",year:"numeric"})}</span></div>
                         <div className="bp-metrics">{can("seatsView")&&<div><span><Armchair size={24}/></span><dl><dt>{t.owned("Available seats")} · {data.shifts.find(s=>s.id===activeShift)?.name}</dt><dd>{availability?.shift===activeShift?availability.available:"—"} <small>/ {availability?.shift===activeShift?availability.total:"—"}</small></dd></dl></div>}{data.summary.activeStudents!==null&&<div><span><Users size={24}/></span><dl><dt>{t("Active students")}</dt><dd>{data.summary.activeStudents}</dd></dl></div>}{data.summary.money&&<div><span><IndianRupee size={24}/></span><dl><dt>{t.owned("Fees collected this month")}</dt><dd>{money(data.summary.money.collectedThisMonth)}</dd></dl></div>}</div>
                         {can("seatsView")&&<BasicSeatMap onAvailability={setAvailability} branchId={access.branchId} shifts={data.shifts} shiftId={activeShift} selected="" sourceIds="" revision={revision} onShift={setShift} onSeat={id=>{setSeat(id);go(root+"/seats");}}/>}
                     </>}
                     {area==="students" && !studentId && <>
-                        <div className="bp-page-heading"><div><h1>{t.owned("Your students")}</h1><p>{data.students.length} {t("Students")}</p></div><button className="bp-button bp-button-primary" disabled={disabled||!can("studentsManage")} onClick={()=>setModal({kind:"student"})}><Plus size={18}/>{t("Add student")}</button></div>
+                        <div className="bp-page-heading"><div><h1>{t.owned("Your students")}</h1><p>{data.students.length} {t("Students")}</p></div><div className="flex flex-wrap gap-2">{can("importView") && <Link className="bp-button bp-button-secondary" href={root+"/onboarding/import"}><UploadCloud size={18}/>{t.owned("Import students")}</Link>}<button className="bp-button bp-button-primary" disabled={disabled||!can("studentsManage")} onClick={()=>setModal({kind:"student"})}><Plus size={18}/>{t("Add student")}</button></div></div>
                         <div className="bp-list-panel"><label className="bp-search"><Search size={19}/><input aria-label={t.owned("Search students")} placeholder={t.owned("Find a student by name or phone")} value={query} onChange={e=>{setQuery(e.target.value);setLimit(50);}}/></label>
                             {roster.slice(0,limit).map(s=><button className="bp-student-row" key={s.id} onClick={()=>go(root+"/students/"+s.id)}><span className="bp-person"><span className="bp-avatar">{initials(s.name)}</span><span><strong>{s.name}</strong><small>{s.phone??t.owned("No mobile number")} · {t.owned(s.status)}</small></span></span><span className="bp-roster-seat">{activeAllocations(s).map(a=><small key={a.id}>{a.seat.label} · {a.shift.name}</small>)}{!activeAllocations(s).length&&t.owned("Choose a seat")}</span>{can("paymentsView")&&<span className={"bp-fee-status "+(!balance(s.id)?"is-paid":"")}>{balance(s.id)?money(balance(s.id))+" "+t("Due"):t.owned("No outstanding dues")}</span>}<ChevronRight size={18}/></button>)}
                             {!roster.length&&<div className="bp-empty"><Users size={28}/><h2>{t.owned("No students found")}</h2><p>{t.owned("Try another name or add a student.")}</p></div>}

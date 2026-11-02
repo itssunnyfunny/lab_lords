@@ -29,6 +29,8 @@ describe("complete public marketing journey", () => {
     expect(copy.hero.description).toBe("Students, seats, shifts and fees — all in one place. Keep your library organised with an easy-to-use dashboard.");
     expect(copy.hero.primaryLabel).toBe("Start your free trial");
     expect(copy.hero.secondaryLabel).toBe("Explore features");
+    expect(copy.home.features.items.find(item => item.id === "imports")?.planNote).toBe("Every plan");
+    expect(publicBillingPlans().every(plan => plan.capabilities.some(capability => capability.id === "STUDENT_RECORDS_IMPORT" && capability.included))).toBe(true);
     for (const Page of [Home, About, Contact, Features, Pricing, Faq, Setup]) {
       expect(await renderPublic(<Page />)).not.toMatch(/coaching|tuition/i);
     }
@@ -118,7 +120,7 @@ describe("complete public marketing journey", () => {
       expect(html).toContain(amount);
     }
     expect(html).toContain("Per billable branch / month");
-    expect(html).toContain("Eligible new owners can try Standard features for 30 days");
+    expect(html).toContain("Eligible new owners can try Basic, Standard or Pro for 30 days");
     expect(html).toContain("WhatsApp requires integration setup and rollout availability.");
     expect(html).toContain('href="/pricing"');
     expect(homeMetadata.description).toBe("Manage students, seats, attendance and fees for your self-study library. Keep payments, receipts and upcoming fee dates organised with Lab Lords.");

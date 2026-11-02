@@ -34,7 +34,7 @@ export default async function PricingPage() {
         <div className="marketing-container">
           <p className="marketing-eyebrow">{t("Pricing")}</p>
           <h1 className="marketing-title mt-4">{t("Simple plans for your library.")}</h1>
-          <p className="marketing-lead mt-5 max-w-2xl">{t("Start with a 30-day Standard trial. Then choose the plan that fits your everyday work.")}</p>
+          <p className="marketing-lead mt-5 max-w-2xl">{t("Try Basic, Standard or Pro for 30 days. Choose the plan that fits your everyday work.")}</p>
           <p className="marketing-plan-note mt-4">{t("For eligible new owners, the trial starts after setting up the first branch. No card needed.")}</p>
         </div>
       </section>
@@ -43,7 +43,7 @@ export default async function PricingPage() {
         <div className="marketing-container">
           <p className="marketing-eyebrow">{t("Compare the daily tools")}</p>
           <h2 className="marketing-title mt-3">{t("Choose by the work you need to do.")}</h2>
-          <p className="marketing-lead mt-4">{t("All three plans cover students, seats and fees. Standard adds imports, attendance, tasks, follow-ups, staff, analytics and AI. Pro adds WhatsApp, subject to setup and rollout availability.")}</p>
+          <p className="marketing-lead mt-4">{t("All three plans cover students, seats, fees and spreadsheet import. Standard adds attendance, tasks, follow-ups, staff, analytics and AI. Pro adds WhatsApp, subject to setup and rollout availability.")}</p>
           <p className="marketing-lead mt-4">{t("Basic keeps daily work simple: students, seat allocation and fees, including partial payments and receipts. Your organization’s plan applies to all its branches; each person still needs the relevant permissions.")}</p>
           <table className="public-comparison">
             <caption className="sr-only">{t("Public plan feature comparison")}</caption>

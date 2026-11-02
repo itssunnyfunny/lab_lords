@@ -96,13 +96,12 @@ describe("Basic's deliberately narrow server boundary",()=>{
   expect(response.status).toBe(plan==="BASIC"?403:200);
   const report=await reportRoute(new Request("http://local/reports?kind=students&from=2026-10-01&through=2026-10-29"),{params:Promise.resolve({branchId:f.branch.id})});
   expect(report.status).toBe(plan==="BASIC"?403:200);
-  for(const capability of ["attendanceView","attendanceRecord","attendanceCorrect","importView","importStudents","overdueView","fullWorkspace"] as const){
+  for(const capability of ["attendanceView","attendanceRecord","attendanceCorrect","overdueView","fullWorkspace"] as const){
    const call=AccessPolicy.authorizeCapability(f.user.id,f.branch.id,capability);
    if(plan==="BASIC")await expect(call).rejects.toMatchObject({code:"SUBSCRIPTION_UPGRADE_REQUIRED"});else await expect(call).resolves.toMatchObject({branchId:f.branch.id});
   }
-  const imports=ImportSessionService.listSessions(f.user.id,f.branch.id);
-  if(plan==="BASIC")await expect(imports).rejects.toMatchObject({code:"SUBSCRIPTION_UPGRADE_REQUIRED"});else await expect(imports).resolves.toEqual([]);
-  for(const capability of ["studentsManage","allocationsManage","paymentsRecord","paymentsGenerate","settingsManage"] as const)
+  await expect(ImportSessionService.listSessions(f.user.id,f.branch.id)).resolves.toEqual([]);
+  for(const capability of ["importView","importStudents","studentsManage","allocationsManage","paymentsRecord","paymentsGenerate","settingsManage"] as const)
    await expect(AccessPolicy.authorizeCapability(f.user.id,f.branch.id,capability)).resolves.toMatchObject({branchId:f.branch.id});
  });
  it("keeps two branches on the organization's trial and paid plan without mixing records",async()=>{

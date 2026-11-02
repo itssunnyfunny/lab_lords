@@ -1,5 +1,31 @@
 # Production runbook
 
+## Explicit onboarding trial plan — 2 November 2026
+
+`20261102120000_explicit_owner_trial_plan` adds non-null
+`OwnerTrialGrant.trialPlan` using the existing SaasPlan enum, default STANDARD.
+Historical grants keep Standard regardless of post-trial preference. It changes
+no dates, paid subscriptions, provider evidence, operational records or seeds.
+Apply the additive migration before the matching generated Prisma client and
+application through a separately authorized release. Preserve a restorable
+backup and compare grant counts, statuses, dates, preferences and billing facts.
+The local migration test covers ACTIVE, EXPIRED, REVOKED and AVAILABLE historical grants.
+
+Keep client/server versions together: new trial selections require the new
+server, persisted tier and V2 hash. Old clients and frozen V1 receipts remain
+supported by the new server and retain Standard. Drain old onboarding writers
+before exposing new tier choices. Basic import uses the existing Import V2 flag
+and mutation limit; there is no new environment variable, schedule, provider
+integration or automatic provider write.
+
+Before exposing new non-Standard grants, an application rollback may retain the
+new column. Once Basic/Pro trials exist, an older Standard-only resolver would
+change promised access: keep the tier-aware resolver or forward-fix with new
+creation held. Never drop the column, reinterpret preferences, reset dates or
+delete grants/receipts to make a rollback pass. Existing paid settlement,
+replacement and expiry rules remain authoritative. Local tests and this PR do
+not authorize production migration or deployment.
+
 ## Audit closeout migration handoff — 25 October 2026
 
 The [audit closeout](audits/audit-closeout-2026-10-25.md) records the two additive

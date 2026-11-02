@@ -1,5 +1,16 @@
 # Application page-family migration
 
+Guided onboarding, 2 November 2026: family G now uses business/location language,
+one editable session with explicit fees, optional combined access, real trial
+tier selection and a review/import finish. Existing AppButton, Dialog,
+SeatNumberingBuilder, entry/form tokens, locale boundary and account-scoped
+recovery owners remain. Basic renders only the existing authorized import
+screens inside its own shell; unrelated premium screens stay gated. Local
+checks, screenshots and limitations belong in the
+[onboarding implementation record](onboarding-experience.md). The requested
+product-policy change is implemented locally; visual owner acceptance and a
+production release remain separate and are not inferred from tests.
+
 Homepage pricing follow-up, 31 October 2026: the local Home page reuses the
 existing public `LandingPricing` summary cards, catalogue and `PlanCTA` owners.
 The actual pricing section now owns `/#pricing`; the footer keeps its normal

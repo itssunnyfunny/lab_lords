@@ -175,8 +175,10 @@ unit/API/integration coverage.
   or an updated domain invariant resolves it.
   (`app/api/cron/payments/daily/route.ts`, `services/payment.service.ts`)
 - **Must preserve—enforced:** Workspace Billing V2 base access fails closed:
-  - an active owner trial grants explicit STANDARD access; a separately recorded Pro
-    grant or independently verified paid Pro period can add Pro access;
+  - an active owner trial grants its explicitly recorded BASIC, STANDARD or PRO
+    tier. Historical grants and V1 onboarding commands retain STANDARD. A separately
+    recorded replacement grant or independently verified higher paid tier can raise
+    access without rewriting the trial promise;
   - ordinary paid access requires the subscription mode to match the runtime
     provider mode and a current `paidThrough` returned by the shared exact-
     settlement resolver. A raw date or provider status is insufficient: the
@@ -203,6 +205,18 @@ unit/API/integration coverage.
   bound to its organization, and is not extended by adding branches. A migrated
   trial is available only to an organization that has never been billed.
   (`services/ownerTrial.service.ts`, owner-trial integration tests)
+- **Must preserve—enforced:** New explicit-tier onboarding binds `trialPlan` into
+  a V2 request hash and stores it on the owner grant in the setup transaction.
+  Neither replay, another request key, a post-trial preference nor a later plan
+  change restarts the trial or rewrites its tier/dates. Existing V1 hashes remain
+  byte-compatible and preserve Standard access. Trial selection creates no
+  provider subscription, mandate, charge or paid-settlement evidence.
+- **Must preserve—enforced:** Student spreadsheet import is a core capability
+  for Basic, Standard and Pro, including active supported paid access after the
+  trial. `students` permission, tenant/branch ownership, branch writability,
+  Import V2 enablement, validation, duplicates and mutation limits still apply.
+  Expired unpaid V2 workspaces cannot mutate import data. This does not grant
+  attendance, staff controls, analytics, AI generation or WhatsApp to Basic.
 - **Must preserve—enforced:** Adding, scheduling removal of, and reactivating a
   billable branch are owner-only operations. The branch lifecycle update and
   durable billing-change intent are atomic and use stable idempotency. At least
@@ -1216,7 +1230,7 @@ Before changing any rule above:
 
 - **Must preserve—enforced:** BASIC/STANDARD/PRO have unit prices 99/299/499 INR monthly, shared across an organization's billable branches. Standard and Pro receive staff, advanced analytics and AI; only Pro receives WhatsApp entitlement. Provider configuration and operation permission checks remain additional requirements.
 - **Must preserve—enforced:** a catalogue migration must not reinterpret old internal PRO payment evidence as new Pro. The v2 migration refuses a populated billing ledger; see [cutover](billing/three-plan-cutover.md). Paid facts, uncertain provider writes and frozen commercial snapshots are not rewritten.
-- **Service-layer contract—not DB-enforced:** the normal 30-day owner trial is Standard. A recorded replacement grant may raise explicit access but cannot reduce remaining paid/trial access. A selected plan or mandate authorization alone is not paid settlement. Downgrades preserve records and follow the established boundary.
+- **Service-layer contract—not DB-enforced:** A new 30-day owner trial uses its explicitly persisted Basic, Standard or Pro tier; historical grants retain Standard. A recorded replacement grant may raise explicit access but cannot reduce remaining paid/trial access. A selected plan or mandate authorization alone is not paid settlement. Downgrades preserve records and follow the established boundary.
 
 ## Narrow Basic workspace — 2026-10-29
 

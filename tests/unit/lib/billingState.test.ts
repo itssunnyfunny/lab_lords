@@ -4,6 +4,22 @@ import { deriveWorkspaceBillingState } from "@/lib/billingState";
 const now = new Date("2026-08-03T00:00:00.000Z");
 
 describe("deriveWorkspaceBillingState", () => {
+  it.each(["BASIC", "STANDARD", "PRO"] as const)("grants the selected %s trial only until its original expiry", plan => {
+    const endsAt = new Date("2026-09-02T00:00:00.000Z");
+    const trial = { status: "ACTIVE" as const, endsAt, plan };
+    expect(deriveWorkspaceBillingState({ now, trial })).toMatchObject({ effectivePlan: plan, source: "TRIAL", canWrite: true });
+    expect(deriveWorkspaceBillingState({ now: endsAt, trial })).toMatchObject({ source: "NONE", canWrite: false });
+    expect(trial.endsAt).toEqual(endsAt);
+    for (const status of ["EXPIRED", "REVOKED", "AVAILABLE"] as const) {
+      expect(deriveWorkspaceBillingState({ now, trial: { ...trial, status } }).canWrite).toBe(false);
+    }
+  });
+
+  it("retains higher confirmed paid access during a lower-tier trial", () => {
+    expect(deriveWorkspaceBillingState({ now, trial: { status: "ACTIVE", plan: "BASIC", endsAt: new Date("2026-09-02") },
+      subscription: { plan: "STANDARD", status: "ACTIVE", paidThrough: new Date("2026-09-03") } }))
+      .toMatchObject({ effectivePlan: "STANDARD", source: "PAID", canWrite: true });
+  });
   it.each([
     ["BASIC", "STANDARD", true], ["BASIC", "PRO", true], ["STANDARD", "PRO", true],
     ["STANDARD", "BASIC", false], ["PRO", "STANDARD", false], ["PRO", "BASIC", false],

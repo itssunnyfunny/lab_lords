@@ -82,7 +82,7 @@ export class EntitlementService {
           },
         },
         ownerTrialGrant: {
-          select: { status: true, trialEndsAt: true },
+          select: { status: true, trialEndsAt: true, trialPlan: true },
         },
         _count: {
           select: {
@@ -137,6 +137,7 @@ export class EntitlementService {
           ? {
               status: organization.ownerTrialGrant.status,
               endsAt: organization.ownerTrialGrant.trialEndsAt,
+              plan: organization.ownerTrialGrant.trialPlan,
             }
           : null,
         subscription: subscription
