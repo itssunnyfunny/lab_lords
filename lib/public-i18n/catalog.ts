@@ -1,14 +1,13 @@
 import type { PublicCatalog } from "./translate";
 import { auditCloseoutPublicMessages } from "./auditCloseout";
+import { onboardingPublicMessages } from "./onboarding";
 
 // Approved English is the key. These prepared translations are loaded only on the server.
 export const publicCatalog = {
-"All three plans cover students, seats and fees. Standard adds imports, attendance, tasks, follow-ups, staff, analytics and AI. Pro adds WhatsApp, subject to setup and rollout availability.":["तीनों प्लान में विद्यार्थी, सीटें और फीस हैं। Standard में इम्पोर्ट, उपस्थिति, काम, फॉलो-अप, स्टाफ, एनालिटिक्स और AI भी हैं। Pro में सेटअप और उपलब्धता के अनुसार WhatsApp भी है।","Teeno plans mein students, seats aur fees hain. Standard mein imports, attendance, tasks, follow-ups, staff, analytics aur AI bhi hain. Pro mein setup aur availability ke mutabik WhatsApp bhi hai."],
+  ...onboardingPublicMessages,
 "Basic keeps daily work simple: students, seat allocation and fees, including partial payments and receipts. Your organization’s plan applies to all its branches; each person still needs the relevant permissions.":["Basic में रोज़ का काम सरल है: विद्यार्थी, सीट आवंटन और फीस, आंशिक भुगतान और रसीदों सहित। संगठन का प्लान उसकी सभी शाखाओं पर लागू होता है; हर व्यक्ति के लिए उचित अनुमतियाँ फिर भी ज़रूरी हैं।","Basic mein roz ka kaam simple hai: students, seat allocation aur fees, partial payments aur receipts ke saath. Organization ka plan sabhi branches par lagta hai; har person ko sahi permissions bhi chahiye."],
-"Yes. All plans let you add students individually. Spreadsheet import requires Standard or Pro. Review the information and resolve flagged issues before confirming an import.":["हाँ। सभी प्लान में विद्यार्थी एक-एक करके जोड़ सकते हैं। स्प्रेडशीट इम्पोर्ट के लिए Standard या Pro चाहिए। इम्पोर्ट की पुष्टि से पहले जानकारी जाँचें और बताई गई समस्याएँ ठीक करें।","Haan. Sabhi plans mein students ek-ek karke jod sakte hain. Spreadsheet import ke liye Standard ya Pro chahiye. Confirm karne se pehle details check karein aur flagged issues theek karein."],
 "Standard and Pro include fee follow-ups, notes and next-contact dates. Basic shows recorded dues, balances and payments. A follow-up date does not change the fee date or renew a seat.":["Standard और Pro में फीस फॉलो-अप, नोट और अगली संपर्क तारीख हैं। Basic में दर्ज बकाया, शेष राशि और भुगतान दिखते हैं। फॉलो-अप की तारीख फीस की तारीख या सीट नवीनीकरण नहीं बदलती।","Standard aur Pro mein fee follow-ups, notes aur next-contact dates hain. Basic mein recorded dues, balances aur payments dikhte hain. Follow-up date fee date ya seat renewal nahi badalti."],
 "Attendance requires Standard or Pro. Authorized staff can scan a student's QR code, check their name and confirm check-in or check-out, or record attendance manually. Scanning needs staff supervision and does not verify identity. Attendance does not change fees or seat assignments.":["उपस्थिति के लिए Standard या Pro चाहिए। अधिकृत स्टाफ विद्यार्थी का QR स्कैन करके नाम जाँच सकता है और चेक-इन या चेक-आउट की पुष्टि कर सकता है, या उपस्थिति हाथ से दर्ज कर सकता है। स्कैनिंग में स्टाफ की निगरानी चाहिए और इससे पहचान सत्यापित नहीं होती। उपस्थिति से फीस या सीट आवंटन नहीं बदलते।","Attendance ke liye Standard ya Pro chahiye. Authorized staff QR scan karke naam check kar sakte hain aur check-in ya check-out confirm kar sakte hain, ya manually attendance record kar sakte hain. Scanning staff supervision mein hoti hai aur identity verify nahi karti. Attendance se fees ya seats nahi badalti."],
-"Standard and Pro let you review spreadsheet imports before adding records. Map the fields, resolve flagged issues and confirm. Check the result afterward and keep your original file.":["Standard और Pro में रिकॉर्ड जोड़ने से पहले स्प्रेडशीट इम्पोर्ट जाँच सकते हैं। फ़ील्ड मिलाएँ, समस्याएँ ठीक करें और पुष्टि करें। बाद में परिणाम जाँचें और मूल फ़ाइल रखें।","Standard aur Pro mein records jodne se pehle spreadsheet import review kar sakte hain. Fields map karein, issues theek karein aur confirm karein. Baad mein result check karein aur original file rakhein."],
 "Standard and Pro include upcoming-fee views and follow-ups. Save notes and next-contact dates without changing the original fee date.":["Standard और Pro में आने वाली फीस और फॉलो-अप देख सकते हैं। मूल फीस तारीख बदले बिना नोट और अगली संपर्क तारीख सेव करें।","Standard aur Pro mein upcoming fees aur follow-ups dekh sakte hain. Original fee date badle bina notes aur next-contact dates save karein."],
   ...auditCloseoutPublicMessages,
   "Fees": ["फीस", "Fees"],
@@ -468,10 +467,6 @@ export const publicCatalog = {
     "आपकी लाइब्रेरी के लिए सरल प्लान।",
     "Aapki library ke liye simple plans."
   ],
-  "Start with a 30-day Standard trial. Then choose the plan that fits your everyday work.": [
-    "30 दिन के Standard ट्रायल से शुरू करें। फिर रोज़ के काम के हिसाब से प्लान चुनें।",
-    "30 din ke Standard trial se shuru karein. Phir roz ke kaam ke hisaab se plan chunein."
-  ],
   "For eligible new owners, the trial starts after setting up the first branch. No card needed.": [
     "पात्र नए मालिकों का ट्रायल पहली ब्रांच सेट करने के बाद शुरू होता है। कार्ड की ज़रूरत नहीं।",
     "Eligible naye owners ka trial pehli branch set karne ke baad shuru hota hai. Card ki zaroorat nahi."
@@ -624,14 +619,6 @@ export const publicCatalog = {
     "लाइब्रेरी और पहली ब्रांच का नाम दें",
     "Library aur pehli branch ka naam dein"
   ],
-  "The Organization step asks for your business identity and owner contact. Next, the First branch step asks for the branch name, city and how your space is arranged.": [
-    "संगठन वाले चरण में व्यवसाय की पहचान और मालिक का संपर्क पूछा जाता है। फिर पहली ब्रांच वाले चरण में ब्रांच का नाम, शहर और जगह की व्यवस्था पूछी जाती है।",
-    "Organization waale step mein business ki pehchaan aur owner ka contact poochha jaata hai. Phir First branch waale step mein branch ka naam, city aur jagah ki arrangement poochhi jaati hai."
-  ],
-  "Have your library name, owner phone number, business type, branch name and city ready.": [
-    "लाइब्रेरी का नाम, मालिक का फ़ोन नंबर, व्यवसाय का प्रकार, ब्रांच का नाम और शहर तैयार रखें।",
-    "Library ka naam, owner ka phone number, business type, branch ka naam aur city taiyaar rakhein."
-  ],
   "How branch records stay separate": [
     "ब्रांच के रिकॉर्ड अलग कैसे रहते हैं",
     "Branch ke records alag kaise rehte hain"
@@ -639,10 +626,6 @@ export const publicCatalog = {
   "Set seats, shift timings and fees": [
     "सीट, शिफ्ट का समय और फीस सेट करें",
     "Seats, shift ka samay aur fees set karein"
-  ],
-  "Still in the First branch step, enter the seat count and numbering. Add the shifts you offer, their start and end times, and the fee for each. Review these details before continuing.": [
-    "पहली ब्रांच वाले चरण में सीटों की संख्या और नंबर दर्ज करें। अपनी शिफ्ट, उनके शुरू और खत्म होने का समय और हर शिफ्ट की फीस जोड़ें। आगे बढ़ने से पहले जानकारी जाँचें।",
-    "First branch waale step mein seats ki ginti aur numbering enter karein. Apni shifts, unke shuru aur khatam hone ka samay aur har shift ki fees jodein. Aage badhne se pehle jaankaari check karein."
   ],
   "Use your actual seating plan and shift fees. These are student fees for your library, separate from the Lab Lords subscription.": [
     "अपनी असली सीट व्यवस्था और शिफ्ट फीस इस्तेमाल करें। ये आपकी लाइब्रेरी की स्टूडेंट फीस हैं, Lab Lords सब्सक्रिप्शन से अलग।",
@@ -655,14 +638,6 @@ export const publicCatalog = {
   "Review your plan and confirm setup": [
     "प्लान जाँचें और सेटअप की पुष्टि करें",
     "Plan check karein aur setup confirm karein"
-  ],
-  "Choose the plan you expect to use after the Standard trial. Then choose to import existing records or begin with a clean workspace. You can go back to review the earlier steps before confirming.": [
-    "Standard ट्रायल के बाद इस्तेमाल करने वाला प्लान चुनें। फिर पुराने रिकॉर्ड इम्पोर्ट करना या खाली वर्कस्पेस से शुरू करना चुनें। पुष्टि से पहले पीछे जाकर पुराने चरण जाँच सकते हैं।",
-    "Standard trial ke baad use karne waala plan chunein. Phir purane records import karna ya khaali workspace se shuru karna chunein. Confirm karne se pehle peechhe jaakar pehle ke steps check kar sakte hain."
-  ],
-  "For eligible new owners, confirmation starts the 30-day Standard trial. Selecting the later plan does not charge you; the owner separately authorizes billing from organization settings.": [
-    "पात्र नए मालिकों का 30 दिन का Standard ट्रायल पुष्टि पर शुरू होता है। बाद का प्लान चुनने से शुल्क नहीं लगता; मालिक संगठन की सेटिंग से बिलिंग की अलग अनुमति देता है।",
-    "Eligible naye owners ka 30 din ka Standard trial confirmation par shuru hota hai. Baad ka plan chunne se charge nahi lagta; owner organization settings se billing ko alag authorize karta hai."
   ],
   "Understand the trial and billing": [
     "ट्रायल और बिलिंग समझें",
@@ -1216,10 +1191,6 @@ export const publicCatalog = {
     "ट्रायल की जानकारी",
     "Trial ki jaankaari"
   ],
-  "30-day Standard trial": [
-    "30 दिन का Standard ट्रायल",
-    "30 din ka Standard trial"
-  ],
   "No card needed": [
     "कार्ड की ज़रूरत नहीं",
     "Card ki zaroorat nahi"
@@ -1251,10 +1222,6 @@ export const publicCatalog = {
   "Three plans. Clear monthly pricing for each billable branch.": [
     "तीन प्लान। हर बिल योग्य ब्रांच की साफ़ मासिक कीमत।",
     "Teen plans. Har billable branch ki saaf monthly pricing."
-  ],
-  "Eligible new owners can try Standard features for 30 days after setting up their first branch. No card needed.": [
-    "पात्र नए मालिक पहली ब्रांच सेट करने के बाद Standard के फीचर्स 30 दिन आजमा सकते हैं। कार्ड की ज़रूरत नहीं।",
-    "Eligible naye owners pehli branch set karne ke baad Standard ke features 30 din aazmaa sakte hain. Card ki zaroorat nahi."
   ],
   "For your team": [
     "आपकी टीम के लिए",
@@ -1612,10 +1579,6 @@ export const publicCatalog = {
     "फीचर्स देखें",
     "Features dekhein"
   ],
-  "30-day Standard trial · No card needed": [
-    "30 दिन का Standard ट्रायल · कार्ड की ज़रूरत नहीं",
-    "30 din ka Standard trial · Card ki zaroorat nahi"
-  ],
   "Everything you need for everyday library work.": [
     "लाइब्रेरी के रोज़ के काम के लिए सब कुछ।",
     "Library ke roz ke kaam ke liye sab kuch."
@@ -1736,10 +1699,6 @@ export const publicCatalog = {
     "सीट दें, पेमेंट दर्ज करें और बकाया फीस देखें।",
     "Seats assign karein, payments record karein aur pending fees dekhein."
   ],
-  "Eligible new owners get a 30-day Standard trial after setting up their first branch.": [
-    "पात्र नए मालिकों को पहली ब्रांच सेट करने के बाद 30 दिन का Standard ट्रायल मिलता है।",
-    "Eligible naye owners ko pehli branch set karne ke baad 30 din ka Standard trial milta hai."
-  ],
   "See how Lab Lords works": [
     "देखें Lab Lords कैसे काम करता है",
     "Dekhein Lab Lords kaise kaam karta hai"
@@ -1767,10 +1726,6 @@ export const publicCatalog = {
   "Do I need a card for the trial?": [
     "क्या ट्रायल के लिए कार्ड चाहिए?",
     "Kya trial ke liye card chahiye?"
-  ],
-  "No. Eligible new owners get one 30-day Standard trial after setting up their first branch. The trial is shared across branches in that workspace. Adding branches does not extend it.": [
-    "नहीं। पात्र नए मालिकों को पहली ब्रांच सेट करने के बाद एक 30 दिन का Standard ट्रायल मिलता है। उस वर्कस्पेस की सभी ब्रांचें वही ट्रायल साझा करती हैं। ब्रांच जोड़ने से ट्रायल नहीं बढ़ता।",
-    "Nahi. Eligible naye owners ko pehli branch set karne ke baad ek 30 din ka Standard trial milta hai. Us workspace ki saari branches wahi trial share karti hain. Branches jodne se trial nahi badhta."
   ],
   "Can I add my existing student list?": [
     "क्या मैं अपनी मौजूदा स्टूडेंट लिस्ट जोड़ सकता हूँ?",
@@ -2931,10 +2886,6 @@ export const publicCatalog = {
   "Lab Lords Contact": [
     "Lab Lords से संपर्क",
     "Lab Lords se contact"
-  ],
-  "Eligible new owners get one 30-day Standard trial after setting up their first branch. The trial is shared across branches in that workspace. Adding branches does not extend it. No card is needed.": [
-    "पात्र नए मालिकों को पहली ब्रांच सेट करने के बाद एक 30 दिन का Standard ट्रायल मिलता है। उस वर्कस्पेस की सभी ब्रांचें वही ट्रायल साझा करती हैं। ब्रांच जोड़ने से ट्रायल नहीं बढ़ता। कार्ड की ज़रूरत नहीं।",
-    "Eligible naye owners ko pehli branch set karne ke baad ek 30 din ka Standard trial milta hai. Us workspace ki saari branches wahi trial share karti hain. Branches jodne se trial nahi badhta. Card ki zaroorat nahi."
   ],
   "{plan} is {price} per billable branch per month": [
     "{plan} की कीमत हर बिल योग्य ब्रांच के लिए प्रति महीना {price} है",

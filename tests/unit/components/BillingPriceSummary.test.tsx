@@ -37,6 +37,11 @@ function experience(overrides: Partial<BillingExperience> = {}): BillingExperien
 }
 
 describe("BillingPriceSummary", () => {
+  it.each(["BASIC", "PRO"] as const)("shows the actual %s trial even when an older paid boundary exists", plan => {
+    const html = renderToStaticMarkup(<BillingPriceSummary experience={experience({ effectivePlan: plan, trialPlan: plan, billingAccessSource: "TRIAL", paidThrough: "2026-01-01T00:00:00Z" })} current={null} />);
+    expect(html).toContain(plan === "BASIC" ? "Basic trial" : "Pro trial");
+    expect(html).not.toContain("Current subscription");
+  });
   it("separates current Standard trial access from an unauthorised Basic choice", () => {
     const html = renderToStaticMarkup(<BillingPriceSummary experience={experience()} current={null} />);
 
@@ -53,7 +58,7 @@ describe("BillingPriceSummary", () => {
     expect(html).toContain("2 branches × ₹99");
     expect(html).toContain("Payment mandate");
     expect(html).toContain("Not scheduled — authorize a payment method first");
-    expect(html).toContain("If you choose a card");
+    expect(html).toContain("No plan fee is charged during your trial. Any payment authorization is a separate choice.");
   });
 
   it("shows a provider-confirmed future Standard authorization without calling it current", () => {

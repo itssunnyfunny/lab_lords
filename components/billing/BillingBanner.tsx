@@ -68,7 +68,7 @@ export function BillingBanner({ experience }: { experience: BillingExperience })
   );
 
   if (experience.accessMode === "READ_ONLY") return null;
-  const show = experience.effectivePlan === "STANDARD_TRIAL" || experience.accessMode === "WARNING" || hasActiveOperation;
+  const show = experience.customerState === "TRIAL_ACTIVE" || experience.effectivePlan === "STANDARD_TRIAL" || experience.accessMode === "WARNING" || hasActiveOperation;
   if (!show) return null;
   if (dismissible && dismissed) return null;
 
@@ -78,7 +78,7 @@ export function BillingBanner({ experience }: { experience: BillingExperience })
     ? "Billing action required"
     : hasActiveOperation
       ? "Billing change in progress"
-      : "Standard trial";
+      : experience.trialPlan === "BASIC" ? "Basic trial" : experience.trialPlan === "PRO" ? "Pro trial" : "Standard trial";
   const toneClasses = isWarning
     ? {
         container: "border-amber-500/30 bg-amber-500/10",
@@ -108,8 +108,8 @@ export function BillingBanner({ experience }: { experience: BillingExperience })
       <div className="flex min-w-0 items-start gap-3">
         <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${toneClasses.icon}`} aria-hidden="true" />
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text)]">{contextLabel}</p>
-          <p id={titleId} className="mt-0.5 font-semibold leading-5 text-[color:var(--ui-text)]">{experience.customerMessage}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text)]">{t.owned(contextLabel)}</p>
+          <p id={titleId} className="mt-0.5 font-semibold leading-5 text-[color:var(--ui-text)]">{t.owned(experience.customerMessage)}</p>
           {experience.trialEndsAt ? (
             <p className="mt-1 text-xs text-[color:var(--ui-text)]">{t("Trial ends {toLocaleDateString}.", { toLocaleDateString: new Date(experience.trialEndsAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) })}</p>
           ) : null}

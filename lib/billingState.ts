@@ -1,4 +1,4 @@
-import { billingPlanRank, type BillingPlanId } from "@/lib/billingPlans";
+import { billingPlanName, billingPlanRank, type BillingPlanId } from "@/lib/billingPlans";
 
 export type BillingAccessMode = "FULL" | "WARNING" | "READ_ONLY";
 
@@ -7,6 +7,7 @@ export type BillingStateInput = {
   trial?: {
     status: "AVAILABLE" | "ACTIVE" | "EXPIRED" | "REVOKED";
     endsAt: Date | null;
+    plan?: BillingPlanId;
   } | null;
   subscription?: {
     status: string;
@@ -62,14 +63,19 @@ export function deriveWorkspaceBillingState(input: BillingStateInput): BillingSt
     && input.trial.endsAt > input.now;
 
   if (activeTrial) {
-    const paidPro = input.subscription?.plan === "PRO" && input.subscription.status !== "HALTED"
+    const trialPlan = input.trial?.plan ?? "STANDARD";
+    const paidHigherPlan = input.subscription != null
+      && billingPlanRank(input.subscription.plan) > billingPlanRank(trialPlan)
+      && input.subscription.status !== "HALTED"
       && input.subscription.paidThrough != null && input.subscription.paidThrough > input.now;
     return applyAuthorizedReplacement({
       accessMode: "FULL",
       canWrite: true,
-      effectivePlan: paidPro ? "PRO" : "STANDARD",
-      source: paidPro ? "PAID" : "TRIAL",
-      reason: paidPro ? "Provider-confirmed Pro paid period is active" : "Standard trial is active",
+      effectivePlan: paidHigherPlan ? input.subscription!.plan : trialPlan,
+      source: paidHigherPlan ? "PAID" : "TRIAL",
+      reason: paidHigherPlan
+        ? `Provider-confirmed ${billingPlanName(input.subscription!.plan)} paid period is active`
+        : `${billingPlanName(trialPlan)} trial is active`,
     }, input.authorizedReplacement, input.now);
   }
 

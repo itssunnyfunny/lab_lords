@@ -87,6 +87,9 @@ test("homepage uses the approved prototype messaging and section progression", a
     previousIndex = index;
   }
   await expect(page.locator("#features").getByRole("heading", { level: 3 })).toHaveCount(9);
+  const importCard = page.locator("#features a").filter({ has: page.getByRole("heading", { name: "Student imports", exact: true }) });
+  await expect(importCard.getByText("Every plan", { exact: true })).toBeVisible();
+  await expect(importCard.getByText("Standard", { exact: true })).toHaveCount(0);
   for (const [title, description] of [
     ["Student management", "Keep student details, seat assignments and fee records together."],
     ["Seats & shifts", "See available seats and assign them to students for the right shift."],
@@ -188,7 +191,7 @@ test("botanical dashboard keeps sample shifts and seats keyboard accessible with
 
 for (const [route, title, description] of [
   ["/features", "Tools for everyday library work.", "From your first student record to your next branch, keep the daily details together."],
-  ["/pricing", "Simple plans for your library.", "Start with a 30-day Standard trial. Then choose the plan that fits your everyday work."],
+  ["/pricing", "Simple plans for your library.", "Try Basic, Standard or Pro for 30 days. Choose the plan that fits your everyday work."],
 ]) {
   test(`${route} stays accessible and reflows on a narrow phone`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
@@ -272,7 +275,7 @@ test("homepage shows all three monthly branch plans with direct plan actions", a
     await expect(card.getByRole("button", { name: `Choose ${name}`, exact: true })).toBeEnabled();
     await card.screenshot({ path: testInfo.outputPath(`homepage-${name.toLowerCase()}.png`) });
   }
-  await expect(pricing).toContainText("Eligible new owners can try Standard features for 30 days");
+  await expect(pricing).toContainText("Eligible new owners can try Basic, Standard or Pro for 30 days");
   await expect(pricing).toContainText("Everything in Standard, plus WhatsApp integration and automation.");
   await expect(pricing).toContainText("unlimited messages are not included");
   await expect(pricing.getByRole("link", { name: "View pricing", exact: true })).toHaveAttribute("href", "/pricing");
@@ -304,7 +307,8 @@ test("public pricing exposes Basic, Standard and Pro with their separate capabil
   const basic = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Basic", exact: true }) });
   const standard = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Standard", exact: true }) });
   const pro = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Pro", exact: true }) });
-  await expect(basic.getByText("Not included in Basic", { exact: true })).toHaveCount(7);
+  await expect(basic.getByText("Not included in Basic", { exact: true })).toHaveCount(6);
+  await expect(basic.getByText("Spreadsheet import", { exact: true })).toBeVisible();
   await expect(standard.getByText("Not included in Standard", { exact: true })).toHaveCount(1);
   await expect(pro.getByText(/Not included/)).toHaveCount(0);
   await expect(pro).toContainText("WhatsApp requires integration setup and rollout availability.");

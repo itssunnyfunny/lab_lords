@@ -3,6 +3,7 @@ import type { NormalizedMultiShiftDraft, NormalizedShiftDraft } from "@/lib/form
 import type { SeatNumberingConfig } from "@/lib/seatNumbering";
 
 export interface OnboardingPayload {
+    trialPlan?: CheckoutBillingPlanId;
     orgName: string;
     ownerPhone: string;
     businessType?: string;

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { BillingValidationError } from "@/lib/billingErrors";
 import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors";
+import { isCheckoutBillingPlanId, type CheckoutBillingPlanId } from "@/lib/billingPlans";
 
 const TRIAL_DAYS = 30;
 
@@ -14,8 +15,10 @@ export class OwnerTrialService {
     tx: Prisma.TransactionClient,
     ownerId: string,
     organizationId: string,
-    now = new Date()
+    now = new Date(),
+    trialPlan: CheckoutBillingPlanId = "STANDARD"
   ) {
+    if (!isCheckoutBillingPlanId(trialPlan)) throw new BillingValidationError("Choose Basic, Standard or Pro for your trial.");
     const owner = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT "id" FROM "User" WHERE "id" = ${ownerId} FOR UPDATE
     `;
@@ -30,6 +33,7 @@ export class OwnerTrialService {
         organizationId,
         source: "ONBOARDING",
         status: "ACTIVE",
+        trialPlan,
         claimedAt: now,
         trialStartedAt: now,
         trialEndsAt: addTrialDays(now),

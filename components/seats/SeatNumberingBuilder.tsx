@@ -196,7 +196,7 @@ export function SeatNumberingBuilder({
                                 <div className="col-span-2 sm:col-span-3">
                                     <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Prefix")}</label>
                                     <input
-                                        aria-label={`Range ${index + 1} prefix`}
+                                        aria-label={t("Range {number} prefix", { number: index + 1 })}
                                         type="text"
                                         disabled={disabled}
                                         value={range.prefix}
@@ -209,7 +209,7 @@ export function SeatNumberingBuilder({
                                 <div className="sm:col-span-2">
                                     <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Start")}</label>
                                     <input
-                                        aria-label={`Range ${index + 1} start`}
+                                        aria-label={t("Range {number} start", { number: index + 1 })}
                                         type="number"
                                         disabled={disabled}
                                         value={range.start}
@@ -223,7 +223,7 @@ export function SeatNumberingBuilder({
                                 <div className="sm:col-span-2">
                                     <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("End")}</label>
                                     <input
-                                        aria-label={`Range ${index + 1} end`}
+                                        aria-label={t("Range {number} end", { number: index + 1 })}
                                         type="number"
                                         disabled={disabled}
                                         value={range.end}
@@ -237,7 +237,7 @@ export function SeatNumberingBuilder({
                                 <div className="sm:col-span-2">
                                     <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Padding")}</label>
                                     <input
-                                        aria-label={`Range ${index + 1} padding`}
+                                        aria-label={t("Range {number} padding", { number: index + 1 })}
                                         type="number"
                                         disabled={disabled}
                                         value={range.padTo ?? 0}
@@ -252,7 +252,7 @@ export function SeatNumberingBuilder({
                                     <label htmlFor={`seat-range-${index}-separator`} className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Separator")}</label>
                                     <AppSelect
                                         id={`seat-range-${index}-separator`}
-                                        aria-label={`Range ${index + 1} separator`}
+                                        aria-label={t("Range {number} separator", { number: index + 1 })}
                                         disabled={disabled}
                                         value={range.separator ?? ""}
                                         onValueChange={value => updateRange(index, { separator: value as SeatNumberingSeparator })}

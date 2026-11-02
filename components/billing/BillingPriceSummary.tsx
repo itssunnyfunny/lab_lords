@@ -47,8 +47,9 @@ function SummaryRow({
 export function BillingPriceSummary({ experience, current }: BillingPriceSummaryProps) {
   const t = useTranslation();
   const trialActive = experience.effectivePlan === "STANDARD_TRIAL"
-    || (experience.customerState === "TRIAL_ACTIVE" && experience.trialDaysRemaining != null && experience.trialDaysRemaining > 0);
+    || (experience.trialDaysRemaining != null && experience.trialDaysRemaining > 0);
   const paidPlanActive = isBillingPlanId(experience.effectivePlan)
+    && (experience.billingAccessSource === undefined || experience.billingAccessSource === "PAID" || experience.billingAccessSource === "PAYMENT_RETRY")
     && experience.paidThrough != null;
   const selectedPlanName = experience.selectedPostTrialPlan ? billingPlanName(experience.selectedPostTrialPlan) : null;
   const authorizationLabel = experience.authorizationStatus === "AUTHORIZED"
@@ -107,7 +108,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
         <h3 className="text-base font-semibold text-[color:var(--text-primary)]">{t.owned("Current access")}</h3>
         <p className="mt-1 text-xs text-[color:var(--text-secondary)]">{t.owned("What your workspace can use right now.")}</p>
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-          <SummaryRow label="Access now" value={trialActive ? experience.effectivePlan === "PRO" ? "Pro complimentary access during trial" : "Standard trial" : "No active paid plan"} emphasis />
+          <SummaryRow label="Access now" value={trialActive ? experience.effectivePlan === "BASIC" ? "Basic trial" : experience.effectivePlan === "PRO" ? experience.trialPlan === "PRO" ? "Pro trial" : "Pro complimentary access during trial" : "Standard trial" : "No active paid plan"} emphasis />
           {trialActive ? (
             <SummaryRow label="Plan fee today" value={formatInr(experience.planFeeDueToday)} />
           ) : (
@@ -118,7 +119,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
           ) : null}
           <SummaryRow
             label="Workspace access"
-            value={experience.accessMode === "READ_ONLY" ? "Read-only" : trialActive && experience.effectivePlan !== "PRO" ? "Full Standard features" : "Full access"}
+            value={experience.accessMode === "READ_ONLY" ? "Read-only" : trialActive && experience.effectivePlan === "BASIC" ? "Basic features" : trialActive && experience.effectivePlan !== "PRO" ? "Full Standard features" : "Full access"}
           />
         </dl>
       </div>
@@ -148,7 +149,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
         </dl>
         <p className="mt-3 text-xs leading-5 text-[color:var(--text-secondary)]">
           {t.owned(trialActive
-            ? "No plan fee is charged during the Standard trial. If you choose a card, Razorpay may make a temporary ₹5 verification payment and automatically refund it."
+            ? "No plan fee is charged during your trial. Any payment authorization is a separate choice."
             : "Paid access starts only after Razorpay confirms the subscription payment. Your existing data remains preserved while access is inactive.")}
         </p>
       </div>

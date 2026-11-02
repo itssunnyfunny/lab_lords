@@ -25,7 +25,7 @@ export async function LandingPricing({ showIntroduction = true, showComparisonLi
             <p className="marketing-eyebrow">{t("Simple monthly pricing")}</p>
             <h2 className="marketing-title mt-3">{t("Choose what your library needs.")}</h2>
             <p className="marketing-lead mt-4">{t("Three plans. Clear monthly pricing for each billable branch.")}</p>
-            <p className="marketing-plan-note mt-3">{t("Eligible new owners can try Standard features for 30 days after setting up their first branch. No card needed.")}</p>
+            <p className="marketing-plan-note mt-3">{t("Eligible new owners can try Basic, Standard or Pro for 30 days. No card needed.")}</p>
           </div>
         )}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-6">

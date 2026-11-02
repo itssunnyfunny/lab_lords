@@ -23,6 +23,7 @@ interface CreateNetworkParams {
     userId: string;
     idempotencyKey: string;
     selectedPostTrialPlan: CheckoutBillingPlanId;
+    trialPlan?: CheckoutBillingPlanId;
     ownerPhone: string;
     orgData: {
         name: string;
@@ -56,6 +57,21 @@ export class OnboardingService {
         if (!isCheckoutBillingPlanId(params.selectedPostTrialPlan)) {
             throw invalidOnboardingRequest("Choose Basic, Standard or Pro as the post-trial plan.");
         }
+        if (params.trialPlan !== undefined && !isCheckoutBillingPlanId(params.trialPlan)) {
+            throw invalidOnboardingRequest("Choose Basic, Standard or Pro for your trial.");
+        }
+        if (params.trialPlan !== undefined) {
+            if (!Array.isArray(params.shifts) || params.shifts.length === 0 || !Array.isArray(params.multiShifts)) {
+                throw invalidOnboardingRequest("Choose at least one daily time slot and confirm your optional combinations.");
+            }
+            for (const row of [...params.shifts, ...params.multiShifts]) {
+                const fee = parseIntegerField(row.price, "Student monthly fee", { required: true, min: 0, max: FORM_LIMITS.moneyMax });
+                if (!fee.ok) throw invalidOnboardingRequest(fee.error);
+            }
+            if (params.shifts.some(shift => !shift.startTime || !shift.endTime)) {
+                throw invalidOnboardingRequest("Enter a start and end time for every daily time slot.");
+            }
+        }
         const ownerPhoneResult = validateRequiredPhone(params.ownerPhone, "Owner phone");
         if (!ownerPhoneResult.ok) throw invalidOnboardingRequest(ownerPhoneResult.error);
         const orgNameResult = validateRequiredText(orgData.name, "Organization name", 120);
@@ -88,6 +104,7 @@ export class OnboardingService {
             : null;
         if (multiShiftsResult && !multiShiftsResult.ok) throw invalidOnboardingRequest(multiShiftsResult.error);
         const requestHash = hashOnboardingRequest({
+            trialPlan: params.trialPlan,
             selectedPostTrialPlan: params.selectedPostTrialPlan,
             ownerPhone: ownerPhoneResult.value,
             orgName: orgNameResult.value,
@@ -250,7 +267,7 @@ export class OnboardingService {
                 },
             });
 
-            await OwnerTrialService.startOnboardingTrial(tx, userId, org.id, new Date());
+            await OwnerTrialService.startOnboardingTrial(tx, userId, org.id, new Date(), params.trialPlan ?? "STANDARD");
 
             await tx.onboardingRequest.create({
                 data: { ownerId: userId, idempotencyKey, requestHash, organizationId: org.id, branchId: branch.id },

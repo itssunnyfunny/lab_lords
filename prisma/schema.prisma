@@ -2275,6 +2275,7 @@ model OwnerTrialGrant {
   organizationId String?          @unique
   source         OwnerTrialSource
   status         OwnerTrialStatus @default(AVAILABLE)
+  trialPlan      SaasPlan         @default(STANDARD)
   grantedAt      DateTime         @default(now())
   claimedAt      DateTime?
   trialStartedAt DateTime?

@@ -23,6 +23,7 @@ or imply owner approval.
 | [0002](./0002-whatsapp-communication-foundation.md) | Proposed | WhatsApp communication foundation and customer-owned Meta assets |
 | [0005](./0005-tenant-integrity-and-authoritative-execution-boundaries.md) | Proposed | Tenant integrity and authoritative execution boundaries |
 | [0006](./0006-card-subscription-replacement.md) | Proposed | Fresh authorization for card subscription changes |
+| [0007](./0007-explicit-owner-trials-and-core-imports.md) | Proposed | Explicit owner trial tiers and core spreadsheet import |
 
 ## Naming and status
 

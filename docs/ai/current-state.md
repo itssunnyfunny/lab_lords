@@ -1,5 +1,33 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Guided onboarding and explicit trial tiers — local, 2026-11-02
+
+The requested onboarding change replaces internal organization/shift terminology
+with business/location details, physical seats, editable daily timings and
+student fees, a real Basic/Standard/Pro trial choice, and a final review/import
+choice. Business type is absent from the new wizard; its stored field and V1
+compatibility remain. One session starts with an unanswered fee, combinations
+are opt-in, and no unfinished fee becomes an implicit zero. Timings and seat
+labels use the existing validation/allocation owners. Row errors and the
+wizard are translated in English, Hindi and Hinglish.
+
+`OwnerTrialGrant.trialPlan` records the chosen tier. The additive migration
+defaults all historical grants to Standard without interpreting post-trial
+preferences or changing dates. New explicit-tier commands use V2 hashes; saved
+V1 commands retain their exact identity and Standard promise. Owner locking,
+single-organization creation, one lifetime trial and account-scoped recovery
+remain. No provider authorization/subscription is created by trial selection.
+
+Basic now shares the import capability and existing import screens with
+Standard/Pro through its own workspace shell and Students navigation. Server
+tenant/permission/writability checks, Import V2 flags and limits remain;
+attendance, staff, analytics, AI and WhatsApp boundaries are unchanged. Basic
+trials actually select the simple workspace; other tiers select the full one.
+This supersedes the older Standard-only trial and premium-import descriptions
+below. Local evidence and release/rollback requirements are in the
+[onboarding implementation record](../redesign/onboarding-experience.md) and
+[production runbook](../production-runbook.md). No production release is implied.
+
 ## Homepage plans and public translations — local, 2026-10-31
 
 Home now reuses `LandingPricing` summary cards for Basic ₹99, Standard ₹299 and

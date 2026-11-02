@@ -870,7 +870,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                     unitAmount={confirmationPlanDetails.amount ?? 0}
                     quantity={billingOverview.experience.projectedQuantity}
                     monthlyTotal={(confirmationPlanDetails.amount ?? 0) * billingOverview.experience.projectedQuantity}
-                    trialActive={billingOverview.experience.effectivePlan === "STANDARD_TRIAL"}
+                    trialActive={billingOverview.experience.effectivePlan === "STANDARD_TRIAL" || (billingOverview.experience.trialDaysRemaining ?? 0) > 0}
                     changeTiming={confirmationChangeTiming}
                     trialEndsAt={billingOverview.experience.trialEndsAt}
                     providerChargeAt={billingOverview.experience.nextChargeAt}
@@ -926,7 +926,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                 variant="danger"
                 title={t.owned(cancellationMode === "TRIAL" ? "Cancel the authorized subscription?" : "Cancel at cycle end?")}
                 description={t.owned(cancellationMode === "TRIAL"
-                    ? "Your Standard trial keeps its original end date. Cancellation is scheduled before the first plan charge."
+                    ? "Your trial keeps its original end date. Cancellation is scheduled before the first plan charge."
                     : "Your current access remains available until this billing cycle ends. Razorpay will not renew the subscription afterward. Already-paid fees are handled under the Cancellation and Refund Policy.")}
                 confirmText="Schedule cancellation"
             />
@@ -1009,7 +1009,7 @@ function planRank(plan: OrganizationSubscriptionDto["plan"]) {
 
 function formatBillingCustomerState(state: BillingOverview["experience"]["customerState"]) {
     const labels: Record<BillingOverview["experience"]["customerState"], string> = {
-        TRIAL_ACTIVE: "Standard trial active",
+        TRIAL_ACTIVE: "Trial active",
         BASIC_ACTIVE: "Basic active",
         STANDARD_ACTIVE: "Standard active",
         PRO_ACTIVE: "Pro active",

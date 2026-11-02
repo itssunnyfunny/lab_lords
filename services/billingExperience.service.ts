@@ -70,6 +70,7 @@ function serializeOperation(change: OrganizationBillingChange): BillingExperienc
 
 function customerPresentation(input: {
   trialActive: boolean;
+  trialPlan?: BillingPlanId;
   effectivePlan: "BASIC" | "STANDARD" | "PRO" | "STANDARD_TRIAL" | "NONE";
   providerStatus: string | null;
   operationStatus: string | null;
@@ -80,7 +81,7 @@ function customerPresentation(input: {
     return { state: "CONFIRMING" as const, message: "Your payment is being confirmed. Existing access remains unchanged." };
   }
   if (input.operationStatus === "ABANDONED" && input.operationFailureVisible) {
-    return { state: "PAYMENT_NOT_COMPLETED" as const, message: input.trialActive ? "Payment was not completed. Your Standard trial continues." : "Payment was not completed. Your current plan remains unchanged." };
+    return { state: "PAYMENT_NOT_COMPLETED" as const, message: input.trialActive ? `Payment was not completed. Your ${getBillingPlan(input.trialPlan ?? "STANDARD")!.shortName} trial continues.` : "Payment was not completed. Your current plan remains unchanged." };
   }
   if (input.operationStatus === "DECLINED") {
     return { state: "PAYMENT_DECLINED" as const, message: "The recurring payment authorization was declined. Try another method supported by Razorpay." };
@@ -88,7 +89,7 @@ function customerPresentation(input: {
   if (input.operationStatus === "FAILED") {
     return { state: "PAYMENT_FAILED" as const, message: "We could not complete the billing change. Your confirmed plan and quantity remain unchanged." };
   }
-  if (input.trialActive) return { state: "TRIAL_ACTIVE" as const, message: "Your Standard trial is active without a plan charge." };
+  if (input.trialActive) return { state: "TRIAL_ACTIVE" as const, message: `Your ${getBillingPlan(input.trialPlan ?? "STANDARD")!.shortName} trial is active without a plan charge.` };
   if (input.providerStatus === "PENDING") return { state: "PAYMENT_RETRYING" as const, message: "Your renewal payment is being retried. Access remains available." };
   if (input.providerStatus === "PAUSED") return { state: "PAYMENT_RETRYING" as const, message: "The recurring mandate is paused. Resume it in your UPI app when available, or authorize a replacement payment method." };
   if (input.providerStatus === "HALTED") return { state: "PAYMENT_HALTED" as const, message: "Payment retries are exhausted. Recover the mandate or authorize another payment method to restore full access after confirmation." };
@@ -209,7 +210,7 @@ export class BillingExperienceService {
       ? deriveWorkspaceBillingState({
           now,
           trial: organization.ownerTrialGrant
-            ? { status: organization.ownerTrialGrant.status, endsAt: organization.ownerTrialGrant.trialEndsAt }
+            ? { status: organization.ownerTrialGrant.status, endsAt: organization.ownerTrialGrant.trialEndsAt, plan: organization.ownerTrialGrant.trialPlan }
             : null,
           subscription: subscription
             ? { status: subscription.status, plan: subscription.plan, paidThrough: trustedPaidThrough }
@@ -218,7 +219,7 @@ export class BillingExperienceService {
         })
       : historicalBillingState(subscription?.plan ?? null, trustedPaidThrough);
 
-    const effectivePlan = trialActive && state.effectivePlan === "STANDARD"
+    const effectivePlan = trialActive && state.source === "TRIAL" && state.effectivePlan === "STANDARD"
       ? "STANDARD_TRIAL" as const
       : state.source === "NONE" && organization.billingModelVersion === "WORKSPACE_V2"
         ? "NONE" as const
@@ -245,6 +246,7 @@ export class BillingExperienceService {
         : "NOT_AUTHORIZED" as const;
     const presentation = customerPresentation({
       trialActive,
+      trialPlan: organization.ownerTrialGrant?.trialPlan,
       effectivePlan,
       providerStatus: subscription?.status ?? null,
       operationStatus: latestOperation?.operationStatus ?? null,
@@ -276,12 +278,14 @@ export class BillingExperienceService {
     const result: BillingExperience = {
       organizationId,
       accessMode: state.accessMode,
+      billingAccessSource: state.source,
       effectivePlan,
       selectedPostTrialPlan: postTrialPlan,
       providerStatus: subscription?.status ?? null,
       customerState: presentation.state,
       customerMessage: presentation.message,
       trialEndsAt: organization.ownerTrialGrant?.trialEndsAt?.toISOString() ?? null,
+      trialPlan: organization.ownerTrialGrant?.trialPlan ?? null,
       trialDaysRemaining: trialActive && organization.ownerTrialGrant?.trialEndsAt
         ? Math.max(1, Math.ceil((organization.ownerTrialGrant.trialEndsAt.getTime() - now.getTime()) / DAY_MS))
         : null,

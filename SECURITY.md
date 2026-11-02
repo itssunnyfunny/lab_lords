@@ -148,6 +148,18 @@ operator workstation or CI runner that can access credentials.
 - New organizations must be created through canonical V2 onboarding, with
   explicit commercial state and the existing once-per-owner trial contract.
   A disabled release flag must not select legacy writable access for new records.
+- An explicit onboarding trial tier must be one of BASIC, STANDARD or PRO, bound
+  into the request hash and stored on the owner trial grant in the same
+  transaction as the workspace and receipt. Historical grants/V1 commands retain
+  Standard; never derive their trial tier from `selectedPostTrialPlan`. A replay
+  or later plan choice cannot renew a grant, change its dates or grant paid
+  access. A higher independently trusted paid period remains available.
+- Spreadsheet import is available to all supported plans, including Basic. Its
+  server-side `importView`/`importStudents` boundaries still recheck tenant and
+  branch membership, `students` permission and writability for mutations. Import
+  enablement, row/mutation limits, staged validation, duplicates and commit
+  recovery remain independent. Removing this one tier gate must not grant Basic
+  other full-workspace capabilities or advisory AI/provider authorization.
 - Onboarding creation requires a valid request key before writes, bound to the
   authenticated owner and a versioned hash of validated input. A matching
   replay returns only the original owner-linked result; changed input conflicts

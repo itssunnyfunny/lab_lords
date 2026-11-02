@@ -184,7 +184,7 @@ export function validateOptionalTime(value: unknown, label: string): ValidationR
 
 export function validateShiftDrafts(
     input: ShiftDraftInput[],
-    options: { allowEmpty?: boolean } = {}
+    options: { allowEmpty?: boolean; requirePrice?: boolean; requireTimes?: boolean } = {}
 ): ValidationResult<NormalizedShiftDraft[]> {
     const allowEmpty = options.allowEmpty ?? true;
     const activeRows = input
@@ -221,11 +221,15 @@ export function validateShiftDrafts(
         if (!endResult.ok) return endResult;
         const startTime = startResult.value;
         const endTime = endResult.value;
+        if (options.requireTimes && (!startTime || !endTime)) {
+            return { ok: false, error: "Enter a start and end time for every daily time slot." };
+        }
         if ((startTime && !endTime) || (!startTime && endTime)) {
             return { ok: false, error: `${rowLabel} must have both start and end time, or neither.` };
         }
 
         const priceResult = parseIntegerField(shift.price, `${rowLabel} price`, {
+            required: options.requirePrice,
             min: 0,
             max: FORM_LIMITS.moneyMax,
         });
@@ -262,7 +266,7 @@ export function validateShiftDrafts(
 export function validateMultiShiftDrafts(
     input: MultiShiftDraftInput[],
     primaryShifts: ReadonlyArray<{ name: string }>,
-    options: { allowEmpty?: boolean } = {}
+    options: { allowEmpty?: boolean; requirePrice?: boolean } = {}
 ): ValidationResult<NormalizedMultiShiftDraft[]> {
     const allowEmpty = options.allowEmpty ?? true;
     const primaryByName = new Map<string, string>();
@@ -306,6 +310,7 @@ export function validateMultiShiftDrafts(
         seenNames.add(nameKey);
 
         const priceResult = parseIntegerField(multiShift.price, `${rowLabel} price`, {
+            required: options.requirePrice,
             min: 0,
             max: FORM_LIMITS.moneyMax,
         });

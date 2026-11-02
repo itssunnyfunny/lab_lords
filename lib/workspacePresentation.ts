@@ -13,8 +13,8 @@ export function workspacePresentation(access: BranchAccess | null | undefined): 
 export function workspaceDowngradeNotice(current: string | undefined, target: string): string | null {
     if (target === "BASIC" && ["STANDARD", "STANDARD_TRIAL", "PRO"].includes(current ?? "")) {
         return current === "PRO"
-            ? "When Basic takes effect, the simple workspace replaces the full workspace. Attendance, imports, tasks, follow-ups, reports, staff invitations and permission controls, advanced analytics, AI and WhatsApp become unavailable. Your records, payment history and configuration are retained."
-            : "When Basic takes effect, the simple workspace replaces the full workspace. Attendance, imports, tasks, follow-ups, reports, staff invitations and permission controls, advanced analytics and AI become unavailable. Your records, payment history and configuration are retained.";
+            ? "When Basic takes effect, the simple workspace replaces the full workspace. Attendance, tasks, follow-ups, reports, staff invitations and permission controls, advanced analytics, AI and WhatsApp become unavailable. Your records, payment history and configuration are retained."
+            : "When Basic takes effect, the simple workspace replaces the full workspace. Attendance, tasks, follow-ups, reports, staff invitations and permission controls, advanced analytics and AI become unavailable. Your records, payment history and configuration are retained.";
     }
     if (current === "PRO" && target === "STANDARD") return "When Standard takes effect, WhatsApp becomes unavailable. The full workspace and your records, payment history and configuration are retained.";
     return null;

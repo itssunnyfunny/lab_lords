@@ -26,7 +26,7 @@ export type BillingEntitlement = typeof BILLING_ENTITLEMENTS[number];
 
 export const BILLING_CAPABILITIES = [
   { id: "STUDENT_RECORDS", label: "Student records", standardOnly: false },
-  { id: "STUDENT_RECORDS_IMPORT", label: "Spreadsheet import", standardOnly: true },
+  { id: "STUDENT_RECORDS_IMPORT", label: "Spreadsheet import", standardOnly: false },
   { id: "SEATS_SHIFTS_ALLOCATIONS", label: "Seats, shifts and allocations", standardOnly: false },
   { id: "PAYMENTS_DUES_AUDIT", label: "Payments, dues and audit history", standardOnly: false },
   { id: "RECEIPTS_HISTORY", label: "Full or partial payments and receipts", standardOnly: false },
@@ -84,7 +84,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     visible: true,
     description: "Simple student, seat and fee management. One plan for your organization, billed per active branch.",
     features: [
-      "Student records",
+      "Student records and spreadsheet import",
       "Seats, shifts and allocations",
       "Payments, dues and audit history",
       "Organization-wide plan, priced per active branch",

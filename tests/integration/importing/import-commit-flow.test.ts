@@ -60,9 +60,10 @@ describe("Import V2 commit flow integration", () => {
         restoreTime();
     });
 
-    it("atomically applies imported payment events and success markers, then safely replays them", async () => {
+    it.each(["BASIC", "STANDARD", "PRO"] as const)("%s atomically applies imported payment events and success markers, then safely replays them", async planTier => {
         const { user, branch, org } = await createTestWorld({ defaultFee: 1200 });
-        await createSaasSubscription({organizationId: org.id, plan: "STANDARD"});
+        await testPrisma.organization.update({ where: { id: org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
+        await createSaasSubscription({organizationId: org.id, plan: planTier});
         const normalizedData = {
             student: {
                 name: "Aarav Sharma",

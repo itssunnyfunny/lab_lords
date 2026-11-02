@@ -22,8 +22,9 @@ import { dashboardFeatureMessages } from "./dashboardFeatures";
 import { navigationRestorationMessages } from "./navigationRestoration";
 import { auditCloseoutMessages } from "./auditCloseout";
 import type { InterfaceLanguage } from "./language";
+import { onboardingMessages } from "./onboarding";
 
-export const messages = { ...basicProductMessages, ...basicWorkspaceMessages, ...auditCloseoutMessages, ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes, ...navigationRestorationMessages } as const;
+export const messages = { ...basicProductMessages, ...basicWorkspaceMessages, ...auditCloseoutMessages, ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes, ...navigationRestorationMessages, ...onboardingMessages } as const;
 export type MessageKey = keyof typeof messages;
 const lookup: Readonly<Record<string, readonly [string, string]>> = messages;
 const localizedMessages = new Set<string>(Object.values(lookup).flat());
@@ -58,6 +59,15 @@ export function translateOwnedText(language: InterfaceLanguage, text: string, pa
 export function translateError(language: InterfaceLanguage, error: unknown, fallback: MessageKey = "Something went wrong. Try again.") {
     const text = error instanceof Error ? error.message : typeof error === "string" ? error : "";
     if (localizedMessages.has(text)) return text;
+    const seatCount = /^(?:Custom ranges create|Seat numbering creates) (\d+) labels, but total seats is (\d+)\.$/.exec(text);
+    if (seatCount) return translate(language, "Seat labels total {actual}, but physical seats is {expected}.", { actual: seatCount[1], expected: seatCount[2] });
+    if (/^Seat numbering creates duplicate labels:/.test(text)) return translate(language, "Seat labels must be unique. Review your numbering ranges.");
+    const seatRange = /^Range (\d+) (.+)$/.exec(text);
+    if (seatRange) {
+        if (seatRange[2] === "end must be greater than or equal to start.") return translate(language, "Seat range {number}: the end must be the same as or after the start.", { number: seatRange[1] });
+        if (/^(start|end) (is required|must be)/.test(seatRange[2])) return translate(language, "Seat range {number}: enter whole seat numbers from 0 to 5000.", { number: seatRange[1] });
+        if (/^(prefix|separator) /.test(seatRange[2])) return translate(language, "Check the prefix and separator in seat range {number}.", { number: seatRange[1] });
+    }
     const required = /^(.{1,80}) is required\.$/.exec(text);
     if (required && Object.prototype.hasOwnProperty.call(messages, required[1])) return translate(language, "{field} is required.", { field: translateOwnedText(language, required[1]) });
     const length = /^(.{1,80}) must be (\d+) characters or less\.$/.exec(text);
