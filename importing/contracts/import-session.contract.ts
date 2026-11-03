@@ -146,6 +146,7 @@ export type ImportMappingResult = {
     model?: string;
     usedFallback?: boolean;
     aiTrace?: ImportAITrace;
+    draftShiftProposals?: import("../utils/guided-shift-assistance").GuidedShiftProposal[];
 };
 
 export type PaymentCycleOption = "USE_JOINED_AT_ANNIVERSARY" | "SKIP_PAYMENTS";
@@ -220,6 +221,7 @@ export type ImportMappingState = {
         version: 1;
         passes: number;
         preparedRevision: number;
+        preparedRows?: number;
         answers: Array<{ field: string; source: string; target: string; affected: number }>;
     };
     entityTypesDetected: ImportEntityType[];

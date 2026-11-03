@@ -8,7 +8,7 @@ export function buildImportColumnMappingPrompt(input: {
     draftContext?: unknown;
 }) {
     return `
-You are helping map messy study hall ERP import columns into a staging import.
+You are helping prepare a staging import: map messy columns and reuse confirmed shift meanings for unresolved records.
 You do not decide final truth, you never mutate data, and you must ask for confirmation when a business decision is ambiguous.
 Return only strict JSON with this shape:
 {
@@ -42,7 +42,8 @@ Return only strict JSON with this shape:
   },
   "analysisNotes": [
     "The file appears to include student and payment status data."
-  ]
+  ],
+  "draftShiftProposals": []
 }
 
 Supported target fields:
@@ -62,8 +63,18 @@ ${JSON.stringify(input.sampleRows.slice(0, 8), null, 2)}
 
 Current draft, confirmed answer categories and remaining work (opaque structural context):
 ${JSON.stringify(input.draftContext ?? null)}
-Preserve confirmed interpretations and manual work. Focus on remaining ambiguous columns.
+Preserve confirmed interpretations and manual work. Focus on remaining ambiguous columns and supported unresolved shift groups.
 Never invent dates, fees, payment facts or allocations. The application applies owner answers and validates every proposal.
+
+If current draft shiftAssistance is present, it contains opaque branch choices,
+unresolved source groups and prior owner-confirmed answers. A shared meaningAlias
+means the application established equivalent spellings locally. You may propose
+reusing an answer ONLY for a group with the same meaningAlias and a single
+uncontradicted choiceAlias. Return {sourceAlias, choiceAlias, answerAlias} in
+draftShiftProposals. Return an empty array for unsupported/ambiguous meanings.
+Do not produce labels, record IDs, seat assignments or financial changes.
+This output is useful even when Uploaded columns is empty: columnMappings may
+then be empty while draftShiftProposals resolves supported remaining records.
 
 Rules:
 - Map every uploaded column exactly once. Use "ignore" when the column should not be imported.

@@ -17,6 +17,12 @@
   retains lease/revision fences and manual corrections; AI gets whitelisted
   structural context only. Unrecognized nonempty source columns need an explicit
   mapping or ignore decision. See [evidence](redesign/import-guidance.md).
+- **Must preserve—enforced:** Guided payment editors retain absence separately
+  from recorded/owner-entered amounts. Fee, shift and fee-link changes cannot
+  manufacture payment facts or overwrite an explicit amount, even one equal to
+  the previous fee. AI draft proposals may reuse only an uncontradicted confirmed
+  shift meaning for equivalent source spellings; manual work remains unchanged
+  and all financial/source holds and allocation validation still apply.
 
 
 ## Audit follow-ups — 25 October 2026

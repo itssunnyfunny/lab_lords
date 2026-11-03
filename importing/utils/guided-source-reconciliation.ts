@@ -21,11 +21,17 @@ export function guidedSourceHolds(mapped: unknown): ImportIssue[] {
     const value = record(mapped)[GUIDED_SOURCE_HOLDS];
     return Array.isArray(value) ? value as ImportIssue[] : [];
 }
-export function guidedManualMetadata(mapped: unknown, before: unknown, after: ImportNormalizedRow, preserveHolds: boolean) {
+export function guidedManualMetadata(mapped: unknown, before: unknown, after: ImportNormalizedRow, preserveHolds: boolean, sourceFields: string[] = []) {
     const next = { ...record(mapped) };
     const removed = new Set(Array.isArray(next[GUIDED_CLEARED_FIELDS]) ? next[GUIDED_CLEARED_FIELDS] as string[] : []);
     for (const [entity, fields] of Object.entries(record(before))) {
         for (const field of Object.keys(record(fields))) if (!(field in record(record(after)[entity]))) removed.add(`${entity}.${field}`);
+    }
+    // Invalid uploaded values may never have produced a normalized leaf. An
+    // explicit full-row save must still retain their intentional removal.
+    for (const path of sourceFields) {
+        const [entity, field] = path.split(".");
+        if (entity && field && !(field in record(record(after)[entity]))) removed.add(path);
     }
     for (const [entity, fields] of Object.entries(after)) for (const field of Object.keys(record(fields))) removed.delete(`${entity}.${field}`);
     next[GUIDED_CLEARED_FIELDS] = [...removed];

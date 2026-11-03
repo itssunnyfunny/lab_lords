@@ -14,6 +14,7 @@ import { SeatAllocationService } from "@/services/seatAllocation.service";
 import { createTestWorld, createSaasSubscription, createSeat, createShift, createStudent, createUser, createBranch, createStaff } from "@/tests/factories";
 import { resetDatabase, disconnectDatabase, testPrisma as db } from "@/tests/setup/db";
 import { prisma } from "@/lib/prisma";
+import { draftFromImportRowWithFallback, normalizedFromImportDraft } from "@/importing/utils/manual-row-draft";
 import { freezeTime, restoreTime } from "@/tests/setup/time";
 import type { ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 
@@ -94,6 +95,72 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         detail = await ImportSessionService.getSessionDetail(f.user.id, f.branch.id, detail.id);
         detail = await ImportSessionService.updateMapping(f.user.id, f.branch.id, detail.id, { expectedRevision: detail.draftRevision, columnMappings: detail.mapping.columnMappings });
         await expect(ImportSessionService.analyzeSession(f.user.id, f.branch.id, detail.id)).rejects.toThrow("limit");
+    });
+    it("uses a confirmed meaning on another preparation pass to improve unresolved records with correct columns", async () => {
+        const f = await world();
+        let detail = await draft(f, ["First Meaning\t9876501101\t2026-01-01\t1000\tFD\t\t\t\t",
+            "Remaining One\t9876501102\t2026-01-01\t1000\tF.D.\t\t\t\t", "Remaining Two\t9876501103\t2026-01-01\t1000\tF D\t\t\t\t",
+            "Manual Student\t9876501104\t2026-01-01\t1000\tF.D.\t\t\t\t"]);
+        expect(detail.mapping.columnMappings.every(column => !column.needsReview)).toBe(true);
+        const originalMappings = detail.mapping.columnMappings;
+        const manual = detail.rows[3];
+        const confirmed = { ...(manual.normalizedData as ImportNormalizedRow), student: { ...(manual.normalizedData as ImportNormalizedRow).student, name: "Owner Confirmed", monthlyFee: 1400 } };
+        detail = await ImportSessionService.updateRows(f.user.id, f.branch.id, detail.id, { expectedRevision: detail.draftRevision, edits: [{ rowId: manual.id, normalizedData: confirmed }] });
+        detail = await ImportSessionService.confirmShiftInterpretation(f.user.id, f.branch.id, detail.id, { expectedRevision: detail.draftRevision, source: "FD", targetId: f.shift.id });
+        expect(detail.rows[1].normalizedData).toMatchObject({ allocation: { shiftName: "F.D." } });
+        provider.call.mockImplementationOnce(async (prompt: string) => {
+            const current = JSON.parse(prompt.match(/opaque structural context\):\n([^\n]+)/)![1]);
+            const assistance = current.shiftAssistance;
+            expect(prompt).toContain('Uploaded columns:\n[]');
+            for (const value of ["Owner Confirmed", "Remaining One", "9876501102", "Full Day", "F.D.", f.shift.id, detail.id]) expect(prompt).not.toContain(value);
+            return { ok: true, data: { entityTypesDetected: ["STUDENT"], columnMappings: [], questions: [], warnings: [],
+                draftShiftProposals: assistance.groups.map((group: { sourceAlias: string; meaningAlias: string }) => {
+                    const answer = assistance.answers.find((answer: { meaningAlias: string }) => answer.meaningAlias === group.meaningAlias);
+                    return { sourceAlias: group.sourceAlias, choiceAlias: answer.choiceAlias, answerAlias: answer.answerAlias };
+                }) } };
+        });
+        detail = await ImportSessionService.analyzeSession(f.user.id, f.branch.id, detail.id);
+        expect(detail.mapping.columnMappings).toEqual(originalMappings);
+        expect(detail.mapping.guidance?.preparedRows).toBe(2);
+        expect(detail.rows.slice(0, 3).every(row => (row.normalizedData as ImportNormalizedRow).allocation?.shiftName === "Full Day")).toBe(true);
+        expect(detail.rows[3].normalizedData).toEqual(confirmed);
+        expect(detail.rows.slice(1, 3).every(row => !(row.issues as Array<{ code: string }>).some(issue => issue.code.includes("SHIFT")))).toBe(true);
+        expect(detail.guidance?.needsHelp).toBe(1);
+        expect(await db.student.count()).toBe(0);
+    });
+    it.each(["300", "300.50"])("retains newly interpreted financial source %s while preparing a remaining shift", async receipt => {
+        const f = await world();
+        const created = await ImportSessionService.createSession(f.user.id, f.branch.id, { sourceType: "PASTED_TABLE", experience: "GUIDED_CURRENT_MONTH_V1",
+            pastedTable: `Name\tJoined Date\tMonthly Fee\tShift\tUnknown Receipt\nFirst Meaning\t2026-01-01\t1000\tFD\t\nRemaining\t2026-01-01\t1000\tF.D.\t${receipt}` });
+        let detail = await ImportSessionService.analyzeSession(f.user.id, f.branch.id, created.id);
+        await ImportRunRunner.setAnalysisStatus({ importRunId: created.analysisRun.id, status: "COMPLETED" });
+        detail = await ImportSessionService.confirmShiftInterpretation(f.user.id, f.branch.id, detail.id, { expectedRevision: detail.draftRevision, source: "FD", targetId: f.shift.id });
+        provider.call.mockImplementationOnce(async (prompt: string) => {
+            const aliases = JSON.parse(prompt.match(/Uploaded columns:\n([^\n]+)/)![1]);
+            const context = JSON.parse(prompt.match(/opaque structural context\):\n([^\n]+)/)![1]).shiftAssistance;
+            return { ok: true, data: { entityTypesDetected: ["STUDENT", "PAYMENT"], columnMappings: [{ sourceColumn: aliases[0], targetField: "payment.amount", confidence: 99 }],
+                questions: [], warnings: [], draftShiftProposals: [{ sourceAlias: context.groups[0].sourceAlias, choiceAlias: context.answers[0].choiceAlias, answerAlias: context.answers[0].answerAlias }] } };
+        });
+        detail = await ImportSessionService.analyzeSession(f.user.id, f.branch.id, detail.id);
+        const row = detail.rows[1];
+        expect(row.normalizedData).toMatchObject({ allocation: { shiftName: "Full Day" } });
+        expect(row.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: receipt === "300" ? "PARTIAL_PAYMENT_REVIEW" : "INVALID_PAYMENT_AMOUNT" })]));
+        if (receipt === "300") expect(row.normalizedData).toMatchObject({ payment: { amount: 300 } });
+        expect(detail.mapping.guidance?.preparedRows).toBe(1);
+    });
+    it.each(["300", "300.50"])("preserves explicitly clearing source amount %s through the real save and reload path", async receipt => {
+        const f = await world();
+        let detail = await draft(f, [`Student\t9876501201\t2026-01-01\t1000\t\t\t\t\t${receipt}`]);
+        const row = detail.rows[0];
+        const editorRow = { normalizedData: row.normalizedData as ImportNormalizedRow, rawData: row.rawData as Record<string, string>, mappedData: row.mappedData };
+        const editor = draftFromImportRowWithFallback(editorRow, detail.mapping.columnMappings, "RECORDED_ONLY");
+        expect(editor.paymentAmount).toBe(receipt);
+        detail = await ImportSessionService.updateRows(f.user.id, f.branch.id, detail.id, { expectedRevision: detail.draftRevision,
+            edits: [{ rowId: row.id, normalizedData: normalizedFromImportDraft(editorRow, { ...editor, paymentAmount: "" }, detail.branchContext, "RECORDED_ONLY") }] });
+        const reloaded = detail.rows[0];
+        const reopened = draftFromImportRowWithFallback({ normalizedData: reloaded.normalizedData as ImportNormalizedRow, rawData: reloaded.rawData as Record<string, string>, mappedData: reloaded.mappedData }, detail.mapping.columnMappings, "RECORDED_ONLY");
+        expect(reopened.paymentAmount).toBe("");
+        expect(reloaded.issues).toEqual([]);
     });
     it("rejects a stale provider publication and leaves manual correction usable", async () => {
         const f = await world(); let detail = await draft(f, ["Student\t9876501001\t2026-01-01\t1000\tFD\t\t\t\t"]);

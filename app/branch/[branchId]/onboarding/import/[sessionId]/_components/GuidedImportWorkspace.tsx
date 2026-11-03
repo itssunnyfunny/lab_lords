@@ -9,7 +9,7 @@ import { useUserPreferences } from "@/components/settings/UserPreferencesApplier
 import { importSessions } from "@/lib/api/importSessions";
 import type { CapabilityDecision } from "@/types";
 import type { ImportReadinessPolicy } from "@/importing/contracts/import-v2.contract";
-import { draftFromImportRowWithFallback, normalizedFromImportDraft } from "@/importing/utils/manual-row-draft";
+import { draftFromImportRowWithFallback, importRowFieldWasCleared, normalizedFromImportDraft } from "@/importing/utils/manual-row-draft";
 import { ColumnsStep } from "./ColumnsStep";
 import { RowsStep } from "./RowsStep";
 import { PreviewStep } from "./PreviewStep";
@@ -22,8 +22,9 @@ const active = new Set(["QUEUED", "RUNNING", "RETRYABLE_FAILURE", "CANCEL_REQUES
 type Props = { branchId: string; sessionId: string; importDecision: CapabilityDecision };
 
 function guidedDraft(row: ImportRow, mappings: NonNullable<ImportDetail["mapping"]>["columnMappings"] = []) {
-    const draft = draftFromImportRowWithFallback(row, mappings);
+    const draft = draftFromImportRowWithFallback(row, mappings, "RECORDED_ONLY");
     for (const mapping of mappings) {
+        if (importRowFieldWasCleared(row, mapping.targetField)) continue;
         const field = mapping.targetField === "payment.amount" ? "paymentAmount" : mapping.targetField === "student.monthlyFee" ? "fee" : null;
         const code = field === "fee" ? "INVALID_MONTHLY_FEE" : "INVALID_PAYMENT_AMOUNT";
         const raw = row.rawData[mapping.sourceColumn];
@@ -130,7 +131,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         setPreviewLoading(true);
         const timer = setTimeout(() => {
             void importSessions.previewRow<RowPreview>(branchId, sessionId, { rowId: selected.id,
-                normalizedData: normalizedFromImportDraft(selected, draft, detail?.branchContext) })
+                normalizedData: normalizedFromImportDraft(selected, draft, detail?.branchContext, "RECORDED_ONLY") })
                 .then(result => { if (alive) setPreview(result); })
                 .catch(e => { if (alive) setError(e.message); })
                 .finally(() => { if (alive) setPreviewLoading(false); });
@@ -154,7 +155,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         if ([draft.fee, draft.paymentAmount].some(value => value.trim() && parseImportMoney(value) === undefined)) {
             setError(t("Use whole non-negative rupee amounts. Recorded amounts will not be rounded.")); return;
         }
-        const normalized = normalizedFromImportDraft(selected, draft, detail.branchContext);
+        const normalized = normalizedFromImportDraft(selected, draft, detail.branchContext, "RECORDED_ONLY");
         if (normalized.student && !feeLinked) {
             normalized.student.feeSource = "UPLOADED";
             delete normalized.student.feeLinkedShiftName; delete normalized.student.feeLinkedMultiShiftName;
@@ -226,6 +227,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
                 </div>}
                 {running && detail.latestRun?.kind === "ANALYSIS" ? <div><p role="status">{t("Preparing your records...")}</p><AppButton density="compact" variant="secondary" disabled={busy || !importDecision.allowed} onClick={() => void act(() => importSessions.cancelRun(branchId, detail.latestRun!.id))}>{t("Cancel preparation")}</AppButton></div> : <>
                     <p>{detail.mapping?.analysis?.ai?.status && detail.mapping.analysis.ai.status !== "success" ? t("AI is unavailable. Your saved work is safe; manual corrections still work.") : t("Your draft is ready to check.")}</p>
+                    {!!detail.mapping?.guidance?.preparedRows && <p role="status">{t("Preparation used your confirmed meanings for {count} students. Review what remains.", { count: detail.mapping.guidance.preparedRows })}</p>}
                     <AppButton density="compact" disabled={disabled || dirty || columnsDirty || (detail.sourceType === "PDF" && detail.latestRun?.status === "WAITING_FOR_USER") || (detail.mapping?.guidance?.passes ?? 0) >= 3} onClick={() => void act(() => importSessions.analyze(branchId, sessionId))}>{t("Prepare remaining records")}</AppButton>
                     <AppButton density="compact" variant="secondary" disabled={disabled || dirty || columnsDirty} onClick={() => void act(() => importSessions.updateMapping(branchId, sessionId, { expectedRevision: detail.draftRevision, columnMappings: detail.mapping?.columnMappings }), t("Payment outcomes refreshed. Review a new plan."))}>{t("Refresh payment outcomes")}</AppButton>
                 </>}

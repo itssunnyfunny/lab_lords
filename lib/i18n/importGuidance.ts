@@ -1,4 +1,5 @@
 export const importGuidanceMessages = {
+    "Preparation used your confirmed meanings for {count} students. Review what remains.": ["तैयारी में आपके बताए अर्थ {count} छात्रों पर लागू हुए। बाकी जानकारी जाँचें।", "Taiyari mein aapke confirmed meanings {count} students par lage. Baaki details check karein."],
     "Check what will be created, then confirm the saved plan.": ["बनने वाले रिकॉर्ड जाँचें, फिर सहेजे प्लान की पुष्टि करें।", "Create hone wale records check karein, phir saved plan confirm karein."],
     "View validation details": ["जाँच की जानकारी देखें", "Validation ki details dekhein"],
     "Please wait for the current action to finish.": ["अभी चल रहा काम पूरा होने दें।", "Abhi chal raha kaam poora hone dein."],

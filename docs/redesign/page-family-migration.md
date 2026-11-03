@@ -7,6 +7,10 @@ drafts keep their wizard. Current-month fee policy is an explicitly requested
 product change, separate from presentation migration. Desktop/narrow connected
 browser evidence and release limits are in [the implementation record](import-guidance.md).
 Owner visual acceptance and Production release are not inferred from local tests.
+The PR #290 review corrections retain these owners and add a localized prepared
+count plus recorded-only payment fields. Desktop/narrow regression evidence
+includes direct fee, linked price and shift/bundle changes with absent and
+explicit partial amounts; see the same implementation record.
 
 
 Guided onboarding, 2 November 2026: family G now uses business/location language,

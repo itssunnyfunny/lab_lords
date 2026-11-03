@@ -18,9 +18,21 @@ Manual normalized rows and confirmed column mappings survive reanalysis.
 Gemini remains advisory and receives masked source shapes and structural draft
 context: opaque row/answer aliases, whitelisted field names, issue categories,
 manual flags and affected counts. Raw values and branch configuration stay local.
+Relationships between opaque source, meaning and branch-choice aliases preserve
+owner-confirmed shift meanings. Re-preparation can propose applying such an
+answer to non-manual unresolved spellings equivalent under NFKC, case, spaces,
+periods, hyphens and underscores. The server rejects unsupported/contradictory
+bindings, rechecks current scoped branch choices and mutable rows under the
+publication lock, preserves newly mapped financial values/parse holds, then
+revalidates. The UI reports actual prepared-row counts. Arbitrary new meanings,
+dates, fees, payments and seats remain outside this proposal path.
+
 Preparation is limited to three passes and 15 seconds per provider request;
-fallback and manual corrections retain saved progress. No provider API or SDK
-contract changed. Real-provider accuracy/latency is not claimed by mocked tests.
+fallback and manual corrections retain saved progress. The provider transport
+and SDK are unchanged. The structured JSON response adds an optional
+bounded `draftShiftProposals` array using the existing supported object/array
+schema primitives ([Google documentation](https://ai.google.dev/gemini-api/docs/generate-content/structured-output)).
+Real-provider accuracy/latency is not claimed by mocked tests.
 
 ## Financial outcomes
 
@@ -44,6 +56,13 @@ flow. Partial amounts, unclear status, mismatched amounts and payment facts
 before an eligible due remain unresolved. There is no new partial-payment
 migration, advance ledger or invented receipt/date. Existing identity matches
 are held for review, never automatically linked or financially overwritten.
+The guided editor uses recorded-only payment drafts: an absent amount stays
+blank, while a source or owner-entered amount is retained even when equal to the
+fee. Direct fee edits, shift/bundle changes and linking a fee cannot create or
+resynchronize payment facts. The legacy editor's defaults remain unchanged.
+Explicitly cleared fields stay blank after reload and later edits; fallback
+hydration respects the existing cleared-field metadata while still displaying
+unresolved invalid raw amounts.
 
 The plan hash includes the business date and student-level outcomes. A changed
 business date blocks a new commit until outcomes are refreshed and a new plan
@@ -119,7 +138,7 @@ original recovery date. This prevents both billing-boundary drift and applying
 last month's paid facts to this month's due. Normal generation remains responsible
 for later cycles.
 
-## Command evidence
+## Command evidence — initial implementation
 
 Commands ran from the feature worktree through the private fixture-identity guard
 on a new task-labelled PostgreSQL 16 container. Application data and Production
@@ -158,3 +177,61 @@ exclusive run passed every check, including the complete suite and coverage.
 Coverage percentages use the repository's existing `services/**/*.ts` and
 `utils/**/*.ts` scope; importing regressions also run in both complete suites.
 The temporary awake request ended and the exclusive validation lock was removed.
+
+## PR #290 review corrections
+
+The two reported P2 issues are addressed by recorded-only payment drafts and
+validated equivalent-shift proposals. New helper and real-service regressions
+cover absent/partial/equal-fee amounts, a second pass with correct columns and
+previous answers improving unresolved rows while preserving manual work, invalid
+alias/contradictory bindings, and financial-column interpretation during the same
+pass. Connected browser scenarios exercise direct fee edits, fee linking, linked
+bundle changes and retained partial amounts. Validation for this amended diff
+is recorded below separately from the original commit's evidence.
+
+The read-only follow-up review found a further cleared-field fallback issue.
+Both the fallback and invalid-value display now honor explicit clears; the
+server records nonempty mapped source fields removed by an explicit full-row
+save even if an invalid value never normalized. Group confirmations keep their
+existing source holds. The amended review reported no remaining concrete blocker.
+
+Focused command (through the same verified disposable fixture):
+`pnpm exec vitest run tests/unit/importing/guided-payment-draft.test.ts tests/unit/importing/guided-shift-assistance.test.ts tests/unit/importing/import-guidance-ai.test.ts tests/unit/importing/import-column-mapper-privacy.test.ts tests/unit/importing/import-wizard-view-model.test.ts tests/integration/importing/guided-import.test.ts`
+— **49 tests in 6 files passed**.
+
+Development checks first found a test-only JSON typing error and a browser fixture
+that had a zero-price shift while expecting 1000; both were corrected. Validation
+queues stopped for the follow-up clearing fixes are not final readiness evidence.
+One automatic approval attempt timed out before starting a type check; its
+permitted retry ran. No check/assertion/timeout was weakened.
+
+The first amended full-suite attempt was stopped after existing billing/Basic
+tests exceeded their timeouts. Windows Kernel-Power events confirmed Modern
+Standby with reason `Lid` at the corresponding 99-second and 61-second pauses.
+The owner agreed to keep the lid open for the clean rerun; its process-scoped
+awake request also includes the display, preventing idle display sleep during
+validation without changing saved power settings. Paused results are excluded.
+
+| Amended command | Result |
+| --- | --- |
+| Focused command above | Passed, 49 tests in 6 files |
+| `pnpm exec vitest run tests/integration/services/billing-mutation.test.ts tests/integration/services/basic-workspace.test.ts` | Passed unchanged, 126 tests in 2 files |
+| `pnpm test:workflow` | Passed, 1 test |
+| `pnpm exec tsc --noEmit --pretty false` | Passed |
+| `pnpm lint` | Passed; 2 unused-directive warnings in generated Workflow/coverage artifacts |
+| `pnpm exec vitest run --config tests/import-browser/vitest.config.ts` | Passed, both expanded desktop/mobile scenarios, including the actual re-preparation button |
+| `pnpm exec eslint tests/import-browser/flow.test.ts` | Passed; no warnings after the final browser extension |
+| `pnpm build` | Passed; both import Workflow manifests verified |
+| `pnpm test` | Passed, 3,142 tests in 368 files; no failures or unhandled errors |
+| `pnpm test:coverage` | Passed, 3,142 tests in 368 files; lines 77.23%, functions 87.02% (unchanged 70% thresholds), statements 74.50%, branches 68.08% |
+| Changed documentation links and `git diff --check` | Passed |
+
+The amended complete-suite and coverage runs passed. The additional connected
+browser-button scenario then passed at both viewports, followed by a fresh
+successful type check and scoped lint. With columns already correct, an owner
+answer and the actual button produce a validated persisted shift change, the
+correct prepared count, a redacted prompt and no pre-confirmation domain writes.
+Coverage retains the repository's existing services/utils scope. The exclusive
+queue ended, its lock was removed, and the temporary display/system awake
+request was released. Main application data, providers and configuration were
+not modified.

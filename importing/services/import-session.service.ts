@@ -43,6 +43,7 @@ import { inferConfirmedPaymentMapping } from "@/importing/utils/payment-mapping-
 import { applyImportGoalMappingPolicy, applyImportGoalPolicy } from "@/importing/utils/import-goal-policy";
 import { isGuidedImport, guidedImportOptions, evaluatedCurrentMonthOutcome, importBusinessDate } from "@/importing/utils/current-month-import";
 import { importGuidanceGroups, unresolvedShift } from "../utils/import-guidance";
+import { buildGuidedShiftAssistance, validGuidedShiftProposals, withGuidedShiftChoice, type GuidedShiftProposal } from "../utils/guided-shift-assistance";
 import { guidedRecoveryDates, reviewedDate } from "./import-recovery-context";
 import { GUIDED_SOURCE_HOLDS, guidedManualMetadata, guidedSourceHolds, reconcileGuidedSource, duplicateGuidedSourceColumns } from "../utils/guided-source-reconciliation";
 import { importStagingPurgeAfter } from "@/importing/utils/import-retention";
@@ -94,6 +95,35 @@ async function reconcileManualSourceRows(tx: Prisma.TransactionClient, sessionId
         await Promise.all(updates.slice(index, index + 100).map(({ row, result }) => tx.importRow.update({ where: { id: row.id },
             data: { normalizedData: asJson(result.normalizedData), mappedData: asJson(result.mappedData) } })));
     }
+}
+
+async function applyGuidedShiftAssistance(tx: Prisma.TransactionClient, sessionId: string, branchId: string,
+    assistance: ReturnType<typeof buildGuidedShiftAssistance>, proposals: GuidedShiftProposal[] | undefined, mapping: ImportMappingState) {
+    const validated = validGuidedShiftProposals(proposals, assistance.context);
+    if (!validated.length) return 0;
+    const branch = await getImportBranchContext(branchId, tx);
+    const rows = await tx.importRow.findMany({ where: { importSessionId: sessionId, branchId, skipped: false, status: { notIn: ["IMPORTED", "FAILED"] } } });
+    let prepared = 0;
+    for (const proposal of validated) {
+        const source = assistance.sources.get(proposal.sourceAlias);
+        const original = assistance.choices.get(proposal.choiceAlias);
+        if (!source || !original) continue;
+        const choice = (original.kind === "SHIFT" ? branch.shifts : branch.multiShifts).find(choice => choice.id === original.id && choice.name === original.name);
+        if (!choice) continue;
+        for (const row of rows) {
+            if (hasManualNormalizedData(row.mappedData)) continue;
+            const parsed = normalizeImportRow(row.rawData as Record<string, string>, mapping.columnMappings, mapping.importOptions?.paymentMapping);
+            if (unresolvedShift({ ...row, normalizedData: parsed.normalizedData }, branch)?.toLocaleLowerCase("en-IN") !== source.toLocaleLowerCase("en-IN")) continue;
+            // Normalize with the newly published mappings before pinning this
+            // draft, so simultaneous financial-column interpretation is retained.
+            const data = withGuidedShiftChoice(parsed.normalizedData, { ...choice, kind: original.kind });
+            const metadata = guidedManualMetadata(markManualNormalizedData(row.mappedData), row.normalizedData, data, true);
+            await tx.importRow.update({ where: { id: row.id }, data: { normalizedData: asJson(data),
+                mappedData: asJson({ ...metadata, [GUIDED_SOURCE_HOLDS]: [...guidedSourceHolds(metadata), ...parsed.issues] }) } });
+            prepared++;
+        }
+    }
+    return prepared;
 }
 
 function retainedEntityIds(value: Prisma.JsonValue | null) {
@@ -385,8 +415,8 @@ function mappingWithComputedAnalysis(input: {
     };
 }
 
-async function getImportBranchContext(branchId: string): Promise<ImportBranchContext> {
-    const branch = await prisma.branch.findUnique({
+async function getImportBranchContext(branchId: string, client: Prisma.TransactionClient = prisma): Promise<ImportBranchContext> {
+    const branch = await client.branch.findUnique({
         where: { id: branchId },
         select: {
             defaultFee: true,
@@ -944,6 +974,8 @@ export class ImportSessionService {
             const columns = Object.keys((session.rows[0]?.rawData ?? {}) as Record<string, unknown>);
             const sourceProfile = sourceProfileFromSession(session, columns);
             const context = await this.getValidationContext(branchId);
+            const shiftAssistance = guided ? buildGuidedShiftAssistance(session.rows.filter(row => !hasManualNormalizedData(row.mappedData)),
+                await getImportBranchContext(branchId), previousMapping?.guidance?.answers ?? []) : undefined;
             const aiMapping = await mapImportColumns({
                 branchContext: context.aiBranchContext,
                 sourceProfile,
@@ -956,13 +988,14 @@ export class ImportSessionService {
                             Object.keys(values ?? {}).map(field => `${entity}.${field}`)),
                         problems: [...(Array.isArray(row.issues) ? row.issues : []), ...(Array.isArray(row.warnings) ? row.warnings : [])]
                             .flatMap(issue => issue && typeof issue === "object" && "code" in issue ? [String(issue.code)] : []),
-                    })), answers: previousMapping?.guidance?.answers ?? [] } } : {}),
+                    })), answers: previousMapping?.guidance?.answers ?? [], shiftAssistance: shiftAssistance?.context } } : {}),
             });
 
+            const { draftShiftProposals, ...preparedMapping } = aiMapping;
             const mapping = applyImportGoalMappingPolicy(session.goal, {
-                ...aiMapping,
+                ...preparedMapping,
                 ...(guided ? { guidance: { version: 1 as const, passes: (previousMapping?.guidance?.passes ?? 0) + 1,
-                    preparedRevision: analysisBaseRevision + 1, answers: previousMapping?.guidance?.answers ?? [] },
+                    preparedRevision: analysisBaseRevision + 1, preparedRows: 0, answers: previousMapping?.guidance?.answers ?? [] },
                     columnMappings: aiMapping.columnMappings.map(proposal => {
                         const confirmed = previousMapping?.columnMappings.find(column => column.sourceColumn === proposal.sourceColumn);
                         return confirmed && (confirmed.source === "MANUAL" || !confirmed.needsReview) ? confirmed : proposal;
@@ -1006,6 +1039,7 @@ export class ImportSessionService {
                     throw new Error("Import session is not editable");
                 }
                 if (guided && previousMapping) await reconcileManualSourceRows(tx, sessionId, branchId, previousMapping, mapping);
+                if (shiftAssistance && mapping.guidance) mapping.guidance.preparedRows = await applyGuidedShiftAssistance(tx, sessionId, branchId, shiftAssistance, draftShiftProposals, mapping);
                 await tx.importSession.update({
                     where: { id: sessionId },
                     data: {
@@ -1282,7 +1316,10 @@ export class ImportSessionService {
                 const existingRow = targetRowsById.get(edit.rowId)!;
                 let manualMetadata: Record<string, unknown> = markManualNormalizedData(existingRow.mappedData ?? {});
                 if (edit.normalizedData && isGuidedImport(session.sourceConfiguration)) {
-                    manualMetadata = guidedManualMetadata(manualMetadata, existingRow.normalizedData, edit.normalizedData, !!confirmedAnswer);
+                    const sourceFields = confirmedAnswer ? [] : normalizeMapping(session.mapping, []).columnMappings
+                        .filter(column => column.targetField !== "ignore" && String((existingRow.rawData as Record<string, unknown>)?.[column.sourceColumn] ?? "").trim())
+                        .map(column => column.targetField);
+                    manualMetadata = guidedManualMetadata(manualMetadata, existingRow.normalizedData, edit.normalizedData, !!confirmedAnswer, sourceFields);
                     if (confirmedAnswer && !hasManualNormalizedData(existingRow.mappedData)) {
                         const mapping = normalizeMapping(session.mapping, []);
                         const parsed = normalizeImportRow(existingRow.rawData as Record<string, string>, mapping.columnMappings, mapping.importOptions?.paymentMapping);

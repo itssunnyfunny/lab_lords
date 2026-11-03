@@ -27,6 +27,7 @@ import { ImportRunRunner } from "@/importing/services/import-runner.service";
 import { ImportRunExecutor } from "@/importing/services/import-run-executor.service";
 import { createTestWorld, createSaasSubscription, createShift, createSeat } from "@/tests/factories";
 import { resetDatabase, disconnectDatabase, testPrisma as db } from "@/tests/setup/db";
+import type { ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 
 let vite: ChildProcess | undefined;
 const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -39,7 +40,7 @@ describe("connected import browser → real route → real service → disposabl
         const f = await createTestWorld(); fixture.user = { id: f.user.id };
         await db.organization.update({ where: { id: f.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
         await createSaasSubscription({ organizationId: f.org.id, plan: "BASIC" });
-        const fullDay = await createShift({ branchId: f.branch.id, name: "Full Day", startTime: "06:00", endTime: "18:00" });
+        const fullDay = await createShift({ branchId: f.branch.id, name: "Full Day", price: 1000, startTime: "06:00", endTime: "18:00" });
         const evening = await createShift({ branchId: f.branch.id, name: "Evening", startTime: "18:00", endTime: "23:00" });
         await db.multiShift.create({ data: { branchId: f.branch.id, name: "Morning Evening", price: 1500, components: { create: [{ shiftId: f.shift.id, order: 0 }, { shiftId: evening.id, order: 1 }] } } });
         const secondSeat = await createSeat({ branchId: f.branch.id, label: "B2" });
@@ -111,23 +112,56 @@ describe("connected import browser → real route → real service → disposabl
             // Derive dates from the established runtime business date, rather than
             // faking browser-only time while real server billing uses another day.
             const now = new Date(); const joined = `${now.getFullYear() - 1}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-            const table = `Name\tPhone\tJoined Date\tMonthly Fee\tShift\tSeat\nReady Student\t9876501001\t${joined}\t1000\tMorning\t${f.seat.label}\nAmbiguous Student\t9876501002\t\t1000\tFD\t${secondSeat.label}\nDeferred Student\t9876501003\t${joined}\t1000\tFD\t`;
+            const table = `Name\tPhone\tJoined Date\tMonthly Fee\tShift\tSeat\nReady Student\t9876501001\t${joined}\t1000\tMorning\t${f.seat.label}\nAmbiguous Student\t9876501002\t\t1000\tFD\t${secondSeat.label}\nDeferred Student\t9876501003\t${joined}\t1000\tF.D.\t`;
             if (viewport.width > 1000) await page.locator("textarea").fill(table);
             else await page.locator('input[type="file"]').setInputFiles({ name: "students.csv", mimeType: "text/csv", buffer: Buffer.from(table.replaceAll("\t", ",")) });
             await page.getByRole("button", { name: "Prepare my records" }).click();
             await browserExpect(page.getByRole("heading", { name: "Prepare your students", exact: true })).toBeVisible();
             expect(await db.student.count()).toBe(0);
-            await browserExpect(page.getByText("2 students use “FD”. Choose what it means.", { exact: true })).toBeVisible();
-            await page.getByRole("combobox", { name: "Branch shift or bundle" }).selectOption(fullDay.id);
-            await page.getByRole("button", { name: "Apply to all matching students" }).click();
+            const fdGroup = page.getByText("1 students use “FD”. Choose what it means.", { exact: true }).locator("..");
+            await browserExpect(fdGroup).toBeVisible();
+            await fdGroup.getByRole("combobox", { name: "Branch shift or bundle" }).selectOption(fullDay.id);
+            await fdGroup.getByRole("button", { name: "Apply to all matching students" }).click();
             await browserExpect(page.getByText("Interpretation applied. Review the remaining fields.")).toBeVisible();
+            fixture.provider.mockImplementation(async (prompt: string) => {
+                const current = JSON.parse(prompt.match(/opaque structural context\):\n([^\n]+)/)![1]);
+                const assistance = current.shiftAssistance;
+                expect(prompt).toContain('Uploaded columns:\n[]');
+                for (const raw of ["Deferred Student", "Full Day", "F.D.", fullDay.id]) expect(prompt).not.toContain(raw);
+                return { ok: true, data: { entityTypesDetected: ["STUDENT"], columnMappings: [], questions: [], warnings: [],
+                    draftShiftProposals: assistance.groups.flatMap((group: { sourceAlias: string; meaningAlias: string }) => {
+                        const answer = assistance.answers.find((answer: { meaningAlias: string }) => answer.meaningAlias === group.meaningAlias);
+                        return answer ? [{ sourceAlias: group.sourceAlias, choiceAlias: answer.choiceAlias, answerAlias: answer.answerAlias }] : [];
+                    }) } };
+            });
+            await page.getByRole("button", { name: "Prepare remaining records", exact: true }).click();
+            await browserExpect(page.getByText("Preparation used your confirmed meanings for 1 students. Review what remains.", { exact: true })).toBeVisible();
+            const prepared = (await db.importRow.findMany({ where: { branchId: f.branch.id } })).find(row => (row.normalizedData as ImportNormalizedRow)?.student?.name === "Deferred Student")!;
+            expect(prepared.normalizedData).toMatchObject({ allocation: { shiftName: "Full Day" } });
+            expect(fixture.provider).toHaveBeenCalledOnce();
+            expect(await db.student.count()).toBe(0);
             await page.getByRole("button", { name: /Ambiguous Student/ }).click();
+            await page.locator("summary").filter({ hasText: "Recorded payment facts" }).click();
+            await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("");
             await page.getByLabel("Joined date", { exact: true }).fill(joined);
             await page.getByLabel("Monthly fee", { exact: true }).fill("-300");
             await page.getByRole("button", { name: "Save & next", exact: true }).click();
             await browserExpect(page.getByText("Use whole non-negative rupee amounts. Recorded amounts will not be rounded.")).toBeVisible();
-            await page.getByLabel("Monthly fee", { exact: true }).fill("1000");
+            await page.getByLabel("Monthly fee", { exact: true }).fill("1200");
+            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await browserExpect.poll(async () => (await db.importRow.findMany({ where: { branchId: f.branch.id } })).find(row => (row.normalizedData as ImportNormalizedRow)?.student?.name === "Ambiguous Student")?.normalizedData).toMatchObject({ student: { monthlyFee: 1200 } });
+            await page.getByRole("combobox", { name: "Filter import rows" }).click();
+            await page.getByRole("option", { name: "All rows", exact: true }).click();
+            await page.getByRole("button", { name: /Ambiguous Student/ }).click();
+            await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1200");
+            if (!await page.getByLabel("Payment amount", { exact: true }).isVisible()) await page.locator("summary").filter({ hasText: "Recorded payment facts" }).click();
+            await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("");
+            await page.getByRole("checkbox", { name: "Link fee to selected price" }).check();
+            await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1000");
+            await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("");
             await page.getByRole("button", { name: /Morning Evening, .*seats free/ }).click();
+            await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1500");
+            await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("");
             await page.getByRole("searchbox", { name: "Search seats" }).fill("C3");
             await page.getByRole("button", { name: /^C3,/ }).focus();
             await page.keyboard.press("Enter");
@@ -135,7 +169,7 @@ describe("connected import browser → real route → real service → disposabl
             let attentionRequests = 0; let nextEntered!: () => void; let releaseNext!: () => void;
             const nextPending = new Promise<void>(resolve => { nextEntered = resolve; });
             const nextReleased = new Promise<void>(resolve => { releaseNext = resolve; });
-            const attentionUrl = (url: URL) => url.pathname === sessionPath && url.searchParams.get("rowFilter") === "attention";
+            const attentionUrl = (url: URL) => url.pathname === sessionPath && url.searchParams.has("rowFilter");
             await page.route(attentionUrl, async route => {
                 if (++attentionRequests === 2) { nextEntered(); await nextReleased; }
                 await route.continue();
@@ -149,6 +183,10 @@ describe("connected import browser → real route → real service → disposabl
             await browserExpect(page.getByText("Saved in the draft. Nothing has been imported yet.")).toBeVisible();
             await page.reload();
             await browserExpect(page.getByRole("heading", { name: "Prepare your students", exact: true })).toBeVisible();
+            const corrected = (await db.importRow.findMany({ where: { branchId: f.branch.id } })).find(row => (row.normalizedData as ImportNormalizedRow)?.student?.name === "Ambiguous Student")!;
+            expect((corrected.normalizedData as ImportNormalizedRow).student?.monthlyFee).toBe(1500);
+            expect((corrected.normalizedData as ImportNormalizedRow).payment).toBeUndefined();
+            expect((corrected.issues as Array<{ code: string }>).some(issue => issue.code === "PARTIAL_PAYMENT_REVIEW")).toBe(false);
             await page.getByRole("button", { name: "Review and import", exact: true }).click();
             await browserExpect(page.getByRole("heading", { name: "Current-month outcomes" })).toBeVisible();
             expect(await db.student.count()).toBe(0);
@@ -178,6 +216,7 @@ describe("connected import browser → real route → real service → disposabl
             const student = await db.student.findFirstOrThrow({ where: { name: "Ambiguous Student" } });
             expect(await db.seatAllocation.count({ where: { studentId: student.id, endDate: null } })).toBe(2);
             expect(await db.payment.count({ where: { studentId: student.id } })).toBe(1);
+            expect((await db.payment.findFirstOrThrow({ where: { studentId: student.id } })).amount).toBe(1500);
             expect(student.billingStartAt).not.toBeNull();
             // Recover a saved PDF draft from its URL, without the entry page's
             // transient confirmation state. Extraction itself has parser tests.
@@ -196,6 +235,16 @@ describe("connected import browser → real route → real service → disposabl
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("300.50");
             await page.getByRole("button", { name: "Save & next", exact: true }).click();
             await browserExpect(page.getByText("Use whole non-negative rupee amounts. Recorded amounts will not be rounded.")).toBeVisible();
+            await page.getByLabel("Payment amount", { exact: true }).fill("300");
+            await page.getByLabel("Monthly fee", { exact: true }).fill("1200");
+            await page.getByRole("checkbox", { name: "Link fee to selected price" }).check();
+            await page.getByRole("button", { name: /Morning Evening, .*seats free/ }).click();
+            await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1500");
+            await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("300");
+            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await browserExpect.poll(async () => (await db.importRow.findFirstOrThrow({ where: { importSessionId: pdf.id } })).normalizedData).toMatchObject({ student: { monthlyFee: 1500 }, payment: { amount: 300 } });
+            const heldPartial = await db.importRow.findFirstOrThrow({ where: { importSessionId: pdf.id } });
+            expect((heldPartial.issues as Array<{ code: string }>).some(issue => issue.code === "PARTIAL_PAYMENT_REVIEW")).toBe(true);
             for (const language of ["hi", "hinglish"]) {
                 await page.evaluate(language => window.dispatchEvent(new CustomEvent("lablords:preferences-updated", { detail: { ownerKey: "synthetic-import-owner", interfaceLanguage: language } })), language);
                 await browserExpect(page.getByRole("heading", { name: language === "hi" ? "छात्रों के रिकॉर्ड तैयार करें" : "Students ke records taiyar karein", exact: true })).toBeVisible();

@@ -8,6 +8,8 @@ needed. The import workspace explains the current-month-only policy and held
 partial/unclear facts at the point of use. No AI accuracy, historical backfill,
 automatic reconciliation or new receipt claim is introduced. Local evidence is
 [recorded separately](../redesign/import-guidance.md); release remains separate.
+The fee-provenance and equivalent-shift re-preparation corrections restore this
+reviewed workflow without expanding the Home, Features, Pricing or FAQ claims.
 
 
 ## Guided onboarding policy update — local, 2026-11-02

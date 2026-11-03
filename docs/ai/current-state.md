@@ -6,7 +6,10 @@ New marked sessions use a student help queue, grouped branch shift interpretatio
 revision-fenced iterative preparation and current-month anniversary fees. The
 existing JSON persistence, immutable plans and durable run ledger remain owners;
 older drafts and running/completed plans retain their original policy. Gemini
-receives only structural draft/answer context. See the [implementation and
+receives only structural draft/answer context. Re-preparation can now produce
+validated row-group shift proposals from opaque equivalence/answer bindings,
+even when columns are already correct. Guided editors keep absent payment
+amounts blank and retain explicit facts across fee/shift changes. See the [implementation and
 validation record](../redesign/import-guidance.md). No schema, provider SDK,
 pricing or Production environment change is included.
 
