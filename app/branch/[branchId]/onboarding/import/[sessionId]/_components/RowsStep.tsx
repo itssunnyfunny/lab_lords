@@ -54,6 +54,15 @@ function rowSubtitle(row: ImportRow) {
     ].filter(Boolean).join(" / ") || "No seat or shift";
 }
 
+function helpLabel(row: ImportRow) {
+    const fields = row.issues.map(issue => issue.field ?? "");
+    if (fields.includes("student.joinedAt")) return "Confirm joining date";
+    if (fields.some(field => field.startsWith("payment."))) return "Review this month's payment";
+    if (fields.some(field => /shift/i.test(field))) return "Choose shift";
+    if (fields.some(field => /seat/i.test(field))) return "Choose seat";
+    return row.issues.length ? "Review student details" : "Details ready";
+}
+
 export function RowsStep({
     branchId,
     sessionId,
@@ -138,6 +147,7 @@ export function RowsStep({
         }
     };
     const branchContext = detail.branchContext;
+    const guided = detail.sourceConfiguration?.experience === "GUIDED_CURRENT_MONTH_V1";
     const liveIssues = rowPreview
         ? [...rowPreview.issues, ...rowPreview.warnings]
         : selectedRow
@@ -148,7 +158,7 @@ export function RowsStep({
     const bulkActionsDisabled = mutationsDisabled || saving || dirty;
 
     return (
-        <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
             <AppPanel density="compact"
                 title={t("Rows")}
                 description={detail.rowPage ? `${detail.rowPage.returnedRows} of ${detail.rowPage.filteredRows}` : t("Paged staging rows")}
@@ -289,7 +299,7 @@ export function RowsStep({
                                         {row.skipped && <Badge variant="default">{t("skipped")}</Badge>}
                                         {issues[0] && (
                                             <Badge variant={issues[0].severity === "error" ? "danger" : issues[0].severity === "warning" ? "warning" : "cyan"}>
-                                                {issues[0].code.replace(/_/g, " ")}
+                                                {guided ? t(helpLabel(row)) : issues[0].code.replace(/_/g, " ")}
                                             </Badge>
                                         )}
                                     </div>
@@ -304,7 +314,7 @@ export function RowsStep({
                 </div>
             </AppPanel>
 
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-5">
                 <AppPanel density="compact"
                     title={selectedRow ? `Row ${selectedRow.rowNumber}` : t("Select a row")}
                     description={selectedRow ? rowTitle(selectedRow) : t("Choose a row from the left list.")}
@@ -334,6 +344,7 @@ export function RowsStep({
                                 <div id="import-row-unsaved" className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] p-3 text-xs text-[color:var(--ui-tone-warning-text)]" role="status">
                                     {t("This row has unsaved edits. Save or reset it before switching rows, filters, or steps.")}</div>
                             )}
+                            <fieldset disabled={mutationsDisabled || saving} className="min-w-0 space-y-5">
                             <div className="grid gap-4 lg:grid-cols-2">
                                 <label className="space-y-2">
                                     <span className={pickerSectionLabelClass}>{t("Student name")}</span>
@@ -367,14 +378,14 @@ export function RowsStep({
                             )}
 
                             {goal === "FULL" && <div className={cn("p-4", pageInsetSurfaceClass)}>
-                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Payment amount default")}</p>
+                                <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t(guided ? "Recorded payment facts" : "Payment amount default")}</p>
                                 <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
-                                    {t("If this row has no payment override, payment generation uses the student monthly fee. Open the override only when this row has a different amount, paid status, method, or reference.")}</p>
+                                    {t(guided ? "Keep recorded amounts and payment status accurate. Partial or unclear payments need review before import." : "If this row has no payment override, payment generation uses the student monthly fee. Open the override only when this row has a different amount, paid status, method, or reference.")}</p>
                             </div>}
 
                             {goal === "FULL" && <details className={cn("group rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]")}>
                                 <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[color:var(--text-primary)]">
-                                    {t("Row payment override")}<span className={cn("ml-2 text-xs font-normal", pageMutedTextClass)}>
+                                    {t(guided ? "Recorded payment facts" : "Row payment override")}<span className={cn("ml-2 text-xs font-normal", pageMutedTextClass)}>
                                         {t("Optional row-level amount/status correction")}</span>
                                 </summary>
                                 <div className="grid gap-4 border-t border-[color:var(--ui-form-section-divider)] p-4 lg:grid-cols-4">
@@ -417,6 +428,7 @@ export function RowsStep({
                                 </div>
                             </details>}
 
+                            </fieldset>
                             <div className="flex flex-wrap items-center gap-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
                                 <AppButton density="compact"
                                     variant="primary"
@@ -435,7 +447,7 @@ export function RowsStep({
                                     aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                                     isLoading={saving}
                                 >
-                                    {t("Import student only")}</AppButton>}
+                                    {t(guided ? "Defer seating" : "Import student only")}</AppButton>}
                                 <AppButton density="compact"
                                     variant="quiet"
                                     icon={Pencil}

@@ -8,7 +8,8 @@ export function validateImportStudent(
         branchDefaultFee: number;
         shiftsByName: Map<string, { price: number }>;
         multiShiftsByName: Map<string, { price: number }>;
-    }
+    },
+    strict = false
 ): ImportValidatorResult {
     const result = emptyValidatorResult();
     const student = normalized.student;
@@ -53,7 +54,7 @@ export function validateImportStudent(
         }
     }
 
-    if (!student.joinedAt) {
+    if (!student.joinedAt && !strict) {
         student.joinedAt = new Date().toISOString();
         student.joinedAtSource = "TODAY_DEFAULT";
         result.warnings.push({
@@ -80,7 +81,7 @@ export function validateImportStudent(
         }
     }
 
-    if (student.monthlyFee === undefined) {
+    if (student.monthlyFee === undefined && !strict) {
         student.monthlyFee = context.branchDefaultFee;
         student.feeSource = "BRANCH_DEFAULT";
         result.warnings.push({

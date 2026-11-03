@@ -38,6 +38,7 @@ export type CreateImportSessionResponse = {
 };
 
 export type CreateImportFileOptions = {
+    experience?: "GUIDED_CURRENT_MONTH_V1";
     sheetName?: string;
     /** One-based worksheet row number. */
     headerRow?: number;
@@ -65,6 +66,8 @@ export type WorkbookSelectionDetails = {
 };
 
 export type ImportPlanResponse = {
+    alreadyImportedRows?: number;
+    currentMonthReview?: import("@/importing/contracts/import-v2.contract").ImportPlanSnapshot["currentMonthReview"];
     id: string;
     revision: number;
     readinessPolicy: ImportReadinessPolicy;
@@ -103,6 +106,7 @@ export type ImportPlanResponse = {
         affectedRows: number;
     };
     snapshot?: {
+        currentMonthReview?: import("@/importing/contracts/import-v2.contract").ImportPlanSnapshot["currentMonthReview"];
         evaluations?: Array<{ rowId: string; rowNumber: number; status: string; skipped: boolean }>;
         items?: Array<{ rowId?: string | null; kind: ImportRunItemKind }>;
     };
@@ -250,7 +254,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
     const rawData: unknown = await response.json().catch(() => ({}));
     const data = asRecord(rawData);
     if (!response.ok) {
-        const message = response.status === 409
+        const message = response.status === 409 && data.code !== "IMPORT_BUSINESS_DATE_CHANGED"
             ? revisionConflictMessage
             : typeof data.error === "string" ? data.error : "Import request failed";
         throw new ImportSessionApiError(message, {
@@ -299,6 +303,9 @@ function normalizeRunStart(response: ImportRunStartResponse | (Partial<ImportRun
 }
 
 export const importSessions = {
+    confirmInterpretation(branchId: string, sessionId: string, data: { expectedRevision: number; source: string; targetId: string }): Promise<unknown> {
+        return requestJson(`/api/branches/${branchId}/import-sessions/${sessionId}/interpretations`, "POST", data);
+    },
     list(branchId: string): Promise<unknown> {
         return apiClient.get<unknown, unknown>(`/branches/${branchId}/import-sessions`);
     },
@@ -312,6 +319,7 @@ export const importSessions = {
         const form = new FormData();
         form.append("file", file);
         form.append("goal", goal);
+        if (options.experience) form.append("experience", options.experience);
         if (options.sheetName) form.append("sheetName", options.sheetName);
         if (options.headerRow) form.append("headerRow", String(options.headerRow));
         if (options.pdfConfirmed !== undefined) form.append("pdfConfirmed", String(options.pdfConfirmed));
@@ -323,11 +331,11 @@ export const importSessions = {
             .then(normalizeCreatedSession);
     },
 
-    createFromPastedTable(branchId: string, pastedTable: string, goal: ImportGoal): Promise<CreateImportSessionResponse> {
+    createFromPastedTable(branchId: string, pastedTable: string, goal: ImportGoal, experience?: "GUIDED_CURRENT_MONTH_V1"): Promise<CreateImportSessionResponse> {
         return requestJson<CreateImportSessionResponse | LegacyCreateImportSessionResponse>(
             `/api/branches/${branchId}/import-sessions`,
             "POST",
-            { pastedTable, fileName: "Pasted table", goal }
+            { pastedTable, fileName: "Pasted table", goal, experience }
         ).then(normalizeCreatedSession);
     },
 

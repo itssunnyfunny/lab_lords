@@ -104,6 +104,7 @@ export async function POST(req: Request, { params }: Params) {
                 fileMeta: { size: file.size, type: file.type },
                 fileBuffer: buffer,
                 goal,
+                ...(form.get("experience") === "GUIDED_CURRENT_MONTH_V1" ? { experience: "GUIDED_CURRENT_MONTH_V1" as const } : {}),
                 sourceConfiguration: {
                     sheetName,
                     headerRow,
@@ -137,6 +138,7 @@ export async function POST(req: Request, { params }: Params) {
             fileName?: unknown;
             goal?: unknown;
             file?: unknown;
+            experience?: unknown;
         }>(req);
         const pastedTable = typeof body.pastedTable === "string" ? body.pastedTable : "";
         assertExactlyOneImportSource({
@@ -151,6 +153,7 @@ export async function POST(req: Request, { params }: Params) {
             fileMeta: { pasted: true },
             pastedTable,
             goal,
+            ...(body.experience === "GUIDED_CURRENT_MONTH_V1" ? { experience: "GUIDED_CURRENT_MONTH_V1" as const } : {}),
         });
         const dispatch = await ImportWorkflowService.tryStartRun(session.analysisRun);
         return NextResponse.json({

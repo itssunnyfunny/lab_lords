@@ -1,0 +1,7 @@
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+const require = createRequire(import.meta.url);
+const { createServer } = await import(pathToFileURL(createRequire(require.resolve("vitest/package.json")).resolve("vite")).href);
+const server = await createServer({ configFile: "tests/import-browser/vite.config.ts" });
+await server.listen();
+server.printUrls();

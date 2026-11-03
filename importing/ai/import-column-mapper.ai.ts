@@ -144,11 +144,29 @@ export type RedactedImportMappingInput = {
     ambiguousColumns: string[];
 };
 
+export type ImportDraftAIContext = {
+    revision: number;
+    rows: Array<{ rowNumber: number; fields: string[]; problems: string[]; manual: boolean }>;
+    answers: Array<{ field: string; affected: number }>;
+};
+function structuralDraft(input?: ImportDraftAIContext) {
+    if (!input) return undefined;
+    const fields = new Set<string>(IMPORT_TARGET_FIELDS);
+    return { revision: input.revision,
+        unresolvedRows: input.rows.slice(0, 30).map((row, index) => ({ alias: `draft_${index + 1}`,
+            fieldsPresent: row.fields.filter(field => fields.has(field)).slice(0, 20),
+            problems: [...new Set(row.problems.map(code => /PAYMENT/.test(code) ? "PAYMENT_REVIEW" : /SHIFT/.test(code) ? "SHIFT_REVIEW" : /SEAT|ALLOCATION/.test(code) ? "SEAT_REVIEW" : "DETAILS_REVIEW"))],
+            manuallyCorrected: row.manual })),
+        confirmedAnswers: input.answers.slice(-20).map((answer, index) => ({ alias: `answer_${index + 1}`,
+            field: fields.has(answer.field) ? answer.field : "ignore", affectedRecords: Math.max(0, Math.min(2000, answer.affected)), confirmed: true })) };
+}
+
 export function buildRedactedImportMappingInput(input: {
     branchContext: unknown;
     sourceProfile?: unknown;
     columns: string[];
     sampleRows: ParsedImportRow[];
+    draftContext?: ImportDraftAIContext;
 }): RedactedImportMappingInput {
     const deterministicMappings = buildFallbackMappings(input.columns);
     const ambiguousColumns = deterministicMappings
@@ -189,6 +207,7 @@ export function buildRedactedImportMappingInput(input: {
         ambiguousColumns,
         aliasToColumn,
         promptInput: {
+            draftContext: structuralDraft(input.draftContext),
             branchContext: structuralBranchSummary(input.branchContext),
             sourceProfile: {
                 rowCount: sourceRowCount ?? input.sampleRows.length,
@@ -391,9 +410,10 @@ export async function mapImportColumns(input: {
     sourceProfile?: unknown;
     columns: string[];
     sampleRows: ParsedImportRow[];
+    draftContext?: ImportDraftAIContext;
 }): Promise<ImportMappingResult> {
     const redacted = buildRedactedImportMappingInput(input);
-    if (redacted.ambiguousColumns.length === 0) {
+    if (redacted.ambiguousColumns.length === 0 && !input.draftContext?.rows.length) {
         return {
             entityTypesDetected: entityTypesForMappings(redacted.deterministicMappings),
             columnMappings: redacted.deterministicMappings,
@@ -406,11 +426,15 @@ export async function mapImportColumns(input: {
     const model = resolveGeminiProModel();
     const attemptedAt = new Date().toISOString();
     const startedAt = Date.now();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-        const result = await callGeminiJson<unknown>(buildImportColumnMappingPrompt(redacted.promptInput), {
+        const request = callGeminiJson<unknown>(buildImportColumnMappingPrompt(redacted.promptInput), {
             model,
             responseJsonSchema: IMPORT_COLUMN_MAPPING_SCHEMA,
         });
+        const result = await Promise.race([request, new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => reject(new Error("Import preparation timed out")), 15_000);
+        })]);
         const durationMs = Date.now() - startedAt;
         if (result.ok) {
             const reservedTargets = new Set<ImportTargetField>(redacted.deterministicMappings
@@ -471,7 +495,7 @@ export async function mapImportColumns(input: {
             fallbackReason: "Gemini mapping failed before a structured response was available.",
             usedStructuredOutput: true,
         });
-    }
+    } finally { if (timeout) clearTimeout(timeout); }
 }
 
 function fallbackMapping(columns: string[], aiTrace: ImportAITrace): ImportMappingResult {

@@ -48,6 +48,7 @@ import { PaymentsStep } from "./PaymentsStep";
 import { PreviewStep } from "./PreviewStep";
 import { ResultStep } from "./ResultStep";
 import { RowsStep } from "./RowsStep";
+import { GuidedImportWorkspace } from "./GuidedImportWorkspace";
 import type { ImportDetail, ImportGoal, ImportRow, PaymentDraft, Plan, RowDraft, RowFilter, RowPreview, Run } from "./types";
 
 type ImportSessionWizardProps = {
@@ -163,7 +164,22 @@ function goalAllowsQuestion(goal: ImportGoal, field: string | null) {
     return true;
 }
 
-export function ImportSessionWizard({ branchId, sessionId, importDecision }: ImportSessionWizardProps) {
+export function ImportSessionWizard(props: ImportSessionWizardProps) {
+    const [guided, setGuided] = useState<boolean | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const { branchId, sessionId } = props;
+    useEffect(() => {
+        let alive = true;
+        void importSessions.detail<ImportDetail>(branchId, sessionId, { limit: 1 })
+            .then(detail => { if (alive) setGuided(detail.sourceConfiguration?.experience === "GUIDED_CURRENT_MONTH_V1"); })
+            .catch(error => { if (alive) setError(error.message); });
+        return () => { alive = false; };
+    }, [branchId, sessionId]);
+    if (guided === null) return <PageShell><p role="status">{error ? <LocalizedError error={error} /> : "Loading import…"}</p></PageShell>;
+    return guided ? <GuidedImportWorkspace {...props} /> : <LegacyImportSessionWizard {...props} />;
+}
+
+function LegacyImportSessionWizard({ branchId, sessionId, importDecision }: ImportSessionWizardProps) {
     const t = useTranslation();
     const router = useRouter();
     const searchParams = useSearchParams();

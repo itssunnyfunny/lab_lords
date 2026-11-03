@@ -1,3 +1,4 @@
+import { dueCyclesThrough } from "@/utils/studentBillingCycles";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { createTestWorld, createBranch, createSeat, createSaasSubscription, createStudent, createPayment, createShift, createUser, createStaff } from "@/tests/factories";
@@ -191,7 +192,7 @@ describe("Basic's deliberately narrow server boundary",()=>{
   expect((await change("ACTIVE")).status).toBe(200);expect(await db.student.findUniqueOrThrow({where:{id:student.id}})).toMatchObject({status:"ACTIVE",joinedAt:student.joinedAt,billingStartAt:student.billingStartAt});
   expect(await db.seatAllocation.findMany({where:{studentId:student.id},orderBy:{id:"asc"}})).toEqual(ended);
   await PaymentService.generateDuePaymentsForBranch(f.user.id,f.branch.id,new Date("2026-06-20T12:00:00Z"));
-  const afterFees=await db.payment.findMany({where:{studentId:student.id}});expect(afterFees).toHaveLength(5);expect(afterFees.every(p=>p.dueDate.getUTCDate()===15)).toBe(true);expect(afterFees.find(p=>p.id===fee.id)).toMatchObject({collectedAmount:300,status:"DUE",amount:1000});
+  const afterFees=await db.payment.findMany({where:{studentId:student.id}});expect(afterFees).toHaveLength(5);expect(afterFees.map(p=>p.dueDate.toISOString()).sort()).toEqual(dueCyclesThrough(student.joinedAt,new Date("2026-06-20T12:00:00Z"),student.billingStartAt).map(cycle=>cycle.dueDate.toISOString()).sort());expect(afterFees.find(p=>p.id===fee.id)).toMatchObject({collectedAmount:300,status:"DUE",amount:1000});
   expect(await FeeCollectionService.get(f.user.id,f.branch.id,receipt.id)).toEqual(receipt);expect(await db.feeCollection.count({where:{studentId:student.id}})).toBe(1);
  });
  it.each(["anonymous","stranger","denied staff","foreign branch","read only","archived"] as const)("Basic status rejects %s without changing the student or allocations",async scenario=>{

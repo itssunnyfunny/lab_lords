@@ -5,6 +5,7 @@ export function buildImportColumnMappingPrompt(input: {
     sourceProfile?: unknown;
     columns: string[];
     sampleRows: ParsedImportRow[];
+    draftContext?: unknown;
 }) {
     return `
 You are helping map messy study hall ERP import columns into a staging import.
@@ -58,6 +59,11 @@ ${JSON.stringify(input.columns)}
 
 Sample rows:
 ${JSON.stringify(input.sampleRows.slice(0, 8), null, 2)}
+
+Current draft, confirmed answer categories and remaining work (opaque structural context):
+${JSON.stringify(input.draftContext ?? null)}
+Preserve confirmed interpretations and manual work. Focus on remaining ambiguous columns.
+Never invent dates, fees, payment facts or allocations. The application applies owner answers and validates every proposal.
 
 Rules:
 - Map every uploaded column exactly once. Use "ignore" when the column should not be imported.

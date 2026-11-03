@@ -123,7 +123,9 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
     const intentionalBehavior = [
         "Student status is not imported; every new student starts active.",
         goal !== "STUDENTS" ? "Allocation start dates are not imported; allocations start when this plan is applied." : null,
-        goal === "FULL" ? "Payment periods are not mapped; payment history is generated only by the four joined-date policies in Payments." : null,
+        goal === "FULL" ? detail.sourceConfiguration?.experience === "GUIDED_CURRENT_MONTH_V1"
+            ? t("Past months are excluded. Future dues use normal generation.")
+            : "Payment periods are not mapped; payment history is generated only by the four joined-date policies in Payments." : null,
     ].filter((message): message is string => Boolean(message)).join(" ");
     const updateTargetField = (index: number, targetField: ImportColumnMapping["targetField"]) => {
         setDraft(current => current.map((item, itemIndex) => itemIndex === index

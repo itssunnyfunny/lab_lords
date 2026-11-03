@@ -62,7 +62,8 @@ export function PreviewStep({
     paymentPlanIdRef.current = plan?.id;
     const planFresh = isImportPlanFresh(plan, readinessPolicy, currentRevision);
     const mutations = mutationSummary(plan);
-    const rowsNotImported = (plan?.blockedRows ?? 0) + (plan?.skippedRows ?? 0);
+    const guided = importOptions.paymentPolicy === "CURRENT_CALENDAR_MONTH";
+    const rowsNotImported = (plan?.blockedRows ?? 0) + Math.max(0, (plan?.skippedRows ?? 0) - (guided ? plan?.alreadyImportedRows ?? 0 : 0));
     const permissions = plan?.summary?.requiredPermissions ?? plan?.requiredPermissions ?? [];
     const configurationApproval = plan?.configurationApproval;
     const paymentsSkipped = isPaymentSkipped(importOptions);
@@ -153,7 +154,7 @@ export function PreviewStep({
         <div className="space-y-5">
             <AppPanel density="compact"
                 title={t("Review & import")}
-                description={plan?.planVersion ? `Reviewed plan ${plan.planVersion}` : t("Build a plan from your saved changes.")}
+                description={guided ? t("Check what will be created, then confirm the saved plan.") : plan?.planVersion ? `Reviewed plan ${plan.planVersion}` : t("Build a plan from your saved changes.")}
                 action={
                     <div className="flex flex-wrap gap-2">
                         <label htmlFor="import-readiness-policy" className="sr-only">{t("Rows required before import")}</label>
@@ -194,7 +195,7 @@ export function PreviewStep({
                                     ["Ready rows", plan.readyRows],
                                     ["Warnings", plan.warningRows],
                                     ["Blocked", plan.blockedRows],
-                                    ["Skipped", plan.skippedRows],
+                                    [guided ? "Excluded" : "Skipped", Math.max(0, plan.skippedRows - (guided ? plan.alreadyImportedRows ?? 0 : 0))],
                                     ["Total rows", plan.totalRows],
                                 ].map(([label, value]) => (
                                     <div key={String(label)} className={cn("p-3", pageInsetSurfaceClass)}>
@@ -225,7 +226,7 @@ export function PreviewStep({
                                             <div>
                                                 <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Exact payment totals")}</p>
                                                 <p className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>
-                                                    {t("Historical and current joined-date cycles are counted separately by final payment status.")}</p>
+                                                    {t(guided ? "Past months are excluded. Future dues use normal generation." : "Historical and current joined-date cycles are counted separately by final payment status.")}</p>
                                             </div>
                                             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                                 {[
@@ -235,7 +236,7 @@ export function PreviewStep({
                                                     ["Current due", mutations.payments.current.DUE],
                                                     ["Current paid", mutations.payments.current.PAID],
                                                     ["Current waived", mutations.payments.current.WAIVED],
-                                                ].map(([label, value]) => (
+                                                ].filter(([label]) => !guided || !String(label).startsWith("Historical")).map(([label, value]) => (
                                                     <div key={String(label)} className={cn("p-3", pageInsetSurfaceClass)}>
                                                         <p className={cn("text-xs", pageMutedTextClass)}>{label}</p>
                                                         <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{formatNumber(Number(value))}</p>
@@ -258,7 +259,7 @@ export function PreviewStep({
                                 >
                                     <summary className="cursor-pointer list-none text-sm font-semibold text-[color:var(--text-primary)]">{t("Payment history by student ({formatNumber})", { formatNumber: formatNumber(paymentBreakdown.length) })}</summary>
                                     <p className={cn("mt-2 text-xs leading-5", pageMutedTextClass)}>
-                                        {t("Aggregate counts per student. Historical cycles run from the joined date; current means the student's current joined-date cycle.")}</p>
+                                        {t(guided ? "Past months are excluded. Future dues use normal generation." : "Aggregate counts per student. Historical cycles run from the joined date; current means the student's current joined-date cycle.")}</p>
                                     <AccessibleTableScroll label={t("Planned payment history by student")} className="mt-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-table-border)]">
                                         <table className="w-full min-w-[940px] text-left text-xs">
                                             <caption className="sr-only">{t("Remaining historical and current payment records planned for each student")}</caption>
@@ -266,9 +267,9 @@ export function PreviewStep({
                                                 <tr className="uppercase tracking-wide text-[color:var(--text-muted)]">
                                                     <th scope="col" className="p-3">{t("Row")}</th>
                                                     <th scope="col" className="p-3">{t("Student")}</th>
-                                                    <th scope="col" className="p-3">{t("Historical due")}</th>
-                                                    <th scope="col" className="p-3">{t("Historical paid")}</th>
-                                                    <th scope="col" className="p-3">{t("Historical waived")}</th>
+                                                    {!guided && <th scope="col" className="p-3">{t("Historical due")}</th>}
+                                                    {!guided && <th scope="col" className="p-3">{t("Historical paid")}</th>}
+                                                    {!guided && <th scope="col" className="p-3">{t("Historical waived")}</th>}
                                                     <th scope="col" className="p-3">{t("Current due")}</th>
                                                     <th scope="col" className="p-3">{t("Current paid")}</th>
                                                     <th scope="col" className="p-3">{t("Current waived")}</th>
@@ -280,9 +281,9 @@ export function PreviewStep({
                                                     <tr key={item.rowId} className={pageTableRowClass}>
                                                         <th scope="row" className="p-3">{formatNumber(item.rowNumber)}</th>
                                                         <td className="p-3 font-medium text-[color:var(--text-primary)]">{item.studentName || "Unnamed student"}</td>
-                                                        <td className="p-3">{formatNumber(item.historical.DUE)}</td>
-                                                        <td className="p-3">{formatNumber(item.historical.PAID)}</td>
-                                                        <td className="p-3">{formatNumber(item.historical.WAIVED)}</td>
+                                                        {!guided && <td className="p-3">{formatNumber(item.historical.DUE)}</td>}
+                                                        {!guided && <td className="p-3">{formatNumber(item.historical.PAID)}</td>}
+                                                        {!guided && <td className="p-3">{formatNumber(item.historical.WAIVED)}</td>}
                                                         <td className="p-3">{formatNumber(item.current.DUE)}</td>
                                                         <td className="p-3">{formatNumber(item.current.PAID)}</td>
                                                         <td className="p-3">{formatNumber(item.current.WAIVED)}</td>
@@ -384,6 +385,8 @@ export function PreviewStep({
                                 />
                             )}
 
+                            <details open={!guided || !plan.canRun}>
+                                <summary className={guided ? "cursor-pointer text-sm font-semibold" : "hidden"}>{t("View validation details")}</summary>
                             <div className="space-y-2">
                                 {plan.checks.map(check => (
                                     <div key={check.code} className={cn("p-3", pageInsetSurfaceClass)}>
@@ -405,6 +408,7 @@ export function PreviewStep({
                                     </div>
                                 </div>
                             )}
+                            </details>
                         </>
                     )}
 

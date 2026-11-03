@@ -43,6 +43,8 @@ export async function POST(req: Request, { params }: Params) {
             readinessPolicy: readinessPolicy as ImportReadinessPolicy,
         });
         const snapshot = plan.snapshot as {
+            currentMonthReview?: unknown;
+            evaluations?: Array<{ status: string }>;
             mutationSummary?: ImportMutationSummary;
             requiredPermissions?: unknown;
             configurationApproval?: unknown;
@@ -68,6 +70,8 @@ export async function POST(req: Request, { params }: Params) {
             },
             requiredPermissions: snapshot.requiredPermissions,
             configurationApproval: snapshot.configurationApproval,
+            ...(snapshot.currentMonthReview ? { currentMonthReview: snapshot.currentMonthReview,
+                alreadyImportedRows: snapshot.evaluations?.filter(row => row.status === "IMPORTED").length ?? 0 } : {}),
         }, { status: 201 });
     } catch (error) {
         const apiError = toImportApiError(error, "Failed to build the reviewed import plan.");

@@ -5,7 +5,7 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, FileSpreadsheet, FileText, ReceiptText, Sofa, TableProperties, UploadCloud, UsersRound } from "lucide-react";
+import { ArrowLeft, CalendarClock, FileSpreadsheet, FileText, TableProperties, UploadCloud } from "lucide-react";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { AppButton, AppPanel, AppSelect, ErrorState, PageShell } from "@/components/ui";
 import { appActionClassName } from "@/components/ui/AppButton";
@@ -71,38 +71,6 @@ function importSessionHref(branchId: string, goal: ImportGoal, created: Pick<Cre
     return `/branch/${branchId}/onboarding/import/${created.sessionId}?${query.toString()}`;
 }
 
-const importGoals: Array<{
-    id: ImportGoal;
-    title: string;
-    description: string;
-    detail: string;
-    icon: typeof UsersRound;
-    recommended?: boolean;
-}> = [
-    {
-        id: "STUDENTS",
-        title: "Students",
-        description: "Names, phones, joined dates, and monthly fees.",
-        detail: "Fastest start. Add seats and payments later.",
-        icon: UsersRound,
-        recommended: true,
-    },
-    {
-        id: "STUDENTS_ALLOCATIONS",
-        title: "Students + seats",
-        description: "Students, shifts, bundles, and seat allocations.",
-        detail: "Payment history stays out of this import.",
-        icon: Sofa,
-    },
-    {
-        id: "FULL",
-        title: "Full import",
-        description: "Students, allocations, and payment information.",
-        detail: "Best when payment status is clear and reviewed.",
-        icon: ReceiptText,
-    },
-];
-
 function goalLabel(goal: ImportGoal | undefined | null) {
     if (goal === "STUDENTS_ALLOCATIONS") return "Students + seats";
     if (goal === "FULL") return "Full import";
@@ -155,7 +123,7 @@ function ImportAssistantContent({
     const t = useTranslation();
     const router = useRouter();
     const { formatDateTime, formatNumber } = useUserPreferences();
-    const [goal, setGoal] = useState<ImportGoal>("STUDENTS");
+    const goal: ImportGoal = "FULL";
     const [sourceMode, setSourceMode] = useState<ImportSourceMode>("file");
     const [file, setFile] = useState<File | null>(null);
     const [pastedTable, setPastedTable] = useState("");
@@ -234,11 +202,11 @@ function ImportAssistantContent({
         setError(null);
         try {
             const created = sourceMode === "file" && file
-                ? await importSessions.createFromFile(branchId, file, goal, workbookReview ? {
+                ? await importSessions.createFromFile(branchId, file, goal, { experience: "GUIDED_CURRENT_MONTH_V1", ...(workbookReview ? {
                     sheetName: workbookReview.sheetName,
                     headerRow: workbookReview.headerRow ?? undefined,
-                } : undefined)
-                : await importSessions.createFromPastedTable(branchId, pastedTable, goal);
+                } : {}) })
+                : await importSessions.createFromPastedTable(branchId, pastedTable, goal, "GUIDED_CURRENT_MONTH_V1");
             if (created.requiresPdfConfirmation) {
                 setPdfReview(created);
                 setPdfAccepted(false);
@@ -321,44 +289,10 @@ function ImportAssistantContent({
 
                 <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
                     {importDecision.blocker !== "permission" ? <AppPanel density="compact"
-                        title={t("1. Choose what to import")}
-                        description={t("Start small or bring the full history. You can add deferred information later.")}
+                        title={t("Add your student records")}
+                        description={t("Tracking starts this month. Original joining dates and future due days stay the same.")}
                     >
-                        <fieldset>
-                            <legend className="sr-only">{t("Import goal")}</legend>
-                            <div className="grid gap-3 lg:grid-cols-3">
-                                {importGoals.map(option => {
-                                    const selected = goal === option.id;
-                                    const GoalIcon = option.icon;
-                                    return (
-                                        <button
-                                            key={option.id}
-                                            type="button"
-                                            aria-pressed={selected}
-                                            disabled={loading || Boolean(pdfReview)}
-                                            onClick={() => setGoal(option.id)}
-                                            className={cn(
-                                                "flex min-h-40 flex-col items-start rounded-[var(--ui-radius-control)] border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60",
-                                                selected
-                                                    ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
-                                                    : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] hover:bg-[color:var(--ui-form-surface-hover-bg)]"
-                                            )}
-                                        >
-                                            <span className="flex w-full items-start justify-between gap-3">
-                                                <span className="flex h-10 w-10 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]">
-                                                    <GoalIcon size={19} />
-                                                </span>
-                                                {option.recommended && <Badge variant="success">{t("Recommended")}</Badge>}
-                                            </span>
-                                            <span className="mt-4 text-sm font-semibold text-[color:var(--text-primary)]">{option.title}</span>
-                                            <span className={cn("mt-1 text-xs leading-5", pageMutedTextClass)}>{option.description}</span>
-                                            <span className="mt-auto pt-3 text-xs font-medium text-[color:var(--ui-tone-info-text)]">{option.detail}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </fieldset>
-
+                        <p>{t("Add records → AI prepares → Resolve remaining → Review and import")}</p>
                         <div className="mt-6 border-t border-[color:var(--ui-form-section-divider)] pt-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
@@ -568,7 +502,7 @@ function ImportAssistantContent({
                                 aria-describedby={mutationsDisabled ? "import-mutation-blocker" : undefined}
                                 isLoading={loading}
                             >
-                                {workbookReview ? t("Continue with selected worksheet") : "Upload and review " + goalLabel(goal).toLowerCase()}
+                                {workbookReview ? t("Continue with selected worksheet") : t("Prepare my records")}
                             </AppButton>
                             <AppButton density="compact" variant="secondary" icon={FileSpreadsheet} onClick={() => downloadSampleTemplate(branchId, goal)}>
                                 {t("Download")} {goalLabel(goal)}  {t("Excel template")}</AppButton>

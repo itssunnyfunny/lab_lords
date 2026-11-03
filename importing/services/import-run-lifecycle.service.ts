@@ -1,6 +1,7 @@
 import { Prisma } from "@/app/generated/prisma/client";
 import type { ImportRunKind, ImportRunStatus, ImportSessionStatus } from "@/app/generated/prisma/enums";
 import { importStagingPurgeAfter } from "../utils/import-retention";
+import { isGuidedImport } from "../utils/current-month-import";
 
 type ImportRunLifecycleState = {
     id: string;
@@ -8,6 +9,7 @@ type ImportRunLifecycleState = {
     importSessionId: string | null;
     kind: ImportRunKind;
     status: ImportRunStatus;
+    targetRevision?: number;
 };
 
 function asRecord(value: Prisma.JsonValue | null): Record<string, unknown> {
@@ -146,9 +148,19 @@ export async function syncImportSessionRunLifecycle(
             engineVersion: 2,
             archivedAt: null,
         },
-        select: { status: true },
+        select: { status: true, sourceConfiguration: true, draftRevision: true },
     });
     if (!session) return;
+
+    // Stopping preparation cancels its scheduler, not the new guided draft.
+    // Advance the revision and revoke the lease so its late response cannot publish.
+    if (run.kind === "ANALYSIS" && run.status === "CANCELLED" && isGuidedImport(session.sourceConfiguration)) {
+        if (run.targetRevision === session.draftRevision && !["COMMITTING", "COMMITTED", "PARTIAL"].includes(session.status)) {
+            await tx.importSession.updateMany({ where: { id: run.importSessionId, branchId: run.branchId, draftRevision: run.targetRevision },
+                data: { status: "NEEDS_MAPPING", draftRevision: { increment: 1 }, analysisLeaseToken: null, analysisLeaseUntil: null, purgeAfter: importStagingPurgeAfter(now) } });
+        }
+        return;
+    }
 
     if (run.kind === "COMMIT") {
         await projectCommitResultOntoRows(tx, run);

@@ -47,7 +47,7 @@ export type PublishImportEvaluationsInput = {
 };
 
 export type ImportPlanCheck = {
-    code: "READY_ROWS" | "OPEN_QUESTIONS" | "ALL_ROWS_READY" | "EVALUATION_COVERAGE" | "CONFIGURATION_APPROVAL" | "CONFIGURATION_CONFLICT" | "MUTATION_LIMIT" | "RETRY_DEPENDENCY" | "RETRY_MUTATION_CONFLICT";
+    code: "READY_ROWS" | "OPEN_QUESTIONS" | "ALL_ROWS_READY" | "EVALUATION_COVERAGE" | "CONFIGURATION_APPROVAL" | "CONFIGURATION_CONFLICT" | "MUTATION_LIMIT" | "RETRY_DEPENDENCY" | "RETRY_MUTATION_CONFLICT" | "CURRENT_MONTH_REVIEW";
     status: "pass" | "block";
     count?: number;
     message: string;
@@ -70,6 +70,7 @@ export type ImportPlanMutationItem = {
 };
 
 export type ImportPreviouslySucceededMutation = {
+    reviewedBusinessDate?: string;
     itemKey: string;
     kind: ImportRunItemKind;
     rowId?: string | null;
@@ -78,6 +79,10 @@ export type ImportPreviouslySucceededMutation = {
 };
 
 export type ImportPlanSnapshot = {
+    currentMonthReview?: {
+        businessDate: string;
+        rows: Array<{ rowId: string; rowNumber: number; studentName: string; state: string; dueDate: string | null; amount: number | null; reviewedBusinessDate: string; status?: string }>;
+    };
     schemaVersion: typeof IMPORT_PLAN_SCHEMA_VERSION;
     sessionId: string;
     targetRevision: number;

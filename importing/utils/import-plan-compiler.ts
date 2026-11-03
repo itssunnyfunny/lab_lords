@@ -18,6 +18,8 @@ import {
     type ImportReadinessPolicy,
 } from "../contracts/import-v2.contract";
 import { buildImportPaymentPlan } from "./import-payment-plan";
+import { currentMonthOutcome, importBusinessDate } from "./current-month-import";
+import { reviewedDate } from "../services/import-recovery-context";
 
 export type ImportPlanEvaluation = {
     id: string;
@@ -389,10 +391,14 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
     evaluationLoop:
     for (const evaluation of mutationLimitExceeded ? [] : readyEvaluations) {
         const normalized = evaluation.normalizedData ?? {};
+        const studentItemKey = `row:${evaluation.rowId}:student`;
+        const historicalStudent = previouslySucceededItems.get(studentItemKey);
+        const financialDate = input.mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH"
+            ? reviewedDate(historicalStudent?.reviewedBusinessDate, asOf) : asOf;
         const remainingMutationCapacity = input.maxPlannedMutations === undefined
             ? undefined
             : Math.max(0, input.maxPlannedMutations - mutationItems.size);
-        const paymentPlan = buildImportPaymentPlan(normalized, input.mapping, asOf, {
+        const paymentPlan = buildImportPaymentPlan(normalized, input.mapping, financialDate, {
             maxItems: remainingMutationCapacity === undefined
                 ? undefined
                 : remainingMutationCapacity
@@ -400,7 +406,6 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
                     + 1,
         });
 
-        const studentItemKey = `row:${evaluation.rowId}:student`;
         const studentMutation = {
             itemKey: studentItemKey,
             kind: "STUDENT" as const,
@@ -411,7 +416,6 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
                 billingStartAt: paymentPlan.billingStartAt?.toISOString() ?? null,
             },
         };
-        const historicalStudent = previouslySucceededItems.get(studentItemKey);
         const succeededStudent = historicalStudent
             && historicalStudent.kind === "STUDENT"
             && historicalStudent.requestHash === createImportMutationRequestHash(studentMutation)
@@ -647,6 +651,19 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
     ];
 
     const snapshot: CompiledImportPlan["snapshot"] = {
+        ...(input.mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH" ? {
+            currentMonthReview: {
+                businessDate: importBusinessDate(asOf),
+                rows: readyEvaluations.map(row => {
+                    const originalDate = previouslySucceededItems.get(`row:${row.rowId}:student`)?.reviewedBusinessDate;
+                    const outcome = currentMonthOutcome(row.normalizedData ?? {}, reviewedDate(originalDate, asOf));
+                    const paidKey = outcome.billingStartAt ? `row:${row.rowId}:payment:${outcome.billingStartAt.slice(0, 10)}` : "";
+                    const state = outcome.state === "CREATE_NOW" && previouslySucceededItems.has(paidKey) ? "EXISTING" : outcome.state;
+                    return { rowId: row.rowId, rowNumber: row.rowNumber, studentName: row.normalizedData?.student?.name ?? "",
+                        state, dueDate: outcome.dueDate, amount: outcome.amount, reviewedBusinessDate: outcome.businessDate, status: outcome.status };
+                }),
+            },
+        } : {}),
         schemaVersion: IMPORT_PLAN_SCHEMA_VERSION,
         sessionId: input.sessionId,
         targetRevision: input.targetRevision,
@@ -667,6 +684,11 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
         configurationApproval,
         mutationSummary,
     };
+    if (snapshot.currentMonthReview) {
+        const unresolved = snapshot.currentMonthReview.rows.filter(row => row.state === "NEEDS_REVIEW").length;
+        checks.push({ code: "CURRENT_MONTH_REVIEW", status: unresolved ? "block" : "pass", count: unresolved,
+            message: unresolved ? "Review the unresolved current-month payment facts before importing." : "Current-month payment facts have been validated." });
+    }
     const counts = {
         totalRows: evaluations.length,
         readyRows: readyEvaluations.length,

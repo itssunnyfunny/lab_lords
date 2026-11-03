@@ -1,5 +1,15 @@
 # Public wording and feature claims
 
+## Guided import follow-up — local, 2026-11-03
+
+Home, Features, Pricing and FAQ were checked. Their existing reviewed-import,
+all-plan and supported-format claims still apply; no marketing expansion is
+needed. The import workspace explains the current-month-only policy and held
+partial/unclear facts at the point of use. No AI accuracy, historical backfill,
+automatic reconciliation or new receipt claim is introduced. Local evidence is
+[recorded separately](../redesign/import-guidance.md); release remains separate.
+
+
 ## Guided onboarding policy update — local, 2026-11-02
 
 The requested product change makes a new owner's trial tier explicit and makes

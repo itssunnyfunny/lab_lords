@@ -1,5 +1,14 @@
 # Application page-family migration
 
+Guided import follow-up, 3 November 2026: family G reuses AppPanel, AppButton,
+RowsStep, the compact allocation picker, authoritative PreviewStep and ResultStep.
+New marked sessions have a help queue and scoped grouped confirmations; legacy
+drafts keep their wizard. Current-month fee policy is an explicitly requested
+product change, separate from presentation migration. Desktop/narrow connected
+browser evidence and release limits are in [the implementation record](import-guidance.md).
+Owner visual acceptance and Production release are not inferred from local tests.
+
+
 Guided onboarding, 2 November 2026: family G now uses business/location language,
 one editable session with explicit fees, optional combined access, real trial
 tier selection and a review/import finish. Existing AppButton, Dialog,

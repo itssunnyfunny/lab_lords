@@ -1,5 +1,24 @@
 # Domain invariants
 
+## Guided import policy — 3 November 2026
+
+- **Must preserve—enforced:** New `GUIDED_CURRENT_MONTH_V1` sessions retain the
+  original joining date and persist the first tracked cycle's **period start**
+  as `billingStartAt`, even when no payment is created. Only eligible dues in
+  the current month whose due date has arrived are scheduled. Normal generation
+  must not recreate excluded historical cycles. Earlier drafts keep their policy.
+- **Must preserve—enforced:** A new guided commit is fenced to its reviewed
+  runtime-local business date. Started runs and identical request replays retain
+  their immutable outcomes. Partial/unclear financial facts and existing identity
+  matches remain unresolved rather than becoming new unpaid balances or edits
+  to established financial history.
+- **Must preserve—enforced:** Confirmed grouped interpretations target only
+  matching mutable staged rows under the expected revision. Analysis publication
+  retains lease/revision fences and manual corrections; AI gets whitelisted
+  structural context only. Unrecognized nonempty source columns need an explicit
+  mapping or ignore decision. See [evidence](redesign/import-guidance.md).
+
+
 ## Audit follow-ups — 25 October 2026
 
 - **Must preserve—enforced:** An owner can create at most one owned organization

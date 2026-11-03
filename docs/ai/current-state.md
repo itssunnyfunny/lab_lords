@@ -1,5 +1,16 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Guided import preparation — local, 2026-11-03
+
+New marked sessions use a student help queue, grouped branch shift interpretations,
+revision-fenced iterative preparation and current-month anniversary fees. The
+existing JSON persistence, immutable plans and durable run ledger remain owners;
+older drafts and running/completed plans retain their original policy. Gemini
+receives only structural draft/answer context. See the [implementation and
+validation record](../redesign/import-guidance.md). No schema, provider SDK,
+pricing or Production environment change is included.
+
+
 ## Guided onboarding and explicit trial tiers — local, 2026-11-02
 
 The requested onboarding change replaces internal organization/shift terminology

@@ -1,13 +1,18 @@
 import type { ImportMappingState, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 import { FORM_LIMITS, parseIntegerField } from "@/lib/formValidation";
 import { emptyValidatorResult, type ImportValidatorResult } from "./import-required-fields.validator";
+import { currentMonthOutcome } from "../utils/current-month-import";
 
 export function validateImportPayment(
     normalized: ImportNormalizedRow,
-    mapping: ImportMappingState
+    mapping: ImportMappingState,
+    asOf = new Date()
 ): ImportValidatorResult {
     const result = emptyValidatorResult();
     const payment = normalized.payment;
+    if (mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH") {
+        return { issues: currentMonthOutcome(normalized, asOf).issues, warnings: [], questions: [] };
+    }
     if (payment?.method !== undefined && !["CASH", "UPI", "BANK_TRANSFER"].includes(payment.method)) {
         result.issues.push({ code: "INVALID_PAYMENT_METHOD", field: "payment.method",
             message: "Unsupported payment method. Use Cash, UPI, or Bank Transfer.", severity: "error" });
