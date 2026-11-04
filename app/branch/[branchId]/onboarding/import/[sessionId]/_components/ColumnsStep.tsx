@@ -123,7 +123,9 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
     const intentionalBehavior = [
         "Student status is not imported; every new student starts active.",
         goal !== "STUDENTS" ? "Allocation start dates are not imported; allocations start when this plan is applied." : null,
-        goal === "FULL" ? "Payment periods are not mapped; payment history is generated only by the four joined-date policies in Payments." : null,
+        goal === "FULL" ? detail.sourceConfiguration?.experience === "GUIDED_CURRENT_MONTH_V1"
+            ? t("Past months are excluded. Future dues use normal generation.")
+            : "Payment periods are not mapped; payment history is generated only by the four joined-date policies in Payments." : null,
     ].filter((message): message is string => Boolean(message)).join(" ");
     const updateTargetField = (index: number, targetField: ImportColumnMapping["targetField"]) => {
         setDraft(current => current.map((item, itemIndex) => itemIndex === index
@@ -159,7 +161,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                 title={t("Column meanings")}
                 description={t("Confirm how each source column maps into the ERP. AI is only a suggestion layer.")}
                 action={
-                    <AppButton density="compact"
+                    <div className="flex flex-wrap gap-2">{changed && <AppButton density="compact" variant="quiet" disabled={saving || mutationsDisabled} onClick={() => setDraft(mapping)}>{t("Reset column changes")}</AppButton>}<AppButton density="compact"
                         variant="primary"
                         icon={Save}
                         onClick={() => onSave(draft.map(item => ({ ...item, needsReview: false })))}
@@ -167,7 +169,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                         aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                         isLoading={saving}
                     >
-                        {t("Confirm columns")}</AppButton>
+                        {t("Confirm columns")}</AppButton></div>
                 }
             >
                 <div className="space-y-4">

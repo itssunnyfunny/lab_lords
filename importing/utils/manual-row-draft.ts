@@ -1,4 +1,5 @@
 import type { ImportBranchContext, ImportColumnMapping, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
+import { GUIDED_CLEARED_FIELDS } from "./guided-source-reconciliation";
 
 export type ImportRowDraft = {
     studentName: string;
@@ -18,11 +19,22 @@ export type ImportRowDraftDirty = Partial<Record<keyof ImportRowDraft, boolean>>
 
 type DraftRow = {
     rawData?: Record<string, string>;
+    mappedData?: unknown;
     normalizedData: ImportNormalizedRow | null;
 };
 
 type PaymentStatusDraft = NonNullable<ImportNormalizedRow["payment"]>["status"];
 type PaymentMethodDraft = NonNullable<ImportNormalizedRow["payment"]>["method"];
+// Guided imports edit recorded facts only. Legacy payment-policy editors retain
+// their fee-based display default and synchronization behavior.
+export type ImportPaymentDraftMode = "FEE_DEFAULT" | "RECORDED_ONLY";
+
+export function importRowFieldWasCleared(row: DraftRow, field: ImportColumnMapping["targetField"]) {
+    const mapped = row.mappedData;
+    if (!mapped || typeof mapped !== "object" || Array.isArray(mapped)) return false;
+    const cleared = (mapped as Record<string, unknown>)[GUIDED_CLEARED_FIELDS];
+    return Array.isArray(cleared) && cleared.includes(field);
+}
 
 function cloneNormalized(data: ImportNormalizedRow | null): ImportNormalizedRow {
     return data ? JSON.parse(JSON.stringify(data)) as ImportNormalizedRow : {};
@@ -128,8 +140,8 @@ function draftWithPaymentAmountDefault(draft: ImportRowDraft) {
     return { ...draft, paymentAmount: draft.fee };
 }
 
-export function draftFromImportRow(row: DraftRow): ImportRowDraft {
-    return draftWithPaymentAmountDefault({
+export function draftFromImportRow(row: DraftRow, mode: ImportPaymentDraftMode = "FEE_DEFAULT"): ImportRowDraft {
+    const draft = {
         studentName: importRowFieldValue(row, "studentName"),
         phone: importRowFieldValue(row, "phone"),
         joinedAt: importRowFieldValue(row, "joinedAt"),
@@ -141,16 +153,18 @@ export function draftFromImportRow(row: DraftRow): ImportRowDraft {
         paymentStatus: importRowFieldValue(row, "paymentStatus"),
         paymentMethod: importRowFieldValue(row, "paymentMethod"),
         referenceId: importRowFieldValue(row, "referenceId"),
-    });
+    };
+    return mode === "RECORDED_ONLY" ? draft : draftWithPaymentAmountDefault(draft);
 }
 
-export function draftFromImportRowWithFallback(row: DraftRow, mappings: ImportColumnMapping[] = []): ImportRowDraft {
-    const draft = draftFromImportRow(row);
+export function draftFromImportRowWithFallback(row: DraftRow, mappings: ImportColumnMapping[] = [], mode: ImportPaymentDraftMode = "FEE_DEFAULT"): ImportRowDraft {
+    const draft = draftFromImportRow(row, mode);
     if (!row.rawData) return draft;
 
     const next = { ...draft };
     for (const mapping of mappings) {
         const draftField = draftFieldByTarget[mapping.targetField];
+        if (mode === "RECORDED_ONLY" && importRowFieldWasCleared(row, mapping.targetField)) continue;
         if (!draftField || next[draftField].trim()) continue;
         const rawValue = row.rawData[mapping.sourceColumn];
         if (typeof rawValue === "string" && rawValue.trim()) {
@@ -158,7 +172,7 @@ export function draftFromImportRowWithFallback(row: DraftRow, mappings: ImportCo
         }
     }
 
-    return draftWithPaymentAmountDefault(next);
+    return mode === "RECORDED_ONLY" ? next : draftWithPaymentAmountDefault(next);
 }
 
 export function importRowDraftSourceKey(row: DraftRow, mappings: ImportColumnMapping[] = []) {
@@ -220,7 +234,8 @@ function removeEmptyObject<T extends Record<string, unknown>>(value: T) {
 export function normalizedFromImportDraft(
     row: DraftRow,
     draft: ImportRowDraft,
-    context?: ImportBranchContext
+    context?: ImportBranchContext,
+    mode: ImportPaymentDraftMode = "FEE_DEFAULT"
 ): ImportNormalizedRow {
     const next = cloneNormalized(row.normalizedData);
     const studentName = draft.studentName.trim();
@@ -238,7 +253,7 @@ export function normalizedFromImportDraft(
         paymentStatus ||
         paymentMethod ||
         referenceId ||
-        (paymentAmount !== undefined && paymentAmount !== monthlyFee)
+        (paymentAmount !== undefined && (mode === "RECORDED_ONLY" || paymentAmount !== monthlyFee))
     );
     const shiftContext = findShift(context, shift);
     const multiShiftContext = findMultiShift(context, multiShift);

@@ -4,7 +4,7 @@ const VARIANT_MAP: Array<{ target: ImportTargetField; patterns: RegExp[]; reason
     { target: "student.name", patterns: [/^name$/, /student.*name/, /candidate/, /member/], reason: "Looks like the student name column." },
     { target: "student.phone", patterns: [/mobile/, /phone/, /contact/, /whatsapp/], reason: "Looks like a phone or mobile column." },
     { target: "student.joinedAt", patterns: [/join/, /admission/, /student.*start.*date/, /member.*since/, /^date$/], reason: "Looks like a joining or admission date." },
-    { target: "student.monthlyFee", patterns: [/monthly.*fee/, /^fee$/, /rent/, /amount/], reason: "Looks like a monthly fee amount." },
+    { target: "student.monthlyFee", patterns: [/monthly.*fee/, /^fee$/, /rent/, /^amount$/], reason: "Looks like a monthly fee amount." },
     { target: "seat.label", patterns: [/seat.*no/, /seat.*number/, /^seat$/, /desk/, /table/], reason: "Looks like a seat label." },
     { target: "allocation.seatLabel", patterns: [/allocated.*seat/, /seat.*label/, /seat.*no/, /^seat$/], reason: "Looks like the allocation seat." },
     { target: "shift.name", patterns: [/^shift$/, /batch/, /slot/, /timing/, /time$/], reason: "Looks like a shift or batch name." },

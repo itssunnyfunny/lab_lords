@@ -225,7 +225,7 @@ type FeeDefaultContext = Partial<Pick<ImportBranchContext, "defaultFee">> & {
     multiShiftsByName?: Map<string, { name: string; price: number }>;
 };
 
-function applyFeeDefault(normalized: ImportNormalizedRow, context: FeeDefaultContext) {
+function applyFeeDefault(normalized: ImportNormalizedRow, context: FeeDefaultContext, allowBranchDefault = true) {
     const student = normalized.student;
     if (!student || student.monthlyFee !== undefined) return;
 
@@ -259,6 +259,7 @@ function applyFeeDefault(normalized: ImportNormalizedRow, context: FeeDefaultCon
         }
     }
 
+    if (!allowBranchDefault) return;
     normalized.student = {
         ...student,
         monthlyFee: context.defaultFee ?? context.branchDefaultFee ?? 0,
@@ -297,7 +298,7 @@ export function applyImportDefaults(normalized: ImportNormalizedRow, options?: I
         normalized.allocation = { ...normalized.allocation, multiShiftName: options.defaultMultiShiftName };
     }
 
-    if (context) applyFeeDefault(normalized, context);
+    if (context) applyFeeDefault(normalized, context, options?.paymentPolicy !== "CURRENT_CALENDAR_MONTH");
 
     return normalized;
 }

@@ -48,6 +48,9 @@ export function toImportApiError(
   }
 
   const code = errorCode(error);
+  if (code === "IMPORT_BUSINESS_DATE_CHANGED") {
+    return { status: 409, body: { error: "The business date changed. Refresh payment outcomes and review a new plan before importing.", code } };
+  }
   if (code === "IMPORT_REVISION_CONFLICT" || code === "IMPORT_IDEMPOTENCY_CONFLICT") {
     return {
       status: 409,

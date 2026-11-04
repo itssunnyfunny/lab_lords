@@ -8,6 +8,7 @@ import {
     type ParsedImportRow,
 } from "@/importing/contracts/import-session.contract";
 import { buildFallbackMappings } from "@/importing/utils/column-normalizer";
+import { validGuidedShiftProposals, type GuidedShiftAIContext } from "@/importing/utils/guided-shift-assistance";
 import { buildImportColumnMappingPrompt } from "./prompts/import-column-mapping.prompt";
 
 const MAX_AI_SAMPLE_ROWS = 8;
@@ -65,6 +66,9 @@ const IMPORT_COLUMN_MAPPING_SCHEMA = {
         warnings: { type: "array", items: { type: "string" } },
         suggestedImportOptions: { type: "object" },
         analysisNotes: { type: "array", items: { type: "string" } },
+        draftShiftProposals: { type: "array", items: { type: "object", properties: {
+            sourceAlias: { type: "string" }, choiceAlias: { type: "string" }, answerAlias: { type: "string" },
+        }, required: ["sourceAlias", "choiceAlias", "answerAlias"] } },
     },
     required: ["entityTypesDetected", "columnMappings", "questions", "warnings"],
 };
@@ -144,11 +148,44 @@ export type RedactedImportMappingInput = {
     ambiguousColumns: string[];
 };
 
+export type ImportDraftAIContext = {
+    revision: number;
+    rows: Array<{ rowNumber: number; fields: string[]; problems: string[]; manual: boolean }>;
+    answers: Array<{ field: string; affected: number }>;
+    shiftAssistance?: GuidedShiftAIContext;
+};
+function structuralDraft(input?: ImportDraftAIContext) {
+    if (!input) return undefined;
+    const fields = new Set<string>(IMPORT_TARGET_FIELDS);
+    return { revision: input.revision,
+        unresolvedRows: input.rows.slice(0, 30).map((row, index) => ({ alias: `draft_${index + 1}`,
+            fieldsPresent: row.fields.filter(field => fields.has(field)).slice(0, 20),
+            problems: [...new Set(row.problems.map(code => /PAYMENT/.test(code) ? "PAYMENT_REVIEW" : /SHIFT/.test(code) ? "SHIFT_REVIEW" : /SEAT|ALLOCATION/.test(code) ? "SEAT_REVIEW" : "DETAILS_REVIEW"))],
+            manuallyCorrected: row.manual })),
+        shiftAssistance: safeShiftContext(input.shiftAssistance),
+        confirmedAnswers: input.answers.slice(-20).map((answer, index) => ({ alias: `answer_${index + 1}`,
+            field: fields.has(answer.field) ? answer.field : "ignore", affectedRecords: Math.max(0, Math.min(2000, answer.affected)), confirmed: true })) };
+}
+
+function safeShiftContext(input?: GuidedShiftAIContext): GuidedShiftAIContext | undefined {
+    if (!input) return undefined;
+    const alias = (value: unknown, kind: string) => typeof value === "string" && new RegExp(`^${kind}_[1-9][0-9]{0,3}$`).test(value);
+    return {
+        groups: input.groups.slice(0, 30).filter(group => alias(group.sourceAlias, "source") && alias(group.meaningAlias, "meaning"))
+            .map(group => ({ sourceAlias: group.sourceAlias, meaningAlias: group.meaningAlias, affectedRecords: Math.max(0, Math.min(2000, Number(group.affectedRecords) || 0)) })),
+        choices: input.choices.slice(0, 200).filter(choice => alias(choice.choiceAlias, "choice") && ["SHIFT", "BUNDLE"].includes(choice.kind))
+            .map(choice => ({ choiceAlias: choice.choiceAlias, kind: choice.kind })),
+        answers: input.answers.slice(-20).filter(answer => alias(answer.answerAlias, "answer") && alias(answer.meaningAlias, "meaning") && alias(answer.choiceAlias, "choice"))
+            .map(answer => ({ answerAlias: answer.answerAlias, meaningAlias: answer.meaningAlias, choiceAlias: answer.choiceAlias })),
+    };
+}
+
 export function buildRedactedImportMappingInput(input: {
     branchContext: unknown;
     sourceProfile?: unknown;
     columns: string[];
     sampleRows: ParsedImportRow[];
+    draftContext?: ImportDraftAIContext;
 }): RedactedImportMappingInput {
     const deterministicMappings = buildFallbackMappings(input.columns);
     const ambiguousColumns = deterministicMappings
@@ -189,6 +226,7 @@ export function buildRedactedImportMappingInput(input: {
         ambiguousColumns,
         aliasToColumn,
         promptInput: {
+            draftContext: structuralDraft(input.draftContext),
             branchContext: structuralBranchSummary(input.branchContext),
             sourceProfile: {
                 rowCount: sourceRowCount ?? input.sampleRows.length,
@@ -269,7 +307,8 @@ function sanitizeMappingResult(
     value: unknown,
     columns: string[],
     aiTrace?: ImportAITrace,
-    reservedTargets: ReadonlySet<ImportTargetField> = new Set()
+    reservedTargets: ReadonlySet<ImportTargetField> = new Set(),
+    shiftContext?: GuidedShiftAIContext
 ): ImportMappingResult | null {
     if (!value || typeof value !== "object") return null;
     const result = value as Record<string, unknown>;
@@ -336,7 +375,8 @@ function sanitizeMappingResult(
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
-    if (validCandidateMappings.length === 0) return null;
+    const draftShiftProposals = validGuidedShiftProposals(result.draftShiftProposals, shiftContext);
+    if (validCandidateMappings.length === 0 && draftShiftProposals.length === 0) return null;
 
     const columnMappings = [...validCandidateMappings];
     const mappedColumns = new Set(columnMappings.map(mapping => mapping.sourceColumn));
@@ -383,6 +423,7 @@ function sanitizeMappingResult(
         analysisNotes: stringsFrom(result.analysisNotes, 5, 300),
         model: resolveGeminiProModel(),
         aiTrace,
+        ...(draftShiftProposals.length ? { draftShiftProposals } : {}),
     };
 }
 
@@ -391,9 +432,10 @@ export async function mapImportColumns(input: {
     sourceProfile?: unknown;
     columns: string[];
     sampleRows: ParsedImportRow[];
+    draftContext?: ImportDraftAIContext;
 }): Promise<ImportMappingResult> {
     const redacted = buildRedactedImportMappingInput(input);
-    if (redacted.ambiguousColumns.length === 0) {
+    if (redacted.ambiguousColumns.length === 0 && !input.draftContext?.rows.length) {
         return {
             entityTypesDetected: entityTypesForMappings(redacted.deterministicMappings),
             columnMappings: redacted.deterministicMappings,
@@ -406,11 +448,15 @@ export async function mapImportColumns(input: {
     const model = resolveGeminiProModel();
     const attemptedAt = new Date().toISOString();
     const startedAt = Date.now();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-        const result = await callGeminiJson<unknown>(buildImportColumnMappingPrompt(redacted.promptInput), {
+        const request = callGeminiJson<unknown>(buildImportColumnMappingPrompt(redacted.promptInput), {
             model,
             responseJsonSchema: IMPORT_COLUMN_MAPPING_SCHEMA,
         });
+        const result = await Promise.race([request, new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => reject(new Error("Import preparation timed out")), 15_000);
+        })]);
         const durationMs = Date.now() - startedAt;
         if (result.ok) {
             const reservedTargets = new Set<ImportTargetField>(redacted.deterministicMappings
@@ -422,7 +468,7 @@ export async function mapImportColumns(input: {
                 attemptedAt,
                 durationMs,
                 usedStructuredOutput: true,
-            }, reservedTargets);
+            }, reservedTargets, safeShiftContext(input.draftContext?.shiftAssistance));
             if (sanitized) {
                 const aiMappings = sanitized.columnMappings.map(mapping => ({
                     ...mapping,
@@ -471,7 +517,7 @@ export async function mapImportColumns(input: {
             fallbackReason: "Gemini mapping failed before a structured response was available.",
             usedStructuredOutput: true,
         });
-    }
+    } finally { if (timeout) clearTimeout(timeout); }
 }
 
 function fallbackMapping(columns: string[], aiTrace: ImportAITrace): ImportMappingResult {

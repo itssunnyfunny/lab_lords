@@ -16,6 +16,8 @@ export type RowFilter = "attention" | "ready" | "all" | "skipped";
 export type ImportGoal = "STUDENTS" | "STUDENTS_ALLOCATIONS" | "FULL";
 
 export type ImportRow = {
+    paymentOutcome?: import("@/importing/utils/current-month-import").CurrentMonthOutcome;
+    createdEntityIds?: Record<string, unknown> | null;
     id: string;
     rowNumber: number;
     rawData: Record<string, string>;
@@ -39,6 +41,9 @@ export type ImportQuestion = {
 };
 
 export type ImportDetail = {
+    guidance?: { businessDate: string; groups: import("@/importing/utils/import-guidance").ImportGuidanceGroup[]; imported: number; needsHelp: number; partialStudents: number; createdStudents: number; createdAllocations: number; createdPayments: number;
+        preparation?: { canImprove: boolean; reusableRows: number; columnsToReview: number };
+        financialNeedsHelp?: number; savedFinancials?: import("@/importing/utils/guided-import-presentation").FinancialSummary };
     id: string;
     status: string;
     goal?: ImportGoal | null;
@@ -69,6 +74,7 @@ export type ImportDetail = {
     } | null;
     updatedAt?: string;
     mapping?: {
+        guidance?: import("@/importing/contracts/import-session.contract").ImportMappingState["guidance"];
         entityTypesDetected?: string[];
         columnMappings?: ImportColumnMapping[];
         importOptions?: ImportOptions;

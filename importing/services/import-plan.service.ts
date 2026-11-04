@@ -18,7 +18,9 @@ import {
     exactImportPaymentCycleFromPayload,
 } from "../utils/import-plan-compiler";
 import { ImportRevisionConflictError } from "../utils/import-errors";
+import { assertCurrentMonthPlanDate } from "../utils/current-month-import";
 import { importStagingPurgeAfter } from "../utils/import-retention";
+import { guidedRecoveryDates } from "./import-recovery-context";
 import {
     assertImportPlanConfigurationCurrent,
     reusableSucceededConfigurationItemKeys,
@@ -193,6 +195,11 @@ export class ImportPlanService {
             throw new Error("Import plan not found");
         }
         assertImportPlanWithinMutationLimit(plan.snapshot, getImportMaxPlannedMutations());
+        const hasDateFence = !!(plan.snapshot as { currentMonthReview?: unknown } | null)?.currentMonthReview;
+        const startedRun = hasDateFence ? await prisma.importRun.findFirst({
+            where: { importSessionId: sessionId, importPlanId: plan.id, branchId, kind: "COMMIT" }, select: { id: true },
+        }) : null;
+        if (!startedRun) assertCurrentMonthPlanDate(plan.snapshot);
         const { snapshot, ...confirmedPlan } = plan;
         await authorizePlanPermissions(userId, branchId, snapshot);
         return confirmedPlan;
@@ -240,6 +247,7 @@ export class ImportPlanService {
                                     skipped: true,
                                     normalizedData: true,
                                     warnings: true,
+                                    issues: true,
                                 },
                             },
                         },
@@ -273,6 +281,7 @@ export class ImportPlanService {
                 },
             });
             if (existing) {
+                assertCurrentMonthPlanDate(existing.snapshot);
                 assertImportPlanWithinMutationLimit(existing.snapshot, maxPlannedMutations);
                 await assertImportPlanConfigurationCurrent(
                     tx,
@@ -302,7 +311,10 @@ export class ImportPlanService {
                 },
             });
 
+            const recoveryDates = asMapping(session.mapping).importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH"
+                ? await guidedRecoveryDates(tx, input.branchId, session.id) : new Map<string, string>();
             const previouslySucceededMutations = previouslySucceededItems.map(item => ({
+                reviewedBusinessDate: item.importRowId ? recoveryDates.get(item.importRowId) : undefined,
                 itemKey: item.itemKey,
                 kind: item.kind,
                 rowId: item.importRowId,
@@ -326,6 +338,7 @@ export class ImportPlanService {
                     skipped: evaluation.skipped,
                     normalizedData: evaluation.normalizedData as ImportNormalizedRow | null,
                     warnings: Array.isArray(evaluation.warnings) ? evaluation.warnings as ImportIssue[] : [],
+                    issues: Array.isArray(evaluation.issues) ? evaluation.issues as ImportIssue[] : [],
                 }))),
                 asOf: new Date(),
                 maxPlannedMutations,

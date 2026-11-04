@@ -1,6 +1,7 @@
 "use client";
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
+import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, Layers, Loader2, Lock } from "lucide-react";
@@ -37,6 +38,8 @@ type CompactImportAllocationPickerProps = {
     draft: RowDraft;
     branchContext: ImportDetail["branchContext"];
     feeLinked: boolean;
+    guided?: boolean;
+    feeLocked?: boolean;
     onDraftChange: (field: keyof RowDraft, value: string) => void;
     onFeeLinkChange: (linked: boolean) => void;
 };
@@ -69,16 +72,20 @@ export function CompactImportAllocationPicker({
     draft,
     branchContext,
     feeLinked,
+    guided = false,
+    feeLocked = false,
     onDraftChange,
     onFeeLinkChange,
 }: CompactImportAllocationPickerProps) {
     const t = useTranslation();
+    const { formatNumber } = useUserPreferences();
     const [availabilityState, setAvailabilityState] = useState<AvailabilityState>({
         key: "",
         data: null,
         error: null,
     });
     const [hoveredSeatId, setHoveredSeatId] = useState<string | null>(null);
+    const [seatSearch, setSeatSearch] = useState("");
     const selectedIds = useMemo(() => allocationSelectionFromDraft(draft, branchContext), [branchContext, draft]);
     const selectedShiftIdsKey = selectedIds.shiftIds.join(",");
     const selectedShiftKey = selectedIds.multiShiftId ?? selectedIds.shiftIds[0] ?? "";
@@ -164,12 +171,15 @@ export function CompactImportAllocationPicker({
                 <div className="pr-8">
                     <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold text-[color:var(--text-primary)]">{shift.name}</p>
-                        {shift.type === "MULTISHIFT" && <Badge variant="purple">{t("bundle")}</Badge>}
+                        {shift.type === "MULTISHIFT" && <Badge variant="purple">{t(guided ? "Combined access" : "bundle")}</Badge>}
                         {shift.isFull && <Badge variant="danger">{t("full")}</Badge>}
                     </div>
-                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{timeRange(shift)} / {formatAmount(shift.price)}</p>
+                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{guided && shift.type === "MULTISHIFT" ? t("Includes these timings") : timeRange(shift)} / {guided ? `₹${formatNumber(shift.price)}` : formatAmount(shift.price)}</p>
                     {shift.componentShiftNames?.length ? (
-                        <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{shift.componentShiftNames.join(", ")}</p>
+                        <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{shift.componentShiftNames.map(name => {
+                            const component = guided ? branchContext?.shifts.find(choice => choice.name === name) : undefined;
+                            return component ? `${name} ${timeRange(component)}` : name;
+                        }).join(" · ")}</p>
                     ) : null}
                 </div>
                 <div className="mt-3">
@@ -186,13 +196,14 @@ export function CompactImportAllocationPicker({
         <div className={cn("space-y-4 p-4", pageInsetSurfaceClass)}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p className={pickerSectionLabelClass}>{t("Seat and shift")}</p>
-                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Choose shift or bundle first, then pick an available seat.")}</p>
+                    <p className={pickerSectionLabelClass}>{t(guided ? "Study timings and seat" : "Seat and shift")}</p>
+                    <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t(guided ? "Combined access includes every timing shown. Choose timings, then a seat." : "Choose shift or bundle first, then pick an available seat.")}</p>
                 </div>
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                     <input
                         type="checkbox"
                         checked={feeLinked}
+                        disabled={feeLocked}
                         onChange={event => toggleFeeLink(event.target.checked)}
                         className="h-4 w-4 rounded border-[color:var(--ui-form-field-border)] bg-[color:var(--ui-form-field-bg)]"
                     />
@@ -215,7 +226,7 @@ export function CompactImportAllocationPicker({
                             <div className="space-y-2">
                                 <p className={pickerGroupLabelClass}>
                                     <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ui-badge-cyan-text)]" />
-                                    {t("Shifts")}</p>
+                                    {t(guided ? "Single timing" : "Shifts")}</p>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     {primaryShifts.map(renderShiftCard)}
                                 </div>
@@ -225,7 +236,7 @@ export function CompactImportAllocationPicker({
                             <div className="space-y-2">
                                 <p className={pickerGroupLabelClass}>
                                     <Layers className="h-3 w-3" />
-                                    {t("Bundles")}</p>
+                                    {t(guided ? "Combined access" : "Bundles")}</p>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     {multiShifts.map(renderShiftCard)}
                                 </div>
@@ -234,7 +245,7 @@ export function CompactImportAllocationPicker({
                     </div>
 
                     {!availability?.seatMap && (
-                        <p className={pickerHintClass}>{t("Select a shift or bundle to see seats.")}</p>
+                        <p className={pickerHintClass}>{t(guided ? "Choose timings to see available seats." : "Select a shift or bundle to see seats.")}</p>
                     )}
 
                     {availability?.seatMap && (
@@ -245,17 +256,24 @@ export function CompactImportAllocationPicker({
                                     <span className="font-semibold text-[color:var(--ui-tone-success-text)]">{availability.seatMap.availableCount}</span>  {t("free")}<span className="mx-1">/</span>
                                     <span className="font-semibold text-[color:var(--ui-tone-danger-text)]">{availability.seatMap.occupiedCount}</span>  {t("taken")}</p>
                             </div>
+                            <label className="block text-sm">
+                                {t("Search seats")}
+                                <input type="search" value={seatSearch} onChange={e => setSeatSearch(e.target.value)} className="mt-1 w-full rounded border border-[color:var(--ui-form-field-border)] bg-[color:var(--ui-form-field-bg)] p-2" />
+                            </label>
+                            <p className={pickerHintClass}>{t("Occupied seats show whether the conflict is live or in this draft.")}</p>
                             <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10">
-                                {availability.seatMap.seats.map(seat => {
+                                {availability.seatMap.seats.filter(seat => key(seat.label).includes(key(seatSearch))).map(seat => {
                                     const selected = key(seat.label) === key(currentSeatLabel);
-                                    const occupied = seat.occupied && !selected;
+                                    const occupied = seat.occupied;
+                                    const reason = seat.source === "staged" ? t("Draft conflict") : seat.source === "existing" ? t("Occupied in Lab Lords") : t("Available");
                                     return (
                                         <div key={seat.seatId} className="group relative">
                                             <button
                                                 type="button"
-                                                disabled={occupied}
+                                                disabled={occupied && !selected}
                                                 aria-pressed={selected}
-                                                aria-label={`${seat.label}${occupied ? ", unavailable" : selected ? ", selected" : ", available"}`}
+                                                aria-label={`${seat.label}, ${reason}${selected ? ", selected" : ""}`}
+                                                title={`${reason}${seat.stagedRowNumber ? ` (${t("Row")} ${seat.stagedRowNumber})` : ""}`}
                                                 onMouseEnter={() => setHoveredSeatId(seat.seatId)}
                                                 onMouseLeave={() => setHoveredSeatId(null)}
                                                 onFocus={() => setHoveredSeatId(seat.seatId)}
@@ -268,6 +286,7 @@ export function CompactImportAllocationPicker({
                                             >
                                                 {occupied ? <Lock className="h-3 w-3" /> : selected ? <Check className="h-3 w-3" /> : null}
                                                 <span>{seat.label}</span>
+                                                {occupied && <span className="text-[9px]">{seat.source === "staged" ? t("Draft") : t("Taken")}</span>}
                                             </button>
                                             {hoveredSeatId === seat.seatId && (seat.occupiedBy || seat.source !== "available") && (
                                                 <div className={pickerTooltipClass}>

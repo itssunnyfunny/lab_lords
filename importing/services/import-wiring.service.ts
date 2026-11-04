@@ -28,6 +28,8 @@ import {
     stagedRowsForRequestedShifts,
 } from "@/importing/utils/staged-allocation-conflicts";
 import { buildImportPaymentPlan } from "@/importing/utils/import-payment-plan";
+import { guidedRecoveryDates, reviewedDate } from "./import-recovery-context";
+import { guidedSourceHolds } from "../utils/guided-source-reconciliation";
 
 type SessionRow = {
     id: string;
@@ -164,7 +166,8 @@ function buildPaymentPreview(
     normalized: ImportNormalizedRow,
     mapping: ImportMappingState,
     issues: ImportIssue[],
-    warnings: ImportIssue[]
+    warnings: ImportIssue[],
+    asOf = new Date()
 ): ImportPaymentPreview {
     const action = mapping.importOptions?.paymentAction;
     const cycle = mapping.importOptions?.paymentCycle;
@@ -172,7 +175,7 @@ function buildPaymentPreview(
     const source = paymentAmountSource(normalized);
     const amount = normalized.payment?.amount ?? normalized.student?.monthlyFee ?? null;
     const blockers = [...issues, ...warnings].filter(issue => issue.code.startsWith("PAYMENT"));
-    const plan = buildImportPaymentPlan(normalized, mapping);
+    const plan = buildImportPaymentPlan(normalized, mapping, asOf);
 
     return {
         enabled,
@@ -246,6 +249,7 @@ export class ImportWiringService {
 
         const columns = columnsFromFileMeta(session.fileMeta, session.rows[0]?.rawData);
         const mapping = normalizeMapping(session.mapping, columns);
+        const recoveryDates = mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH" ? await guidedRecoveryDates(prisma, branchId, sessionId) : new Map<string, string>();
         const context = await getValidationContext(branchId);
         const normalizedData = applyImportDefaults(
             promoteKnownMultiShiftAllocation(cloneNormalized(input.normalizedData), context),
@@ -255,7 +259,7 @@ export class ImportWiringService {
 
         const result = mergeValidatorResults(
             validateRequiredImportFields(normalizedData),
-            validateImportStudent(normalizedData, context),
+            validateImportStudent(normalizedData, context, mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH"),
             validateImportSeat(normalizedData, {
                 seatsByLabel: context.seatsByLabel,
                 createUnknownSeats: mapping.importOptions?.createUnknownSeats,
@@ -274,7 +278,7 @@ export class ImportWiringService {
                 ...context,
                 skipConflictingAllocations: mapping.importOptions?.skipConflictingAllocations,
             }),
-            validateImportPayment(normalizedData, mapping)
+            validateImportPayment(normalizedData, mapping, reviewedDate(recoveryDates.get(row.id)))
         );
 
         const sessionRows = session.rows.map(item => ({
@@ -306,6 +310,7 @@ export class ImportWiringService {
         ];
         const issues = [
             ...result.issues,
+            ...(mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH" ? guidedSourceHolds(row.mappedData) : []),
             ...(mapping.importOptions?.skipConflictingAllocations ? [] : stagedConflicts),
         ];
         const warnings = [...result.warnings, ...skippedStagedConflicts, ...duplicateWarnings];
@@ -317,7 +322,7 @@ export class ImportWiringService {
             normalizedData,
             issues,
             warnings,
-            paymentPreview: buildPaymentPreview(normalizedData, mapping, issues, warnings),
+            paymentPreview: buildPaymentPreview(normalizedData, mapping, issues, warnings, reviewedDate(recoveryDates.get(row.id))),
             suggestedFixes: suggestedFixes(issues, warnings),
         };
     }

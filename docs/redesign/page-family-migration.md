@@ -1,5 +1,18 @@
 # Application page-family migration
 
+Guided import completion, 3 November 2026: family G reuses AppPanel, AppButton,
+Dialog, shared form/status tokens and the compact allocation picker. New marked
+sessions use student task cards, focused corrections, one plan-based fee review
+and actual saved outcomes. RowsStep, PreviewStep and ResultStep remain owners of
+the compatibility wizard. Recorded-only payment fields and validated equivalent
+shift preparation are preserved. Current-month fee policy is an explicitly
+requested product change, separate from presentation migration. See the
+[implementation record](import-guidance.md) and
+[full-workspace visual review](import-workspace-review.md). Local implementation,
+owner visual acceptance and Production release are tracked separately; local
+tests do not confer owner approval or release.
+
+
 Guided onboarding, 2 November 2026: family G now uses business/location language,
 one editable session with explicit fees, optional combined access, real trial
 tier selection and a review/import finish. Existing AppButton, Dialog,

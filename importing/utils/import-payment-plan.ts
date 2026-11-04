@@ -1,6 +1,7 @@
 import { isAfter, isBefore, isSameDay, startOfDay } from "date-fns";
 import type { PaymentStatus } from "@/app/generated/prisma/enums";
 import type { ImportMappingState, ImportNormalizedRow, ImportOptions, PaymentHistoryMode } from "@/importing/contracts/import-session.contract";
+import { currentMonthOutcome } from "./current-month-import";
 import {
     currentMonthJoinedCycle,
     isCycleDue,
@@ -118,6 +119,16 @@ export function buildImportPaymentPlan(
         : mappingOrOptions as ImportOptions | undefined | null;
     const historyMode = importPaymentHistoryMode(options);
     const joinedAt = normalized.student?.joinedAt ? new Date(normalized.student.joinedAt) : null;
+
+    if (options?.paymentPolicy === "CURRENT_CALENDAR_MONTH") {
+        const outcome = currentMonthOutcome(normalized, asOf);
+        const cycle = joinedAt && outcome.state === "CREATE_NOW" ? currentMonthJoinedCycle(joinedAt, asOf) : null;
+        const items: ImportPaymentPlanItem[] = cycle ? [{ cycle, status: currentStatus(normalized, options), bucket: "current" }] : [];
+        const limit = boundedCycleLimit(limits.maxItems);
+        return { enabled: true, historyMode: DEFAULT_PAYMENT_HISTORY_MODE,
+            billingStartAt: outcome.billingStartAt ? new Date(outcome.billingStartAt) : null,
+            items: items.slice(0, limit), hasMoreItems: items.length > limit, skippedHistoricalPayments: 0 };
+    }
 
     if (!isPaymentEnabled(options) || !joinedAt || Number.isNaN(joinedAt.getTime())) {
         return {

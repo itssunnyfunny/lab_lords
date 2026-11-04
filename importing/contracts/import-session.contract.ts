@@ -146,6 +146,7 @@ export type ImportMappingResult = {
     model?: string;
     usedFallback?: boolean;
     aiTrace?: ImportAITrace;
+    draftShiftProposals?: import("../utils/guided-shift-assistance").GuidedShiftProposal[];
 };
 
 export type PaymentCycleOption = "USE_JOINED_AT_ANNIVERSARY" | "SKIP_PAYMENTS";
@@ -171,6 +172,8 @@ export type ImportPaymentMapping = {
 };
 
 export type ImportOptions = {
+    /** Server-owned policy for new guided sessions; retained drafts keep their original policy. */
+    paymentPolicy?: "CURRENT_CALENDAR_MONTH";
     paymentCycle?: PaymentCycleOption;
     paymentAction?: PaymentImportAction;
     paymentHistoryMode?: PaymentHistoryMode;
@@ -214,6 +217,13 @@ export type ImportBranchContext = {
 };
 
 export type ImportMappingState = {
+    guidance?: {
+        version: 1;
+        passes: number;
+        preparedRevision: number;
+        preparedRows?: number;
+        answers: Array<{ field: string; source: string; target: string; affected: number }>;
+    };
     entityTypesDetected: ImportEntityType[];
     columnMappings: ImportColumnMapping[];
     questions?: ImportAIQuestion[];
@@ -286,6 +296,7 @@ export type ImportSessionSummary = {
 
 export type CreateImportSessionInput =
     | {
+          experience?: "GUIDED_CURRENT_MONTH_V1";
           sourceType: Extract<ImportSourceType, "CSV" | "XLSX" | "XLS" | "PDF" | "OTHER">;
           fileName?: string;
           fileMeta?: Record<string, unknown>;
@@ -298,6 +309,7 @@ export type CreateImportSessionInput =
           };
       }
     | {
+          experience?: "GUIDED_CURRENT_MONTH_V1";
           sourceType: "PASTED_TABLE";
           fileName?: string;
           fileMeta?: Record<string, unknown>;

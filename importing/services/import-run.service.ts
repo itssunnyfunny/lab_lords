@@ -22,6 +22,7 @@ import { importStagingPurgeAfter } from "../utils/import-retention";
 import { isImportRunDispatchRequired } from "../utils/import-run-dispatch";
 import { syncImportSessionRunLifecycle } from "./import-run-lifecycle.service";
 import { assertImportPlanConfigurationCurrent } from "./import-plan-configuration.service";
+import { assertCurrentMonthPlanDate } from "../utils/current-month-import";
 
 const ACTIVE_RUN_STATUSES: ImportRunStatus[] = [
     "QUEUED",
@@ -292,6 +293,7 @@ export class ImportRunService {
                     }
                     if (!plan.canRun) throw new Error("Import plan has blocking checks");
                     snapshot = parsePlanSnapshot(plan.snapshot);
+                    assertCurrentMonthPlanDate(snapshot);
                     assertImportPlanWithinMutationLimit(snapshot, getImportMaxPlannedMutations());
                     await assertImportPlanConfigurationCurrent(tx, input.branchId, snapshot);
                     if (

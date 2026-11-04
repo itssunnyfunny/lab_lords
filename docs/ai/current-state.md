@@ -1,5 +1,31 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Guided import preparation — local, 2026-11-03
+
+New marked sessions use a student help queue, grouped branch shift interpretations,
+revision-fenced iterative preparation and current-month anniversary fees. The
+existing JSON persistence, immutable plans and durable run ledger remain owners;
+older drafts and running/completed plans retain their original policy. Gemini
+receives only structural draft/answer context. Re-preparation can now produce
+validated row-group shift proposals from opaque equivalence/answer bindings,
+even when columns are already correct. Guided editors keep absent payment
+amounts blank and retain explicit facts across fee/shift changes. See the [implementation and
+validation record](../redesign/import-guidance.md). No schema, provider SDK,
+pricing or Production environment change is included.
+
+The guided presentation now uses named student cards and correction tasks, a
+focused details/seating/fees dialog, and one immutable-plan financial review.
+Outstanding, paid, waived, existing, future and held fee facts are separate.
+Seating counts represent students rather than combined-access component links.
+Preparation is offered only for unresolved columns or reusable confirmed meanings;
+missing dates, payment facts and seat choices remain explicit owner decisions.
+Results summarize successful session ledger operations and their original plans,
+not live balances or a successful student operation treated as a payment success.
+Remaining draft records retain a completion path even when the selected run
+succeeded. Older sessions retain the compatibility wizard. See the
+[workspace review and screenshots](../redesign/import-workspace-review.md).
+
+
 ## Guided onboarding and explicit trial tiers — local, 2026-11-02
 
 The requested onboarding change replaces internal organization/shift terminology

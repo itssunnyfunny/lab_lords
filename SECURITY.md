@@ -1,5 +1,23 @@
 # Security Review Policy
 
+## Guided import draft context — local, 3 November 2026
+
+The existing import AI privacy boundary includes structural current-draft context:
+opaque row/answer aliases, whitelisted field names, generic issue categories,
+manual flags and bounded affected counts. Raw source values, previous answer
+values and actual branch configuration remain server-side. Existing Gemini
+output sanitization and confidence gating apply. Opaque source/meaning/choice
+bindings can preserve a confirmed shift interpretation across locally equivalent
+spellings. Proposals must cite one uncontradicted owner answer; the server
+rechecks the binding, current branch choice and mutable rows under the existing
+publication lock. AI cannot change manual fields or infer new meanings. Raw
+labels and IDs never cross this boundary. Group confirmations resolve
+branch-owned configuration locally under authorization and expected revision;
+AI cannot choose seats, establish payment truth or trigger domain writes.
+Manual work and newer revisions fence stale publication. See the
+[implementation evidence](docs/redesign/import-guidance.md).
+
+
 > Repository policy for Codex Security and other security reviewers.
 >
 > Last reconciled with the PR4 WhatsApp report-hardening working tree on

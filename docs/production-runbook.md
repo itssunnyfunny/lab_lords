@@ -1,5 +1,32 @@
 # Production runbook
 
+## Guided current-month imports — 3 November 2026
+
+No new migration or application environment setting is required. The existing
+Import V2 enablement and positive mutation cap still apply. Only newly marked
+sessions adopt the simplified policy; old drafts and frozen active/terminal
+plans retain their interpretation. Current-month boundaries persist on the
+student even without an immediate payment. Business-date changes require a new
+review before a new commit; active runs keep their frozen dates and outcomes.
+
+For rollback, disable new Import V2 starts and drain or explicitly cancel active
+runs through the existing ledger controls before changing application versions.
+Do not reinterpret marked drafts with older payment compilation code: retain
+staging and successful operation evidence and re-review with a compatible
+version. Never reverse domain writes by deleting the run history. The connected
+browser fixture and exact local validation are described in the
+[implementation record](redesign/import-guidance.md). Production release,
+provider approval and owner visual acceptance remain separate.
+
+The completed guided UI adds optional held-fee and deferred-seating counts to
+new immutable JSON plan snapshots; no schema migration is needed. A cached review
+without those counts asks the owner to refresh it explicitly, advancing the draft
+revision and compiling a new review. This does not rewrite historical plans or
+started runs. Saved fee totals use successful payment ledger items and their
+original reviewed outcomes; today's balances remain owned by Fees. See the
+[full-workspace verification record](redesign/import-workspace-review.md).
+
+
 ## Explicit onboarding trial plan — 2 November 2026
 
 Hosted preview observation on 2 November: Vercel rejected this change's automatic
