@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { draftFromImportRowWithFallback, normalizedFromImportDraft } from "@/importing/utils/manual-row-draft";
 import { freezeTime, restoreTime } from "@/tests/setup/time";
 import type { ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
+import type { ImportPlanSnapshot } from "@/importing/contracts/import-v2.contract";
 
 type World = Awaited<ReturnType<typeof createTestWorld>>;
 async function draft(f: World, lines: string[]) {
@@ -72,6 +73,50 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         expect(payments.every(payment => format(payment.dueDate, "yyyy-MM") >= "2026-11")).toBe(true);
         expect(payments.every(payment => payment.status === "DUE")).toBe(true);
         expect(format(students.find(student => student.name === "Past Student")!.joinedAt, "yyyy-MM-dd")).toBe("2026-01-01");
+    });
+    it("reviews distinct fee outcomes and reports only the operations actually saved", async () => {
+        const f = await world();
+        const detail = await draft(f, [
+            "Due Student\t9876509001\t2026-01-01\t1000\t\t\t\t\t",
+            "Paid Student\t9876509002\t2026-01-01\t1200\t\t\tPAID\tCASH\t1200",
+            "Waived Student\t9876509003\t2026-01-01\t800\t\t\tWAIVED\t\t800",
+            "Future Student\t9876509004\t2026-01-15\t1500\t\t\t\t\t",
+            "New Student\t9876509005\t2026-11-01\t1000\t\t\t\t\t",
+            "Held Student\t9876509006\t2026-01-01\t1000\t\t\tPAID\tCASH\t300",
+            "Missing Fee\t9876509007\t2026-01-01\t\t\t\t\t\t",
+            "Invalid Fee\t9876509008\t2026-01-01\tunknown\t\t\t\t\t",
+        ]);
+        expect(detail.guidance?.preparation.canImprove).toBe(false);
+        expect(detail.guidance?.financialNeedsHelp).toBe(3);
+        const { plan } = await commit(f, detail);
+        expect((plan.snapshot as unknown as ImportPlanSnapshot).currentMonthReview).toMatchObject({ heldFinancialRows: 3, seatingDeferredRows: 5 });
+        const saved = await ImportSessionService.getSessionDetail(f.user.id, f.branch.id, detail.id);
+        expect(saved.guidance?.savedFinancials).toMatchObject({
+            due: { count: 1, amount: 1000 }, paid: { count: 1, amount: 1200 }, waived: { count: 1, amount: 800 },
+            future: { count: 1, amount: 1500 }, none: { count: 1, amount: 0 },
+        });
+        expect(await db.payment.count()).toBe(3);
+        expect(await db.student.count()).toBe(5);
+    });
+    it("does not report a recorded payment when only the student operation succeeded", async () => {
+        const f = await world();
+        const detail = await draft(f, [`Payment Recovery\t9876509011\t2026-01-01\t1200\tFull Day\t${f.seat.label}\tPAID\tCASH\t1200`]);
+        const plan = await ImportPlanService.compilePlan({ userId: f.user.id, branchId: f.branch.id, sessionId: detail.id, targetRevision: detail.draftRevision, readinessPolicy: "READY_ROWS_ONLY" });
+        const run = await ImportRunService.createOrGetRun({ userId: f.user.id, branchId: f.branch.id, sessionId: detail.id, kind: "COMMIT", targetRevision: detail.draftRevision, importPlanId: plan.id, confirmedPlanVersion: plan.planVersion, idempotencyKey: randomUUID() });
+        for (let pass = 0; pass < 10; pass++) {
+            const items = await ImportRunRunner.claimBatch({ importRunId: run.id, workerId: "financial-recovery-fixture", limit: 25 });
+            if (!items.length) break;
+            for (const item of items) {
+                if (item.kind === "PAYMENT_CYCLE") await ImportRunRunner.failItem({ importRunId: run.id, itemId: item.id, leaseToken: item.leaseToken, error: { code: "FIXTURE_PAYMENT_FAILURE", message: "Synthetic payment operation failure", retryable: false } });
+                else await ImportRunExecutor.executeClaimedItem(item);
+            }
+        }
+        await ImportRunRunner.finalizeRun(run.id);
+        const saved = await ImportSessionService.getSessionDetail(f.user.id, f.branch.id, detail.id);
+        expect(saved.guidance?.createdStudents).toBe(1);
+        expect(saved.guidance?.createdAllocations).toBe(1);
+        expect(saved.guidance?.savedFinancials?.paid).toEqual({ count: 0, amount: 0 });
+        expect(await db.payment.count()).toBe(0);
     });
     it("applies repeated ambiguity across pages, sends updated structural context, preserves manual fields and bounds passes", async () => {
         const f = await world();

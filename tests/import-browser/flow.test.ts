@@ -47,6 +47,7 @@ describe("connected import browser → real route → real service → disposabl
         await createSeat({ branchId: f.branch.id, label: "C3" });
         fixture.provider.mockReset().mockResolvedValue({ ok: false, error: "Deterministic provider failure; manual correction remains available" });
         let injectAllocationFailure = true;
+        let injectPaymentFailure = true;
         fixture.dispatch.mockImplementation(async run => {
             if (run.kind === "ANALYSIS") {
                 await ImportSessionService.analyzeSession(f.user.id, f.branch.id, run.importSessionId, run.targetRevision);
@@ -59,6 +60,9 @@ describe("connected import browser → real route → real service → disposabl
                         if (injectAllocationFailure && item.kind === "ALLOCATION" && item.normalizedData?.student?.name === "Ambiguous Student") {
                             injectAllocationFailure = false;
                             await ImportRunRunner.failItem({ importRunId: run.id, itemId: item.id, leaseToken: item.leaseToken, error: { code: "FIXTURE_SEAT_CHANGED", message: "Seat availability changed after review.", retryable: false } });
+                        } else if (injectPaymentFailure && item.kind === "PAYMENT_CYCLE" && item.normalizedData?.student?.name === "Payment Recovery Student") {
+                            injectPaymentFailure = false;
+                            await ImportRunRunner.failItem({ importRunId: run.id, itemId: item.id, leaseToken: item.leaseToken, error: { code: "FIXTURE_PAYMENT_FAILURE", message: "Synthetic payment operation failure.", retryable: false } });
                         } else await ImportRunExecutor.executeClaimedItem(item);
                     }
                 }
@@ -105,7 +109,15 @@ describe("connected import browser → real route → real service → disposabl
             const context = await browser.newContext({ viewport, locale: "en-IN", timezoneId: "Asia/Kolkata" });
             const page = await context.newPage(); const consoleErrors: string[] = [];
             page.on("pageerror", error => consoleErrors.push(error.message));
-            page.on("console", message => { if (message.type() === "error") consoleErrors.push(message.text()); });
+            let staleReviewResponse = false;
+            page.on("console", message => {
+                if (message.type() !== "error") return;
+                if (staleReviewResponse && /Failed to load resource:.*409/.test(message.text())) {
+                    staleReviewResponse = false;
+                    return;
+                }
+                consoleErrors.push(message.text());
+            });
             await page.goto(`http://127.0.0.1:4194/branch/${f.branch.id}/onboarding/import`);
             await browserExpect(page.getByRole("heading", { name: "Add your student records" })).toBeVisible();
             if (viewport.width > 1000) await page.getByRole("button", { name: "Paste table", exact: true }).click();
@@ -116,13 +128,14 @@ describe("connected import browser → real route → real service → disposabl
             if (viewport.width > 1000) await page.locator("textarea").fill(table);
             else await page.locator('input[type="file"]').setInputFiles({ name: "students.csv", mimeType: "text/csv", buffer: Buffer.from(table.replaceAll("\t", ",")) });
             await page.getByRole("button", { name: "Prepare my records" }).click();
-            await browserExpect(page.getByRole("heading", { name: "Prepare your students", exact: true })).toBeVisible();
+            await browserExpect(page.getByRole("heading", { name: "Check your students", exact: true })).toBeVisible();
+            await browserExpect(page.getByText("Fix these first", { exact: true })).toHaveCount(0);
             expect(await db.student.count()).toBe(0);
-            const fdGroup = page.getByText("1 students use “FD”. Choose what it means.", { exact: true }).locator("..");
+            const fdGroup = page.getByText("What does “FD” mean?", { exact: true }).locator("..");
             await browserExpect(fdGroup).toBeVisible();
-            await fdGroup.getByRole("combobox", { name: "Branch shift or bundle" }).selectOption(fullDay.id);
-            await fdGroup.getByRole("button", { name: "Apply to all matching students" }).click();
-            await browserExpect(page.getByText("Interpretation applied. Review the remaining fields.")).toBeVisible();
+            await fdGroup.getByRole("combobox").selectOption(fullDay.id);
+            await fdGroup.getByRole("button", { name: "Confirm for matching students" }).click();
+            await browserExpect(page.getByText(/Meaning applied to matching students/)).toBeVisible();
             fixture.provider.mockImplementation(async (prompt: string) => {
                 const current = JSON.parse(prompt.match(/opaque structural context\):\n([^\n]+)/)![1]);
                 const assistance = current.shiftAssistance;
@@ -135,33 +148,47 @@ describe("connected import browser → real route → real service → disposabl
                     }) } };
             });
             await page.getByRole("button", { name: "Prepare remaining records", exact: true }).click();
-            await browserExpect(page.getByText("Preparation used your confirmed meanings for 1 students. Review what remains.", { exact: true })).toBeVisible();
+            await browserExpect(page.getByText("Students updated from your confirmed meanings: 1", { exact: true })).toBeVisible();
+            await browserExpect(page.getByRole("button", { name: "Prepare remaining records", exact: true })).toHaveCount(0);
             const prepared = (await db.importRow.findMany({ where: { branchId: f.branch.id } })).find(row => (row.normalizedData as ImportNormalizedRow)?.student?.name === "Deferred Student")!;
             expect(prepared.normalizedData).toMatchObject({ allocation: { shiftName: "Full Day" } });
             expect(fixture.provider).toHaveBeenCalledOnce();
             expect(await db.student.count()).toBe(0);
-            await page.getByRole("button", { name: /Ambiguous Student/ }).click();
-            await page.locator("summary").filter({ hasText: "Recorded payment facts" }).click();
+            await page.getByRole("article").filter({ hasText: "Ambiguous Student" }).getByRole("button", { name: "Confirm joining date", exact: true }).click();
+            await browserExpect(page.getByLabel("Joined date", { exact: true })).toBeFocused();
+            await page.getByRole("tab", { name: "This month's fees", exact: true }).click();
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("");
+            await page.getByRole("tab", { name: "Student details", exact: true }).click();
             await page.getByLabel("Joined date", { exact: true }).fill(joined);
+            await page.getByRole("button", { name: "Back to student list", exact: true }).click();
+            await browserExpect(page.getByText("Save or reset your edits before continuing.", { exact: true })).toBeVisible();
+            await browserExpect(page.getByLabel("Joined date", { exact: true })).toHaveValue(joined);
+            await page.getByRole("tab", { name: "Student details", exact: true }).focus();
+            await page.keyboard.press("ArrowRight");
+            await browserExpect(page.getByRole("tab", { name: "Seat and timings", exact: true })).toHaveAttribute("aria-selected", "true");
+            await page.keyboard.press("ArrowLeft");
             await page.getByLabel("Monthly fee", { exact: true }).fill("-300");
             await page.getByRole("button", { name: "Save & next", exact: true }).click();
             await browserExpect(page.getByText("Use whole non-negative rupee amounts. Recorded amounts will not be rounded.")).toBeVisible();
             await page.getByLabel("Monthly fee", { exact: true }).fill("1200");
             await page.getByRole("button", { name: "Save & next", exact: true }).click();
             await browserExpect.poll(async () => (await db.importRow.findMany({ where: { branchId: f.branch.id } })).find(row => (row.normalizedData as ImportNormalizedRow)?.student?.name === "Ambiguous Student")?.normalizedData).toMatchObject({ student: { monthlyFee: 1200 } });
-            await page.getByRole("combobox", { name: "Filter import rows" }).click();
-            await page.getByRole("option", { name: "All rows", exact: true }).click();
+            await page.getByRole("tab", { name: /^All students/ }).click();
             await page.getByRole("button", { name: /Ambiguous Student/ }).click();
             await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1200");
-            if (!await page.getByLabel("Payment amount", { exact: true }).isVisible()) await page.locator("summary").filter({ hasText: "Recorded payment facts" }).click();
+            await page.getByRole("tab", { name: "This month's fees", exact: true }).click();
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("");
+            await page.getByRole("tab", { name: "Seat and timings", exact: true }).click();
             await page.getByRole("checkbox", { name: "Link fee to selected price" }).check();
+            await page.getByRole("tab", { name: "Student details", exact: true }).click();
             await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1000");
-            await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("");
+            await page.getByRole("tab", { name: "Seat and timings", exact: true }).click();
             await page.getByRole("button", { name: /Morning Evening, .*seats free/ }).click();
+            await page.getByRole("tab", { name: "Student details", exact: true }).click();
             await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1500");
+            await page.getByRole("tab", { name: "This month's fees", exact: true }).click();
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("");
+            await page.getByRole("tab", { name: "Seat and timings", exact: true }).click();
             await page.getByRole("searchbox", { name: "Search seats" }).fill("C3");
             await page.getByRole("button", { name: /^C3,/ }).focus();
             await page.keyboard.press("Enter");
@@ -176,23 +203,43 @@ describe("connected import browser → real route → real service → disposabl
             });
             await page.getByRole("button", { name: "Save & next", exact: true }).click();
             await nextPending;
-            try { await browserExpect(page.getByRole("button", { name: "Review and import", exact: true })).toBeDisabled(); }
+            try { await browserExpect(page.getByRole("button", { name: /^Review and save/ })).toBeDisabled(); }
             finally { releaseNext(); }
-            await browserExpect(page.getByRole("button", { name: "Review and import", exact: true })).toBeEnabled();
+            await browserExpect(page.getByRole("button", { name: /^Review and save/ })).toBeEnabled();
             await page.unroute(attentionUrl);
-            await browserExpect(page.getByText("Saved in the draft. Nothing has been imported yet.")).toBeVisible();
+            await browserExpect(page.getByText(/Student changes saved in this draft/)).toBeVisible();
             await page.reload();
-            await browserExpect(page.getByRole("heading", { name: "Prepare your students", exact: true })).toBeVisible();
+            await browserExpect(page.getByRole("heading", { name: "Check your students", exact: true })).toBeVisible();
+            await browserExpect(page.getByRole("heading", { name: "Your students are ready to review", exact: true })).toBeVisible();
+            await browserExpect(page.getByRole("tab", { name: /^Ready for review/ })).toHaveAttribute("aria-selected", "true");
             const corrected = (await db.importRow.findMany({ where: { branchId: f.branch.id } })).find(row => (row.normalizedData as ImportNormalizedRow)?.student?.name === "Ambiguous Student")!;
             expect((corrected.normalizedData as ImportNormalizedRow).student?.monthlyFee).toBe(1500);
             expect((corrected.normalizedData as ImportNormalizedRow).payment).toBeUndefined();
             expect((corrected.issues as Array<{ code: string }>).some(issue => issue.code === "PARTIAL_PAYMENT_REVIEW")).toBe(false);
-            await page.getByRole("button", { name: "Review and import", exact: true }).click();
-            await browserExpect(page.getByRole("heading", { name: "Current-month outcomes" })).toBeVisible();
+            const reviewUrl = (url: URL) => url.pathname === `${sessionPath}/plans`;
+            const concurrentEdit = viewport.width === 1440;
+            await page.route(reviewUrl, async route => {
+                if (concurrentEdit) {
+                    const current = await ImportSessionService.getSessionDetail(f.user.id, f.branch.id, sessionPath.split("/").at(-1)!);
+                    await ImportSessionService.updateMapping(f.user.id, f.branch.id, current.id, {
+                        expectedRevision: current.draftRevision,
+                        columnMappings: current.mapping.columnMappings,
+                    });
+                }
+                staleReviewResponse = true;
+                await route.fulfill({ status: 409, json: concurrentEdit
+                    ? { code: "IMPORT_REVISION_CONFLICT", error: "This import changed in another tab. Refresh before saving again." }
+                    : { code: "IMPORT_BUSINESS_DATE_CHANGED", error: "The business date changed. Refresh payment outcomes and review a new plan before importing." } });
+            }, { times: 1 });
+            await page.getByRole("button", { name: /^Review and save/ }).click();
+            await browserExpect(page.getByRole("alert").filter({ hasText: concurrentEdit ? /changed in another tab/ : /The business date changed/ })).toBeVisible();
+            expect(await db.student.count()).toBe(0);
+            await page.getByRole("button", { name: "Refresh review", exact: true }).click();
+            await browserExpect(page.getByRole("heading", { name: "This month's fees" })).toBeVisible();
             expect(await db.student.count()).toBe(0);
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
             await page.screenshot({ path: `test-results/import-connected/review-${viewport.width}.png`, fullPage: true });
-            await page.getByRole("button", { name: /^Import \d+ ready row/ }).click();
+            await page.getByRole("button", { name: "Confirm and save", exact: true }).click();
             await browserExpect(page.getByRole("alertdialog")).toBeVisible();
             await page.getByRole("alertdialog").getByRole("button", { name: "Confirm import", exact: true }).click();
             await browserExpect.poll(() => db.student.count()).toBe(3);
@@ -201,15 +248,23 @@ describe("connected import browser → real route → real service → disposabl
             await page.screenshot({ path: `test-results/import-connected/result-${viewport.width}.png`, fullPage: true });
             // Persisted partial progress is recovered after a real browser refresh.
             await page.reload();
-            await page.getByRole("button", { name: "Import results", exact: true }).click();
-            const repair = page.getByRole("button", { name: "Fix issues and review a new plan", exact: true });
+            const repair = page.getByRole("button", { name: "Finish the remaining work", exact: true });
             await repair.click();
             await page.getByRole("button", { name: /Ambiguous Student/ }).click();
+            await page.getByRole("tab", { name: "Student details", exact: true }).click();
+            await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toBeDisabled();
+            await page.getByRole("tab", { name: "Seat and timings", exact: true }).click();
+            await browserExpect(page.getByRole("checkbox", { name: "Link fee to selected price" })).toBeDisabled();
+            await page.getByRole("button", { name: /Full Day, .*seats free/ }).click();
+            await page.getByRole("tab", { name: "Student details", exact: true }).click();
+            await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1500");
+            await page.getByRole("tab", { name: "Seat and timings", exact: true }).click();
+            await page.getByRole("button", { name: /Morning Evening, .*seats free/ }).click();
             await page.getByRole("searchbox", { name: "Search seats" }).fill("B2");
             await page.getByRole("button", { name: /^B2,/ }).click();
             await page.getByRole("button", { name: "Save & next", exact: true }).click();
-            await page.getByRole("button", { name: "Review and import", exact: true }).click();
-            await page.getByRole("button", { name: /^Import \d+ ready row/ }).click();
+            await page.getByRole("button", { name: /^Review and save/ }).click();
+            await page.getByRole("button", { name: "Confirm and save", exact: true }).click();
             await page.getByRole("alertdialog").getByRole("button", { name: "Confirm import", exact: true }).click();
             await browserExpect.poll(async () => (await db.importSession.findUniqueOrThrow({ where: { id: session.id } })).status).toBe("COMMITTED");
             expect(await db.student.count()).toBe(3);
@@ -218,6 +273,35 @@ describe("connected import browser → real route → real service → disposabl
             expect(await db.payment.count({ where: { studentId: student.id } })).toBe(1);
             expect((await db.payment.findFirstOrThrow({ where: { studentId: student.id } })).amount).toBe(1500);
             expect(student.billingStartAt).not.toBeNull();
+            const paymentSeat = await createSeat({ branchId: f.branch.id, label: "D4" });
+            const paymentRecovery = await ImportSessionService.createSession(f.user.id, f.branch.id, {
+                sourceType: "PASTED_TABLE", experience: "GUIDED_CURRENT_MONTH_V1",
+                pastedTable: `Name\tPhone\tJoined Date\tMonthly Fee\tShift\tSeat\tPayment Status\tPayment Method\tPaid Amount\nPayment Recovery Student\t9876501999\t${joined}\t1000\tFull Day\t${paymentSeat.label}\tPAID\tCASH\t1000`,
+            });
+            await ImportSessionService.analyzeSession(f.user.id, f.branch.id, paymentRecovery.id);
+            await ImportRunRunner.setAnalysisStatus({ importRunId: paymentRecovery.analysisRun.id, status: "COMPLETED" });
+            await page.goto(`http://127.0.0.1:4194/branch/${f.branch.id}/onboarding/import/${paymentRecovery.id}`);
+            await page.getByRole("button", { name: /^Review and save/ }).click();
+            await page.getByRole("button", { name: "Confirm and save", exact: true }).click();
+            await page.getByRole("alertdialog").getByRole("button", { name: "Confirm import", exact: true }).click();
+            await browserExpect.poll(async () => (await db.importSession.findUniqueOrThrow({ where: { id: paymentRecovery.id } })).status).toBe("PARTIAL");
+            const retainedStudent = await db.student.findFirstOrThrow({ where: { name: "Payment Recovery Student" } });
+            const retainedSeat = await db.seatAllocation.findFirstOrThrow({ where: { studentId: retainedStudent.id, endDate: null } });
+            expect(await db.payment.count({ where: { studentId: retainedStudent.id } })).toBe(0);
+            await repair.click();
+            await page.getByRole("button", { name: /Payment Recovery Student/ }).click();
+            await page.getByRole("tab", { name: "Seat and timings", exact: true }).click();
+            await browserExpect(page.getByRole("searchbox", { name: "Search seats" })).toBeDisabled();
+            await browserExpect(page.getByRole("button", { name: "Add seating later", exact: true })).toHaveCount(0);
+            await page.getByRole("tab", { name: "This month's fees", exact: true }).click();
+            await browserExpect(page.getByLabel("Payment amount", { exact: true })).toBeEnabled();
+            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await page.getByRole("button", { name: /^Review and save/ }).click();
+            await page.getByRole("button", { name: "Confirm and save", exact: true }).click();
+            await page.getByRole("alertdialog").getByRole("button", { name: "Confirm import", exact: true }).click();
+            await browserExpect.poll(async () => (await db.importSession.findUniqueOrThrow({ where: { id: paymentRecovery.id } })).status).toBe("COMMITTED");
+            expect(await db.seatAllocation.findMany({ where: { studentId: retainedStudent.id, endDate: null }, select: { id: true } })).toEqual([{ id: retainedSeat.id }]);
+            expect(await db.payment.count({ where: { studentId: retainedStudent.id } })).toBe(1);
             // Recover a saved PDF draft from its URL, without the entry page's
             // transient confirmation state. Extraction itself has parser tests.
             const pdf = await db.importSession.create({ data: { branchId: f.branch.id, uploadedByUserId: f.user.id, engineVersion: 2, goal: "FULL", sourceType: "PDF", status: "UPLOADED",
@@ -228,26 +312,29 @@ describe("connected import browser → real route → real service → disposabl
             await ImportRunRunner.setAnalysisStatus({ importRunId: pdfRun.id, status: "WAITING_FOR_USER" });
             await page.goto(`http://127.0.0.1:4194/branch/${f.branch.id}/onboarding/import/${pdf.id}`);
             await browserExpect(page.getByText(/Name: PDF Student/)).toBeVisible();
-            await browserExpect(page.getByRole("button", { name: "Prepare remaining records", exact: true })).toBeDisabled();
+            await browserExpect(page.getByRole("button", { name: "Prepare remaining records", exact: true })).toHaveCount(0);
             await page.getByRole("button", { name: "Confirm PDF extraction and prepare", exact: true }).click();
             await browserExpect.poll(async () => (await db.importSession.findUniqueOrThrow({ where: { id: pdf.id } })).activeEvaluationRevision).toBe(1);
-            await page.locator("summary").filter({ hasText: "Recorded payment facts" }).click();
+            await page.getByRole("article").filter({ hasText: "PDF Student" }).getByRole("button", { name: "Confirm payment information", exact: true }).click();
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("300.50");
             await page.getByRole("button", { name: "Save & next", exact: true }).click();
             await browserExpect(page.getByText("Use whole non-negative rupee amounts. Recorded amounts will not be rounded.")).toBeVisible();
             await page.getByLabel("Payment amount", { exact: true }).fill("300");
+            await page.getByRole("tab", { name: "Student details", exact: true }).click();
             await page.getByLabel("Monthly fee", { exact: true }).fill("1200");
+            await page.getByRole("tab", { name: "Seat and timings", exact: true }).click();
             await page.getByRole("checkbox", { name: "Link fee to selected price" }).check();
             await page.getByRole("button", { name: /Morning Evening, .*seats free/ }).click();
+            await page.getByRole("tab", { name: "Student details", exact: true }).click();
             await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1500");
+            await page.getByRole("tab", { name: "This month's fees", exact: true }).click();
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("300");
             await page.getByRole("button", { name: "Save & next", exact: true }).click();
             await browserExpect.poll(async () => (await db.importRow.findFirstOrThrow({ where: { importSessionId: pdf.id } })).normalizedData).toMatchObject({ student: { monthlyFee: 1500 }, payment: { amount: 300 } });
-            const heldPartial = await db.importRow.findFirstOrThrow({ where: { importSessionId: pdf.id } });
-            expect((heldPartial.issues as Array<{ code: string }>).some(issue => issue.code === "PARTIAL_PAYMENT_REVIEW")).toBe(true);
+            await browserExpect.poll(async () => ((await db.importRow.findFirstOrThrow({ where: { importSessionId: pdf.id } })).issues as Array<{ code: string }>).some(issue => issue.code === "PARTIAL_PAYMENT_REVIEW")).toBe(true);
             for (const language of ["hi", "hinglish"]) {
                 await page.evaluate(language => window.dispatchEvent(new CustomEvent("lablords:preferences-updated", { detail: { ownerKey: "synthetic-import-owner", interfaceLanguage: language } })), language);
-                await browserExpect(page.getByRole("heading", { name: language === "hi" ? "छात्रों के रिकॉर्ड तैयार करें" : "Students ke records taiyar karein", exact: true })).toBeVisible();
+                await browserExpect(page.getByRole("heading", { name: language === "hi" ? "अपने छात्रों को जाँचें" : "Apne students check karein", exact: true })).toBeVisible();
                 await page.screenshot({ path: `test-results/import-connected/${language}-${viewport.width}.png`, fullPage: true });
             }
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

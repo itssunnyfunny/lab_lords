@@ -10,6 +10,9 @@ automatic reconciliation or new receipt claim is introduced. Local evidence is
 [recorded separately](../redesign/import-guidance.md); release remains separate.
 The fee-provenance and equivalent-shift re-preparation corrections restore this
 reviewed workflow without expanding the Home, Features, Pricing or FAQ claims.
+The completed student task list, visual assignment and accurate fee review use
+the same claims. Their [workspace evidence](../redesign/import-workspace-review.md)
+does not claim arbitrary AI correction, live-provider approval or release.
 
 
 ## Guided onboarding policy update — local, 2026-11-02

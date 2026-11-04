@@ -24,8 +24,9 @@ import { auditCloseoutMessages } from "./auditCloseout";
 import type { InterfaceLanguage } from "./language";
 import { onboardingMessages } from "./onboarding";
 import { importGuidanceMessages } from "./importGuidance";
+import { guidedImportExperienceMessages } from "./guidedImportExperience";
 
-export const messages = { ...basicProductMessages, ...basicWorkspaceMessages, ...auditCloseoutMessages, ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes, ...navigationRestorationMessages, ...onboardingMessages, ...importGuidanceMessages } as const;
+export const messages = { ...basicProductMessages, ...basicWorkspaceMessages, ...auditCloseoutMessages, ...referenceDashboardMessages, ...dashboardFeatureMessages, ...dashboardMessages, ...common, ...operations, ...attendanceMessages, ...documentMessages, ...management, ...whatsappMessages, ...errorMessages, ...settingsMessages, ...importMessages, ...analyticsMessages, ...billingMessages, ...workspaceMessages, ...whatsappDetails, ...detailMessages, ...operationalLabels, ...billingOutcomes, ...navigationRestorationMessages, ...onboardingMessages, ...importGuidanceMessages, ...guidedImportExperienceMessages } as const;
 export type MessageKey = keyof typeof messages;
 const lookup: Readonly<Record<string, readonly [string, string]>> = messages;
 const localizedMessages = new Set<string>(Object.values(lookup).flat());

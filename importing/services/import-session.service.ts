@@ -45,6 +45,8 @@ import { isGuidedImport, guidedImportOptions, evaluatedCurrentMonthOutcome, impo
 import { importGuidanceGroups, unresolvedShift } from "../utils/import-guidance";
 import { buildGuidedShiftAssistance, validGuidedShiftProposals, withGuidedShiftChoice, type GuidedShiftProposal } from "../utils/guided-shift-assistance";
 import { guidedRecoveryDates, reviewedDate } from "./import-recovery-context";
+import { guidedSavedOutcomes } from "./import-saved-outcomes";
+import { hasFinancialIssue } from "../utils/guided-import-presentation";
 import { GUIDED_SOURCE_HOLDS, guidedManualMetadata, guidedSourceHolds, reconcileGuidedSource, duplicateGuidedSourceColumns } from "../utils/guided-source-reconciliation";
 import { importStagingPurgeAfter } from "@/importing/utils/import-retention";
 import { isImportRunDispatchRequired } from "@/importing/utils/import-run-dispatch";
@@ -736,6 +738,7 @@ export class ImportSessionService {
                 skipped: true,
                 normalizedData: true,
                 createdEntityIds: true,
+                mappedData: true,
                 issues: true,
                 warnings: true,
                 confidence: true,
@@ -750,6 +753,15 @@ export class ImportSessionService {
             sessionStatus: session.status,
         });
         const branchContext = await getImportBranchContext(branchId);
+        const guided = isGuidedImport(session.sourceConfiguration);
+        const assistance = guided ? buildGuidedShiftAssistance(summaryRows.filter(row => !hasManualNormalizedData(row.mappedData)), branchContext, mapping.guidance?.answers ?? []).context : undefined;
+        const reusable = assistance ? validGuidedShiftProposals(assistance.groups.flatMap(group => {
+            const answer = assistance.answers.find(answer => answer.meaningAlias === group.meaningAlias);
+            return answer ? [{ sourceAlias: group.sourceAlias, choiceAlias: answer.choiceAlias, answerAlias: answer.answerAlias }] : [];
+        }), assistance) : [];
+        const reusableRows = reusable.reduce((count, proposal) => count + (assistance?.groups.find(group => group.sourceAlias === proposal.sourceAlias)?.affectedRecords ?? 0), 0);
+        const columnsToReview = mapping.columnMappings.filter(column => column.needsReview).length;
+        const savedFinancials = guided && latestRun?.kind === "COMMIT" ? await guidedSavedOutcomes(prisma, branchId, sessionId) : undefined;
         const recoveryDates = isGuidedImport(session.sourceConfiguration) ? await guidedRecoveryDates(prisma, branchId, sessionId) : new Map<string, string>();
         const summary = summarizeRows(summaryRows, {
             mapping,
@@ -778,6 +790,9 @@ export class ImportSessionService {
             ...session,
             ...(isGuidedImport(session.sourceConfiguration) ? { guidance: {
                 businessDate: importBusinessDate(),
+                preparation: { canImprove: columnsToReview > 0 || reusableRows > 0, reusableRows, columnsToReview },
+                financialNeedsHelp: summaryRows.filter(row => !row.skipped && row.status !== "IMPORTED" && hasFinancialIssue(row)).length,
+                ...(savedFinancials ? { savedFinancials } : {}),
                 groups: importGuidanceGroups(summaryRows, branchContext),
                 imported: summaryRows.filter(row => row.status === "IMPORTED").length,
                 partialStudents: summaryRows.filter(row => row.status !== "IMPORTED" && retainedCreatedEntityId(row.createdEntityIds, "studentId")).length,

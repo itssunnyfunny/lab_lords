@@ -1,6 +1,6 @@
 import { OwnedLabel, LocalizedError } from "@/components/settings/LocalizedText";
 import { CheckCircle2, XCircle } from "lucide-react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { formControlClass } from "@/components/ui/formSurface";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -23,6 +23,18 @@ export const importFieldClass =
     `${formControlClass} min-h-11 p-2 text-sm`;
 
 export const importSelectClass = importFieldClass;
+
+export function navigateImportTabs(event: KeyboardEvent<HTMLDivElement>) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="tab"]:not(:disabled)')];
+    const current = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    if (current < 0 || !tabs.length) return;
+    event.preventDefault();
+    const index = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+        : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[index].focus();
+    tabs[index].click();
+}
 
 export const importOptionClass =
     "bg-[color:var(--ui-form-input-select-bg)] text-[color:var(--ui-form-input-text)]";

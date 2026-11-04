@@ -13,6 +13,18 @@ amounts blank and retain explicit facts across fee/shift changes. See the [imple
 validation record](../redesign/import-guidance.md). No schema, provider SDK,
 pricing or Production environment change is included.
 
+The guided presentation now uses named student cards and correction tasks, a
+focused details/seating/fees dialog, and one immutable-plan financial review.
+Outstanding, paid, waived, existing, future and held fee facts are separate.
+Seating counts represent students rather than combined-access component links.
+Preparation is offered only for unresolved columns or reusable confirmed meanings;
+missing dates, payment facts and seat choices remain explicit owner decisions.
+Results summarize successful session ledger operations and their original plans,
+not live balances or a successful student operation treated as a payment success.
+Remaining draft records retain a completion path even when the selected run
+succeeded. Older sessions retain the compatibility wizard. See the
+[workspace review and screenshots](../redesign/import-workspace-review.md).
+
 
 ## Guided onboarding and explicit trial tiers — local, 2026-11-02
 

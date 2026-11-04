@@ -161,7 +161,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                 title={t("Column meanings")}
                 description={t("Confirm how each source column maps into the ERP. AI is only a suggestion layer.")}
                 action={
-                    <AppButton density="compact"
+                    <div className="flex flex-wrap gap-2">{changed && <AppButton density="compact" variant="quiet" disabled={saving || mutationsDisabled} onClick={() => setDraft(mapping)}>{t("Reset column changes")}</AppButton>}<AppButton density="compact"
                         variant="primary"
                         icon={Save}
                         onClick={() => onSave(draft.map(item => ({ ...item, needsReview: false })))}
@@ -169,7 +169,7 @@ export function ColumnsStep({ detail, goal, saving, mutationsDisabled, suggested
                         aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                         isLoading={saving}
                     >
-                        {t("Confirm columns")}</AppButton>
+                        {t("Confirm columns")}</AppButton></div>
                 }
             >
                 <div className="space-y-4">

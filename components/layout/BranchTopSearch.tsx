@@ -5,6 +5,7 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { canNavigateWorkspace } from "@/lib/workspaceNavigationGuard";
 import {
     AlertCircle,
     ArrowRight,
@@ -185,6 +186,7 @@ export function BranchTopSearch() {
     }, [flatResults.length, mobileOpen, open]);
 
     const executeResult = useCallback((result: TopSearchResult) => {
+        if (!canNavigateWorkspace()) return;
         setOpen(false);
         setMobileOpen(false);
         setQuery("");

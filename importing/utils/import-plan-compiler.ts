@@ -20,6 +20,7 @@ import {
 import { buildImportPaymentPlan } from "./import-payment-plan";
 import { currentMonthOutcome, importBusinessDate } from "./current-month-import";
 import { reviewedDate } from "../services/import-recovery-context";
+import { hasFinancialIssue } from "./guided-import-presentation";
 
 export type ImportPlanEvaluation = {
     id: string;
@@ -29,6 +30,7 @@ export type ImportPlanEvaluation = {
     skipped: boolean;
     normalizedData: ImportNormalizedRow | null;
     warnings: ImportIssue[];
+    issues?: ImportIssue[];
 };
 
 export type CompileImportPlanSnapshotInput = {
@@ -654,6 +656,10 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
         ...(input.mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH" ? {
             currentMonthReview: {
                 businessDate: importBusinessDate(asOf),
+                heldFinancialRows: evaluations.filter(row => !row.skipped && row.status !== "IMPORTED" && hasFinancialIssue(row)).length,
+                seatingDeferredRows: readyEvaluations.filter(row => !row.normalizedData?.allocation?.seatLabel
+                    || !(row.normalizedData.allocation.shiftName || row.normalizedData.allocation.multiShiftName)
+                    || row.warnings.some(warning => warning.code.startsWith("ALLOCATION_SKIPPED_"))).length,
                 rows: readyEvaluations.map(row => {
                     const originalDate = previouslySucceededItems.get(`row:${row.rowId}:student`)?.reviewedBusinessDate;
                     const outcome = currentMonthOutcome(row.normalizedData ?? {}, reviewedDate(originalDate, asOf));

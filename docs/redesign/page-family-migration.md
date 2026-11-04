@@ -1,16 +1,16 @@
 # Application page-family migration
 
-Guided import follow-up, 3 November 2026: family G reuses AppPanel, AppButton,
-RowsStep, the compact allocation picker, authoritative PreviewStep and ResultStep.
-New marked sessions have a help queue and scoped grouped confirmations; legacy
-drafts keep their wizard. Current-month fee policy is an explicitly requested
-product change, separate from presentation migration. Desktop/narrow connected
-browser evidence and release limits are in [the implementation record](import-guidance.md).
-Owner visual acceptance and Production release are not inferred from local tests.
-The PR #290 review corrections retain these owners and add a localized prepared
-count plus recorded-only payment fields. Desktop/narrow regression evidence
-includes direct fee, linked price and shift/bundle changes with absent and
-explicit partial amounts; see the same implementation record.
+Guided import completion, 3 November 2026: family G reuses AppPanel, AppButton,
+Dialog, shared form/status tokens and the compact allocation picker. New marked
+sessions use student task cards, focused corrections, one plan-based fee review
+and actual saved outcomes. RowsStep, PreviewStep and ResultStep remain owners of
+the compatibility wizard. Recorded-only payment fields and validated equivalent
+shift preparation are preserved. Current-month fee policy is an explicitly
+requested product change, separate from presentation migration. See the
+[implementation record](import-guidance.md) and
+[full-workspace visual review](import-workspace-review.md). Local implementation,
+owner visual acceptance and Production release are tracked separately; local
+tests do not confer owner approval or release.
 
 
 Guided onboarding, 2 November 2026: family G now uses business/location language,

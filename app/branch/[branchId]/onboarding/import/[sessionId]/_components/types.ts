@@ -41,7 +41,9 @@ export type ImportQuestion = {
 };
 
 export type ImportDetail = {
-    guidance?: { businessDate: string; groups: import("@/importing/utils/import-guidance").ImportGuidanceGroup[]; imported: number; needsHelp: number; partialStudents: number; createdStudents: number; createdAllocations: number; createdPayments: number };
+    guidance?: { businessDate: string; groups: import("@/importing/utils/import-guidance").ImportGuidanceGroup[]; imported: number; needsHelp: number; partialStudents: number; createdStudents: number; createdAllocations: number; createdPayments: number;
+        preparation?: { canImprove: boolean; reusableRows: number; columnsToReview: number };
+        financialNeedsHelp?: number; savedFinancials?: import("@/importing/utils/guided-import-presentation").FinancialSummary };
     id: string;
     status: string;
     goal?: ImportGoal | null;

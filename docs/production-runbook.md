@@ -18,6 +18,14 @@ browser fixture and exact local validation are described in the
 [implementation record](redesign/import-guidance.md). Production release,
 provider approval and owner visual acceptance remain separate.
 
+The completed guided UI adds optional held-fee and deferred-seating counts to
+new immutable JSON plan snapshots; no schema migration is needed. A cached review
+without those counts asks the owner to refresh it explicitly, advancing the draft
+revision and compiling a new review. This does not rewrite historical plans or
+started runs. Saved fee totals use successful payment ledger items and their
+original reviewed outcomes; today's balances remain owned by Fees. See the
+[full-workspace verification record](redesign/import-workspace-review.md).
+
 
 ## Explicit onboarding trial plan — 2 November 2026
 

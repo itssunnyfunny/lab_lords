@@ -8,6 +8,7 @@ import { workspaces } from "@/lib/api/workspaces";
 import type { WorkspaceDirectory } from "@/types";
 import { branchSwitchDestination } from "@/lib/basicNavigation";
 import { cn } from "@/lib/utils";
+import { canNavigateWorkspace } from "@/lib/workspaceNavigationGuard";
 
 export function WorkspaceSwitcher({ className, beforeNavigate }: { className?: string; beforeNavigate?: () => boolean }) {
     const pathname = usePathname();
@@ -33,7 +34,7 @@ export function WorkspaceSwitcher({ className, beforeNavigate }: { className?: s
         return () => { cancelled = true; };
     }, [ownerKey]);
 
-    return <BranchWorkspaceControls directory={directoryOwner === ownerKey ? directory : null} error={error} pathname={pathname} className={className} onNavigate={href => { if (!beforeNavigate || beforeNavigate()) router.push(href); }} />;
+    return <BranchWorkspaceControls directory={directoryOwner === ownerKey ? directory : null} error={error} pathname={pathname} className={className} onNavigate={href => { if (canNavigateWorkspace() && (!beforeNavigate || beforeNavigate())) router.push(href); }} />;
 }
 
 export function BranchWorkspaceControls({ directory, error, pathname, className, onNavigate }: {

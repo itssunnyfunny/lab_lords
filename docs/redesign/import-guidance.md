@@ -2,6 +2,10 @@
 
 Local implementation, 3 November 2026. Owner acceptance and release are separate.
 
+The subsequent student-focused presentation and full Next workspace verification
+are recorded in [the workspace review](import-workspace-review.md). The validation
+tables below retain the evidence for the earlier implementation and review fixes.
+
 New uploads use `GUIDED_CURRENT_MONTH_V1` in the existing session JSON. The owner
 adds records, receives a prepared draft, resolves a student help queue, then
 reviews an immutable plan and explicitly confirms it. Existing drafts without
