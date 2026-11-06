@@ -27,11 +27,17 @@ Object.assign(env, { DATABASE_URL: connection, DIRECT_URL: connection, TEST_DATA
     WORKFLOW_LOCAL_BASE_URL: `http://localhost:${appPort}`,
 });
 const mode = process.argv[2];
+if (["browser", "retained-browser"].includes(mode) && !correction) throw new Error("The review database contains owner-saved records. Browser reset tests require OWNER_SETUP_CORRECTION=1 and the separate disposable correction database.");
+if (mode === "retained-browser") {
+    // Let Vitest's global setup supply its synthetic Test Mode billing keys.
+    delete env.RAZORPAY_KEY_ID; delete env.RAZORPAY_KEY_SECRET;
+}
 const commands = { build: ["tests/dashboard-connected/build.mjs"], auth: ["tests/dashboard-connected/refresh-auth.mjs"],
     dev: ["node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", "localhost", "--port", appPort],
     start: ["node_modules/next/dist/bin/next", "start", "--hostname", "localhost", "--port", appPort],
-    browser: ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/owner-setup/playwright.config.ts", ...process.argv.slice(3)] };
-if (!Object.hasOwn(commands, mode)) throw new Error("Choose build, auth, dev, start or browser");
+    browser: ["node_modules/@playwright/test/cli.js", "test", "--config", "tests/owner-setup/playwright.config.ts", ...process.argv.slice(3)],
+    "retained-browser": ["node_modules/vitest/vitest.mjs", "run", "--config", "tests/import-browser/vitest.config.ts", ...process.argv.slice(3)] };
+if (!Object.hasOwn(commands, mode)) throw new Error("Choose build, auth, dev, start, browser or retained-browser");
 // workflow/next 4.1.0 forces .next/workflow-data even when a different data
 // directory is supplied. Concurrent previews would share its local queue.
 if (["start", "dev", "build"].includes(mode)) {
