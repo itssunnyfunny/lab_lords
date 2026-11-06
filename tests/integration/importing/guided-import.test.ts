@@ -55,6 +55,36 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         await db.organization.update({ where: { id: f.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
         await createSaasSubscription({ organizationId: f.org.id, plan, paidThrough: new Date(2027, 0, 1) }); return f;
     }
+    it("keeps saved progress visible when an early recorded payment is rechecked", async () => {
+        const f = await world();
+        const detail = await draft(f, [
+            "Saved Student\t\t2026-01-01\t500\t\t\t\t\t",
+            "Pending Student\t\t2026-01-15\t600\t\t\tPAID\tCASH\t600",
+        ]);
+        await commit(f, detail);
+        const before = await ImportSessionService.getSessionDetail(f.user.id, f.branch.id, detail.id);
+        const facts = before.rows.map(row => ({ id: row.id, normalizedData: row.normalizedData, createdEntityIds: row.createdEntityIds }));
+        const after = await ImportSessionService.updateMapping(f.user.id, f.branch.id, detail.id, {
+            expectedRevision: before.draftRevision, columnMappings: before.mapping.columnMappings,
+        });
+        expect(after.status).toBe("VALIDATED");
+        expect(after.guidance?.needsHelp).toBe(1);
+        expect(after.summary.importedRows).toBe(1);
+        expect(after.rows.map(row => ({ id: row.id, normalizedData: row.normalizedData, createdEntityIds: row.createdEntityIds }))).toEqual(facts);
+        const legacySummary = { ...after.summary };
+        delete legacySummary.importedRows;
+        await db.importSession.update({ where: { id: detail.id }, data: { summary: JSON.parse(JSON.stringify(legacySummary)) } });
+        const history = await ImportSessionService.listSessions(f.user.id, f.branch.id);
+        expect(history.find(session => session.id === detail.id)?.summary?.importedRows).toBe(1);
+        const reanalysis = await ImportRunService.createOrGetRun({ userId: f.user.id, branchId: f.branch.id, sessionId: detail.id,
+            kind: "ANALYSIS", targetRevision: after.draftRevision, idempotencyKey: randomUUID() });
+        await ImportRunRunner.setAnalysisStatus({ importRunId: reanalysis.id, status: "COMPLETED" });
+        const refreshed = await ImportSessionService.getSessionDetail(f.user.id, f.branch.id, detail.id);
+        expect(refreshed.latestRun?.id).toBe(reanalysis.id);
+        expect(refreshed.guidance?.savedFinancials?.due).toEqual({ count: 1, amount: 500 });
+        expect(await db.student.count()).toBe(1);
+        expect(await db.payment.count()).toBe(1);
+    });
     it.each(["BASIC", "STANDARD", "PRO"] as const)("prepares structured records on %s without a column approval step, and never backfills", async tier => {
         const f = await world(tier);
         const detail = await draft(f, ["Past Student\t9876501001\t2026-01-01\t1000\t\t\t\t\t", "Today Student\t9876501002\t2026-01-02\t1000\t\t\t\t\t", "Future Student\t9876501003\t2026-01-15\t1000\t\t\tDUE\t\t1000", "New Student\t9876501004\t2026-11-01\t1000\t\t\t\t\t"]);
@@ -88,9 +118,12 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         ]);
         expect(detail.guidance?.preparation.canImprove).toBe(false);
         expect(detail.guidance?.financialNeedsHelp).toBe(3);
-        const { plan } = await commit(f, detail);
+        const { plan, run } = await commit(f, detail);
         expect((plan.snapshot as unknown as ImportPlanSnapshot).currentMonthReview).toMatchObject({ heldFinancialRows: 3, seatingDeferredRows: 5 });
         const saved = await ImportSessionService.getSessionDetail(f.user.id, f.branch.id, detail.id);
+        // Frozen time gives analysis and commit the same creation timestamp.
+        // The later draft revision must win the tie and preserve result recovery.
+        expect(saved.latestRun?.id).toBe(run.id);
         expect(saved.guidance?.savedFinancials).toMatchObject({
             due: { count: 1, amount: 1000 }, paid: { count: 1, amount: 1200 }, waived: { count: 1, amount: 800 },
             future: { count: 1, amount: 1500 }, none: { count: 1, amount: 0 },

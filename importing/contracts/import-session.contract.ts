@@ -283,6 +283,7 @@ export type ImportNormalizedRow = {
 
 export type ImportSessionSummary = {
     totalRows: number;
+    importedRows?: number;
     readyRows: number;
     needsReviewRows: number;
     blockedRows: number;

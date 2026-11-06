@@ -288,6 +288,7 @@ function summarizeRows(rows: Array<{
 } = {}): ImportSessionSummary {
     const summary = emptySummary();
     summary.totalRows = rows.length;
+    summary.importedRows = rows.filter(row => row.status === "IMPORTED").length;
     summary.warnings = input.mapping?.warnings ?? [];
     summary.openQuestions = input.openQuestions ?? 0;
     summary.attention = input.mapping?.analysis?.attention ?? [];
@@ -622,6 +623,12 @@ export class ImportSessionService {
             orderBy: { createdAt: "desc" },
             take: 30,
         });
+        const savedRows = sessions.length ? await prisma.importRow.groupBy({
+            by: ["importSessionId"],
+            where: { importSessionId: { in: sessions.map(session => session.id) }, status: "IMPORTED" },
+            _count: { _all: true },
+        }) : [];
+        const savedCounts = new Map(savedRows.map(row => [row.importSessionId, row._count._all]));
 
         return sessions.map(session => ({
             id: session.id,
@@ -634,7 +641,7 @@ export class ImportSessionService {
             draftRevision: session.draftRevision,
             activeEvaluationRevision: session.activeEvaluationRevision,
             archivedAt: session.archivedAt ? toStringDate(session.archivedAt) : null,
-            summary: session.summary as ImportSessionSummary | null,
+            summary: session.summary ? { ...(session.summary as ImportSessionSummary), importedRows: savedCounts.get(session.id) ?? 0 } : null,
             createdAt: toStringDate(session.createdAt),
             updatedAt: toStringDate(session.updatedAt),
         }));
@@ -659,7 +666,7 @@ export class ImportSessionService {
         if (session.archivedAt) throw new Error("Import session is archived");
         const latestRun = await prisma.importRun.findFirst({
             where: { importSessionId: session.id, branchId },
-            orderBy: { createdAt: "desc" },
+            orderBy: [{ createdAt: "desc" }, { targetRevision: "desc" }, { id: "desc" }],
             select: {
                 id: true,
                 kind: true,
@@ -762,7 +769,8 @@ export class ImportSessionService {
         }), assistance) : [];
         const reusableRows = reusable.reduce((count, proposal) => count + (assistance?.groups.find(group => group.sourceAlias === proposal.sourceAlias)?.affectedRecords ?? 0), 0);
         const columnsToReview = mapping.columnMappings.filter(column => column.needsReview).length;
-        const savedFinancials = guided && latestRun?.kind === "COMMIT" ? await guidedSavedOutcomes(prisma, branchId, sessionId) : undefined;
+        const hasSavedWork = latestRun?.kind === "COMMIT" || summaryRows.some(row => row.status === "IMPORTED" || retainedCreatedEntityId(row.createdEntityIds, "studentId"));
+        const savedFinancials = guided && hasSavedWork ? await guidedSavedOutcomes(prisma, branchId, sessionId) : undefined;
         const recoveryDates = isGuidedImport(session.sourceConfiguration) ? await guidedRecoveryDates(prisma, branchId, sessionId) : new Map<string, string>();
         const summary = summarizeRows(summaryRows, {
             mapping,
@@ -1751,7 +1759,7 @@ export class ImportSessionService {
             const rows = await tx.importRow.findMany({ where: { importSessionId: sessionId } });
             const questions = await tx.importQuestion.findMany({ where: { importSessionId: sessionId } });
             const openQuestions = questions.filter(question => question.status === "OPEN").length;
-            const hasReviewBlocking = rows.some(row => ["NEEDS_REVIEW", "DUPLICATE"].includes(row.status));
+            const hasReviewBlocking = rows.some(row => !row.skipped && actionableImportStatuses.includes(row.status));
             const status: ImportSessionStatus =
                 openQuestions > 0 ? "NEEDS_INFO" :
                 hasReviewBlocking ? "VALIDATED" :
