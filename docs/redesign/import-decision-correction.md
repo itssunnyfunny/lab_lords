@@ -4,6 +4,172 @@ This continues the [owner setup restoration](owner-setup-import.md) on the exist
 branch, based on main `4678dfa`. It retains the allocation work, original naming
 correction and Basic/Standard/Pro parity. It is not a new screen redesign.
 
+## Recovery correction and same-register walkthrough — 6 November 2026
+
+The correction following the owner audit below keeps the existing steps and
+allocation editor. Owner acceptance is still pending; local verification is not
+approval to merge or release.
+
+- **Records:** the same 40-row import shows 23 saved and 17 needing help. All 17
+  have recorded payments before their current-month anniversary due dates. Each
+  card names that conflict and date. The dialog explains what to check, when to
+  recheck, and that keeping pending neither excludes a student nor changes Paid
+  to Due. Advancing visited all 17 once and stopped, without wrapping back.
+- **Save draft:** an edit saves and validates, then leaves the outcome visible.
+  In a separate three-student synthetic draft, confirming the joining date named
+  the remaining payment-amount conflict. Correcting that amount made the student
+  ready. Optional missing-phone notes stayed outside actionable help. The empty
+  queue then directed the owner to final review.
+- **Payment choices:** the original register offers the relevant conflict group
+  instead of an empty bulk selector. The synthetic draft previewed two Due fees
+  totalling ₹1,200, then one selected Paid fee of ₹550 with an explicit UPI
+  method. Refresh retained one Due and one Paid choice. Final review showed
+  ₹650 Due and ₹950 Paid, including the separately confirmed ₹400 Cash payment.
+  This synthetic draft was not committed into the owner's review branch.
+- **Seating:** the original remaining records show 16 matched, one explicitly
+  deferred, zero decisions and zero conflicts. The completed list is collapsed;
+  its review control still opens the existing timing/seat picker. The tested
+  assignment retained Morning 06:00–10:00 and seat 5. No assignment was changed.
+- **Refresh/recheck:** refresh retains the selected recovery section. Recheck
+  preserved 23 saved / 17 pending; history now shows saved progress rather than
+  a misleading zero-readiness mapping label. Server revalidation treats all
+  actionable states consistently, including BLOCKED and CONFLICT.
+
+Read-only repeatable-read snapshots compared hashes of every original row before
+and after the walkthrough: Student 23, SeatAllocation 23, Payment 10, Seat 60,
+Shift 3, MultiShift 1 and the original 40 ImportRows were unchanged. Draft
+revisions/evaluation metadata changed through ordinary authorized revalidation.
+Screenshots remain local under `test-results/owner-setup/recovery-*.jpg`.
+The browser reset runner now refuses the preserved review database and requires
+the separately verified disposable correction database.
+
+The focused pure suite passed 62 tests in 10 files; the focused persisted import
+suite passed 41 tests in two files, including the new saved-history/recheck
+regression. Broader results below are dated separately from this walkthrough.
+
+Regression verification also exposed two recovery presentation problems. Analysis
+and commit runs with an identical timestamp could select the older run; ordering
+now breaks ties by revision and ID. Saved financial outcomes are computed from
+saved work even after a later preparation run. Both cases have persisted-service
+assertions. The applied preparation count also remains visible after its now-useless
+action panel disappears; the retained-draft browser test verifies both facts.
+Final-import response recovery reads the received run only when its plan ID
+matches the reviewed plan. The recovery-section URL is cleared before sending
+the confirmed request so refresh can show the actual result. The mixed-register
+fixture drops that response and checks that only one import POST was sent.
+
+### Correction validation (6 November)
+
+Commands using the general suite ran through the local proof-checking
+`test-results/owner-setup/recovery-suite.mjs` wrapper: the exact disposable
+PostgreSQL container, tmpfs storage, loopback port 50854, database identity and
+58 applied migrations were verified before execution. Browser reset tests used
+`OWNER_SETUP_CORRECTION=1` and a different database on port 50855. The preserved
+owner review database was never a reset target.
+
+| Command | Observed result |
+| --- | --- |
+| `pnpm test --config tests/owner-setup/vitest.config.ts` | 62 tests, 10 files passed; database/network I/O forbidden. |
+| `pnpm test tests/integration/importing/guided-import.test.ts tests/integration/importing/owner-setup.test.ts` | Final focused run: 41 passed in 54.30 seconds, including saved-summary ordering and later-reanalysis preservation. |
+| Initial `pnpm test` | 3,197 passed, one 15-second concurrency timeout; 376/377 files passed in 932.41 seconds. The complete file rerun passed that concurrency case but exposed the timestamp-tie summary defect described above; that defect was fixed and the focused suite rerun. |
+| Final `pnpm test --testTimeout 30000 --hookTimeout 30000` | All 3,198 tests in 377 files passed in 803.03 seconds. The local run used a 30-second test/hook budget; assertions and concurrency checks remained enabled. |
+| `node tests/owner-setup/local.mjs browser` with `OWNER_SETUP_CORRECTION=1` | Final run: 10 authenticated journeys passed in 3.3 minutes. Includes Basic/Standard/Pro at 1440/390px, actual Workflow execution, lost payment-choice and final-import responses, configuration changes, and mixed-register persisted totals. The lost final-import response sent exactly one commit POST and recovered the saved result. An earlier run stopped at an obsolete assertion expecting a completed match to remain expanded; the assertion now opens and checks the retained review disclosure. |
+| `node tests/owner-setup/local.mjs retained-browser` with `OWNER_SETUP_CORRECTION=1` | Two retained V1 desktop/narrow journeys passed in 58.76 seconds. Covers partial allocation/payment recovery, concurrency and business-date rejection, refresh, PDF confirmation, manual financial facts and preparation-result visibility. |
+| `pnpm test:workflow` | One simulated-world Workflow test passed in 6.90 seconds. |
+| `pnpm exec tsc --noEmit` | Passed on the final source. |
+| `pnpm lint` | Passed: zero errors, two existing unused-disable warnings in generated Workflow/coverage files. |
+| `node tests/owner-setup/local.mjs build` (runs `pnpm build`) | Passed on final source: compilation, TypeScript, 74 static pages and two import Workflow manifests verified. |
+| `git diff --check`; local Markdown-link check | Passed; 97 local links across three changed documents, none missing. |
+
+The final built preview was checked again at localhost:3149: 23 students and
+23 assignments saved, 17 still pending, three dues totalling ₹3,600, seven paid
+records totalling ₹8,700, and 13 future fees left to normal generation. The
+remaining students' recorded payments and source dates remain unchanged. Local
+evidence includes `recovery-preserved-results.jpg` and `recovery-payment-action.jpg`.
+Provider-backed AI, payment and messaging calls remained held or simulated;
+normal development authentication was used for the ten authenticated journeys.
+
+No schema, migration, seed, package-version or application-environment change is
+required. The optional summary JSON field is additive, and old summaries get
+their saved count from existing row statuses. Rollback does not require data
+conversion. Home, Features, Pricing and FAQ need no new claim: this clarifies the
+existing import feature. The earlier naming correction and all-plan parity remain.
+The correction was validated locally before publication. The owner subsequently
+authorized focused commits and an update to the existing PR #291. No merge,
+deployment or Production action was performed. Owner acceptance of the experience
+remains separate from these checks and permission to publish the commits.
+
+### Changed files and final review
+
+- Existing import components: `GuidedImportWorkspace.tsx`, `GuidedStudentEditor.tsx`,
+  `GuidedPaymentChoices.tsx`, `GuidedSetupReview.tsx`, plus the small
+  `GuidedPaymentProblem.tsx` explanation component in the same component directory.
+  Import history changes are in `app/branch/[branchId]/onboarding/import/page.tsx`.
+- Shared presentation and translations: `importing/utils/guided-import-presentation.ts`
+  and `lib/i18n/ownerSetup.ts`.
+- Persistence summaries and consistent revalidation:
+  `importing/services/import-session.service.ts` and the additive summary field in
+  `importing/contracts/import-session.contract.ts`.
+- Regression coverage: `tests/unit/importing/guided-payment-problem.test.tsx`,
+  `tests/unit/importing/guided-import-presentation.test.ts`,
+  `tests/integration/importing/guided-import.test.ts`,
+  `tests/browser/owner-setup-connected.spec.ts`, and `tests/import-browser/flow.test.ts`.
+  The isolated runners are `tests/owner-setup/local.mjs` and
+  `tests/owner-setup/vitest.config.ts`.
+- Documentation: this report, `docs/ai/current-state.md` and
+  `docs/redesign/page-family-migration.md`.
+
+The final diff review checked the retained-editor revision fence, forward queue
+selection, tenant-scoped saved counts and reviewed-plan identity during response
+recovery. It found and removed a duplicated documentation paragraph. Server
+authorization, staff permissions, entitlements, recorded facts, anniversary dues,
+normal future generation and existing migration history remain unchanged. The
+17 pending records are a real eligibility constraint, not a successful import;
+provider-backed AI and external payment/messaging delivery were not exercised.
+
+## Live owner review after PR creation — 6 November 2026
+
+**Historical audit before the recovery correction above; owner acceptance remains pending.** The passing fixture below does not
+establish that the existing owner's recovery flow is understandable. A direct
+review of the open Chrome session on localhost:3149 at `c4c3a06` found:
+
+- The existing 40-row register has 23 saved students and 17 awaiting payment
+  decisions. Recovery repeats generic help panels without explaining the shared
+  reason beside the affected students.
+- Two inspected records contain a recorded Paid amount before the eligible due.
+  The task says only "Confirm payment information". The editor warns that an
+  early payment will not be created, but does not show the relevant due date or
+  explain a truthful next step. Saving one record without changing its facts
+  preserves the draft and displays the remaining reason, but "Save & next"
+  leaves the same student open. This is accurate persistence feedback and an
+  incomplete decision flow.
+- "Keep eligible fees Due · 0" remains prominent. "Review payments and select
+  Paid" expands all 40 records even though none can be selected in this state.
+  It gives no direct route from a protected record to its specific conflict.
+- Seats correctly show 16 matched assignments, one deliberate deferral, and
+  zero unresolved seating decisions among the remaining students. Nevertheless,
+  the page repeats matched-label editors and the general student list, including
+  unrelated payment tasks. Completed work is not sufficiently separated from
+  the next required decision.
+- Refresh preserves 23 saved / 17 remaining, but returns from the recovery
+  workspace to the result page. Saved records were not reimported during review.
+
+Code inspection explains these observations: `guidedStudentTasks` collapses the
+payment issues into one label; the payment panel renders bulk review whenever a
+review response exists, including zero eligible choices; the seats section
+reuses the general student list. The next correction must address those specific
+transitions, retain the useful allocation controls, and preserve recorded payment
+facts and the prohibition on early dues. A genuine advance payment cannot be
+made valid by silently changing Paid to Due or changing the original joining date.
+
+This review made no application-code, schema, migration, environment, or payment
+changes. One unchanged draft was saved to reproduce the behavior. Browser
+evidence is local in `test-results/owner-setup/live-review-overview.jpg` and
+`test-results/owner-setup/live-review-stalled-payment.jpg`; these captures are not
+published with the repository. Runtime suites were not repeated for this
+inspection-only finding. The earlier command results remain historical evidence,
+not approval of this owner experience.
+
 ## Reproduced mismatch and correction
 
 The attention query included WARNING while the count and card excluded it. Saving

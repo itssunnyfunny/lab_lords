@@ -1,5 +1,27 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Import recovery clarification — local, 2026-11-06
+
+The existing guided flow separates **Save draft** from **Review next student**.
+Saved outcomes stay visible; advancing walks the actionable queue once and leaves
+unresolved records pending. A retained ready-row editor keeps its original
+revision fence if that row has left the loaded attention page. Recorded-payment
+conflicts name the issue and relevant due date. Rechecking validates the draft
+against the current business date without changing payment facts or saved records.
+Bulk payment controls show only eligible choices and read persisted decisions
+after a failed/lost response. Completed seating work collapses its assignment
+list while retaining the existing correction controls. Recovery section URLs
+survive refresh. History counts saved rows from the ledger-backed row status,
+including older summaries without the additive `importedRows` JSON field.
+Run ordering breaks timestamp ties by revision and ID. Saved financial outcomes
+remain visible after a later preparation run, and the applied preparation count
+remains visible when there is no useful preparation action left.
+If the final import response is lost, the UI reads the matching reviewed-plan
+run and shows its progress without replaying the mutation; refresh also resumes
+the result rather than the earlier recovery section.
+See the [same-register walkthrough](../redesign/import-decision-correction.md).
+No migration, dependency or application environment change is required.
+
 ## Complete owner setup and import — local, 2026-11-05
 
 The follow-up correction unifies readiness across filters, counts, badges,

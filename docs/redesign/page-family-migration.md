@@ -1,5 +1,12 @@
 # Application page-family migration
 
+Import recovery clarification, 6 November 2026: existing family G controls now
+explain payment conflicts, separate saving from progression, collapse completed
+seating work and retain recovery location on refresh. The same 40-row local
+register was checked; hashes confirmed the 23 saved students, their allocations,
+10 payments and all original draft facts were unchanged. [Evidence and checks](import-decision-correction.md)
+remain separate from pending owner acceptance and release.
+
 Import decision follow-up, 5 November 2026: readiness, saved-draft outcomes,
 payment choices and explicit configuration corrections extend the existing
 family G panels and dialogs. [Walkthrough and validation](import-decision-correction.md)
