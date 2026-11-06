@@ -1,5 +1,6 @@
 import type { ImportIssue, ImportNormalizedRow } from "../contracts/import-session.contract";
 import type { CurrentMonthOutcome } from "./current-month-import";
+import { importReadiness, unresolvedImportDecisions } from "./import-readiness";
 
 export type StudentTask = "joining" | "fee" | "shift" | "seat" | "payment" | "identity" | "source" | "details";
 export function guidedSavedFields(ids: Record<string, unknown> | null | undefined) {
@@ -13,9 +14,9 @@ export const studentTaskLabels = {
 } as const satisfies Record<StudentTask, string>;
 type StudentRecord = { status: string; skipped: boolean; normalizedData: ImportNormalizedRow | null; issues: ImportIssue[]; warnings: ImportIssue[]; paymentOutcome?: CurrentMonthOutcome };
 export function guidedStudentTasks(row: StudentRecord): StudentTask[] {
-    if (row.skipped || row.status === "IMPORTED") return [];
+    if (importReadiness(row) !== "attention") return [];
     const tasks = new Set<StudentTask>();
-    for (const issue of [...row.issues, ...row.warnings]) {
+    for (const issue of unresolvedImportDecisions(row)) {
         const field = issue.field ?? "", code = issue.code;
         if (code === "SOURCE_COLUMN_REVIEW") tasks.add("source");
         else if (/DUPLICATE_(?:EXISTING|STUDENT|PHONE|IMPORT)|EXISTING_IDENTITY/.test(code)) tasks.add("identity");

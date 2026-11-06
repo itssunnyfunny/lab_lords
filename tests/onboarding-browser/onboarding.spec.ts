@@ -25,9 +25,9 @@ async function prepare(page: Page, language: InterfaceLanguage = "en") {
 }
 async function business(page: Page, language: InterfaceLanguage = "en") {
     const t = (key: string) => translateOwnedText(language, key);
-    await page.getByLabel(t("Business name"), { exact: true }).fill("Saraswati Library");
+    await page.getByLabel(t("Library / centre name"), { exact: true }).fill("Saraswati Library");
     await page.getByLabel(t("Owner phone"), { exact: true }).fill("9876543210");
-    await expect(page.getByLabel(t("Location name"), { exact: true })).toHaveValue("Main location");
+    await expect(page.getByLabel(t("Library / centre name"), { exact: true })).toHaveValue("Saraswati Library");
     await page.getByRole("button", { name: t("Continue"), exact: true }).click();
     await expect(page.getByRole("heading", { name: t("Make room for your students") })).toBeVisible();
 }
@@ -198,20 +198,20 @@ for (const language of ["hi", "hinglish"] as const) test(`${language} setup vali
 
 test("language changes preserve drafts and keyboard navigation reaches labelled inputs", async ({ page }) => {
     await prepare(page);
-    await page.getByLabel("Business name", { exact: true }).focus();
+    await page.getByLabel("Library / centre name", { exact: true }).focus();
     await page.keyboard.type("My Library");
     await page.keyboard.press("Tab");
     await expect(page.getByLabel("Owner phone", { exact: true })).toBeFocused();
     await page.getByRole("combobox", { name: "Interface language", exact: true }).selectOption("hi");
-    await expect(page.getByLabel(translateOwnedText("hi", "Business name"), { exact: true })).toHaveValue("My Library");
+    await expect(page.getByLabel(translateOwnedText("hi", "Library / centre name"), { exact: true })).toHaveValue("My Library");
     await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");
 });
 
 test("account switches do not reuse another owner's unsubmitted business details", async ({ page }) => {
     await prepare(page);
-    await page.getByLabel("Business name", { exact: true }).fill("Private draft A");
+    await page.getByLabel("Library / centre name", { exact: true }).fill("Private draft A");
     await page.getByRole("button", { name: "Switch fixture account", exact: true }).click();
-    await expect(page.getByLabel("Business name", { exact: true })).toHaveValue("");
+    await expect(page.getByLabel("Library / centre name", { exact: true })).toHaveValue("");
     await expect(page.getByRole("heading", { name: "Tell us about your business", exact: true })).toBeVisible();
 });
 
@@ -274,9 +274,9 @@ test("Basic import remains reachable from Students after the trial and uploads w
     await expect(page.getByText(/This feature requires the Standard plan/)).toHaveCount(0);
     await page.getByRole("button", { name: "Paste table", exact: true }).click();
     await page.getByRole("textbox", { name: /Paste rows with a header/ }).fill("Name\tMobile\tFee\nFixture Student\t9876543210\t500");
-    await page.getByRole("button", { name: "Upload and review students", exact: true }).click();
-    await expect(page.getByTestId("destination")).toHaveText("/branch/fixture-branch/onboarding/import/fixture-import?goal=STUDENTS");
-    expect(submissions).toEqual([{ pastedTable: "Name\tMobile\tFee\nFixture Student\t9876543210\t500", fileName: "Pasted table", goal: "STUDENTS" }]);
+    await page.getByRole("button", { name: "Prepare my records", exact: true }).click();
+    await expect(page.getByTestId("destination")).toHaveText("/branch/fixture-branch/onboarding/import/fixture-import?goal=FULL");
+    expect(submissions).toEqual([{ pastedTable: "Name\tMobile\tFee\nFixture Student\t9876543210\t500", fileName: "Pasted table", goal: "FULL", experience: "GUIDED_SETUP_V2" }]);
     await page.goto("/branch/fixture-branch/students");
     await expect(page.getByRole("heading", { name: "Your students", exact: true })).toBeVisible();
     const returnLink = page.locator("main").getByRole("link", { name: "Import students", exact: true });
@@ -289,7 +289,7 @@ test("Basic import remains reachable from Students after the trial and uploads w
 test("Basic import keeps expired access read-only", async ({ page }) => {
     const { submissions } = await prepareBasicImport(page, "expired");
     await expect(page.getByRole("heading", { name: "Import assistant", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Upload and review students", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Prepare my records", exact: true })).toBeDisabled();
     expect(submissions).toEqual([]);
 });
 

@@ -15,7 +15,7 @@ type Tab = "details" | "seating" | "payment";
 const tabFor = (task: StudentTask): Tab => ["shift", "seat"].includes(task) ? "seating" : task === "payment" ? "payment" : "details";
 type Props = {
     branchId: string; sessionId: string; detail: ImportDetail; row: ImportRow; draft: RowDraft; focus: StudentTask;
-    dirty: boolean; busy: boolean; disabled: boolean; error: string | null; preview: RowPreview | null; previewLoading: boolean; feeLinked: boolean;
+    dirty: boolean; busy: boolean; disabled: boolean; error: string | null; preview: RowPreview | null; previewLoading: boolean; feeLinked: boolean; assignmentOnly?: boolean; saveOutcome?: React.ReactNode;
     onChange: (field: keyof RowDraft, value: string) => void; onFeeLinkChange: (linked: boolean) => void;
     onSave: () => void; onReset: () => void; onDefer: () => void; onExclude: () => void; onClose: () => void; onSource: () => void;
 };
@@ -29,7 +29,7 @@ export function GuidedStudentEditor(props: Props) {
     const content = useRef<HTMLDivElement>(null);
     const frozen = row.status === "IMPORTED" || row.skipped;
     const saved = guidedSavedFields(row.createdEntityIds);
-    const tasks = guidedStudentTasks(row);
+    const tasks = guidedStudentTasks(row).filter(task => !props.assignmentOnly || ["seat", "shift"].includes(task));
     useEffect(() => {
         const frame = requestAnimationFrame(() => content.current?.querySelector<HTMLElement>(`[data-editor-focus="${focusTask}"]`)?.focus());
         return () => cancelAnimationFrame(frame);
@@ -55,6 +55,7 @@ export function GuidedStudentEditor(props: Props) {
             </div>
         </div>}>
         <div ref={content} className="space-y-5">
+            {props.saveOutcome}
             {error && <p role="alert" className="rounded border border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] p-3 text-sm"><LocalizedError error={error} /></p>}
             {frozen && <p role="status" className="text-sm">{t(row.skipped ? "This student is left out. Include them before making changes." : "This student is already saved. Their import record is kept unchanged.")}</p>}
             {!frozen && saved.student && <p className="text-sm">{t("Student details and the monthly fee are already saved. Finish only the remaining work here.")}</p>}
@@ -63,9 +64,9 @@ export function GuidedStudentEditor(props: Props) {
             {!!tasks.length && <div className="flex flex-wrap gap-2" aria-label={t("What this student needs")}>
                 {tasks.map(task => <AppButton key={task} density="compact" variant="secondary" disabled={busy} onClick={() => { if (task === "source") onSource(); else { setFocusTask(task); setTab(tabFor(task)); } }}>{t(studentTaskLabels[task])}</AppButton>)}
             </div>}
-            <div role="tablist" aria-label={t("Student information")} onKeyDown={navigateImportTabs} className="flex flex-wrap gap-2 border-b border-[color:var(--ui-form-section-divider)] pb-3">
+            {!props.assignmentOnly && <div role="tablist" aria-label={t("Student information")} onKeyDown={navigateImportTabs} className="flex flex-wrap gap-2 border-b border-[color:var(--ui-form-section-divider)] pb-3">
                 {([["details", "Student details"], ["seating", "Seat and timings"], ["payment", "This month's fees"]] as const).map(([value, label]) => <AppButton key={value} role="tab" tabIndex={tab === value ? 0 : -1} aria-selected={tab === value} density="compact" variant={tab === value ? "primary" : "quiet"} onClick={() => setTab(value)} disabled={busy}>{t(label)}</AppButton>)}
-            </div>
+            </div>}
             <fieldset disabled={disabled || frozen || (tab === "details" && saved.student) || (tab === "payment" && saved.payment) || (tab === "seating" && saved.seating)} className="min-w-0 space-y-4" aria-label={t("Edit student details")}>
                 {tab === "details" && <div className="grid gap-4 sm:grid-cols-2">
                     <label className="space-y-2"><span className="text-sm">{t("Student name")}</span><input data-editor-focus="details" value={draft.studentName} onChange={event => onChange("studentName", event.target.value)} className={`w-full ${importFieldClass}`} /></label>
@@ -75,7 +76,7 @@ export function GuidedStudentEditor(props: Props) {
                 </div>}
                 {tab === "seating" && <div className="space-y-4" tabIndex={-1} data-editor-focus={focusTask === "seat" ? "seat" : "shift"}>
                     <p className="text-sm text-[color:var(--text-secondary)]">{t("Choose the student's timings, then a seat. You can save their details and add seating later.")}</p>
-                    <CompactImportAllocationPicker branchId={branchId} sessionId={sessionId} rowId={row.id} draft={draft} branchContext={detail.branchContext} feeLinked={feeLinked} feeLocked={saved.student} onDraftChange={onChange} onFeeLinkChange={onFeeLinkChange} guided />
+                    <CompactImportAllocationPicker branchId={branchId} sessionId={sessionId} rowId={row.id} draft={draft} branchContext={detail.branchContext} feeLinked={feeLinked} feeLocked={saved.student || props.assignmentOnly} showFeeLink={!props.assignmentOnly} onDraftChange={onChange} onFeeLinkChange={onFeeLinkChange} guided />
                 </div>}
                 {tab === "payment" && <div className="space-y-4">
                     <div className="rounded border border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] p-4"><p className="text-sm">{t("Monthly fee")}: <strong>{parseImportMoney(draft.fee) === undefined ? t("Needs confirmation") : `₹${formatNumber(parseImportMoney(draft.fee)!)}`}</strong></p>{!dirty && row.paymentOutcome ? <div className="mt-3"><GuidedFinancialOutcome outcome={row.paymentOutcome} /></div> : <p className="mt-3 text-sm">{t("Save your changes to refresh this month's outcome.")}</p>}</div>

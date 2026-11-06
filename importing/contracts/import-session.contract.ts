@@ -172,6 +172,8 @@ export type ImportPaymentMapping = {
 };
 
 export type ImportOptions = {
+    allocationPolicy?: "EXPLICIT_DECISION";
+    preparedSetup?: import("../utils/guided-setup").ImportSetup;
     /** Server-owned policy for new guided sessions; retained drafts keep their original policy. */
     paymentPolicy?: "CURRENT_CALENDAR_MONTH";
     paymentCycle?: PaymentCycleOption;
@@ -264,11 +266,13 @@ export type ImportNormalizedRow = {
         componentShiftNames?: string[];
     };
     allocation?: {
+        deferred?: boolean;
         seatLabel?: string;
         shiftName?: string;
         multiShiftName?: string;
     };
     payment?: {
+        decision?: "KEEP_DUE" | "CONFIRMED_PAID";
         amount?: number;
         status?: PaymentStatus | "UNCLEAR";
         rawStatus?: string;
@@ -296,7 +300,7 @@ export type ImportSessionSummary = {
 
 export type CreateImportSessionInput =
     | {
-          experience?: "GUIDED_CURRENT_MONTH_V1";
+          experience?: "GUIDED_CURRENT_MONTH_V1" | "GUIDED_SETUP_V2";
           sourceType: Extract<ImportSourceType, "CSV" | "XLSX" | "XLS" | "PDF" | "OTHER">;
           fileName?: string;
           fileMeta?: Record<string, unknown>;
@@ -309,7 +313,7 @@ export type CreateImportSessionInput =
           };
       }
     | {
-          experience?: "GUIDED_CURRENT_MONTH_V1";
+          experience?: "GUIDED_CURRENT_MONTH_V1" | "GUIDED_SETUP_V2";
           sourceType: "PASTED_TABLE";
           fileName?: string;
           fileMeta?: Record<string, unknown>;

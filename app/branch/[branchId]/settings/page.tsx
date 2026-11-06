@@ -550,7 +550,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                 <SettingsPanel id="profile" title={t("Profile")} description={t("Operational identity and public branch contact details.")} icon={Building2}>
                     {showMutationControls && isEditing ? (
                         <>
-                            <SettingsField label={t("Branch name")} error={nameError} errorId="branch-name-error">
+                            <SettingsField label={t.owned("Library / centre name")} description={t.owned("This is the name shown in your daily branch workspace. It does not rename the parent workspace.")} error={nameError} errorId="branch-name-error">
                                 <SettingsInput required autoComplete="organization" value={form.name} disabled={mutationsDisabled} aria-describedby={mutationDescriptionId} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder={t("Main Branch")} error={nameError} errorId="branch-name-error" />
                             </SettingsField>
                             <SettingsField label={t("City")} error={cityError} errorId="branch-city-error">

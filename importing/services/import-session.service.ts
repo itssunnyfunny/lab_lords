@@ -1,3 +1,5 @@
+import { isSetupImport, parseImportSetup, validateImportSetup, branchWithImportSetup, prepareSupportedAssignment, allocationDecisionIssues, addSetupToValidationContext, setupOverview } from "../utils/guided-setup";
+import { StaffService } from "@/services/staff.service";
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
@@ -16,6 +18,7 @@ import type {
     ParsedImportSource,
 } from "@/importing/contracts/import-session.contract";
 import { parseCsv } from "@/importing/parsers/csv.parser";
+import { repeatedRegisterHeader } from "../parsers/register-headers";
 import { parsePdf } from "@/importing/parsers/pdf.parser";
 import { parsePastedTable } from "@/importing/parsers/pasted-table.parser";
 import { parseXlsx } from "@/importing/parsers/xlsx.parser";
@@ -47,6 +50,7 @@ import { buildGuidedShiftAssistance, validGuidedShiftProposals, withGuidedShiftC
 import { guidedRecoveryDates, reviewedDate } from "./import-recovery-context";
 import { guidedSavedOutcomes } from "./import-saved-outcomes";
 import { hasFinancialIssue } from "../utils/guided-import-presentation";
+import { readyImportStatuses, actionableImportStatuses, importReadiness, warningRequiresDecision } from "../utils/import-readiness";
 import { GUIDED_SOURCE_HOLDS, guidedManualMetadata, guidedSourceHolds, reconcileGuidedSource, duplicateGuidedSourceColumns } from "../utils/guided-source-reconciliation";
 import { importStagingPurgeAfter } from "@/importing/utils/import-retention";
 import { isImportRunDispatchRequired } from "@/importing/utils/import-run-dispatch";
@@ -103,7 +107,7 @@ async function applyGuidedShiftAssistance(tx: Prisma.TransactionClient, sessionI
     assistance: ReturnType<typeof buildGuidedShiftAssistance>, proposals: GuidedShiftProposal[] | undefined, mapping: ImportMappingState) {
     const validated = validGuidedShiftProposals(proposals, assistance.context);
     if (!validated.length) return 0;
-    const branch = await getImportBranchContext(branchId, tx);
+    const branch = branchWithImportSetup(await getImportBranchContext(branchId, tx), mapping.importOptions?.preparedSetup);
     const rows = await tx.importRow.findMany({ where: { importSessionId: sessionId, branchId, skipped: false, status: { notIn: ["IMPORTED", "FAILED"] } } });
     let prepared = 0;
     for (const proposal of validated) {
@@ -204,8 +208,10 @@ export function rowWhereForFilter(
     const where: Prisma.ImportRowWhereInput = { importSessionId };
     if (cursor && Number.isFinite(cursor)) where.rowNumber = { gt: cursor };
 
-    if (filter === "ready") where.status = { in: ["READY", "WARNING"] };
-    if (filter === "attention") where.status = { in: ["WARNING", "NEEDS_REVIEW", "BLOCKED", "DUPLICATE", "CONFLICT", "FAILED"] };
+    if (filter === "ready" || filter === "attention") {
+        where.skipped = false;
+        where.status = { in: filter === "ready" ? readyImportStatuses : actionableImportStatuses };
+    }
     if (filter === "skipped") {
         where.OR = [
             { skipped: true },
@@ -471,13 +477,7 @@ export function statusForValidation(input: {
     if (input.issues.length > 0) return "BLOCKED";
     const reviewWarnings = input.warnings.filter(warning => warning.severity !== "info");
     if (reviewWarnings.some(warning => warning.code.includes("DUPLICATE"))) return "DUPLICATE";
-    if (reviewWarnings.some(warning =>
-        warning.code.includes("UNKNOWN") ||
-        warning.code.includes("REQUIRED") ||
-        warning.code.includes("UNCONFIRMED") ||
-        warning.code.includes("AMBIGUOUS") ||
-        warning.code.includes("MISSING_ALLOCATION")
-    )) return "NEEDS_REVIEW";
+    if (reviewWarnings.some(warningRequiresDecision)) return "NEEDS_REVIEW";
     if (input.warnings.length > 0) return "WARNING";
     return "READY";
 }
@@ -752,7 +752,8 @@ export class ImportSessionService {
             questions: session.questions,
             sessionStatus: session.status,
         });
-        const branchContext = await getImportBranchContext(branchId);
+        const existingBranchContext = await getImportBranchContext(branchId);
+        const branchContext = branchWithImportSetup(existingBranchContext, mapping.importOptions?.preparedSetup);
         const guided = isGuidedImport(session.sourceConfiguration);
         const assistance = guided ? buildGuidedShiftAssistance(summaryRows.filter(row => !hasManualNormalizedData(row.mappedData)), branchContext, mapping.guidance?.answers ?? []).context : undefined;
         const reusable = assistance ? validGuidedShiftProposals(assistance.groups.flatMap(group => {
@@ -790,7 +791,12 @@ export class ImportSessionService {
             ...session,
             ...(isGuidedImport(session.sourceConfiguration) ? { guidance: {
                 businessDate: importBusinessDate(),
-                preparation: { canImprove: columnsToReview > 0 || reusableRows > 0, reusableRows, columnsToReview },
+                setup: setupOverview(summaryRows),
+                savedSeating: {
+                    assigned: summaryRows.filter(row => retainedCreatedEntityIds(row.createdEntityIds, "allocationIds").length > 0).length,
+                    deferred: summaryRows.filter(row => retainedCreatedEntityId(row.createdEntityIds, "studentId") && (row.normalizedData as ImportNormalizedRow | null)?.allocation?.deferred).length,
+                },
+                preparation: { canImprove: mapping.guidance?.preparedRevision !== session.draftRevision && (columnsToReview > 0 || reusableRows > 0), reusableRows, columnsToReview },
                 financialNeedsHelp: summaryRows.filter(row => !row.skipped && row.status !== "IMPORTED" && hasFinancialIssue(row)).length,
                 ...(savedFinancials ? { savedFinancials } : {}),
                 groups: importGuidanceGroups(summaryRows, branchContext),
@@ -799,7 +805,9 @@ export class ImportSessionService {
                 createdStudents: summaryRows.filter(row => retainedCreatedEntityId(row.createdEntityIds, "studentId")).length,
                 createdAllocations: summaryRows.reduce((total, row) => total + retainedCreatedEntityIds(row.createdEntityIds, "allocationIds").length, 0),
                 createdPayments: summaryRows.reduce((total, row) => total + retainedCreatedEntityIds(row.createdEntityIds, "paymentIds").length, 0),
-                needsHelp: summaryRows.filter(row => !row.skipped && !["READY", "WARNING", "IMPORTED"].includes(row.status)).length,
+                ready: summaryRows.filter(row => importReadiness(row) === "ready").length,
+                nonStudentRows: summaryRows.filter(row => !row.skipped && importIssueCodeMatches(row.issues, "NON_STUDENT_SOURCE_ROW")).map(row => ({ id: row.id, rowNumber: row.rowNumber })),
+                needsHelp: summaryRows.filter(row => importReadiness(row) === "attention").length,
             } } : {}),
             createdAt: toStringDate(session.createdAt),
             updatedAt: toStringDate(session.updatedAt),
@@ -816,6 +824,7 @@ export class ImportSessionService {
                 filteredRows,
                 returnedRows: returnedRows.length,
             },
+            existingBranchContext,
             branchContext,
             latestRun: latestRunPublic,
             extractionPreview,
@@ -990,7 +999,7 @@ export class ImportSessionService {
             const sourceProfile = sourceProfileFromSession(session, columns);
             const context = await this.getValidationContext(branchId);
             const shiftAssistance = guided ? buildGuidedShiftAssistance(session.rows.filter(row => !hasManualNormalizedData(row.mappedData)),
-                await getImportBranchContext(branchId), previousMapping?.guidance?.answers ?? []) : undefined;
+                branchWithImportSetup(await getImportBranchContext(branchId), previousMapping?.importOptions?.preparedSetup), previousMapping?.guidance?.answers ?? []) : undefined;
             const aiMapping = await mapImportColumns({
                 branchContext: context.aiBranchContext,
                 sourceProfile,
@@ -1015,7 +1024,7 @@ export class ImportSessionService {
                         const confirmed = previousMapping?.columnMappings.find(column => column.sourceColumn === proposal.sourceColumn);
                         return confirmed && (confirmed.source === "MANUAL" || !confirmed.needsReview) ? confirmed : proposal;
                     }), questions: [] } : {}),
-                importOptions: guided ? guidedImportOptions(previousMapping?.importOptions) : applyImportGoalPolicy(session.goal, aiMapping.suggestedImportOptions),
+                importOptions: guided ? guidedImportOptions(previousMapping?.importOptions, isSetupImport(session.sourceConfiguration)) : applyImportGoalPolicy(session.goal, aiMapping.suggestedImportOptions),
                 analysis: buildImportSessionAnalysis({
                     sourceProfile,
                     attention: [],
@@ -1155,7 +1164,12 @@ export class ImportSessionService {
             }),
         });
 
-        if (isGuidedImport(session.sourceConfiguration)) next.importOptions = guidedImportOptions(next.importOptions);
+        if (input.importOptions?.preparedSetup !== undefined && !isSetupImport(session.sourceConfiguration)) throw new ImportValidationError("This saved import keeps its original setup policy. Use its existing review controls.");
+        if (input.importOptions?.preparedSetup !== undefined) {
+            next.importOptions!.preparedSetup = parseImportSetup(input.importOptions.preparedSetup);
+            next.importOptions!.configurationBatchApproved = false;
+        }
+        if (isGuidedImport(session.sourceConfiguration)) next.importOptions = guidedImportOptions(next.importOptions, isSetupImport(session.sourceConfiguration));
         else if (next.importOptions) delete next.importOptions.paymentPolicy;
         if (isGuidedImport(session.sourceConfiguration) && duplicateGuidedSourceColumns(next).size) {
             throw new ImportValidationError("Each field can use one source column. Choose the correct column and explicitly ignore the other.");
@@ -1197,6 +1211,12 @@ export class ImportSessionService {
                 throw new Error("Import session is not editable");
             }
             if (current.draftRevision !== expectedRevision) throw new ImportRevisionConflictError();
+            if (input.importOptions?.preparedSetup !== undefined || input.importOptions?.configurationBatchApproved === true) {
+                await StaffService.authorize(userId, branchId, "manage_branch", tx);
+                const branchContext = await getImportBranchContext(branchId);
+                try { validateImportSetup(next.importOptions?.preparedSetup ?? { seats: [], shifts: [], multiShifts: [] }, branchContext); }
+                catch (error) { throw new ImportValidationError(error instanceof Error ? error.message : "Check the proposed setup."); }
+            }
             if (isGuidedImport(session.sourceConfiguration)) await reconcileManualSourceRows(tx, sessionId, branchId, normalizeMapping(session.mapping, []), next);
             await tx.importSession.update({
                 where: { id: sessionId },
@@ -1222,7 +1242,8 @@ export class ImportSessionService {
             unskipRowIds?: string[];
             bulkAction?: ImportBulkRowAction;
         },
-        confirmedAnswer?: { field: string; source: string; target: string; affected: number }
+        confirmedAnswer?: { field: string; source: string; target: string; affected: number },
+        preserveSourceHolds = false
     ) {
         await this.authorizeMutation(userId, branchId);
         const expectedRevision = expectedImportRevision(input.expectedRevision);
@@ -1331,11 +1352,11 @@ export class ImportSessionService {
                 const existingRow = targetRowsById.get(edit.rowId)!;
                 let manualMetadata: Record<string, unknown> = markManualNormalizedData(existingRow.mappedData ?? {});
                 if (edit.normalizedData && isGuidedImport(session.sourceConfiguration)) {
-                    const sourceFields = confirmedAnswer ? [] : normalizeMapping(session.mapping, []).columnMappings
+                    const sourceFields = confirmedAnswer || preserveSourceHolds ? [] : normalizeMapping(session.mapping, []).columnMappings
                         .filter(column => column.targetField !== "ignore" && String((existingRow.rawData as Record<string, unknown>)?.[column.sourceColumn] ?? "").trim())
                         .map(column => column.targetField);
-                    manualMetadata = guidedManualMetadata(manualMetadata, existingRow.normalizedData, edit.normalizedData, !!confirmedAnswer, sourceFields);
-                    if (confirmedAnswer && !hasManualNormalizedData(existingRow.mappedData)) {
+                    manualMetadata = guidedManualMetadata(manualMetadata, existingRow.normalizedData, edit.normalizedData, !!confirmedAnswer || preserveSourceHolds, sourceFields);
+                    if ((confirmedAnswer || preserveSourceHolds) && !hasManualNormalizedData(existingRow.mappedData)) {
                         const mapping = normalizeMapping(session.mapping, []);
                         const parsed = normalizeImportRow(existingRow.rawData as Record<string, string>, mapping.columnMappings, mapping.importOptions?.paymentMapping);
                         manualMetadata = { ...manualMetadata, [GUIDED_SOURCE_HOLDS]: [...guidedSourceHolds(manualMetadata), ...parsed.issues] };
@@ -1496,9 +1517,10 @@ export class ImportSessionService {
         const mapping = normalizeMapping(session.mapping, columns);
         const guided = isGuidedImport(session.sourceConfiguration);
         const recoveryDates = guided ? await guidedRecoveryDates(prisma, branchId, sessionId) : new Map<string, string>();
-        if (guided) { mapping.importOptions = guidedImportOptions(mapping.importOptions); mapping.questions = []; }
+        if (guided) { mapping.importOptions = guidedImportOptions(mapping.importOptions, isSetupImport(session.sourceConfiguration)); mapping.questions = []; }
         const sourceProfile = sourceProfileFromSession(session, columns);
         const context = await this.getValidationContext(branchId);
+        const setupBranch = addSetupToValidationContext(context, mapping.importOptions?.preparedSetup);
         const normalizedRows = session.rows.map(row => {
             if (row.status === "IMPORTED") {
                 return {
@@ -1535,7 +1557,8 @@ export class ImportSessionService {
                 mapping.columnMappings,
                 mapping.importOptions?.paymentMapping
             );
-            const defaulted = applyImportDefaults(normalized.normalizedData, mapping.importOptions);
+            const prepared = isSetupImport(session.sourceConfiguration) ? prepareSupportedAssignment(normalized.normalizedData, setupBranch) : normalized.normalizedData;
+            const defaulted = applyImportDefaults(prepared, mapping.importOptions);
             const promoted = promoteKnownMultiShiftAllocation(defaulted, context);
             const normalizedData = applyImportDefaults(promoted, mapping.importOptions, context);
             return {
@@ -1549,7 +1572,10 @@ export class ImportSessionService {
             };
         });
 
-        const duplicateMap = detectDuplicateImportRows(normalizedRows.map(item => ({
+        // Explicitly excluded source rows must not reserve an identity and
+        // block the copy the owner chose to keep. Existing live identities
+        // are still checked independently below.
+        const duplicateMap = detectDuplicateImportRows(normalizedRows.filter(item => !item.row.skipped).map(item => ({
             id: item.row.id,
             rowNumber: item.row.rowNumber,
             normalizedData: item.normalizedData,
@@ -1584,8 +1610,13 @@ export class ImportSessionService {
                 };
             }
 
-            const baseIssues = [...item.normalizationIssues, ...(guided ? guidedSourceHolds(item.mappedData) : [])];
+            const baseIssues = [...item.normalizationIssues, ...(guided ? guidedSourceHolds(item.mappedData) : []),
+                ...(item.allocationAlreadySucceeded ? [] : allocationDecisionIssues(item.normalizedData, mapping.importOptions))];
             if (guided) {
+                const parser = (session.sourceConfiguration as { parser?: { titleRowNumbers?: number[] } } | null)?.parser;
+                if (parser?.titleRowNumbers?.includes(item.row.rowNumber) || repeatedRegisterHeader(item.row.rawData as Record<string, unknown>, mapping.columnMappings.map(column => column.sourceColumn))) {
+                    baseIssues.push({ code: "NON_STUDENT_SOURCE_ROW", field: "source.row", severity: "error", message: "This looks like a register title or repeated header. Check the uploaded values and explicitly leave it out if it is not a student." });
+                }
                 for (const column of mapping.columnMappings.filter(column => column.needsReview)) {
                     const raw = item.row.rawData as Record<string, unknown> | null;
                     if (raw?.[column.sourceColumn]) baseIssues.push({ code: "SOURCE_COLUMN_REVIEW", field: "source.column",

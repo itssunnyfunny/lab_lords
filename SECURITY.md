@@ -1,5 +1,33 @@
 # Security Review Policy
 
+## Reviewed import setup — local, 5 November 2026
+
+Payment batches derive eligibility from the authorized draft, current business
+date, source evidence and prior confirmations. Source payments, saved payment
+items and confirmed Paid choices cannot be overwritten by bulk Due defaults.
+Selected Paid choices require explicit methods. Commands retain locked revision
+checks and staged validation; no payment is created before reviewed execution.
+
+Existing-seat renames and timing corrections require a separate explicit live
+configuration confirmation. Preview hashes bind branch configuration, allocation
+and linked-fee impact, and draft revisions. Apply reauthorizes `manage_branch`
+and import access inside a serializable transaction, locks affected sessions,
+rejects active runs/collisions, preserves IDs/history, and stores a bounded
+same-command replay receipt. Draft revisions advance atomically; revalidation
+retains manual fields and source holds. Proposed additions remain staged until
+import. No model decides payment truth, renaming, timing or pricing.
+
+New setup imports may stage explicitly entered branch configuration. Staging and
+configuration approval require `manage_branch`; final CONFIG writers reauthorize
+and retain exact-definition, component, overlap and replay checks. Proposed IDs
+are local draft references, never evidence of live ownership. Per-row/group
+assignment commands resolve choices against the authorized branch and current
+draft revision, preserve unrelated financial facts and holds, and cannot edit
+successful allocations. Missing allocation data must not silently authorize a
+skip. All three plans use this same boundary and existing writable-branch gates.
+Raw configuration/source labels and proposed prices remain outside the Gemini
+privacy boundary below. No new external AI authority or automatic action exists.
+
 ## Guided import draft context — local, 3 November 2026
 
 The existing import AI privacy boundary includes structural current-draft context:

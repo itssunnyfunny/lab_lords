@@ -38,7 +38,7 @@ export type CreateImportSessionResponse = {
 };
 
 export type CreateImportFileOptions = {
-    experience?: "GUIDED_CURRENT_MONTH_V1";
+    experience?: "GUIDED_CURRENT_MONTH_V1" | "GUIDED_SETUP_V2";
     sheetName?: string;
     /** One-based worksheet row number. */
     headerRow?: number;
@@ -303,6 +303,21 @@ function normalizeRunStart(response: ImportRunStartResponse | (Partial<ImportRun
 }
 
 export const importSessions = {
+    previewCorrection(branchId: string, sessionId: string, correction: import("@/importing/contracts/import-correction.contract").ImportConfigurationCorrection): Promise<import("@/importing/contracts/import-correction.contract").ImportCorrectionPreview> {
+        return requestJson(`/api/branches/${branchId}/import-sessions/${sessionId}/configuration-correction`, "POST", { correction });
+    },
+    applyCorrection(branchId: string, sessionId: string, preview: import("@/importing/contracts/import-correction.contract").ImportCorrectionPreview): Promise<unknown> {
+        return requestJson(`/api/branches/${branchId}/import-sessions/${sessionId}/configuration-correction`, "POST", { correction: preview.correction, hash: preview.hash, expectedRevision: preview.expectedRevision });
+    },
+    paymentChoices(branchId: string, sessionId: string): Promise<import("@/importing/utils/guided-payment-choice").GuidedPaymentReview> {
+        return apiClient.get(`/branches/${branchId}/import-sessions/${sessionId}/payments`);
+    },
+    resolvePayments(branchId: string, sessionId: string, data: import("@/importing/utils/guided-payment-choice").GuidedPaymentResolution): Promise<unknown> {
+        return requestJson(`/api/branches/${branchId}/import-sessions/${sessionId}/payments`, "POST", data);
+    },
+    resolveSetup<T = unknown>(branchId: string, sessionId: string, data: import("@/importing/utils/guided-setup").SetupResolution): Promise<T> {
+        return requestJson(`/api/branches/${branchId}/import-sessions/${sessionId}/setup`, "POST", data);
+    },
     confirmInterpretation(branchId: string, sessionId: string, data: { expectedRevision: number; source: string; targetId: string }): Promise<unknown> {
         return requestJson(`/api/branches/${branchId}/import-sessions/${sessionId}/interpretations`, "POST", data);
     },
@@ -331,7 +346,7 @@ export const importSessions = {
             .then(normalizeCreatedSession);
     },
 
-    createFromPastedTable(branchId: string, pastedTable: string, goal: ImportGoal, experience?: "GUIDED_CURRENT_MONTH_V1"): Promise<CreateImportSessionResponse> {
+    createFromPastedTable(branchId: string, pastedTable: string, goal: ImportGoal, experience?: "GUIDED_CURRENT_MONTH_V1" | "GUIDED_SETUP_V2"): Promise<CreateImportSessionResponse> {
         return requestJson<CreateImportSessionResponse | LegacyCreateImportSessionResponse>(
             `/api/branches/${branchId}/import-sessions`,
             "POST",

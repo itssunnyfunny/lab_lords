@@ -18,6 +18,7 @@ import * as availability from "@/app/api/branches/[branchId]/import-sessions/[se
 import * as mapping from "@/app/api/branches/[branchId]/import-sessions/[sessionId]/mapping/route";
 import * as plans from "@/app/api/branches/[branchId]/import-sessions/[sessionId]/plans/route";
 import * as payments from "@/app/api/branches/[branchId]/import-sessions/[sessionId]/plans/[planId]/payments/route";
+import * as paymentChoices from "@/app/api/branches/[branchId]/import-sessions/[sessionId]/payments/route";
 import * as commit from "@/app/api/branches/[branchId]/import-sessions/[sessionId]/commit/route";
 import * as runDetail from "@/app/api/branches/[branchId]/import-runs/[runId]/route";
 import * as accessRoute from "@/app/api/branches/[branchId]/access/route";
@@ -32,7 +33,7 @@ import type { ImportNormalizedRow } from "@/importing/contracts/import-session.c
 let vite: ChildProcess | undefined;
 const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 type Route = (req: Request, context: { params: Promise<Record<string, string>> }) => Promise<Response>;
-describe("connected import browser → real route → real service → disposable PostgreSQL", () => {
+describe("retained V1 guided import browser → real route → real service → disposable PostgreSQL", () => {
     beforeEach(async () => { await resetDatabase(); vi.stubEnv("IMPORT_V2_ENABLED", "true"); vi.stubEnv("IMPORT_MAX_PLANNED_MUTATIONS", "1000"); });
     afterEach(() => { vite?.kill(); vi.unstubAllEnvs(); });
     afterAll(disconnectDatabase);
@@ -72,7 +73,7 @@ describe("connected import browser → real route → real service → disposabl
             return { run: current, dispatchPending: false, workflowAttached: false, dispatchRequired: false };
         });
         const failures: string[] = [];
-        const routes: Record<string, unknown> = { "": sessions, detail, analyze: analysis, interpretations: interpretation, rows, "rows/preview": preview, availability, mapping, plans, "plans/payments": payments, commit, run: runDetail, recipes };
+        const routes: Record<string, unknown> = { "": sessions, detail, analyze: analysis, interpretations: interpretation, rows, "rows/preview": preview, availability, mapping, plans, "plans/payments": payments, payments: paymentChoices, commit, run: runDetail, recipes };
         const server = createServer(async (incoming, outgoing) => {
             try {
                 const url = new URL(incoming.url!, "http://127.0.0.1");
@@ -118,16 +119,18 @@ describe("connected import browser → real route → real service → disposabl
                 }
                 consoleErrors.push(message.text());
             });
-            await page.goto(`http://127.0.0.1:4194/branch/${f.branch.id}/onboarding/import`);
-            await browserExpect(page.getByRole("heading", { name: "Add your student records" })).toBeVisible();
-            if (viewport.width > 1000) await page.getByRole("button", { name: "Paste table", exact: true }).click();
             // Derive dates from the established runtime business date, rather than
             // faking browser-only time while real server billing uses another day.
             const now = new Date(); const joined = `${now.getFullYear() - 1}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
             const table = `Name\tPhone\tJoined Date\tMonthly Fee\tShift\tSeat\nReady Student\t9876501001\t${joined}\t1000\tMorning\t${f.seat.label}\nAmbiguous Student\t9876501002\t\t1000\tFD\t${secondSeat.label}\nDeferred Student\t9876501003\t${joined}\t1000\tF.D.\t`;
-            if (viewport.width > 1000) await page.locator("textarea").fill(table);
-            else await page.locator('input[type="file"]').setInputFiles({ name: "students.csv", mimeType: "text/csv", buffer: Buffer.from(table.replaceAll("\t", ",")) });
-            await page.getByRole("button", { name: "Prepare my records" }).click();
+            // This fixture explicitly covers retained V1 drafts and recovery.
+            // New uploads and the real all-plan shell are covered by
+            // tests/browser/owner-setup-connected.spec.ts with normal auth.
+            const retained = await ImportSessionService.createSession(f.user.id, f.branch.id, {
+                sourceType: "PASTED_TABLE", experience: "GUIDED_CURRENT_MONTH_V1", pastedTable: table, goal: "FULL",
+            });
+            await fixture.dispatch(retained.analysisRun);
+            await page.goto(`http://127.0.0.1:4194/branch/${f.branch.id}/onboarding/import/${retained.id}`);
             await browserExpect(page.getByRole("heading", { name: "Check your students", exact: true })).toBeVisible();
             await browserExpect(page.getByText("Fix these first", { exact: true })).toHaveCount(0);
             expect(await db.student.count()).toBe(0);
@@ -207,7 +210,7 @@ describe("connected import browser → real route → real service → disposabl
             finally { releaseNext(); }
             await browserExpect(page.getByRole("button", { name: /^Review and save/ })).toBeEnabled();
             await page.unroute(attentionUrl);
-            await browserExpect(page.getByText(/Student changes saved in this draft/)).toBeVisible();
+            await browserExpect(page.getByText(/saved to draft, not imported/)).toBeVisible();
             await page.reload();
             await browserExpect(page.getByRole("heading", { name: "Check your students", exact: true })).toBeVisible();
             await browserExpect(page.getByRole("heading", { name: "Your students are ready to review", exact: true })).toBeVisible();

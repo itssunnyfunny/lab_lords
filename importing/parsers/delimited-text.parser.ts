@@ -1,4 +1,5 @@
 import type { ParsedImportSource } from "@/importing/contracts/import-session.contract";
+import { registerHeaderIndex } from "./register-headers";
 import { ImportParserError } from "@/importing/utils/import-errors";
 import {
     assertImportCell,
@@ -13,6 +14,8 @@ export type DelimitedImportMetadata = {
     delimiter: "comma" | "tab" | "pipe";
     encoding: "utf-8";
     headers: NormalizedImportHeader[];
+    titleRowNumbers?: number[];
+    headerRow?: number;
 };
 
 export type ParsedDelimitedImportSource = ParsedImportSource & {
@@ -151,9 +154,11 @@ export function parsedSourceFromDelimitedRows(input: {
 }): ParsedDelimitedImportSource {
     if (input.rows.length < 2) throw new ImportParserError(input.emptyMessage);
     assertImportDataRowCount(input.rows.length - 1);
-    const headerRow = input.rows[0];
+    const headerIndex = registerHeaderIndex(input.rows);
+    const headerRow = input.rows[headerIndex];
     const normalized = normalizeImportHeaders(headerRow.cells);
-    const rows = input.rows.slice(1)
+    const retained = input.rows.filter((_, index) => index !== headerIndex);
+    const rows = retained
         .filter(row => !isBlankRow(row))
         .map(row => rowFromPositionalCells(normalized.columns, row.cells, row.sourceLine));
 
@@ -161,7 +166,7 @@ export function parsedSourceFromDelimitedRows(input: {
     return {
         columns: normalized.columns,
         rows,
-        rowNumbers: input.rows.slice(1)
+        rowNumbers: retained
             .filter(row => !isBlankRow(row))
             .map(row => row.sourceLine),
         parserMetadata: {
@@ -169,6 +174,7 @@ export function parsedSourceFromDelimitedRows(input: {
             delimiter: delimiterLabel(input.delimiter),
             encoding: "utf-8",
             headers: normalized.headers,
+            ...(headerIndex ? { headerRow: headerRow.sourceLine, titleRowNumbers: input.rows.slice(0, headerIndex).map(row => row.sourceLine) } : {}),
         },
     };
 }

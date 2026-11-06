@@ -18,6 +18,7 @@ import { isCheckoutBillingPlanId, publicBillingPlans, WHATSAPP_PLAN_AVAILABILITY
 import { combinationFeeSuggestion, removeSetupTimeSlot, suggestedSchedule, TIME_SLOT_OVERLAP_ERROR, validateSetupSchedule, type SetupCombination, type SetupSchedule, type SetupTimeSlot } from "@/lib/onboardingSchedule";
 import { onboardingDestination, onboardingStorageKey, readOnboardingCommand, runOnboardingCommand, type OnboardingCommand, type OnboardingDraft } from "@/lib/onboardingPendingCommand";
 import { cn } from "@/lib/utils";
+import { suggestedWorkspaceName } from "@/lib/onboardingNames";
 
 const plans = publicBillingPlans();
 const steps = ["Your business", "Seats & timings", "Your free trial", "Review & start"] as const;
@@ -38,7 +39,7 @@ export default function OnboardingPage({ searchParams }: { searchParams: Promise
     if (!isLoaded || !isSignedIn || !user) {
         return <div className={entryRootClass}><p role="status">{t.owned(isLoaded ? "Sign in to continue setup." : "Loading setup...")}</p></div>;
     }
-    return <OnboardingAccountPage key={user.id} accountId={user.id} initialPhone={user.primaryPhoneNumber?.phoneNumber ?? ""}
+    return <OnboardingAccountPage key={user.id} accountId={user.id} signupName={user.firstName || user.fullName} initialPhone={user.primaryPhoneNumber?.phoneNumber ?? ""}
         requestedBillingPlan={isCheckoutBillingPlanId(query.billingPlan) ? query.billingPlan : null} />;
 }
 
@@ -52,13 +53,14 @@ function SetupField({ id, label, hint, error, children }: { id: string; label: s
     </div>;
 }
 
-function OnboardingAccountPage({ accountId, requestedBillingPlan, initialPhone = "" }: {
-    accountId: string; requestedBillingPlan: CheckoutBillingPlanId | null; initialPhone?: string;
+function OnboardingAccountPage({ accountId, requestedBillingPlan, initialPhone = "", signupName }: {
+    accountId: string; requestedBillingPlan: CheckoutBillingPlanId | null; initialPhone?: string; signupName?: string | null;
 }) {
     const t = useTranslation();
     const router = useRouter();
     const [step, setStep] = useState<Step>(1);
-    const [formData, setFormData] = useState({ orgName: "", ownerPhone: initialPhone, branchName: "Main location", city: "", seatCount: "", seatNumbering: createSimpleSeatNumbering() });
+    const workspaceSuggestion = suggestedWorkspaceName(signupName);
+    const [formData, setFormData] = useState({ orgName: "", ownerPhone: initialPhone, branchName: "", city: "", seatCount: "", seatNumbering: createSimpleSeatNumbering() });
     const [schedule, setSchedule] = useState<SetupSchedule>(() => suggestedSchedule());
     const [trialPlan, setTrialPlan] = useState<CheckoutBillingPlanId | null>(requestedBillingPlan);
     const [startingPoint, setStartingPoint] = useState<"IMPORT" | "CLEAN" | null>(null);
@@ -89,9 +91,9 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan, initialPhone =
     }, [accountId, loadSavedCommand]);
     useEffect(() => { if (step > 1) heading.current?.focus(); }, [step]);
 
-    const orgName = validateRequiredText(formData.orgName, "Business name", 120);
+    const orgName = validateRequiredText(formData.orgName.trim() || workspaceSuggestion, "Workspace name", 120);
     const phone = validateRequiredPhone(formData.ownerPhone, "Owner phone");
-    const branch = validateRequiredText(formData.branchName, "Location name", 120);
+    const branch = validateRequiredText(formData.branchName, "Library / centre name", 120);
     const city = validateOptionalText(formData.city, "City / area", FORM_LIMITS.cityMax);
     const seatCount = parseIntegerField(formData.seatCount, "Physical seats", { required: true, min: 1, max: FORM_LIMITS.seatsMax });
     const numbering = resolveSeatNumberingForCount(formData.seatNumbering, seatCount.ok ? seatCount.value! : 0);
@@ -204,19 +206,17 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan, initialPhone =
                         <fieldset disabled={loading} className="mt-7 min-w-0 space-y-6">
                             <legend className="sr-only">{t.owned(headings[step - 1])}</legend>
                             {step === 1 && <div className="space-y-5">
-                                <SetupField id="setup-business" label="Business name" hint="Use the name on your signboard, such as Saraswati Library or Bright Tuition Centre." error={fieldError("orgName")}>
-                                    <input {...inputProps("setup-business", "orgName")} name="orgName" value={formData.orgName} maxLength={120} autoComplete="organization" onChange={event => updateField("orgName", event.target.value)} aria-describedby={fieldError("orgName") ? "setup-business-error" : "setup-business-hint"} />
+                                <SetupField id="setup-business" label="Library / centre name" hint="Use the name on your signboard. This is the branch name you will see every day." error={fieldError("branchName")}>
+                                    <input {...inputProps("setup-business", "branchName")} name="branchName" value={formData.branchName} placeholder="Saraswati Library" maxLength={120} autoComplete="organization" onChange={event => updateField("branchName", event.target.value)} aria-describedby={fieldError("branchName") ? "setup-business-error" : "setup-business-hint"} />
                                 </SetupField>
                                 <SetupField id="setup-phone" label="Owner phone" hint="Used for your business contact details. This does not connect WhatsApp." error={fieldError("ownerPhone")}>
                                     <input {...inputProps("setup-phone", "ownerPhone")} type="tel" inputMode="tel" name="ownerPhone" value={formData.ownerPhone} autoComplete="tel" placeholder="+91 98765 43210" onChange={event => updateField("ownerPhone", event.target.value)} />
                                 </SetupField>
-                                <div className="border-t border-[color:var(--ui-form-section-divider)] pt-5">
-                                    <h3 className="font-semibold">{t.owned("Your first location")}</h3><p className={cn(formHelpTextClass, "mt-1 text-xs leading-5")}>{t.owned("One business can have several locations. Start with one; its records stay separate.")}</p>
-                                    <div className="mt-4 grid gap-5 sm:grid-cols-2">
-                                        <SetupField id="setup-location" label="Location name" hint="Main location is fine if you have only one. You can rename it." error={fieldError("branchName")}><input {...inputProps("setup-location", "branchName")} name="branchName" value={formData.branchName} maxLength={120} onChange={event => updateField("branchName", event.target.value)} /></SetupField>
-                                        <SetupField id="setup-city" label="City / area (optional)" error={fieldError("city")}><input {...inputProps("setup-city", "city")} name="city" value={formData.city} maxLength={FORM_LIMITS.cityMax} autoComplete="address-level2" onChange={event => updateField("city", event.target.value)} /></SetupField>
-                                    </div>
-                                </div>
+                                <SetupField id="setup-city" label="City / area (optional)" error={fieldError("city")}><input {...inputProps("setup-city", "city")} name="city" value={formData.city} maxLength={FORM_LIMITS.cityMax} autoComplete="address-level2" onChange={event => updateField("city", event.target.value)} /></SetupField>
+                                <details className="border-t border-[color:var(--ui-form-section-divider)] pt-5">
+                                    <summary className="min-h-11 cursor-pointer text-sm">{t.owned("Workspace name (optional)")}: {formData.orgName.trim() || workspaceSuggestion}</summary>
+                                    <SetupField id="setup-workspace" label="Workspace name" hint="Your workspace groups your branches and billing. You can rename it in workspace settings; rename this library in branch settings." error={fieldError("orgName")}><input {...inputProps("setup-workspace", "orgName")} name="workspaceName" autoComplete="off" value={formData.orgName} placeholder={workspaceSuggestion} maxLength={120} onChange={event => updateField("orgName", event.target.value)} /></SetupField>
+                                </details>
                             </div>}
                             {step === 2 && <div className="space-y-7">
                                 <SetupField id="setup-seats" label="How many physical seats are here?" hint="Count each chair or study desk once, even when different students use it at different times." error={fieldError("seatCount")}><input {...inputProps("setup-seats", "seatCount")} name="seatCount" inputMode="numeric" pattern="[0-9]*" value={formData.seatCount} onChange={event => updateField("seatCount", event.target.value)} className={cn(inputProps("setup-seats", "seatCount").className, "max-w-48 text-lg")} /></SetupField>
@@ -281,7 +281,7 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan, initialPhone =
                             </div>}
                             {step === 4 && <div className="space-y-6">
                                 <section className={cn(formSurfaceClass, "p-4 sm:p-5")}><h3 className="font-semibold">{t.owned("Ready to create")}</h3>
-                                    <dl className="mt-4 space-y-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><dt className={formHelpTextClass}>{t.owned("Your business")}</dt><dd className="break-words font-medium">{formData.orgName}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className={formHelpTextClass}>{t.owned("Your first location")}</dt><dd className="break-words">{formData.branchName}{formData.city ? ` · ${formData.city}` : ""}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className={formHelpTextClass}>{t.owned("Physical seats")}</dt><dd>{formData.seatCount}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className={formHelpTextClass}>{t.owned("Your free trial")}</dt><dd>{selectedPlan?.shortName} · {t.owned("30 days, if eligible")}</dd></div></dl>
+                                    <dl className="mt-4 space-y-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><dt className={formHelpTextClass}>{t.owned("Workspace name")}</dt><dd className="break-words font-medium">{formData.orgName.trim() || workspaceSuggestion}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className={formHelpTextClass}>{t.owned("Library / centre name")}</dt><dd className="break-words">{formData.branchName}{formData.city ? ` · ${formData.city}` : ""}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className={formHelpTextClass}>{t.owned("Physical seats")}</dt><dd>{formData.seatCount}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className={formHelpTextClass}>{t.owned("Your free trial")}</dt><dd>{selectedPlan?.shortName} · {t.owned("30 days, if eligible")}</dd></div></dl>
                                     <div className="mt-4 border-t border-[color:var(--ui-form-section-divider)] pt-4"><h4 className="text-sm font-semibold">{t.owned("Daily timings & student fees")}</h4><ul className="mt-2 space-y-2 text-sm">{schedule.shifts.map(row => <li key={row.clientId} className="flex flex-wrap justify-between gap-2"><span>{row.name} · {row.startTime}–{row.endTime}</span><span>{money(Number(row.price))} {t.owned("per month")}</span></li>)}{schedule.multiShifts.map(row => <li key={row.clientId} className="space-y-1"><div className="flex flex-wrap justify-between gap-2"><span>{row.name}</span><span>{money(Number(row.price))} {t.owned("per month")}</span></div><p className={cn(formHelpTextClass, "text-xs")}>{row.componentShiftIds.map(id => schedule.shifts.find(slot => slot.clientId === id)?.name).join(" + ")}</p></li>)}</ul></div>
                                     <p className={cn(formHelpTextClass, "mt-4 text-xs leading-5")}>{t.owned("Nothing has been created yet. Go back to change any detail before confirming.")}</p>
                                 </section>

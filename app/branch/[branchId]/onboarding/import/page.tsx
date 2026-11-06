@@ -202,11 +202,11 @@ function ImportAssistantContent({
         setError(null);
         try {
             const created = sourceMode === "file" && file
-                ? await importSessions.createFromFile(branchId, file, goal, { experience: "GUIDED_CURRENT_MONTH_V1", ...(workbookReview ? {
+                ? await importSessions.createFromFile(branchId, file, goal, { experience: "GUIDED_SETUP_V2", ...(workbookReview ? {
                     sheetName: workbookReview.sheetName,
                     headerRow: workbookReview.headerRow ?? undefined,
                 } : {}) })
-                : await importSessions.createFromPastedTable(branchId, pastedTable, goal, "GUIDED_CURRENT_MONTH_V1");
+                : await importSessions.createFromPastedTable(branchId, pastedTable, goal, "GUIDED_SETUP_V2");
             if (created.requiresPdfConfirmation) {
                 setPdfReview(created);
                 setPdfAccepted(false);
@@ -292,11 +292,11 @@ function ImportAssistantContent({
                         title={t("Add your student records")}
                         description={t("Tracking starts this month. Original joining dates and future due days stay the same.")}
                     >
-                        <p>{t("Add records → AI prepares → Resolve remaining → Review and import")}</p>
+                        <p>{t.owned("Records → Timings → Seats and assignments → Review and import")}</p>
                         <div className="mt-6 border-t border-[color:var(--ui-form-section-divider)] pt-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("2. Add your data")}</p>
+                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Add your student records")}</p>
                                     <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Choose one source. Nothing is created until the final review.")}</p>
                                 </div>
                                 <div className="inline-flex rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] p-1" role="group" aria-label={t("Import source")}>

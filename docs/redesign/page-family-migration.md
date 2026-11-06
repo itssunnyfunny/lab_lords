@@ -1,5 +1,19 @@
 # Application page-family migration
 
+Import decision follow-up, 5 November 2026: readiness, saved-draft outcomes,
+payment choices and explicit configuration corrections extend the existing
+family G panels and dialogs. [Walkthrough and validation](import-decision-correction.md)
+separate local evidence from owner approval and release. No unrelated family is
+redesigned.
+
+Complete owner setup and shared import, 5 November 2026: the family reuses shared
+forms, panels, dialogs, localization and the visual seat picker. Basic, Standard
+and Pro enter the same import shell; surrounding non-import navigation remains
+plan-specific. Earlier useful setup review and assignment summaries return
+alongside immutable plans and recovery. [Local evidence](owner-setup-import.md)
+tracks implementation checks separately from owner visual approval and release;
+neither approval nor release is claimed.
+
 Guided import completion, 3 November 2026: family G reuses AppPanel, AppButton,
 Dialog, shared form/status tokens and the compact allocation picker. New marked
 sessions use student task cards, focused corrections, one plan-based fee review

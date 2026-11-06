@@ -4,15 +4,19 @@ import type { ImportIssue, ImportNormalizedRow, ImportOptions } from "../contrac
 
 export const GUIDED_IMPORT_EXPERIENCE = "GUIDED_CURRENT_MONTH_V1" as const;
 export function isGuidedImport(source: unknown) {
-    return !!source && typeof source === "object" && "experience" in source && source.experience === GUIDED_IMPORT_EXPERIENCE;
+    return !!source && typeof source === "object" && "experience" in source && [GUIDED_IMPORT_EXPERIENCE, "GUIDED_SETUP_V2"].includes(String(source.experience));
 }
 /** Keep the established billing helper's runtime-local calendar convention. */
 export function importBusinessDate(asOf = new Date()) { return format(asOf, "yyyy-MM-dd"); }
-export function guidedImportOptions(options?: ImportOptions): ImportOptions {
+export function guidedImportOptions(options?: ImportOptions, setup = false): ImportOptions {
     return { ...options, paymentPolicy: "CURRENT_CALENDAR_MONTH", paymentCycle: "USE_JOINED_AT_ANNIVERSARY",
         paymentAction: "IMPORT_PAID_UNPAID", paymentHistoryMode: "START_CURRENT_JOINED_CYCLE",
         createUnknownSeats: false, createUnknownShifts: false, createUnknownMultiShifts: false,
-        configurationBatchApproved: false,
+        configurationBatchApproved: setup && options?.configurationBatchApproved === true,
+        ...(setup ? { allocationPolicy: "EXPLICIT_DECISION" as const, preparedSetup: options?.preparedSetup,
+            skipUnknownSeatAllocations: false, skipUnknownShiftAllocations: false,
+            skipUnknownMultiShiftAllocations: false, skipMissingShiftAllocations: false, skipConflictingAllocations: false,
+        } : { allocationPolicy: undefined, preparedSetup: undefined }),
         ...(options?.paymentMapping ? { paymentMapping: { ...options.paymentMapping, defaultMethod: undefined } } : {}) };
 }
 export type CurrentMonthOutcome = {

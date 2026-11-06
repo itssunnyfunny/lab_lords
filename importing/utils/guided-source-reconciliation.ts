@@ -35,7 +35,7 @@ export function guidedManualMetadata(mapped: unknown, before: unknown, after: Im
     }
     for (const [entity, fields] of Object.entries(after)) for (const field of Object.keys(record(fields))) removed.delete(`${entity}.${field}`);
     next[GUIDED_CLEARED_FIELDS] = [...removed];
-    if (after.allocation && Object.keys(after.allocation).length === 0) next[ALLOCATION_DEFERRED] = true;
+    if (after.allocation?.deferred || (after.allocation && Object.keys(after.allocation).length === 0)) next[ALLOCATION_DEFERRED] = true;
     else if (after.allocation?.seatLabel || after.allocation?.shiftName || after.allocation?.multiShiftName) delete next[ALLOCATION_DEFERRED];
     if (!preserveHolds) delete next[GUIDED_SOURCE_HOLDS];
     return next;

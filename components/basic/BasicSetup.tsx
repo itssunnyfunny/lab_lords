@@ -14,6 +14,7 @@ export function BasicSetup({ data, disabled, onSave, onDirty }: {
         <div className="bp-page-heading"><div><h1>{t.owned("Library setup")}</h1><p>{t.owned("A few essentials. You’re ready to go.")}</p></div></div>
         <form className="bp-setup-card" onSubmit={details} onChange={onDirty}><fieldset className="bp-form-fields" disabled={disabled}>
             <label>{t.owned("Library name")}<input name="name" defaultValue={data.branch.name} required maxLength={120} /></label>
+            <p className="bp-subtle">{t.owned("This is the name shown in your daily branch workspace. It does not rename the parent workspace.")}</p>
             <div className="bp-form-pair"><label>{t.owned("Default monthly fee")}<input name="fee" type="number" min="0" max="1000000" defaultValue={data.branch.defaultFee ?? 0} required /></label>
                 <label>{t.owned("Admission fee")}<input name="admission" type="number" min="0" max="1000000" defaultValue={data.branch.defaultAdmissionFee ?? 0} required /></label></div>
             <p className="bp-subtle">{t.owned("Defaults are used for new students. Existing fees are preserved.")}</p>

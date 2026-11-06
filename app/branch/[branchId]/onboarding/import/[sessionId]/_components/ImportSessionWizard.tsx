@@ -171,7 +171,7 @@ export function ImportSessionWizard(props: ImportSessionWizardProps) {
     useEffect(() => {
         let alive = true;
         void importSessions.detail<ImportDetail>(branchId, sessionId, { limit: 1 })
-            .then(detail => { if (alive) setGuided(detail.sourceConfiguration?.experience === "GUIDED_CURRENT_MONTH_V1"); })
+            .then(detail => { if (alive) setGuided(["GUIDED_CURRENT_MONTH_V1", "GUIDED_SETUP_V2"].includes(String(detail.sourceConfiguration?.experience))); })
             .catch(error => { if (alive) setError(error.message); });
         return () => { alive = false; };
     }, [branchId, sessionId]);

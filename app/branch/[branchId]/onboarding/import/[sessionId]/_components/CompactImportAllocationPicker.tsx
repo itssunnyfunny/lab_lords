@@ -40,6 +40,7 @@ type CompactImportAllocationPickerProps = {
     feeLinked: boolean;
     guided?: boolean;
     feeLocked?: boolean;
+    showFeeLink?: boolean;
     onDraftChange: (field: keyof RowDraft, value: string) => void;
     onFeeLinkChange: (linked: boolean) => void;
 };
@@ -74,6 +75,7 @@ export function CompactImportAllocationPicker({
     feeLinked,
     guided = false,
     feeLocked = false,
+    showFeeLink = true,
     onDraftChange,
     onFeeLinkChange,
 }: CompactImportAllocationPickerProps) {
@@ -199,7 +201,7 @@ export function CompactImportAllocationPicker({
                     <p className={pickerSectionLabelClass}>{t(guided ? "Study timings and seat" : "Seat and shift")}</p>
                     <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t(guided ? "Combined access includes every timing shown. Choose timings, then a seat." : "Choose shift or bundle first, then pick an available seat.")}</p>
                 </div>
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-[color:var(--text-secondary)]">
+                {showFeeLink && <label className="flex cursor-pointer items-center gap-2 text-sm text-[color:var(--text-secondary)]">
                     <input
                         type="checkbox"
                         checked={feeLinked}
@@ -208,7 +210,7 @@ export function CompactImportAllocationPicker({
                         className="h-4 w-4 rounded border-[color:var(--ui-form-field-border)] bg-[color:var(--ui-form-field-bg)]"
                     />
                     <span>{t("Link fee to selected price")}</span>
-                </label>
+                </label>}
             </div>
 
             {loading && (
