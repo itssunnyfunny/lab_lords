@@ -171,11 +171,12 @@ describe("retained V1 guided import browser → real route → real service → 
             await browserExpect(page.getByRole("tab", { name: "Seat and timings", exact: true })).toHaveAttribute("aria-selected", "true");
             await page.keyboard.press("ArrowLeft");
             await page.getByLabel("Monthly fee", { exact: true }).fill("-300");
-            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await page.getByRole("button", { name: "Save draft", exact: true }).click();
             await browserExpect(page.getByText("Use whole non-negative rupee amounts. Recorded amounts will not be rounded.")).toBeVisible();
             await page.getByLabel("Monthly fee", { exact: true }).fill("1200");
-            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await page.getByRole("button", { name: "Save draft", exact: true }).click();
             await browserExpect.poll(async () => (await db.importRow.findMany({ where: { branchId: f.branch.id } })).find(row => (row.normalizedData as ImportNormalizedRow)?.student?.name === "Ambiguous Student")?.normalizedData).toMatchObject({ student: { monthlyFee: 1200 } });
+            await page.getByRole("button", { name: "Back to student list", exact: true }).click();
             await page.getByRole("tab", { name: /^All students/ }).click();
             await page.getByRole("button", { name: /Ambiguous Student/ }).click();
             await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1200");
@@ -204,13 +205,14 @@ describe("retained V1 guided import browser → real route → real service → 
                 if (++attentionRequests === 2) { nextEntered(); await nextReleased; }
                 await route.continue();
             });
-            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await page.getByRole("button", { name: "Save draft", exact: true }).click();
+            await browserExpect(page.getByText(/saved to draft, not imported/)).toBeVisible();
+            await page.getByRole("button", { name: "Review next student", exact: true }).click();
             await nextPending;
             try { await browserExpect(page.getByRole("button", { name: /^Review and save/ })).toBeDisabled(); }
             finally { releaseNext(); }
             await browserExpect(page.getByRole("button", { name: /^Review and save/ })).toBeEnabled();
             await page.unroute(attentionUrl);
-            await browserExpect(page.getByText(/saved to draft, not imported/)).toBeVisible();
             await page.reload();
             await browserExpect(page.getByRole("heading", { name: "Check your students", exact: true })).toBeVisible();
             await browserExpect(page.getByRole("heading", { name: "Your students are ready to review", exact: true })).toBeVisible();
@@ -265,7 +267,8 @@ describe("retained V1 guided import browser → real route → real service → 
             await page.getByRole("button", { name: /Morning Evening, .*seats free/ }).click();
             await page.getByRole("searchbox", { name: "Search seats" }).fill("B2");
             await page.getByRole("button", { name: /^B2,/ }).click();
-            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await page.getByRole("button", { name: "Save draft", exact: true }).click();
+            await page.getByRole("button", { name: "Back to student list", exact: true }).click();
             await page.getByRole("button", { name: /^Review and save/ }).click();
             await page.getByRole("button", { name: "Confirm and save", exact: true }).click();
             await page.getByRole("alertdialog").getByRole("button", { name: "Confirm import", exact: true }).click();
@@ -298,7 +301,8 @@ describe("retained V1 guided import browser → real route → real service → 
             await browserExpect(page.getByRole("button", { name: "Add seating later", exact: true })).toHaveCount(0);
             await page.getByRole("tab", { name: "This month's fees", exact: true }).click();
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toBeEnabled();
-            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await page.getByRole("button", { name: "Recheck student for retry", exact: true }).click();
+            await page.getByRole("button", { name: "Back to student list", exact: true }).click();
             await page.getByRole("button", { name: /^Review and save/ }).click();
             await page.getByRole("button", { name: "Confirm and save", exact: true }).click();
             await page.getByRole("alertdialog").getByRole("button", { name: "Confirm import", exact: true }).click();
@@ -320,7 +324,8 @@ describe("retained V1 guided import browser → real route → real service → 
             await browserExpect.poll(async () => (await db.importSession.findUniqueOrThrow({ where: { id: pdf.id } })).activeEvaluationRevision).toBe(1);
             await page.getByRole("article").filter({ hasText: "PDF Student" }).getByRole("button", { name: "Confirm payment information", exact: true }).click();
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("300.50");
-            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await page.getByLabel("Payment amount", { exact: true }).fill("300.50 ");
+            await page.getByRole("button", { name: "Save draft", exact: true }).click();
             await browserExpect(page.getByText("Use whole non-negative rupee amounts. Recorded amounts will not be rounded.")).toBeVisible();
             await page.getByLabel("Payment amount", { exact: true }).fill("300");
             await page.getByRole("tab", { name: "Student details", exact: true }).click();
@@ -332,7 +337,7 @@ describe("retained V1 guided import browser → real route → real service → 
             await browserExpect(page.getByLabel("Monthly fee", { exact: true })).toHaveValue("1500");
             await page.getByRole("tab", { name: "This month's fees", exact: true }).click();
             await browserExpect(page.getByLabel("Payment amount", { exact: true })).toHaveValue("300");
-            await page.getByRole("button", { name: "Save & next", exact: true }).click();
+            await page.getByRole("button", { name: "Save draft", exact: true }).click();
             await browserExpect.poll(async () => (await db.importRow.findFirstOrThrow({ where: { importSessionId: pdf.id } })).normalizedData).toMatchObject({ student: { monthlyFee: 1500 }, payment: { amount: 300 } });
             await browserExpect.poll(async () => ((await db.importRow.findFirstOrThrow({ where: { importSessionId: pdf.id } })).issues as Array<{ code: string }>).some(issue => issue.code === "PARTIAL_PAYMENT_REVIEW")).toBe(true);
             for (const language of ["hi", "hinglish"]) {

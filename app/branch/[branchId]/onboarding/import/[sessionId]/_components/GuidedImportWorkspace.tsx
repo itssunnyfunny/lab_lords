@@ -14,7 +14,8 @@ import { ColumnsStep } from "./ColumnsStep";
 import { GuidedStudentEditor } from "./GuidedStudentEditor";
 import { GuidedFinancialOutcome, GuidedFinancialReview } from "./GuidedFinancialReview";
 import { GuidedImportResults } from "./GuidedImportResults";
-import { guidedSavedFields, guidedStudentTasks, studentTaskLabels, type StudentTask } from "@/importing/utils/guided-import-presentation";
+import { guidedSavedFields, guidedStudentTasks, guidedTaskLabel, studentTaskLabels, type StudentTask } from "@/importing/utils/guided-import-presentation";
+import { GuidedPaymentProblem } from "./GuidedPaymentProblem";
 import { useBasicNavigationGuard } from "@/components/basic/useBasicNavigationGuard";
 import { CheckCircle2, CircleAlert, ArrowRight, FileText } from "lucide-react";
 import type { ImportDetail, ImportRow, Plan, RowDraft, RowFilter, RowPreview, Run } from "./types";
@@ -92,6 +93,9 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     const workspace = useWorkspaceAccess();
     const canConfigure = !!workspace?.access && hasBranchCapability(workspace.access, "settingsManage");
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedSnapshot, setSelectedSnapshot] = useState<ImportRow | null>(null);
+    const selectedSnapshotRevision = useRef<number | null>(null);
+    const [showAssignments, setShowAssignments] = useState(false);
     const [draft, setDraft] = useState<RowDraft | undefined>();
     const [dirty, setDirty] = useState(false);
     const [feeLinked, setFeeLinked] = useState(false);
@@ -116,7 +120,8 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     const initialDisplay = useRef(false);
     const sourceSection = useRef<HTMLDetailsElement>(null);
     const workspaceHeading = useRef<HTMLHeadingElement>(null);
-    const selected = detail?.rows.find(row => row.id === selectedId) ?? null;
+    const studentList = useRef<HTMLElement>(null);
+    const selected = detail?.rows.find(row => row.id === selectedId) ?? (selectedSnapshot?.id === selectedId ? selectedSnapshot : null);
     const saved = guidedSavedFields(selected?.createdEntityIds);
     const running = !!detail?.latestRun && active.has(detail.latestRun.status);
     const disabled = busy || running || !importDecision.allowed;
@@ -136,7 +141,13 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         if (!initialDisplay.current) {
             initialDisplay.current = true;
             if (!isSetupImport(next.sourceConfiguration) && !next.guidance?.needsHelp && (next.summary?.readyRows ?? 0) + (next.summary?.warningRows ?? 0) > 0) setFilter("ready");
-            if (next.latestRun?.kind === "COMMIT") setStage("result");
+            const location = new URLSearchParams(window.location.search);
+            if (next.latestRun?.kind === "COMMIT" && location.get("work") !== "1") setStage("result");
+            else if (location.get("work") === "1") {
+                setFilter("attention");
+                const retainedSection = location.get("section");
+                if (retainedSection === "timings" || retainedSection === "seats") setSection(retainedSection);
+            }
         }
         setDetail(previous => append && previous?.draftRevision === next.draftRevision
             ? { ...next, rows: [...previous.rows, ...next.rows.filter(row => !previous.rows.some(old => old.id === row.id))] } : next);
@@ -149,8 +160,8 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
 
     useEffect(() => { void load().catch(e => setError(e.message)); }, [load]);
     useEffect(() => {
-        if (!dirty && detail && !detail.rows.some(row => row.id === selectedId)) setSelectedId(detail.rows[0]?.id ?? null);
-    }, [detail, selectedId, dirty]);
+        if (!editorOpen && !dirty && detail && !detail.rows.some(row => row.id === selectedId)) setSelectedId(detail.rows[0]?.id ?? null);
+    }, [detail, selectedId, dirty, editorOpen]);
     useEffect(() => {
         if (!running) return;
         let alive = true;
@@ -164,12 +175,18 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     }, [running, detail?.latestRun, branchId, load]);
     useEffect(() => {
         if (!dirty) {
-            const row = detail?.rows.find(item => item.id === selectedId);
+            const row = selected;
             setDraft(row ? guidedDraft(row, detail?.mapping?.columnMappings) : undefined);
-            draftRevision.current = detail?.draftRevision ?? null;
+            // A just-saved ready row can leave the attention page. Its retained
+            // editor must not acquire a newer revision without receiving that row.
+            draftRevision.current = detail?.rows.some(item => item.id === row?.id)
+                ? detail.draftRevision : selectedSnapshotRevision.current;
             setFeeLinked(["SHIFT_PRICE", "MULTI_SHIFT_PRICE"].includes(row?.normalizedData?.student?.feeSource ?? ""));
         }
-    }, [detail, selectedId, dirty]);
+    }, [detail, selected, dirty]);
+    useEffect(() => {
+        if (detail?.rowPage?.issueCode) studentList.current?.scrollIntoView({ block: "start" });
+    }, [detail?.rowPage?.issueCode]);
     useEffect(() => {
         if (!editorOpen || !selected || !draft) { setPreview(null); return; }
         if (!assignmentOnly && [draft.fee, draft.paymentAmount].some(value => value.trim() && parseImportMoney(value) === undefined)) {
@@ -199,7 +216,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         catch (e) { setError(e instanceof Error ? e.message : t("Import request failed")); return false; }
         finally { if (!keepBusy) setBusy(false); }
     };
-    const saveRow = async (next = false, defer = false) => {
+    const saveRow = async (defer = false) => {
         if (!selected || !draft || !detail) return;
         if (!assignmentOnly && [draft.fee, draft.paymentAmount].some(value => value.trim() && parseImportMoney(value) === undefined)) {
             setError(t("Use whole non-negative rupee amounts. Recorded amounts will not be rounded.")); return;
@@ -221,7 +238,11 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
                 updated = await importSessions.resolveSetup<ImportDetail>(branchId, sessionId, { expectedRevision, action: defer ? "DEFER_ROW" : "ASSIGN_ROW", rowId: selected.id, targetId: timing?.id, seatId: seat?.id });
             } else updated = await importSessions.updateRows<ImportDetail>(branchId, sessionId, { expectedRevision, edits: [{ rowId: selected.id, normalizedData: normalized }] });
             updatedRow = updated.rows.find(row => row.id === selected.id);
-            if (updatedRow) setSaveOutcome({ name: updatedRow.normalizedData?.student?.name || t("Student details to confirm"), result: importSaveOutcome(selected, updatedRow) });
+            if (updatedRow) {
+                selectedSnapshotRevision.current = updated.draftRevision;
+                setSelectedSnapshot(updatedRow);
+                setSaveOutcome({ name: updatedRow.normalizedData?.student?.name || t("Student details to confirm"), result: importSaveOutcome(selected, updatedRow) });
+            }
             setNotice(null);
             setDirty(false);
         }, undefined, true);
@@ -229,18 +250,6 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         // their remaining decisions visible instead of cycling through the queue.
         if (ok && updatedRow && importReadiness(updatedRow) === "attention") {
             setTask(guidedStudentTasks(updatedRow)[0] ?? "details");
-        } else if (ok && next) {
-            // Select the next unresolved student across the full draft, including
-            // those outside the current page. The server owns the issue filter.
-            const attention = await importSessions.detail<ImportDetail>(branchId, sessionId, { rowFilter: "attention", limit: 25 });
-            setIssueFilter(undefined); setFilter("attention"); setDetail(attention);
-            const following = attention.rows.find(row => row.id !== selected.id) ?? attention.rows[0];
-            setSelectedId(following?.id ?? null);
-            setDraft(following ? guidedDraft(following, attention.mapping?.columnMappings) : undefined);
-            setFeeLinked(["SHIFT_PRICE", "MULTI_SHIFT_PRICE"].includes(following?.normalizedData?.student?.feeSource ?? ""));
-            draftRevision.current = attention.draftRevision;
-            setTask(following ? guidedStudentTasks(following)[0] ?? "details" : "details");
-            if (!following) setEditorOpen(false);
         }
         } catch (e) { setError(e instanceof Error ? e.message : t("Import request failed")); }
         finally { setBusy(false); }
@@ -280,9 +289,20 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
             const storageKey = `guided-import:${sessionId}:${plan.id}`;
             let key = `import:${plan.id}`;
             try { key = localStorage.getItem(storageKey) ?? key; localStorage.setItem(storageKey, key); } catch { /* deterministic plan identity remains retry-safe */ }
+            // Refresh must show received work even if its HTTP response is lost.
+            const url = new URL(window.location.href); url.searchParams.delete("work"); url.searchParams.delete("section"); window.history.replaceState(null, "", url);
             const started = await importSessions.commitPlan(branchId, sessionId, plan.id, key);
             setRun(await importSessions.getRun(branchId, started.runId)); setStage("result"); await load();
-        } catch (e) { setError(e instanceof Error ? e.message : t("Import request failed")); await load(); }
+        } catch (e) {
+            setError(e instanceof Error ? e.message : t("Import request failed"));
+            try {
+                const latest = await load();
+                if (latest?.latestRun?.kind === "COMMIT") {
+                    const received = await importSessions.getRun(branchId, latest.latestRun.id);
+                    if (received.importPlanId === plan.id) { setRun(received); setStage("result"); setError(null); }
+                }
+            } catch { /* Keep the request error and the same idempotency key for retry. */ }
+        }
         finally { setBusy(false); }
     };
 
@@ -310,10 +330,50 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     const openStudent = (row: ImportRow, nextTask: StudentTask = guidedStudentTasks(row)[0] ?? "details") => {
         if (!canNavigate()) return;
         if (nextTask === "source") { showSource(); return; }
-        setSelectedId(row.id); setDraft(guidedDraft(row, detail?.mapping?.columnMappings));
+        selectedSnapshotRevision.current = detail?.draftRevision ?? null;
+        setSaveOutcome(null); setSelectedSnapshot(row); setSelectedId(row.id); setDraft(guidedDraft(row, detail?.mapping?.columnMappings));
         setFeeLinked(["SHIFT_PRICE", "MULTI_SHIFT_PRICE"].includes(row.normalizedData?.student?.feeSource ?? ""));
         draftRevision.current = detail?.draftRevision ?? null;
         setTask(nextTask); setEditorOpen(true); setError(null);
+    };
+    const rememberWork = (nextSection: typeof section) => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("work", "1"); url.searchParams.set("section", nextSection);
+        window.history.replaceState(null, "", url);
+    };
+    const goToSection = (nextSection: typeof section) => {
+        if (!canNavigate()) return;
+        rememberWork(nextSection); setStage("help"); setSection(nextSection); setSaveOutcome(null);
+        setIssueFilter(undefined); setFilter(nextSection === "records" ? "attention" : "all");
+    };
+    const nextStudent = async () => {
+        if (!selected || !canNavigate()) return;
+        setBusy(true); setError(null);
+        try {
+            // Move forward through the queue once. Keeping pending never writes
+            // an exclusion, payment answer or allocation deferral.
+            const following = await importSessions.detail<ImportDetail>(branchId, sessionId, { rowFilter: "attention", cursor: selected.rowNumber, limit: 25 });
+            setDetail(following); setFilter("attention"); setIssueFilter(undefined); setSaveOutcome(null);
+            const row = following.rows[0];
+            if (row) {
+                selectedSnapshotRevision.current = following.draftRevision;
+                setSelectedSnapshot(row); setSelectedId(row.id); setDraft(guidedDraft(row, following.mapping?.columnMappings));
+                draftRevision.current = following.draftRevision;
+                setTask(guidedStudentTasks(row)[0] ?? "details");
+            } else {
+                setEditorOpen(false); setSelectedId(null); setSelectedSnapshot(null);
+                await load();
+                setNotice(t.owned(following.guidance?.needsHelp
+                    ? "You reached the end of the help list. Pending students remain in the draft; none were excluded or imported."
+                    : "No students need help now. Review the saved draft before importing."));
+            }
+        } catch (e) { setError(e instanceof Error ? e.message : t("Import request failed")); }
+        finally { setBusy(false); }
+    };
+    const recheckDraft = () => {
+        if (!detail || !canNavigate()) return;
+        void act(() => importSessions.updateMapping(branchId, sessionId, { expectedRevision: detail.draftRevision, columnMappings: detail.mapping?.columnMappings }),
+            t.owned("Draft rechecked against today's date. Recorded facts and saved students are unchanged."));
     };
 
     if (!detail) return <PageShell><p role="status">{error ? <LocalizedError error={error} /> : t("Preparing your records...")}</p></PageShell>;
@@ -327,6 +387,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     const unavailable = !!detail.mapping?.analysis?.ai?.status && detail.mapping.analysis.ai.status !== "success";
     const cancelled = detail.latestRun?.kind === "ANALYSIS" && detail.latestRun.status === "CANCELLED";
     const changeFilter = (value: RowFilter) => { if (canNavigate()) { setIssueFilter(undefined); setEditorOpen(false); setSelectedId(null); setFilter(value); } };
+    const seatingComplete = !!detail.guidance?.setup && detail.guidance.setup.counts.decision + detail.guidance.setup.counts.conflict === 0;
     const outcomeNotice = saveOutcome && <div role="status" className="space-y-2 rounded border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3 text-sm">
         <p className="font-medium">{t.owned("{name}: saved to draft, not imported.", { name: saveOutcome.name })}</p>
         <p>{t.owned(saveOutcome.result.readiness === "ready" ? "Ready for final review." : "This student still needs your help.")}</p>
@@ -343,10 +404,15 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         {!editorOpen && outcomeNotice}
         {!importDecision.allowed && <p id="import-session-mutation-blocker" role="alert">{t("Import access is currently unavailable.")}</p>}
         {setupExperience && stage !== "result" && <nav className="flex flex-wrap gap-2 border-b border-[color:var(--ui-form-section-divider)] pb-3" aria-label={t.owned("Import steps")}>
-            {([["records", "Records"], ["timings", "Timings"], ["seats", "Seats and assignments"]] as const).map(([value, label]) => <AppButton key={value} density="compact" variant={stage === "help" && section === value ? "primary" : "quiet"} aria-current={stage === "help" && section === value ? "step" : undefined} disabled={busy || running} onClick={() => { if (canNavigate()) { setStage("help"); setSection(value); setIssueFilter(undefined); setFilter("all"); } }}>{t.owned(label)}</AppButton>)}
+            {([["records", "Records"], ["timings", "Timings"], ["seats", "Seats and assignments"]] as const).map(([value, label]) => <AppButton key={value} density="compact" variant={stage === "help" && section === value ? "primary" : "quiet"} aria-current={stage === "help" && section === value ? "step" : undefined} disabled={busy || running} onClick={() => goToSection(value)}>{t.owned(label)}</AppButton>)}
             <AppButton density="compact" variant={stage === "review" ? "primary" : "quiet"} aria-current={stage === "review" ? "step" : undefined} disabled={disabled || !ready} onClick={() => void buildPlan()}>{t.owned("Review and import")}</AppButton>
         </nav>}
         {stage === "help" && <>
+            {section === "seats" && seatingComplete && <AppPanel density="compact" title={t.owned("Seating is complete for the remaining students")}>
+                <p className="text-sm">{t.owned("Assignments are matched or deliberately left for later. No seating answer is needed.")}</p>
+                <div className="mt-3 flex flex-wrap gap-2"><AppButton density="compact" onClick={() => goToSection("records")}>{t.owned("Return to remaining record decisions")}</AppButton>
+                    <AppButton density="compact" variant="quiet" aria-expanded={showAssignments} onClick={() => setShowAssignments(value => !value)}>{t.owned(showAssignments ? "Hide student assignments" : "Review or change student assignments")}</AppButton></div>
+            </AppPanel>}
             {setupExperience && section !== "records" && <>
                 <GuidedSetupReview key={section} detail={detail} section={section} disabled={disabled || dirty || columnsDirty || correctionDirty} canConfigure={canConfigure} onResolve={resolveSetup} onSetup={prepareSetup} onDirtyChange={setSetupDirty} />
                 {canConfigure && <ImportConfigurationCorrection key={`correct:${section}`} branchId={branchId} detail={detail} section={section} disabled={disabled || dirty || columnsDirty || setupDirty} onDirtyChange={setCorrectionDirty}
@@ -367,37 +433,40 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
                 {issueFilter === "NON_STUDENT_SOURCE_ROW" && <AppButton className="ml-2" density="compact" disabled={disabled} onClick={() => { if (canNavigate()) void act(() => importSessions.updateRows(branchId, sessionId, { expectedRevision: detail.draftRevision, bulkAction: { action: "SKIP", issueCode: "NON_STUDENT_SOURCE_ROW" } }), t.owned("Reviewed title and header rows left out. Source evidence remains in this draft.")).then(ok => { if (ok) { setIssueFilter(undefined); setFilter("all"); } }); }}>{t.owned("These are not students — leave them out")}</AppButton>}
             </AppPanel>}
             <GuidedPaymentChoices branchId={branchId} sessionId={sessionId} revision={detail.draftRevision} disabled={disabled || dirty || columnsDirty || setupDirty} onDirtyChange={setPaymentsDirty}
+                onReview={code => { if (canNavigate()) { setIssueFilter(code); setFilter("attention"); setSaveOutcome(null); } }} onRecheck={recheckDraft}
                 onApply={input => act(() => importSessions.resolvePayments(branchId, sessionId, input), t.owned("Payment choices saved to draft. Review them before final import."))} />
-            {(analyzing || pdfWaiting || help > 0) && <AppPanel density="compact">
+            {(analyzing || pdfWaiting || (help > 0 && preparation?.canImprove && passes < 3)) && <AppPanel density="compact">
                 {pdfWaiting ? <div className="space-y-3"><h2 className="font-semibold">{t("Check the extracted PDF rows before preparing records.")}</h2>{detail.extractionPreview?.map(row => <pre className="whitespace-pre-wrap break-words text-xs" key={row.rowNumber}>{Object.entries(row.rawData).map(([key, value]) => `${key}: ${String(value)}`).join(" · ")}</pre>)}<AppButton density="compact" disabled={busy || !importDecision.allowed} onClick={() => void act(() => importSessions.analyze(branchId, sessionId, { confirmPdfExtraction: true }), t("Preparation finished. Check the remaining decisions."))}>{t("Confirm PDF extraction and prepare")}</AppButton></div>
                 : analyzing ? <div className="flex flex-wrap items-center justify-between gap-3"><p role="status">{t("Preparing your records...")}</p><AppButton density="compact" variant="quiet" disabled={busy || !importDecision.allowed} onClick={() => void act(() => importSessions.cancelRun(branchId, detail.latestRun!.id), t("Preparation stopped. Your saved work is still here."))}>{t("Cancel preparation")}</AppButton></div>
-                : <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h2 className="text-sm font-semibold">{t(cancelled ? "Preparation stopped. Your saved work is still here." : passes >= 3 ? "Automatic preparation has finished" : unavailable ? "Preparation is unavailable; your saved work is safe" : preparation?.canImprove ? "Your answers can prepare more students" : "These decisions need your confirmation")}</h2><p className="mt-1 text-sm text-[color:var(--text-secondary)]">{t(preparation?.canImprove && passes < 3 ? "Preparation can reuse supported meanings and check unresolved columns. Review what changes afterward." : "Choose the remaining tasks below. Dates, payment facts and seats need your confirmation.")}</p>{!!detail.mapping?.guidance?.preparedRows && <p className="mt-2 text-sm">{t("Students updated from your confirmed meanings: {count}", { count: detail.mapping.guidance.preparedRows })}</p>}</div>
+                : <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h2 className="text-sm font-semibold">{t(cancelled ? "Preparation stopped. Your saved work is still here." : passes >= 3 ? "Automatic preparation has finished" : unavailable ? "Preparation is unavailable; your saved work is safe" : preparation?.canImprove ? "Your answers can prepare more students" : "These decisions need your confirmation")}</h2><p className="mt-1 text-sm text-[color:var(--text-secondary)]">{t(preparation?.canImprove && passes < 3 ? "Preparation can reuse supported meanings and check unresolved columns. Review what changes afterward." : "Choose the remaining tasks below. Dates, payment facts and seats need your confirmation.")}</p></div>
                     {preparation?.canImprove && passes < 3 && <AppButton density="compact" variant="secondary" disabled={disabled || dirty || columnsDirty} onClick={() => void act(() => importSessions.analyze(branchId, sessionId), t("Preparation finished. Check the remaining decisions."))}>{t("Prepare remaining records")}</AppButton>}
                 </div>}
             </AppPanel>}
+            {!analyzing && !!detail.mapping?.guidance?.preparedRows && <p role="status" className="text-sm">{t("Students updated from your confirmed meanings: {count}", { count: detail.mapping.guidance.preparedRows })}</p>}
             {!setupExperience && !!detail.guidance?.groups.length && <AppPanel density="compact" title={t("One answer can help matching students")} description={t("Choose the timings meant by the uploaded value. No seat is chosen automatically.")}>
                 <div className="grid gap-3 md:grid-cols-2">{detail.guidance.groups.map(group => <Interpretation key={`${detail.draftRevision}:${group.source}`} {...group} detail={detail} disabled={disabled || dirty || columnsDirty} onApply={targetId => void act(() => importSessions.confirmInterpretation(branchId, sessionId, { expectedRevision: detail.draftRevision, source: group.source, targetId }), t("Meaning applied to matching students."))} />)}</div>
             </AppPanel>}
             </>}
-            {section !== "timings" && <section aria-label={t("Students in this import")} className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label={t("Filter students")} onKeyDown={navigateImportTabs}>
+            {(section === "records" || (section === "seats" && (!seatingComplete || showAssignments))) && <section ref={studentList} aria-label={t("Students in this import")} className="scroll-mt-4 space-y-4">
+                {section === "records" && <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label={t("Filter students")} onKeyDown={navigateImportTabs}>
                     {([["attention", "Needs your help", help], ["ready", "Ready for review", ready], ["all", "All students", detail.summary?.totalRows ?? 0], ["skipped", "Left out", detail.summary?.skippedRows ?? 0]] as const).map(([value, label, count]) => <AppButton key={value} role="tab" tabIndex={filter === value ? 0 : -1} aria-selected={filter === value} density="compact" variant={filter === value ? "primary" : "quiet"} disabled={busy} onClick={() => changeFilter(value)}>{t(label)} · {formatNumber(count)}</AppButton>)}
-                </div>
+                </div>}
                 <p className="text-xs text-[color:var(--text-muted)]">{t("Showing {shown} of {total} students", { shown: detail.rows.length, total: detail.rowPage?.filteredRows ?? detail.rows.length })}</p>
                 <div className="grid min-w-0 gap-3 lg:grid-cols-2">{detail.rows.map(row => {
                     const tasks = guidedStudentTasks(row), needsHelp = importReadiness(row) === "attention";
                     const name = row.normalizedData?.student?.name || t("Student details to confirm");
                     const hasStudent = !!row.createdEntityIds?.studentId;
                     return <article key={row.id} className="min-w-0 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] p-4 sm:p-5">
-                        <div className="flex items-start justify-between gap-3"><button className="min-w-0 text-left font-semibold underline-offset-4 hover:underline focus-visible:underline" onClick={() => openStudent(row)} disabled={busy}>{name}</button><span className="shrink-0 rounded-full border border-[color:var(--ui-form-section-divider)] px-2 py-1 text-xs">{t(row.skipped ? "Left out" : row.status === "IMPORTED" ? "Saved" : needsHelp ? "Needs your help" : "Ready for review")}</span></div>
+                        <div className="flex items-start justify-between gap-3"><button className="min-w-0 text-left font-semibold underline-offset-4 hover:underline focus-visible:underline" onClick={() => openStudent(row, section === "seats" ? "seat" : undefined)} disabled={busy}>{name}</button>{section === "records" && <span className="shrink-0 rounded-full border border-[color:var(--ui-form-section-divider)] px-2 py-1 text-xs">{t(row.skipped ? "Left out" : row.status === "IMPORTED" ? "Saved" : needsHelp ? "Needs your help" : "Ready for review")}</span>}</div>
                         <p className="mt-2 text-xs text-[color:var(--text-muted)]">{t("Source record {number}", { number: row.rowNumber })}{hasStudent && row.status !== "IMPORTED" ? ` · ${t("Student saved; remaining work is kept for recovery")}` : ""}</p>
                         {issueFilter === "NON_STUDENT_SOURCE_ROW" && <dl className="mt-3 text-sm">{Object.entries(row.rawData).map(([key, value]) => <div className="break-words" key={key}><dt className="inline text-[color:var(--text-muted)]">{key}: </dt><dd className="inline">{value || "—"}</dd></div>)}</dl>}
                         {!row.skipped && <AssignmentSummary row={row} detail={detail} />}
                         {importReadiness(row) === "ready" && !!row.warnings.length && <details className="mt-3 text-sm"><summary className="cursor-pointer text-[color:var(--text-secondary)]">{t.owned("Notes that do not block import")} · {row.warnings.length}</summary><ul className="mt-2 list-disc space-y-1 pl-5">{row.warnings.map((issue, index) => <li key={`${issue.code}:${index}`}><LocalizedError error={issue.message} /></li>)}</ul></details>}
                         {!row.skipped && row.status !== "IMPORTED" && <AppButton className="mt-3" density="compact" variant="secondary" disabled={busy} onClick={() => openStudent(row, "seat")}>{t.owned("Edit assignment")}</AppButton>}
-                        {row.normalizedData?.student?.monthlyFee !== undefined && <p className="mt-3 text-sm">{t("Monthly fee")}: <strong>₹{formatNumber(row.normalizedData.student.monthlyFee)}</strong></p>}
-                        {needsHelp ? <div className="mt-3 flex flex-wrap gap-2">{tasks.map(nextTask => <AppButton key={nextTask} density="compact" variant="secondary" disabled={busy} onClick={() => openStudent(row, nextTask)}>{t(studentTaskLabels[nextTask])}</AppButton>)}</div>
-                        : <div className="mt-3 space-y-3">{row.paymentOutcome && row.status !== "IMPORTED" && !row.skipped && <GuidedFinancialOutcome outcome={row.paymentOutcome} />}<AppButton density="compact" variant="quiet" disabled={busy} onClick={() => openStudent(row, "details")}>{t(row.status === "IMPORTED" || row.skipped ? "View student" : "Check or change details")}</AppButton></div>}
+                        {section === "records" && row.normalizedData?.student?.monthlyFee !== undefined && <p className="mt-3 text-sm">{t("Monthly fee")}: <strong>₹{formatNumber(row.normalizedData.student.monthlyFee)}</strong></p>}
+                        {section === "records" && needsHelp && <div className="mt-3"><GuidedPaymentProblem row={row} /></div>}
+                        {section === "records" && (needsHelp ? <div className="mt-3 flex flex-wrap gap-2">{tasks.map(nextTask => <AppButton key={nextTask} density="compact" variant="secondary" disabled={busy} onClick={() => openStudent(row, nextTask)}>{t.owned(guidedTaskLabel(row, nextTask))}</AppButton>)}</div>
+                        : <div className="mt-3 space-y-3">{row.paymentOutcome && row.status !== "IMPORTED" && !row.skipped && <GuidedFinancialOutcome outcome={row.paymentOutcome} />}<AppButton density="compact" variant="quiet" disabled={busy} onClick={() => openStudent(row, "details")}>{t(row.status === "IMPORTED" || row.skipped ? "View student" : "Check or change details")}</AppButton></div>)}
                     </article>;
                 })}</div>
                 {!detail.rows.length && <AppPanel density="compact"><p>{t(filter === "attention" && allReady ? "Nothing needs your help. The ready students can now be reviewed." : filter === "ready" ? "No students are ready yet. Choose Needs your help to finish their details." : filter === "skipped" ? "No students have been left out." : "No students match this view.")}</p>{filter === "attention" && allReady && <AppButton density="compact" className="mt-3" variant="secondary" onClick={() => changeFilter("ready")}>{t("See ready students")}</AppButton>}</AppPanel>}
@@ -407,11 +476,11 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
                 <summary className="cursor-pointer text-sm font-medium"><FileText aria-hidden="true" className="mr-2 inline h-4 w-4" />{t(preparation?.columnsToReview ? "Confirm the remaining source columns" : "Inspect uploaded columns and meanings")}</summary>
                 <div className="mt-4"><ColumnsStep detail={detail} goal="FULL" saving={busy} mutationsDisabled={disabled || dirty} onDirtyChange={setColumnsDirty} onSave={async columnMappings => { await act(async () => { await importSessions.updateMapping(branchId, sessionId, { expectedRevision: detail.draftRevision, columnMappings }); setColumnsDirty(false); setSourceOpen(false); }, t("Source meanings saved.")); }} /></div>
             </details>}
-            {setupExperience && section !== "seats" && <AppButton density="compact" disabled={disabled || setupDirty || dirty || columnsDirty} onClick={() => { setSection(section === "records" ? "timings" : "seats"); setIssueFilter(undefined); setFilter("all"); }}>{t.owned(section === "records" ? "Continue to timings" : "Continue to seats and assignments")}</AppButton>}
+            {setupExperience && section !== "seats" && <AppButton density="compact" disabled={disabled || setupDirty || dirty || columnsDirty} onClick={() => goToSection(section === "records" ? "timings" : "seats")}>{t.owned(section === "records" ? "Continue to timings" : "Continue to seats and assignments")}</AppButton>}
         </>}
         {stage === "review" && <GuidedFinancialReview plan={plan} currentRevision={detail.draftRevision} policy={policy} busy={busy} disabled={disabled} onBack={() => { if (canNavigate()) setStage("help"); }} onPolicyChange={value => { setPolicy(value); setPlan(null); }} onRefresh={() => void refreshReview()} onConfirm={() => setConfirm(true)} onApproveSetup={canConfigure ? () => void approveSetup() : undefined} />}
-        {stage === "result" && <GuidedImportResults branchId={branchId} detail={detail} run={run} busy={busy} onRepair={() => { if (canNavigate()) { setStage("help"); setFilter("attention"); setPlan(null); void load().catch(e => setError(e.message)); } }} onCancel={() => run && void act(() => importSessions.cancelRun(branchId, run.id))} onRefresh={() => void act(async () => {})} onExport={() => { if (!run) return; void importSessions.exportRunErrors(branchId, run.id, "csv").then(blob => { const url = URL.createObjectURL(blob), link = document.createElement("a"); link.href = url; link.download = "import-recovery.csv"; link.click(); URL.revokeObjectURL(url); }).catch(e => setError(e.message)); }} />}
-        {run && stage === "help" && <AppButton density="compact" variant="quiet" onClick={() => { if (canNavigate()) setStage("result"); }}>{t("View saved progress")}</AppButton>}
+        {stage === "result" && <GuidedImportResults branchId={branchId} detail={detail} run={run} busy={busy} onRepair={() => { if (canNavigate()) { goToSection("records"); setPlan(null); } }} onCancel={() => run && void act(() => importSessions.cancelRun(branchId, run.id))} onRefresh={() => void act(async () => {})} onExport={() => { if (!run) return; void importSessions.exportRunErrors(branchId, run.id, "csv").then(blob => { const url = URL.createObjectURL(blob), link = document.createElement("a"); link.href = url; link.download = "import-recovery.csv"; link.click(); URL.revokeObjectURL(url); }).catch(e => setError(e.message)); }} />}
+        {run && stage === "help" && <AppButton density="compact" variant="quiet" onClick={() => { if (canNavigate()) { const url = new URL(window.location.href); url.searchParams.delete("work"); url.searchParams.delete("section"); window.history.replaceState(null, "", url); setSaveOutcome(null); setStage("result"); } }}>{t("View saved progress")}</AppButton>}
         {editorOpen && selected && draft && <GuidedStudentEditor key={`${selected.id}:${task}`} branchId={branchId} sessionId={sessionId} detail={detail} row={selected} draft={draft} focus={task} dirty={dirty} busy={busy} disabled={!!mutationDisabled} error={error} preview={preview} previewLoading={previewLoading} feeLinked={feeLinked} assignmentOnly={assignmentOnly} saveOutcome={outcomeNotice}
             onChange={(field, value) => {
                 if (saved.student && ["studentName", "phone", "joinedAt", "fee"].includes(field)) return;
@@ -423,7 +492,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
                 setDraft(next); setDirty(true);
             }}
             onFeeLinkChange={linked => { if (saved.student) return; setFeeLinked(linked); setDirty(true); if (linked) { const choice = [...(detail.branchContext?.shifts ?? []), ...(detail.branchContext?.multiShifts ?? [])].find(choice => choice.name === (draft.multiShift || draft.shift)); if (choice) setDraft({ ...draft, fee: String(choice.price) }); } }}
-            onSave={() => void saveRow(true)} onDefer={() => void saveRow(true, true)} onReset={() => { setDirty(false); setError(null); setDraft(guidedDraft(selected, detail.mapping?.columnMappings)); setFeeLinked(["SHIFT_PRICE", "MULTI_SHIFT_PRICE"].includes(selected.normalizedData?.student?.feeSource ?? "")); }}
+            onSave={() => void saveRow()} onNext={() => void nextStudent()} onDefer={() => void saveRow(true)} onReset={() => { setDirty(false); setError(null); setDraft(guidedDraft(selected, detail.mapping?.columnMappings)); setFeeLinked(["SHIFT_PRICE", "MULTI_SHIFT_PRICE"].includes(selected.normalizedData?.student?.feeSource ?? "")); }}
             onClose={() => { if (canNavigate()) { setEditorOpen(false); setError(null); } }} onSource={showSource}
             onExclude={() => { if (canNavigate()) void act(() => importSessions.updateRows(branchId, sessionId, { expectedRevision: detail.draftRevision, ...(selected.skipped ? { unskipRowIds: [selected.id] } : { skipRowIds: [selected.id] }) }), t(selected.skipped ? "Student included in this draft." : "Student left out of this import.")).then(ok => { if (ok) setEditorOpen(false); }); }} />}
         <ConfirmDialog isOpen={confirm} onClose={() => setConfirm(false)} onConfirm={() => void commit()} title={t("Save the reviewed students?")} description={t("Only this reviewed plan will run. Successful records stay saved if another operation needs recovery.")} confirmText={t("Confirm import")} loading={busy} />

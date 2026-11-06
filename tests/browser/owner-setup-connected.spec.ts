@@ -116,6 +116,9 @@ test.describe.serial("real authenticated owner setup and shared import", () => {
             await expect(page.getByText("06:00–12:00 · ₹700", { exact: true })).toBeVisible();
             await capture(page, `${plan}-${width}-timings`);
             await step(page, "Seats and assignments");
+            await expect(page.getByRole("heading", { name: "Seating is complete for the remaining students", exact: true })).toBeVisible();
+            await expect(page.getByRole("button", { name: "Edit assignment", exact: true })).toHaveCount(0);
+            await page.getByRole("button", { name: "Review or change student assignments", exact: true }).click();
             await expect(page.getByRole("button", { name: "Edit assignment", exact: true })).toHaveCount(2);
             await page.getByRole("button", { name: "Edit assignment", exact: true }).first().click();
             await expect(page.getByRole("dialog")).toBeVisible();
@@ -160,6 +163,7 @@ test.describe.serial("real authenticated owner setup and shared import", () => {
         const group = page.getByText("FD · Students: 2", { exact: true }).locator("..");
         await group.getByRole("combobox", { name: "Use for this group" }).selectOption({ label: "Full day" });
         await group.getByRole("button", { name: "Apply to matching students", exact: true }).click();
+        await page.getByText("Review or correct matched values · 2", { exact: true }).click();
         await expect(page.getByText("Full day · Students: 2", { exact: true })).toBeVisible();
         await capture(page, "proposed-timings-and-group-answer");
         await step(page, "Seats and assignments");
@@ -169,6 +173,7 @@ test.describe.serial("real authenticated owner setup and shared import", () => {
         await expect(page.getByRole("button", { name: "Prepare missing seats", exact: true })).toBeVisible();
         await page.getByRole("button", { name: "Leave unresolved seating for later", exact: true }).click();
         await expect(page.getByRole("button", { name: "Leave unresolved seating for later", exact: true })).toHaveCount(0);
+        await page.getByRole("button", { name: "Review or change student assignments", exact: true }).click();
         await expect(page.getByRole("article").filter({ hasText: "Synthetic later two" })).toContainText("Intentionally left for later");
         expect((await db.query('SELECT count(*)::int AS count FROM "Shift" WHERE "branchId"=$1', [branchId])).rows[0].count).toBe(1);
         expect((await db.query('SELECT count(*)::int AS count FROM "Seat" WHERE "branchId"=$1', [branchId])).rows[0].count).toBe(12);
@@ -217,11 +222,11 @@ test.describe.serial("real authenticated owner setup and shared import", () => {
         await expect(page.getByText(/allocation history records and/)).toContainText("1 rows");
         await page.getByRole("button", { name: "Confirm correction to existing setup", exact: true }).click();
         await expect(page.getByRole("button", { name: "Rename existing seats", exact: true })).toBeVisible();
-        await step(page, "Records"); await page.getByRole("tab", { name: /^All students/ }).click();
+        await step(page, "Records");
         const questionCard = page.getByRole("article").filter({ has: page.getByRole("button", { name: "Synthetic mixed questions", exact: true }) });
         await questionCard.getByRole("button", { name: "Confirm joining date", exact: true }).click();
         await page.getByRole("dialog").getByLabel("Joined date", { exact: true }).fill("2026-01-01");
-        await page.getByRole("dialog").getByRole("button", { name: "Save & next", exact: true }).click();
+        await page.getByRole("dialog").getByRole("button", { name: "Save draft", exact: true }).click();
         await expect(page.getByRole("dialog")).toContainText("saved to draft, not imported");
         await expect(page.getByRole("dialog")).toContainText("This student still needs your help");
         await expect(page.getByRole("dialog")).toContainText("Confirm the student's monthly fee");
@@ -229,17 +234,23 @@ test.describe.serial("real authenticated owner setup and shared import", () => {
         await expect(page.getByRole("dialog")).not.toContainText("Something went wrong");
         await capture(page, "mixed-partial-correction");
         await page.getByRole("dialog").getByLabel("Monthly fee", { exact: true }).fill("450");
-        await page.getByRole("dialog").getByRole("button", { name: "Save & next", exact: true }).click();
+        await page.getByRole("dialog").getByRole("button", { name: "Save draft", exact: true }).click();
+        await expect(page.getByRole("dialog")).toContainText("Ready for final review.");
+        await expect(page.getByRole("dialog")).toContainText("Synthetic mixed questions");
+        await page.getByRole("dialog").getByRole("button", { name: "Review next student", exact: true }).click();
         await expect(page.getByRole("dialog")).toContainText("Synthetic mixed combined");
         await page.getByRole("dialog").getByLabel("Student name", { exact: true }).fill("Synthetic mixed combined");
         await page.getByRole("dialog").getByLabel("Phone", { exact: true }).fill("9876543211");
-        await page.getByRole("dialog").getByRole("button", { name: "Save & next", exact: true }).click();
+        await page.getByRole("dialog").getByRole("button", { name: "Save draft", exact: true }).click();
         await expect(page.getByRole("dialog")).toContainText("This student still needs your help");
         // The uncertain source payment is a deliberate per-student confirmation.
         const status = page.getByRole("dialog").getByRole("combobox", { name: "Payment status", exact: true });
         await status.click(); await page.getByRole("option", { name: "Due", exact: true }).click();
-        await page.getByRole("dialog").getByRole("button", { name: "Save & next", exact: true }).click();
+        await page.getByRole("dialog").getByRole("button", { name: "Save draft", exact: true }).click();
+        await expect(page.getByRole("dialog")).toContainText("Ready for final review.");
+        await page.getByRole("dialog").getByRole("button", { name: "Review next student", exact: true }).click();
         await expect(page.getByRole("dialog")).toHaveCount(0);
+        await expect(page.getByText("No students need help now. Review the saved draft before importing.", { exact: true })).toBeVisible();
         await expect(page.getByRole("tab", { name: "Needs your help · 0", exact: true })).toBeVisible();
         await expect(page.getByRole("article")).toHaveCount(0);
         await page.getByRole("tab", { name: /^All students/ }).click();
@@ -252,7 +263,7 @@ test.describe.serial("real authenticated owner setup and shared import", () => {
         });
         await page.getByRole("button", { name: "Save payment choices to draft", exact: true }).click();
         await expect(page.getByRole("alert").first()).toBeVisible();
-        await page.getByRole("button", { name: "Refresh payment choices", exact: true }).click();
+        // Read persisted choices after a lost response; do not replay the POST.
         await expect(page.getByText("Saved Due choices: 3. Confirmed Paid choices: 0.", { exact: true })).toBeVisible();
         await page.reload();
         await expect(page.getByText("Saved Due choices: 3. Confirmed Paid choices: 0.", { exact: true })).toBeVisible();
@@ -270,8 +281,14 @@ test.describe.serial("real authenticated owner setup and shared import", () => {
         await expect(page.getByText("Morning · Seat C1", { exact: true })).toBeVisible();
         await expect(page.getByText("Source rows deliberately left out: 2. They will not be imported.", { exact: true })).toBeVisible();
         await capture(page, "mixed-final-review");
+        let commitRequests = 0;
+        await page.route("**/import-sessions/*/commit", async route => {
+            if (route.request().method() === "POST") { commitRequests++; await route.fetch(); await route.abort("failed"); }
+            else await route.continue();
+        });
         await page.getByRole("button", { name: "Confirm and save", exact: true }).click();
         await page.getByRole("alertdialog").getByRole("button", { name: "Confirm import", exact: true }).click();
+        await expect(page.getByRole("heading", { name: "Your import results", exact: true })).toBeVisible();
         await expect.poll(async () => (await db.query('SELECT count(*)::int AS count FROM "Student" WHERE "branchId"=$1 AND name LIKE $2', [branchId, "Synthetic mixed%"])).rows[0].count, { timeout: 120_000 }).toBe(6);
         await expect.poll(async () => (await db.query('SELECT status FROM "ImportRun" WHERE "importSessionId"=$1 AND kind=\'COMMIT\' ORDER BY "createdAt" DESC LIMIT 1', [sessionId])).rows[0]?.status, { timeout: 120_000 }).toBe("COMPLETED_WITH_ISSUES");
         const fees = (await db.query('SELECT p.status,p.amount,s.name FROM "Payment" p JOIN "Student" s ON p."studentId"=s.id WHERE s."branchId"=$1 AND s.name LIKE $2 ORDER BY s.name', [branchId, "Synthetic mixed%"])).rows;
@@ -279,6 +296,7 @@ test.describe.serial("real authenticated owner setup and shared import", () => {
         expect(fees.filter(p => p.status === "DUE").reduce((sum, p) => sum + p.amount, 0)).toBe(1850);
         expect(fees.filter(p => p.status === "PAID").reduce((sum, p) => sum + p.amount, 0)).toBe(1400);
         expect((await db.query('SELECT count(*)::int AS count FROM "SeatAllocation" a JOIN "Student" s ON a."studentId"=s.id WHERE s."branchId"=$1 AND s.name LIKE $2', [branchId, "Synthetic mixed%"])).rows[0].count).toBe(1);
+        expect(commitRequests).toBe(1);
         await page.reload(); await expect(page.getByRole("heading", { name: "Your import results", exact: true })).toBeVisible();
         await expect(page.getByRole("heading", { name: "Your students are saved", exact: true })).toBeVisible();
         await expect(page.getByRole("button", { name: "Finish the remaining work", exact: true })).toHaveCount(0);

@@ -546,6 +546,10 @@ function ImportAssistantContent({
                                     {sessions.slice(0, 8).map(session => {
                                         const sessionGoal = (session as ImportSessionListItem & { goal?: ImportGoal | null }).goal ?? "STUDENTS";
                                         const readiness = session.summary?.readinessScore ?? 0;
+                                        const saved = session.summary?.importedRows ?? 0;
+                                        const total = session.summary?.totalRows ?? 0;
+                                        const remaining = Math.max(0, total - saved - (session.summary?.skippedRows ?? 0));
+                                        const progress = saved > 0 && total > 0 ? Math.round(saved / total * 100) : readiness;
                                         const finished = ["COMMITTED", "PARTIAL", "FAILED"].includes(session.status);
                                         return (
                                             <button
@@ -564,11 +568,11 @@ function ImportAssistantContent({
                                                             <span className="inline-flex items-center gap-1"><CalendarClock className="h-3 w-3" />{formatDateTime(session.updatedAt)}</span>
                                                         </span>
                                                     </span>
-                                                    <Badge variant={statusTone(session.status)}>{labelImportStatus(session.status)}</Badge>
+                                                    <Badge variant={statusTone(saved > 0 && remaining > 0 ? "PARTIAL" : session.status)}>{saved > 0 ? t.owned("{saved} saved · {remaining} remaining", { saved, remaining }) : labelImportStatus(session.status)}</Badge>
                                                 </span>
                                                 <span className="mt-3 flex items-center gap-3">
-                                                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--ui-stat-track)]" role="progressbar" aria-label={t("Import readiness")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness}>
-                                                        <span className="block h-full rounded-full bg-[color:var(--ui-tone-info-progress)]" style={{ width: `${Math.max(0, Math.min(100, readiness))}%` }} />
+                                                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--ui-stat-track)]" role="progressbar" aria-label={saved > 0 ? t.owned("Saved import progress") : t("Import readiness")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+                                                        <span className="block h-full rounded-full bg-[color:var(--ui-tone-info-progress)]" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
                                                     </span>
                                                     <span className="text-xs font-semibold text-[color:var(--ui-tone-info-text)]">{finished ? t("Review result") : t("Resume")}</span>
                                                 </span>
