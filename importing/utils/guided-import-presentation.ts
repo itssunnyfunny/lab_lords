@@ -13,6 +13,17 @@ export const studentTaskLabels = {
     payment: "Confirm payment information", identity: "Check an existing student", source: "Check source columns", details: "Check student details",
 } as const satisfies Record<StudentTask, string>;
 type StudentRecord = { status: string; skipped: boolean; normalizedData: ImportNormalizedRow | null; issues: ImportIssue[]; warnings: ImportIssue[]; paymentOutcome?: CurrentMonthOutcome };
+export const paymentProblemLabels: Record<string, string> = {
+    PAYMENT_BEFORE_DUE_REVIEW: "Payment recorded before the due date",
+    PARTIAL_PAYMENT_REVIEW: "Payment amount differs from the monthly fee",
+    CONFIRM_PAYMENT_METHOD: "Choose the recorded payment method",
+    PAYMENT_INFORMATION_REVIEW: "Clarify the recorded payment status",
+};
+export function guidedTaskLabel(row: StudentRecord, task: StudentTask): string {
+    if (task !== "payment") return studentTaskLabels[task];
+    const issue = unresolvedImportDecisions(row).find(issue => paymentProblemLabels[issue.code]);
+    return issue ? paymentProblemLabels[issue.code] : studentTaskLabels.payment;
+}
 export function guidedStudentTasks(row: StudentRecord): StudentTask[] {
     if (importReadiness(row) !== "attention") return [];
     const tasks = new Set<StudentTask>();
