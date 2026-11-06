@@ -402,7 +402,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 <SettingsPanel id="profile" title={t("Business Profile")} description={t("Core business information used across this organization.")} icon={Building2}>
                     {isEditing && organizationCanEdit ? (
                         <>
-                            <SettingsField label={t("Organization name")} description={t("The public workspace name.")} error={nameError} errorId="org-name-error">
+                            <SettingsField label={t.owned("Workspace name")} description={t.owned("This groups your branches and billing. Change a library's displayed name in its branch settings.")} error={nameError} errorId="org-name-error">
                                 <SettingsInput value={form.name} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder={t("Organization name")} error={nameError} errorId="org-name-error" />
                             </SettingsField>
                             <SettingsField label={t("Legal name")} description={t("Optional legal or billing name.")} error={legalNameError} errorId="org-legal-name-error">

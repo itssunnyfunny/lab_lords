@@ -103,6 +103,8 @@ function setNestedValue(row: ImportNormalizedRow, target: string, value: string,
     switch (target) {
         case "student.name":
             row.student = { ...row.student, name: value };
+            if (/(?:^|[^\d])(?:\+91[\s-]*)?[6-9](?:[\s-]*\d){9}(?!\d)/.test(value)) issues.push({ code: "COMBINED_IDENTITY_REVIEW", field: target,
+                message: "This name appears to contain a phone number. Separate and confirm the student's name and phone from the uploaded value.", severity: "error" });
             break;
         case "student.phone":
             row.student = { ...row.student, phone: value };
@@ -278,6 +280,12 @@ export function applyImportDefaults(normalized: ImportNormalizedRow, options?: I
         };
     }
 
+    if (normalized.allocation?.deferred) {
+        normalized.allocation = { deferred: true };
+        delete normalized.seat; delete normalized.shift; delete normalized.multiShift;
+        if (context) applyFeeDefault(normalized, context, options?.paymentPolicy !== "CURRENT_CALENDAR_MONTH");
+        return normalized;
+    }
     const hasSeat = Boolean(normalized.allocation?.seatLabel ?? normalized.seat?.label);
     if (!hasSeat && options?.defaultSeatLabel) {
         normalized.seat = { ...normalized.seat, label: options.defaultSeatLabel };

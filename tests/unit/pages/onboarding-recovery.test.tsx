@@ -126,13 +126,13 @@ describe("onboarding page recovery", () => {
         let finish!: (response: Response) => void;
         fetchMock.mockImplementationOnce((_url, init) => {
             expect(readOnboardingCommand("account-A")).toMatchObject({ status: "pending", commandId: key, body: init.body });
-            expect(JSON.parse(init.body)).toMatchObject({ orgName: "New organization", branchName: "Main", seatCount: 2, selectedPostTrialPlan: "STANDARD" });
+            expect(JSON.parse(init.body)).toMatchObject({ orgName: "My workspace", branchName: "Saraswati Library", seatCount: 2, selectedPostTrialPlan: "STANDARD" });
             return new Promise(resolve => { finish = resolve; });
         });
         const page = mount();
-        page.input("orgName", "New organization"); page.input("ownerPhone", "9999999999");
+        page.input("branchName", "Temporary library"); page.input("ownerPhone", "9999999999");
         page.click("Continue");
-        page.click("Back"); page.input("branchName", "Main"); page.click("Continue");
+        page.click("Back"); page.input("branchName", "Saraswati Library"); page.click("Continue");
         page.input("seatCount", "2"); page.input("daily-price", "500");
         page.click("Continue"); page.choose("Standard"); page.click("Continue");
         page.choose("Add students manually");
@@ -157,7 +157,7 @@ describe("onboarding page recovery", () => {
     it("offers explicit reload recovery using the saved request, with no automatic POST", async () => {
         seed(); const page = mount();
         expect(page.has("Recover your saved setup")).toBe(true);
-        expect(page.render().some(node => node.props.name === "orgName")).toBe(false);
+        expect(page.render().some(node => node.props.name === "branchName")).toBe(false);
         expect(fetchMock).not.toHaveBeenCalled();
         await page.click("Retry saved setup");
         expect(fetchMock.mock.calls[0][1]).toMatchObject({ body, headers: { "Idempotency-Key": key, "X-Onboarding-Account": "account-A" } });
@@ -191,7 +191,7 @@ describe("onboarding page recovery", () => {
         expect(fetchMock).not.toHaveBeenCalled();
         expect(mocks.push).toHaveBeenCalledWith("/branch/branch-1/onboarding/import");
         expect(page.has("Set up another organization")).toBe(false);
-        expect(page.render().some(node => node.props.name === "orgName")).toBe(false);
+        expect(page.render().some(node => node.props.name === "branchName")).toBe(false);
         expect(readOnboardingCommand("account-A")).toMatchObject({ status: "completed", commandId: key });
     });
 
@@ -213,7 +213,7 @@ describe("onboarding page recovery", () => {
         seed(); storage.getItem.mockImplementation(() => { throw new Error("blocked"); });
         const page = mount();
         expect(page.has("Retry saved setup check")).toBe(true);
-        expect(page.render().some(node => node.props.name === "orgName")).toBe(false);
+        expect(page.render().some(node => node.props.name === "branchName")).toBe(false);
         storage.getItem.mockImplementation((key: string) => saved.get(key) ?? null);
         page.click("Retry saved setup check");
         expect(page.has("Recover your saved setup")).toBe(true);

@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { importReadiness } from "./import-readiness";
 import type { CommitMode, ImportIssue, ImportMappingState, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 import type { ImportPlanCheck } from "@/importing/contracts/import-preview.contract";
 
@@ -31,11 +32,11 @@ function issueList(value: unknown): ImportIssue[] {
 }
 
 function activeRows(rows: PlanRow[]) {
-    return rows.filter(row => !row.skipped && ["READY", "WARNING"].includes(row.status));
+    return rows.filter(row => importReadiness(row) === "ready");
 }
 
 function blockedRows(rows: PlanRow[]) {
-    return rows.filter(row => ["BLOCKED", "CONFLICT", "NEEDS_REVIEW", "DUPLICATE", "FAILED"].includes(row.status));
+    return rows.filter(row => importReadiness(row) === "attention");
 }
 
 function hasPaymentData(row: PlanRow) {

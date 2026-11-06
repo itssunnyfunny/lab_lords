@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { importReadiness } from "./import-readiness";
 import type { ImportRowStatus } from "@/app/generated/prisma/enums";
 import type {
     CommitMode,
@@ -198,6 +199,22 @@ function configurationPayloadsForEvaluation(evaluation: ImportPlanEvaluation, ma
     const normalized = evaluation.normalizedData ?? {};
     const options = mapping.importOptions ?? {};
     const payloads: Array<{ type: string; value: Record<string, unknown> }> = [];
+    if (options.allocationPolicy === "EXPLICIT_DECISION") {
+        const setup = options.preparedSetup;
+        const key = (value?: string) => (value ?? "").trim().toLocaleLowerCase("en-IN");
+        const allocation = normalized.allocation;
+        if (!setup) return payloads;
+        // A deliberately unseated student can still use an explicitly reviewed
+        // timing price. Keep its fee dependency without creating an assignment.
+        const seat = !allocation?.deferred && setup.seats.find(label => key(label) === key(allocation?.seatLabel));
+        if (seat) payloads.push({ type: "seat", value: { label: seat } });
+        const bundleNames = [allocation?.multiShiftName, normalized.student?.feeLinkedMultiShiftName].map(key);
+        const bundles = setup.multiShifts.filter(s => bundleNames.includes(key(s.name)));
+        for (const bundle of bundles) payloads.push({ type: "multi-shift", value: { ...bundle } });
+        const names = [allocation?.shiftName, normalized.student?.feeLinkedShiftName, ...bundles.flatMap(b => b.componentShiftNames), ...(normalized.multiShift?.componentShiftNames ?? [])].map(key);
+        for (const shift of setup.shifts.filter(s => names.includes(key(s.name)))) payloads.push({ type: "shift", value: { ...shift } });
+        return payloads;
+    }
     if (options.createUnknownSeats && normalized.seat?.label) {
         payloads.push({ type: "seat", value: { label: normalized.seat.label } });
     }
@@ -235,7 +252,7 @@ function buildImportConfigurationCandidates(input: Pick<
     const definitionHashes = new Map<string, string>();
     const conflictingIdentities = new Set<string>();
     const readyEvaluations = [...input.evaluations]
-        .filter(evaluation => !evaluation.skipped && ["READY", "WARNING"].includes(evaluation.status))
+        .filter(evaluation => importReadiness(evaluation) === "ready")
         .sort((left, right) => left.rowNumber - right.rowNumber || left.rowId.localeCompare(right.rowId));
 
     for (const evaluation of readyEvaluations) {
@@ -302,7 +319,7 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
     );
     const skippedRows = excludedEvaluations.length;
     const readyEvaluations = evaluations.filter(evaluation =>
-        !evaluation.skipped && ["READY", "WARNING"].includes(evaluation.status)
+        importReadiness(evaluation) === "ready"
     );
     const warningRows = readyEvaluations.filter(evaluation => evaluation.status === "WARNING").length;
     const blockedRows = evaluations.length - readyEvaluations.length - skippedRows;
@@ -655,6 +672,11 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
     const snapshot: CompiledImportPlan["snapshot"] = {
         ...(input.mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH" ? {
             currentMonthReview: {
+                setup: {
+                    seats: sortedMutationItems.filter(item => item.kind === "CONFIG" && item.payload?.type === "seat").map(item => String(item.payload?.label)),
+                    shifts: sortedMutationItems.filter(item => item.kind === "CONFIG" && item.payload?.type === "shift").map(item => ({ name: String(item.payload?.name), startTime: String(item.payload?.startTime ?? ""), endTime: String(item.payload?.endTime ?? ""), price: Number(item.payload?.price ?? 0) })),
+                    multiShifts: sortedMutationItems.filter(item => item.kind === "CONFIG" && item.payload?.type === "multi-shift").map(item => ({ name: String(item.payload?.name), componentShiftNames: item.payload?.componentShiftNames as string[], price: Number(item.payload?.price ?? 0) })),
+                },
                 businessDate: importBusinessDate(asOf),
                 heldFinancialRows: evaluations.filter(row => !row.skipped && row.status !== "IMPORTED" && hasFinancialIssue(row)).length,
                 seatingDeferredRows: readyEvaluations.filter(row => !row.normalizedData?.allocation?.seatLabel
@@ -666,6 +688,7 @@ export function compileImportPlanSnapshot(input: CompileImportPlanSnapshotInput)
                     const paidKey = outcome.billingStartAt ? `row:${row.rowId}:payment:${outcome.billingStartAt.slice(0, 10)}` : "";
                     const state = outcome.state === "CREATE_NOW" && previouslySucceededItems.has(paidKey) ? "EXISTING" : outcome.state;
                     return { rowId: row.rowId, rowNumber: row.rowNumber, studentName: row.normalizedData?.student?.name ?? "",
+                        allocation: row.normalizedData?.allocation, componentShiftNames: row.normalizedData?.multiShift?.componentShiftNames,
                         state, dueDate: outcome.dueDate, amount: outcome.amount, reviewedBusinessDate: outcome.businessDate, status: outcome.status };
                 }),
             },

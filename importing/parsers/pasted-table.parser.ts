@@ -35,10 +35,13 @@ function* physicalLines(input: string) {
 }
 
 function firstNonEmptyLine(input: string) {
+    let first = "";
     for (const { line } of physicalLines(input)) {
-        if (line.trim().length > 0) return line;
+        if (!line.trim()) continue;
+        if (!first) first = line;
+        if (/[\t|,]/.test(line) || /\S\s{2,}\S/.test(line)) return line;
     }
-    return "";
+    return first;
 }
 
 function countUnquoted(line: string, delimiter: string) {

@@ -1,5 +1,58 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Import recovery clarification — local, 2026-11-06
+
+The existing guided flow separates **Save draft** from **Review next student**.
+Saved outcomes stay visible; advancing walks the actionable queue once and leaves
+unresolved records pending. A retained ready-row editor keeps its original
+revision fence if that row has left the loaded attention page. Recorded-payment
+conflicts name the issue and relevant due date. Rechecking validates the draft
+against the current business date without changing payment facts or saved records.
+Bulk payment controls show only eligible choices and read persisted decisions
+after a failed/lost response. Completed seating work collapses its assignment
+list while retaining the existing correction controls. Recovery section URLs
+survive refresh. History counts saved rows from the ledger-backed row status,
+including older summaries without the additive `importedRows` JSON field.
+Run ordering breaks timestamp ties by revision and ID. Saved financial outcomes
+remain visible after a later preparation run, and the applied preparation count
+remains visible when there is no useful preparation action left.
+If the final import response is lost, the UI reads the matching reviewed-plan
+run and shows its progress without replaying the mutation; refresh also resumes
+the result rather than the earlier recovery section.
+See the [same-register walkthrough](../redesign/import-decision-correction.md).
+No migration, dependency or application environment change is required.
+
+## Complete owner setup and import — local, 2026-11-05
+
+The follow-up correction unifies readiness across filters, counts, badges,
+progression and plan eligibility. Row saves show resolved/remaining reasons and
+remain explicitly draft-only. Register-wide payment review previews protected
+source facts, Due defaults and selected Paid confirmations. Title/repeated-header
+rows remain staged for explicit exclusion; combined identities need clarification.
+A separate reviewed correction supports existing-seat renaming and timing edits,
+retains identity/history, and revalidates drafts without replacing the executor.
+
+New onboarding asks for the library/centre name as `Branch.name`. The optional
+parent `Organization.name` defaults to the authenticated signup name's workspace,
+or `My workspace`. Existing records and frozen pending onboarding commands keep
+their original meaning, hashes and trial rules. Branch/workspace settings explain
+which name they change.
+
+New `GUIDED_SETUP_V2` imports use one shared shell on Basic, Standard and Pro,
+with Records, Timings, Seats and assignments, and Review and import. Existing
+branch setup is immediately available. Explicit proposed seats, daily timings
+and combinations remain in mapping JSON until reviewed CONFIG operations run.
+Shared timing prices come from explicit setup entries, never individual fees.
+Exact labels, unique explicit hours and complete component sets prepare supported
+matches. Missing seating requires a choice or explicit individual/group deferral.
+Assignment-only saves preserve unrelated source/financial holds. Current-month
+anniversary billing, immutable plans, authorization and the durable execution
+ledger remain authoritative. Earlier guided/compatibility drafts retain their
+original setup policy. See [implementation and validation](../redesign/owner-setup-import.md).
+
+This supersedes the presentation described in the dated sections below for new
+sessions only. No schema, dependency, environment or provider change is required.
+
 ## Guided import preparation — local, 2026-11-03
 
 New marked sessions use a student help queue, grouped branch shift interpretations,

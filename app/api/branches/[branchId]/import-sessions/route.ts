@@ -104,6 +104,7 @@ export async function POST(req: Request, { params }: Params) {
                 fileMeta: { size: file.size, type: file.type },
                 fileBuffer: buffer,
                 goal,
+                ...(form.get("experience") === "GUIDED_SETUP_V2" ? { experience: "GUIDED_SETUP_V2" as const } : {}),
                 ...(form.get("experience") === "GUIDED_CURRENT_MONTH_V1" ? { experience: "GUIDED_CURRENT_MONTH_V1" as const } : {}),
                 sourceConfiguration: {
                     sheetName,
@@ -153,6 +154,7 @@ export async function POST(req: Request, { params }: Params) {
             fileMeta: { pasted: true },
             pastedTable,
             goal,
+            ...(body.experience === "GUIDED_SETUP_V2" ? { experience: "GUIDED_SETUP_V2" as const } : {}),
             ...(body.experience === "GUIDED_CURRENT_MONTH_V1" ? { experience: "GUIDED_CURRENT_MONTH_V1" as const } : {}),
         });
         const dispatch = await ImportWorkflowService.tryStartRun(session.analysisRun);

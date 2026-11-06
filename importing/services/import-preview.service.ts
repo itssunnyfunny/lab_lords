@@ -1,4 +1,5 @@
 import { ImportSessionService } from "./import-session.service";
+import { importReadiness } from "../utils/import-readiness";
 import type { CommitMode, ImportIssue, ImportMappingState, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 import type { ImportPreview } from "@/importing/contracts/import-preview.contract";
 import { buildImportPlanChecks, createImportPlanVersion, getBlockingImportPlanChecks } from "@/importing/utils/import-plan-checks";
@@ -39,7 +40,7 @@ export class ImportPreviewService {
         const rows = detail.rows.map(row => {
             const issues = (Array.isArray(row.issues) ? row.issues : []) as ImportIssue[];
             const warnings = (Array.isArray(row.warnings) ? row.warnings : []) as ImportIssue[];
-            const willImport = !row.skipped && ["READY", "WARNING"].includes(row.status);
+            const willImport = importReadiness(row) === "ready";
 
             return {
                 rowId: row.id,

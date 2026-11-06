@@ -37,9 +37,10 @@ export function GuidedFinancialOutcome({ outcome }: { outcome: FinancialOutcome 
     </div>;
 }
 
-export function GuidedFinancialReview({ plan, currentRevision, policy, busy, disabled, onBack, onPolicyChange, onRefresh, onConfirm }: {
+export function GuidedFinancialReview({ plan, currentRevision, policy, busy, disabled, onBack, onPolicyChange, onRefresh, onConfirm, onApproveSetup }: {
     plan: Plan | null; currentRevision: number; policy: ImportReadinessPolicy; busy: boolean; disabled: boolean;
     onBack: () => void; onPolicyChange: (policy: ImportReadinessPolicy) => void; onRefresh: () => void; onConfirm: () => void;
+    onApproveSetup?: () => void;
 }) {
     const t = useTranslation(), { formatNumber, formatDate } = useUserPreferences();
     const [page, setPage] = useState(0);
@@ -48,8 +49,11 @@ export function GuidedFinancialReview({ plan, currentRevision, policy, busy, dis
     const mutations = plan?.summary?.mutations ?? plan?.mutationSummary;
     const totals = summarizeGuidedFinancials(review?.rows ?? []);
     totals.review.count += review?.heldFinancialRows ?? 0;
-    const notSaving = (plan?.blockedRows ?? 0) + Math.max(0, (plan?.skippedRows ?? 0) - (plan?.alreadyImportedRows ?? 0));
+    const notSaving = plan?.blockedRows ?? 0;
+    const leftOut = Math.max(0, (plan?.skippedRows ?? 0) - (plan?.alreadyImportedRows ?? 0));
     const pageCount = Math.max(1, Math.ceil((review?.rows.length ?? 0) / 15)), safePage = Math.min(page, pageCount - 1);
+    const checkMessage = (check: NonNullable<Plan>["checks"][number]) => check.code === "CONFIGURATION_APPROVAL" && check.status === "block"
+        ? t.owned("Review the proposed timings and seats above, then choose whether to create them with this import.") : <LocalizedError error={check.message} />;
     return <div className="space-y-5">
         <AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={onBack} disabled={busy}>{t("Back to students")}</AppButton>
         <div><h2 className="text-2xl font-semibold">{t("Check what will be saved")}</h2><p className="mt-2 text-sm text-[color:var(--text-secondary)]">{t("This review uses your saved student details. Nothing is added until you confirm.")}</p></div>
@@ -57,6 +61,22 @@ export function GuidedFinancialReview({ plan, currentRevision, policy, busy, dis
             <AppPanel density="compact" title={t("Students and seating")}>
                 <dl className="grid grid-cols-2 gap-5 sm:grid-cols-4">{[["New students", mutations?.students ?? 0], ["Students getting seats", mutations?.affectedRows.allocations ?? 0], ["Seating left for later", review?.seatingDeferredRows ?? 0], ["Students fully completed", plan.alreadyImportedRows ?? 0]].map(([label, count]) => <div key={label}><dt className="text-sm text-[color:var(--text-secondary)]">{t.owned(String(label))}</dt><dd className="mt-1 text-xl font-semibold tabular-nums">{formatNumber(Number(count))}</dd></div>)}</dl>
                 {notSaving > 0 && <p className="mt-5 rounded border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] p-3 text-sm">{t("Students staying in the draft: {count}. You can finish their details after saving the ready students.", { count: notSaving })}</p>}
+                {leftOut > 0 && <p className="mt-4 text-sm">{t.owned("Source rows deliberately left out: {count}. They will not be imported.", { count: leftOut })}</p>}
+            </AppPanel>
+            {!!review?.setup && <AppPanel density="compact" title={t.owned("Timings and seats to prepare")}>
+                {!review.setup.seats.length && !review.setup.shifts.length && !review.setup.multiShifts.length ? <p className="text-sm">{t.owned("Existing timings and seats will be reused. No setup will be created.")}</p> : <div className="space-y-3 text-sm">
+                    {!!review.setup.seats.length && <p>{t.owned("New physical seats")}: {[...review.setup.seats].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(", ")}</p>}
+                    {review.setup.shifts.map(s => <p key={s.name}><strong>{s.name}</strong> · {s.startTime}–{s.endTime} · ₹{formatNumber(s.price)}</p>)}
+                    {review.setup.multiShifts.map(s => <p key={s.name}><strong>{s.name}</strong> · {s.componentShiftNames.join(" + ")} · ₹{formatNumber(s.price)}</p>)}
+                    <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={plan.configurationApproval?.approved ?? false} disabled={disabled || plan.configurationApproval?.approved || !onApproveSetup} onChange={() => onApproveSetup?.()} /><span>{t.owned("Create these reviewed additions with the import")}</span></label>
+                    {!onApproveSetup && !plan.configurationApproval?.approved && <p>{t.owned("Ask someone with branch setup permission to approve these additions.")}</p>}
+                </div>}
+            </AppPanel>}
+            <AppPanel density="compact" title={t.owned("Students and their assignments")}>
+                <div className="divide-y divide-[color:var(--ui-form-section-divider)]">{review?.rows.slice(safePage * 15, (safePage + 1) * 15).map(row => <div className="grid gap-2 py-3 sm:grid-cols-2" key={row.rowId}>
+                    <strong className="break-words">{row.studentName}</strong><div className="text-sm">{row.allocation?.deferred ? t.owned("Intentionally left for later") : row.allocation?.seatLabel ? <><p>{row.allocation.multiShiftName || row.allocation.shiftName} · {t("Seat")} {row.allocation.seatLabel}</p>{!!row.componentShiftNames?.length && <p>{t("Combined access")}: {row.componentShiftNames.join(" + ")}</p>}</> : t("Seating left for later")}</div>
+                </div>)}</div>
+                {pageCount > 1 && <div className="mt-3 flex items-center gap-3"><AppButton density="compact" variant="secondary" disabled={!safePage} onClick={() => setPage(safePage - 1)}>{t("Previous")}</AppButton><span>{safePage + 1} / {pageCount}</span><AppButton density="compact" variant="secondary" disabled={safePage + 1 >= pageCount} onClick={() => setPage(safePage + 1)}>{t("Next")}</AppButton></div>}
             </AppPanel>
             <AppPanel density="compact" title={t("This month's fees")} description={review ? t("Reviewed for {date}", { date: formatDate(`${review.businessDate}T12:00:00`) }) : undefined}>
                 <GuidedFinancialTotals summary={totals} />
@@ -70,9 +90,9 @@ export function GuidedFinancialReview({ plan, currentRevision, policy, busy, dis
             <AppPanel density="compact" title={t("Ready to save?")}>
                 <p className="text-sm">{t("Only the reviewed students and fee outcomes above will be saved. Successful records are kept during retries.")}</p>
                 <label className="mt-4 flex items-start gap-2 text-sm"><input type="checkbox" checked={policy === "REQUIRE_ALL_ROWS_READY"} disabled={disabled} onChange={event => onPolicyChange(event.target.checked ? "REQUIRE_ALL_ROWS_READY" : "READY_ROWS_ONLY")} /><span>{t("Wait until every student is ready")}</span></label>
-                {!plan.canRun && <div role="alert" className="mt-4 space-y-2">{plan.checks.filter(check => check.status === "block").map(check => <p className="text-sm" key={check.code}><LocalizedError error={check.message} /></p>)}</div>}
+                {!plan.canRun && <div role="alert" className="mt-4 space-y-2">{plan.checks.filter(check => check.status === "block").map(check => <p className="text-sm" key={check.code}>{checkMessage(check)}</p>)}</div>}
                 <div className="mt-5 flex flex-wrap gap-3"><AppButton density="compact" onClick={onConfirm} disabled={disabled || !plan.canRun || !fresh} isLoading={busy}>{t("Confirm and save")}</AppButton><AppButton density="compact" variant="quiet" onClick={onRefresh} disabled={disabled}>{t("Update fee dates and review")}</AppButton></div>
-                <details className="mt-5"><summary className="cursor-pointer text-xs text-[color:var(--text-muted)]">{t("Review checks")}</summary><ul className="mt-2 list-disc space-y-1 pl-5 text-xs">{plan.checks.map(check => <li key={check.code}>{check.status === "pass" ? "✓ " : "! "}<LocalizedError error={check.message} /></li>)}</ul></details>
+                <details className="mt-5"><summary className="cursor-pointer text-xs text-[color:var(--text-muted)]">{t("Review checks")}</summary><ul className="mt-2 list-disc space-y-1 pl-5 text-xs">{plan.checks.map(check => <li key={check.code}>{check.status === "pass" ? "✓ " : "! "}{checkMessage(check)}</li>)}</ul></details>
             </AppPanel>
         </>}
     </div>;

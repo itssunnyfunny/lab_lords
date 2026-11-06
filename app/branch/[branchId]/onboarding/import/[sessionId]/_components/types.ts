@@ -41,9 +41,9 @@ export type ImportQuestion = {
 };
 
 export type ImportDetail = {
-    guidance?: { businessDate: string; groups: import("@/importing/utils/import-guidance").ImportGuidanceGroup[]; imported: number; needsHelp: number; partialStudents: number; createdStudents: number; createdAllocations: number; createdPayments: number;
+    guidance?: { setup?: ReturnType<typeof import("@/importing/utils/guided-setup").setupOverview>; savedSeating?: { assigned: number; deferred: number }; businessDate: string; groups: import("@/importing/utils/import-guidance").ImportGuidanceGroup[]; imported: number; needsHelp: number; partialStudents: number; createdStudents: number; createdAllocations: number; createdPayments: number;
         preparation?: { canImprove: boolean; reusableRows: number; columnsToReview: number };
-        financialNeedsHelp?: number; savedFinancials?: import("@/importing/utils/guided-import-presentation").FinancialSummary };
+        ready?: number; nonStudentRows?: Array<{ id: string; rowNumber: number }>; financialNeedsHelp?: number; savedFinancials?: import("@/importing/utils/guided-import-presentation").FinancialSummary };
     id: string;
     status: string;
     goal?: ImportGoal | null;
@@ -125,6 +125,7 @@ export type ImportDetail = {
         filteredRows: number;
         returnedRows: number;
     };
+    existingBranchContext?: ImportBranchContext;
     branchContext?: ImportBranchContext;
     questions: ImportQuestion[];
     commits?: { status: string; summary: Record<string, number>; errors?: unknown; createdAt?: string }[];

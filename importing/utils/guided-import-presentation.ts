@@ -1,5 +1,6 @@
 import type { ImportIssue, ImportNormalizedRow } from "../contracts/import-session.contract";
 import type { CurrentMonthOutcome } from "./current-month-import";
+import { importReadiness, unresolvedImportDecisions } from "./import-readiness";
 
 export type StudentTask = "joining" | "fee" | "shift" | "seat" | "payment" | "identity" | "source" | "details";
 export function guidedSavedFields(ids: Record<string, unknown> | null | undefined) {
@@ -12,10 +13,21 @@ export const studentTaskLabels = {
     payment: "Confirm payment information", identity: "Check an existing student", source: "Check source columns", details: "Check student details",
 } as const satisfies Record<StudentTask, string>;
 type StudentRecord = { status: string; skipped: boolean; normalizedData: ImportNormalizedRow | null; issues: ImportIssue[]; warnings: ImportIssue[]; paymentOutcome?: CurrentMonthOutcome };
+export const paymentProblemLabels: Record<string, string> = {
+    PAYMENT_BEFORE_DUE_REVIEW: "Payment recorded before the due date",
+    PARTIAL_PAYMENT_REVIEW: "Payment amount differs from the monthly fee",
+    CONFIRM_PAYMENT_METHOD: "Choose the recorded payment method",
+    PAYMENT_INFORMATION_REVIEW: "Clarify the recorded payment status",
+};
+export function guidedTaskLabel(row: StudentRecord, task: StudentTask): string {
+    if (task !== "payment") return studentTaskLabels[task];
+    const issue = unresolvedImportDecisions(row).find(issue => paymentProblemLabels[issue.code]);
+    return issue ? paymentProblemLabels[issue.code] : studentTaskLabels.payment;
+}
 export function guidedStudentTasks(row: StudentRecord): StudentTask[] {
-    if (row.skipped || row.status === "IMPORTED") return [];
+    if (importReadiness(row) !== "attention") return [];
     const tasks = new Set<StudentTask>();
-    for (const issue of [...row.issues, ...row.warnings]) {
+    for (const issue of unresolvedImportDecisions(row)) {
         const field = issue.field ?? "", code = issue.code;
         if (code === "SOURCE_COLUMN_REVIEW") tasks.add("source");
         else if (/DUPLICATE_(?:EXISTING|STUDENT|PHONE|IMPORT)|EXISTING_IDENTITY/.test(code)) tasks.add("identity");

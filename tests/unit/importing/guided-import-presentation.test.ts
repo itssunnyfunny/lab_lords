@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { financialKind, financialOutcomeLabels, guidedSavedFields, guidedStudentTasks, hasFinancialIssue, summarizeGuidedFinancials } from "@/importing/utils/guided-import-presentation";
+import { financialKind, financialOutcomeLabels, guidedSavedFields, guidedStudentTasks, guidedTaskLabel, hasFinancialIssue, summarizeGuidedFinancials } from "@/importing/utils/guided-import-presentation";
 import type { ImportIssue } from "@/importing/contracts/import-session.contract";
 
 describe("student-focused import presentation", () => {
+    it.each([
+        ["PAYMENT_BEFORE_DUE_REVIEW", "Payment recorded before the due date"],
+        ["PARTIAL_PAYMENT_REVIEW", "Payment amount differs from the monthly fee"],
+        ["CONFIRM_PAYMENT_METHOD", "Choose the recorded payment method"],
+    ])("explains the actual %s decision without changing readiness", (code, label) => {
+        const row = { status: "BLOCKED", skipped: false, normalizedData: {}, issues: [{ code, field: "payment.status", severity: "error" as const, message: "Check source" }], warnings: [] };
+        expect(guidedTaskLabel(row, "payment")).toBe(label);
+        expect(guidedStudentTasks(row)).toEqual(["payment"]);
+        expect(guidedStudentTasks({ ...row, status: "IMPORTED" })).toEqual([]);
+    });
     it("locks only facts with retained successful entity identifiers", () => {
         expect(guidedSavedFields({ studentId: "student", paymentIds: ["payment"], allocationIds: ["allocation"] })).toEqual({ student: true, payment: true, seating: true });
         expect(guidedSavedFields({ studentId: { id: "untrusted" }, paymentIds: [null, " "], allocationIds: [null] })).toEqual({ student: false, payment: false, seating: false });

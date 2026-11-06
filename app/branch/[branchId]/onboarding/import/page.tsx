@@ -202,11 +202,11 @@ function ImportAssistantContent({
         setError(null);
         try {
             const created = sourceMode === "file" && file
-                ? await importSessions.createFromFile(branchId, file, goal, { experience: "GUIDED_CURRENT_MONTH_V1", ...(workbookReview ? {
+                ? await importSessions.createFromFile(branchId, file, goal, { experience: "GUIDED_SETUP_V2", ...(workbookReview ? {
                     sheetName: workbookReview.sheetName,
                     headerRow: workbookReview.headerRow ?? undefined,
                 } : {}) })
-                : await importSessions.createFromPastedTable(branchId, pastedTable, goal, "GUIDED_CURRENT_MONTH_V1");
+                : await importSessions.createFromPastedTable(branchId, pastedTable, goal, "GUIDED_SETUP_V2");
             if (created.requiresPdfConfirmation) {
                 setPdfReview(created);
                 setPdfAccepted(false);
@@ -292,11 +292,11 @@ function ImportAssistantContent({
                         title={t("Add your student records")}
                         description={t("Tracking starts this month. Original joining dates and future due days stay the same.")}
                     >
-                        <p>{t("Add records → AI prepares → Resolve remaining → Review and import")}</p>
+                        <p>{t.owned("Records → Timings → Seats and assignments → Review and import")}</p>
                         <div className="mt-6 border-t border-[color:var(--ui-form-section-divider)] pt-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("2. Add your data")}</p>
+                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Add your student records")}</p>
                                     <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Choose one source. Nothing is created until the final review.")}</p>
                                 </div>
                                 <div className="inline-flex rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] p-1" role="group" aria-label={t("Import source")}>
@@ -546,6 +546,10 @@ function ImportAssistantContent({
                                     {sessions.slice(0, 8).map(session => {
                                         const sessionGoal = (session as ImportSessionListItem & { goal?: ImportGoal | null }).goal ?? "STUDENTS";
                                         const readiness = session.summary?.readinessScore ?? 0;
+                                        const saved = session.summary?.importedRows ?? 0;
+                                        const total = session.summary?.totalRows ?? 0;
+                                        const remaining = Math.max(0, total - saved - (session.summary?.skippedRows ?? 0));
+                                        const progress = saved > 0 && total > 0 ? Math.round(saved / total * 100) : readiness;
                                         const finished = ["COMMITTED", "PARTIAL", "FAILED"].includes(session.status);
                                         return (
                                             <button
@@ -564,11 +568,11 @@ function ImportAssistantContent({
                                                             <span className="inline-flex items-center gap-1"><CalendarClock className="h-3 w-3" />{formatDateTime(session.updatedAt)}</span>
                                                         </span>
                                                     </span>
-                                                    <Badge variant={statusTone(session.status)}>{labelImportStatus(session.status)}</Badge>
+                                                    <Badge variant={statusTone(saved > 0 && remaining > 0 ? "PARTIAL" : session.status)}>{saved > 0 ? t.owned("{saved} saved · {remaining} remaining", { saved, remaining }) : labelImportStatus(session.status)}</Badge>
                                                 </span>
                                                 <span className="mt-3 flex items-center gap-3">
-                                                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--ui-stat-track)]" role="progressbar" aria-label={t("Import readiness")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness}>
-                                                        <span className="block h-full rounded-full bg-[color:var(--ui-tone-info-progress)]" style={{ width: `${Math.max(0, Math.min(100, readiness))}%` }} />
+                                                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--ui-stat-track)]" role="progressbar" aria-label={saved > 0 ? t.owned("Saved import progress") : t("Import readiness")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+                                                        <span className="block h-full rounded-full bg-[color:var(--ui-tone-info-progress)]" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
                                                     </span>
                                                     <span className="text-xs font-semibold text-[color:var(--ui-tone-info-text)]">{finished ? t("Review result") : t("Resume")}</span>
                                                 </span>

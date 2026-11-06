@@ -83,7 +83,9 @@ export type ImportPlanSnapshot = {
         businessDate: string;
         heldFinancialRows?: number;
         seatingDeferredRows?: number;
-        rows: Array<{ rowId: string; rowNumber: number; studentName: string; state: string; dueDate: string | null; amount: number | null; reviewedBusinessDate: string; status?: string }>;
+        setup?: import("../utils/guided-setup").ImportSetup;
+        rows: Array<{ rowId: string; rowNumber: number; studentName: string; state: string; dueDate: string | null; amount: number | null; reviewedBusinessDate: string; status?: string;
+            allocation?: ImportNormalizedRow["allocation"]; componentShiftNames?: string[] }>;
     };
     schemaVersion: typeof IMPORT_PLAN_SCHEMA_VERSION;
     sessionId: string;

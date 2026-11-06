@@ -6,7 +6,8 @@ describe("import session row issue filtering", () => {
         expect(rowWhereForFilter("session_1", "attention", 120, "INVALID_PHONE")).toEqual({
             importSessionId: "session_1",
             rowNumber: { gt: 120 },
-            status: { in: ["WARNING", "NEEDS_REVIEW", "BLOCKED", "DUPLICATE", "CONFLICT", "FAILED"] },
+            skipped: false,
+            status: { in: ["NEEDS_REVIEW", "BLOCKED", "DUPLICATE", "CONFLICT", "FAILED"] },
             AND: [{
                 OR: [
                     { issues: { array_contains: [{ code: "INVALID_PHONE" }] } },

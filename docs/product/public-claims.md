@@ -1,5 +1,23 @@
 # Public wording and feature claims
 
+## Complete setup and import — local, 2026-11-05
+
+The follow-up [decision correction](../redesign/import-decision-correction.md)
+clarifies draft saves, protected Due/Paid choices and reviewed configuration
+corrections. Home, Features, Pricing and FAQ were checked against that scope;
+the existing simple claims remain accurate and require no additional promises.
+
+Home (`app/page.tsx` and `lib/marketingCopy.json`), Features and Pricing
+retain truthful library setup, reviewed spreadsheet import and all-plan claims.
+The setup FAQ and How it works walkthrough now request one library/centre name,
+with optional city and workspace naming; English, Hindi and Hinglish match.
+No claim expansion is needed: this work restores visible timings/seating
+and explicitly reviewed setup inside that existing promise. The import entry
+now describes Records → Timings → Seats and assignments → Review and import.
+No historical backfill, arbitrary AI seating, automatic payments, new format or
+provider reliability claim is added. See [local evidence](../redesign/owner-setup-import.md).
+Owner visual acceptance and release remain unconfirmed and separate.
+
 ## Guided import follow-up — local, 2026-11-03
 
 Home, Features, Pricing and FAQ were checked. Their existing reviewed-import,

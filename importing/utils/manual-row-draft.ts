@@ -297,6 +297,7 @@ export function normalizedFromImportDraft(
     else delete next.seat;
 
     const allocation = { ...(next.allocation ?? {}) };
+    if (seat || shift || multiShift) delete allocation.deferred;
     if (seat) allocation.seatLabel = seat;
     else delete allocation.seatLabel;
 
@@ -330,7 +331,7 @@ export function normalizedFromImportDraft(
     else delete payment.amount;
     if (paymentStatus) {
         payment.status = paymentStatus as PaymentStatusDraft;
-        payment.rawStatus = paymentStatus;
+        if (paymentStatus !== next.payment?.status || next.payment?.rawStatus !== undefined) payment.rawStatus = paymentStatus;
     } else {
         delete payment.status;
         delete payment.rawStatus;
@@ -339,6 +340,7 @@ export function normalizedFromImportDraft(
     else delete payment.method;
     if (referenceId) payment.referenceId = referenceId;
     else delete payment.referenceId;
+    if (["amount", "status", "method", "referenceId"].some(field => payment[field as keyof typeof payment] !== next.payment?.[field as keyof typeof payment])) delete payment.decision;
 
     const nextPayment = removeEmptyObject(payment);
     if (nextPayment) next.payment = nextPayment;

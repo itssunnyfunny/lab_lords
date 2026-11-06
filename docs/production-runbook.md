@@ -1,5 +1,39 @@
 # Production runbook
 
+## Import decision correction compatibility — local, 5 November 2026
+
+No schema, migration, package or application environment change is required.
+Existing JSON drafts may carry payment-choice provenance and bounded configuration
+correction receipts. Ship the matching UI, routes and services together.
+
+Proposed additions wait for final import. The separate "Confirm correction to
+existing setup" action changes existing branch records immediately after an
+impact-bound preview and serializable replay-safe write. Draft revisions advance
+atomically. If revalidation is interrupted, old plans remain fenced; retry the
+same correction or refresh the import review. Never recreate seats to recover a
+rename, erase history, or reuse a stale plan. Timing-price corrections do not
+rewrite recorded payments. Existing V2 rollback/drain requirements still apply.
+
+## Complete setup imports — 5 November 2026
+
+No schema migration, package change or new environment variable is required.
+Existing Import V2 enablement and mutation limits continue to apply. New uploads
+are marked `GUIDED_SETUP_V2`; older sessions and onboarding pending-command
+receipts keep their existing policy and meaning. Optional setup/assignment review
+fields are stored in existing JSON columns. Deploy matching UI, API, compiler and
+Workflow artifacts together after the existing release checks.
+
+For rollback, stop new starts and drain/cancel active work using the existing
+ledger controls. A pre-change binary does not understand the V2 explicit seating
+policy: retain the compatible reader/executor for marked drafts and saved plans,
+or keep those sessions unavailable until a compatible version is restored.
+Never remove successful operation evidence or reinterpret marked drafts with the
+older compiler. Onboarding payload keys/hash versions have not changed.
+
+Local evidence and isolated-database reproduction are in
+[the owner setup review](redesign/owner-setup-import.md). This change does not
+authorize Production operations, release, merge or provider calls.
+
 ## Guided current-month imports — 3 November 2026
 
 No new migration or application environment setting is required. The existing

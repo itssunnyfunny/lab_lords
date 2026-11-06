@@ -30,6 +30,8 @@ import {
 import { buildImportPaymentPlan } from "@/importing/utils/import-payment-plan";
 import { guidedRecoveryDates, reviewedDate } from "./import-recovery-context";
 import { guidedSourceHolds } from "../utils/guided-source-reconciliation";
+import { addSetupToValidationContext, allocationDecisionIssues, isSetupImport } from "../utils/guided-setup";
+import { setupAvailability } from "../utils/setup-availability";
 
 type SessionRow = {
     id: string;
@@ -251,6 +253,7 @@ export class ImportWiringService {
         const mapping = normalizeMapping(session.mapping, columns);
         const recoveryDates = mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH" ? await guidedRecoveryDates(prisma, branchId, sessionId) : new Map<string, string>();
         const context = await getValidationContext(branchId);
+        addSetupToValidationContext(context, mapping.importOptions?.preparedSetup);
         const normalizedData = applyImportDefaults(
             promoteKnownMultiShiftAllocation(cloneNormalized(input.normalizedData), context),
             mapping.importOptions,
@@ -309,6 +312,7 @@ export class ImportWiringService {
             ...detectExistingStudentDuplicates(normalizedData, context.existingStudents),
         ];
         const issues = [
+            ...allocationDecisionIssues(normalizedData, mapping.importOptions),
             ...result.issues,
             ...(mapping.importOptions?.paymentPolicy === "CURRENT_CALENDAR_MONTH" ? guidedSourceHolds(row.mappedData) : []),
             ...(mapping.importOptions?.skipConflictingAllocations ? [] : stagedConflicts),
@@ -334,6 +338,14 @@ export class ImportWiringService {
         input: { rowId: string; shiftIds?: string[]; multiShiftId?: string | null }
     ): Promise<ImportAvailabilityPreview> {
         await AccessPolicy.authorizeCapability(userId, branchId, "importView");
+        const stagedSession = await this.loadSession(branchId, sessionId);
+        if (isSetupImport(stagedSession.sourceConfiguration)) {
+            if (!stagedSession.rows.some(row => row.id === input.rowId)) throw new Error("Import row not found");
+            const setupContext = await getValidationContext(branchId);
+            const mapping = normalizeMapping(stagedSession.mapping, []);
+            const branch = addSetupToValidationContext(setupContext, mapping.importOptions?.preparedSetup);
+            return setupAvailability(branch, stagedSession.rows.map(row => ({ ...row, normalizedData: normalizedFromRow(row) })), setupContext.activeAllocations, input);
+        }
         const [session, context, baseShifts] = await Promise.all([
             this.loadSession(branchId, sessionId),
             getValidationContext(branchId),

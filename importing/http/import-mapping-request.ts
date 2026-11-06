@@ -4,6 +4,7 @@ import {
     type ImportOptions,
 } from "@/importing/contracts/import-session.contract";
 import { ImportRequestError } from "./import-request";
+import { parseImportSetup } from "../utils/guided-setup";
 
 const TARGET_FIELDS = new Set<string>(IMPORT_TARGET_FIELDS);
 const PAYMENT_CYCLES = new Set(["USE_JOINED_AT_ANNIVERSARY", "SKIP_PAYMENTS"]);
@@ -33,6 +34,7 @@ const STRING_OPTION_KEYS = [
     "defaultMultiShiftName",
 ] as const;
 const ALLOWED_OPTION_KEYS = new Set<string>([
+    "preparedSetup",
     "paymentCycle",
     "paymentAction",
     "paymentHistoryMode",
@@ -161,6 +163,10 @@ function parseImportOptions(value: unknown): Partial<ImportOptions> | undefined 
     }
 
     const result: Partial<ImportOptions> = {};
+    if (input.preparedSetup !== undefined) {
+        try { result.preparedSetup = parseImportSetup(input.preparedSetup); }
+        catch { invalid("Check the proposed seats, timing names, hours and whole-rupee fees."); }
+    }
     if (input.paymentCycle !== undefined) {
         if (typeof input.paymentCycle !== "string" || !PAYMENT_CYCLES.has(input.paymentCycle)) {
             invalid("Payment cycle option is not supported.");

@@ -1,5 +1,29 @@
 # Domain invariants
 
+## Complete owner setup — 5 November 2026
+
+- **Must preserve—enforced:** The new onboarding library/centre answer persists
+  as `Branch.name`; the optional workspace answer/suggestion persists as
+  `Organization.name`. Existing stored names and pending serialized commands
+  are never automatically renamed or reinterpreted. Trial and receipt rules below
+  are unchanged.
+- **Must preserve—enforced:** `GUIDED_SETUP_V2` retains the guided current-month
+  policy below, including cycle **period starts** as `billingStartAt`. Missing
+  seating is a required decision, separate from explicit `allocation.deferred`.
+  Legacy skip-conflict/unknown-allocation flags cannot silently defer V2 seating.
+- **Must preserve—enforced:** Proposed configuration stays staged, with explicit
+  hours, components and shared prices. Preparation and approval require branch
+  setup permission. Creation uses the reviewed CONFIG ledger; overlaps, duplicate
+  combinations, ownership, revision and current availability are checked before
+  execution. Individual fees cannot redefine shared configuration prices.
+- **Must preserve—enforced:** Group and individual assignment-only answers retain
+  student/payment facts and unresolved source holds. Automatic preparation may
+  match an explicit seat label, exact unique hours or a complete component set;
+  it cannot invent a free-seat choice or convert absence into deferral.
+
+These rules apply to newly marked setup sessions; retained drafts, frozen plans
+and successful operations keep their original meanings and recovery evidence.
+
 ## Guided import policy — 3 November 2026
 
 - **Must preserve—enforced:** New `GUIDED_CURRENT_MONTH_V1` sessions retain the
@@ -961,6 +985,20 @@ unit/API/integration coverage.
 
 ## Imports and AI boundaries
 
+- **Must preserve—enforced:** READY/WARNING rows are eligible; unresolved required
+  decisions and failed work need attention; skipped/imported rows are separate.
+  Optional warnings, Due payments and explicit seating deferrals must not keep
+  students in actionable help. Draft saves report resolved/remaining decisions;
+  only reviewed execution imports live student/payment/allocation records.
+- **Must preserve—enforced:** Bulk current-month Due choices cannot overwrite
+  source/confirmed payment facts. Selected Paid choices require eligible current
+  dues and confirmed methods. Future anniversary dues retain normal generation.
+- **Must preserve—enforced:** Existing-seat corrections retain IDs and allocation
+  history. Timing corrections preview overlap, combined-access and linked-price
+  consequences; fixed fees and recorded payments remain unchanged. Applying a
+  reviewed correction advances draft revisions while retaining confirmations and
+  source evidence. Proposed additions still wait for final import.
+
 - **Must preserve—enforced:** Import sessions are authenticated and scoped to a
   branch. Creating or mutating a session requires student-management permission
   and a writable branch; committing also checks every additional permission
@@ -1260,8 +1298,8 @@ Before changing any rule above:
 ## Narrow Basic workspace — 2026-10-29
 
 - **Must preserve—enforced:** Basic's interactive scope is students, seats/shifts,
-  student fees/receipts and necessary setup/account/subscription access. Attendance,
-  imports, operational dashboard tasks/follow-ups, renewal centres and reports
+  student fees/receipts, reviewed imports and necessary setup/account/subscription access. Attendance,
+  operational dashboard tasks/follow-ups, renewal centres and reports
   require effective Standard/Pro access through AccessPolicy, independently of
   navigation. Existing AI, analytics, staff-management and Pro-only WhatsApp
   entitlement requirements remain. Existing authorized staff memberships are
