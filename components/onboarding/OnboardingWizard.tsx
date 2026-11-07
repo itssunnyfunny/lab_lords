@@ -1,17 +1,16 @@
 "use client";
 
 import { use, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useBasicNavigationGuard } from "@/components/basic/useBasicNavigationGuard";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, Layers, Plus, UploadCloud, Users, X } from "lucide-react";
-import { LogoMark } from "@/components/brand/AppLogo";
 import { AppButton, Dialog } from "@/components/ui";
 import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { entryContentClass, entryInlineInfoClass, entryMutedTextClass, entryPanelClass, entryRootClass, entrySubtitleClass, entryTitleClass } from "@/components/ui/entrySurface";
 import { formControlClass, formErrorBannerClass, formHelpTextClass, formLabelClass, formSurfaceClass } from "@/components/ui/formSurface";
 import { SeatNumberingBuilder, createSimpleSeatNumbering, resolveSeatNumberingForCount } from "@/components/seats/SeatNumberingBuilder";
 import { LocalizedError, useTranslation } from "@/components/settings/LocalizedText";
-import { LanguageControls } from "@/components/settings/LanguageControls";
 import { FORM_LIMITS, parseIntegerField, validateOptionalText, validateRequiredPhone, validateRequiredText } from "@/lib/formValidation";
 import { generateSeatLabelsForSeatCount, type SeatNumberingConfig } from "@/lib/seatNumbering";
 import { isCheckoutBillingPlanId, publicBillingPlans, WHATSAPP_PLAN_AVAILABILITY, type CheckoutBillingPlanId } from "@/lib/billingPlans";
@@ -90,6 +89,9 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan, initialPhone =
         return () => { active.current = false; window.removeEventListener("storage", changed); };
     }, [accountId, loadSavedCommand]);
     useEffect(() => { if (step > 1) heading.current?.focus(); }, [step]);
+
+    const dirty = !savedCommand && (step > 1 || !!formData.orgName || formData.ownerPhone !== initialPhone || !!formData.branchName || !!formData.city || !!formData.seatCount || trialPlan !== requestedBillingPlan);
+    useBasicNavigationGuard(() => !loading && (!dirty || window.confirm(t.owned("Leave with unsaved changes?"))), dirty || loading, "setupIndex");
 
     const orgName = validateRequiredText(formData.orgName.trim() || workspaceSuggestion, "Workspace name", 120);
     const phone = validateRequiredPhone(formData.ownerPhone, "Owner phone");
@@ -173,9 +175,9 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan, initialPhone =
     };
     const selectedPlan = plans.find(plan => plan.id === trialPlan);
 
-    return <div data-app-design-pilot="workspace" className={cn(entryRootClass, "items-start py-6 sm:py-10")}>
+    return <div data-app-design-pilot="workspace" className="mx-auto w-full max-w-6xl py-6">
         <div className={cn(entryContentClass, "w-full max-w-6xl")}>
-            <div className="mb-4 flex items-center justify-between gap-4"><LogoMark className="h-10 w-16" title={t("Lab Lords logo")} variant="botanical" /><LanguageControls compact /></div>
+
             <div className={cn(entryPanelClass, "grid overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)]")}>
                 <aside className="border-b border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] p-5 lg:border-b-0 lg:border-r lg:p-7">
                     <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--ui-form-accent)]">{t.owned("A little more organised, from day one")}</p>

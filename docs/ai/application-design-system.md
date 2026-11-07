@@ -19,18 +19,18 @@ dashboard, Students baseline and public presentation stable.
 | Record header, notices, toolbar, results and pagination | existing UI layer, record pattern | Students supplies real data/actions; no API or business logic in the pattern |
 | Field validation, menus, nested overlays and focus recovery | existing FormField, RowActionsMenu, Dialog/Drawer | Keep body portals and request/component identity; no parallel overlay owner |
 | Compact Students identity / allocation / financial card | feature-owned `students/StudentRecordCard.tsx`, `.ui-record-card*` in `shared-ui.css` | Students and gallery import the same card; fee arithmetic, permissions and commands stay in the feature |
-| Quiet initials and integrated modal language control | `Avatar tone="quiet"`, `Dialog languagePlacement="header"` | Explicit opt-ins; default avatars/modal headers stay compatible. Edit uses its scoped backdrop variant |
+| Quiet initials and focused modal headers | `Avatar tone="quiet"`, `Dialog` | Personal language controls live in Account Preferences; contextual document controls remain in receipts/reports. Description placement stays compatible |
 | Staff roster and access/invitation overlays | `staff/page.tsx` composing RecordList, compact DataTable, AppPanel and Dialog | Feature-owned role, override, invitation and removal workflows; mobile context is role, important state is access, secondary detail is added date |
 | Tasks list, source work and activity | `TasksContent.tsx`, `TaskRecordCard.tsx` and `ActivityContent.tsx` composing the same RecordList, compact DataTable, AppPanel and Dialog | Feature-owned assignment, due date, state and evidence links; mobile context is assignee, important values are due date/state, secondary detail is update time |
-| Botanical mark on organization entry and consistent branch menu branding | existing `AppLogo markVariant="botanical"` / `LogoMark`; branch reference wordmark | Mobile carries the selected scope into the existing Dialog navigation variant; Account has no redundant outer sidebar. Public/legacy logo defaults stay unchanged |
-| Selected account popover/profile | token-backed workspace appearances in `entrySurface.ts`, chosen by `AppShell` only when `designPilot` | Clerk's public and excluded-route appearance stays separate; live provider visual check awaits the guarded fixture |
+| Botanical mark on organization entry and consistent branch menu branding | existing `AppLogo markVariant="botanical"` / `LogoMark`; branch reference wordmark | Mobile carries the selected scope into the existing Dialog navigation variant; Account has its own shared collapsible sidebar. Public/legacy logo defaults stay unchanged |
+| Account navigation and embedded profile/security | `SidebarFrame`, `AccountSidebar`, `ProfileSecurity`, `account-navigation.css`, token-backed `entrySurface.ts` appearances | Account is the fixed workspace footer across plans; scope-marked base-layer overrides prevent dark provider classes leaking into Account and its portals |
 | Cold loading and root error | `RouteLoading`, `app/error.tsx` and `isSelectedApplicationSurfacePath` | Exact current authenticated routes; full-height light cold canvas, nested loading below the persistent shell; public/auth remain excluded |
 | Cookie preferences | `AnalyticsProvider` composing AppPanel, shared action styling and the existing explicit overlay theme | Current compact panel and 44px choices, including outside authenticated routes; consent storage, analytics gating, policy destination and the surrounding public theme unchanged |
 
 ## Rollout source map
 
-The dedicated organization Billing page (`/org/[orgId]/billing`) reuses the
-SettingsWorkspace/SettingsPanel owners, shared AppButton and existing checkout
+The canonical Account Billing page (`/account/billing?organizationId=...`) reuses the
+SettingsWorkspace horizontal navigation/SettingsPanel owners, shared AppButton and existing checkout
 and outcome dialogs. It is an exact selected authenticated route, including cold
 loading/error presentation. Plan, payment and invoice state remains owned by the
 billing services; the new navigation does not grant feature access. See the
@@ -282,3 +282,7 @@ introduced. The admission review separates original intent from matching records
 and never uses the success treatment for an unproven admission. New text uses the
 existing English/Hindi/Hinglish catalogue. Receipt dates share feeReceiptDates with
 the PDF; account formatting remains the owner of non-receipt dates.
+
+## Account navigation ownership - 2026-11-06
+
+`SidebarFrame` owns width, collapse, branding, scroll area and bottom Account action for Basic, organization and branch shells. Account uses the same frame with Sign out in its footer. `SidebarContext` preserves accessible labels and tooltips when collapsed. The existing Drawer owns mobile focus and dismissal. `AccountSidebar` groups Profile & security, Preferences and owner-only Billing. Personal forms use SettingsWorkspace without a second sidebar; Billing uses horizontal section buttons. Keep organization/branch configuration at its original scope. See [Account review](../redesign/unified-account-review.md); local verification, owner visual review and release remain separate.

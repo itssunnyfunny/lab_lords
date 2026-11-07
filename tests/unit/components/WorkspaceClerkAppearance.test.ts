@@ -27,13 +27,11 @@ describe("selected workspace account appearance", () => {
       .not.toMatch(/#0f111a|#0b0d14|slate-|cyan-/);
   });
 
-  it("activates the light account skin only in the selected AppShell", () => {
-    const source = readFileSync("components/layout/AppShell.tsx", "utf8");
-    expect(source).toContain("designPilot ? workspaceAccountMenuClerkAppearance : accountMenuClerkAppearance");
-    expect(source).toContain("const accountUserProfileProps = { appearance: accountProfileClerkAppearance }");
-    expect(source).toContain("const workspaceUserProfileProps = { appearance: workspaceAccountProfileClerkAppearance }");
-    expect(source).toContain("userProfileProps={designPilot ? workspaceUserProfileProps : accountUserProfileProps}");
-    expect(accountMenuClerkAppearance.variables.colorBackground).toBe("#0f111a");
-    expect(accountProfileClerkAppearance.variables.colorBackground).toBe("#0f111a");
+  it("owns the embedded profile appearance in Account", () => {
+    const source = readFileSync("components/account/ProfileSecurity.tsx", "utf8");
+    expect(source).toContain("workspaceAccountProfileClerkAppearance");
+    expect(source).toContain('path="/account/profile"');
+    expect(source).toContain('navbar: "!hidden"');
+    expect(readFileSync("components/layout/AppShell.tsx", "utf8")).not.toContain("UserButton");
   });
 });

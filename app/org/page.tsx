@@ -2,7 +2,8 @@
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { AmbientBackground } from "@/components/ui/AmbientBackground";
+import { AppShell } from "@/components/layout/AppShell";
+import { EntrySidebar } from "@/components/layout/EntrySidebar";
 import { AppLogo } from "@/components/brand/AppLogo";
 import { Badge } from "@/components/ui/Badge";
 import { EntryLoadingSkeleton } from "@/components/ui";
@@ -14,9 +15,7 @@ import type { Organization } from "@/app/generated/prisma/browser";
 import { cn } from "@/lib/utils";
 import { formErrorBannerClass } from "@/components/ui/formSurface";
 import {
-    entryContentClass,
     entryIconFrameClass,
-    entryRootClass,
     entrySubtitleClass,
     entryTitleClass,
 } from "@/components/ui/entrySurface";
@@ -64,10 +63,9 @@ export default function OrgSelectionPage() {
     };
 
     return (
-        <div className={entryRootClass} data-app-design-pilot="workspace">
-            <AmbientBackground />
+        <AppShell designPilot sidebar={<EntrySidebar />}>
 
-            <div className={cn(entryContentClass, "max-w-4xl")}>
+            <div className="mx-auto w-full max-w-4xl py-10">
                 <div className="mb-6 text-center sm:mb-8">
                     <AppLogo className="mb-5 justify-center" subtitle={t("Workspace")} markVariant="botanical" />
                     <h1 className={cn(entryTitleClass, "mb-2")}>{t("Select workspace")}</h1>
@@ -98,6 +96,6 @@ export default function OrgSelectionPage() {
                     </div>
                 )}
             </div>
-        </div>
+        </AppShell>
     );
 }

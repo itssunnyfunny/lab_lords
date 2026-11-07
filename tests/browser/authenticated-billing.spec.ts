@@ -888,7 +888,7 @@ test("a declined attempt can be retried successfully without preserving the old 
   await result.getByRole("button", { name: "Try another payment method" }).click();
 
   await expect.poll(async () => (await getCheckoutHarness(page)).opens).toBe(2);
-  await expect(page).toHaveURL(new RegExp(`/org/${ORG_ID}/billing/processing/${CHANGE_ID}`));
+  await expect(page).toHaveURL(new RegExp(`/account/billing/${ORG_ID}/processing/${CHANGE_ID}`));
   await expect(page.getByRole("heading", { name: "Billing update confirmed" })).toBeVisible();
   expect(controller.retryRequests).toBe(1);
   expect(controller.verifyRequests).toEqual([
@@ -933,7 +933,7 @@ test("unknown payment.failed metadata resolves to a retryable failure instead of
     name: "Razorpay could not complete the authorization",
   });
   await expect(result).toBeVisible();
-  await expect(page).not.toHaveURL(new RegExp(`/org/${ORG_ID}/billing/processing/${CHANGE_ID}`));
+  await expect(page).not.toHaveURL(new RegExp(`/account/billing/${ORG_ID}/processing/${CHANGE_ID}`));
   expect(controller.checkoutEvents).toEqual([
     expect.objectContaining({
       event: "FAILED",
@@ -948,7 +948,7 @@ test("successful Checkout is verified server-side before confirmation is shown",
   await gotoBilling(page);
   await startBasicAuthorization(page, "success");
 
-  await expect(page).toHaveURL(new RegExp(`/org/${ORG_ID}/billing/processing/${CHANGE_ID}`));
+  await expect(page).toHaveURL(new RegExp(`/account/billing/${ORG_ID}/processing/${CHANGE_ID}`));
   await expect(page.getByRole("heading", { name: "Billing update confirmed" })).toBeVisible();
   expect(controller.verifyRequests).toEqual([
     expect.objectContaining({

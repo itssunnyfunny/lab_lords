@@ -1,5 +1,15 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Unified Account area - local, 2026-11-06
+
+This supersedes older notes placing Account in headers and Billing under organization settings. Basic, Standard and Pro share `SidebarFrame`: Account is the fixed footer, with separate identity-scoped collapse preferences for Account and workspaces. `/account/profile` embeds provider profile/security controls and unmounts them while authentication loads or the user signs out, avoiding a provider mount race before redirect. `/account/preferences` retains existing personal defaults. Screen/document/message language and saved appearance values retain their separate scopes. Signed-in setup and workspace entry share navigation. Dialog headers no longer duplicate personal language controls; receipt/report document-language actions remain contextual.
+
+Owner billing is `/account/billing?organizationId=...&branchId=...`. Branch context does not create a branch subscription: subscriptions, invoices, history and entitlements remain organization-wide. The page validates owned directory membership and branch containment server-side; processing independently checks ownership, and APIs retain authorization. Old organization billing/processing URLs redirect with queries, anchors and operation IDs. Organization settings retain business configuration; branch subscription controls now live in Account Billing. No schema, migration, dependency or environment change.
+
+Billing recovery, payment-method replacement, plan changes and initial subscriptions retain the selected organization, optional branch and workspace return in their operation return path. Processing links carry that context, and older bare Account billing returns are bound to the operation organization. Query-only selection changes refresh the header return; personal navigation still preserves staff-branch context for users who also own organizations. Regression cases retain the ordinary one-organization flow and historical two-organization ownership without changing onboarding limits. Personal settings reserve space beneath the fixed save bar so final fields remain reachable on mobile and desktop. Billing preserves a valid Organization Settings origin even when branch context is selected, and resolves legacy branch return hints without `branchId` through the same owned-directory resolver used by the page and navigation. Explicit selector changes create fresh context instead of retaining an earlier origin.
+
+See [Account review](../redesign/unified-account-review.md) for local evidence and limitations. Owner visual acceptance, merge and deployment remain separate.
+
 ## Import recovery clarification — local, 2026-11-06
 
 The existing guided flow separates **Save draft** from **Review next student**.

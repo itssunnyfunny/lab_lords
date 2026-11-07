@@ -1,5 +1,9 @@
 # Public wording and feature claims
 
+## Account navigation consolidation - local, 2026-11-06
+
+Home, Features, Pricing and FAQ wording was checked against this navigation change. No marketing copy change is needed: plan features, prices, organization-wide subscription scope, trial terms and provider requirements do not change. Existing purchase entry points now resolve to Account Billing. The public signed-in header is outside the workspace sidebar and retains its existing account menu. See [local review](../redesign/unified-account-review.md).
+
 ## Complete setup and import — local, 2026-11-05
 
 The follow-up [decision correction](../redesign/import-decision-correction.md)

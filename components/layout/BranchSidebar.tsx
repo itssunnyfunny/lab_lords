@@ -20,18 +20,14 @@ import {
     UploadCloud,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
 import { SidebarItem } from "./SidebarItem";
+import { SidebarFrame } from "./SidebarFrame";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import type { StaffAction } from "@/types";
 import type { BillingFeatureKey } from "@/lib/billingPolicy";
 import { hasFeatureEntitlement } from "@/lib/billingPolicy";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
-import { LogoMark } from "@/components/brand/AppLogo";
 import {
-    chromeSidebarClass,
-    chromeSidebarHeaderClass,
     chromeSidebarSectionLabelClass,
 } from "@/components/ui/chromeSurface";
 import { isApplicationDesignPilotPath } from "@/lib/applicationDesignPilot";
@@ -52,8 +48,7 @@ export function BranchSidebar() {
     const branchId = segments[2];
     const basePath = `/branch/${branchId}`;
     const designPilot = isApplicationDesignPilotPath(pathname);
-    const dashboardPilot = designPilot;
-    const { access, loading } = useBranchAccess(branchId);
+    const { access } = useBranchAccess(branchId);
 
     if (!branchId) return null;
 
@@ -142,34 +137,14 @@ export function BranchSidebar() {
 
         return (
             <div className="space-y-2">
-                <div className={chromeSidebarSectionLabelClass}>{t.owned(label)}</div>
+                <div data-sidebar-label className={chromeSidebarSectionLabelClass}>{t.owned(label)}</div>
                 {renderItems(visibleItems)}
             </div>
         );
     };
 
     return (
-        <aside className={chromeSidebarClass} aria-label={t("Branch navigation")} data-dashboard-navigation={dashboardPilot ? "true" : undefined}>
-            <div className={chromeSidebarHeaderClass}>
-                <Link
-                    href={basePath}
-                    className="flex h-10 w-12 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]"
-                    aria-label={t("Open workspace home")}
-                >
-                    <LogoMark
-                        className={designPilot ? "h-8 w-12" : "h-10 w-10"}
-                        title=""
-                        variant={designPilot ? "botanical" : "legacy"}
-                    />
-                </Link>
-                <div className="min-w-0 flex-1">
-                    <span className={dashboardPilot ? "reference-sidebar-wordmark block text-[27px] font-bold leading-tight tracking-tight text-[#104d38]" : "block truncate text-sm font-semibold leading-tight text-[color:var(--text-primary)]"}>{dashboardPilot ? <>Lab <span className="text-[#37863b]">Lords</span></> : access?.branchName ?? "Loading..."}</span>
-                    <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-form-accent)]">
-                        {dashboardPilot ? t("Spaces for brighter minds") : access?.role ?? (loading ? "Checking access" : "Branch Connected")}
-                    </span>
-                </div>
-            </div>
-
+        <SidebarFrame homeHref={basePath} label="Branch navigation">
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
                 <div className="space-y-4">
                     {designPilot
@@ -185,17 +160,16 @@ export function BranchSidebar() {
                         )}
                 </div>
                 {access?.isOwner && (
-                    <nav className="mt-5 space-y-2 border-t border-[color:var(--ui-panel-header-border)] pt-4" aria-label={t.owned("Workspace")}>
-                        <div className={chromeSidebarSectionLabelClass}>{t.owned("Workspace")}</div>
+                    <div className="mt-5 space-y-2 border-t border-[color:var(--ui-panel-header-border)] pt-4" aria-label={t.owned("Workspace")}>
+                        <div data-sidebar-label className={chromeSidebarSectionLabelClass}>{t.owned("Workspace")}</div>
                         <SidebarItem icon={ArrowLeft} label={t("Back to organization")} isActive={false} href={`/org/${access.organizationId}`} density="compact" />
-                    </nav>
+                    </div>
                 )}
                 {!designPilot && canOpenSettings && (
                     <SidebarItem icon={Settings} label={canManageBranchSettings ? t("Branch Settings") : t.owned("WhatsApp")} isActive={pathname === `${basePath}/settings`} href={`${basePath}/settings`} density="compact" />
                 )}
             </div>
 
-            {designPilot && <div className="reference-sidebar-quote" aria-hidden="true"><Image src="/images/dashboard/botanical-sprig.png" width={150} height={188} alt="" /><p>{t("Better students.")}<br />{t("Brighter futures.")}</p></div>}
-        </aside>
+        </SidebarFrame>
     );
 }

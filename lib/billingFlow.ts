@@ -1,3 +1,4 @@
+import { accountBillingHref } from "@/lib/accountNavigation";
 import type { CheckoutBillingPlanId } from "@/lib/billingPlans";
 
 export function getBillingOnboardingPath(planId: CheckoutBillingPlanId) {
@@ -13,7 +14,9 @@ export function getOrganizationBillingPath(
   planId: CheckoutBillingPlanId,
   returnPath?: string
 ) {
-  const query = new URLSearchParams({ billingPlan: planId });
+  const branchId = returnPath?.match(/^\/branch\/([^/]+)/)?.[1];
+  const query = new URLSearchParams(accountBillingHref(organizationId, branchId).split("?")[1]);
+  query.set("billingPlan", planId);
   if (returnPath?.startsWith("/") && !returnPath.startsWith("//") && !returnPath.includes("\\")) query.set("returnTo", returnPath);
-  return `/org/${encodeURIComponent(organizationId)}/billing?${query.toString()}#billing`;
+  return `/account/billing?${query.toString()}#billing`;
 }

@@ -44,12 +44,15 @@ const pnpm = join(process.env.APPDATA || "", "npm", "node_modules", "pnpm", "bin
 if (!existsSync(pnpm)) throw new Error("Expected local pnpm CLI was not found");
 mkdirSync("test-results", { recursive: true });
 const log = "test-results/dashboard-build.log";
-writeFileSync(log, "Verified exact local read-only database; development authentication; external providers held.\nCommand: pnpm build\n");
-console.log("Verified exact local read-only database; development authentication retained; external providers held. Running pnpm build.");
+// Linked worktree dependencies are outside Turbopack's filesystem root.
+const args = process.env.DASHBOARD_CONNECTED_BUILD_WEBPACK === "1" ? ["exec", "next", "build", "--webpack"] : ["build"];
+const command = `pnpm ${args.join(" ")}`;
+writeFileSync(log, `Verified exact local read-only database; development authentication; external providers held.\nCommand: ${command}\n`);
+console.log(`Verified exact local read-only database; development authentication retained; external providers held. Running ${command}.`);
 const privateValues = [...new Set(Object.entries({ ...local, ...env })
     .filter(([key, value]) => /KEY|SECRET|TOKEN|PASSWORD|DATABASE_URL|DIRECT_URL|ACCELERATE_URL/.test(key) && typeof value === "string" && value.length >= 8)
     .map(([, value]) => value))];
-const child = spawn(process.execPath, [pnpm, "build"], { env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+const child = spawn(process.execPath, [pnpm, ...args], { env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
 for (const stream of [child.stdout, child.stderr]) {
     createInterface({ input: stream }).on("line", line => {
         for (const value of privateValues) line = line.replaceAll(value, "[redacted]");

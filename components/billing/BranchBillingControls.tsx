@@ -1,4 +1,5 @@
 "use client";
+import { accountBillingProcessingHref } from "@/lib/accountNavigation";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -49,7 +50,7 @@ export function BranchBillingControls({ organizationId, branchId, branchName, bi
             sessionStorage.removeItem(storageKey); setPendingKey(null); setReview(false);
             onChanged(undo ? "ACTIVE" : "REMOVAL_SCHEDULED");
             if (!undo && saved.change?.id && saved.action !== "NONE") {
-                router.push(`/org/${encodeURIComponent(organizationId)}/billing/processing/${encodeURIComponent(saved.change.id)}`);
+                router.push(accountBillingProcessingHref(organizationId, saved.change.id));
             } else {
                 setNotice(undo ? t.owned("Branch removal cancelled.") : saved.change?.effectiveAt
                     ? t.owned("Branch removal scheduled for {date}.", { date: formatDate(saved.change.effectiveAt) })
@@ -69,7 +70,7 @@ export function BranchBillingControls({ organizationId, branchId, branchName, bi
             <div className="space-y-3"><p className="break-words font-semibold">{branchName}</p><p>{t.owned(undo ? "Restore the scheduled branch to active billing. The server checks whether undo is still available." : "Schedule this branch to leave billing at the server-confirmed cycle boundary. Its records are retained. Provider confirmation or authorization may still be required.")}</p>
                 {pendingKey && <p role="status">{t.owned("A request may already be recorded. Retry the same request to confirm its result. Closing this dialog does not cancel it.")}</p>}
                 {error && <p role="alert">{t.owned(error)}</p>}
-                {existingChangeId && <Link className="inline-flex min-h-11 items-center underline" href={`/org/${encodeURIComponent(organizationId)}/billing/processing/${encodeURIComponent(existingChangeId)}`}>{t.owned("Review existing billing change")}</Link>}
+                {existingChangeId && <Link className="inline-flex min-h-11 items-center underline" href={accountBillingProcessingHref(organizationId, existingChangeId)}>{t.owned("Review existing billing change")}</Link>}
             </div>
         </Dialog>
     </div>;

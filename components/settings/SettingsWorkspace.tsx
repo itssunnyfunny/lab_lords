@@ -35,7 +35,11 @@ export function SettingsWorkspace({
     onSectionChange,
     actions,
     children,
+    navigation = "sidebar",
+    headingLevel = 1,
 }: {
+    navigation?: "sidebar" | "tabs" | "none";
+    headingLevel?: 1 | 2;
     title: string;
     subtitle: string;
     sections: SettingsSection[];
@@ -45,6 +49,7 @@ export function SettingsWorkspace({
     children: ReactNode;
 }) {
     const t = useTranslation();
+    const Heading = headingLevel === 2 ? "h2" : "h1";
     const clickedSectionRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -92,14 +97,14 @@ export function SettingsWorkspace({
             <PageShell className="ui-record-page">
             <header className="ui-record-header">
                 <div className="min-w-0">
-                    <h1>{t.owned(title)}</h1>
+                    <Heading className={headingLevel === 2 ? "text-xl font-semibold" : undefined}>{t.owned(title)}</Heading>
                     <p className="ui-record-description">{t.owned(subtitle)}</p>
                 </div>
                 {actions ? <div className="ui-record-actions">{actions}</div> : null}
             </header>
 
-            <div className="grid gap-4 lg:grid-cols-[210px_minmax(0,1fr)]">
-                <nav className={cn("ui-panel--compact h-max p-1.5 lg:sticky lg:top-6", pageFilterShellClass)} aria-label={t("Settings")}>
+            <div className={cn("grid gap-4", navigation === "sidebar" && "lg:grid-cols-[210px_minmax(0,1fr)]")}>
+                {navigation !== "none" && <nav className={cn("ui-panel--compact h-max p-1.5", navigation === "sidebar" ? "lg:sticky lg:top-6" : "flex flex-wrap gap-1", pageFilterShellClass)} aria-label={t("Settings")}>
                     {sections.map(section => {
                         const Icon = section.icon;
                         const active = activeSection === section.id;
@@ -110,7 +115,8 @@ export function SettingsWorkspace({
                                 onClick={() => handleSectionClick(section.id)}
                                 aria-current={active ? "location" : undefined}
                                 className={cn(
-                                    "flex min-h-11 w-full items-center gap-3 rounded-[var(--ui-radius-control)] border px-3 py-2 text-left text-sm transition-colors",
+                                    "flex min-h-11 items-center gap-3 rounded-[var(--ui-radius-control)] border px-3 py-2 text-left text-sm transition-colors",
+                                    navigation === "sidebar" && "w-full",
                                     active
                                         ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
                                         : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
@@ -121,8 +127,8 @@ export function SettingsWorkspace({
                             </button>
                         );
                     })}
-                </nav>
-                <div className="min-w-0 space-y-4 pb-24">{children}</div>
+                </nav>}
+                <div className={cn("min-w-0 space-y-4", navigation === "sidebar" && "pb-24")}>{children}</div>
             </div>
             </PageShell>
         </div>

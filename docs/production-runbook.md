@@ -1,5 +1,9 @@
 # Production runbook
 
+## Account navigation compatibility - local, 6 November 2026
+
+Ship Account routes, shared navigation and legacy redirects together. No schema, migration, environment variable or provider configuration change is required. Keep `/org/[orgId]/billing` and its processing route: stored operation/provider return URLs may use them. Account processing continues to use existing owner-authorized APIs and durable operation state. Rollback is the matching application revision; do not rewrite subscriptions, preferences, operation return paths or callbacks. Validate workspace -> Account -> Billing -> workspace, including a legacy billing URL. Local validation uses an exact-identity-checked disposable Docker database; see `tests/account-navigation/local.mjs` and [review](redesign/unified-account-review.md), never shared data.
+
 ## Import decision correction compatibility — local, 5 November 2026
 
 No schema, migration, package or application environment change is required.

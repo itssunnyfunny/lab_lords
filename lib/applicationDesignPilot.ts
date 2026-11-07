@@ -19,6 +19,7 @@ export function isSelectedApplicationSurfacePath(pathname: string | null | undef
     if (isApplicationDesignPilotPath(pathname)) return true;
     const segments = pathname?.split("/").filter(Boolean) ?? [];
     if (segments.length === 1) return ["app", "account", "org", "onboarding"].includes(segments[0]);
+    if (segments[0] === "account") return segments[1] === "profile" || (segments.length === 2 && ["preferences", "billing"].includes(segments[1])) || (segments.length === 5 && segments[1] === "billing" && segments[3] === "processing");
     if (segments[0] === "invite") return segments.length === 2;
     if (segments[0] !== "org" || !segments[1]) return false;
     if (segments.length === 2) return true;

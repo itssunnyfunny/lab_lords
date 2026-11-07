@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 const BRANCH_TITLES: Record<string, string> = {
     "": "Branch dashboard",
@@ -33,22 +33,17 @@ function titleForPath(pathname: string) {
         if (parts[2] === "billing") return "Billing update";
         return "Organization overview";
     }
-    if (parts[0] === "account") return "Account settings";
+    if (parts[0] === "account") return parts[1] === "billing" ? "Account billing" : parts[1] === "preferences" ? "Account preferences" : "Profile & security";
     return "Lab Lords";
 }
 
 export function RouteTitleUpdater() {
     const pathname = usePathname() ?? "/app";
-    const initialTitle = useRef<string | null>(null);
 
     useEffect(() => {
-        initialTitle.current ??= document.title;
         document.title = `${titleForPath(pathname)} | Lab Lords`;
     }, [pathname]);
 
-    useEffect(() => () => {
-        if (initialTitle.current) document.title = initialTitle.current;
-    }, []);
 
     return null;
 }
