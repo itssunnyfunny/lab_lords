@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { ImportRetentionService } from "@/importing/services/import-retention.service";
 
-export const IMPORT_RETENTION_CRON_BATCH_SIZE = 100;
-export const IMPORT_RETENTION_CRON_MAX_BATCHES = 20;
+const IMPORT_RETENTION_CRON_BATCH_SIZE = 100;
+const IMPORT_RETENTION_CRON_MAX_BATCHES = 20;
 
 export async function GET(request: Request) {
     const cronSecret = process.env.CRON_SECRET;
