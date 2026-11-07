@@ -3,16 +3,15 @@ import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { UserService } from "@/services/user.service";
+import { accountBillingContext, type AccountBillingQuery } from "@/lib/accountNavigation";
 import { AccountBilling } from "@/components/account/AccountBilling";
 
-export default async function BillingPage({ searchParams }: { searchParams: Promise<{ organizationId?: string; branchId?: string }> }) {
+export default async function BillingPage({ searchParams }: { searchParams: Promise<AccountBillingQuery> }) {
     const user = await getSessionUser();
     if (!user) redirect("/sign-in");
     const requested = await searchParams;
     const directory = await UserService.getWorkspaceDirectory(user.id);
-    const organization = requested.organizationId
-        ? directory.organizations.find(org => org.id === requested.organizationId)
-        : requested.branchId ? directory.organizations.find(org => org.branches.some(branch => branch.id === requested.branchId)) : directory.organizations[0];
-    if (!organization || (requested.branchId && !organization.branches.some(branch => branch.id === requested.branchId))) notFound();
-    return <Suspense><AccountBilling organizations={directory.organizations} organizationId={organization.id} branchId={requested.branchId} /></Suspense>;
+    const selected = accountBillingContext(directory.organizations, requested);
+    if (!selected) notFound();
+    return <Suspense><AccountBilling organizations={directory.organizations} organizationId={selected.organization.id} branchId={selected.branch?.id} /></Suspense>;
 }

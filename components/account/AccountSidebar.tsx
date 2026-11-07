@@ -5,7 +5,7 @@ import { CreditCard, LogOut, SlidersHorizontal, UserRound } from "lucide-react";
 import { SidebarFrame } from "@/components/layout/SidebarFrame";
 import { SidebarItem } from "@/components/layout/SidebarItem";
 import type { WorkspaceDirectory } from "@/types";
-import { accountBillingHref, accountWorkspaceReturn } from "@/lib/accountNavigation";
+import { accountBillingContext, accountBillingHref, accountWorkspaceReturn } from "@/lib/accountNavigation";
 import { useWorkspaceReturnHref } from "@/hooks/useWorkspaceReturnHref";
 import { workspaceReturnPath } from "@/lib/contextualNavigation";
 
@@ -16,9 +16,12 @@ export function AccountSidebar({ directory }: { directory: WorkspaceDirectory })
     const requestedReturn = workspaceReturnPath(search.get("returnTo")) ?? workspaceReturnPath(resolvedReturn);
     const requestedBranch = search.get("branchId") ?? requestedReturn?.match(/^\/branch\/([^/]+)/)?.[1];
     const requestedOrg = pathname.match(/^\/account\/billing\/([^/]+)/)?.[1] ?? search.get("organizationId")
-        ?? (pathname === "/account/billing" && !search.get("branchId") ? directory.organizations[0]?.id : undefined)
         ?? requestedReturn?.match(/^\/org\/([^/]+)/)?.[1];
-    const scopedOrganization = requestedOrg ? directory.organizations.find(org => org.id === requestedOrg) : directory.organizations.find(org => org.branches.some(branch => branch.id === requestedBranch));
+    const billingContext = pathname === "/account/billing" ? accountBillingContext(directory.organizations, {
+        organizationId: search.get("organizationId"), branchId: search.get("branchId"), returnTo: search.get("returnTo"),
+    }) : null;
+    const scopedOrganization = pathname === "/account/billing" ? billingContext?.organization
+        : requestedOrg ? directory.organizations.find(org => org.id === requestedOrg) : directory.organizations.find(org => org.branches.some(branch => branch.id === requestedBranch));
     const organization = scopedOrganization ?? directory.organizations[0];
     const returnTo = scopedOrganization ? accountWorkspaceReturn(scopedOrganization, requestedBranch, requestedReturn) : requestedReturn;
     const context = new URLSearchParams();

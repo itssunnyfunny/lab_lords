@@ -81,6 +81,17 @@ beforeEach(() => {
 afterEach(() => { hooks.cleanups.forEach(cleanup => cleanup()); vi.unstubAllGlobals(); });
 
 describe.each([1, 2])("actual billing callbacks for %i owned organization(s)", count => {
+  it.each(["organization settings", "legacy branch"])("retains the %s entry in operation returns", entry => {
+    const orgs = organizations(count), selected = orgs.at(-1)!;
+    const returnTo = entry === "organization settings" ? `/org/${selected.id}/settings` : `/branch/${selected.id}-branch/students`;
+    mocks.search = new URLSearchParams({ returnTo });
+    const account = AccountBilling({ organizations: orgs, organizationId: selected.id, branchId: entry === "organization settings" ? `${selected.id}-branch` : undefined });
+    const props = nodes(account).find(node => node.type === OrganizationBillingContent)!.props as { returnPath: string };
+    const destination = new URL(props.returnPath, "https://test.invalid");
+    expect(destination.searchParams.get("organizationId")).toBe(selected.id);
+    expect(destination.searchParams.get("branchId")).toBe(`${selected.id}-branch`);
+    expect(destination.searchParams.get("returnTo")).toBe(returnTo);
+  });
   it.each(["recovery", "payment method", "plan change", "initial plan"])("preserves the operation scope through %s", async action => {
     const orgs = organizations(count), selected = orgs.at(-1)!;
     const account = AccountBilling({ organizations: orgs, organizationId: selected.id, branchId: `${selected.id}-branch` });
@@ -131,7 +142,8 @@ describe.each([1, 2])("actual billing callbacks for %i owned organization(s)", c
   });
 });
 
-it("resets stale return context when a historical owner changes organization, branch or selects all branches", () => {
+it.each(["/branch/ordinary-branch/students", "/org/historical/settings", "/branch/historical-branch/students"])("resets context when selectors change after entry from %s", returnTo => {
+  mocks.search = new URLSearchParams({ returnTo });
   const orgs = organizations(2);
   const account = AccountBilling({ organizations: orgs, organizationId: "historical", branchId: "historical-branch" });
   const selectors = nodes(account).filter(node => node.type === SettingsSelect);

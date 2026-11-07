@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accountHref, accountBillingHref, accountBillingDestination, accountBillingProcessingHref, accountWorkspaceDestination, accountBillingOperationReturn, accountBillingProcessingDestination } from "@/lib/accountNavigation";
+import { accountHref, accountBillingHref, accountBillingDestination, accountBillingProcessingHref, accountWorkspaceDestination, accountWorkspaceReturn, accountBillingOperationReturn, accountBillingProcessingDestination } from "@/lib/accountNavigation";
 import type { WorkspaceDirectory } from "@/types";
 describe("Account navigation", () => {
   it("keeps workspace and branch context on the canonical billing route", () => {
@@ -40,6 +40,17 @@ describe.each([1, 2])("billing returns for an owner with %i organization(s)", co
     const processing = accountBillingProcessingDestination(`/org/${selected.id}/billing/processing/change`, billing);
     expect(accountWorkspaceDestination(new URL(processing, "https://test.invalid").pathname, new URL(processing, "https://test.invalid").searchParams, null, directory)).toBe(`/branch/${branch}/students`);
     expect(accountBillingOperationReturn(selected.id, billing)).toBe(billing);
+  });
+  it("preserves organization settings as the origin of branch billing", () => {
+    const origin = `/org/${selected.id}/settings`;
+    const fromSettings = new URLSearchParams({ organizationId: selected.id, branchId: branch, returnTo: origin });
+    expect(accountWorkspaceDestination("/account/billing", fromSettings, null, directory)).toBe(origin);
+    expect(accountWorkspaceReturn(selected as unknown as WorkspaceDirectory["organizations"][number], branch, origin)).toBe(origin);
+  });
+  it("retains a valid legacy branch return without a branchId or organization selector", () => {
+    const origin = `/branch/${branch}/students`;
+    expect(accountWorkspaceDestination("/account/billing", new URLSearchParams({ returnTo: origin }), null, directory)).toBe(origin);
+    expect(accountWorkspaceReturn(selected as unknown as WorkspaceDirectory["organizations"][number], undefined, origin)).toBe(origin);
   });
   it("binds a historical bare billing return to the operation organization", () => {
     expect(accountBillingOperationReturn(selected.id, "/account/billing#invoices")).toBe(`/account/billing?organizationId=${selected.id}#invoices`);

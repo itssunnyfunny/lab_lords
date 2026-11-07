@@ -2,24 +2,43 @@ import { workspaceReturnPath } from "@/lib/contextualNavigation";
 import { authorizedWorkspaceReturn } from "@/lib/basicNavigation";
 import type { WorkspaceDirectory, WorkspaceDirectoryOrganization } from "@/types";
 
-/** Keep return hints within the selected, already-authorized subscription scope. */
+export type AccountBillingQuery = { organizationId?: string | null; branchId?: string | null; returnTo?: string | null };
+
+/** Explicit scope wins; legacy return hints only select branches in the owned directory. */
+export function accountBillingContext(organizations: WorkspaceDirectoryOrganization[], requested: AccountBillingQuery) {
+    const hintedBranch = workspaceReturnPath(requested.returnTo ?? null)?.match(/^\/branch\/([^/]+)(?:\/|$)/)?.[1];
+    const organization = requested.organizationId
+        ? organizations.find(item => item.id === requested.organizationId)
+        : requested.branchId ? organizations.find(item => item.branches.some(branch => branch.id === requested.branchId))
+        : organizations.find(item => item.branches.some(branch => branch.id === hintedBranch)) ?? organizations[0];
+    if (!organization || (requested.branchId && !organization.branches.some(branch => branch.id === requested.branchId))) return null;
+    const branch = organization.branches.find(item => item.id === (requested.branchId ?? hintedBranch));
+    return { organization, branch };
+}
+
+/** Preserve a valid origin within the selected organization, including its settings page. */
 export function accountWorkspaceReturn(organization: Pick<WorkspaceDirectoryOrganization, "id" | "branches">, branchId?: string | null, requested?: string | null) {
     const path = workspaceReturnPath(requested ?? null);
-    const branch = organization.branches.find(item => item.id === branchId);
-    if (branch) return path?.match(/^\/branch\/([^/]+)(?:\/|$)/)?.[1] === branch.id ? path! : `/branch/${branch.id}`;
     if (path?.match(/^\/org\/([^/]+)(?:\/|$)/)?.[1] === organization.id) return path;
+    const hintedBranch = path?.match(/^\/branch\/([^/]+)(?:\/|$)/)?.[1];
+    const branch = organization.branches.find(item => item.id === (branchId ?? hintedBranch));
+    if (branch) return hintedBranch === branch.id ? path! : `/branch/${branch.id}`;
     return `/org/${organization.id}`;
 }
 
 export function accountWorkspaceDestination(pathname: string, query: URLSearchParams, remembered: string | null, directory: WorkspaceDirectory) {
     const requested = query.get("returnTo") ?? remembered;
-    const organizationId = pathname.match(/^\/account\/billing\/([^/]+)\/processing\//)?.[1] ?? query.get("organizationId")
-        ?? (pathname === "/account/billing" && !query.get("branchId") ? directory.organizations[0]?.id : undefined);
+    if (pathname === "/account/billing") {
+        const selected = accountBillingContext(directory.organizations, {
+            organizationId: query.get("organizationId"), branchId: query.get("branchId"), returnTo: query.get("returnTo"),
+        });
+        if (selected) return accountWorkspaceReturn(selected.organization, selected.branch?.id, requested);
+    }
+    const organizationId = pathname.match(/^\/account\/billing\/([^/]+)\/processing\//)?.[1] ?? query.get("organizationId");
     const branchId = query.get("branchId") ?? workspaceReturnPath(requested)?.match(/^\/branch\/([^/]+)(?:\/|$)/)?.[1];
     const organization = organizationId
         ? directory.organizations.find(item => item.id === organizationId)
-        : branchId ? directory.organizations.find(item => item.branches.some(branch => branch.id === branchId))
-        : pathname === "/account/billing" ? directory.organizations[0] : undefined;
+        : directory.organizations.find(item => item.branches.some(branch => branch.id === branchId));
     return organization ? accountWorkspaceReturn(organization, branchId, requested) : authorizedWorkspaceReturn(requested, directory);
 }
 

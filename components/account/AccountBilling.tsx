@@ -5,14 +5,13 @@ import { OrganizationBillingContent } from "@/components/billing/OrganizationBil
 import { BillingExperienceProvider } from "@/components/billing/BillingExperienceProvider";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import type { WorkspaceDirectoryOrganization } from "@/types";
-import { accountBillingHref, accountWorkspaceReturn } from "@/lib/accountNavigation";
+import { accountBillingContext, accountBillingHref, accountWorkspaceReturn } from "@/lib/accountNavigation";
 
 export function AccountBilling({ organizations, organizationId, branchId }: {
     organizations: WorkspaceDirectoryOrganization[]; organizationId: string; branchId?: string;
 }) {
     const router = useRouter(), search = useSearchParams(), t = useTranslation();
-    const organization = organizations.find(org => org.id === organizationId)!;
-    const branch = organization.branches.find(item => item.id === branchId);
+    const { organization, branch } = accountBillingContext(organizations, { organizationId, branchId, returnTo: search.get("returnTo") })!;
     const returnPath = accountBillingHref(organization.id, branch?.id, accountWorkspaceReturn(organization, branch?.id, search.get("returnTo")));
     function select(org: string, selectedBranch?: string) {
         const selected = organizations.find(item => item.id === org);

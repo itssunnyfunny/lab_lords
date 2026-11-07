@@ -11,7 +11,7 @@ vi.mock("@/components/account/AccountBilling", () => ({AccountBilling:()=>null})
 vi.mock("@/components/billing/BillingProcessingContent", () => ({default:()=>null}));
 const orgs = [{id:"one",branches:[{id:"a"}]},{id:"two",branches:[{id:"b"}]}];
 beforeEach(()=>{vi.clearAllMocks();mocks.session.mockResolvedValue({id:"user"});mocks.directory.mockResolvedValue({organizations:orgs,staffBranches:[]});mocks.owner.mockResolvedValue(true);});
-const open = (searchParams:{organizationId?:string;branchId?:string}) => BillingPage({searchParams:Promise.resolve(searchParams)});
+const open = (searchParams:{organizationId?:string;branchId?:string;returnTo?:string}) => BillingPage({searchParams:Promise.resolve(searchParams)});
 describe("owner-only Account billing",()=>{
   it("selects only an owned organization and its branch",async()=>{
     const tree = await open({organizationId:"two",branchId:"b"});
@@ -21,6 +21,18 @@ describe("owner-only Account billing",()=>{
   });
   it("resolves a branch-only link from the authorized directory",async()=>{
     const tree=await open({branchId:"b"});expect(tree.props.children.props.organizationId).toBe("two");
+  });
+  it.each([{organizationId:"one",branch:"a"},{organizationId:"two",branch:"b"}])("resolves a valid legacy branch return without branchId for $organizationId",async ({organizationId,branch})=>{
+    for (const context of [{organizationId,returnTo:`/branch/${branch}/students`},{returnTo:`/branch/${branch}/students`}]) {
+      const tree=await open(context);
+      expect(tree.props.children.props.organizationId).toBe(organizationId);
+      expect(tree.props.children.props.branchId).toBe(branch);
+    }
+  });
+  it.each(["/branch/b/students","/branch/foreign/students","https://foreign.invalid/branch/b"])("does not let stale or foreign legacy hints override an explicit organization: %s",async returnTo=>{
+    const tree=await open({organizationId:"one",returnTo});
+    expect(tree.props.children.props.organizationId).toBe("one");
+    expect(tree.props.children.props.branchId).toBeUndefined();
   });
   it.each([{organizationId:"foreign"},{organizationId:"missing"},{organizationId:"one",branchId:"b"},{branchId:"foreign"}])("returns the same generic result for invalid context %j",async context=>{await expect(open(context)).rejects.toThrow("NOT_FOUND");});
   it("does not grant a staff member billing access from branch membership",async()=>{
