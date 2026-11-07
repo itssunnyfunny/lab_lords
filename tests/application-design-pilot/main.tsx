@@ -34,11 +34,10 @@ import AIReportsPage from "@/app/branch/[branchId]/ai/reports/page";
 import OrgAnalyticsPage from "@/app/org/[orgId]/analytics/page";
 import OrgOverviewPage from "@/app/org/[orgId]/page";
 import OrgSettingsPage from "@/app/org/[orgId]/settings/page";
-import OrgBillingPage from "@/app/org/[orgId]/billing/page";
-import BillingProcessingPage from "@/app/org/[orgId]/billing/processing/[changeId]/page";
+import { OrganizationBillingContent } from "@/components/billing/OrganizationBillingContent";
+import BillingProcessingContent from "@/components/billing/BillingProcessingContent";
 import OrgSelectionPage from "@/app/org/page";
-import AccountLayout from "@/app/account/layout";
-import AccountPage from "@/app/account/page";
+import { AccountFixture } from "./AccountFixture";
 import OnboardingPage from "@/app/onboarding/page";
 import RouteLoading from "@/components/ui/RouteLoading";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
@@ -151,14 +150,14 @@ function ApplicationDesignPilot() {
     if (pathname.startsWith("/invite/")) return <UserPreferencesBoundary><FixtureLabel />{pathname.endsWith("/invalid")
         ? <InviteStateSurface title="Invite not found" message="This invite link is invalid, has been removed, or uses an older format. Ask the branch owner to send a fresh link." variant="danger" />
         : <InvitePreviewSurface token="invite-pilot" branchName="Shanti Study Library" organizationName="Shanti Learning Spaces" role="STAFF" expiresAt={new Date("2026-10-15T00:00:00+05:30")} signedInEmail={pathname.endsWith("/signed-out") ? null : pathname.endsWith("/empty-email") ? "" : "staff@example.test"} />}</UserPreferencesBoundary>;
-    if (pathname === "/account") return <UserPreferencesBoundary><FixtureLabel /><AccountLayout><AccountPage /></AccountLayout></UserPreferencesBoundary>;
+    if (pathname === "/account" || pathname.startsWith("/account/")) return <UserPreferencesBoundary><FixtureLabel /><AccountFixture /></UserPreferencesBoundary>;
     if (pathname === "/org") return <UserPreferencesBoundary><FixtureLabel /><div data-app-design-pilot="workspace"><OrgSelectionPage /></div></UserPreferencesBoundary>;
     if (pathname.startsWith("/org/")) return <UserPreferencesBoundary><FixtureLabel /><OrganizationWorkspaceShell organizationId={orgId}>
         <Suspense fallback={<PageLoadingSkeleton label="Loading organization surface" variant="workspace" />}>
             {pathname.endsWith("/analytics") ? <OrgAnalyticsPage params={Promise.resolve({ orgId })} />
                 : pathname.endsWith("/settings") ? <OrgSettingsPage params={Promise.resolve({ orgId })} />
-                    : pathname.endsWith("/billing") ? <OrgBillingPage params={Promise.resolve({ orgId })} />
-                    : pathname.includes("/billing/processing/") ? <BillingProcessingPage params={Promise.resolve({ orgId, changeId: pathname.split("/").at(-1) ?? "change-pilot" })} />
+                    : pathname.endsWith("/billing") ? <OrganizationBillingContent orgId={orgId} />
+                    : pathname.includes("/billing/processing/") ? <BillingProcessingContent orgId={orgId} changeId={pathname.split("/").at(-1) ?? "change-pilot"} />
                         : <OrgOverviewPage params={Promise.resolve({ orgId })} />}
         </Suspense>
     </OrganizationWorkspaceShell></UserPreferencesBoundary>;

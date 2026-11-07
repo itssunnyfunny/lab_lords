@@ -53,3 +53,6 @@ export function useAuth() {
 export function useClerk() {
     return { openUserProfile: () => undefined, signOut: async () => undefined };
 }
+
+export function SignOutButton({children}:{children:ReactNode}) { return <>{children}</>; }
+export function UserProfile() { return <section aria-label="Synthetic sign-in controls">Sign-in controls use Clerk in the connected application.</section>; }
