@@ -260,7 +260,7 @@ export function PersonalSettings({ section }: { section: "profile" | "preference
     }
 
     return (
-        <>
+        <div className={isEditing || saveStatus !== "idle" ? "pb-36 sm:pb-28" : undefined}>
             <SettingsWorkspace
                 title={t.owned(section === "profile" ? "Workspace details" : "Preferences")}
                 subtitle={t.owned(section === "profile" ? "Your name and contact details used in Lab Lords." : "Your personal language, display and workspace defaults.")}
@@ -432,6 +432,6 @@ export function PersonalSettings({ section }: { section: "profile" | "preference
                 confirmText="Discard changes"
                 cancelText="Keep editing"
             />
-        </>
+        </div>
     );
 }
