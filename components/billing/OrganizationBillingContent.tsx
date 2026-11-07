@@ -1,5 +1,5 @@
 "use client";
-import { accountBillingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
+import { accountBillingHref, accountBillingProcessingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -37,7 +37,7 @@ const BILLING_SECTIONS = [
 
 type BillingContact = { branches?: { id: string; name: string; billingStatus: string }[]; contactEmail: string | null; contactPhone: string | null; owner?: { email: string } };
 
-export function OrganizationBillingContent({ orgId }: { orgId: string }) {
+export function OrganizationBillingContent({ orgId, returnPath = accountBillingHref(orgId) }: { orgId: string; returnPath?: string }) {
     const t = useTranslation();
     const refreshExperience = useBillingExperience()?.refresh;
     const [activeSection, setActiveSection] = useState("billing");
@@ -46,10 +46,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
     const searchParams = useSearchParams();
     const billingPlanParam = searchParams.get("billingPlan");
     const requestedBillingPlanId = isCheckoutBillingPlanId(billingPlanParam) ? billingPlanParam : null;
-    const returnToParam = searchParams.get("returnTo");
-    const requestedReturnPath = returnToParam?.startsWith("/") && !returnToParam.startsWith("//") && !returnToParam.includes("\\")
-        ? returnToParam
-        : null;
+    const processingDestination = useCallback((path: string) => accountBillingProcessingDestination(path, returnPath), [returnPath]);
 
     const [billingOverview, setBillingOverview] = useState<BillingOverview | null>(null);
     const [billingLoading, setBillingLoading] = useState(true);
@@ -146,7 +143,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                     checkoutResult.failure
                 );
             },
-            navigate: processingUrl => router.push(accountBillingDestination(processingUrl)),
+            navigate: processingUrl => router.push(processingDestination(processingUrl)),
             onStateChange: state => {
                 if (state === "OPEN") {
                     setBillingOperationBusy(true);
@@ -178,7 +175,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                 setBillingNotice({ tone: "warning", message: "Browser verification was interrupted. Provider reconciliation is continuing safely." });
             },
         });
-    }, [loadBilling, orgId, router, setBillingOperationBusy]);
+    }, [loadBilling, orgId, processingDestination, router, setBillingOperationBusy]);
 
     const requestSubscription = useCallback((planId: CheckoutBillingPlanId) => {
         setBillingNotice(null);
@@ -234,7 +231,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                 const result = await billing.changePlan(
                     orgId,
                     planId,
-                    requestedReturnPath ?? window.location.pathname + window.location.hash
+                    returnPath + window.location.hash
                 );
                 if ("purpose" in result && isRazorpayCheckoutPayload(result)) {
                     setBillingOverview(previous => previous
@@ -244,7 +241,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                     return;
                 }
                 setBillingNotice({ tone: "warning", message: "Your plan change is being reconciled with Razorpay." });
-                if (result.processingUrl) router.push(accountBillingDestination(result.processingUrl));
+                if (result.processingUrl) router.push(processingDestination(result.processingUrl));
                 else {
                     await loadBilling();
                     setBillingAction(null);
@@ -263,7 +260,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             const checkout = await billing.createSubscription(
                 orgId,
                 planId,
-                requestedReturnPath ?? window.location.pathname + window.location.hash
+                returnPath + window.location.hash
             );
             setBillingOverview(previous => previous ? { ...previous, current: checkout.subscription } : previous);
             launchCheckout(checkout, "AUTHORIZATION", planId);
@@ -273,7 +270,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             setBillingAction(null);
             setBillingOperationBusy(false);
         }
-    }, [billingOverview, checkoutScriptReady, confirmationPlan, launchCheckout, loadBilling, orgId, requestedReturnPath, router, setBillingOperationBusy]);
+    }, [billingOverview, checkoutScriptReady, confirmationPlan, launchCheckout, loadBilling, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
 
     const startRecovery = useCallback(async () => {
         if (billingOperationInFlightRef.current) return;
@@ -281,14 +278,14 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
         setBillingOperationBusy(true);
         setBillingNotice(null);
         try {
-            const recovery = await billing.createRecovery(orgId, window.location.pathname + window.location.hash);
+            const recovery = await billing.createRecovery(orgId, returnPath + window.location.hash);
             setRecoveryConfirmationOpen(false);
             if ("hostedRecoveryUrl" in recovery && recovery.hostedRecoveryUrl) {
                 window.location.assign(recovery.hostedRecoveryUrl);
                 return;
             }
             if (!checkoutScriptReady || !isRazorpayCheckoutReady()) {
-                router.push(accountBillingDestination(recovery.processingUrl));
+                router.push(processingDestination(recovery.processingUrl));
                 return;
             }
             if (recovery.purpose === "REPLACEMENT") {
@@ -305,7 +302,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             setRecoveryLoading(false);
             setBillingOperationBusy(false);
         }
-    }, [checkoutScriptReady, launchCheckout, orgId, router, setBillingOperationBusy]);
+    }, [checkoutScriptReady, launchCheckout, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
 
     const startPaymentMethodChange = useCallback(async () => {
         const current = billingOverview?.current;
@@ -325,10 +322,10 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
         try {
             const checkout = await billing.changePaymentMethod(
                 orgId,
-                window.location.pathname + window.location.hash
+                returnPath + window.location.hash
             );
             if (!("purpose" in checkout) || !isRazorpayCheckoutPayload(checkout)) {
-                if (checkout.processingUrl) router.push(accountBillingDestination(checkout.processingUrl));
+                if (checkout.processingUrl) router.push(processingDestination(checkout.processingUrl));
                 else await loadBilling();
                 setBillingOperationBusy(false);
                 return;
@@ -344,7 +341,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             });
             setBillingOperationBusy(false);
         }
-    }, [billingOverview, checkoutScriptReady, launchCheckout, loadBilling, orgId, router, setBillingOperationBusy]);
+    }, [billingOverview, checkoutScriptReady, launchCheckout, loadBilling, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
 
     const retryBillingOperation = useCallback(async (changeId: string, planId: CheckoutBillingPlanId | null = null) => {
         const result = await billing.retryOperation(orgId, changeId);
@@ -358,12 +355,12 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             return "CHECKOUT" as const;
         }
         if (result.processingUrl) {
-            router.push(accountBillingDestination(result.processingUrl));
+            router.push(processingDestination(result.processingUrl));
             return "PROCESSING" as const;
         }
         await loadBilling();
         return "REFRESHED" as const;
-    }, [checkoutScriptReady, launchCheckout, loadBilling, orgId, router]);
+    }, [checkoutScriptReady, launchCheckout, loadBilling, orgId, processingDestination, router]);
 
     const retryPaymentOutcome = useCallback(async () => {
         if (billingOperationInFlightRef.current) return;
@@ -545,7 +542,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                 return;
             }
             if (experience.paymentAction === "WAIT_FOR_CONFIRMATION" && operationId) {
-                router.push(accountBillingProcessingHref(orgId, operationId));
+                router.push(processingDestination(accountBillingProcessingHref(orgId, operationId)));
                 return;
             }
             if ((experience.paymentAction === "CONTINUE_CHECKOUT"
@@ -578,7 +575,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             });
             setBillingOperationBusy(false);
         }
-    }, [billingOverview, checkoutScriptReady, orgId, requestSubscription, retryBillingOperation, router, setBillingOperationBusy, startPaymentMethodChange]);
+    }, [billingOverview, checkoutScriptReady, orgId, processingDestination, requestSubscription, retryBillingOperation, router, setBillingOperationBusy, startPaymentMethodChange]);
 
     const confirmationPlanDetails = confirmationPlan
         ? billingOverview?.plans.find(plan => plan.id === confirmationPlan) ?? null

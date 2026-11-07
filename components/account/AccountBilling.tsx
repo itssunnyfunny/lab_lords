@@ -5,7 +5,7 @@ import { OrganizationBillingContent } from "@/components/billing/OrganizationBil
 import { BillingExperienceProvider } from "@/components/billing/BillingExperienceProvider";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import type { WorkspaceDirectoryOrganization } from "@/types";
-import { accountBillingHref } from "@/lib/accountNavigation";
+import { accountBillingHref, accountWorkspaceReturn } from "@/lib/accountNavigation";
 
 export function AccountBilling({ organizations, organizationId, branchId }: {
     organizations: WorkspaceDirectoryOrganization[]; organizationId: string; branchId?: string;
@@ -13,8 +13,11 @@ export function AccountBilling({ organizations, organizationId, branchId }: {
     const router = useRouter(), search = useSearchParams(), t = useTranslation();
     const organization = organizations.find(org => org.id === organizationId)!;
     const branch = organization.branches.find(item => item.id === branchId);
+    const returnPath = accountBillingHref(organization.id, branch?.id, accountWorkspaceReturn(organization, branch?.id, search.get("returnTo")));
     function select(org: string, selectedBranch?: string) {
-        router.push(accountBillingHref(org, selectedBranch, search.get("returnTo")));
+        const selected = organizations.find(item => item.id === org);
+        if (!selected) return;
+        router.push(accountBillingHref(org, selectedBranch, accountWorkspaceReturn(selected, selectedBranch)));
     }
     return <div className="mx-auto max-w-6xl space-y-5">
         <section className="ui-account-provider p-4 sm:p-5" aria-label={t.owned("Subscription workspace")}>
@@ -31,7 +34,7 @@ export function AccountBilling({ organizations, organizationId, branchId }: {
             </div>
         </section>
         <BillingExperienceProvider key={organizationId} organizationId={organizationId}>
-            <OrganizationBillingContent key={organizationId} orgId={organizationId} />
+            <OrganizationBillingContent key={organizationId} orgId={organizationId} returnPath={returnPath} />
         </BillingExperienceProvider>
     </div>;
 }

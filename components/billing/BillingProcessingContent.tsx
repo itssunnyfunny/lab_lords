@@ -3,7 +3,7 @@ import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import Link from "next/link";
-import { accountBillingHref, accountBillingDestination } from "@/lib/accountNavigation";
+import { accountBillingOperationReturn, accountBillingProcessingDestination } from "@/lib/accountNavigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle2, Clock3, Loader2, RotateCcw } from "lucide-react";
@@ -202,7 +202,7 @@ export default function BillingProcessingContent({ orgId, changeId }: { orgId: s
   const content = useMemo(() => getBillingProcessingCopy(operation, timedOut), [operation, timedOut]);
   const successful = operation?.operationStatus === "APPLIED" || operation?.operationStatus === "SCHEDULED";
   const failed = operation && ["DECLINED", "ABANDONED", "FAILED"].includes(operation.operationStatus);
-  const returnPath = operation?.returnPath ? accountBillingDestination(operation.returnPath) : accountBillingHref(orgId);
+  const returnPath = accountBillingOperationReturn(orgId, operation?.returnPath);
 
   const retry = async () => {
     if (operation?.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady) {
@@ -238,7 +238,7 @@ export default function BillingProcessingContent({ orgId, changeId }: { orgId: s
             );
           },
           navigate: (processingUrl) => {
-            router.replace(processingUrl);
+            router.replace(accountBillingProcessingDestination(processingUrl, returnPath));
             setTimedOut(false);
             setPollGeneration((current) => current + 1);
           },
