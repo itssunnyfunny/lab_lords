@@ -5,7 +5,7 @@ import {
   preferProviderConfirmedOperation,
   reconcileWithCooldown,
   type ProcessingReconcileGate,
-} from "@/app/org/[orgId]/billing/processing/[changeId]/page";
+} from "@/components/billing/BillingProcessingContent";
 import type { BillingOperationDto } from "@/lib/api/billing";
 
 function operation(

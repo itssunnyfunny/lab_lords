@@ -162,7 +162,7 @@ describe("branch capability decisions", () => {
 
         expect(result.allowed).toBe(false);
         expect(result.blocker).toBe("entitlement");
-        expect(result.recoveryHref).toBe("/org/org_1/billing");
+        expect(result.recoveryHref).toBe("/account/billing?organizationId=org_1&branchId=branch_1&returnTo=%2Fbranch%2Fbranch_1");
     });
 
     it.each([
@@ -182,7 +182,7 @@ describe("branch capability decisions", () => {
             expect(decision.reason).toBe(isOwner
                 ? `This feature requires the ${plan} plan.`
                 : `The organization owner needs to enable the ${plan} plan.`);
-            expect(decision.recoveryHref).toBe(isOwner ? "/org/org_1/billing" : null);
+            expect(decision.recoveryHref).toBe(isOwner ? "/account/billing?organizationId=org_1&branchId=branch_1&returnTo=%2Fbranch%2Fbranch_1" : null);
             for (const language of ["hi", "hinglish"] as const) {
                 const translated = translateOwnedText(language, decision.reason!);
                 expect(translated).not.toBe(decision.reason);

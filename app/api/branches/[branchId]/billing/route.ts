@@ -1,3 +1,4 @@
+import { accountBillingHref } from "@/lib/accountNavigation";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { StaffService } from "@/services/staff.service";
@@ -17,7 +18,7 @@ export async function GET(_request: Request, context: { params: Promise<{ branch
       inheritedPlan: experience.effectivePlan === "STANDARD_TRIAL" ? "Standard trial" : experience.effectivePlan === "PRO" ? "Pro" : experience.effectivePlan === "STANDARD" ? "Standard" : experience.effectivePlan === "BASIC" ? "Basic" : "No active plan",
       billingState: experience.customerMessage,
       accessMode: experience.accessMode,
-      billingUrl: `/org/${access.organizationId}/billing`,
+      billingUrl: accountBillingHref(access.organizationId, branchId, `/branch/${branchId}/settings`),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load branch billing";

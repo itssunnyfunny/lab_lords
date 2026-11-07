@@ -1,4 +1,5 @@
 "use client";
+import { accountBillingHref } from "@/lib/accountNavigation";
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
@@ -720,7 +721,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                             variant="secondary"
                             size="sm"
                             disabled={billingLoading || !billingSummary}
-                            onClick={() => billingSummary && router.push(billingSummary.billingUrl)}
+                            onClick={() => billingSummary && router.push(accountBillingHref(access.organizationId, branchId, `/branch/${branchId}/settings`))}
                         >
                             {t("Open organization billing")}</AppButton>
                     </div>

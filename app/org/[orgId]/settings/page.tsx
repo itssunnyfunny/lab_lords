@@ -1,4 +1,5 @@
 "use client";
+import { accountBillingDestination, accountBillingHref } from "@/lib/accountNavigation";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
@@ -9,8 +10,8 @@ import {
     Briefcase,
     Building2,
     Calendar,
-    Clock,
     CreditCard,
+    Clock,
     GitBranch,
     Hash,
     Mail,
@@ -21,7 +22,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { AppButton, PageLoadingSkeleton } from "@/components/ui";
-import { appActionClassName } from "@/components/ui/AppButton";
 import {
     ReadOnlyRow,
     SegmentedControl,
@@ -38,7 +38,6 @@ import {
 } from "@/components/settings/SettingsWorkspace";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { BranchBillingControls } from "@/components/billing/BranchBillingControls";
 import { OrganizationWhatsAppPanel } from "@/components/whatsapp/OrganizationWhatsAppPanel";
 import {
     pageErrorIconClass,
@@ -104,7 +103,6 @@ const SECTIONS = [
     { id: "contact", label: "Contact", icon: MapPin },
     { id: "regional", label: "Regional Defaults", icon: Clock },
     { id: "branches", label: "Branches", icon: GitBranch },
-    { id: "billing", label: "Billing", icon: CreditCard },
     { id: "system", label: "System Info", icon: Shield },
 ];
 
@@ -148,7 +146,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
     const billingQuery = searchParams.toString();
     useEffect(() => {
         if (searchParams.has("billingPlan") || window.location.hash === "#billing") {
-            router.replace(`/org/${encodeURIComponent(orgId)}/billing${billingQuery ? `?${billingQuery}` : ""}#billing`);
+            router.replace(accountBillingDestination(`/org/${encodeURIComponent(orgId)}/billing${billingQuery ? `?${billingQuery}` : ""}#billing`));
         }
     }, [orgId, router, searchParams, billingQuery]);
 
@@ -396,7 +394,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 {billingOverview && !organizationCanEdit ? (
                     <aside className={cn("flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)}>
                         <p>{organizationEditReason}</p>
-                        <a href={`/org/${encodeURIComponent(orgId)}/billing`} className="shrink-0 font-semibold underline underline-offset-4">{t("Review billing")}</a>
+                        <a href={accountBillingHref(orgId, null, `/org/${orgId}/settings`)} className="shrink-0 font-semibold underline underline-offset-4">{t("Review billing")}</a>
                     </aside>
                 ) : null}
                 <SettingsPanel id="profile" title={t("Business Profile")} description={t("Core business information used across this organization.")} icon={Building2}>
@@ -517,7 +515,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                                     {branch.city || "No city set"} / {format(new Date(branch.createdAt), "PP")}
                                 </SettingsSubtleText>
                             </SettingsCard>
-                            <BranchBillingControls organizationId={orgId} branchId={branch.id} branchName={branch.name} billingStatus={branch.billingStatus ?? "ACTIVE"} canChange={organizationCanEdit && !isEditing} finalBranch={org.branches.filter(item => ["ACTIVE", "PENDING_ACTIVATION", "REMOVAL_SCHEDULED"].includes(item.billingStatus ?? "ACTIVE")).length <= 1} onChanged={status => { setOrg(current => current ? { ...current, branches: current.branches.map(item => item.id === branch.id ? { ...item, billingStatus: status } : item) } : current); void loadBilling(); }} /></div>
+                            <Link href={accountBillingHref(orgId, branch.id, `/org/${orgId}/settings`)} className="inline-flex min-h-11 items-center px-3 text-sm font-medium underline">{t.owned("Manage branch billing")}</Link></div>
                         ))}
                     </div>
                 </SettingsPanel>
@@ -528,11 +526,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                     onAvailabilityChange={setWhatsAppAvailable}
                 />
 
-                <SettingsPanel id="billing" title={t("Billing")} description={t("Manage your plan, payment method, invoices, and workspace access.")} icon={CreditCard}>
-                    <div className="px-5 py-4">
-                        <Link href={`/org/${encodeURIComponent(orgId)}/billing`} className={appActionClassName("primary")}>{t("Manage billing")}</Link>
-                    </div>
-                </SettingsPanel>
+
 
                 <SettingsPanel id="system" title={t("System Info")} description={t("Owner and identifiers are read-only.")} icon={Shield}>
                     <ReadOnlyRow label={t("Owner")} value={<span className="inline-flex items-center gap-2"><Mail size={14} />{org.owner?.email || org.ownerId}</span>} />

@@ -1,4 +1,5 @@
 "use client";
+import { accountBillingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -21,6 +22,7 @@ import { billingPlanName, billingPlanRank, isCheckoutBillingPlanId, type Checkou
 import { cn } from "@/lib/utils";
 import { getProviderPaymentMethodLabel, isSupportedRecurringPaymentMethod } from "@/lib/billingPaymentMethods";
 import { BillingHistoryBrowser } from "@/components/billing/BillingHistoryBrowser";
+import { BranchBillingControls } from "@/components/billing/BranchBillingControls";
 import { BillingInvoiceHistory } from "@/components/billing/BillingInvoiceHistory";
 import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
 
@@ -28,11 +30,12 @@ const BILLING_SECTIONS = [
     { id: "billing", label: "Overview", icon: CreditCard },
     { id: "plans", label: "Plans", icon: Sparkles },
     { id: "subscription", label: "Subscription controls", icon: CreditCard },
+    { id: "branches", label: "Branch billing", icon: CreditCard },
     { id: "invoices", label: "Invoices", icon: Receipt },
     { id: "history", label: "Subscription history", icon: History },
 ];
 
-type BillingContact = { contactEmail: string | null; contactPhone: string | null; owner?: { email: string } };
+type BillingContact = { branches?: { id: string; name: string; billingStatus: string }[]; contactEmail: string | null; contactPhone: string | null; owner?: { email: string } };
 
 export function OrganizationBillingContent({ orgId }: { orgId: string }) {
     const t = useTranslation();
@@ -101,14 +104,17 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
         void loadBilling();
         return () => { mounted.current = false; billingReadVersion.current += 1; };
     }, [loadBilling]);
+    const [contactLoading, setContactLoading] = useState(true);
+    const [contactRevision, setContactRevision] = useState(0);
     useEffect(() => {
         let active = true;
         void fetch(`/api/organizations/${encodeURIComponent(orgId)}`)
             .then(async response => response.ok ? response.json() as Promise<BillingContact> : null)
             .then(contact => { if (active && contact) setOrg(contact); })
-            .catch(() => { /* Checkout obtains authoritative contact details from the server. */ });
+            .catch(() => { /* Checkout obtains authoritative contact details from the server. */ })
+            .finally(() => { if (active) setContactLoading(false); });
         return () => { active = false; };
-    }, [orgId]);
+    }, [orgId, contactRevision]);
 
     const launchCheckout = useCallback((
         payload: RazorpayCheckoutPayloadLike,
@@ -140,7 +146,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                     checkoutResult.failure
                 );
             },
-            navigate: processingUrl => router.push(processingUrl),
+            navigate: processingUrl => router.push(accountBillingDestination(processingUrl)),
             onStateChange: state => {
                 if (state === "OPEN") {
                     setBillingOperationBusy(true);
@@ -238,7 +244,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                     return;
                 }
                 setBillingNotice({ tone: "warning", message: "Your plan change is being reconciled with Razorpay." });
-                if (result.processingUrl) router.push(result.processingUrl);
+                if (result.processingUrl) router.push(accountBillingDestination(result.processingUrl));
                 else {
                     await loadBilling();
                     setBillingAction(null);
@@ -282,7 +288,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                 return;
             }
             if (!checkoutScriptReady || !isRazorpayCheckoutReady()) {
-                router.push(recovery.processingUrl);
+                router.push(accountBillingDestination(recovery.processingUrl));
                 return;
             }
             if (recovery.purpose === "REPLACEMENT") {
@@ -322,7 +328,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                 window.location.pathname + window.location.hash
             );
             if (!("purpose" in checkout) || !isRazorpayCheckoutPayload(checkout)) {
-                if (checkout.processingUrl) router.push(checkout.processingUrl);
+                if (checkout.processingUrl) router.push(accountBillingDestination(checkout.processingUrl));
                 else await loadBilling();
                 setBillingOperationBusy(false);
                 return;
@@ -352,7 +358,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             return "CHECKOUT" as const;
         }
         if (result.processingUrl) {
-            router.push(result.processingUrl);
+            router.push(accountBillingDestination(result.processingUrl));
             return "PROCESSING" as const;
         }
         await loadBilling();
@@ -539,7 +545,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                 return;
             }
             if (experience.paymentAction === "WAIT_FOR_CONFIRMATION" && operationId) {
-                router.push(`/org/${encodeURIComponent(orgId)}/billing/processing/${encodeURIComponent(operationId)}`);
+                router.push(accountBillingProcessingHref(orgId, operationId));
                 return;
             }
             if ((experience.paymentAction === "CONTINUE_CHECKOUT"
@@ -638,6 +644,7 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
             <SettingsWorkspace
                 title={t("Billing and plans")}
                 subtitle={t.owned("One organization plan applies to all its branches. Manage subscription payments, invoices and access here. Student fees stay in each branch.")}
+                navigation="tabs"
                 sections={BILLING_SECTIONS}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
@@ -834,6 +841,19 @@ export function OrganizationBillingContent({ orgId }: { orgId: string }) {
                     )}
 
                 </SettingsPanel>
+                <SettingsPanel id="branches" title={t.owned("Branch billing")} description={t.owned("Manage which branches are included in this organization subscription.")} icon={CreditCard}>
+                    <div className="space-y-3 p-4">
+                        {org.branches?.map(branch => <div key={branch.id} className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-panel-border)]" data-selected-branch={searchParams.get("branchId") === branch.id || undefined}>
+                            <h3 className="px-3 py-3 text-sm font-semibold">{branch.name}{searchParams.get("branchId") === branch.id && <span className="ml-2 text-xs font-normal text-[color:var(--text-muted)]">{t.owned("Selected branch")}</span>}</h3>
+                            <BranchBillingControls organizationId={orgId} branchId={branch.id} branchName={branch.name} billingStatus={branch.billingStatus}
+                                canChange={Boolean(billingOverview?.entitlements.canWrite) && !billingOperationLoading}
+                                finalBranch={org.branches!.filter(item => ["ACTIVE", "PENDING_ACTIVATION", "REMOVAL_SCHEDULED"].includes(item.billingStatus)).length <= 1}
+                                onChanged={status => { setOrg(current => ({ ...current, branches: current.branches?.map(item => item.id === branch.id ? { ...item, billingStatus: status } : item) })); void loadBilling(); }} />
+                        </div>)}
+                        {!org.branches && <div role="status" className="text-sm">{contactLoading ? t("Loading") : <><p>{t.owned("Branch billing details are unavailable. Refresh to try again.")}</p><AppButton variant="secondary" onClick={() => { setContactLoading(true); setContactRevision(value => value + 1); }}>{t("Refresh")}</AppButton></>}</div>}
+                    </div>
+                </SettingsPanel>
+
                 <BillingInvoiceHistory organizationId={orgId} refreshKey={billingOverview} />
                 <SettingsPanel id="history" title={t("Subscription history")} icon={History}>
                     <div className="px-5 py-4"><BillingHistoryBrowser organizationId={orgId} /></div>

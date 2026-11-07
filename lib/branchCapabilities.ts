@@ -1,3 +1,4 @@
+import { accountBillingHref } from "@/lib/accountNavigation";
 import type { BillingEntitlement } from "@/lib/billingPlans";
 import type { BranchAccess, CapabilityDecision, StaffAction } from "@/types";
 
@@ -66,7 +67,7 @@ const ALLOWED_BRANCH_STATES = new Set(["ACTIVE"]);
 
 function billingRecoveryHref(access: BranchAccess) {
     if (!access.isOwner && !access.billingExperience?.viewer.canManageBilling) return null;
-    return `/org/${encodeURIComponent(access.organizationId)}/billing`;
+    return accountBillingHref(access.organizationId, access.branchId, `/branch/${access.branchId}`);
 }
 
 export function getBranchCapabilityDecision(

@@ -1,4 +1,5 @@
 "use client";
+import { accountBillingHref } from "@/lib/accountNavigation";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import Link from "next/link";
@@ -17,7 +18,7 @@ export function ReadOnlyBanner({ experience }: { experience: BillingExperience }
           <p className="mt-0.5 text-xs text-[color:var(--ui-text-muted)]">{experience.customerMessage}  {t("Your data remains available and unchanged.")}</p>
         </div>
       </div>
-      {experience.viewer.canManageBilling && <Link className="shrink-0 font-semibold text-red-600 hover:underline" href={`/org/${encodeURIComponent(experience.organizationId)}/billing`}>{t("Restore access")}</Link>}
+      {experience.viewer.canManageBilling && <Link className="shrink-0 font-semibold text-red-600 hover:underline" href={accountBillingHref(experience.organizationId, experience.branch?.id, experience.branch ? `/branch/${experience.branch.id}` : `/org/${experience.organizationId}`)}>{t("Restore access")}</Link>}
     </div>
   );
 }

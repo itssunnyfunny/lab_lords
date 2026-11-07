@@ -1,4 +1,5 @@
 "use client";
+import { accountBillingHref } from "@/lib/accountNavigation";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { billingPlanName } from "@/lib/billingPlans";
@@ -92,7 +93,7 @@ export function BillingBanner({ experience }: { experience: BillingExperience })
         action: "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-badge-cyan-text)] hover:bg-[color:var(--ui-form-muted-surface-bg)]",
         dismiss: "hover:bg-[color:var(--ui-form-muted-surface-bg)]",
       };
-  const billingHref = `/org/${encodeURIComponent(experience.organizationId)}/billing`;
+  const billingHref = accountBillingHref(experience.organizationId, experience.branch?.id, experience.branch ? `/branch/${experience.branch.id}` : `/org/${experience.organizationId}`);
   const actionLabel = getBillingBannerActionLabel(experience);
 
   const dismiss = () => {
