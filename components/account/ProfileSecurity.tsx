@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { UserProfile } from "@clerk/nextjs";
+import { UserProfile, useUser } from "@clerk/nextjs";
 import { PersonalSettings } from "./PersonalSettings";
 import { workspaceAccountProfileClerkAppearance } from "@/components/ui/entrySurface";
 import { useTranslation } from "@/components/settings/LocalizedText";
@@ -24,8 +24,11 @@ export function ProfileSecurity() {
     const t = useTranslation();
     const pathname = usePathname();
     const search = useSearchParams();
+    const { isLoaded, isSignedIn } = useUser();
     const security = pathname.startsWith("/account/profile/security");
     const suffix = search.size ? `?${search}` : "";
+    // Clerk clears the user before the sign-out redirect finishes.
+    if (!isLoaded || !isSignedIn) return null;
     return <div data-account-profile className="mx-auto max-w-5xl space-y-5">
         <header className="ui-record-header"><div><h1>{t.owned("Profile & security")}</h1><p className="ui-record-description">{t.owned("Manage your personal details, sign-in methods and account security.")}</p></div></header>
         <nav aria-label={t.owned("Profile and security sections")} className="flex gap-2 border-b border-[color:var(--ui-panel-border)] pb-3">
