@@ -351,3 +351,5 @@ not final owner approval, merge or release.
 ### Unified Account navigation - local, 2026-11-06
 
 Families E/H and Basic share a fixed bottom Account entry, collapsible frame and mobile Drawer. Account integrates profile/security, personal preferences and owner-only organization billing with branch context. Organization/branch settings retain their configuration scope. See [implementation and validation evidence](unified-account-review.md). Local verification does not imply final owner visual review, merge, deployment or production provider verification.
+
+The 7 November Account follow-up retains selected billing organization/branch through operations and workspace returns, with ordinary and historical-owner regression cases. Browser verification also corrected Preferences bottom clearance while the save bar is visible, on desktop and mobile. Details and remaining release boundaries are in the [Account review](unified-account-review.md).
