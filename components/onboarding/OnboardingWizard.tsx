@@ -90,7 +90,7 @@ function OnboardingAccountPage({ accountId, requestedBillingPlan, initialPhone =
     }, [accountId, loadSavedCommand]);
     useEffect(() => { if (step > 1) heading.current?.focus(); }, [step]);
 
-    const dirty = step > 1 || !!formData.orgName || formData.ownerPhone !== initialPhone || !!formData.branchName || !!formData.city || !!formData.seatCount || trialPlan !== requestedBillingPlan;
+    const dirty = !savedCommand && (step > 1 || !!formData.orgName || formData.ownerPhone !== initialPhone || !!formData.branchName || !!formData.city || !!formData.seatCount || trialPlan !== requestedBillingPlan);
     useBasicNavigationGuard(() => !loading && (!dirty || window.confirm(t.owned("Leave with unsaved changes?"))), dirty || loading, "setupIndex");
 
     const orgName = validateRequiredText(formData.orgName.trim() || workspaceSuggestion, "Workspace name", 120);

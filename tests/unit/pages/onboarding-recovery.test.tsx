@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement, ReactNode } from "react";
 
-// Controlled page hooks, real recovery storage/API helpers, and a deferred
+// Controlled wizard hooks, real recovery storage/API helpers, and a deferred
 // fetch. This does not claim browser/Clerk or database integration coverage.
 const hooks = vi.hoisted(() => ({ cursor: 0, values: [] as unknown[], dirty: false,
     effects: [] as Array<() => void>, cleanups: new Map<number, () => void>() }));
-const mocks = vi.hoisted(() => ({ accountId: "account-A", loaded: true, signedIn: true, push: vi.fn() }));
+const mocks = vi.hoisted(() => ({ accountId: "account-A", loaded: true, signedIn: true, push: vi.fn(), navigationGuard: vi.fn() }));
 vi.mock("react", async original => {
     const react = await original<typeof import("react")>();
     const same = (before: unknown[] | undefined, after: unknown[]) => before?.length === after.length && before.every((value, index) => Object.is(value, after[index]));
@@ -49,7 +49,9 @@ vi.mock("@/components/settings/LocalizedText", () => ({
 }));
 vi.mock("@/components/ui", () => ({ AppButton: "app-button", AppSelect: "app-select" }));
 
-import OnboardingPage from "@/app/onboarding/page";
+vi.mock("@/components/basic/useBasicNavigationGuard", () => ({ useBasicNavigationGuard: mocks.navigationGuard }));
+
+import OnboardingPage from "@/components/onboarding/OnboardingWizard";
 import { onboardingStorageKey, readOnboardingCommand } from "@/lib/onboardingPendingCommand";
 
 type Node = ReactElement<Record<string, unknown> & { children?: ReactNode }>;
@@ -139,10 +141,13 @@ describe("onboarding page recovery", () => {
         const submit = page.click("Create my workspace");
         await flush();
         expect(page.render().find(node => node.type === "fieldset")?.props.disabled).toBe(true);
+        expect(mocks.navigationGuard.mock.lastCall?.[1]).toBe(true);
+        expect(mocks.navigationGuard.mock.lastCall?.[0]()).toBe(false);
         expect(fetchMock).toHaveBeenCalledTimes(1);
         finish(new Response(JSON.stringify(result), { status: 201 })); await submit;
         expect(mocks.push).toHaveBeenCalledWith("/branch/branch-1");
         expect(page.has("Your workspace is ready")).toBe(true);
+        expect(mocks.navigationGuard.mock.lastCall?.[0]()).toBe(true);
     });
 
     it("waits for account identity and never exposes a form while signed out", () => {
