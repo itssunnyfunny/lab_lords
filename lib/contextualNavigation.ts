@@ -7,7 +7,7 @@ export type ContextualParent = {
 // their normal server-side membership and permission checks.
 export function workspaceReturnPath(value: string | null): string | null {
     return value && /^\/(?:branch|org)\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_/-]+)?\/?$/.test(value)
-        ? value : null;
+        ? value.replace(/^(\/org\/[A-Za-z0-9_-]+)\/billing(?:\/.*)?$/, "$1") : null;
 }
 
 export function resolveContextualParent(pathname: string | null): ContextualParent | null {

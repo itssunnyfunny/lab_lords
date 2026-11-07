@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { LockKeyhole, LucideIcon } from "lucide-react";
 import Link from "next/link";
 import React from "react";
+import { useSidebarCollapsed } from "./SidebarContext";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 interface SidebarItemProps {
@@ -18,8 +19,10 @@ interface SidebarItemProps {
     badge?: string;
 }
 
-export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isCollapsed, density = "default", locked = false, badge }: SidebarItemProps) => {
+export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isCollapsed: collapsedProp, density = "default", locked = false, badge }: SidebarItemProps) => {
     const t = useTranslation();
+    const inheritedCollapsed = useSidebarCollapsed();
+    const isCollapsed = collapsedProp ?? inheritedCollapsed;
     const className = cn(
             "group relative flex w-full items-center text-left transition-all duration-150",
             density === "compact"
@@ -61,14 +64,14 @@ export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isColl
 
     if (href) {
         return (
-            <Link href={href} aria-current={isActive ? "page" : undefined} className={className}>
+            <Link href={href} aria-label={t.owned(label)} title={isCollapsed ? t.owned(label) : undefined} aria-current={isActive ? "page" : undefined} className={className}>
                 {content}
             </Link>
         );
     }
 
     return (
-        <button type="button" onClick={onClick} aria-current={isActive ? "page" : undefined} className={className}>
+        <button type="button" onClick={onClick} aria-label={t.owned(label)} title={isCollapsed ? t.owned(label) : undefined} aria-current={isActive ? "page" : undefined} className={className}>
             {content}
         </button>
     );

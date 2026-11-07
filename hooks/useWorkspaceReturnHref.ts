@@ -11,7 +11,7 @@ export function useWorkspaceReturnHref(pathname: string | null) {
         let cancelled=false;
         const key="lab-lords:account-return:"+ownerKey, current=workspaceReturnPath(pathname);
         if(current) {try{sessionStorage.setItem(key,current);}catch{} return;}
-        if(pathname!=="/account")return;
+        if(pathname!=="/account" && !pathname?.startsWith("/account/"))return;
         async function resolve() {
             let requested=workspaceReturnPath(new URLSearchParams(window.location.search).get("returnTo"));
             try{requested??=workspaceReturnPath(sessionStorage.getItem(key));}catch{}
