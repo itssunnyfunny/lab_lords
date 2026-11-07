@@ -109,8 +109,8 @@ describe("BranchSidebar", () => {
     expect(organizationItem).toBeDefined();
     expect(organizationItem?.href).toBe("/org/org_1");
     expect(markup).toContain('aria-label="Workspace"');
-    expect(markup.indexOf('aria-label="Workspace"')).toBeLessThan(markup.indexOf('class="reference-sidebar-quote"'));
-    expect(mocks.sidebarItems.map(item => item.href)).not.toContain("/account");
+    expect(markup).toContain("ui-navigation-footer");
+    expect(mocks.sidebarItems.find(item => item.label === "Account")?.href).toBe("/account?returnTo=%2Fbranch%2Fbranch_1%2Fai%2Freports");
     expect(mocks.sidebarItems.map(item => item.href)).not.toContain("/onboarding");
   });
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { LanguageControls } from "@/components/settings/LanguageControls";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { X } from "lucide-react";
 import {
@@ -246,7 +245,7 @@ export function Dialog({
         aria-busy={closeDisabled || undefined}
         tabIndex={-1}
       >
-        <div className={cn("flex items-start gap-3 pr-10", languagePlacement === "header" && "ui-dialog-header-language", variant === "navigation" && "sr-only")}>
+        <div className={cn("flex items-start gap-3 pr-10", variant === "navigation" && "sr-only")}>
           {icon ? <div className="shrink-0" aria-hidden="true">{icon}</div> : null}
           <div className="min-w-0">
             <h2 id={titleId} className="text-lg font-bold leading-tight text-[color:var(--ui-dialog-title)]">
@@ -258,11 +257,9 @@ export function Dialog({
               </div>
             ) : null}
           </div>
-          {variant !== "navigation" && languagePlacement === "header" && <LanguageControls compact />}
         </div>
 
         {languagePlacement === "header" && description ? <div id={descriptionId} className="mt-1.5 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{description}</div> : null}
-        {variant !== "navigation" && languagePlacement === "below" && <div className="mt-3"><LanguageControls compact /></div>}
         {showCloseButton ? (
           <button
             ref={closeButtonRef}

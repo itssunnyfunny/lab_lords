@@ -1,4 +1,5 @@
 "use client";
+import { accountBillingHref } from "@/lib/accountNavigation";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -60,10 +61,10 @@ function WorkspaceContent({children,designPilot}:{children:ReactNode;designPilot
     const sharedImport = /^\/branch\/[^/]+\/onboarding\/import(?:\/|$)/.test(pathname ?? "");
     if(!workspace?.access || !workspace.presentation) return <div role={workspace?.error?"alert":"status"} className="flex min-h-screen flex-col items-center justify-center gap-4">
         <p>{t.owned(workspace?.error??"Loading workspace")}</p><button onClick={()=>void workspace?.refresh()}>{t("Retry")}</button>
-        {workspace?.access?.isOwner&&<Link href={"/org/"+workspace.access.organizationId+"/billing"}>{t("Billing")}</Link>}
+        {workspace?.access?.isOwner&&<Link href={accountBillingHref(workspace.access.organizationId, workspace.access.branchId, pathname)}>{t("Billing")}</Link>}
     </div>;
     return <>
-        {sharedImport ? <div inert={!!workspace.error} data-shared-import-shell><AppShell designPilot={designPilot}><BranchActivationGate>{children}</BranchActivationGate></AppShell></div>
+        {sharedImport ? <div inert={!!workspace.error} data-shared-import-shell><AppShell sidebar={<BranchSidebar />} designPilot={designPilot}><BranchActivationGate>{children}</BranchActivationGate></AppShell></div>
             : (!returningToBasic && (workspace.presentation==="simple" || leavingBasic)) ? <BranchActivationGate><BasicWorkspace access={workspace.access} blocked={!!workspace.error||transitioning} onInteractionState={setInteraction} importContent={children}/></BranchActivationGate>
             : <div inert={transitioning||!!workspace.error} onInputCapture={event=>{if((event.target as HTMLElement).closest("form,[role=dialog]"))setFullDraftPath(pathname);}}><AppShell sidebar={<BranchSidebar/>} designPilot={designPilot}><BranchActivationGate>{children}</BranchActivationGate></AppShell></div>}
         {transitioning&&<Dialog open title={t.owned("Workspace access changed")} onClose={()=>{}} showCloseButton={false} dismissOnEscape={false} dismissOnBackdrop={false}><p>{t.owned("Finish the current operation before switching. Saved recovery requests will not be retried automatically.")}</p><button disabled={interaction.pending} onClick={()=>{if(!window.confirm(t.owned("Continue with unsaved changes? Saved recovery requests remain available when you return.")))return;setInteraction({dirty:false,pending:false});setFullDraftPath(null);}}>{t.owned("Continue to the updated workspace")}</button></Dialog>}

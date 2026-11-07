@@ -1,11 +1,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { RouteTitleUpdater } from "@/components/layout/RouteTitleUpdater";
 import { usePathname, useRouter } from "next/navigation";
-import { Armchair, ArrowLeft, ArrowRight, Check, ChevronRight, House, IndianRupee, Plus, Search, Settings, UploadCloud, UserRound, Users } from "lucide-react";
+import { Armchair, ArrowLeft, ArrowRight, Check, ChevronRight, House, IndianRupee, Plus, Search, Settings, UploadCloud, Users } from "lucide-react";
 import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher";
-import { LanguageControls } from "@/components/settings/LanguageControls";
+import { SidebarFrame } from "@/components/layout/SidebarFrame";
+import { SidebarItem } from "@/components/layout/SidebarItem";
+import { Drawer } from "@/components/ui/Drawer";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Menu } from "lucide-react";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { getBranchCapabilityDecision, hasBranchCapability, type BranchCapabilityKey } from "@/lib/branchCapabilities";
@@ -33,8 +37,11 @@ const areas: { key: string; label: string; capability: BranchCapabilityKey; icon
 ];
 type Modal = { kind: "student"; id?: string } | { kind: "status"; id: string; status: "ACTIVE" | "INACTIVE" } | { kind: "admission-review"; matches: StudentListItem[] } | { kind: "payment"; id: string } | { kind: "receipt"; receipt: FeeCollectionView } | null;
 export function BasicWorkspace({ access, blocked = false, onInteractionState, importContent }: { access: BranchAccess; blocked?: boolean; onInteractionState?: (state: { dirty: boolean; pending: boolean }) => void; importContent?: ReactNode }) {
-    const t = useTranslation(), { money, date } = useBasicFormat(), { ownerKey, profileName } = useUserPreferences();
+    const t = useTranslation(), { money, date } = useBasicFormat(), { ownerKey } = useUserPreferences();
+    const compactLayout = useMediaQuery("(max-width: 1023px)");
+    const [navigationOpen, setNavigationOpen] = useState(false);
     const pathname = usePathname(), router = useRouter(), root = "/branch/" + access.branchId;
+    useEffect(() => { queueMicrotask(() => setNavigationOpen(false)); }, [pathname]);
     const scope = encodeURIComponent(ownerKey) + ":" + access.branchId;
     const rawArea = pathname.split("/")[3] ?? "";
     const area = rawArea === "onboarding" && pathname.split("/")[4] === "import" ? "imports" : rawArea === "payments" ? "fees" : ["settings","shifts"].includes(rawArea) ? "setup" : rawArea === "allocations" ? "seats" : rawArea;
@@ -158,8 +165,16 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
             else operation.setError("The result is not confirmed. Review the current records before starting another operation.");
         } catch(cause) { operation.setError(cause instanceof Error?cause.message:"Unable to check the saved operation."); }
     }
-    const navigation = areas.filter(a=>hasBranchCapability(access,a.capability)).map(({key,label,icon:Icon})=><Link key={key} href={root+(key?"/"+key:"")} aria-current={area===key?"page":undefined}><Icon size={20} strokeWidth={1.7}/><span>{t.owned(label)}</span></Link>);
-    const orgRoot="/org/"+access.organizationId;
+    const visibleAreas = areas.filter(a => hasBranchCapability(access, a.capability));
+    const navigation = visibleAreas.map(({key,label,icon}) => <SidebarItem key={key} icon={icon} label={label} href={root+(key?"/"+key:"")} isActive={area===key} density="compact" />);
+    const sidebar = <SidebarFrame homeHref={root} label="Branch navigation">
+        {navigation}
+        <div className="mt-6 space-y-1 border-t border-[color:var(--ui-panel-border)] pt-4">
+            {can("importView") && <SidebarItem icon={UploadCloud} label="Import students" href={root+"/onboarding/import"} isActive={area === "imports"} density="compact" />}
+            {access.permissions.manage_branch && <SidebarItem icon={Settings} label="Library setup" href={root+"/setup"} isActive={area === "setup"} density="compact" />}
+            {access.isOwner && <SidebarItem icon={ArrowLeft} label="Back to organization" href={"/org/"+access.organizationId} isActive={false} density="compact" />}
+        </div>
+    </SidebarFrame>;
     const pageCapability=area==="setup"?"settingsManage":areas.find(a=>a.key===area)?.capability??({whatsapp:"whatsappView",staff:"staffView",analytics:"analyticsView",attendance:"attendanceView",imports:"importView"} as Record<string,BranchCapabilityKey>)[area]??"fullWorkspace";
     const blockedPageReason=getBranchCapabilityDecision(access,pageCapability).reason??"This feature requires the Standard plan.";
     const pageAllowed=area==="imports" ? hasBranchCapability(access,"importView") : area==="setup" ? access.permissions.manage_branch : areas.some(a=>a.key===area && hasBranchCapability(access,a.capability));
@@ -167,23 +182,15 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
     const feeStudents=[...new Map(feeRows.map(p=>[p.studentId,{id:p.studentId,name:p.student?.name??data?.students.find(s=>s.id===p.studentId)?.name??t("Student")}])).values()].filter(s=>s.name.toLowerCase().includes(query.toLowerCase()));
     const modalStudent=modal?.kind==="student"?data?.students.find(s=>s.id===modal.id):undefined;
     const paymentStudent=modal?.kind==="payment"?data?.students.find(s=>s.id===modal.id):undefined;
-    return <div className="bp-prototype" data-basic-workspace>
+    return <div className="bp-prototype" data-basic-workspace><RouteTitleUpdater />
         <a href="#bp-main" className="bp-skip">{t.owned("Skip to content")}</a>
-        <div className="bp-app"><aside className="bp-sidebar">
-            <Link className="bp-brand" href={root}><Image src="/brand-reference/open-book-leaf.svg" alt="" width={36} height={29}/>Lab Lords</Link>
-            <nav aria-label={t.owned("Main navigation")}>{navigation}</nav>
-            <div className="bp-sidebar-bottom">
-                {can("importView") && <Link href={root+"/onboarding/import"}><UploadCloud size={18}/>{t.owned("Import students")}</Link>}
-                {access.isOwner && <Link href={orgRoot}><ArrowLeft size={18}/>{t.owned("Back to organization")}</Link>}
-                {access.permissions.manage_branch && <Link href={root+"/setup"}><Settings size={18}/>{t.owned("Library setup")}</Link>}
-                <Link href={"/account?returnTo="+encodeURIComponent(pathname)}><UserRound size={18}/>{t("Account")}</Link>
-                {access.isOwner && <Link className="bp-plan-link" href={orgRoot+"/billing"}><span>{t.owned("Organization plan")}<small>{t.owned("Billing and plans")}</small></span><ChevronRight size={18}/></Link>}
-            </div>
-        </aside><div className="bp-workspace">
-            <header className="bp-topbar"><WorkspaceSwitcher beforeNavigate={()=>navigationRef.current()}/><LanguageControls compact/><Link href={"/account?returnTo="+encodeURIComponent(pathname)} className="bp-profile" aria-label={t("Account")}><span className="bp-avatar">{initials(profileName??"")||<UserRound size={18}/>}</span></Link></header>
+        <div className="bp-app">
+        {!compactLayout && <div className="ui-basic-navigation">{sidebar}</div>}
+        {compactLayout && <Drawer open={navigationOpen} onClose={()=>setNavigationOpen(false)} title={t("Branch navigation")} closeLabel={t("Close navigation")} variant="navigation" className="max-w-[19rem]"><div className="h-full">{sidebar}</div></Drawer>}
+        <div className="bp-workspace">
+            <header className="bp-topbar"><button type="button" className="ui-basic-menu" onClick={()=>setNavigationOpen(true)} aria-label={t("Open navigation")} aria-expanded={navigationOpen}><Menu size={20}/></button><WorkspaceSwitcher beforeNavigate={()=>navigationRef.current()}/></header>
             <main id="bp-main" tabIndex={-1} aria-busy={loading || operation.pending}>
-                <div className="bp-secondary-mobile">{access.isOwner&&<Link href={orgRoot}>{t("Organization")}</Link>}{access.permissions.manage_branch&&<Link href={root+"/setup"}>{t.owned("Library setup")}</Link>}{access.isOwner&&<Link href={orgRoot+"/billing"}>{t("Billing")}</Link>}</div>
-                {access.billingExperience?.accessMode==="READ_ONLY" && <p className="bp-warning" role="status">{t.owned("Records are read-only. Open organization Billing to restore access.")}</p>}
+                {access.billingExperience?.accessMode==="READ_ONLY" && <p className="bp-warning" role="status">{t.owned("Records are read-only. Open Account billing to restore access.")}</p>}
                 {notice && <p role="status" className="bp-notice"><Check size={17}/>{notice}</p>}
                 {operation.saved && !operation.pending && <section role="alert" className="bp-recovery"><strong>{t.owned("An operation needs confirmation")}</strong><p>{t.error(operation.error || "Check the saved operation before making another change.")}</p><button className="bp-button bp-button-secondary" disabled={blocked} onClick={()=>void recover()}>{t.owned("Check saved operation")}</button>
                     {!["payment","move","student"].includes(operation.saved.kind) && <button className="bp-text-button" onClick={()=>{if(window.confirm(t.owned("Have you reviewed the current records? Clearing recovery does not undo an operation."))){operation.clear();clean();setModal(null);}}}>{t.owned("I reviewed the records")}</button>}
@@ -235,7 +242,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
                 </>}
             </main>
         </div></div>
-        <nav className="bp-mobile-nav" aria-label={t.owned("Main navigation")}>{navigation}</nav>
+        <nav className="bp-mobile-nav" aria-label={t.owned("Main navigation")}>{visibleAreas.map(({key,label,icon:Icon})=><Link key={key} href={root+(key?"/"+key:"")} aria-current={area===key?"page":undefined}><Icon size={20}/><span>{t.owned(label)}</span></Link>)}</nav>
         {modal?.kind==="student"&&data&&<BasicStudentForm key={modal.id??"new"} student={modalStudent} defaultFee={data.branch.defaultFee??0} admissionFee={data.branch.defaultAdmissionFee??0} pending={operation.pending} locked={!!operation.saved||!can("studentsManage")} error={operation.error} onSave={(input,next)=>void saveStudent(input,next)} onRecover={operation.saved?()=>void recover():undefined} onClose={close} scope={scope} onDirty={markDirty}/>}
         {modal?.kind==="payment"&&<BasicPaymentForm key={modal.id} name={paymentStudent?.name??feeStudents.find(s=>s.id===modal.id)?.name??t("Student")} fees={studentFees(modal.id)} pending={operation.pending} locked={!!operation.saved||!can("paymentsRecord")} error={operation.error} onRecord={(amount,method,ids)=>void recordPayment(amount,method,ids)} onRecover={operation.saved?()=>void recover():undefined} onClose={close} onDirty={markDirty}/>}
         {modal?.kind==="status"&&data&&<BasicStudentStatus name={data.students.find(s=>s.id===modal.id)?.name??t("Student")} status={modal.status} pending={operation.pending} locked={!!operation.saved||!can("studentsManage")} error={operation.error} onConfirm={()=>void changeStatus()} onRecover={operation.saved?()=>void recover():undefined} onClose={close}/>}
