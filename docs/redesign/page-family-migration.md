@@ -347,3 +347,7 @@ use scoped shared dialogs; receipt dates share the PDF's India-calendar owner.
 Fresh status/receipt evidence and final validation are tracked in the
 [review-fix report](basic-pr-287-review-fixes.md). This is implementation verification,
 not final owner approval, merge or release.
+
+### Unified Account navigation - local, 2026-11-06
+
+Families E/H and Basic share a fixed bottom Account entry, collapsible frame and mobile Drawer. Account integrates profile/security, personal preferences and owner-only organization billing with branch context. Organization/branch settings retain their configuration scope. See [implementation and validation evidence](unified-account-review.md). Local verification does not imply final owner visual review, merge, deployment or production provider verification.
