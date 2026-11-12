@@ -5,7 +5,7 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, FileSpreadsheet, FileText, TableProperties, UploadCloud } from "lucide-react";
+import { ArrowLeft, CalendarClock, FileSpreadsheet, TableProperties, UploadCloud } from "lucide-react";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { AppButton, AppPanel, AppSelect, ErrorState, PageShell } from "@/components/ui";
 import { appActionClassName } from "@/components/ui/AppButton";
@@ -28,7 +28,6 @@ import { MAX_IMPORT_ROWS } from "@/importing/constants/import-limits";
 import { ImportRecipeManager } from "@/components/imports/ImportRecipeManager";
 import {
     pageDescriptionClass,
-    pageEyebrowClass,
     pageInsetSurfaceClass,
     pageMutedTextClass,
     pageTableBodyDividerClass,
@@ -268,7 +267,6 @@ function ImportAssistantContent({
         <PageShell>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <p className={pageEyebrowClass}>{t("Data onboarding")}</p>
                         <h1 className={pageTitleClass}>{t("Import assistant")}</h1>
                         <p className={pageDescriptionClass}>
                             {t("Upload a spreadsheet or paste a table. AI can help with column suggestions, but manual review always works.")}</p>
@@ -287,16 +285,13 @@ function ImportAssistantContent({
                     </div>
                 )}
 
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
+                <div className="grid gap-4">
                     {importDecision.blocker !== "permission" ? <AppPanel density="compact"
                         title={t("Add your student records")}
-                        description={t("Tracking starts this month. Original joining dates and future due days stay the same.")}
                     >
-                        <p>{t.owned("Records → Timings → Seats and assignments → Review and import")}</p>
-                        <div className="mt-6 border-t border-[color:var(--ui-form-section-divider)] pt-5">
+                        <div>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Add your student records")}</p>
                                     <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("Choose one source. Nothing is created until the final review.")}</p>
                                 </div>
                                 <div className="inline-flex rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] p-1" role="group" aria-label={t("Import source")}>
@@ -305,7 +300,7 @@ function ImportAssistantContent({
                                         aria-pressed={sourceMode === "file"}
                                         disabled={loading || Boolean(pdfReview)}
                                         onClick={() => { setSourceMode("file"); setPastedTable(""); setWorkbookReview(null); setPdfReview(null); setError(null); }}
-                                        className={cn("rounded-[var(--ui-radius-control)] px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60", sourceMode === "file" ? "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]" : pageMutedTextClass)}
+                                        className={cn("min-h-11 rounded-[var(--ui-radius-control)] px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60", sourceMode === "file" ? "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]" : pageMutedTextClass)}
                                     >
                                         {t("Upload file")}</button>
                                     <button
@@ -313,7 +308,7 @@ function ImportAssistantContent({
                                         aria-pressed={sourceMode === "paste"}
                                         disabled={loading || Boolean(pdfReview)}
                                         onClick={() => { setSourceMode("paste"); setFile(null); setWorkbookReview(null); setPdfReview(null); setError(null); }}
-                                        className={cn("rounded-[var(--ui-radius-control)] px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60", sourceMode === "paste" ? "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]" : pageMutedTextClass)}
+                                        className={cn("min-h-11 rounded-[var(--ui-radius-control)] px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60", sourceMode === "paste" ? "bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]" : pageMutedTextClass)}
                                     >
                                         {t("Paste table")}</button>
                                 </div>
@@ -484,6 +479,7 @@ function ImportAssistantContent({
                                 </div>
                             )}
 
+                            <p className="mt-3 text-xs text-[color:var(--text-secondary)]">{t("Tracking starts this month. Original joining dates and future due days stay the same.")}</p>
                             <div id="import-source-limits" className={cn("mt-4 grid gap-2 text-xs sm:grid-cols-3", pageMutedTextClass)}>
                                 <span>{t("Maximum file size: 4 MiB")}</span>
                                 <span>{t("Maximum rows: {formatNumber}", { formatNumber: formatNumber(MAX_IMPORT_ROWS) })}</span>
@@ -512,21 +508,7 @@ function ImportAssistantContent({
                     </AppPanel> : null}
 
                     <div className="space-y-5">
-                        <AppPanel density="compact" title={t("What happens next")} description={t("Upload, fix only what needs attention, then review the exact import plan.")}>
-                            <div className="flex flex-wrap gap-2">
-                                {supportedFormats.map(format => <Badge key={format} variant="cyan">{format}</Badge>)}
-                            </div>
-                            <div className="mt-5 space-y-3 text-sm text-[color:var(--text-secondary)]">
-                                <div className="flex gap-3">
-                                    <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ui-tone-info-text)]" />
-                                    <span>{t("Your source stays in a review workspace until you explicitly confirm the import.")}</span>
-                                </div>
-                                <div className="flex gap-3">
-                                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ui-tone-warning-text)]" />
-                                    <span>{t("AI suggestions are optional. Every field can be reviewed and corrected manually.")}</span>
-                                </div>
-                            </div>
-                        </AppPanel>
+                        <details className="ui-context-help"><summary>{t("What happens next")}</summary><p>{t("Your source stays in a review workspace until you explicitly confirm the import.")} {t("AI suggestions are optional. Every field can be reviewed and corrected manually.")}</p><p>{supportedFormats.join(" · ")}</p></details>
 
                         <AppPanel density="compact" title={t("Recent imports")} description={t("Resume a previous staging workspace.")} contentClassName="p-0">
                             {loadingSessions ? (

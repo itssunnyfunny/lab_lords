@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { AppButton, AppPanel } from "@/components/ui";
+import { AppButton } from "@/components/ui";
 import { LocalizedError, useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { importSessions } from "@/lib/api/importSessions";
@@ -53,7 +53,7 @@ export function GuidedPaymentChoices({ branchId, sessionId, revision, disabled, 
         // before offering another mutation; never replay the old selection.
         if (!saved) setReload(value => value + 1);
     };
-    return <AppPanel density="compact" title={t.owned(due.length || paid.length ? "Choose how this month's fees start" : held.length ? "Resolve the recorded payment conflicts" : "Payment review")}>
+    return <details className="ui-import-support" open={open || !!error || due.length > 0 || paid.length > 0 || held.length > 0}><summary>{t.owned(due.length || paid.length ? "Choose how this month's fees start" : held.length ? "Resolve the recorded payment conflicts" : "Payment review")}</summary><div className="mt-3">
         {error && <p role="alert"><LocalizedError error={error} /></p>}
         {!review && !error && <p role="status">{t("Preparing your records...")}</p>}
         {(due.length > 0 || paid.length > 0) && <p className="mb-3 text-sm">{t.owned("Eligible current-month fees can stay Due. Record collections later, or confirm selected payments as Paid. Future dues are generated on their normal dates.")}</p>}
@@ -100,5 +100,5 @@ export function GuidedPaymentChoices({ branchId, sessionId, revision, disabled, 
             <ul className="mt-2 space-y-2">{review.rows.filter(row => !row.dueEligible && !row.paidEligible).slice(0, limit).map(row => <li key={row.rowId}>{row.name} · {t.owned(row.reason)}</li>)}</ul>
             {review.rows.filter(row => !row.dueEligible && !row.paidEligible).length > limit && <AppButton density="compact" variant="quiet" onClick={() => setLimit(value => value + 50)}>{t("Show more students")}</AppButton>}
         </details>}
-    </AppPanel>;
+    </div></details>;
 }

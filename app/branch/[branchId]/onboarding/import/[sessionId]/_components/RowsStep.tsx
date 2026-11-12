@@ -96,6 +96,18 @@ export function RowsStep({
     const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
     const [pendingBulkAction, setPendingBulkAction] = useState<"SKIP" | "UNSKIP" | "ISSUE_SKIP" | "ISSUE_UNSKIP" | null>(null);
     const selectAllRef = useRef<HTMLInputElement>(null);
+    const editorRef = useRef<HTMLDivElement>(null);
+    const previousRowId = useRef(selectedRow?.id);
+    function focusEditor() {
+        if (window.matchMedia("(max-width: 1279px)").matches) {
+            editorRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+            editorRef.current?.focus({ preventScroll: true });
+        }
+    }
+    useEffect(() => {
+        if (previousRowId.current && previousRowId.current !== selectedRow?.id) focusEditor();
+        previousRowId.current = selectedRow?.id;
+    }, [selectedRow?.id]);
     const visibleRowIds = useMemo(() => rows.map(row => row.id), [rows]);
     const visibleRowIdSet = useMemo(() => new Set(visibleRowIds), [visibleRowIds]);
     const selectedVisibleIds = useMemo(
@@ -159,7 +171,7 @@ export function RowsStep({
 
     return (
         <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-            <AppPanel density="compact"
+            <AppPanel density="compact" className="ui-import-row-list"
                 title={t("Rows")}
                 description={detail.rowPage ? `${detail.rowPage.returnedRows} of ${detail.rowPage.filteredRows}` : t("Paged staging rows")}
                 action={
@@ -178,7 +190,67 @@ export function RowsStep({
                 }
                 contentClassName="p-0"
             >
-                <div className="space-y-3 border-b border-[color:var(--ui-form-section-divider)] p-3">
+                <div className="max-h-[320px] overflow-y-auto p-2 xl:max-h-[680px]">
+                    {rows.length === 0 && <p className={cn("p-3 text-sm", pageMutedTextClass)}>{t("No rows in this filter.")}</p>}
+                    {rows.map(row => {
+                        const issues = [...row.issues, ...row.warnings];
+                        const selected = selectedRow?.id === row.id;
+                        const bulkSelected = selectedRowIds.has(row.id);
+                        return (
+                            <div
+                                key={row.id}
+                                className={cn(
+                                    "mb-2 flex w-full overflow-hidden rounded-[var(--ui-radius-control)] border text-left transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)]",
+                                    selected
+                                        ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
+                                        : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]"
+                                )}
+                            >
+                                <label className="flex min-w-11 shrink-0 cursor-pointer items-start justify-center border-r border-[color:var(--ui-form-section-divider)] p-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={bulkSelected}
+                                        disabled={saving}
+                                        aria-label={`Select row ${row.rowNumber}: ${rowTitle(row)}`}
+                                        onChange={event => toggleRowSelection(row.id, event.target.checked)}
+                                        className="mt-0.5 h-4 w-4 accent-cyan-300"
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    aria-current={selected ? "true" : undefined}
+                                    onClick={() => { if (selected) focusEditor(); else onSelectRow(row.id); }}
+                                    className="min-w-0 flex-1 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--ui-focus-ring)]"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                        <div className="min-w-0 flex-[1_1_9rem]">
+                                            <p className="break-words text-sm font-semibold text-[color:var(--text-primary)]">
+                                                {t("Row")} {row.rowNumber}: {rowTitle(row)}
+                                            </p>
+                                            <p className={cn("mt-1 break-words text-xs", pageMutedTextClass)}>{rowSubtitle(row)}</p>
+                                        </div>
+                                        <StatusBadge status={row.status} />
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {row.skipped && <Badge variant="default">{t("skipped")}</Badge>}
+                                        {issues[0] && (
+                                            <Badge variant={issues[0].severity === "error" ? "danger" : issues[0].severity === "warning" ? "warning" : "cyan"}>
+                                                {guided ? t(helpLabel(row)) : issues[0].code.replace(/_/g, " ")}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </button>
+                            </div>
+                        );
+                    })}
+                    {detail.rowPage?.hasMore && (
+                        <AppButton density="compact" className="mt-2 w-full" size="sm" variant="secondary" onClick={onLoadMore} isLoading={saving}>
+                            {t("Load more rows")}</AppButton>
+                    )}
+                </div>
+                <details className="border-t border-[color:var(--ui-form-section-divider)] p-3">
+                    <summary className="min-h-8 cursor-pointer text-sm font-medium">{t("Selected row actions")} · {t("{count} selected", { count: selectedVisibleIds.length })}</summary>
+                    <div className="mt-2 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <label className="inline-flex min-h-10 items-center gap-2 text-xs font-semibold text-[color:var(--text-secondary)]">
                             <input
@@ -253,68 +325,11 @@ export function RowsStep({
                         <p className={cn("text-xs leading-5", pageMutedTextClass)}>
                             {t("Open an issue group from “Fix these first” to apply an action to every affected row.")}</p>
                     )}
-                </div>
-                <div className="max-h-[680px] overflow-y-auto p-2">
-                    {rows.length === 0 && <p className={cn("p-3 text-sm", pageMutedTextClass)}>{t("No rows in this filter.")}</p>}
-                    {rows.map(row => {
-                        const issues = [...row.issues, ...row.warnings];
-                        const selected = selectedRow?.id === row.id;
-                        const bulkSelected = selectedRowIds.has(row.id);
-                        return (
-                            <div
-                                key={row.id}
-                                className={cn(
-                                    "mb-2 flex w-full overflow-hidden rounded-[var(--ui-radius-control)] border text-left transition-colors hover:bg-[color:var(--ui-form-surface-hover-bg)]",
-                                    selected
-                                        ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
-                                        : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]"
-                                )}
-                            >
-                                <label className="flex min-w-11 shrink-0 cursor-pointer items-start justify-center border-r border-[color:var(--ui-form-section-divider)] p-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={bulkSelected}
-                                        disabled={saving}
-                                        aria-label={`Select row ${row.rowNumber}: ${rowTitle(row)}`}
-                                        onChange={event => toggleRowSelection(row.id, event.target.checked)}
-                                        className="mt-0.5 h-4 w-4 accent-cyan-300"
-                                    />
-                                </label>
-                                <button
-                                    type="button"
-                                    aria-current={selected ? "true" : undefined}
-                                    onClick={() => onSelectRow(row.id)}
-                                    className="min-w-0 flex-1 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--ui-focus-ring)]"
-                                >
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="min-w-0">
-                                            <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
-                                                {t("Row")} {row.rowNumber}: {rowTitle(row)}
-                                            </p>
-                                            <p className={cn("mt-1 truncate text-xs", pageMutedTextClass)}>{rowSubtitle(row)}</p>
-                                        </div>
-                                        <StatusBadge status={row.status} />
-                                    </div>
-                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                        {row.skipped && <Badge variant="default">{t("skipped")}</Badge>}
-                                        {issues[0] && (
-                                            <Badge variant={issues[0].severity === "error" ? "danger" : issues[0].severity === "warning" ? "warning" : "cyan"}>
-                                                {guided ? t(helpLabel(row)) : issues[0].code.replace(/_/g, " ")}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </button>
-                            </div>
-                        );
-                    })}
-                    {detail.rowPage?.hasMore && (
-                        <AppButton density="compact" className="mt-2 w-full" size="sm" variant="secondary" onClick={onLoadMore} isLoading={saving}>
-                            {t("Load more rows")}</AppButton>
-                    )}
-                </div>
+                    </div>
+                </details>
             </AppPanel>
 
-            <div className="min-w-0 space-y-5">
+            <div ref={editorRef} tabIndex={-1} role="region" aria-label={selectedRow ? `${t("Row")} ${selectedRow.rowNumber}: ${rowTitle(selectedRow)}` : t("Select a row")} className="min-w-0 scroll-mt-28 space-y-5 focus:outline-none">
                 <AppPanel density="compact"
                     title={selectedRow ? `Row ${selectedRow.rowNumber}` : t("Select a row")}
                     description={selectedRow ? rowTitle(selectedRow) : t("Choose a row from the left list.")}
