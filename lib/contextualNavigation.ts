@@ -26,10 +26,13 @@ export function resolveContextualParent(pathname: string | null): ContextualPare
             };
         }
 
-        return {
-            href: `/branch/${branchId}`,
-            label: "Back to branch dashboard",
-        };
+        if (/^students\/[^/]+/.test(childPath)) {
+            return { href: `/branch/${branchId}/students`, label: "Back to students" };
+        }
+        if (/^allocations\/[^/]+/.test(childPath)) {
+            return { href: `/branch/${branchId}/allocations`, label: "Back to allocations" };
+        }
+        return null;
     }
 
     const organizationMatch = pathname.match(/^\/org\/([^/]+)(?:\/(.+))?\/?$/);
@@ -45,10 +48,7 @@ export function resolveContextualParent(pathname: string | null): ContextualPare
             };
         }
 
-        return {
-            href: `/org/${organizationId}`,
-            label: "Back to organization dashboard",
-        };
+        return null;
     }
 
     return null;

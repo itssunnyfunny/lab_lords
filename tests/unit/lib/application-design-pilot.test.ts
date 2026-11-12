@@ -11,6 +11,7 @@ describe("selected branch presentation route scope", () => {
   it.each([
     "/branch/branch_1",
     "/branch/branch_1/students",
+    "/branch/branch_1/students/student_1",
     "/branch/branch_1/seats",
     "/branch/branch_1/follow-ups",
     "/branch/branch_1/tasks",
@@ -36,7 +37,7 @@ describe("selected branch presentation route scope", () => {
     null,
     "/app",
     "/org/org_1",
-    "/branch/branch_1/students/history",
+    "/branch/branch_1/students/student_1/history",
     "/branch",
     "/branch/branch_1/ai/messages",
   ])("excludes %s", (pathname) => {

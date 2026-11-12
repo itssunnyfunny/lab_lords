@@ -17,6 +17,7 @@ import {
 import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
 import { BillingBanner } from "@/components/billing/BillingBanner";
 import { ReadOnlyBanner } from "@/components/billing/ReadOnlyBanner";
+import { BranchMobileNav } from "./BranchMobileNav";
 import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher";
 import { ToastProvider } from "@/components/ui/Toast";
 import { RouteTitleUpdater } from "@/components/layout/RouteTitleUpdater";
@@ -98,11 +99,12 @@ export function AppShell({ children, sidebar, designPilot = false }: AppShellPro
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 max-w-full relative z-10">
                 {/* Top Header */}
-                <header className={cn(chromeHeaderClass, designPilot && "reference-topbar max-sm:flex-wrap max-sm:content-center max-sm:py-2")}>
+                <header className={cn(chromeHeaderClass, designPilot && "reference-topbar", inAccount && "ui-account-topbar")}>
                     <div className={cn(
                         "flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:gap-5",
                         !designPilot && "lg:max-w-md",
-                        designPilot && "max-sm:min-w-0"
+                        designPilot && "max-sm:min-w-0",
+                        inAccount && "flex-none"
                     )}>
                         {sidebar && <button
                             type="button"
@@ -117,9 +119,9 @@ export function AppShell({ children, sidebar, designPilot = false }: AppShellPro
                         {showBranchChrome && <BranchTopSearch />}
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className={cn("flex items-center gap-2", inAccount ? "min-w-0 shrink" : "shrink-0")}>
                         {showBranchChrome && <BranchNotifications />}
-                        {inAccount && accountReturnHref && <Link href={accountReturnHref} className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)]"><ArrowLeft size={17} /><span>{t("Back to workspace")}</span></Link>}
+                        {inAccount && accountReturnHref && <Link href={accountReturnHref} className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)]"><ArrowLeft size={17} className="shrink-0" /><span className="min-w-0">{t("Back to workspace")}</span></Link>}
                     </div>
                 </header>
 
@@ -130,6 +132,7 @@ export function AppShell({ children, sidebar, designPilot = false }: AppShellPro
                     {!inAccount && <ContextualBackLink />}
                     {children}
                 </main>
+                {designPilot && showBranchChrome && <BranchMobileNav onMore={() => setMobileNavOpen(true)} open={mobileNavOpen} />}
             </div>
         </div>
         </ToastProvider>

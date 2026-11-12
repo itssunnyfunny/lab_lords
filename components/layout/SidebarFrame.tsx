@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { PanelLeftClose, PanelLeftOpen, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { AppLogo } from "@/components/brand/AppLogo";
+import { LogoMark } from "@/components/brand/AppLogo";
 import { SidebarItem } from "./SidebarItem";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -36,19 +36,22 @@ export function SidebarFrame({ children, homeHref, label, account = false, foote
     return <SidebarCollapsed.Provider value={collapsed}>
         <aside className="ui-navigation-sidebar" data-collapsed={collapsed || undefined} aria-label={t.owned(label)} data-app-design-pilot="workspace">
             <div className="ui-navigation-brand">
-                <Link href={homeHref} aria-label={t("Open workspace home")}>
-                    <AppLogo showSubtitle={false} markVariant="botanical" titleClassName="text-lg" markClassName="h-8 w-11" />
+                <Link href={homeHref} aria-label={t("Open workspace home")} className="ui-navigation-brand-link">
+                    <LogoMark variant="botanical" title="" className="ui-navigation-brand-mark" />
+                    {!collapsed && <span className="ui-navigation-brand-copy">
+                        <span className="ui-navigation-wordmark">Lab <span>Lords</span></span>
+                        <span className="ui-navigation-tagline">{t("Spaces for brighter minds")}</span>
+                    </span>}
                 </Link>
-            </div>
-            <div className="ui-navigation-heading">
-                {!collapsed && <span>{t.owned(account ? "Account" : "Workspace")}</span>}
-                <button type="button" onClick={toggle} aria-label={t.owned(collapsed ? "Expand sidebar" : "Collapse sidebar")} title={t.owned(collapsed ? "Expand sidebar" : "Collapse sidebar")} aria-expanded={!collapsed} className="ui-navigation-toggle">
-                    {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-                </button>
             </div>
             <nav className="ui-navigation-scroll" aria-label={t.owned(label)}>{children}</nav>
             <div className="ui-navigation-footer">
-                {account ? footer : <SidebarItem icon={UserRound} label="Account" isActive={false} href={accountHref(pathname)} density="compact" />}
+                <div className="ui-navigation-footer-action">
+                    {account ? footer : <SidebarItem icon={UserRound} label="Account" isActive={false} href={accountHref(pathname)} density="compact" />}
+                </div>
+                <button type="button" onClick={toggle} aria-label={t.owned(collapsed ? "Expand sidebar" : "Collapse sidebar")} title={t.owned(collapsed ? "Expand sidebar" : "Collapse sidebar")} aria-expanded={!collapsed} className="ui-navigation-toggle">
+                    {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+                </button>
             </div>
         </aside>
     </SidebarCollapsed.Provider>;

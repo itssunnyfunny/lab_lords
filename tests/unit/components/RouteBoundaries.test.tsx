@@ -16,7 +16,7 @@ describe("selected application route boundaries", () => {
     });
 
     it("announces branch page loading in the selected theme below the workspace layout", () => {
-        for (const pathname of ["/branch/branch_1", "/branch/branch_1/payments", "/branch/branch_1/ai/reports"]) {
+        for (const pathname of ["/branch/branch_1", "/branch/branch_1/payments", "/branch/branch_1/fees", "/branch/branch_1/setup", "/branch/branch_1/students/student_1", "/branch/branch_1/ai/reports"]) {
             route.pathname = pathname;
             const markup = renderToStaticMarkup(<BranchPageLoading />);
             expect(markup).toContain('data-app-design-pilot="workspace"');

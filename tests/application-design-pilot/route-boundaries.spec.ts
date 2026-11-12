@@ -9,7 +9,7 @@ test("selected cold loading and error boundaries use the application palette", a
     await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
     await expect(page.getByRole("status")).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");
-    await expect(page.evaluate(() => getComputedStyle(document.body).backgroundColor)).resolves.toBe("rgb(255, 251, 244)");
+    await expect(page.evaluate(() => getComputedStyle(document.body).backgroundColor)).resolves.toBe("rgb(247, 248, 246)");
     if (info.project.name === "mobile-390") {
         fs.mkdirSync(evidence, { recursive: true });
         await page.evaluate(() => document.fonts.ready);
@@ -24,7 +24,7 @@ test("selected cold loading and error boundaries use the application palette", a
     await retry.focus();
     await expect(retry).toBeFocused();
     await expect(page.getByText("Synthetic internal detail")).toHaveCount(0);
-    await expect(page.evaluate(() => getComputedStyle(document.body).backgroundColor)).resolves.toBe("rgb(255, 251, 244)");
+    await expect(page.evaluate(() => getComputedStyle(document.body).backgroundColor)).resolves.toBe("rgb(247, 248, 246)");
     if (info.project.name === "mobile-390") {
         fs.mkdirSync(evidence, { recursive: true });
         await page.evaluate(() => document.fonts.ready);

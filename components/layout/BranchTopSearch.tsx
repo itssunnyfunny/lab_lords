@@ -186,11 +186,13 @@ export function BranchTopSearch() {
     }, [flatResults.length, mobileOpen, open]);
 
     const executeResult = useCallback((result: TopSearchResult) => {
-        if (!canNavigateWorkspace()) return;
-        setOpen(false);
-        setMobileOpen(false);
-        setQuery("");
-        router.push(result.href);
+        const navigate = () => {
+            setOpen(false);
+            setMobileOpen(false);
+            setQuery("");
+            router.push(result.href);
+        };
+        if (canNavigateWorkspace(navigate)) navigate();
     }, [router]);
 
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {

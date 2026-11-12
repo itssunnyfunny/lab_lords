@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { LockKeyhole, LucideIcon } from "lucide-react";
 import Link from "next/link";
 import React from "react";
@@ -23,55 +22,24 @@ export const SidebarItem = ({ icon: Icon, label, isActive, onClick, href, isColl
     const t = useTranslation();
     const inheritedCollapsed = useSidebarCollapsed();
     const isCollapsed = collapsedProp ?? inheritedCollapsed;
-    const className = cn(
-            "group relative flex w-full items-center text-left transition-all duration-150",
-            density === "compact"
-                ? "min-h-11 gap-2.5 rounded-lg border px-2.5 py-2 lg:min-h-9"
-                : "min-h-11 gap-3 rounded-xl border px-3 py-2.5",
-            isActive
-                ? density === "compact"
-                    ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
-                    : "border border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
-                : density === "compact"
-                    ? "border-transparent text-[color:var(--text-secondary)] hover:border-[color:var(--ui-form-surface-border)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
-                    : "border-transparent text-[color:var(--text-secondary)] hover:border-[color:var(--ui-form-surface-border)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
-        );
+    const className = "ui-navigation-item";
     const content = <>
-        <Icon
-            size={density === "compact" ? 17 : 20}
-            className={cn(
-                "shrink-0 transition-colors duration-150",
-                isActive
-                    ? "text-[color:var(--ui-form-accent)]"
-                    : "group-hover:text-[color:var(--ui-form-accent-hover)]"
-            )}
-        />
-        {!isCollapsed && (
-            <span className={cn(
-                "min-w-0 flex-1 whitespace-normal break-words font-medium tracking-wide",
-                density === "compact" ? "text-[13px]" : "text-sm"
-            )}>
-                {t.owned(label)}
-            </span>
-        )}
-        {isActive && <div className={cn(
-            "absolute left-0 top-1/2 w-0.5 -translate-y-1/2",
-            density === "compact" ? "h-4 bg-[color:var(--ui-form-accent)]" : "h-6 bg-[color:var(--ui-form-accent)]"
-        )} />}
+        <Icon size={density === "compact" ? 17 : 20} className="ui-navigation-icon" />
+        {!isCollapsed && <span className="ui-navigation-item-label">{t.owned(label)}</span>}
         {!isCollapsed && locked && <LockKeyhole size={13} className="shrink-0 text-[color:var(--ui-tone-warning-text)]" aria-label={t.owned("Standard plan required")} />}
         {!isCollapsed && badge && <span className="rounded-full border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[color:var(--ui-tone-warning-text)]">{badge}</span>}
     </>;
 
     if (href) {
         return (
-            <Link href={href} aria-label={t.owned(label)} title={isCollapsed ? t.owned(label) : undefined} aria-current={isActive ? "page" : undefined} className={className}>
+            <Link href={href} aria-label={t.owned(label)} title={isCollapsed ? t.owned(label) : undefined} aria-current={isActive ? "page" : undefined} data-density={density} data-collapsed={isCollapsed || undefined} className={className}>
                 {content}
             </Link>
         );
     }
 
     return (
-        <button type="button" onClick={onClick} aria-label={t.owned(label)} title={isCollapsed ? t.owned(label) : undefined} aria-current={isActive ? "page" : undefined} className={className}>
+        <button type="button" onClick={onClick} aria-label={t.owned(label)} title={isCollapsed ? t.owned(label) : undefined} aria-current={isActive ? "page" : undefined} data-density={density} data-collapsed={isCollapsed || undefined} className={className}>
             {content}
         </button>
     );
