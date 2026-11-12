@@ -307,6 +307,7 @@ html:has([data-app-design-pilot="workspace"]),
 [data-app-design-pilot="workspace"],
 .app-design-pilot-overlay {
   --ui-font-heading: Georgia;
+  --ui-font-number: var(--ui-font-body);
   --font-dashboard-display: var(--ui-font-heading);
   --font-dashboard-script: var(--ui-font-script);
   --ui-panel-compact-border: #e3e9e7;
@@ -315,6 +316,15 @@ html:has([data-app-design-pilot="workspace"]),
   --ui-action-compact-text: #144534;
   --ui-action-compact-primary-bg: linear-gradient(110deg,#054c37,#18784e);
   --ui-action-compact-primary-border: #176549;
+  /* Original Standard/Pro sidebar palette, shared by every application sidebar. */
+  --ui-navigation-bg: #f4f8f2;
+  --ui-navigation-text: #485b70;
+  --ui-navigation-muted: #637285;
+  --ui-navigation-active-bg: linear-gradient(110deg,#07513a,#228653);
+  --ui-navigation-active-border: #176c4a;
+  --ui-navigation-active-text: #ffffff;
+  --ui-navigation-brand-text: #104d38;
+  --ui-navigation-brand-accent: #37863b;
   /* Strong figures and subtle priority surfaces from the selected dashboard.
      Existing body-status pairs remain compatible on unmigrated consumers. */
   --ui-tone-success-emphasis: #00623e; --ui-tone-success-subtle: #f2faf6; --ui-tone-success-icon: #e4f4eb; --ui-tone-success-outline: #d3eee0;
@@ -335,7 +345,7 @@ html:has([data-app-design-pilot="workspace"]),
   --pilot-cream: #fffefb;
 
   /* Brand foundations */
-  --bg-app: var(--pilot-paper);
+  --bg-app: #f7f8f6;
   --bg-surface: #ffffff;
   --bg-card: #ffffff;
   --bg-card-hover: #fbfdf9;
