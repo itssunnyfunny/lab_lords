@@ -1,3 +1,4 @@
+import { refreshInterfaceLanguage } from "../browser/helpers/preferences-refresh";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -35,7 +36,7 @@ test("failed edits retain input, language and allocation context until a success
     await dialog.getByLabel("Full Name *").fill("Aarav Retained Draft");
     await dialog.getByRole("button", { name: "Save Changes" }).click();
     await expect(dialog.getByRole("alert")).toBeVisible();
-    await dialog.getByLabel("Interface language", { exact: true }).selectOption("hinglish");
+    await refreshInterfaceLanguage(page, "hinglish");
     await expect(dialog.locator("#edit-student-name")).toHaveValue("Aarav Retained Draft");
     fail = false;
     await dialog.getByRole("button", { name: /Save|save/i }).filter({ hasNotText: /Cancel/ }).last().click();
@@ -82,12 +83,16 @@ test("failed supporting reads hide fee figures and export without discarding an 
     await page.route("**/api/branches/pilot/payments?**", route => fail ? route.fulfill({ status: 503, json: { error: "Synthetic payment read failure" } }) : route.continue());
     await page.goto("/branch/pilot/students?mode=after&lang=en");
     await expect(page.getByRole("heading", { name: "Something went wrong" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Export", exact: true })).toBeDisabled();
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "Export", exact: true })).toBeDisabled();
+    await page.keyboard.press("Escape");
     await expect(page.locator("[data-record-list]")).not.toContainText("Due: ₹0");
     fail = false;
     await page.getByRole("alert").getByRole("button", { name: "Try again" }).click();
     await expect(page.locator("[data-record-list]")).toContainText("Due: ₹2,400");
-    await expect(page.getByRole("button", { name: "Export", exact: true })).toBeEnabled();
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "Export", exact: true })).toBeEnabled();
+    await page.keyboard.press("Escape");
     await page.locator('button[aria-label="Actions"]:visible').first().click();
     await page.getByRole("menuitem", { name: "View Fees", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Collect fee", exact: true }).click();
@@ -123,13 +128,14 @@ test("admission validation preserves entered values and loaded bulk consent stay
     await admission.getByRole("textbox", { name: /^Full Name/ }).fill("Synthetic Draft Student");
     await admission.getByRole("button", { name: "Add Student", exact: true }).click();
     await expect(admission.locator("[aria-invalid='true']").first()).toBeVisible();
-    await admission.getByLabel("Interface language", { exact: true }).selectOption("hi");
+    await refreshInterfaceLanguage(page, "hi");
     await expect(admission.locator("#add-student-name")).toHaveValue("Synthetic Draft Student");
     await page.keyboard.press("Escape"); await expect(admission).toHaveCount(0);
-    await page.getByLabel("स्क्रीन की भाषा", { exact: true }).selectOption("en");
+    await refreshInterfaceLanguage(page, "en");
     await page.getByLabel("Search students by name or phone").fill("Aarav");
     await expect(page.getByText("Showing 1 of 1 active students", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Bulk WhatsApp consent", exact: true }).click();
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Bulk WhatsApp consent", exact: true }).click();
     const bulk = page.getByRole("dialog", { name: "Bulk WhatsApp operational consent" });
     await expect(bulk).toContainText("Aarav Mehta");
     await expect(bulk).not.toContainText("Nisha Verma");
