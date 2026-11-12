@@ -1,3 +1,4 @@
+import { refreshInterfaceLanguage } from "../browser/helpers/preferences-refresh";
 import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
@@ -52,7 +53,7 @@ test("Staff access retains canonical role/permission commands, failed drafts, la
     await dialog.getByRole("group", { name: "Staff role", exact: true }).getByRole("button", { name: /^Staff/ }).click();
     await dialog.getByRole("group", { name: "View payments", exact: true }).getByRole("button", { name: "Block", exact: true }).click();
     await dialog.getByRole("button", { name: "Save Access" }).click(); await expect(dialog.getByRole("alert")).toBeVisible();
-    await dialog.getByLabel("Interface language", { exact: true }).selectOption("hi");
+    await refreshInterfaceLanguage(page, "hi");
     await expect(dialog.getByRole("group", { name: "पेमेंट देखें", exact: true }).getByRole("button", { name: "रोकें", exact: true })).toHaveAttribute("aria-pressed", "true");
     if (info.project.name === "mobile-390" || info.project.name.startsWith("desktop")) await shot(page, info, "access-hi");
     fail = false; await dialog.getByRole("button", { name: "अनुमति सेव करें", exact: true }).click(); await expect(dialog).toHaveCount(0); await expect(trigger).toBeFocused();
@@ -64,6 +65,7 @@ test("Staff invitation and add validation retain existing account-bound commands
     const commands = await installStaffFixture(page);
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await open(page);
+    await page.getByRole("button", { name: "Invite staff", exact: true }).click();
     await page.getByRole("button", { name: "Create invite", exact: true }).click(); await expect(page.getByRole("alert")).toBeVisible();
     await page.getByLabel("Invite email", { exact: true }).fill("review@example.test"); await page.getByRole("button", { name: "Create invite", exact: true }).click();
     await expect(page.getByLabel("Latest invite link")).toHaveValue(/SYNTHETIC-NOT-A-CREDENTIAL/);
@@ -72,11 +74,12 @@ test("Staff invitation and add validation retain existing account-bound commands
     expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("SYNTHETIC-NOT-A-CREDENTIAL");
     await page.getByRole("button", { name: "Revoke", exact: true }).click(); await expect(page.getByLabel("Latest invite link")).toHaveCount(0);
     expect(commands.at(-1)).toMatchObject({ method: "DELETE", path: "/api/branches/pilot/staff-invites/synthetic-invite" });
-    await page.getByRole("button", { name: "Add Staff", exact: true }).click();
-    const dialog = page.getByRole("dialog"); await dialog.getByRole("button", { name: "Add Staff", exact: true }).click(); await expect(dialog.locator("#add-staff-email")).toHaveAttribute("aria-invalid", "true");
-    await dialog.getByLabel("Email *").fill("new@example.test"); await dialog.getByLabel("Interface language", { exact: true }).selectOption("hinglish"); await expect(dialog.locator("#add-staff-email")).toHaveValue("new@example.test");
-    await dialog.getByRole("combobox").selectOption("en");
-    await dialog.getByRole("button", { name: "Add Staff", exact: true }).click(); await expect(dialog).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Add existing account", exact: true }).click();
+    const dialog = page.getByRole("dialog"); await dialog.getByRole("button", { name: "Add existing account", exact: true }).click(); await expect(dialog.locator("#add-staff-email")).toHaveAttribute("aria-invalid", "true");
+    await dialog.getByLabel("Email *").fill("new@example.test"); await refreshInterfaceLanguage(page, "hinglish"); await expect(dialog.locator("#add-staff-email")).toHaveValue("new@example.test");
+    await refreshInterfaceLanguage(page, "en");
+    await dialog.getByRole("button", { name: "Add existing account", exact: true }).click(); await expect(dialog).toHaveCount(0);
     expect(commands.at(-1)).toMatchObject({ method: "POST", path: "/api/branches/pilot/staff", body: { email: "new@example.test", role: "STAFF" } });
     const record = page.locator('[data-record-list]').getByText("Added synthetic member", { exact: true }).filter({ visible: true }); await expect(record).toBeVisible();
     if (info.project.name === "mobile-390") await shot(page, info, "invite-validation");
@@ -98,9 +101,9 @@ test("Staff removal keeps confirmation, keyboard cancellation and the scoped del
 test("Staff loading errors, pagination, readonly, manager-only and denied access stay distinct", async ({ page }) => {
     await installStaffFixture(page);
     await open(page, { scenario: "pagination" }); await page.getByRole("button", { name: "Load more staff" }).click(); await expect(page.locator('[data-record-list]')).toContainText("Showing 3 of 3");
-    await open(page, { role: "readonly" }); await expect(page.getByRole("button", { name: "Add Staff", exact: true })).toBeDisabled(); await expect(page.getByRole("button", { name: "Create invite", exact: true })).toBeDisabled();
+    await open(page, { role: "readonly" }); await expect(page.getByRole("button", { name: "Add existing account", exact: true })).toBeDisabled(); await expect(page.getByRole("button", { name: "Invite staff", exact: true })).toBeDisabled();
     await page.route("**/api/branches/pilot/access", async route => { const response = await route.fetch(); const data = await response.json(); data.isOwner = false; data.role = "MANAGER"; data.permissions.staff_management = false; await route.fulfill({ response, json: data }); });
-    await open(page); await expect(page.getByRole("button", { name: "Add Staff", exact: true })).toHaveCount(0); await expect(page.getByRole("button", { name: "Actions", exact: true })).toHaveCount(0); await expect(page.getByLabel("Invite email", { exact: true })).toHaveCount(0);
+    await open(page); await expect(page.getByRole("button", { name: "Add existing account", exact: true })).toHaveCount(0); await expect(page.getByRole("button", { name: "Actions", exact: true })).toHaveCount(0); await expect(page.getByLabel("Invite email", { exact: true })).toHaveCount(0);
     await page.unroute("**/api/branches/pilot/access");
     let fail = true; await page.route("**/api/branches/pilot/staff?**", route => fail ? route.fulfill({ status: 503, json: { error: "Synthetic read failure" } }) : route.fallback());
     await page.goto("/branch/pilot/staff?mode=after&lang=en"); await expect(page.getByRole("alert")).toBeVisible(); await expect(page.locator("#staff-pagination-status")).toHaveCount(0); fail = false;

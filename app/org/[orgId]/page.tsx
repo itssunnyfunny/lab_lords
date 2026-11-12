@@ -6,7 +6,6 @@ import { useBillingExperience } from "@/components/billing/BillingExperienceProv
 import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AppButton, AppPanel, ErrorState, PageLoadingSkeleton, PageShell } from "@/components/ui";
-import { appActionClassName } from "@/components/ui/AppButton";
 import { Badge } from "@/components/ui/Badge";
 import { formErrorBannerClass, formWarningBannerClass } from "@/components/ui/formSurface";
 import {
@@ -288,7 +287,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                             {t("Create branch")}</AppButton>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div className={cn("grid grid-cols-1 gap-4", branchList.length > 1 && "lg:grid-cols-2")}>
                         {branchList.map((branch) => {
                             const branchSnapshot = branchSnapshotById.get(branch.id);
                             const activeStudents = branchSnapshot?.snapshot.students.status.active ?? branch._count.students;
@@ -306,12 +305,12 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                     href={`/branch/${branch.id}`}
                                     aria-label={t("Open {name} dashboard", { name: branch.name })}
                                     className={cn(
-                                        "ui-panel--compact group relative isolate flex min-h-[214px] min-w-0 cursor-pointer overflow-hidden text-left transition-colors hover:border-[color:var(--ui-card-hover-border)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ui-focus-ring)]"
+                                        "ui-panel--compact group relative isolate flex min-w-0 cursor-pointer overflow-hidden text-left transition-colors hover:border-[color:var(--ui-card-hover-border)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ui-focus-ring)]"
                                     )}
                                 >
                                     <span className="absolute inset-x-0 top-0 h-1 bg-[color:var(--ui-form-accent)]" />
 
-                                    <div className="flex min-w-0 flex-1 flex-col justify-between p-5">
+                                    <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="flex min-w-0 items-start gap-3">
                                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-sm font-semibold text-[color:var(--ui-form-accent)]">
@@ -330,29 +329,29 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                             </Badge>
                                         </div>
 
-                                        <div className="mt-5 grid grid-cols-3 divide-x divide-[color:var(--ui-form-section-divider)] overflow-hidden rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)]">
-                                            <div className="px-3 py-3">
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="py-1">
                                                 <p className={cn(pageSubtleTextClass, "text-xs")}>{t("Students")}</p>
                                                 <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{formatNumber(activeStudents)}</p>
                                             </div>
-                                            <div className="px-3 py-3">
+                                            <div className="py-1">
                                                 <p className={cn(pageSubtleTextClass, "text-xs")}>{t(analyticsAllowed ? "Utilization" : "Seats")}</p>
                                                 <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">
                                                     {!analyticsAllowed ? formatNumber(branch._count.seats) : utilization !== null ? formatPercent(utilization) : t("Unavailable")}
                                                 </p>
                                             </div>
-                                            <div className="px-3 py-3">
+                                            <div className="py-1">
                                                 <p className={cn(pageSubtleTextClass, "text-xs")}>{t(analyticsAllowed ? "Overdue" : "Shifts")}</p>
                                                 <p className={(overdueCount ?? 0) > 0 ? "mt-1 text-lg font-semibold text-[color:var(--ui-tone-danger-text)]" : "mt-1 text-lg font-semibold text-[color:var(--text-primary)]"}>
                                                     {!analyticsAllowed ? formatNumber(branch._count.shifts) : overdueCount === null ? t("Unavailable") : formatNumber(overdueCount)}
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
                                             <span className={cn(pageSubtleTextClass, "text-xs")}>
                                                 {branch.defaultFee ? t("{amount} default fee", { amount: formatMoney(branch.defaultFee) }) : t("Fee not set")}
                                             </span>
-                                            <span className={cn(appActionClassName("primary"), "ml-auto whitespace-nowrap")}>
+                                            <span className="ml-auto inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[color:var(--ui-form-accent)]">
                                                 {t("Open dashboard")}<ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
                                             </span>
                                         </div>
@@ -368,7 +367,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
             <section className="space-y-3">
                 <div>
                     <h2 className={pageSectionTitleClass}>{t("Organization snapshot")}</h2>
-                    <p className={pageSectionDescriptionClass}>{t("Secondary context after branch selection.")}</p>
+                    <p className={pageSectionDescriptionClass}>{t("Current totals across your branches.")}</p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard

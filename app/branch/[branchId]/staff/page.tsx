@@ -8,7 +8,7 @@ import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { AppPanel, Dialog, useToast } from "@/components/ui";
+import { AppPanel, Dialog, Drawer, useToast } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import {
     Loader2, AlertCircle,
@@ -508,8 +508,8 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
             overlayClassName="ui-record-edit-overlay"
             open={isOpen}
             onClose={onClose}
-            title={t("Add Staff Member")}
-            description={t("Enter their account email and assign a role.")}
+            title={t("Add an existing account")}
+            description={t("Grant branch access to someone who already has a Lab Lords account.")}
             closeLabel={t("Close add staff dialog")}
             closeDisabled={loading}
             className="max-w-md"
@@ -520,7 +520,7 @@ function AddStaffDialog({ isOpen, branchId, onClose, onSuccess, capability }: Ad
                     <Button variant="primary" onClick={handleAdd} disabled={loading} className="min-h-11 min-w-[100px] justify-center px-4 text-sm">
                         {loading
                             ? <><Loader2 size={12} className="mr-1.5 animate-spin" />  {t("Adding...")}</>
-                            : t("Add Staff")
+                            : t("Add existing account")
                         }
                     </Button>
                 </>
@@ -845,6 +845,7 @@ function StaffContent({
 
     const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
     const [addOpen, setAddOpen] = useState(false);
+    const [inviteOpen, setInviteOpen] = useState(false);
     const [inviteRole, setInviteRole] = useState<StaffRoleOption>("STAFF");
     const [inviteEmail, setInviteEmail] = useState("");
     const [invite, setInvite] = useState<StaffInviteResponse | null>(null);
@@ -1078,13 +1079,13 @@ function StaffContent({
     const memberName = (member: StaffMember) => member.user?.name || member.user?.email || t("No name");
 
     return (
-        <RecordListPage title={t("Staff")} description={t("Manage team members and their access roles.")}
-            actions={showMutationControls ? <Button density="compact" variant="primary" icon={UserPlus}
+        <RecordListPage title={t("Staff")} description={t("Invite someone to join, or add an existing Lab Lords account directly.")}
+            actions={showMutationControls ? <><Button density="compact" variant="primary" icon={UserPlus} onClick={() => setInviteOpen(true)} disabled={!canMutateStaff}>{t.owned("Invite staff")}</Button><Button density="compact" variant="secondary" icon={UserPlus}
                 onClick={() => setAddOpen(true)} disabled={!canMutateStaff}
-                aria-describedby={!canMutateStaff ? "staff-manage-blocker" : undefined}>{t("Add Staff")}</Button> : undefined}
+                aria-describedby={!canMutateStaff ? "staff-manage-blocker" : undefined}>{t("Add existing account")}</Button></> : undefined}
             notices={<StaffCapabilityNotice decision={staffManageDecision} />}>
             {showMutationControls && (
-                <InviteLinkPanel
+                <Drawer open={inviteOpen} onClose={() => setInviteOpen(false)} closeDisabled={inviteLoading || Boolean(revokingInviteId)} title={t.owned("Invite staff")}><InviteLinkPanel
                     inviteRole={inviteRole}
                     inviteEmail={inviteEmail}
                     invite={invite}
@@ -1108,7 +1109,7 @@ function StaffContent({
                     onCopyInvite={handleCopyInvite}
                     onRevokeInvite={handleRevokeInvite}
                     capability={staffManageDecision}
-                />
+                /></Drawer>
             )}
 
 

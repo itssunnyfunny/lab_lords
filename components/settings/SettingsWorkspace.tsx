@@ -104,7 +104,7 @@ export function SettingsWorkspace({
             </header>
 
             <div className={cn("grid gap-4", navigation === "sidebar" && "lg:grid-cols-[210px_minmax(0,1fr)]")}>
-                {navigation !== "none" && <nav className={cn("ui-panel--compact h-max p-1.5", navigation === "sidebar" ? "lg:sticky lg:top-6" : "flex flex-wrap gap-1", pageFilterShellClass)} aria-label={t("Settings")}>
+                {navigation !== "none" && <><div className="ui-settings-mobile-navigation"><AppSelect label={t("Go to section")} value={activeSection} onValueChange={handleSectionClick} options={sections.map(section=>({value:section.id,label:t.owned(section.label)}))} /></div><nav className={cn("ui-settings-navigation ui-panel--compact h-max p-1.5", navigation === "sidebar" ? "lg:sticky lg:top-6" : "flex flex-wrap gap-1", pageFilterShellClass)} aria-label={t("Settings")}>
                     {sections.map(section => {
                         const Icon = section.icon;
                         const active = activeSection === section.id;
@@ -114,9 +114,10 @@ export function SettingsWorkspace({
                                 type="button"
                                 onClick={() => handleSectionClick(section.id)}
                                 aria-current={active ? "location" : undefined}
+                                aria-controls={section.id}
                                 className={cn(
                                     "flex min-h-11 items-center gap-3 rounded-[var(--ui-radius-control)] border px-3 py-2 text-left text-sm transition-colors",
-                                    navigation === "sidebar" && "w-full",
+                                    navigation === "sidebar" ? "w-full" : "shrink-0 whitespace-nowrap",
                                     active
                                         ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
                                         : "border-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
@@ -127,7 +128,7 @@ export function SettingsWorkspace({
                             </button>
                         );
                     })}
-                </nav>}
+                </nav></>}
                 <div className={cn("min-w-0 space-y-4", navigation === "sidebar" && "pb-24")}>{children}</div>
             </div>
             </PageShell>
@@ -163,13 +164,13 @@ export function SettingsPanel({
 }) {
     const t = useTranslation();
     return (
-        <section id={id} className="ui-panel--compact scroll-mt-6 overflow-hidden">
+        <section id={id} aria-labelledby={`${id}-heading`} className="ui-panel--compact scroll-mt-28 overflow-hidden">
             <div className="flex items-start gap-3 border-b border-[color:var(--ui-panel-header-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 py-3">
                 <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] text-[color:var(--ui-form-accent)]">
                     <Icon size={16} />
                 </div>
                 <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-[color:var(--ui-panel-title)]">{t.owned(title)}</h2>
+                    <h2 id={`${id}-heading`} className="text-base font-semibold text-[color:var(--ui-panel-title)]">{t.owned(title)}</h2>
                     {description && <p className={cn("mt-0.5 text-xs leading-5", pageMutedTextClass)}>{t.owned(description)}</p>}
                 </div>
             </div>

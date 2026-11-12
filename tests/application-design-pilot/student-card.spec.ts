@@ -1,3 +1,4 @@
+import { refreshInterfaceLanguage } from "../browser/helpers/preferences-refresh";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -15,7 +16,7 @@ test("short cards keep distinct financial values and fit both narrow widths in a
         data.items = data.items.map((row: { id: string }) => row.id === "student-meera" ? { ...row, phone: null } : row);
         await route.fulfill({ response, json: data });
     });
-    for (const [lang, htmlLang, subtitle] of [["en", "en-IN", "View students, their seats and fee details."], ["hi", "hi-IN", "छात्रों, उनकी सीटों और फीस की जानकारी देखें।"], ["hinglish", "hi-Latn-IN", "Students, unki seats aur fee details dekhein."]]) {
+    for (const [lang, htmlLang, subtitle] of [["en", "en-IN", "3 students"], ["hi", "hi-IN", "3 छात्र"], ["hinglish", "hi-Latn-IN", "3 students"]]) {
         await open(page, { lang });
         await expect(page.locator("html")).toHaveAttribute("lang", htmlLang);
         await expect(page.locator(".ui-record-description")).toHaveText(subtitle);
@@ -107,15 +108,15 @@ test("Edit keeps validation, language access, primary Save and blocked dismissal
     await name.fill("Aarav retained review draft"); await expect(save).toBeEnabled();
     expect(await save.getAttribute("class")).toContain("--ui-button-primary-bg");
     expect(await dialog.getByRole("button", { name: "Cancel", exact: true }).getAttribute("class")).toContain("--ui-button-secondary-bg");
-    await dialog.getByLabel("Interface language", { exact: true }).selectOption("hi");
+    await refreshInterfaceLanguage(page, "hi");
     await expect(name).toHaveValue("Aarav retained review draft");
-    await dialog.getByLabel("स्क्रीन की भाषा", { exact: true }).selectOption("en");
+    await refreshInterfaceLanguage(page, "en");
     await expect(dialog).toHaveAccessibleName("Edit student");
     expect(await page.locator("#root").evaluate(node => (node as HTMLElement).inert)).toBe(true);
     expect(await dialog.evaluate(node => node.scrollWidth > node.clientWidth)).toBe(false);
     await save.click(); await expect.poll(() => pending).toBe(true); await expect(dialog).toHaveAttribute("aria-busy", "true");
     await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled(); await page.keyboard.press("Escape"); await expect(dialog).toBeVisible();
-    await dialog.getByLabel("Interface language", { exact: true }).selectOption("hinglish"); await expect(name).toHaveValue("Aarav retained review draft");
+    await refreshInterfaceLanguage(page, "hinglish"); await expect(name).toHaveValue("Aarav retained review draft");
     release!(); await expect(dialog).toHaveCount(0);
     await expect(page.locator('[data-student-record-card]:visible').first()).toContainText("Aarav retained review draft");
 });

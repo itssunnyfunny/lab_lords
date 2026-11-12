@@ -43,7 +43,7 @@ const billing = { experience: {
     confirmedQuantity: 1, projectedQuantity: 1, currentUnitAmount: 499, currentMonthlyTotal: 499,
     projectedUnitAmount: 499, projectedMonthlyTotal: 499, authorizationStatus: "AUTHORIZED",
     planFeeDueToday: 0, nextChargeAt: "2026-10-01T00:00:00.000Z", paymentAction: "NONE",
-    entitlements: ["STAFF_MANAGEMENT", "ORG_ANALYTICS"], latestOperation: null, activeOperation: null,
+    entitlements: ["STAFF_MANAGEMENT", "ADVANCED_ANALYTICS"], latestOperation: null, activeOperation: null,
     scheduledChanges: [], branch: null, viewer: { isOwner: true, canManageBilling: true }, hasActiveOperation: false,
 } };
 

@@ -1,4 +1,5 @@
 "use client";
+import { appActionClassName } from "@/components/ui/AppButton";
 import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
@@ -840,29 +841,14 @@ function StudentsContent({
     return (
         <RecordListPage
             title={t("Students")}
-            eyebrow={t("Student roster")}
-            description={t("View students, their seats and fee details.")}
+            description={!rosterBusy && !readError ? t("{count} students", { count: studentTotals[activeTab] }) : undefined}
             actions={<>
-                    <AppButton density="compact" variant="secondary" icon={Download} onClick={() => void handleExportStudents()} isLoading={exporting} disabled={rosterBusy || Boolean(readError)}>
-                        {t("Export")}</AppButton>
-                    {canViewWhatsApp ? (
-                        <AppButton density="compact"
-                            variant="secondary"
-                            icon={Users}
-                            onClick={() => setWhatsAppBulkOpen(true)}
-                            disabled={!canManageWhatsApp}
-                            title={canManageWhatsApp ? undefined : t("You need WhatsApp management permission to record bulk consent.")}
-                        >
-                            {t("Bulk WhatsApp consent")}</AppButton>
-                    ) : null}
-                    <AppButton density="compact"
-                        variant="primary"
-                        icon={UserPlus}
-                        onClick={() => setIsAddModalOpen(true)}
-                        disabled={!manageDecision.allowed}
-                        title={manageDecision.allowed ? undefined : manageDecision.reason}
-                    >
-                        {t("Add student")}</AppButton>
+                <AppButton density="compact" variant="primary" icon={UserPlus} onClick={() => setIsAddModalOpen(true)} disabled={!manageDecision.allowed} title={manageDecision.allowed ? undefined : manageDecision.reason}>{t("Add student")}</AppButton>
+                <Link className={appActionClassName("secondary")} href={`/branch/${branchId}/onboarding/import`}>{t("Import")}</Link>
+                <RowActionsMenu buttonLabel="Tools" showButtonLabel actions={[
+                    { label: exporting ? "Exporting…" : "Export", icon: Download, onClick: () => void handleExportStudents(), disabled: exporting || rosterBusy || Boolean(readError) },
+                    ...(canViewWhatsApp ? [{ label: "Bulk WhatsApp consent", icon: Users, onClick: () => setWhatsAppBulkOpen(true), disabled: !canManageWhatsApp, description: canManageWhatsApp ? undefined : t("You need WhatsApp management permission to record bulk consent.") }] : []),
+                ]} />
             </>}
         >
 
@@ -904,18 +890,10 @@ function StudentsContent({
                             className={cn(formControlClass, "h-11 pl-9 pr-3 text-base sm:text-sm")}
                         />
                     </div>
-                    <label htmlFor="student-shift-filter" className={cn("text-sm", pageSubtleTextClass)}>{t("Shift")}</label>
-                    <AppSelect
-                        id="student-shift-filter"
-                        aria-label={t("Filter students by shift")}
-                        containerClassName="min-w-48"
-                        value={shiftScopeValue(shiftScope)}
-                        options={shiftFilterOptions}
-                        onValueChange={value => setShiftScope(shiftScopeFromValue(value))}
-                    />
+
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <div className="flex items-center gap-2">
                         {(["ACTIVE", "INACTIVE"] as const).map(tab => (
                             <StudentTabButton
@@ -928,6 +906,10 @@ function StudentsContent({
                         ))}
                     </div>
 
+                    <details className="ui-student-filters">
+                        <summary>{t("Shift")}{shiftScope.kind !== "all" && <span className="ml-1 font-semibold"> · {shiftFilterOptions.find(option => option.value === shiftScopeValue(shiftScope))?.label}</span>}</summary>
+                        <div><AppSelect id="student-shift-filter" aria-label={t("Filter students by shift")} containerClassName="min-w-48" value={shiftScopeValue(shiftScope)} options={shiftFilterOptions} onValueChange={value => setShiftScope(shiftScopeFromValue(value))} /></div>
+                    </details>
                     <ViewToggle value={viewMode} onChange={setViewMode} className="hidden lg:inline-flex" />
                 </div>
             </>} footer={!rosterBusy && !readError ? <div className="flex flex-wrap items-center justify-between gap-2" aria-live="polite">
