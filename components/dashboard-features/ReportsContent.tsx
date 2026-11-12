@@ -11,11 +11,12 @@ import { useUserPreferences } from "@/components/settings/UserPreferencesApplier
 import type { BranchReport } from "@/lib/branchReports";
 import type { BranchAccess } from "@/types";
 import { cn } from "@/lib/utils";
+import { financialCalendarDate } from "@/lib/feeReceiptDates";
 import { useDashboardResource } from "./shared";
 
 export function ReportsContent({ branchId, access }: { branchId: string; access: BranchAccess }) {
     const t = useTranslation();
-    const { documentLanguage } = useUserPreferences();
+    const { documentLanguage, formatNumber } = useUserPreferences();
     const [kind, setKind] = useState(access.permissions.view_payments ? "fees" : "students");
     const [from, setFrom] = useState(() => `${new Date().toISOString().slice(0, 7)}-01`);
     const [through, setThrough] = useState(() => new Date().toISOString().slice(0, 10));
@@ -30,6 +31,10 @@ export function ReportsContent({ branchId, access }: { branchId: string; access:
     // Language changes refresh document headers while preserving all active filters.
     const resource = useDashboardResource<BranchReport>(`/api/branches/${branchId}/reports?${params}&format=json`);
     useEffect(() => { void resource.reload(); }, [documentLanguage]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Fee report numeric cells are whole-rupee amounts; translated headers are display-only.
+    const amountColumns = new Set(kind === "fees" ? resource.data?.columns.flatMap((_, index) => resource.data?.rows.some(row => typeof row[index] === "number") ? [index] : []) : []);
+    // Stable report column positions, independent of translated headings.
+    const dateColumns = new Set(kind === "fees" ? [2, 3, 4] : kind === "students" ? [2] : [1]);
     const kinds = [
         ...(access.permissions.view_payments ? [{ value: "fees", label: t("Fee ledger") }] : []),
         ...(access.permissions.students ? [{ value: "students", label: t("Student admissions") }, { value: "attendance", label: t("Attendance marks") }] : []),
@@ -62,14 +67,14 @@ export function ReportsContent({ branchId, access }: { branchId: string; access:
     }
 
     return <RecordListPage title={t("Exports & Reports")}
-        description={t("Preview and download your authorized branch records using the same filters. Export headings use your document language.")}
+        description={t.owned("Choose a report, check the preview, then download.")}
         actions={access.permissions.analytics ? <Link className={appActionClassName("secondary")} href={`/branch/${branchId}/analytics`}>{t("Analytics")}</Link> : undefined}
         notices={error && <div role="alert" className={cn("flex flex-wrap items-center gap-3 p-3 text-sm", formErrorBannerClass)}>
             <span>{t.error(error)}</span><AppButton variant="secondary" density="compact" onClick={() => void download()}>{t("Retry")}</AppButton>
         </div>}>
         <RecordListSurface label={t("Report preview")} busy={resource.loading}
             toolbar={<div className="w-full space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 xl:grid-cols-5">
                     <AppSelect label={t("Report")} value={kind} onValueChange={value => { setKind(value); setStatus("ALL"); }} options={kinds} />
                     <label className={cn("block space-y-1", formLabelClass)}>{t("From date")}
                         <input className={`${formControlClass} min-h-11 w-full px-3`} type="date" value={from} onChange={event => setFrom(event.target.value)} />
@@ -83,16 +88,10 @@ export function ReportsContent({ branchId, access }: { branchId: string; access:
                         <input type="search" className={`${formControlClass} min-h-11 w-full px-3`} maxLength={100} value={search} onChange={event => setSearch(event.target.value)} />
                     </label>
                 </div>
-                <p className={cn("text-sm", pageMutedTextClass)}>{t.owned(kind === "fees"
-                    ? "Dates filter fee dates. Amounts are in whole rupees; balances include recorded collections and waivers."
-                    : kind === "students"
-                        ? "Dates filter joining dates. Only names, status and joining dates are exported."
-                        : "Dates filter recorded attendance marks. Visits and unmarked students are not included.")}</p>
-                <p className={cn("text-xs", pageMutedTextClass)}>{t("The preview shows the first 50 rows. The download includes every matching row within the limit.")}</p>
-                <p className={cn("text-xs", pageMutedTextClass)}>{t("Choose up to 93 days. Larger than 10,000 rows requires narrower filters. No phone numbers or private notes are exported.")}</p>
+                <p className="text-xs text-[color:var(--text-secondary)]">{t("Choose a date range of 93 days or less.")} {t.owned(kind === "fees" ? "Fee dates · amounts in ₹" : kind === "students" ? "Joining dates" : "Recorded attendance dates")}</p>
             </div>}
             footer={!resource.loading && !resource.error && resource.data ? <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="text-sm">{t("{count} matching rows", { count: resource.data.count })}</span>
+                <span className="text-sm">{t("{count} matching rows", { count: resource.data.count })} · {t("Preview: first {count} rows", {count:Math.min(50,resource.data.count)})}</span>
                 <AppButton variant="primary" density="compact" onClick={() => void download()} isLoading={busy}>{t("Download CSV")}</AppButton>
             </div> : undefined}>
             {resource.loading ? <RecordListState kind="loading" title="Loading…" />
@@ -103,16 +102,25 @@ export function ReportsContent({ branchId, access }: { branchId: string; access:
                     <table className="w-full min-w-[44rem] text-left text-sm">
                         <caption className="sr-only">{t("Report preview")}</caption>
                         <thead className="bg-[color:var(--ui-table-head-bg)] text-[color:var(--ui-table-muted)]">
-                            <tr>{resource.data.columns.map((column, index) => <th key={`${column}-${index}`} scope="col">{column}</th>)}</tr>
+                            <tr>{resource.data.columns.map((column, index) => <th key={`${column}-${index}`} scope="col" className={cn(amountColumns.has(index) && "text-right tabular-nums", dateColumns.has(index) && "ui-financial-date")}>{column}{amountColumns.has(index) ? " (₹)" : ""}</th>)}</tr>
                         </thead>
                         <tbody className="divide-y divide-[color:var(--ui-table-divider)]">
                             {resource.data.rows.slice(0, 50).map((row, index) => <tr key={index}>
                                 {row.map((cell, column) => column === 0
                                     ? <th key={column} scope="row" className="text-[color:var(--ui-table-text)]">{cell}</th>
-                                    : <td key={column} className="text-[color:var(--ui-table-text)]">{cell}</td>)}</tr>)}
+                                    : <td key={column} className={cn("text-[color:var(--ui-table-text)]", amountColumns.has(column) && "text-right whitespace-nowrap tabular-nums", dateColumns.has(column) && "ui-financial-date")}>{amountColumns.has(column) && typeof cell === "number" ? formatNumber(cell, { style:"currency",currency:"INR",maximumFractionDigits:2 }) : dateColumns.has(column) && typeof cell === "string" && cell ? financialCalendarDate(cell, documentLanguage) : cell}</td>)}</tr>)}
                         </tbody>
                     </table>
                 </div>}
         </RecordListSurface>
+        <details className="ui-context-help"><summary>{t.owned("About this report")}</summary>
+                <p className={cn("text-sm", pageMutedTextClass)}>{t.owned(kind === "fees"
+                    ? "Dates filter fee dates. Amounts are in whole rupees; balances include recorded collections and waivers."
+                    : kind === "students"
+                        ? "Dates filter joining dates. Only names, status and joining dates are exported."
+                        : "Dates filter recorded attendance marks. Visits and unmarked students are not included.")}</p>
+                <p className={cn("text-xs", pageMutedTextClass)}>{t("The preview shows the first 50 rows. The download includes every matching row within the limit.")}</p>
+                <p className={cn("text-xs", pageMutedTextClass)}>{t("Choose up to 93 days. Larger than 10,000 rows requires narrower filters. No phone numbers or private notes are exported.")}</p>
+        </details>
     </RecordListPage>;
 }

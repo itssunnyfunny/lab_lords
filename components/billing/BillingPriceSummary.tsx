@@ -1,5 +1,6 @@
 "use client";
 
+import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { billingPlanName, isBillingPlanId } from "@/lib/billingPlans";
 import type { OrganizationSubscriptionDto } from "@/lib/api/billing";
@@ -10,18 +11,6 @@ type BillingPriceSummaryProps = {
   experience: BillingExperience;
   current: OrganizationSubscriptionDto | null;
 };
-
-const formatInr = (amount: number) => new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-}).format(amount);
-
-const formatDate = (value: string) => new Intl.DateTimeFormat("en-IN", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-}).format(new Date(value));
 
 function SummaryRow({
   label,
@@ -36,8 +25,8 @@ function SummaryRow({
 }) {
   const t = useTranslation();
   return (
-    <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] px-3 py-2.5">
-      <dt className="text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]">{t.owned(label)}</dt>
+    <div className="min-w-0 py-2">
+      <dt className="text-xs font-medium text-[color:var(--text-muted)]">{t.owned(label)}</dt>
       <dd className={`mt-1 font-semibold text-[color:var(--text-primary)] ${emphasis ? "text-base" : "text-sm"}`}>{t.owned(value)}</dd>
       {detail ? <p className="mt-0.5 text-xs text-[color:var(--text-secondary)]">{t.owned(detail)}</p> : null}
     </div>
@@ -46,6 +35,9 @@ function SummaryRow({
 
 export function BillingPriceSummary({ experience, current }: BillingPriceSummaryProps) {
   const t = useTranslation();
+  const { formatNumber, formatDate: preferenceDate } = useUserPreferences();
+  const formatDate = (value: string) => preferenceDate(value, { day: "numeric", month: "long", year: "numeric" });
+  const formatInr = (amount: number) => formatNumber(amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 });
   const trialActive = experience.effectivePlan === "STANDARD_TRIAL"
     || (experience.trialDaysRemaining != null && experience.trialDaysRemaining > 0);
   const paidPlanActive = isBillingPlanId(experience.effectivePlan)
@@ -72,15 +64,11 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
     const billedPlanName = current ? billingPlanName(current.plan) : selectedPlanName ?? "Provider confirmation pending";
     const effectivePlanName = billingPlanName(experience.effectivePlan);
     return (
-      <section className="space-y-4 px-5 pt-4" aria-labelledby="current-subscription-summary">
-        <div>
-          <h3 id="current-subscription-summary" className="text-base font-semibold text-[color:var(--text-primary)]">{t.owned("Current subscription")}</h3>
-          <p className="mt-1 text-xs text-[color:var(--text-secondary)]">{t.owned("Provider-confirmed paid access and renewal details.")}</p>
-        </div>
+      <section className="space-y-4 px-5 pt-4" aria-label={t.owned("Current subscription")}>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <SummaryRow label="Billed plan" value={billedPlanName} emphasis />
           <SummaryRow label="Current access" value={effectivePlanName}
-            detail={billedPlanName !== effectivePlanName ? "Feature access can differ from the billed plan during a confirmed replacement." : undefined} />
+            detail={billedPlanName !== effectivePlanName ? t("You can use {access}; your subscription is still billed as {plan}.", {access:effectivePlanName,plan:billedPlanName}) : undefined} />
           <SummaryRow
             label="Monthly branch billing"
             value={t("{formatInr}/month", { formatInr: formatInr(experience.currentMonthlyTotal) })}
@@ -95,6 +83,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
           <SummaryRow label="Paid through" value={experience.paidThrough ? formatDate(experience.paidThrough) : "Awaiting paid invoice"} />
           <SummaryRow label="Next charge" value={experience.nextChargeAt ? formatDate(experience.nextChargeAt) : "Not scheduled"} />
         </dl>
+        <p className="text-xs text-[color:var(--text-secondary)]">{t.owned("Your current subscription and renewal dates.")}</p>
       </section>
     );
   }
@@ -112,7 +101,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
           {trialActive ? (
             <SummaryRow label="Plan fee today" value={formatInr(experience.planFeeDueToday)} />
           ) : (
-            <SummaryRow label="Billing status" value="No provider-confirmed paid period" />
+            <SummaryRow label="Billing status" value="No paid subscription period confirmed yet" />
           )}
           {trialActive && experience.trialEndsAt ? (
             <SummaryRow label="Trial ends" value={formatDate(experience.trialEndsAt)} />

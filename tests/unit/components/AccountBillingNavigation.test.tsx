@@ -56,7 +56,7 @@ function nodes(value: ReactNode): Node[] {
   if (!value || typeof value !== "object") return [];
   if (Array.isArray(value)) return value.flatMap(nodes);
   const node = value as Node;
-  return node.props ? [node, ...nodes(node.props.children)] : [];
+  return node.props ? [node, ...nodes(node.props.children), ...nodes(node.props.context as ReactNode)] : [];
 }
 function organizations(count: number) {
   return ["ordinary", "historical"].slice(0, count).map(id => ({ id, name: id, branches: [{ id: `${id}-branch`, name: "Main" }] })) as WorkspaceDirectoryOrganization[];

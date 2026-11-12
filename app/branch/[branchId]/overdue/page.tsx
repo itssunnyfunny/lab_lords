@@ -71,9 +71,9 @@ type QueueFilter = "ALL" | "CRITICAL" | "NO_PHONE";
 type MessageLanguage = "EN" | "HI";
 
 const filters: { value: QueueFilter; label: string; description: string }[] = [
-    { value: "ALL", label: "Loaded overdue", description: "Loaded follow-up rows" },
-    { value: "CRITICAL", label: "Loaded critical", description: "30+ days overdue" },
-    { value: "NO_PHONE", label: "Loaded without phone", description: "Needs profile cleanup" },
+    { value: "ALL", label: "Overdue", description: "Outstanding fees" },
+    { value: "CRITICAL", label: "30+ days overdue", description: "30+ days overdue" },
+    { value: "NO_PHONE", label: "Missing phone number", description: "Add a phone number" },
 ];
 
 function daysSinceDue(payment: OverduePayment) {
@@ -345,16 +345,16 @@ function OverdueContent({
                     <RecordListState kind="empty" title="No overdue payments" description="The collection queue is clear. New overdue payments will appear here after the grace period." />
                 ) : (
                     <>
-                        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            <MetricCard label={t("Loaded overdue amount")} value={formatMoney(totals.totalAmount)} detail={`${payments.length} of ${total} open payments loaded`} tone="danger" />
-                            <MetricCard label={t("Loaded critical")} value={formatNumber(totals.criticalCount)} detail="30+ days overdue in loaded rows" tone="danger" />
-                            <MetricCard label={t("Loaded missing phone")} value={formatNumber(totals.missingPhoneCount)} detail="Profile cleanup in loaded rows" tone={totals.missingPhoneCount > 0 ? "warning" : "success"} />
-                            <MetricCard label={t("Oldest due")} value={`${formatNumber(totals.oldestDays)}d`} detail="Oldest loaded payment" tone={totals.oldestDays >= 30 ? "danger" : "warning"} />
+                        <section className="ui-inline-summary">
+                            <MetricCard label={t("Overdue balance shown")} value={formatMoney(totals.totalAmount)} detail={t("{shown} of {total} open fees shown", {shown:payments.length,total})} tone="danger" />
+                            <MetricCard label={t("30+ days overdue")} value={formatNumber(totals.criticalCount)} tone="danger" />
+                            <MetricCard label={t("Missing phone number")} value={formatNumber(totals.missingPhoneCount)} tone={totals.missingPhoneCount > 0 ? "warning" : "success"} />
+                            <MetricCard label={t("Oldest due")} value={`${formatNumber(totals.oldestDays)}d`} tone={totals.oldestDays >= 30 ? "danger" : "warning"} />
                         </section>
 
                         <RecordListSurface label={t("Collection Queue")} busy={refreshing || loadingMore} toolbar={<div className="w-full space-y-3">
                             <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div><h2 className="text-sm font-semibold">{t("Collection Queue")}</h2><p className="text-xs text-[color:var(--text-muted)]">{t("Oldest dues load first. Filters and bulk selection apply to the rows currently loaded.")}</p></div>
+                                <div><h2 className="text-sm font-semibold">{t("Collection Queue")}</h2><p className="text-xs text-[color:var(--text-muted)]">{t("Oldest dues first. Counts and selection apply to the records shown.")}</p></div>
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                     <AppSelect
                                         aria-label={t("Reminder language")}
@@ -433,7 +433,7 @@ function OverdueContent({
                             {totals.missingPhoneCount > 0 && (
                                 <div className={cn("flex items-start gap-3 px-4 py-3 text-sm", formWarningBannerClass)}>
                                     <TriangleAlert size={16} className="mt-0.5 shrink-0" />
-                                    <span>{t("{missingPhoneCount} loaded overdue student(s) need a phone number before reminders can be sent cleanly.", { missingPhoneCount: totals.missingPhoneCount })}</span>
+                                    <span>{t("Add a phone number for {missingPhoneCount} students before sending reminders.", { missingPhoneCount: totals.missingPhoneCount })}</span>
                                 </div>
                             )}
 
@@ -446,7 +446,7 @@ function OverdueContent({
                                         { header: "Contact", accessor: payment => payment.phone ? <span className={cn("inline-flex items-center gap-1.5", pageMutedTextClass)}><Phone size={13} aria-hidden="true" />{payment.phone}</span> : <Badge variant="warning">{t("No phone")}</Badge> },
                                         { header: "Age", accessor: payment => <Badge variant={severityFor(daysSinceDue(payment)).variant}>{t("{days} days", { days: daysSinceDue(payment) })}</Badge> },
                                         { header: "Due date", accessor: payment => formatDate(payment.dueDate) },
-                                        { header: "Amount", accessor: payment => <strong className="tabular-nums">{formatMoney(payment.amount)}</strong> },
+                                        { header: "Remaining due", className: "text-right whitespace-nowrap tabular-nums", accessor: payment => <strong className="tabular-nums">{formatMoney(payment.amount)}</strong> },
                                     ]}
                                     actions={payment => <PaymentQueueAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} />}
                                     renderGridCard={payment => <OverduePaymentCard payment={payment} branchId={branchId} selected={selectedIds.has(payment.paymentId)} onSelectedChange={checked => togglePayment(payment.paymentId, checked)} recordDecision={recordDecision} />}
@@ -542,7 +542,7 @@ function MetricCard({
 }: {
     label: string;
     value: string | number;
-    detail: string;
+    detail?: string;
     tone: "danger" | "warning" | "success";
 }) {
     const valueClass = tone === "danger"
@@ -552,10 +552,10 @@ function MetricCard({
             : "text-[color:var(--ui-tone-success-text)]";
 
     return (
-        <AppPanel density="compact" title={label}>
-            <p className={cn("text-2xl font-semibold tracking-tight tabular-nums", valueClass)}>{value}</p>
-            <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p>
-        </AppPanel>
+        <div><p className="text-xs text-[color:var(--text-secondary)]">{label}</p>
+            <p className={cn("text-lg font-semibold tabular-nums", valueClass)}>{value}</p>
+            {detail && <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p>}
+        </div>
     );
 }
 
@@ -611,9 +611,9 @@ function OverduePaymentCard({
                     <p className="ui-record-card-meta">{severity.helper}</p></div>
                 <Badge variant={severity.variant}>{t("{days} days", { days })}</Badge>
             </div>
-            <div className={cn("ui-record-card-context", payment.phone ? pageMutedTextClass : formHelpTextClass)}><Phone size={14} aria-hidden="true" /><span>{payment.phone || "Phone number missing"}</span></div>
+            <div className={cn("ui-record-card-context", payment.phone ? pageMutedTextClass : formHelpTextClass)}><Phone size={14} aria-hidden="true" /><span className="ui-phone">{payment.phone || t("Phone number missing")}</span></div>
             <div className="ui-record-card-summary">
-                <div className="flex flex-wrap items-start justify-between gap-3"><div><p>{t("Amount")}</p><p className="ui-record-card-due tabular-nums">{formattedAmount}</p></div><div><p>{t("Due date")}</p><p className="font-medium">{formatDate(payment.dueDate)}</p></div></div>
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p>{t("Remaining due")}</p><p className="ui-record-card-due tabular-nums">{formattedAmount}</p></div><div><p>{t("Due date")}</p><p className="font-medium">{formatDate(payment.dueDate)}</p></div></div>
                 <div className="mt-3 flex justify-end"><PaymentQueueAction href={getOverduePaymentHref(branchId, payment)} decision={recordDecision} /></div>
             </div>
         </article>

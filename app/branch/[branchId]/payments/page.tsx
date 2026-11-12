@@ -39,6 +39,7 @@ import { useDataViewMode } from "@/hooks/useDataViewMode";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
 import type { CapabilityDecision } from "@/types";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
+import { financialCalendarDate } from "@/lib/feeReceiptDates";
 
 type PaymentRow = PaymentListItem;
 
@@ -83,7 +84,7 @@ function PaymentsContent({
 }) {
     const t = useTranslation();
     const toast = useToast();
-    const { formatDate, formatNumber } = useUserPreferences();
+    const { formatDate, formatNumber, interfaceLanguage, timezone } = useUserPreferences();
     const searchParams = useSearchParams();
     const targetPaymentId = searchParams.get("paymentId");
     const targetStatus = searchParams.get("status");
@@ -331,37 +332,23 @@ function PaymentsContent({
             maximumFractionDigits: 0,
         });
 
-    const renderDueDate = (item: PaymentRow) => {
-        const overdue = item.status === "DUE" && isOverdue(item.dueDate);
+    const renderDueDate = (item: PaymentRow) => <div className="space-y-1 text-sm">
+        <p>{financialCalendarDate(item.dueDate, interfaceLanguage, timezone)}</p>
+        {item.periodStart && item.periodEnd && <p className={cn("text-xs", pageMutedTextClass)}>{t("Fee period")}: {financialCalendarDate(item.periodStart, interfaceLanguage, timezone)} – {financialCalendarDate(item.periodEnd, interfaceLanguage, timezone)}</p>}
+    </div>;
 
-        return (
-            <div className="flex flex-wrap items-center gap-2">
-                {item.collectedAmount > 0 && item.status === "DUE" && <Badge variant="warning">{t("Partially paid")}</Badge>}
-                <span className={cn(overdue ? "font-medium text-[color:var(--ui-tone-danger-text)]" : pageMutedTextClass)}>
-                    {formatDate(item.dueDate)}
-                </span>
-                {overdue && (
-                    <Badge variant="danger" className="h-5 px-1 py-0 text-[10px]">{t("OVERDUE")}</Badge>
-                )}
-            </div>
-        );
-    };
-
-    const renderPaymentStatus = (item: PaymentRow) => (
-        <Badge
-            variant={
-                item.status === "PAID" ? "success" :
-                    item.status === "DUE" ? "warning" :
-                        "purple"
-            }
-        >
-            {t.owned({ DUE: "Due", PAID: "Paid", WAIVED: "Waived" }[item.status])}
-        </Badge>
-    );
+    const renderPaymentStatus = (item: PaymentRow) => <div className="ui-fee-state" aria-label={t("Fee status")}>
+        <Badge variant={item.status === "PAID" ? "success" : item.status === "DUE" ? "warning" : "purple"}>{t.owned({ DUE: "Due", PAID: "Paid", WAIVED: "Waived" }[item.status])}</Badge>
+        {item.collectedAmount > 0 && item.status === "DUE" && <Badge variant="warning">{t("Partially paid")}</Badge>}
+        {item.status === "DUE" && isOverdue(item.dueDate) && <Badge variant="danger">{t("OVERDUE")}</Badge>}
+    </div>;
 
     const renderFeeAmounts = (item: PaymentRow) => <div className="space-y-1">
-        <span className="font-semibold">{formatPaymentAmount(item.status === "DUE" ? remainingFee(item) : item.amount)}</span>
-        {item.ledgerBacked ? <p className={cn("text-xs", pageMutedTextClass)}>{t("Fee ₹{amount} · Collected ₹{collectedAmount} · Waived ₹{waivedAmount} · Remaining ₹{remainingFee}", { amount: item.amount, collectedAmount: item.collectedAmount, waivedAmount: item.waivedAmount, remainingFee: remainingFee(item) })}</p> : item.status !== "DUE" ? <p className={cn("text-xs", pageMutedTextClass)}>{t("Historical record · no generated receipt")}</p> : null}
+        <p className={cn("text-xs", pageMutedTextClass)}>{t(item.status === "DUE" ? "Remaining due" : "Fee amount")}</p>
+        <p className="whitespace-nowrap font-semibold tabular-nums">{formatPaymentAmount(item.status === "DUE" ? remainingFee(item) : item.amount)}</p>
+        {item.ledgerBacked ? <details className="text-xs"><summary className="cursor-pointer py-1">{t("Fee breakdown")}</summary><dl className="ui-fee-breakdown">
+            {[["Fee amount",item.amount],["Collected amount",item.collectedAmount],["Waived amount",item.waivedAmount],["Remaining due",remainingFee(item)]].map(([label,amount])=><div key={label}><dt>{t.owned(String(label))}</dt><dd>{formatPaymentAmount(Number(amount))}</dd></div>)}
+        </dl></details> : item.status !== "DUE" ? <p className={cn("text-xs", pageMutedTextClass)}>{t("Historical record · no generated receipt")}</p> : null}
     </div>;
 
     const renderPaymentMethod = (item: PaymentRow) => {
@@ -426,13 +413,12 @@ function PaymentsContent({
 
     return (
         <RecordListPage
-            eyebrow={t("Branch payments")}
             title={t("Payment history")}
-            description={t("Review dues, record collections, and keep waived payments separate from active follow-up.")}
+            description={t("Recorded fees by due month. Collections and receipts stay in payment history.")}
             actions={<>
                 {showRecordAction && <AppButton density="compact" variant="primary" disabled={!recordDecision.allowed} title={recordDecision.reason ?? undefined} onClick={() => { setPickerClosed(false); setPickerRequested(true); }}>{t("Record payment")}</AppButton>}
                 {showGenerateAction && (
-                    <AppButton
+                    <details className="ui-secondary-tools" open={generationRequested || undefined}><summary>{t.owned("Fee tools")}</summary><div><AppButton
                         variant="secondary"
                         density="compact"
                         isLoading={generating}
@@ -441,7 +427,7 @@ function PaymentsContent({
                         title={generateDecision.allowed ? undefined : generateDecision.reason}
                         onClick={() => void generateMissingPayments()}
                     >
-                        {t("Generate missing dues")}</AppButton>
+                        {t("Generate missing dues")}</AppButton></div></details>
                 )}
                 <div className={cn("flex items-center justify-between gap-2 p-1.5 sm:gap-3", pageFilterShellClass)}>
                     <AppButton variant="quiet" size="icon" onClick={() => handleMonthChange("prev")} aria-label={t("Previous month")}>
@@ -544,20 +530,18 @@ function PaymentsContent({
                                 <div className="min-w-0 flex-1">
                                     <p className="ui-record-card-name">{item.student?.name || "Unknown"}</p>
                                     <p className="ui-record-card-meta">
-                                        <span className="break-all">{item.student?.phone || t("No phone")}</span>
+                                        <span className="ui-phone">{item.student?.phone || t("No phone")}</span>
                                         <span className="font-mono">#{item.id.slice(-6)}</span>
                                     </p>
                                 </div>
-                                <div className="shrink-0">{renderPaymentStatus(item)}</div>
                             </div>
+                            {renderPaymentStatus(item)}
                             <div className="ui-record-card-context">
                                 <CalendarDays size={14} aria-hidden="true" />
                                 <div className="flex flex-wrap items-center gap-1">{t("Due date")}: {renderDueDate(item)}</div>
                             </div>
                             <div className="ui-record-card-summary">
-                                <p className="ui-record-card-due">{t(item.status === "DUE" ? "Remaining balance" : "Amount")}: {formatPaymentAmount(item.status === "DUE" ? remainingFee(item) : item.amount)}</p>
-                                {item.ledgerBacked ? <p>{t("Fee ₹{amount} · Collected ₹{collectedAmount} · Waived ₹{waivedAmount} · Remaining ₹{remainingFee}", { amount: item.amount, collectedAmount: item.collectedAmount, waivedAmount: item.waivedAmount, remainingFee: remainingFee(item) })}</p>
-                                    : item.status !== "DUE" ? <p>{t("Historical record · no generated receipt")}</p> : null}
+                                {renderFeeAmounts(item)}
                                 <p className="ui-record-card-joined">{t("Method")}: {renderPaymentMethod(item)}</p>
                                 <div className="ui-record-card-actions mt-3 flex flex-wrap items-center gap-2">{actions?.(item)}</div>
                             </div>
@@ -566,11 +550,12 @@ function PaymentsContent({
                     columns={[
                         {
                             header: "Student",
+                            className: "min-w-[180px]",
                             rowHeader: true,
                             accessor: (item) => (
                                 <div>
                                     <div className="font-medium text-[color:var(--text-primary)]">{item.student?.name || "Unknown"}</div>
-                                    <div className={cn("break-all text-xs", pageMutedTextClass)}>{item.student?.phone}</div>
+                                    <div className={cn("whitespace-nowrap text-xs", pageMutedTextClass)}>{item.student?.phone}</div>
                                     <div className={cn("font-mono text-xs", pageSubtleTextClass)}>#{item.id.slice(-6)}</div>
                                 </div>
                             )
@@ -581,6 +566,7 @@ function PaymentsContent({
                         },
                         {
                             header: "Amount",
+                            className: "text-right tabular-nums",
                             accessor: renderFeeAmounts
                         },
                         {

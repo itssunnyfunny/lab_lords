@@ -8,7 +8,7 @@ import { LANGUAGE_TAGS } from "@/lib/i18n/language";
 import { AppButton } from "@/components/ui";
 import type { FeeCollectionView } from "@/lib/feeCollections";
 import { feeCollections } from "@/lib/api/feeCollections";
-import { downloadFeeReceipt, feeReceiptFile, receiptSummary } from "@/lib/feeReceiptPdf";
+import { downloadFeeReceipt, feeReceiptFile, receiptSummary, receiptAmount } from "@/lib/feeReceiptPdf";
 import { receiptCollectedAt, receiptPeriodDate } from "@/lib/feeReceiptDates";
 import { LogoMark } from "@/components/brand/AppLogo";
 import { cn } from "@/lib/utils";
@@ -66,7 +66,7 @@ export function FeeReceipt({ branchId, collection }: { branchId: string; collect
                         {dt("Receipt: {number}", { number: collection.receiptNumber })}
                     </p>
                     <p className="mt-1 text-xs text-[color:var(--ui-form-help)]">
-                        {receiptCollectedAt(s.collectedAt)}
+                        {dt("Collection date")}: {receiptCollectedAt(s.collectedAt, documentLanguage)}
                     </p>
                 </div>
             </div>
@@ -81,8 +81,9 @@ export function FeeReceipt({ branchId, collection }: { branchId: string; collect
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className={cn("p-3 leading-6", formSurfaceClass)}>
                         <p className="break-words font-semibold text-[color:var(--ui-form-label-strong)]">
-                            {dt("Student: {name} ({id})", { name: s.studentName, id: s.studentId })}
+                            {s.studentName}
                         </p>
+                        <details className="mt-1 text-xs"><summary className="cursor-pointer">{dt("Student ID")}</summary><p className="break-all">{s.studentId}</p></details>
                         <p className={cn("mt-2", formHelpTextClass)}>{dt("Recorded by: {name}", { name: s.recordedBy })}</p>
                     </div>
                     <div className={cn("p-3 leading-6", formSurfaceClass)}>
@@ -93,7 +94,7 @@ export function FeeReceipt({ branchId, collection }: { branchId: string; collect
 
                 <div className={cn("p-4", formSuccessBannerClass)}>
                     <p className="text-xl font-semibold">
-                        {dt("Received: ₹{amount} · {method}", { amount: s.amount, method: translateOwnedText(documentLanguage, s.method.replaceAll("_", " ")) })}
+                        {dt("Received: ₹{amount} · {method}", { amount: receiptAmount(s.amount, documentLanguage), method: translateOwnedText(documentLanguage, s.method.replaceAll("_", " ")) })}
                     </p>
                     {s.reference && <p className="mt-1 break-words text-sm">{dt("Reference: {reference}", { reference: s.reference })}</p>}
                 </div>
@@ -101,13 +102,13 @@ export function FeeReceipt({ branchId, collection }: { branchId: string; collect
                 <div className="space-y-2">
                     {s.allocations.map(a => (
                         <p key={a.paymentId} className={cn("p-3 leading-6", formSurfaceClass)}>
-                            {dt("{type}: {start} – {end} | Applied ₹{amount} | Remaining ₹{remaining}", { type: translateOwnedText(documentLanguage, a.type), start: receiptPeriodDate(a.periodStart), end: receiptPeriodDate(a.periodEnd), amount: a.amount, remaining: a.remaining })}
+                            {dt("{type}: {start} – {end} | Applied ₹{amount} | Remaining ₹{remaining}", { type: translateOwnedText(documentLanguage, a.type), start: receiptPeriodDate(a.periodStart, documentLanguage), end: receiptPeriodDate(a.periodEnd, documentLanguage), amount: receiptAmount(a.amount, documentLanguage), remaining: receiptAmount(a.remaining, documentLanguage) })}
                         </p>
                     ))}
                 </div>
 
                 <p className="font-semibold text-[color:var(--ui-form-label-strong)]">
-                    {dt("Student balance immediately after collection: ₹{amount}", { amount: s.remainingBalance })}
+                    {dt("Student balance immediately after collection: ₹{amount}", { amount: receiptAmount(s.remainingBalance, documentLanguage) })}
                 </p>
                 {s.note && <p className={cn("break-words p-3", formSurfaceClass)}>{dt("Note: {note}", { note: s.note })}</p>}
             </div>

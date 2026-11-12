@@ -124,7 +124,7 @@ describe("BillingPriceSummary", () => {
 
     expect(html).toContain("Current subscription");
     expect(html).toContain("Billed plan");
-    expect(html).toContain("Provider-confirmed paid access");
+    expect(html).toContain("Your current subscription and renewal dates.");
     expect(html).not.toContain("After the trial");
   });
 
@@ -171,7 +171,7 @@ describe("BillingPriceSummary", () => {
 
     expect(html).toContain("No active paid plan");
     expect(html).toContain("Plan authorization");
-    expect(html).toContain("No provider-confirmed paid period");
+    expect(html).toContain("No paid subscription period confirmed yet");
     expect(html).toContain("Paid access starts only after Razorpay confirms");
     expect(html).not.toContain("After the trial");
     expect(html).not.toContain("Plan fee today");

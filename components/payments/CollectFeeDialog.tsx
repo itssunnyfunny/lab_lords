@@ -17,11 +17,14 @@ import { collectionInputSchema, type CollectionInput, type FeeCollectionView } f
 import type { PaymentListItem } from "@/lib/api/payments";
 import { cn } from "@/lib/utils";
 import { FeeReceipt } from "./FeeReceipt";
+import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
+import { receiptPeriodDate } from "@/lib/feeReceiptDates";
 
 export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSaved, usePilotTheme = true }: {
     branchId: string; studentId: string; paymentId?: string; onClose: () => void; onSaved: () => void; usePilotTheme?: boolean;
 }) {
     const t = useTranslation();
+    const { interfaceLanguage } = useUserPreferences();
     const [dues, setDues] = useState<PaymentListItem[]>([]);
     const [name, setName] = useState("");
     const [selected, setSelected] = useState<string[]>([]);
@@ -170,7 +173,7 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
                                         />
                                         <span className="min-w-0 leading-5 text-[color:var(--ui-form-label)]">
                                             <span className="block font-semibold text-[color:var(--ui-form-label-strong)]">
-                                                {p.type === "ADMISSION" ? t("Admission") : t("Monthly")} · {new Date(p.periodStart).toLocaleDateString("en-IN")} – {new Date(p.periodEnd).toLocaleDateString("en-IN")}
+                                                {p.type === "ADMISSION" ? t("Admission") : t("Monthly")} · {receiptPeriodDate(p.periodStart, interfaceLanguage)} – {receiptPeriodDate(p.periodEnd, interfaceLanguage)}
                                             </span>
                                             <span className={cn("mt-1 block", formHelpTextClass)}>
                                                 {t("Fee ₹{fee} · Collected ₹{collected} · Waived ₹{waived} · Remaining ₹{remaining}", { fee: p.amount, collected: p.collectedAmount, waived: p.waivedAmount, remaining: remainingFee(p) })}
@@ -217,7 +220,7 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
                                 </p>
                                 {preview.map(a => (
                                     <p key={a.payment.id} className={formHelpTextClass}>
-                                        {t("{date}: apply ₹{amount} · ₹{remaining} remains", { date: new Date(a.payment.periodStart).toLocaleDateString("en-IN"), amount: a.amount, remaining: a.remaining })}
+                                        {t("{date}: apply ₹{amount} · ₹{remaining} remains", { date: receiptPeriodDate(a.payment.periodStart, interfaceLanguage), amount: a.amount, remaining: a.remaining })}
                                     </p>
                                 ))}
                                 {valid ? (

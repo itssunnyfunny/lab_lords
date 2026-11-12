@@ -1,7 +1,7 @@
 "use client";
 import { accountBillingHref, accountBillingProcessingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { AlertCircle, CheckCircle2, CreditCard, History, Loader2, Receipt, Sparkles, XCircle } from "lucide-react";
@@ -37,7 +37,7 @@ const BILLING_SECTIONS = [
 
 type BillingContact = { branches?: { id: string; name: string; billingStatus: string }[]; contactEmail: string | null; contactPhone: string | null; owner?: { email: string } };
 
-export function OrganizationBillingContent({ orgId, returnPath = accountBillingHref(orgId) }: { orgId: string; returnPath?: string }) {
+export function OrganizationBillingContent({ orgId, returnPath = accountBillingHref(orgId), context }: { orgId: string; returnPath?: string; context?: ReactNode }) {
     const t = useTranslation();
     const refreshExperience = useBillingExperience()?.refresh;
     const [activeSection, setActiveSection] = useState("billing");
@@ -640,13 +640,14 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
             />
             <SettingsWorkspace
                 title={t("Billing and plans")}
-                subtitle={t.owned("One organization plan applies to all its branches. Manage subscription payments, invoices and access here. Student fees stay in each branch.")}
+                subtitle={t.owned("Subscription payments and access for your organization.")}
                 navigation="tabs"
                 sections={BILLING_SECTIONS}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
             >
-                <SettingsPanel id="billing" title={t("Billing")} description={t("Workspace subscription and Razorpay billing state.")} icon={CreditCard}>
+                {context}
+                <SettingsPanel id="billing" title={t.owned("Current subscription")} icon={CreditCard}>
                     {billingNotice && (
                         <div role={billingNotice.tone === "error" ? "alert" : "status"} className={cn(
                             "mx-5 my-4 flex items-center gap-2 px-4 py-2 text-sm",
@@ -664,9 +665,14 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                     {!billingOverview && !billingLoading ? (
                         <div className="px-5 py-4"><AppButton variant="secondary" onClick={() => void loadBilling()}>{t("Retry")}</AppButton></div>
                     ) : null}
-                    {billingOverview?.razorpayTestMode ? (
-                        <p role="status" className={cn(formWarningBannerClass, "mx-5 mt-4 px-4 py-3 text-sm")}>{t("Test mode: no live payments are collected.")}</p>
+                    {billingOverview ? (
+                        <BillingPriceSummary experience={billingOverview.experience} current={billingOverview.current} />
                     ) : null}
+
+                    {billingOverview?.razorpayTestMode ? (
+                        <p role="status" className={cn(formWarningBannerClass, "mx-5 mt-4 px-4 py-3 text-sm")}>{t("Payments are for testing. No real money is collected.")}</p>
+                    ) : null}
+
                     {billingOverview?.experience && (
                         <div className="mx-5 mt-4 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 py-3 text-sm">
                             <p className="font-semibold text-[color:var(--text-primary)]">{t.owned(formatBillingCustomerState(billingOverview.experience.customerState))}</p>
@@ -687,26 +693,23 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                         </div>
                     )}
 
-                    {billingOverview ? (
-                        <BillingPriceSummary experience={billingOverview.experience} current={billingOverview.current} />
-                    ) : null}
 
                     {pendingReplacement ? (
                         <section
                             className="mx-5 mt-4 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-4 py-3 text-sm"
-                            aria-label={t("Pending subscription replacement")}
+                            aria-label={t("Scheduled subscription change")}
                         >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
-                                    <p className="font-semibold text-[color:var(--text-primary)]">{t("{shortName} replacement mandate", { shortName: pendingReplacement.shortName })}</p>
+                                    <p className="font-semibold text-[color:var(--text-primary)]">{t("Change to {shortName}", { shortName: pendingReplacement.shortName })}</p>
                                     <p className="mt-1 text-[color:var(--text-secondary)]">
                                         {getProviderPaymentMethodLabel(pendingReplacement.providerPaymentMethod)}
                                         {pendingReplacementEffectiveAt
-                                            ? ` · planned for ${format(new Date(pendingReplacementEffectiveAt), "PP")}`
-                                            : t(" · cutover date will appear after Razorpay confirms the mandate")}
+                                            ? t(" · starts {date}", {date:format(new Date(pendingReplacementEffectiveAt), "PP")})
+                                            : t(" · start date appears after Razorpay confirms the payment authorization")}
                                     </p>
                                     <p className="mt-1 text-xs text-[color:var(--text-secondary)]">
-                                        {t("Current billing, invoices, and paid-through dates remain on the existing subscription until cutover.")}</p>
+                                        {t("Until the change starts, charges and invoices follow your current subscription. Your paid-through date stays the same.")}</p>
                                     {complimentaryReplacementAccess ? (
                                         <p className="mt-2 font-medium text-[color:var(--ui-badge-success-text)]">
                                             {t("Complimentary upgrade access is active while billing remains on the current subscription.")}</p>
