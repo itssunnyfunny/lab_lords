@@ -1,5 +1,105 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## UI refinement PR preparation — local, 2026-11-12
+
+The accepted presentation changes and final 320px Reports/Account corrections
+are organized into focused local commits. The subsequent overall verification,
+test corrections and artifact references are recorded in the
+[PR verification record](../redesign/ui-refinement-pr-readiness-2026-11-12.md).
+API/service, schema, dependency and saved environment contracts remain unchanged.
+Local PR preparation is separate from publishing and production release.
+
+## Final four-area UI refinement — local, 2026-11-12
+
+Guided Import opens on unresolved records and places assignment choices ahead of
+existing inventory, retaining source order and editor state. Analytics uses
+compact metrics, responsive trend height, adjacent branch context and compact
+phone selectors. Financial display dates share named-month and timezone-aware
+helpers; reports retain their raw export contract. Overdue, reminders, Billing
+and Settings use plain English, Hindi and Hinglish wording. Calculations, service
+commands, tenant/permission boundaries, providers, schema and saved environment
+configuration are unchanged. Focused local evidence and owner-review status are
+recorded in `docs/redesign/page-family-migration.md`; this is a presentation pass,
+not a new feature or release.
+
+## Record and workflow design completion — local, 2026-11-12
+
+The continued presentation pass repairs Basic header/record composition, simplifies
+seat scan tiles, connects guided import editing with records on desktop and
+compacts guided/legacy review navigation. Fee state, amount labels, receipt/report
+formatting and subscription hierarchy are consistent across their existing
+surfaces. Billing and Settings retain all sections through responsive navigation;
+Analytics, AI priorities and remaining operational/setup records are refined.
+Shared owners and feature contracts remain in place. No API/service behavior,
+schema, migrations, dependency versions or saved environment configuration change.
+
+Local verification is complete: 279 browser cases, 791 safe unit tests, 66 import/calendar checks, the four-width capture matrix, lint, TypeScript and isolated build. Intentional skips and warnings are recorded in the
+[full audit report](../audits/design-completion-2026-11-12.md) and
+[completion record](../redesign/design-completion-2026-11-12.md). Local synthetic
+checks and isolated compilation do not establish live provider/authentication
+behavior, owner acceptance or release.
+
+## Comprehensive presentation refinement — local, 2026-11-10
+
+The application now uses sans-serif controls and numerical values, compact
+branch context, grouped Standard/Pro navigation, and permission-filtered daily
+mobile destinations. The original sidebar appearance and Account footer remain.
+Students exposes Import and labeled tools; fee queues and operational summaries
+are compact; Seats uses a dense map and adjacent desktop details with the shared
+mobile drawer. The dashboard leads with four neutral metrics and an attention
+list. Subscription context, setup, import, staff invitations, reports and settings
+reuse the existing shared presentation owners with less repeated introductory UI.
+
+No API/service, schema, migration, dependency or saved environment contract is
+changed. Validation and limitations are recorded in the
+[refinement record](../redesign/ui-refinement-2026-11-10.md). Owner rendering
+acceptance and deployment remain separate. Earlier frozen-dashboard claims below
+are historical and do not constrain this newly authorized composition.
+
+## Sidebar presentation restoration - local, 2026-11-10
+
+The shared `SidebarFrame` and `SidebarItem` now use the earlier Standard/Pro
+sidebar presentation across Basic, Standard, Pro, organization, workspace entry
+and Account. The restored 230px width, original branding, compact plain rows and
+filled green active item replace the rejected outlined-row design. Navigation
+has one scrolling region; Account/sign-out remains in a fixed footer alongside
+the desktop collapse control. The optional decorative leaf quote is omitted.
+Identity-scoped collapse preferences, current Account/Billing links, permissions,
+plan gates and draft protection retain their existing owners. No service, schema,
+migration, dependency or environment change is required. See the
+[restoration evidence](../audits/sidebar-restoration-2026-11-10.md); completed local
+verification does not confer final owner visual acceptance or release.
+
+## Remote-sync visual audit - local, 2026-11-07
+
+The current local branch was fast-forwarded from ca9938b to fetched main 50f2fa9,
+then the visual corrections were restored alongside the unified Account design.
+Account now uses the shared unsaved-change confirmation and a single-row header
+minimum instead of reserving branch-header space. The dashboard intermediate-width
+grid also keeps its title and actions beside the artwork instead of falling into
+a narrow column; the 1440px desktop rendering remains stable. Shared mobile
+workspace headers stack Organization/Branch fields to prevent crowded labels. Preferences retains the sole
+personal language controls; Account/Billing context and service contracts remain
+unchanged. The [fresh audit](../audits/visual-consistency-remote-sync-2026-11-07.md)
+records verification separately from owner visual acceptance and release.
+No schema, migration, dependency or saved environment change is required.
+
+## Visual consistency follow-up — local, 2026-11-07
+
+Exact Basic alias/detail loading boundaries now share the selected application
+canvas. Access-state actions, admission emphasis, import touch controls and seat
+localization use the existing presentation owners. Mobile dashboard controls meet
+the 44px target rule inside a scrollable matrix; desktop geometry is retained.
+Basic in-app confirmations use the shared dialog. A root layout-phase history
+dispatcher protects cancelled Back/Forward navigation before the router consumes
+it, and shared inert locks tolerate simultaneous nested-dialog cleanup. Native
+browser close/reload protection and recovery command identities remain intact.
+Denied-access wording now reflects the existing record clearing, and row menus
+focus only after their positioning render, including reduced-motion rendering.
+See the [audit and verification report](../audits/visual-consistency-2026-11-07.md).
+This is local implementation, not owner visual acceptance or release. No service,
+schema, migration, dependency or saved environment change is required.
+
 ## Unified Account area - local, 2026-11-06
 
 This supersedes older notes placing Account in headers and Billing under organization settings. Basic, Standard and Pro share `SidebarFrame`: Account is the fixed footer, with separate identity-scoped collapse preferences for Account and workspaces. `/account/profile` embeds provider profile/security controls and unmounts them while authentication loads or the user signs out, avoiding a provider mount race before redirect. `/account/preferences` retains existing personal defaults. Screen/document/message language and saved appearance values retain their separate scopes. Signed-in setup and workspace entry share navigation. Dialog headers no longer duplicate personal language controls; receipt/report document-language actions remain contextual.

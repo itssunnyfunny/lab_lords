@@ -1,31 +1,73 @@
 # Selected application presentation
 
-The frozen selected-dashboard base is `3d58864`; Students established the first
-reusable record-family pattern. The owner approved its refined card comparison
-on 2026-09-27 for Staff and Tasks. Families A–H now reuse these presentation
-owners across the remaining authenticated routes. Their local implementation is
-not family-specific owner approval or production release; see the
-[migration ledger](../redesign/page-family-migration.md). Keep the selected
-dashboard, Students baseline and public presentation stable.
+The owner's 10 November 2026 comprehensive refinement brief supersedes the frozen
+`3d58864` dashboard composition and serif control rule. Keep the earlier
+Standard/Pro sidebar palette, wordmark and filled active state, while using
+compact expandable route groups and daily mobile navigation. Page titles may
+use the display face; controls, records, support text and tabular numbers use
+the shared sans-serif body face, including the existing Devanagari language
+boundary. Feature, data, permission and provider contracts remain unchanged.
+See the [refinement record](../redesign/ui-refinement-2026-11-10.md) and
+[migration ledger](../redesign/page-family-migration.md). Implementation and local
+test evidence are separate from final owner visual acceptance and release.
+
+## Completion pass — local, 12 November 2026
+
+The owner’s continuation brief finishes record interiors and deeper workflows on
+this foundation. Basic’s complete organization/branch context determines header
+height; narrow records give identity its own line before dues. Seat tiles expose
+one availability state, selection and a consistent assignment action, with the
+existing adjacent details/drawer unchanged. Guided import owns a connected desktop
+record/editor workspace and compact mobile step selection; legacy import retains
+its steps with compact counts. Source facts, drafts, review and recovery remain
+feature-owned. Financial records group fee states, name the primary amount, use
+formatted rupees and keep details available. Settings/Billing use shared section
+controls with all destinations visible through a mobile selector.
+
+See [completion work and evidence](../redesign/design-completion-2026-11-12.md).
+Local verification, final owner visual acceptance and release remain separate.
+
+The final four-area refinement starts Guided Import in its unresolved queue once,
+keeps deliberate editor-return choices, and puts assignment decisions before a
+collapsed inventory. Compact Analytics metrics sit above a responsive chart with
+the branch summary alongside; phones use the existing AppSelect for period and
+metric. `lib/feeReceiptDates.ts` owns named-month financial display dates and
+minute-level timestamps with timezone context; date-only strings keep their day.
+Report CSV data stays raw. Overdue, reminder, Billing and Settings labels use the
+existing English/Hindi/Hinglish catalogues. Keep these styles scoped to their
+feature owners rather than changing other completed screens.
 
 | Selected rule | Shared owner | Consumers / boundary |
 | --- | --- | --- |
 | Existing light application palette and body-portal inheritance | scoped block in `styles/tokens.css`; `application-pilot.css` for theme behavior | Existing approved routes and collection overlays; legacy root/public unchanged |
 | White compact panel, 10px radius, subtle border/shadow | `AppPanel` compact density / `shared-ui.css` | Dashboard panels and Students record surface; comfortable default unchanged |
-| Serif compact actions, forest primary gradient | `AppButton`, exported `appActionClassName` for real links | Dashboard navigation actions, Students header; Button remains an alias |
-| Five distinct priority accents | existing `--ui-tone-*` contract, emphasis/subtle/icon/outline roles | Dashboard priority figures; existing body-status pairs retained |
+| Sans-serif compact actions, forest primary treatment | `AppButton`, exported `appActionClassName` for real links | Dashboard navigation actions, Students header; Button remains an alias |
+| Purposeful status accents and neutral summaries | existing `--ui-tone-*` contract | Attention list prioritizes actionable work; utilization advisory remains separate |
 | Body, heading, script and numerical font roles | existing token file; compatibility dashboard aliases | Shared variants; Devanagari handling stays at the existing language boundary |
-| Dashboard chart, matrix, card counts, artwork and panel geometry | `Reference*.tsx` / `reference-dashboard.css` | Feature-specific; never turn these into generic list or chart generators |
+| Dashboard four-metric summary, attention list, charts and secondary queues | `Reference*.tsx` / `reference-dashboard.css` | Feature-specific; never turn these into generic list or chart generators |
 | Record header, notices, toolbar, results and pagination | existing UI layer, record pattern | Students supplies real data/actions; no API or business logic in the pattern |
 | Field validation, menus, nested overlays and focus recovery | existing FormField, RowActionsMenu, Dialog/Drawer | Keep body portals and request/component identity; no parallel overlay owner |
 | Compact Students identity / allocation / financial card | feature-owned `students/StudentRecordCard.tsx`, `.ui-record-card*` in `shared-ui.css` | Students and gallery import the same card; fee arithmetic, permissions and commands stay in the feature |
 | Quiet initials and focused modal headers | `Avatar tone="quiet"`, `Dialog` | Personal language controls live in Account Preferences; contextual document controls remain in receipts/reports. Description placement stays compatible |
 | Staff roster and access/invitation overlays | `staff/page.tsx` composing RecordList, compact DataTable, AppPanel and Dialog | Feature-owned role, override, invitation and removal workflows; mobile context is role, important state is access, secondary detail is added date |
-| Tasks list, source work and activity | `TasksContent.tsx`, `TaskRecordCard.tsx` and `ActivityContent.tsx` composing the same RecordList, compact DataTable, AppPanel and Dialog | Feature-owned assignment, due date, state and evidence links; mobile context is assignee, important values are due date/state, secondary detail is update time |
+| Tasks list, related work and activity | `TasksContent.tsx`, `TaskRecordCard.tsx` and `ActivityContent.tsx` composing the same RecordList, compact DataTable, AppPanel and Dialog | Feature-owned assignment, due date, state and evidence links; mobile context is assignee, important values are due date/state, secondary detail is update time |
 | Botanical mark on organization entry and consistent branch menu branding | existing `AppLogo markVariant="botanical"` / `LogoMark`; branch reference wordmark | Mobile carries the selected scope into the existing Dialog navigation variant; Account has its own shared collapsible sidebar. Public/legacy logo defaults stay unchanged |
+| Shared sidebar presentation | `SidebarFrame`, `SidebarItem`, `account-navigation.css`, sidebar tokens in `tokens.css` | The earlier Standard/Pro design is the reference for Basic, Standard, Pro, organization, entry and Account: 230px desktop width, original two-tone wordmark, plain compact rows and filled green active item. Fixed Account/sign-out footer and independent collapse preferences remain; omit the decorative leaf footer when it competes with Account |
 | Account navigation and embedded profile/security | `SidebarFrame`, `AccountSidebar`, `ProfileSecurity`, `account-navigation.css`, token-backed `entrySurface.ts` appearances | Account is the fixed workspace footer across plans; scope-marked base-layer overrides prevent dark provider classes leaking into Account and its portals |
 | Cold loading and root error | `RouteLoading`, `app/error.tsx` and `isSelectedApplicationSurfacePath` | Exact current authenticated routes; full-height light cold canvas, nested loading below the persistent shell; public/auth remain excluded |
 | Cookie preferences | `AnalyticsProvider` composing AppPanel, shared action styling and the existing explicit overlay theme | Current compact panel and 44px choices, including outside authenticated routes; consent storage, analytics gating, policy destination and the surrounding public theme unchanged |
+
+## Sidebar reference correction 10 November 2026
+
+The owner identified the pre-remote Standard/Pro sidebar as the intended shared
+reference. The outlined rows and white active item introduced with the shared
+frame were the wrong visual baseline. Reuse the restored shared owners rather
+than copying the old generic item treatment to additional surfaces. The source
+is the saved 6 November dashboard capture and the sidebar rules retained in
+`ca9938b`; the refreshed implementation keeps current Account destinations,
+permission filtering, mobile drawers and collapse behavior. The optional leaf
+quote is omitted to keep Account visible. Local evidence and final owner review
+remain separate in the [restoration report](../audits/sidebar-restoration-2026-11-10.md).
 
 ## Rollout source map
 
@@ -51,7 +93,7 @@ This rollout changes authenticated presentation only. Public Home, Features,
 Pricing and FAQ claims need no copy change because the advertised workflows and
 feature behavior do not change.
 
-The frozen fixture packet is `docs/redesign/shared-system-evidence/before`.
+Historical extraction evidence (not the acceptance target for the 10 November refinement): the frozen fixture packet is `docs/redesign/shared-system-evidence/before`.
 It uses actual production components, loaded fonts, scale 1 and the fixed
 September 22 fixture. The native dashboard is 1491 × 1055 after removing the
 21px synthetic ribbon. This fixture is isolated from Clerk, databases and providers.
@@ -283,6 +325,49 @@ and never uses the success treatment for an unproven admission. New text uses th
 existing English/Hindi/Hinglish catalogue. Receipt dates share feeReceiptDates with
 the PDF; account formatting remains the owner of non-receipt dates.
 
+## Visual consistency corrections — 7 November 2026
+
+Fees, setup and individual student routes are explicit selected cold boundaries.
+Basic draft/recovery prompts compose ConfirmDialog with the existing application
+overlay theme and Basic card styling; native beforeunload remains browser-owned.
+Dialog inertness is reference-counted so nested confirmations and parent forms
+can close together without disabling the page. The existing root preferences
+boundary installs history protection before router listeners; Basic owns when
+that guard is active and which exact action can resume. Denied access has a
+generic No access state, distinct from a recoverable refresh error. Shared row
+menus retain keyboard entry and Escape restoration under reduced motion.
+
+At mobile widths, dashboard controls have 44px targets and the existing named
+seating tabpanel scrolls horizontally for the full-size matrix. Desktop geometry
+is retained. Import source choices also have 44px targets; Basic seat-assignment
+native controls use 16px mobile text. Seat summaries/cards use complete localized
+messages without translating stored names or changing totals. See the
+[fix report](../audits/visual-consistency-2026-11-07.md) for local evidence and
+separate review/release status.
+
 ## Account navigation ownership - 2026-11-06
 
 `SidebarFrame` owns width, collapse, branding, scroll area and bottom Account action for Basic, organization and branch shells. Account uses the same frame with Sign out in its footer. `SidebarContext` preserves accessible labels and tooltips when collapsed. The existing Drawer owns mobile focus and dismissal. `AccountSidebar` groups Profile & security, Preferences and owner-only Billing. Personal forms use SettingsWorkspace without a second sidebar; Billing uses horizontal section buttons. Keep organization/branch configuration at its original scope. See [Account review](../redesign/unified-account-review.md); local verification, owner visual review and release remain separate.
+
+## Account visual audit after remote sync - 7 November 2026
+
+PersonalSettings uses the shared themed ConfirmDialog for in-app unsaved-change
+navigation. Cancel keeps the draft and location; Continue resumes the captured
+link or history action once. Requests are scoped to the current owner and path,
+and pending saves still block navigation. Browser close/reload remains native.
+Account's single-row header has a 64px minimum and grows when text wraps; branch
+headers retain their geometry. Personal language
+controls remain centralized in Preferences as selected by the merged Account
+design. See the [fresh audit](../audits/visual-consistency-remote-sync-2026-11-07.md).
+
+At intermediate widths (641-1350px), the dashboard header explicitly places the
+artwork in the first column and the title/actions in the wider second column.
+Actions occupy a separate wrapping row so translated text cannot collide. This
+corrects accidental automatic grid placement without changing the 1440px frozen
+desktop presentation. The fresh audit includes 15 width/language combinations.
+
+Below 640px, the shared header stacks Organization and Branch controls so their
+labels cannot overlap. The static organization name wraps at its existing font
+size while the native branch select retains its 44px touch target. This is scoped
+to reference-topbar workspace controls; Account and Basic keep their own headers.
+The fresh audit covers four page families in three languages at 320px and 390px.

@@ -78,3 +78,19 @@ all nine surfaces. Geometry checks remove only the harness's 21px synthetic
 banner so 100dvh shells have the real application's viewport; application content
 and navigation remain untouched. The separate before/after captures retain the
 banner. Use a fresh `VISUAL_AUDIT_RUN_ROOT` to preserve older evidence.
+
+## PR verification
+
+The [12 November PR verification record](../../docs/redesign/ui-refinement-pr-readiness-2026-11-12.md)
+keeps the full unit/integration and coverage results separate from this synthetic
+browser harness. Root Vitest excludes this directory because its specs use
+Playwright. Run the visual config, the page-family config and the onboarding
+config separately; use fresh evidence directories for retries. The report case
+checks full-width date controls at 320px and retained CSV filter values, while
+the Account case checks translated header geometry and return targets at all
+four viewports.
+
+Database-backed `pnpm test` and `pnpm test:coverage` require an independently
+verified disposable local target and the existing `tests/setup/testDatabaseSafety.ts`
+guards. A test-like database name alone is not sufficient proof. The safe unit
+allowlists above are useful focused checks, not substitutes for the full suite.

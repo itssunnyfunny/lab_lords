@@ -1,5 +1,44 @@
 # Application page-family migration
 
+## Comprehensive refinement — 10 November 2026
+
+The owner's attached brief authorizes the application-wide presentation changes
+and supersedes the previous frozen dashboard/artwork and serif-action constraints.
+All existing page families retain their shared owners and feature-owned behavior.
+The [refinement worklist](ui-refinement-2026-11-10.md) tracks implementation and
+fresh verification. The 33-page baseline contains 66 captures at 1440/390px.
+Final local verification passed: 791 safe unit tests, 235 executed browser cases,
+132 route captures, TypeScript, lint (two existing generated warnings) and the
+guarded production build. The [full report](../audits/ui-refinement-2026-11-10.md)
+records exact evidence and limitations. Final owner acceptance is pending review;
+no release or deployment is performed.
+The prior restoration and remote-sync evidence below remains historical.
+
+Sidebar reference correction, 10 November 2026: the owner rejected the shared
+outlined-row sidebar used in the remote-sync audit and selected the earlier
+Standard/Pro sidebar for every application navigation surface. The shared frame
+now restores that presentation across all plans, organization, entry and Account;
+the optional leaf footer is omitted to protect the fixed Account action. Local
+implementation and checks are recorded in the [restoration report](../audits/sidebar-restoration-2026-11-10.md).
+The owner's choice of reference is explicit; final review of the restored
+rendering and Production release remain separate.
+
+Remote-sync follow-up, 7 November 2026: the current branch incorporates main
+50f2fa9 and preserves the unified Account/sidebar design alongside the earlier
+visual corrections. Four additional issues were corrected: native Account in-app
+leave prompts, excessive Account mobile header space and misplaced dashboard
+header content at intermediate widths, and overlapping mobile workspace labels. The
+[fresh audit](../audits/visual-consistency-remote-sync-2026-11-07.md) records the
+full local rerun. Owner visual acceptance and release remain separate.
+
+Visual consistency follow-up, 7 November 2026: the requested corrections cover
+exact route boundaries, access states, primary actions, import touch targets,
+seat localization and Basic confirmations. The dashboard changes are mobile-only;
+the desktop baseline is retained. Shared dialog cleanup and cancelled history
+navigation, denied-state wording and row-menu keyboard focus were corrected after
+live browser checks. [Fixes and validation](../audits/visual-consistency-2026-11-07.md)
+record local evidence separately from pending owner visual acceptance and release.
+
 Import recovery clarification, 6 November 2026: existing family G controls now
 explain payment conflicts, separate saving from progression, collapse completed
 seating work and retain recovery location on refresh. The same 40-row local
@@ -355,3 +394,133 @@ Families E/H and Basic share a fixed bottom Account entry, collapsible frame and
 The 7 November Account follow-up retains selected billing organization/branch through operations and workspace returns, with ordinary and historical-owner regression cases. Browser verification also corrected Preferences bottom clearance while the save bar is visible, on desktop and mobile. Details and remaining release boundaries are in the [Account review](unified-account-review.md).
 
 Additional entry-origin checks on 7 November preserve Organization Settings returns from branch billing and valid legacy branch return hints without `branchId`; explicit selector changes still reset old context. The shared owned-directory resolver and three browser cases are recorded in the same Account review.
+
+### Continued record and workflow completion — local, 2026-11-12
+
+Owner scope: finish the 10 November design across Basic records, seat tiles,
+guided and legacy import interiors, financial records, Billing, Analytics and
+secondary operations/setup. Shared sidebar/daily navigation and feature rules
+remain. Implementation and local evidence are tracked in the
+[completion record](design-completion-2026-11-12.md) and
+[full audit report](../audits/design-completion-2026-11-12.md). Local checks pass: 279 browser cases, 791 safe unit tests, 66 import/calendar checks, 176 capture comparisons, lint, TypeScript and isolated build. All families remain pending
+final owner visual acceptance; no commit, merge or deployment is implied.
+
+### Final four-area refinement — local, 2026-11-12
+
+Owner scope: finish the four remaining presentation gaps, preserving the completed
+navigation and feature workflows. This is a focused UI pass, with no new audit,
+CI, test suite, deployment preparation or unrelated refactoring.
+
+- **Import:** `GuidedImportWorkspace.tsx` and `GuidedSetupReview.tsx` start once in
+  unresolved records, retain deliberate editor-return filters/selections, keep
+  source order accessible, compact ready records into tablet columns and bring
+  matching decisions ahead of collapsed inventory. Status icons and text identify
+  attention versus readiness. The first unresolved action appears at about
+  y=496px at both 390px and 320px, inside the initial viewport.
+- **Analytics:** `app/branch/[branchId]/analytics/page.tsx` and
+  `components/snapshot/{KpiRow,MainChart,SideStats}.tsx` compose compact metrics,
+  a responsive trend and adjacent branch summary. Phone period/metric selectors
+  reuse AppSelect. Calculations, aggregation, source values and fetching remain.
+- **Dates:** `lib/feeReceiptDates.ts`, `lib/feeReceiptPdf.ts`,
+  `components/dashboard-features/ReportsContent.tsx`, the branch Payments page,
+  `components/payments/{CollectFeeDialog,CollectionHistory,FeeReceipt,PaymentAuditLog}.tsx`
+  and `components/basic/{BasicFees,BasicWorkspace}.tsx` share named-month financial
+  display dates. Calendar strings keep their calendar day; timestamps keep their
+  intended timezone and omit displayed seconds. Stored precision, CSV content,
+  payment amounts and unrelated Basic date preferences are unchanged.
+- **Wording:** the branch Overdue and Settings pages,
+  `components/billing/{BillingPaymentMethodsOverview,OrganizationBillingContent}.tsx`,
+  `components/whatsapp/ApprovedPaymentReminderReview.tsx` and
+  `lib/i18n/operations.ts` use plain English, Hindi and Hinglish. Displayed-row
+  scope, consent/budget limits, queued-versus-sent meaning, current subscription
+  ownership, available payment methods and test-payment notices remain explicit.
+
+Shared style edits are limited to the Import/Analytics owners and financial date
+cells in `styles/shared-ui.css`. The design-system, current-state and public-claims
+notes are updated; Home, Features, Pricing and FAQ need no feature-claim changes.
+No schema, migration, dependency, saved environment or service/API changes are
+required. Permissions, tenancy, seat-conflict decisions, correction/payment/final
+review/recovery commands and provider behavior are intentionally unchanged.
+
+Local verification (commands from the repository root):
+
+- `pnpm exec tsx test-results/final-ui-2026-11-12/check-ui.ts` — passed at
+  1440, 834, 390 and 320px, including English/Hindi/Hinglish Import, Analytics
+  and Overdue. Initial unresolved action, All students/source order, editor
+  return, collapsed inventory, dates and horizontal overflow checked.
+- `pnpm exec tsx test-results/final-ui-2026-11-12/check-financial.ts` — passed at
+  all four widths: financial Analytics selections, branch summary, Basic/full
+  receipts across a browser timezone boundary, reminder preview/queue and
+  provider-managed method eligibility. Values and requests are synthetic.
+- `pnpm exec tsx test-results/final-ui-2026-11-12/check-language.ts` — passed:
+  Hindi/Hinglish Billing, receipts and reminder review at 390 and 320px.
+- `pnpm exec playwright test --config tests/visual-consistency/completion.config.ts completion-import.spec.ts completion-receipts.spec.ts completion-financial.spec.ts`
+  — 27 passed; one mobile Billing assertion read menu options before rendering.
+  The existing assertion now waits for the first option. Recheck:
+  `pnpm exec playwright test --config tests/visual-consistency/completion.config.ts completion-financial.spec.ts --project=mobile-390 --grep 'billing purpose'`
+  — 1 passed. All 28 distinct existing cases pass across these runs. Existing
+  receipt-date and Import action-label expectations were updated, without adding
+  a test suite or changing feature contracts.
+- `pnpm exec vitest run --config tests/visual-consistency/completion-units.config.ts tests/unit/lib/feeReceiptDates.test.ts tests/unit/lib/localization.test.ts`
+  — 2 files / 11 checks passed. The existing calendar test covers four browser
+  timezones, named-month output, minute precision and date-only day preservation;
+  localization checks retain all named parameters and immutable receipt facts.
+- `pnpm exec tsc --noEmit --incremental false` — passed. The final build also
+  completed TypeScript validation after the final responsive-selector changes.
+- `pnpm lint` — passed, zero errors; two existing unused-disable warnings in
+  generated `app/.well-known/workflow/v1/flow/route.js` and
+  `coverage/block-navigation.js` remain.
+- `pnpm exec node tests/visual-consistency/build-local.mjs` — passed `pnpm build`
+  and the two-import-workflow manifest check. The wrapper verified a newly created
+  disposable local database, disabled provider operations and removed that
+  container afterward. It did not use a shared database or alter saved settings.
+- `git diff --check` — passed.
+
+Local visual evidence is in `test-results/final-ui-2026-11-12/views`. These checks
+use real components with isolated local fixtures; they do not verify live auth,
+provider payments or message delivery. Owner visual acceptance remains pending;
+no commit, branch change, push, release or deployment was performed.
+
+Gallery refresh requested after completion: the existing review now leads with
+48 matched final-refinement comparisons and 92 verification views, while keeping
+535 earlier views under a separate filter. Before captures were rendered from the
+saved pre-refinement source using the same fixtures and fixed browser clock.
+All 140 latest views passed at desktop/mobile viewer widths, along with image
+hashes, report/filters, historical links and offline opening. The full report and
+ZIP were refreshed together. Evidence: `test-results/final-ui-2026-11-12/` and
+`test-results/design-completion-2026-11-12/review/evidence/final-refinement/`.
+
+### Final responsive closeout — local, 2026-11-12
+
+The owner accepted the overall direction and requested only two remaining fixes.
+`ReportsContent.tsx` uses one filter column below 380px, retaining two columns at
+390px and the existing wider grid. `AppShell.tsx` reserves the Account identity
+width and lets its return action shrink/wrap separately. Date values, report
+content/CSV, return destinations and access are unchanged; no schema, environment,
+service or test-suite changes are required. No public-copy change is needed.
+
+Existing-preview checks passed at 320, 390, 834 and 1440px, including all three
+Account languages and the shared Account home/preferences/profile header. The
+320px date inputs remain 16px text in 262px controls; the Hinglish return action
+retains a distinct 44px target with an 8px gap from the Account title. Screenshots:
+`test-results/responsive-closeout-2026-11-12/reports-filters-320.png` and
+`test-results/responsive-closeout-2026-11-12/account-header-hinglish-320.png`.
+`pnpm exec eslint components/dashboard-features/ReportsContent.tsx components/layout/AppShell.tsx`
+passed; `pnpm exec node tests/visual-consistency/build-local.mjs` passed the isolated
+build, TypeScript and Workflow manifest check; `git diff --check` passed. This
+closes local UI refinement; it does not change release status.
+
+The subsequent gallery refresh opens on 13 responsive-closeout views: 3 matched
+before/after comparisons and 10 width/language checks. All 675 earlier views stay
+available as historical evidence. The gallery's 39 viewport checks, all 844
+referenced image hashes, offline use and actual ZIP download passed.
+
+### Overall verification and focused commits — local, 2026-11-12
+
+After UI closeout, the owner requested overall tests and smaller commits before
+PR publication. The [PR verification record](ui-refinement-pr-readiness-2026-11-12.md)
+records that separate pass. It includes the two maintained responsive regression
+checks, separation of Playwright specs from root Vitest discovery, and corrections
+to assertions for the accepted receipt and checkout/reminder wording. Domain
+writers and provider contracts are unchanged. The accepted design direction,
+local verification, PR publication and release remain distinct decisions.
