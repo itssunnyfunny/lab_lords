@@ -1,10 +1,12 @@
 "use client";
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
+import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { Badge } from "@/components/ui/Badge";
 import { AppButton, AppPanel, Drawer, PageLoadingSkeleton, PageShell } from "@/components/ui";
+import type { DrawerProps } from "@/components/ui/Drawer";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
     formControlClass,
@@ -14,14 +16,10 @@ import {
     formWarningBannerClass,
 } from "@/components/ui/formSurface";
 import {
-    pageDescriptionClass,
     pageEmptyStateClass,
-    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
-    pageFilterShellClass,
     pageInsetHoverClass,
-    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageMutedTextClass,
     pageSectionDividerClass,
@@ -665,13 +663,11 @@ function SeatsContent({
     }
 
     return (
-        <PageShell>
+        <PageShell className="ui-seat-page">
             <header className="ui-record-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>{t("Seat map")}</p>
                     <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Seats")}</h1>
-                    <p className={pageDescriptionClass}>
-                        {t("Review availability by shift and move straight into allocation work.")}</p>
+
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
@@ -689,7 +685,7 @@ function SeatsContent({
                     {showSeatManageActions && (
                         <AppButton
                             density="compact"
-                            variant="primary"
+                            variant="secondary"
                             icon={UserPlus}
                             onClick={() => setIsAddModalOpen(true)}
                             disabled={!canManageBranch}
@@ -754,24 +750,9 @@ function SeatsContent({
                     }}
                 />
 
-                <div className={cn("border-t pt-4", pageSectionDividerClass)}>
-                    {multiShiftAvailabilityPending ? (
-                        <div role="status" className={cn("flex min-h-20 items-center justify-center gap-2 text-sm", pageMutedTextClass)}>
-                            <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                            {t("Checking every component and overlapping shift…")}</div>
-                    ) : (
-                        <SeatSummaryBar
-                            stats={stats}
-                            activeShiftName={activeScopeName}
-                            multiShiftSelected={shiftScope.kind === "multi"}
-                            branchTotalSeats={totalSeatCount}
-                            multiShiftSeatMap={activeMultiShiftSeatMap}
-                        />
-                    )}
-                </div>
 
                 {!multiShiftAvailabilityPending && (
-                <div className={cn("flex flex-col gap-3 border-t pt-4 xl:flex-row xl:items-center xl:justify-between", pageSectionDividerClass)}>
+                <div className={cn("flex flex-wrap items-center justify-between gap-2", pageSectionDividerClass)}>
                     <div className="flex flex-wrap items-center gap-2">
                         {statusFilters.map(filter => (
                             <StatusFilterChip
@@ -783,16 +764,6 @@ function SeatsContent({
                         ))}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <div className={cn("inline-flex min-h-11 max-w-full items-center gap-2 px-2.5 text-xs lg:min-h-8", pageFilterShellClass, pageSubtleTextClass)}>
-                            <Clock size={13} className="shrink-0" />
-                            <span className="truncate">
-                                {activeShift
-                                    ? formatTimeRange(activeShift.startTime, activeShift.endTime)
-                                    : activeMultiShift
-                                        ? activeMultiShift.components.map(component => component.shiftName).join(" + ")
-                                        : t("All active allocations")}
-                            </span>
-                        </div>
                         <ViewToggle value={viewMode} onChange={setViewMode} className="hidden lg:inline-flex" />
                         <AppButton
                             type="button"
@@ -809,6 +780,7 @@ function SeatsContent({
                 )}
             </AppPanel>
 
+            <div className="ui-seat-workspace">
             <div className={cn("relative transition-opacity", seatViewRefreshing && "opacity-60")}>
                 {multiShiftAvailabilityPending ? (
                     <div role="status" className={cn("flex min-h-56 flex-col items-center justify-center gap-3", pageEmptyStateClass)}>
@@ -865,6 +837,28 @@ function SeatsContent({
                 )}
             </div>
 
+            <SeatDetailsDrawer
+                seat={selectedSeat}
+                activeShiftName={activeScopeName}
+                selectedShiftId={selectedScopeId}
+                canAllocateSeats={canAllocateSeats && allocationReady}
+                showAllocationActions={showAllocationActions}
+                allocationDisabledReason={allocationDecision.reason ?? undefined}
+                onClose={() => setSelectedSeatId(null)}
+                onAllocate={openAllocation}
+                onRelease={setReleaseTarget}
+            />
+            </div>
+
+            {!multiShiftAvailabilityPending && <details className="ui-context-help"><summary>{t.owned("Capacity details")}</summary>
+                        <SeatSummaryBar
+                            stats={stats}
+                            activeShiftName={activeScopeName}
+                            multiShiftSelected={shiftScope.kind === "multi"}
+                            branchTotalSeats={totalSeatCount}
+                            multiShiftSeatMap={activeMultiShiftSeatMap}
+                        />
+            </details>}
             <div className="flex flex-col items-center gap-2" aria-busy={loadingMore}>
                 <p id="seat-page-progress" className={cn("text-sm", pageMutedTextClass)} aria-live="polite">{t("Showing {count} of {totalSeatCount} seats", { count: allSeats.length, totalSeatCount: totalSeatCount })}</p>
                 {nextCursor && (
@@ -885,17 +879,7 @@ function SeatsContent({
                 )}
             </div>
 
-            <SeatDetailsDrawer
-                seat={selectedSeat}
-                activeShiftName={activeScopeName}
-                selectedShiftId={selectedScopeId}
-                canAllocateSeats={canAllocateSeats && allocationReady}
-                showAllocationActions={showAllocationActions}
-                allocationDisabledReason={allocationDecision.reason ?? undefined}
-                onClose={() => setSelectedSeatId(null)}
-                onAllocate={openAllocation}
-                onRelease={setReleaseTarget}
-            />
+
 
             {canManageBranch && (
                 <AddSeatDialog
@@ -964,152 +948,34 @@ function ShiftFilterPanel({
     onSelect: (scope: ShiftScope) => void;
 }) {
     const t = useTranslation();
-    const allPercent = totalSlots === 0 ? 0 : Math.round((totalAllocatedSlots / totalSlots) * 100);
+    const { formatNumber } = useUserPreferences();
     const selectedSummary = selectedScope.kind === "primary"
         ? summaries.find((shift) => shift.id === selectedScope.id)
         : undefined;
     const selectedLabel = selectedScope.kind === "multi"
         ? multiShiftSeatMap
-            ? `${multiShiftSeatMap.assignedCount} assigned / ${multiShiftSeatMap.blockedCount} blocked / ${multiShiftSeatMap.availableCount} available across the branch`
-            : "Checking component and overlap conflicts…"
+            ? t("{assigned} assigned / {blocked} blocked / {available} available across the branch", { assigned: formatNumber(multiShiftSeatMap.assignedCount), blocked: formatNumber(multiShiftSeatMap.blockedCount), available: formatNumber(multiShiftSeatMap.availableCount) })
+            : t("Checking component and overlap conflicts…")
         : selectedSummary
-            ? `${selectedSummary.allocated}/${selectedSummary.capacity} loaded seats allocated`
-            : `${totalAllocatedSlots}/${totalSlots} loaded shift slots used`;
+            ? t("{used}/{total} seats in use in this view", { used: formatNumber(selectedSummary.allocated), total: formatNumber(selectedSummary.capacity) })
+            : t("In this view: {used} assignments · {total} seat-shift places", { used: formatNumber(totalAllocatedSlots), total: formatNumber(totalSlots) });
 
-    return (
-        <div className="space-y-3">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Shift scope")}</h2>
-                    <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
-                        {selectedScope.kind === "multi"
-                            ? t("Multi-shift totals cover every branch seat; the list below remains paginated.")
-                            : t("Primary-shift status is calculated across the records loaded so far.")}
-                    </p>
-                </div>
-                <p className={cn("text-xs font-medium", pageMutedTextClass)}>{selectedLabel}</p>
-            </div>
-            <div className={cn("p-1.5", pageFilterShellClass)}>
-                <div className="flex gap-1.5 overflow-x-auto">
-                <ShiftFilterChip
-                    active={selectedScope.kind === "all"}
-                    label={t("All shifts")}
-                    sublabel={`${totalSeats}/${branchTotalSeats} loaded`}
-                    count={`${allPercent}% used`}
-                    percent={allPercent}
-                    tone="info"
-                    onClick={() => onSelect({ kind: "all" })}
-                />
-                {summaries.map((shift) => (
-                    <ShiftFilterChip
-                        key={shift.id}
-                        active={selectedScope.kind === "primary" && selectedScope.id === shift.id}
-                        label={shift.name}
-                        sublabel={shift.timeLabel}
-                        count={`${shift.available} free`}
-                        percent={shift.percent}
-                        tone={shift.tone}
-                        onClick={() => onSelect({ kind: "primary", id: shift.id })}
-                    />
-                ))}
-                {multiShifts.map(multiShift => {
-                    const selected = selectedScope.kind === "multi" && selectedScope.id === multiShift.id;
-                    const occupied = selected && multiShiftSeatMap
-                        ? multiShiftSeatMap.assignedCount + multiShiftSeatMap.blockedCount
-                        : 0;
-                    const percent = selected && multiShiftSeatMap && multiShiftSeatMap.totalSeats > 0
-                        ? Math.round((occupied / multiShiftSeatMap.totalSeats) * 100)
-                        : 0;
-                    return (
-                        <ShiftFilterChip
-                            key={multiShift.id}
-                            active={selected}
-                            label={multiShift.name}
-                            sublabel={multiShift.components.map(component => component.shiftName).join(" + ")}
-                            count={selected && multiShiftSeatMap
-                                ? `${multiShiftSeatMap.availableCount} free`
-                                : `${multiShift.components.length} shifts`}
-                            percent={percent}
-                            tone={selected && multiShiftSeatMap ? getShiftTone(percent) : "info"}
-                            onClick={() => onSelect({ kind: "multi", id: multiShift.id })}
-                        />
-                    );
-                })}
-                </div>
-            </div>
-            {selectedScope.kind === "multi" && (
-                <p className={cn("text-xs", pageSubtleTextClass)}>
-                    {t("Assigned seats belong to this exact shift combination. Blocked seats are occupied in a component or overlapping shift; available seats are free across every component.")}</p>
-            )}
+    return <div className="ui-seat-shift-picker">
+        <label className="text-sm font-medium">{t("Shift scope")}
+            <select className={`${formControlClass} mt-1 min-h-11 px-3`} value={selectedScope.kind === "all" ? "all" : `${selectedScope.kind}:${selectedScope.id}`} onChange={event => {
+                const [kind, id] = event.target.value.split(":");
+                onSelect(kind === "all" ? { kind: "all" } : kind === "multi" ? { kind: "multi", id } : { kind: "primary", id });
+            }}>
+                <option value="all">{t("All shifts")}</option>
+                {summaries.map(shift => <option key={shift.id} value={`primary:${shift.id}`}>{shift.name} · {shift.timeLabel} · {t("{count} free", { count: formatNumber(shift.available) })}</option>)}
+                {multiShifts.map(shift => <option key={shift.id} value={`multi:${shift.id}`}>{shift.name} · {shift.components.map(component => component.shiftName).join(" + ")}</option>)}
+            </select>
+        </label>
+        <div className="text-xs text-[color:var(--text-secondary)]"><p>{selectedLabel}</p>
+            {totalSeats < branchTotalSeats && <p role="status" className="mt-1 text-[color:var(--ui-tone-warning-text)]">{t("Showing {count} of {totalSeatCount} seats", { count: totalSeats, totalSeatCount: branchTotalSeats })}. {t("Counts cover only the seats currently shown.")}</p>}
+            {selectedScope.kind === "multi" && <details className="ui-context-help"><summary>{t.owned("Combined-shift availability")}</summary><p>{t("Assigned seats belong to this exact shift combination. Blocked seats are occupied in a component or overlapping shift; available seats are free across every component.")}</p></details>}
         </div>
-    );
-}
-
-function ShiftFilterChip({
-    active,
-    label,
-    sublabel,
-    count,
-    percent,
-    tone,
-    onClick,
-}: {
-    active: boolean;
-    label: string;
-    sublabel: string;
-    count: string;
-    percent: number;
-    tone: "success" | "warning" | "danger" | "info";
-    onClick: () => void;
-}) {
-    const toneClasses = {
-        info: {
-            active: "border-[color:var(--ui-tone-info-border)] bg-[color:var(--ui-tone-info-bg)] text-[color:var(--ui-tone-info-text)]",
-            dot: "bg-[color:var(--ui-tone-info-progress)]",
-            text: "text-[color:var(--ui-tone-info-text)]",
-        },
-        success: {
-            active: "border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] text-[color:var(--ui-tone-success-text)]",
-            dot: "bg-[color:var(--ui-tone-success-progress)]",
-            text: "text-[color:var(--ui-tone-success-text)]",
-        },
-        warning: {
-            active: "border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] text-[color:var(--ui-tone-warning-text)]",
-            dot: "bg-[color:var(--ui-tone-warning-progress)]",
-            text: "text-[color:var(--ui-tone-warning-text)]",
-        },
-        danger: {
-            active: "border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] text-[color:var(--ui-tone-danger-text)]",
-            dot: "bg-[color:var(--ui-tone-danger-progress)]",
-            text: "text-[color:var(--ui-tone-danger-text)]",
-        },
-    }[tone];
-
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-pressed={active}
-            className={cn(
-                "group min-w-[156px] cursor-pointer rounded-[var(--ui-radius-control)] border px-3 py-2 text-left transition-colors",
-                active
-                    ? cn(toneClasses.active, "shadow-sm shadow-black/20")
-                    : "border-transparent bg-transparent text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
-            )}
-        >
-            <div className="flex items-center gap-2">
-                <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", toneClasses.dot)} />
-                <div className="min-w-0 flex-1">
-                    <p className={cn("truncate text-sm font-semibold", active ? "text-[color:var(--text-primary)]" : pageMutedTextClass)}>{label}</p>
-                    <p className={cn("mt-0.5 truncate text-[11px]", pageSubtleTextClass)}>{sublabel}</p>
-                </div>
-            </div>
-            <p className={cn("mt-2 text-[11px] font-medium", active ? toneClasses.text : pageSubtleTextClass)}>
-                {count}
-                <span className="ml-1 text-[color:var(--text-muted)]">/ {percent}%</span>
-            </p>
-        </button>
-    );
+    </div>;
 }
 
 function SeatSummaryBar({
@@ -1134,47 +1000,48 @@ function SeatSummaryBar({
     multiShiftSeatMap: MultiShiftSeatMap | null;
 }) {
     const t = useTranslation();
+    const { formatNumber } = useUserPreferences();
     const displayedTotal = multiShiftSeatMap?.totalSeats ?? stats.total;
     const displayedAssigned = multiShiftSeatMap?.assignedCount ?? stats.allocated;
     const displayedBlocked = multiShiftSeatMap?.blockedCount ?? stats.blocked;
     const displayedAvailable = multiShiftSeatMap?.availableCount ?? stats.available;
     const unavailable = displayedAssigned + displayedBlocked;
     const displayedUtilization = displayedTotal === 0 ? 0 : Math.round((unavailable / displayedTotal) * 100);
-    const utilizationLabel = multiShiftSelected ? "Seat use" : activeShiftName ? "Shift use" : "Slot use";
+    const utilizationLabel = t(multiShiftSelected ? "Seat use" : activeShiftName ? "Shift use" : "Slot use");
     const utilizationDetail = multiShiftSelected
-        ? `${unavailable}/${displayedTotal} unavailable branch seats`
+        ? t("{used}/{total} unavailable branch seats", { used: formatNumber(unavailable), total: formatNumber(displayedTotal) })
         : activeShiftName
-        ? `${stats.allocations}/${stats.total} loaded seats`
-        : `${stats.allocations}/${stats.totalSlots} loaded slots`;
+        ? t("{used}/{total} seats shown", { used: formatNumber(stats.allocations), total: formatNumber(stats.total) })
+        : t("{used}/{total} seat-shift places shown", { used: formatNumber(stats.allocations), total: formatNumber(stats.totalSlots) });
 
     return (
-        <div className={cn("grid gap-3 sm:grid-cols-2", multiShiftSelected ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
+        <div className="ui-seat-summary">
             <SummaryMetric
-                label={multiShiftSelected ? t("Branch seats") : t("Loaded seats")}
-                value={displayedTotal}
-                detail={multiShiftSelected ? `${stats.total} loaded below` : `${branchTotalSeats} total`}
+                label={multiShiftSelected ? t("Branch seats") : t("Seats shown")}
+                value={formatNumber(displayedTotal)}
+                detail={multiShiftSelected ? t("{count} shown below", { count: formatNumber(stats.total) }) : t("{count} total", { count: formatNumber(branchTotalSeats) })}
                 tone="neutral"
             />
             <SummaryMetric
                 label={multiShiftSelected ? t("Assigned") : t("Allocated")}
-                value={multiShiftSelected ? displayedAssigned : stats.allocated}
+                value={formatNumber(multiShiftSelected ? displayedAssigned : stats.allocated)}
                 detail={multiShiftSelected
-                    ? "Exact bundle assignments across branch"
-                    : `${stats.allocations} loaded active slot${stats.allocations === 1 ? "" : "s"}`}
+                    ? t("Assigned to this exact combination")
+                    : t("{count} current assignments shown", { count: formatNumber(stats.allocations) })}
                 tone="success"
             />
             {multiShiftSelected && (
-                <SummaryMetric label={t("Blocked")} value={displayedBlocked} detail="Branch component or overlap conflicts" tone="danger" />
+                <SummaryMetric label={t("Blocked")} value={formatNumber(displayedBlocked)} detail={t("In use during these timings")} tone="danger" />
             )}
             <SummaryMetric
                 label={t("Available")}
-                value={multiShiftSelected ? displayedAvailable : stats.available}
-                detail={multiShiftSelected ? "Available across the branch" : activeShiftName ? `Loaded in ${activeShiftName}` : "Loaded unallocated seats"}
+                value={formatNumber(multiShiftSelected ? displayedAvailable : stats.available)}
+                detail={multiShiftSelected ? t("Available across the branch") : activeShiftName ? t("Shown for {shift}", { shift: activeShiftName }) : t("Seats shown without an assignment")}
                 tone="warning"
             />
             <SummaryMetric
                 label={utilizationLabel}
-                value={`${multiShiftSelected ? displayedUtilization : stats.utilization}%`}
+                value={`${formatNumber(multiShiftSelected ? displayedUtilization : stats.utilization)}%`}
                 detail={utilizationDetail}
                 tone={getShiftTone(multiShiftSelected ? displayedUtilization : stats.utilization)}
             />
@@ -1202,11 +1069,11 @@ function SummaryMetric({
     }[tone];
 
     return (
-        <div className={pageInsetMetricClass}>
+        <div title={detail}>
             <p className={cn("text-[11px] font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
-            <div className="mt-1 flex items-baseline justify-between gap-3">
-                <p className={cn("text-xl font-semibold tracking-tight", valueClass)}>{value}</p>
-                <p className={cn("truncate text-xs", pageSubtleTextClass)}>{detail}</p>
+            <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <p className={cn("text-lg font-semibold tabular-nums", valueClass)}>{value}</p>
+                <span className="sr-only">{detail}</span>
             </div>
         </div>
     );
@@ -1271,26 +1138,23 @@ function SeatGrid({
 }) {
     const t = useTranslation();
     return (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <div className="ui-seat-grid">
             {seats.map(seat => {
                 const allocated = seat.status === "Allocated" || seat.status === "Assigned";
                 const blocked = seat.status === "Blocked";
                 const allocationEligible = !selectedShiftId || seat.status === "Available";
                 const studentNames = getUniqueStudentNames(seat.allocations);
-                const shiftText = allocated
-                    ? seat.allocations.map(getAllocationShiftLabel).join(", ")
-                    : blocked ? `Blocked${seat.blockedBy ? ` by ${seat.blockedBy}` : ""}`
-                    : selectedShiftId ? "Open in selected shift" : "No active allocation";
+                const shiftText = allocated && !selectedShiftId ? seat.allocations.map(getAllocationShiftLabel).join(", ") : "";
 
                 return (
                     <article
                         key={seat.id}
                         id={`seat-record-${seat.id}`}
                         tabIndex={-1}
-                        aria-label={`Seat ${seat.label}`}
+                        aria-label={t("Seat {label}", { label: seat.label })}
                         aria-current={focusedSeatId === seat.id ? "true" : undefined}
                         className={cn(
-                            "ui-panel--compact flex min-h-[150px] flex-col border-l-[3px] p-4 transition-colors hover:border-[color:var(--ui-card-hover-border)]",
+                            "ui-panel--compact ui-seat-tile flex flex-col border-l-[3px] transition-colors hover:border-[color:var(--ui-card-hover-border)]",
                             selectedSeatId === seat.id || focusedSeatId === seat.id ? "bg-[color:var(--ui-tone-info-bg)] outline outline-2 outline-[color:var(--ui-focus-ring)]" : undefined,
                             allocated
                                 ? "border-l-[color:var(--ui-tone-success-border)]"
@@ -1299,42 +1163,20 @@ function SeatGrid({
                                     : "border-dashed border-l-[color:var(--ui-tone-warning-border)]"
                         )}
                     >
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <p className="break-words text-base font-semibold text-[color:var(--text-primary)]">{seat.label}</p>
-                                <p className={cn("mt-1 break-words text-xs", pageSubtleTextClass)}>{shiftText}</p>
-                            </div>
-                            <SeatStatusBadge status={seat.status} />
-                        </div>
+                        <button type="button" className="ui-seat-select" aria-label={t("View seat {label}", { label: seat.label })}
+                            aria-pressed={selectedSeatId === seat.id} onClick={() => onInspect(seat.id)}>
+                            <span className="ui-seat-tile-heading"><strong>{seat.label}</strong><SeatStatusBadge status={seat.status} /></span>
+                            {allocated && <span className="ui-seat-occupant">{studentNames.join(", ") || t("Student")}</span>}
+                            {blocked && seat.blockedBy && <span className="ui-seat-conflict">{t("Blocked by {name}", { name: seat.blockedBy })}</span>}
+                            {shiftText && <span className="ui-seat-timing">{shiftText}</span>}
+                        </button>
+                        {showAllocationActions && allocationEligible && <div className="ui-seat-tile-actions">
+                            <AppButton type="button" variant="secondary" density="compact" icon={UserPlus} onClick={() => onAllocate(seat)}
+                                disabled={!canAllocateSeats} title={canAllocateSeats ? undefined : allocationDisabledReason}>
+                                {allocated ? t("Add shift") : t("Assign")}
+                            </AppButton>
+                        </div>}
 
-                        <div className="mt-3 min-h-[42px] flex-1">
-                            <p className={cn("break-words text-sm font-medium", allocated ? "text-[color:var(--text-primary)]" : blocked ? "text-[color:var(--ui-tone-danger-text)]" : "text-[color:var(--ui-tone-warning-text)]")}>
-                                {allocated ? studentNames.join(", ") || "Student" : blocked ? seat.blockedBy ?? "Conflict" : t("Available")}
-                            </p>
-                            <p className={cn("mt-1 text-xs", pageSubtleTextClass)}>
-                                {allocated
-                                    ? `${seat.allocations.length} allocation${seat.allocations.length === 1 ? "" : "s"}`
-                                    : blocked ? t("Unavailable across this combination") : t("Ready to assign")}
-                            </p>
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                            <AppButton type="button" variant="quiet" size="sm" onClick={() => onInspect(seat.id)}>
-                                {t("Details")}</AppButton>
-                            {showAllocationActions && allocationEligible && (
-                                <AppButton
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    icon={UserPlus}
-                                    onClick={() => onAllocate(seat)}
-                                    disabled={!canAllocateSeats}
-                                    title={canAllocateSeats ? undefined : allocationDisabledReason}
-                                >
-                                    {allocated ? t("Add shift") : t("Assign")}
-                                </AppButton>
-                            )}
-                        </div>
                     </article>
                 );
             })}
@@ -1364,9 +1206,9 @@ function SeatList({
     const t = useTranslation();
     return (
         <AppPanel density="compact" padding="none">
-            <div className="overflow-x-auto" role="region" aria-label={t("Loaded seat inventory")} tabIndex={0}>
+            <div className="overflow-x-auto" role="region" aria-label={t("Seats currently shown")} tabIndex={0}>
                 <table className="ui-table--compact w-full min-w-[760px] text-left text-sm">
-                    <caption className="sr-only">{t("Loaded seat inventory and active allocations")}</caption>
+                    <caption className="sr-only">{t("Seats shown and current assignments")}</caption>
                     <thead className={pageTableHeadClass}>
                         <tr>
                             <th scope="col" className="px-5 py-4 text-xs font-medium uppercase tracking-wider text-textSecondary">{t("Seat")}</th>
@@ -1405,7 +1247,7 @@ function SeatList({
                                         <SeatStatusBadge status={seat.status} />
                                     </td>
                                     <td className="px-5 py-4 text-textSecondary">
-                                        {studentNames.length > 0 ? studentNames.join(", ") : seat.blockedBy ?? "No student"}
+                                        {studentNames.length > 0 ? studentNames.join(", ") : seat.blockedBy ?? t("No student")}
                                     </td>
                                     <td className="px-5 py-4 text-textSecondary">
                                         {allocated ? seat.allocations.map(getAllocationShiftLabel).join(", ") : seat.status === "Blocked" ? t("Component or overlap conflict") : t("Open")}
@@ -1439,9 +1281,10 @@ function SeatList({
 }
 
 function SeatStatusBadge({ status }: { status: SeatStatus }) {
+    const t = useTranslation();
     return (
         <Badge variant={status === "Allocated" || status === "Assigned" ? "success" : status === "Blocked" ? "danger" : "warning"}>
-            {status}
+            {t(status)}
         </Badge>
     );
 }
@@ -1511,6 +1354,8 @@ function SeatDetailsDrawer({
     onRelease: (target: ReleaseTarget) => void;
 }) {
     const t = useTranslation();
+    const compact = useMediaQuery("(max-width: 1023px)");
+    const DetailFrame = compact ? Drawer : SeatDetailsPanel;
     if (!seat) return null;
 
     const allocated = seat.status === "Allocated" || seat.status === "Assigned";
@@ -1519,14 +1364,14 @@ function SeatDetailsDrawer({
     const allocationEligible = !selectedShiftId || seat.status === "Available";
 
     return (
-        <Drawer
+        <DetailFrame
             open
             onClose={onClose}
-            title={`Seat ${seat.label}`}
+            title={t("Seat {label}", { label: seat.label })}
             description={allocated
-                ? studentNames.join(", ") || "Assigned"
+                ? studentNames.join(", ") || t("Assigned")
                 : blocked
-                    ? `Unavailable because ${seat.blockedBy ?? "another allocation"} occupies a component or overlapping shift`
+                    ? t("Unavailable because {name} occupies a component or overlapping shift", { name: seat.blockedBy ?? t("Another allocation") })
                     : t("Available for assignment")}
             closeLabel={t("Close seat details")}
             className="max-w-lg"
@@ -1569,7 +1414,7 @@ function SeatDetailsDrawer({
                     </div>
                     <div className={cn("p-3", formSurfaceClass)}>
                         <p className="text-xs uppercase tracking-wide text-textMuted">{t("Scope")}</p>
-                        <p className="mt-2 truncate text-sm font-medium text-[color:var(--text-primary)]">{activeShiftName ?? "All shifts"}</p>
+                        <p className="mt-2 truncate text-sm font-medium text-[color:var(--text-primary)]">{activeShiftName ?? t("All shifts")}</p>
                     </div>
                 </div>
 
@@ -1599,8 +1444,8 @@ function SeatDetailsDrawer({
                                                     <User size={15} />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="break-words font-medium text-[color:var(--text-primary)]">{allocation.student?.name ?? "Student"}</p>
-                                                    <p className="truncate text-xs text-textMuted">{allocation.student?.phone ?? "No phone"}</p>
+                                                    <p className="break-words font-medium text-[color:var(--text-primary)]">{allocation.student?.name ?? t("Student")}</p>
+                                                    <p className="truncate text-xs text-textMuted">{allocation.student?.phone ?? t("No phone")}</p>
                                                 </div>
                                             </div>
                                             <div className="mt-3 space-y-1.5 text-xs text-textSecondary">
@@ -1625,7 +1470,7 @@ function SeatDetailsDrawer({
                                                 onClick={() => onRelease({
                                                     id: allocation.id,
                                                     seatLabel: seat.label,
-                                                    studentName: allocation.student?.name ?? "Student",
+                                                    studentName: allocation.student?.name ?? t("Student"),
                                                     shiftName: getAllocationShiftLabel(allocation),
                                                     multiShiftId: allocation.multiShiftId ?? undefined,
                                                     multiShiftName: allocation.multiShift?.name ?? undefined,
@@ -1642,6 +1487,14 @@ function SeatDetailsDrawer({
                     )}
                 </div>
             </div>
-        </Drawer>
+        </DetailFrame>
     );
+}
+
+function SeatDetailsPanel({ title, description, onClose, closeLabel, children, footer }: DrawerProps) {
+    return <aside className="ui-seat-detail ui-panel--compact" aria-label={typeof title === "string" ? title : undefined}>
+        <header className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">{title}</h2>{description && <p className="mt-1 text-sm text-[color:var(--text-secondary)]">{description}</p>}</div><AppButton variant="quiet" size="icon" onClick={onClose} aria-label={closeLabel}><X size={18} /></AppButton></header>
+        <div className="mt-4">{children}</div>
+        {footer && <footer className="mt-4 border-t border-[color:var(--ui-panel-border)] pt-4">{footer}</footer>}
+    </aside>;
 }

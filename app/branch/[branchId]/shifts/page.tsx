@@ -26,7 +26,6 @@ import {
     pageErrorIconClass,
     pageErrorStateClass,
     pageInsetHoverClass,
-    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageMetaPillClass,
     pageMutedTextClass,
@@ -1481,19 +1480,19 @@ function ShiftsContent({
                         )}
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className={pageInsetMetricClass}>
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <div className="min-w-0">
                             <div className={cn("text-xs", pageSubtleTextClass)}>{t("Time Window")}</div>
-                            <div className={cn("mt-1", pageMutedTextClass)}>
+                            <div className={cn("mt-1 whitespace-nowrap tabular-nums", pageMutedTextClass)}>
                                 {shift.startTime && shift.endTime ? (
-                                    <span className="font-mono text-xs">{shift.startTime} - {shift.endTime}</span>
+                                    <span className="text-sm tabular-nums">{shift.startTime} - {shift.endTime}</span>
                                 ) : (
                                     <span className={cn("text-xs italic", pageSubtleTextClass)}>{t("No time limit")}</span>
                                 )}
                             </div>
                         </div>
-                        <div className={pageInsetMetricClass}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Price")}</div>
+                        <div className="min-w-0">
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Monthly student fee")}</div>
                             <div className="mt-1 font-semibold text-[color:var(--text-primary)]">{formatPrice(shift.price)}</div>
                         </div>
                     </div>
@@ -1528,20 +1527,20 @@ function ShiftsContent({
                         )}
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                        <div className={pageInsetMetricClass}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Slots")}</div>
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <div className="min-w-0">
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Included timings")}</div>
                             <div className={cn("mt-1 text-xs", pageMutedTextClass)}>{t("{count} combined", { count: ms.components.length })}</div>
                         </div>
-                        <div className={pageInsetMetricClass}>
-                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Price")}</div>
+                        <div className="min-w-0">
+                            <div className={cn("text-xs", pageSubtleTextClass)}>{t("Monthly student fee")}</div>
                             <div className="mt-1 font-semibold text-[color:var(--text-primary)]">{formatPrice(ms.price)}</div>
                         </div>
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-1.5">
                         {ms.components.map(c => (
-                            <span key={c.shiftId} className="rounded border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] px-1.5 py-0.5 text-[10px] text-[color:var(--text-secondary)]">
+                            <span key={c.shiftId} className="rounded border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-surface-bg)] px-2 py-1 text-xs text-[color:var(--text-secondary)]">
                                 {c.shiftName}
                             </span>
                         ))}
@@ -1623,7 +1622,7 @@ function ShiftsContent({
                                 <th scope="col" className="px-6 py-4 font-semibold">{t("Shift Name")}</th>
                                 <th scope="col" className="px-6 py-4 font-semibold">{t("Type")}</th>
                                 <th scope="col" className="px-6 py-4 font-semibold">{t("Time Window")}</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">{t("Price")}</th>
+                                <th scope="col" className="px-6 py-4 font-semibold">{t("Monthly student fee")}</th>
                                 <th scope="col" className="px-6 py-4 text-right font-semibold">{t("Actions")}</th>
                             </tr>
                         </thead>
@@ -1657,7 +1656,7 @@ function ShiftsContent({
                                             <span className="text-xs italic text-[color:var(--ui-table-subtle)]">{t("No time limit")}</span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">{formatPrice(shift.price)}</td>
+                                    <td className="px-6 py-4 text-right font-medium tabular-nums text-[color:var(--ui-table-text)]">{formatPrice(shift.price)}</td>
                                     <td className="px-6 py-4 text-right">
                                         {showManageActions ? (
                                             <RowActions actions={primaryShiftActions(shift)} />
@@ -1702,7 +1701,7 @@ function ShiftsContent({
                                     <td className="px-6 py-4">
                                         <span className="text-xs text-[color:var(--ui-table-subtle)]">{t("{count} slots combined", { count: ms.components.length })}</span>
                                     </td>
-                                    <td className="px-6 py-4 font-medium text-[color:var(--ui-table-text)]">{formatPrice(ms.price)}</td>
+                                    <td className="px-6 py-4 text-right font-medium tabular-nums text-[color:var(--ui-table-text)]">{formatPrice(ms.price)}</td>
                                     <td className="px-6 py-4 text-right">
                                         {showManageActions ? (
                                             <RowActions actions={multiShiftActions(ms)} />

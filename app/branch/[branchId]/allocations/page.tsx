@@ -14,9 +14,7 @@ import { useDataViewMode } from "@/hooks/useDataViewMode";
 import { AppButton, AppPanel, AppSelect, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import {
     pageCountBadgeClass,
-    pageDescriptionClass,
     pageEmptyStateClass,
-    pageEyebrowClass,
     pageErrorIconClass,
     pageErrorStateClass,
     pageMutedTextClass,
@@ -400,10 +398,8 @@ function AllocationsContent({
         <PageShell>
             <header className="ui-record-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
-                    <p className={pageEyebrowClass}>{t("Seat workflow")}</p>
                     <h1 className={cn(pageTitleClass, "mt-2 truncate")}>{t("Allocations")}</h1>
-                    <p className={pageDescriptionClass}>
-                        {t("Keep current seat assignments visible, then move quickly into changes, releases, or allocation history.")}</p>
+
                 </div>
 
                 {showManageActions ? (
@@ -429,10 +425,10 @@ function AllocationsContent({
                 </div>
             ) : null}
 
-            <section className="grid gap-3 sm:grid-cols-3">
+            <section className="ui-inline-summary">
                 <AllocationMetric icon={Users} label={t("Active")} value={allocationCounts.active} detail="Current seat assignments" tone="success" />
                 <AllocationMetric icon={CalendarCheck} label={t("Ended")} value={allocationCounts.ended} detail="Historical allocations" tone="neutral" />
-                <AllocationMetric icon={ArrowRightLeft} label={t("Loaded multi-shift")} value={allocationCounts.multiShift} detail="Loaded linked assignments" tone="info" />
+                <AllocationMetric icon={ArrowRightLeft} label={t("Combined assignments shown")} value={allocationCounts.multiShift} detail="Counts the assignments in this view" tone="info" />
             </section>
 
             {linkedRecordError && (
@@ -607,15 +603,15 @@ function AllocationMetric({
             : "text-[color:var(--text-primary)]";
 
     return (
-        <AppPanel density="compact" contentClassName="flex items-start gap-3">
+        <div className="flex items-start gap-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ui-radius-control)] bg-[color:var(--ui-form-muted-surface-bg)]">
                 <Icon size={17} className={toneClass} />
             </div>
             <div className="min-w-0">
                 <p className={cn("text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
-                <p className={cn("mt-1 text-2xl font-semibold tracking-tight", toneClass)}>{value}</p>
+                <p className={cn("mt-1 text-lg font-semibold tabular-nums", toneClass)}>{value}</p>
                 <p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p>
             </div>
-        </AppPanel>
+        </div>
     );
 }

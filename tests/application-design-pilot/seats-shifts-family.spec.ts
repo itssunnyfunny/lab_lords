@@ -13,6 +13,11 @@ test("seat map, allocations, and shifts use the selected compact family", async 
         await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
         await expect(page.locator("header.ui-record-header")).toBeVisible();
         await expect(page.locator(".ui-panel--compact:visible").first()).toBeVisible();
+        if (route === "allocations") {
+            await expect(page.getByRole("main").getByText("Aarav Mehta", { exact: true }).filter({ visible: true })).toHaveCount(1);
+            await expect(page.getByRole("main").getByText("Nisha Verma", { exact: true }).filter({ visible: true })).toHaveCount(1);
+            await expect(page.getByRole("button", { name: "Ended 0", exact: true })).toBeVisible();
+        }
         expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
         if (info.project.name === "mobile-390") {
             fs.mkdirSync(evidence, { recursive: true });
