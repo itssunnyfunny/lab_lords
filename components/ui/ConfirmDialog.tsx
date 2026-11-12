@@ -16,6 +16,8 @@ interface ConfirmDialogProps {
     confirmText?: string;
     cancelText?: string;
     loading?: boolean;
+    overlayClassName?: string;
+    className?: string;
     variant?: "danger" | "warning" | "info" | "default";
 }
 
@@ -63,6 +65,8 @@ export function ConfirmDialog({
     cancelText = "Cancel",
     loading = false,
     variant = "default",
+    overlayClassName,
+    className,
 }: ConfirmDialogProps) {
     const t = useTranslation();
     const tone = dialogVariants[variant];
@@ -77,7 +81,8 @@ export function ConfirmDialog({
             description={typeof description === "string" ? t.owned(description) : description}
             closeLabel={t("Close")}
             closeDisabled={loading}
-            className="max-w-sm"
+            className={cn("max-w-sm", className)}
+            overlayClassName={overlayClassName}
             icon={(
                 <div className={cn("rounded-full p-2", tone.iconBgClassName)}>
                     <DialogIcon className={cn("h-6 w-6", tone.iconClassName)} aria-hidden="true" />

@@ -21,6 +21,7 @@ interface RowActionsMenuProps {
     buttonClassName?: string;
     buttonIcon?: ElementType;
     buttonLabel?: string;
+    showButtonLabel?: boolean;
     menuClassName?: string;
     menuWidthClassName?: string;
 }
@@ -31,6 +32,7 @@ export function RowActionsMenu({
     buttonClassName,
     buttonIcon: ButtonIcon = MoreVertical,
     buttonLabel = "Actions",
+    showButtonLabel = false,
     menuClassName,
     menuWidthClassName = "w-44",
 }: RowActionsMenuProps) {
@@ -41,13 +43,14 @@ export function RowActionsMenu({
         position: "fixed",
         left: 0,
         top: 0,
-        visibility: "hidden",
+        opacity: 0,
     });
 
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
     const menuId = useId();
+    const initialFocus = useRef<"first" | "last">("first");
 
     const enabledIndexes = useMemo(
         () => actions
@@ -93,7 +96,7 @@ export function RowActionsMenu({
             position: "fixed",
             left,
             top,
-            visibility: "visible",
+            opacity: 1,
         });
     }, [align]);
 
@@ -103,14 +106,22 @@ export function RowActionsMenu({
         updatePosition();
         const frame = window.requestAnimationFrame(() => {
             updatePosition();
-            if (!menuRef.current?.contains(document.activeElement)) {
-                const firstEnabled = enabledIndexes[0];
-                if (firstEnabled !== undefined) focusItem(firstEnabled);
-            }
         });
 
         return () => window.cancelAnimationFrame(frame);
-    }, [enabledIndexes, focusItem, open, updatePosition]);
+    }, [enabledIndexes, open, updatePosition]);
+
+    // Keep the initial positioned portal transparent rather than hidden: the
+    // entry animation can retain hidden visibility during reduced-motion frames.
+    // Move keyboard focus after the positioning render has committed.
+    useLayoutEffect(() => {
+        if (!open || menuStyle.opacity !== 1 || menuRef.current?.contains(document.activeElement)) return;
+        const frame = window.requestAnimationFrame(() => {
+            const index = initialFocus.current === "last" ? enabledIndexes.at(-1) : enabledIndexes[0];
+            if (index !== undefined) focusItem(index);
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [enabledIndexes, focusItem, menuStyle.opacity, open]);
 
     useEffect(() => {
         if (!open) return;
@@ -226,21 +237,17 @@ export function RowActionsMenu({
             <button
                 ref={triggerRef}
                 type="button"
-                onClick={() => setOpen(value => !value)}
+                onClick={() => { initialFocus.current = "first"; setOpen(value => !value); }}
                 onKeyDown={event => {
                     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
                     event.preventDefault();
+                    initialFocus.current = event.key === "ArrowUp" ? "last" : "first";
                     setOpen(true);
-                    queueMicrotask(() => {
-                        const index = event.key === "ArrowUp"
-                            ? enabledIndexes[enabledIndexes.length - 1]
-                            : enabledIndexes[0];
-                        if (index !== undefined) focusItem(index);
-                    });
                 }}
                 className={cn(
                     "flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--ui-radius-control)] text-[color:var(--ui-menu-trigger-text)] transition-all hover:bg-[color:var(--ui-menu-trigger-hover-bg)] hover:text-[color:var(--ui-menu-trigger-hover-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
                     open && "bg-[color:var(--ui-menu-trigger-active-bg)] text-[color:var(--ui-menu-trigger-active-text)]",
+                    showButtonLabel && "!h-11 !w-auto gap-2 px-3 text-sm",
                     buttonClassName
                 )}
                 title={localizedButtonLabel}
@@ -249,7 +256,8 @@ export function RowActionsMenu({
                 aria-haspopup="menu"
                 aria-controls={open ? menuId : undefined}
             >
-                <ButtonIcon size={16} />
+                {showButtonLabel && <span>{localizedButtonLabel}</span>}
+                <ButtonIcon size={16} aria-hidden="true" />
             </button>
             {menu}
         </div>

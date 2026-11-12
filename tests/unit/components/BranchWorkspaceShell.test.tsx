@@ -38,7 +38,9 @@ describe("branch workspace identity readiness", () => {
         const markup = renderToStaticMarkup(<BranchWorkspaceShell branchId="example"><button>Add task</button></BranchWorkspaceShell>);
         expect(markup).not.toContain("Add task");
         expect(markup).toContain("Loading workspace");
-        expect(markup).not.toContain('aria-busy="true"');
+        expect(markup).toContain('aria-busy="true"');
+        expect(markup).toContain('data-app-design-pilot="workspace"');
+        expect(markup).not.toContain("Retry");
         expect(reads.billing).toHaveBeenCalledOnce();
         expect(reads.activation).not.toHaveBeenCalled();
     });

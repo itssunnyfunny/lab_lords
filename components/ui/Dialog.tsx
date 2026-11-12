@@ -22,6 +22,23 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(",");
 
+// Multiple dialogs can release in either order (for example confirming a
+// discard closes both the confirmation and its parent form in one render).
+const inertLocks = new WeakMap<HTMLElement, { count: number; wasInert: boolean }>();
+function lockInert(element: HTMLElement) {
+  const lock = inertLocks.get(element) ?? { count: 0, wasInert: element.inert };
+  lock.count += 1;
+  inertLocks.set(element, lock);
+  element.inert = true;
+  return () => {
+    lock.count -= 1;
+    if (lock.count === 0) {
+      element.inert = lock.wasInert;
+      inertLocks.delete(element);
+    }
+  };
+}
+
 let bodyScrollLockCount = 0;
 let bodyOverflowBeforeLock = "";
 
@@ -114,13 +131,9 @@ export function Dialog({
       : null;
 
     const restoreBodyScroll = lockBodyScroll();
-    const inertedSiblings = Array.from(document.body.children)
+    const releaseInert = Array.from(document.body.children)
       .filter((element): element is HTMLElement => element instanceof HTMLElement && element !== overlay)
-      .map((element) => ({ element, wasInert: element.inert }));
-
-    for (const { element } of inertedSiblings) {
-      element.inert = true;
-    }
+      .map(lockInert);
 
     queueMicrotask(() => {
       if (cancelled) return;
@@ -139,9 +152,7 @@ export function Dialog({
     return () => {
       cancelled = true;
       restoreBodyScroll();
-      for (const { element, wasInert } of inertedSiblings) {
-        element.inert = wasInert;
-      }
+      for (const release of releaseInert) release();
 
       const previouslyFocused = previouslyFocusedRef.current;
       queueMicrotask(() => {

@@ -11,6 +11,8 @@ import { BranchSidebar } from "@/components/layout/BranchSidebar";
 import { BasicWorkspace } from "@/components/basic/BasicWorkspace";
 import { useWorkspaceAccess } from "@/components/layout/BranchAccessProvider";
 import { Dialog } from "@/components/ui/Dialog";
+import { AppButton, appActionClassName } from "@/components/ui/AppButton";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import Link from "next/link";
 import { BranchAccessProvider } from "@/components/layout/BranchAccessProvider";
 import { BillingExperienceProvider } from "@/components/billing/BillingExperienceProvider";
@@ -54,22 +56,27 @@ export function BranchWorkspaceShell({ branchId, children }: { branchId: string;
 function WorkspaceContent({children,designPilot}:{children:ReactNode;designPilot:boolean}) {
     const workspace=useWorkspaceAccess(), t=useTranslation(), pathname=usePathname();
     const [fullDraftPath,setFullDraftPath]=useState<string|null>(null);
+    const [confirmTransition,setConfirmTransition]=useState(false);
     const returningToBasic=workspace?.presentation==="simple"&&fullDraftPath===pathname;
     const [interaction,setInteraction]=useState({dirty:false,pending:false});
     const leavingBasic=workspace?.presentation==="full"&&(interaction.dirty||interaction.pending);
     const transitioning=leavingBasic||returningToBasic;
     const sharedImport = /^\/branch\/[^/]+\/onboarding\/import(?:\/|$)/.test(pathname ?? "");
-    if(!workspace?.access || !workspace.presentation) return <div role={workspace?.error?"alert":"status"} className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p>{t.owned(workspace?.error??"Loading workspace")}</p><button onClick={()=>void workspace?.refresh()}>{t("Retry")}</button>
-        {workspace?.access?.isOwner&&<Link href={accountBillingHref(workspace.access.organizationId, workspace.access.branchId, pathname)}>{t("Billing")}</Link>}
-    </div>;
+    if(!workspace?.access || !workspace.presentation) return <main data-app-design-pilot={designPilot ? "workspace" : undefined} role={workspace?.error ? "alert" : "status"} aria-busy={!workspace?.error} className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[color:var(--bg-app)] px-6 text-center text-[color:var(--text-primary)]">
+        {!workspace?.error && <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin motion-reduce:animate-none" />}
+        {workspace?.accessDenied && <h1 className="text-2xl font-semibold">{t("No access")}</h1>}
+        <p>{t.owned(workspace?.error ?? "Loading workspace")}</p>
+        {workspace?.error && <AppButton variant="primary" onClick={()=>void workspace.refresh()}>{t("Retry")}</AppButton>}
+        {workspace?.access?.isOwner && <Link className={appActionClassName()} href={accountBillingHref(workspace.access.organizationId, workspace.access.branchId, pathname)}>{t("Billing")}</Link>}
+    </main>;
     return <>
         {sharedImport ? <div inert={!!workspace.error} data-shared-import-shell><AppShell sidebar={<BranchSidebar />} designPilot={designPilot}><BranchActivationGate>{children}</BranchActivationGate></AppShell></div>
             : (!returningToBasic && (workspace.presentation==="simple" || leavingBasic)) ? <BranchActivationGate><BasicWorkspace access={workspace.access} blocked={!!workspace.error||transitioning} onInteractionState={setInteraction} importContent={children}/></BranchActivationGate>
             : <div inert={transitioning||!!workspace.error} onInputCapture={event=>{if((event.target as HTMLElement).closest("form,[role=dialog]"))setFullDraftPath(pathname);}}><AppShell sidebar={<BranchSidebar/>} designPilot={designPilot}><BranchActivationGate>{children}</BranchActivationGate></AppShell></div>}
-        {transitioning&&<Dialog open title={t.owned("Workspace access changed")} onClose={()=>{}} showCloseButton={false} dismissOnEscape={false} dismissOnBackdrop={false}><p>{t.owned("Finish the current operation before switching. Saved recovery requests will not be retried automatically.")}</p><button disabled={interaction.pending} onClick={()=>{if(!window.confirm(t.owned("Continue with unsaved changes? Saved recovery requests remain available when you return.")))return;setInteraction({dirty:false,pending:false});setFullDraftPath(null);}}>{t.owned("Continue to the updated workspace")}</button></Dialog>}
-        {workspace.error&&<Dialog open title={t.owned("Access could not be refreshed")} onClose={()=>{}} showCloseButton={false} dismissOnEscape={false} dismissOnBackdrop={false}>
-            <p>{t.owned(workspace.error)}</p><button onClick={()=>void workspace.refresh()}>{t("Retry")}</button>
+        {transitioning&&<Dialog open overlayClassName={designPilot ? "app-design-pilot-overlay" : undefined} title={t.owned("Workspace access changed")} onClose={()=>{}} showCloseButton={false} dismissOnEscape={false} dismissOnBackdrop={false}><p>{t.owned("Finish the current operation before switching. Saved recovery requests will not be retried automatically.")}</p><AppButton variant="primary" disabled={interaction.pending} onClick={()=>setConfirmTransition(true)}>{t.owned("Continue to the updated workspace")}</AppButton></Dialog>}
+        <ConfirmDialog overlayClassName={designPilot ? "app-design-pilot-overlay" : undefined} isOpen={transitioning && confirmTransition} title="Workspace access changed" description="Continue with unsaved changes? Saved recovery requests remain available when you return." confirmText="Continue to the updated workspace" loading={interaction.pending} onClose={()=>setConfirmTransition(false)} onConfirm={()=>{if(interaction.pending)return;setConfirmTransition(false);setInteraction({dirty:false,pending:false});setFullDraftPath(null);}} />
+        {workspace.error&&<Dialog open overlayClassName={designPilot ? "app-design-pilot-overlay" : undefined} title={t.owned("Access could not be refreshed")} onClose={()=>{}} showCloseButton={false} dismissOnEscape={false} dismissOnBackdrop={false}>
+            <p>{t.owned("Access could not be refreshed. Your draft is still here. Retry before continuing.")}</p><AppButton variant="primary" onClick={()=>void workspace.refresh()}>{t("Retry")}</AppButton>
         </Dialog>}
     </>;
 }

@@ -2,8 +2,8 @@
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { LanguageControls } from "@/components/settings/LanguageControls";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
     AlertCircle,
@@ -99,6 +99,9 @@ export function PersonalSettings({ section }: { section: "profile" | "preference
     const { ownerKey } = useUserPreferences();
     const t = useTranslation();
     const router = useRouter();
+    const pathname = usePathname();
+    const [leaveRequest, setLeaveRequest] = useState<{ owner: string; path: string; resume: () => void } | null>(null);
+    const dirtyRef = useRef(false);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [form, setForm] = useState<AccountForm | null>(null);
     const [loading, setLoading] = useState(true);
@@ -133,10 +136,23 @@ export function PersonalSettings({ section }: { section: "profile" | "preference
         return JSON.stringify(form) !== JSON.stringify(toForm(profile));
     }, [profile, form]);
 
-    useBasicNavigationGuard(() => {
+    useEffect(() => { dirtyRef.current = hasChanges; }, [hasChanges]);
+    if (leaveRequest && (leaveRequest.owner !== ownerKey || leaveRequest.path !== pathname)) setLeaveRequest(null);
+    useBasicNavigationGuard(resume => {
         if (saving) return false;
-        return !hasChanges || window.confirm(t.owned("Leave with unsaved account changes?"));
+        if (!dirtyRef.current) return true;
+        setLeaveRequest(current => current ?? { owner: ownerKey, path: pathname, resume });
+        return false;
     }, hasChanges || saving, "accountIndex");
+
+    function confirmNavigation() {
+        if (!leaveRequest || leaveRequest.owner !== ownerKey || leaveRequest.path !== pathname || saving) return;
+        dirtyRef.current = false;
+        setLeaveRequest(null);
+        reset();
+        setIsEditing(false);
+        leaveRequest.resume();
+    }
 
     const updateForm = <K extends keyof AccountForm>(key: K, value: AccountForm[K]) => {
         if (!isEditing) return;
@@ -423,6 +439,18 @@ export function PersonalSettings({ section }: { section: "profile" | "preference
                 onCancel={requestCancelEditing}
             />
             <ConfirmDialog
+                overlayClassName="app-design-pilot-overlay"
+                isOpen={!!leaveRequest && leaveRequest.owner === ownerKey && leaveRequest.path === pathname}
+                title="Unsaved changes"
+                description="Leave with unsaved account changes?"
+                confirmText="Continue"
+                variant="warning"
+                loading={saving}
+                onClose={() => setLeaveRequest(null)}
+                onConfirm={confirmNavigation}
+            />
+            <ConfirmDialog
+                overlayClassName="app-design-pilot-overlay"
                 isOpen={discardDialogOpen}
                 onClose={() => setDiscardDialogOpen(false)}
                 onConfirm={discardChanges}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -10,7 +11,7 @@ import { branchSwitchDestination } from "@/lib/basicNavigation";
 import { cn } from "@/lib/utils";
 import { canNavigateWorkspace } from "@/lib/workspaceNavigationGuard";
 
-export function WorkspaceSwitcher({ className, beforeNavigate }: { className?: string; beforeNavigate?: () => boolean }) {
+export function WorkspaceSwitcher({ className, beforeNavigate, wrapBranchName = false }: { className?: string; beforeNavigate?: () => boolean; wrapBranchName?: boolean }) {
     const pathname = usePathname();
     const router = useRouter();
     const { ownerKey } = useUserPreferences();
@@ -34,14 +35,15 @@ export function WorkspaceSwitcher({ className, beforeNavigate }: { className?: s
         return () => { cancelled = true; };
     }, [ownerKey]);
 
-    return <BranchWorkspaceControls directory={directoryOwner === ownerKey ? directory : null} error={error} pathname={pathname} className={className} onNavigate={href => { if (canNavigateWorkspace() && (!beforeNavigate || beforeNavigate())) router.push(href); }} />;
+    return <BranchWorkspaceControls directory={directoryOwner === ownerKey ? directory : null} error={error} pathname={pathname} className={className} wrapBranchName={wrapBranchName} onNavigate={href => { const navigate = () => { if (!beforeNavigate || beforeNavigate()) router.push(href); }; if (canNavigateWorkspace(navigate)) navigate(); }} />;
 }
 
-export function BranchWorkspaceControls({ directory, error, pathname, className, onNavigate }: {
+export function BranchWorkspaceControls({ directory, error, pathname, className, wrapBranchName = false, onNavigate }: {
     directory: WorkspaceDirectory | null;
     error?: boolean;
     pathname: string | null;
     className?: string;
+    wrapBranchName?: boolean;
     onNavigate: (href: string) => void;
 }) {
     const t = useTranslation();
@@ -60,12 +62,10 @@ export function BranchWorkspaceControls({ directory, error, pathname, className,
     const status = t.owned(error ? "Workspaces unavailable" : directory ? "No workspaces available" : "Loading workspaces");
 
     return <div className={cn("reference-workspace-switcher flex min-w-0 items-center gap-4", className)}>
-        <div className="min-w-0 text-[10px] text-[color:var(--text-muted)]">
-            {t("Organization")}
-            <span aria-label={t.owned("Current organization")} title={organizationName} className="mt-0.5 flex h-11 max-w-[138px] items-center truncate text-[11px] font-semibold text-[color:var(--text-primary)] lg:h-[29px]">{organizationName ?? status}</span>
-        </div>
-        <label className="min-w-0 text-[10px] text-[color:var(--text-muted)]">
-            {t("Branch")}
+        <span aria-label={t.owned("Current organization")} title={organizationName} className="ui-workspace-organization">{organizationName ?? status}</span>
+        <label className={cn("ui-workspace-branch", wrapBranchName && "ui-workspace-branch--wrap")}>
+            {wrapBranchName && <span className="ui-workspace-branch-name" aria-hidden="true"><span>{current?.name ?? (branchOptions.length ? t("Choose branch") : status)}</span><ChevronDown size={16} /></span>}
+            <span className="sr-only">{t("Branch")}</span>
             <select aria-label={t("Switch branch")} value={current?.id ?? ""} disabled={!directory || Boolean(error) || !branchOptions.length}
                 className="mt-0.5 block h-11 w-[180px] max-w-full rounded-md border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-form-input-bg)] px-2 text-[11px] font-semibold text-[color:var(--text-primary)] lg:h-[29px]"
                 onChange={event => { const branch = branchOptions.find(item => item.id === event.target.value); if (branch) onNavigate(branchSwitchDestination(pathname, branch.href, branch.role==="OWNER"?undefined:branch.permissions)); }}>
