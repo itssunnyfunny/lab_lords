@@ -425,11 +425,11 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                     />
 
                     {report && (
-                        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]">
+                        <div className="grid grid-cols-1 gap-4">
                             <AppPanel
                                 density="compact"
                                 title={t("Action plan")}
-                                description={t("The next steps the owner can act on immediately.")}
+                                description={t.owned("Review these suggestions before acting.")}
                                 contentClassName="space-y-3"
                             >
                                 {report.suggestedActions.length === 0 ? (
@@ -457,10 +457,11 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                                 )}
                             </AppPanel>
 
+                            <details className="ui-context-help"><summary>{t.owned("Signals behind this report")}</summary>
                             <AppPanel
                                 density="compact"
-                                title={t("Score drivers")}
-                                description={t("The deterministic signals behind the AI narrative.")}
+                                title={t.owned("Signals behind this report")}
+
                                 contentClassName="space-y-3"
                             >
                                 {riskDrivers.length === 0 ? (
@@ -494,6 +495,7 @@ function AIReportsContent({ branchId }: { branchId: string }) {
                                     ))
                                 )}
                             </AppPanel>
+                            </details>
                         </div>
                     )}
                 </PageShell>

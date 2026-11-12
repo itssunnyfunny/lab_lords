@@ -3,11 +3,8 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useEffect, useState } from "react";
 import {
-    Activity,
     CalendarClock,
     CircleDollarSign,
-    ClipboardList,
-    Target,
     TrendingUp,
     Users,
 } from "lucide-react";
@@ -19,9 +16,7 @@ import { cn } from "@/lib/utils";
 import { formWarningActionClass, formWarningBannerClass } from "@/components/ui/formSurface";
 import {
     pageEmptyStateClass,
-    pageGridCardClass,
     pageInsetSurfaceClass,
-    pageSubtleTextClass,
 } from "@/components/ui/pageSurface";
 
 interface BranchHealthPanelProps {
@@ -34,11 +29,7 @@ interface BranchHealthPanelProps {
     onRefresh?: () => void;
 }
 
-const riskTextClass: Record<string, string> = {
-    CRITICAL: "text-[color:var(--ui-tone-danger-text)]",
-    MODERATE: "text-[color:var(--ui-tone-warning-text)]",
-    LOW: "text-[color:var(--ui-tone-success-text)]",
-};
+
 
 const riskBadgeVariant: Record<string, "danger" | "warning" | "success" | "default"> = {
     CRITICAL: "danger",
@@ -46,12 +37,7 @@ const riskBadgeVariant: Record<string, "danger" | "warning" | "success" | "defau
     LOW: "success",
 };
 
-const healthAccentClass: Record<string, string> = {
-    CRITICAL_RISK: "border-l-[color:var(--ui-tone-danger-progress)]",
-    MODERATE_RISK: "border-l-[color:var(--ui-tone-warning-progress)]",
-    LOW_RISK: "border-l-[color:var(--ui-tone-warning-progress)]",
-    HEALTHY: "border-l-[color:var(--ui-tone-success-progress)]",
-};
+
 
 const readableTextClass = "text-[color:var(--text-primary)]";
 
@@ -70,9 +56,7 @@ function getHealthBadge(score: string) {
     }
 }
 
-function formatHealthScore(score: string) {
-    return score.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
+
 
 type NumberFormatter = (value: number, options?: Intl.NumberFormatOptions) => string;
 
@@ -253,82 +237,15 @@ export function BranchHealthPanel({
                 </div>
             )}
 
-            <AppPanel
-                density="compact"
-                title={t("Executive report")}
-                description={t("A one-page read of the branch condition, priority focus, and strongest operating signals.")}
-                action={generatedTag}
-            >
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
-                    <article className={cn(pageGridCardClass, "border-l-4", healthAccentClass[report.healthScore] ?? "border-l-[color:var(--ui-card-border)]")}>
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <p className="text-xs font-medium uppercase text-[color:var(--text-muted)]">
-                                    {t("Overall health")}</p>
-                                <h3 className="mt-1 text-2xl font-semibold text-[color:var(--text-primary)]">
-                                    {formatHealthScore(report.healthScore)}
-                                </h3>
-                            </div>
-                            <Activity className="h-5 w-5 shrink-0 text-[color:var(--ui-tone-info-text)]" />
-                        </div>
-
-                        <p className={cn("mt-4 text-sm leading-6", readableTextClass)}>
-                            {buildSummary(report, snapshot, branchName, formatNumber)}
-                        </p>
-
-                        <div className={cn("mt-4 flex gap-3 p-3", pageInsetSurfaceClass)}>
-                            <Target className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ui-tone-warning-text)]" />
-                            <div className="min-w-0">
-                                <p className="text-xs font-semibold uppercase text-[color:var(--text-muted)]">
-                                    {t("Priority focus")}</p>
-                                <p className="mt-1 text-sm leading-5 text-[color:var(--text-primary)]">
-                                    {buildPriority(report, snapshot)}
-                                </p>
-                            </div>
-                        </div>
-                    </article>
-
-                    <article className={cn(pageGridCardClass, "space-y-3")}>
-                        <div className="flex items-center gap-2">
-                            <ClipboardList className="h-4 w-4 text-[color:var(--ui-tone-info-text)]" />
-                            <p className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Key findings")}</p>
-                        </div>
-                        <ul className="space-y-2">
-                            {findings.map((finding, index) => (
-                                <li key={`${finding}-${index}`} className={cn("flex gap-2 text-sm leading-5", readableTextClass)}>
-                                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--ui-tone-info-progress)]" />
-                                    <span>{finding}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </article>
+            <AppPanel density="compact" title={t("Priority focus")} action={generatedTag}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <h3 className="max-w-3xl text-lg font-semibold leading-7 text-[color:var(--text-primary)]">{buildPriority(report, snapshot)}</h3>
                 </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    {signals.map((signal) => {
-                        const Icon = signal.icon;
-
-                        return (
-                            <article key={signal.label} className={cn(pageGridCardClass, "min-h-[160px]")}>
-                                <div className="mb-3 flex items-start justify-between gap-3">
-                                    <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]">
-                                        <Icon className="h-4 w-4 shrink-0 text-[color:var(--ui-tone-info-text)]" />
-                                        <span>{t.owned(signal.label)}</span>
-                                    </div>
-                                    <Badge variant={riskBadgeVariant[signal.riskLevel] ?? "default"}>
-                                        {signal.riskLevel}
-                                    </Badge>
-                                </div>
-                                <p className={cn("text-sm leading-6", readableTextClass)}>
-                                    {signal.observation}
-                                </p>
-                                <p className={cn("mt-3 text-xs font-semibold", riskTextClass[signal.riskLevel] ?? pageSubtleTextClass)}>
-                                    {signal.riskLevel === "LOW" ? t("Stable signal") : t("Needs attention")}
-                                </p>
-                            </article>
-                        );
-                    })}
-                </div>
+                <p className={cn("mt-3 text-sm leading-6", readableTextClass)}>{buildSummary(report, snapshot, branchName, formatNumber)}</p>
+                <details className="ui-context-help mt-3"><summary>{t.owned("Why this matters")}</summary>
+                    <ul className="mt-2 space-y-2">{findings.map((finding, index) => <li key={`${finding}-${index}`} className="text-sm leading-5">{finding}</li>)}</ul>
+                    <div className="mt-3 grid gap-3 md:grid-cols-3">{signals.map(signal => <article key={signal.label} className="border-t border-[color:var(--ui-panel-border)] py-3"><div className="flex items-center justify-between gap-2"><h4 className="text-sm font-semibold">{t.owned(signal.label)}</h4><Badge variant={riskBadgeVariant[signal.riskLevel] ?? "default"}>{t.owned(signal.riskLevel)}</Badge></div><p className="mt-2 text-sm leading-6">{signal.observation}</p></article>)}</div>
+                </details>
             </AppPanel>
         </div>
     );

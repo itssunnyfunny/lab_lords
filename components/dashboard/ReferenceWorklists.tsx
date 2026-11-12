@@ -23,7 +23,17 @@ export function ActionCenter({ data, base, refresh }: { data: DashboardOverview;
         { key: "utilization", icon: BarChart3, tone: "purple", label: seats?.lowUtilization ? "Low utilization" : "Seat utilization", value: seats?.utilizationPercent == null ? "—" : `${formatNumber(seats.utilizationPercent, { maximumFractionDigits: 0 })}%`, note: seats ? t("{used} of {total} shift slots", { used: formatNumber(seats.occupied), total: formatNumber(seats.capacity) }) : "", action: "Review seats", href: "/dashboard-settings?section=utilization", source: data.seating, active: !!seats?.lowUtilization },
         { key: "renewals", icon: RefreshCw, tone: "green", label: "Renewals this week", value: terms?.configured ? formatNumber(terms.renewalsThisWeek) : "—", note: t.owned(terms?.configured ? "Membership terms ending soon" : "Set membership term dates"), action: terms?.configured ? "View renewals" : "Set up", href: "/dashboard-settings?section=terms", source: data.terms, active: !!terms?.renewalsThisWeek },
     ];
-    return <AppPanel density="compact" padding="none" className="rd-action-center" aria-labelledby="rd-action-title"><div className="rd-panel-heading"><div><Bell size={21} fill="currentColor" /><h2 id="rd-action-title">{t("Action Center")}</h2><span className="rd-count">{formatNumber(items.filter(item => item.active).length)}</span><p>{t.owned("Things that need your attention right now")}</p></div><Link href={`${base}/tasks`}>{t.owned("View all tasks")}<ArrowRight size={14} /></Link></div><div className="rd-priorities">{items.map(item => <article key={item.key} data-tone={item.tone}><span className="rd-priority-icon"><item.icon size={26} /></span><div><strong>{item.value}</strong><h3>{t.owned(item.label)}</h3><p>{item.note}</p>{item.source.status === "success" ? <Link className="rd-priority-action" href={`${base}${item.href}`}>{t.owned(item.action)}<ArrowRight size={13} /></Link> : <SourceState source={item.source} retry={refresh} />}</div></article>)}</div></AppPanel>;
+    const attention = items.filter(item => item.key !== "utilization" && (item.active || item.source.status !== "success"));
+    const advisory = items.find(item => item.key === "utilization");
+    return <AppPanel density="compact" padding="none" className="rd-action-center" aria-labelledby="rd-action-title">
+        <div className="rd-panel-heading"><div><Bell size={18} /><h2 id="rd-action-title">{t.owned("Needs attention")}</h2><span className="rd-count">{formatNumber(attention.filter(item => item.active).length)}</span></div><Link href={`${base}/tasks`}>{t.owned("View all tasks")}<ArrowRight size={14} /></Link></div>
+        <div className="rd-attention-list">{attention.map(item => <article key={item.key} data-tone={item.tone}>
+            <item.icon size={18} aria-hidden="true" /><div><h3>{t.owned(item.label)}</h3><p>{item.note}</p></div><strong>{item.value}</strong>
+            {item.source.status === "success" ? <Link href={`${base}${item.href}`}>{t.owned(item.action)}<ArrowRight size={14} /></Link> : <SourceState source={item.source} retry={refresh} />}
+        </article>)}</div>
+        {!attention.length && <p className="rd-empty">{t.owned("No urgent items")}</p>}
+        {advisory?.active && <div className="rd-capacity-advisory"><BarChart3 size={16} aria-hidden="true" /><span>{t.owned("Capacity advisory")}: {advisory.note}</span><Link href={`${base}${advisory.href}`}>{t.owned(advisory.action)}<ArrowRight size={14} /></Link></div>}
+    </AppPanel>;
 }
 
 export function DashboardActivity({ data, base }: Pick<Props, "data" | "base">) {

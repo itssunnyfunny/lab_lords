@@ -5,7 +5,7 @@ import { KpiRow } from "@/components/snapshot/KpiRow";
 import { MainChart } from "@/components/snapshot/MainChart";
 import { SideStats } from "@/components/snapshot/SideStats";
 import { Badge } from "@/components/ui/Badge";
-import { AppButton, AppPanel, ErrorState, PageLoadingSkeleton, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, AppSelect, ErrorState, PageLoadingSkeleton, PageShell } from "@/components/ui";
 import { BranchAccessGuard } from "@/components/auth/BranchAccessGuard";
 import { cn } from "@/lib/utils";
 import { use, useEffect, useState } from "react";
@@ -145,16 +145,14 @@ function AnalyticsContent({ branchId, access }: { branchId: string; access: Bran
     }
 
     return (
-        <PageShell className="ui-record-page">
+        <PageShell className="ui-record-page ui-analytics-page">
             <header className="ui-record-header">
                 <div className="min-w-0">
                     <h1>{t("Analytics & Trends")}</h1>
-                    <p className="ui-record-description">{financialAccess
-                        ? t("Branch performance with corrected revenue, collections, dues, and utilization.")
-                        : t("Branch students and seat utilization.")}</p>
+
                 </div>
                 <div className="ui-record-actions items-center">
-                    <span className={pageMutedTextClass}>{t("Updated")} {updatedAt ? formatDateTime(updatedAt) : t("recently")}</span>
+                    <span className={cn("text-xs", pageMutedTextClass)}>{t("Updated")} {updatedAt ? formatDateTime(updatedAt) : t("recently")}</span>
                 <AppButton
                     variant="quiet"
                     density="compact"
@@ -166,7 +164,15 @@ function AnalyticsContent({ branchId, access }: { branchId: string; access: Bran
                 </div>
             </header>
 
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <KpiRow snapshot={snapshot} branchId={branchId} period={displayedPeriod} />
+
+            <div className="ui-analytics-composition grid min-w-0 items-start gap-3">
+                <section className="min-w-0 space-y-2" aria-label={t("Analytics & Trends")}>
+                    <div className="ui-analytics-mobile-controls grid grid-cols-2 gap-2">
+                        {financialAccess && <AppSelect label={t("Analytics period")} labelClassName="text-xs" value={period} onValueChange={value => setPeriod(value as AnalyticsPeriod)} options={PERIODS.map(item => ({ value: item.key, label: t.owned(item.label) }))} />}
+                        <AppSelect label={t("Chart metric")} labelClassName="text-xs" containerClassName={financialAccess ? "min-w-0" : "col-span-2"} value={visibleSelection} onValueChange={value => setActiveChart(value as ChartKey)} options={CHARTS.filter(item => financialAccess || item.key === "utilization" || item.key === "students").map(item => ({ value: item.key, label: t.owned(item.label) }))} />
+                    </div>
+            <div className="ui-analytics-controls flex flex-wrap items-center justify-between gap-2">
                 {financialAccess && <div role="group" aria-label={t("Analytics period")} className={cn("inline-flex w-fit flex-wrap p-1", pageFilterShellClass)}>
                     {PERIODS.map(item => (
                         <button
@@ -175,7 +181,7 @@ function AnalyticsContent({ branchId, access }: { branchId: string; access: Bran
                             aria-pressed={period === item.key}
                             onClick={() => setPeriod(item.key)}
                             className={cn(
-                                "min-h-11 rounded-[var(--ui-radius-control)] px-4 py-2 text-sm font-medium transition-colors",
+                                "min-h-11 rounded-[var(--ui-radius-control)] px-3 py-2 text-xs font-medium transition-colors",
                                 period === item.key
                                     ? "bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)] shadow-[var(--ui-panel-compact-shadow)]"
                                     : "text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)] hover:text-[color:var(--text-primary)]"
@@ -186,7 +192,7 @@ function AnalyticsContent({ branchId, access }: { branchId: string; access: Bran
                     ))}
                 </div>}
 
-                <div role="group" aria-label={t("Chart metric")} className="inline-flex flex-wrap gap-2">
+                <div role="group" aria-label={t("Chart metric")} className="inline-flex flex-wrap gap-1">
                     {CHARTS.filter(item => financialAccess || item.key === "utilization" || item.key === "students").map(item => (
                         <button
                             key={item.key}
@@ -195,7 +201,7 @@ function AnalyticsContent({ branchId, access }: { branchId: string; access: Bran
                             onClick={() => setActiveChart(item.key)}
                             className={cn(
                                 "min-h-11 rounded-[var(--ui-radius-control)] border px-3 py-2 text-xs font-semibold transition-colors",
-                                activeChart === item.key
+                                visibleSelection === item.key
                                     ? "border-[color:var(--ui-form-input-focus-border)] bg-[color:var(--ui-form-input-bg)] text-[color:var(--text-primary)]"
                                     : "border-[color:var(--ui-form-surface-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--ui-form-input-border)] hover:text-[color:var(--text-primary)]"
                             )}
@@ -206,42 +212,26 @@ function AnalyticsContent({ branchId, access }: { branchId: string; access: Bran
                 </div>
             </div>
 
-            <KpiRow snapshot={snapshot} branchId={branchId} period={displayedPeriod} />
-
-            <p className="text-sm text-[color:var(--ui-text-muted)]">{t("Past dates are recalculated from current records. Student status and shift capacity use today's setup.")}</p>
-
-            <div className={cn("grid grid-cols-1 gap-6", financialAccess && "lg:grid-cols-3")}>
-                <MainChart
-                    data={chartData}
-                    title={t(displayedChart === "students" ? "{label} Snapshot" : "{label} Trend", { label: t.owned(chartConfig.label) })}
-                    variant={displayedChart === "students" ? "bar" : "area"}
-                    color={chartConfig.color}
-                    valueFormatter={valueFormatter}
-                    emptyLabel="No data available for this selection."
-                    contextLabel={chartContext}
-                    dataLabel={displayedChart === "students" ? "Student status" : "Date"}
-                />
-                {financialAccess && <SideStats snapshot={snapshot} period={displayedPeriod} />}
+                    <MainChart
+                        data={chartData}
+                        title={t(displayedChart === "students" ? "{label} Snapshot" : "{label} Trend", { label: t.owned(chartConfig.label) })}
+                        variant={displayedChart === "students" ? "bar" : "area"}
+                        color={chartConfig.color}
+                        valueFormatter={valueFormatter}
+                        emptyLabel="No data available for this selection."
+                        contextLabel={chartContext}
+                        dataLabel={displayedChart === "students" ? "Student status" : "Date"}
+                    />
+                    {displayedChart !== "students" && <p className="px-1 text-xs leading-5 text-[color:var(--text-muted)]">{t("History uses current records, student status and shift capacity.")}</p>}
+                </section>
+                <aside className="min-w-0 space-y-3" aria-label={t("Branch Summary")}>
+                    <AppPanel density="compact" title={t("Branch Summary")} description={payload.row.branch} contentClassName="divide-y divide-[color:var(--ui-form-section-divider)]">
+                        <BranchSummaryCard label={t("Students")} value={formatNumber(payload.row.students)} detail={t("Current student count")} tone="info" />
+                        <BranchSummaryCard label={t("Seat utilization")} value={formatPercent(payload.row.util, 2)} detail={t("Current occupancy")} tone="neutral" />
+                    </AppPanel>
+                    {financialAccess && <SideStats snapshot={snapshot} period={displayedPeriod} />}
+                </aside>
             </div>
-
-            <AppPanel
-                density="compact"
-                title={t("Branch Summary")}
-                description={t("A compact snapshot of the current branch numbers.")}
-                contentClassName="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
-            >
-                {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-students`} label={t("Students")} value={formatNumber(item.students)} detail={item.branch} tone="info" />
-                ))}
-                {[payload.row].map(item => (
-                    <BranchSummaryCard key={`${item.id}-util`} label={t("Seat utilization")} value={formatPercent(item.util, 2)} detail="Current occupancy" tone="neutral" badge={formatPercent(item.util, 2)} />
-                ))}
-                {financialAccess && <>
-                    <BranchSummaryCard label={t("Revenue")} value={formatMoney(snapshot.monthlyRevenue)} detail={displayedPeriod === "month" ? "This month" : "All time"} tone="neutral" />
-                    <BranchSummaryCard label={t("Collected")} value={formatMoney(snapshot.paidAmount)} detail="Received payments" tone="success" />
-                    <BranchSummaryCard label={t("All due")} value={formatMoney(snapshot.dueAmount)} detail="Open receivables" tone="danger" />
-                </>}
-            </AppPanel>
 
             {snapshot?.seatDetails && (
                 <AppPanel
@@ -271,22 +261,16 @@ function BranchSummaryCard({
     value,
     detail,
     tone,
-    badge,
 }: {
     label: string;
     value: string;
     detail: string;
     tone: SummaryTone;
-    badge?: string;
 }) {
     return (
-        <div className={cn("min-w-0 p-4", pageInsetSurfaceClass)}>
-            <div className="flex items-start justify-between gap-3">
-                <p className={cn("text-xs font-medium uppercase tracking-wide", pageSubtleTextClass)}>{label}</p>
-                {badge && <Badge variant="default" className="shrink-0">{badge}</Badge>}
-            </div>
-            <p className={cn("mt-3 break-words text-xl font-semibold tracking-tight", toneValueClass(tone))}>{value}</p>
-            <p className={cn("mt-1 break-words text-xs", pageMutedTextClass)}>{detail}</p>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0">
+            <div className="min-w-0"><p className={cn("text-sm font-medium", pageSubtleTextClass)}>{label}</p><p className={cn("mt-1 text-xs", pageMutedTextClass)}>{detail}</p></div>
+            <p className={cn("break-words text-xl font-semibold tabular-nums", toneValueClass(tone))}>{value}</p>
         </div>
     );
 }
