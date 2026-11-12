@@ -15,12 +15,12 @@ describe("Basic receipt uses the recorded India calendar",()=>{
  it.each(["Asia/Kolkata","UTC","America/Los_Angeles"])("matches PDF content under %s account preferences",timezone=>{
   preferences.timezone=timezone;const screen=renderToStaticMarkup(<BasicReceipt branchId="branch" receipt={collection} onClose={()=>{}}/>);const pdf=receiptSummary(collection);
   for(const date of [receiptCollectedAt(collection.snapshot.collectedAt),receiptPeriodDate(collection.snapshot.allocations[0].periodStart),receiptPeriodDate(collection.snapshot.allocations[0].periodEnd)]){expect(screen).toContain(date);expect(pdf).toContain(date);}
-  expect(screen).toContain("29/10/2026");expect(screen).not.toContain("28/10/2026");expect(screen).toContain("700");
+  expect(screen).toContain("29 Oct 2026");expect(screen).not.toContain("28 Oct 2026");expect(screen).toContain("700");
  });
  it("keeps void evidence and document-language content without changing financial snapshots",()=>{
   const receipt={...collection,voidedAt:"2026-10-29T18:45:00.000Z",voidReason:"Wrong collection"};const before=JSON.stringify(receipt);
-  const screen=renderToStaticMarkup(<BasicReceipt branchId="branch" receipt={receipt} onClose={()=>{}}/>);expect(screen).toContain("Voided receipt");expect(screen).toContain("30/10/2026");expect(screen).toContain("Wrong collection");
-  for(const language of ["en","hi","hinglish"] as const){const pdf=receiptSummary(receipt,language);expect(pdf).toContain(receiptCollectedAt(collection.collectedAt));expect(pdf).toContain("Wrong collection");expect(pdf).toContain("300");}
+  const screen=renderToStaticMarkup(<BasicReceipt branchId="branch" receipt={receipt} onClose={()=>{}}/>);expect(screen).toContain("Voided receipt");expect(screen).toContain("30 Oct 2026");expect(screen).toContain("Wrong collection");
+  for(const language of ["en","hi","hinglish"] as const){const pdf=receiptSummary(receipt,language);expect(pdf).toContain(receiptCollectedAt(collection.collectedAt,language));expect(pdf).toContain("Wrong collection");expect(pdf).toContain("300");}
   expect(JSON.stringify(receipt)).toBe(before);
  });
 });

@@ -19,18 +19,19 @@ describe("BillingPaymentMethodsOverview", () => {
     expect(html).toContain("Card");
     expect(html).toContain("UPI AutoPay");
     expect(html).toContain("eMandate");
-    expect(html).toContain("Razorpay decides");
+    expect(html).toContain("Shown if eligible");
+    expect(html).toContain("Options depend on your bank or app, payment amount and device.");
     expect(html).toContain("Current recurring method");
-    expect(html).toContain("provider-confirmed mandate");
+    expect(html).toContain("Lab Lords shows your confirmed payment status.");
   });
 
   it("makes card-only rollout state explicit", () => {
     const html = renderToStaticMarkup(<BillingPaymentMethodsOverview />);
 
-    expect(html).toContain("Card checkout is currently active");
-    expect(html).toContain("Card-only mode");
+    expect(html).toContain("Pay by card");
+    expect(html).toContain("Card payments");
     expect(html).toContain("UPI AutoPay");
     expect(html).toContain("eMandate");
-    expect(html.match(/Not enabled/g)).toHaveLength(2);
+    expect(html.match(/Not available/g)).toHaveLength(2);
   });
 });
