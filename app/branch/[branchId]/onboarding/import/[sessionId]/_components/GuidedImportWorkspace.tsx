@@ -282,6 +282,8 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     };
     const buildPlan = async () => {
         if (!detail || !canNavigate()) return;
+        // Review unmounts the inline editor, so errors must return to the page.
+        setEditorOpen(false);
         setBusy(true); setError(null);
         try { setPlan(await importSessions.createPlan(branchId, sessionId, policy, detail.draftRevision)); setStage("review"); }
         catch (e) { setPlan(null); setStage("review"); setError(e instanceof Error ? e.message : t("Import request failed")); }
@@ -350,6 +352,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     };
     const goToSection = (nextSection: typeof section) => {
         if (!canNavigate()) return;
+        setEditorOpen(false);
         rememberWork(nextSection); setStage("help"); setSection(nextSection); setSaveOutcome(null);
         setIssueFilter(undefined); setFilter(nextSection === "records" ? "attention" : "all");
     };
@@ -418,7 +421,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     return <PageShell data-import-experience="guided" className="ui-import-workspace ui-import-focused space-y-4">
         <header className="ui-import-header flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0"><p className="text-xs font-medium text-[color:var(--text-muted)]">{t("Student import")} · {detail.fileName}</p><h1 ref={workspaceHeading} tabIndex={-1} className="mt-1 scroll-mt-28 text-2xl font-semibold focus:outline-none">{t(stage === "result" ? "Your import results" : stage === "review" ? "Review your import" : "Check your students")}</h1></div>
-            {stage === "help" && <AppButton className="ui-import-review-action" density="compact" icon={ArrowRight} disabled={disabled || !ready || dirty || columnsDirty || setupDirty} onClick={() => void buildPlan()}>{t("Review and save")} · {formatNumber(ready)}</AppButton>}
+            {stage === "help" && <AppButton className="ui-import-review-action" data-mobile-step-replacement={setupExperience || undefined} density="compact" icon={ArrowRight} disabled={disabled || !ready || dirty || columnsDirty || setupDirty} onClick={() => void buildPlan()}>{t("Review and save")} · {formatNumber(ready)}</AppButton>}
         </header>
         {error && !editorOpen && <div role="alert" className="rounded border border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] p-3 text-sm"><LocalizedError error={error} /></div>}
         {notice && <p role="status" className="rounded border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] p-3 text-sm">{notice}</p>}
@@ -501,7 +504,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         </>}
         {stage === "review" && <GuidedFinancialReview plan={plan} currentRevision={detail.draftRevision} policy={policy} busy={busy} disabled={disabled} onBack={() => { if (canNavigate()) setStage("help"); }} onPolicyChange={value => { setPolicy(value); setPlan(null); }} onRefresh={() => void refreshReview()} onConfirm={() => setConfirm(true)} onApproveSetup={canConfigure ? () => void approveSetup() : undefined} />}
         {stage === "result" && <GuidedImportResults branchId={branchId} detail={detail} run={run} busy={busy} onRepair={() => { if (canNavigate()) { goToSection("records"); setPlan(null); } }} onCancel={() => run && void act(() => importSessions.cancelRun(branchId, run.id))} onRefresh={() => void act(async () => {})} onExport={() => { if (!run) return; void importSessions.exportRunErrors(branchId, run.id, "csv").then(blob => { const url = URL.createObjectURL(blob), link = document.createElement("a"); link.href = url; link.download = "import-recovery.csv"; link.click(); URL.revokeObjectURL(url); }).catch(e => setError(e.message)); }} />}
-        {run && stage === "help" && <AppButton density="compact" variant="quiet" onClick={() => { if (canNavigate()) { const url = new URL(window.location.href); url.searchParams.delete("work"); url.searchParams.delete("section"); window.history.replaceState(null, "", url); setSaveOutcome(null); setStage("result"); } }}>{t("View saved progress")}</AppButton>}
+        {run && stage === "help" && <AppButton density="compact" variant="quiet" onClick={() => { if (canNavigate()) { const url = new URL(window.location.href); url.searchParams.delete("work"); url.searchParams.delete("section"); window.history.replaceState(null, "", url); setSaveOutcome(null); setEditorOpen(false); setStage("result"); } }}>{t("View saved progress")}</AppButton>}
         {!inlineEditor && editor}
 
         <ConfirmDialog isOpen={confirm} onClose={() => setConfirm(false)} onConfirm={() => void commit()} title={t("Save the reviewed students?")} description={t("Only this reviewed plan will run. Successful records stay saved if another operation needs recovery.")} confirmText={t("Confirm import")} loading={busy} />

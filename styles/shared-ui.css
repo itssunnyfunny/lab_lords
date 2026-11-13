@@ -143,7 +143,7 @@ html[lang="hi-IN"] :is(.ui-record-header h1,.ui-record-detail h2:first-child) { 
 .ui-import-step-select{display:none}
 .ui-import-workspace h1[tabindex="-1"]:focus{outline:none}
 .ui-import-filters button{justify-content:center;white-space:normal;text-align:center}
-@media(max-width:767px){.ui-import-step-select{display:block}.ui-import-step-buttons{display:none}.ui-import-review-action{display:none!important}}
+@media(max-width:767px){.ui-import-step-select{display:block}.ui-import-step-buttons{display:none}.ui-import-review-action[data-mobile-step-replacement="true"]{display:none!important}}
 
 @media (max-width:360px){.ui-attendance-filters>label{grid-column:1/-1}}
 

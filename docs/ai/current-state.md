@@ -1,5 +1,17 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Import review navigation corrections — local, 2026-11-13
+
+Supported `GUIDED_CURRENT_MONTH_V1` imports retain their mobile final-review
+action; only setup imports with a rendered step selector hide the duplicate
+header action. Permitted review, section and saved-progress transitions close
+the student editor after the existing navigation guard passes. Failed plan
+requests therefore remain visible in the page alert and can be refreshed.
+Unsaved edits still block navigation. The accepted visual direction, revision
+checks, final confirmation and server-side import contracts are unchanged.
+Mounted-browser evidence is tracked in
+[PR verification](../redesign/ui-refinement-pr-readiness-2026-11-12.md).
+
 ## UI refinement PR preparation — local, 2026-11-12
 
 The accepted presentation changes and final 320px Reports/Account corrections

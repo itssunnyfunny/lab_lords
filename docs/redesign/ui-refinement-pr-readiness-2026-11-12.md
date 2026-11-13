@@ -4,6 +4,56 @@ This record covers the accepted application UI refinement and its final 320px
 Reports and Account-header corrections. The branch started from `50f2fa9`, which
 matched freshly fetched `origin/main` before the local commits were created.
 
+## PR #294 Import follow-up — 13 November 2026
+
+Two introduced client workflow regressions are corrected on top of `815caceb`.
+The original 12 November whole-suite results below remain evidence for that
+earlier head; this follow-up uses the affected Import suites and a fresh build.
+
+- `GuidedImportWorkspace.tsx` marks the header review action as replaced only
+  when the setup-only step navigation exists. `styles/shared-ui.css` hides only
+  that marked action on phones. `GUIDED_CURRENT_MONTH_V1` and `GUIDED_SETUP_V2`
+  can both reach final review and explicit confirmation at all four widths.
+- Permitted final-review, section and saved-progress transitions close the
+  editor after `canNavigate()` succeeds. Review errors then reach the existing
+  page alert; unchanged and saved editors both support refresh/retry. Dirty
+  drafts still block navigation and remain in the editor.
+- The existing completion Import fixture now supports both guided versions,
+  failed plan requests and revision conflicts. Mounted regression tests cover
+  error visibility at 1280/1440px, section transitions, recovery and the existing
+  confirmation boundary. API error localization and service contracts are unchanged.
+
+The pre-fix mounted run reproduced the missing 320px action, both hidden review
+errors and the stale editor after a section round trip: 4 failed, 3 passed,
+3 intentional width skips. After the code fix, the four-width guided/legacy run
+passed 25 cases; two new assertions were corrected to expect the existing safe,
+localized API messages rather than raw fixture errors. Their targeted rerun and
+the extended saved-progress case all passed: 3/3. Across these runs, all 27
+distinct guided/legacy cases pass, with 9 nonapplicable inline-editor skips.
+
+| Follow-up check | Command | Result |
+| --- | --- | --- |
+| Guided and legacy browser coverage | `pnpm exec playwright test --config tests/visual-consistency/completion.config.ts completion-import.spec.ts completion-legacy.spec.ts` | 25 passed, 2 message-expectation failures, 9 intentional skips; resolved by the retry below |
+| Review failure, refresh and result recovery | `pnpm exec playwright test --config tests/visual-consistency/completion.config.ts completion-import.spec.ts --project=desktop-1440 --grep 'inline editor .*exposes\|guided final review recovers'` | 3 passed |
+| Broader guided-family browsers | `pnpm exec playwright test --config tests/visual-consistency/families.config.ts guided-family.spec.ts` | 10 passed |
+| Pure Import/calendar regression suite | `pnpm exec vitest run --config tests/visual-consistency/completion-units.config.ts --maxWorkers 1` | 11 files / 66 tests passed |
+| Lint | `pnpm lint` | Exit 0; no errors, two existing generated-file warnings |
+| Production compilation | `pnpm exec node tests/visual-consistency/build-local.mjs` | Exit 0; TypeScript, 76 generated pages and both import Workflow manifests passed |
+| Patch and documentation checks | `git diff --check`; relative-link validation | Passed; 112 links checked across the three updated documents |
+
+All 37 distinct affected browser cases pass, with 9 intentional width skips.
+Lint and the production build also pass. The unchanged lint warnings concern
+generated Workflow and coverage files, not this correction.
+
+The unit runner's first sandboxed attempt hit a Windows temporary-file rename
+restriction before any test executed; the same guarded command passed outside
+that sandbox. The first build attempt stopped before compilation because Docker
+was not running; the guarded build was retried after starting the local engine.
+Browser and unit fixtures block external database/provider access.
+Evidence is retained under `test-results/pr-294-import-regressions-2026-11-13/`.
+No schema, migration, dependency, saved environment or public-copy change is
+required, and the owner's visual approval remains intact.
+
 ## Change boundaries
 
 - Shared navigation restores the earlier Standard/Pro sidebar appearance, with

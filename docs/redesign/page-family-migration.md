@@ -524,3 +524,20 @@ checks, separation of Playwright specs from root Vitest discovery, and correctio
 to assertions for the accepted receipt and checkout/reminder wording. Domain
 writers and provider contracts are unchanged. The accepted design direction,
 local verification, PR publication and release remain distinct decisions.
+
+### Import workflow regression corrections — local, 2026-11-13
+
+The owner retained visual approval and identified two introduced workflow
+regressions in PR #294. `GuidedImportWorkspace.tsx` marks the review button as
+replaced only for setup sessions, and the scoped mobile CSS hides only that
+marked button. Older supported guided imports retain their final-review action.
+Permitted review, section and saved-progress transitions close the editor after
+the existing dirty/busy guard passes, leaving review failures visible in the
+page alert and allowing refresh/retry.
+
+Mounted before/after checks exercise both guided versions, failed requests and
+revision conflicts, unsaved edits, section changes and recovery. See the dated
+follow-up in the [PR verification record](ui-refinement-pr-readiness-2026-11-12.md).
+The accepted layout, server authorization, revision fences and explicit import
+confirmation remain intact. No schema, migration, dependency, saved environment
+or public marketing-copy change is needed.

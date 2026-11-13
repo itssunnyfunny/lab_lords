@@ -15,14 +15,14 @@ export async function installCompletionImport(page,kind='guided') {
   const rows=[row('row-1','Mira Sharma'),row('row-2','Anaya Rao',[issue('CONFIRM_JOINING_DATE','student.joinedAt','Confirm the original joining date. It will not be guessed.')]),row('row-3','Kabir Verma',[issue('UNKNOWN_SHIFT','allocation.shiftName','Choose the uploaded timings.'),issue('UNKNOWN_SEAT','allocation.seatLabel','Choose an available seat.')],{allocation:{seatLabel:'Unknown',shiftName:'FD'}}),{...row('row-4','Source heading'),skipped:true,status:'SKIPPED'}];
   rows[1].normalizedData.student.joinedAt='';
   rows[2].rawData.Timing='FD';
-  const state={revision:1,rows,requests:[],failRead:false,failSave:false,failCommit:false,loseCommitResponse:false,run:null};
+  const state={revision:1,rows,requests:[],experience:'GUIDED_SETUP_V2',failRead:false,failSave:false,failPlan:false,failCommit:false,loseCommitResponse:false,run:null};
   const sessionId='session-'+kind;
   const ready=()=>rows.filter(r=>!r.skipped&&r.status==='READY');
   function detail(url) {
     const filter=url.searchParams.get('rowFilter')||'all';
     const selected=rows.filter(r=>filter==='ready'?r.status==='READY':filter==='attention'?r.issues.length&&!r.skipped:filter==='skipped'?r.skipped:true).filter(r=>!url.searchParams.get('cursor')||r.rowNumber>Number(url.searchParams.get('cursor')));
     const needs=rows.filter(r=>!r.skipped&&r.issues.length).length;
-    return {id:sessionId,status:state.run?'PARTIAL':'ANALYZED',engineVersion:2,goal:'FULL',sourceType:'PASTED_TABLE',sourceConfiguration:kind==='legacy'?{}:{experience:'GUIDED_SETUP_V2'},draftRevision:state.revision,activeEvaluationRevision:state.revision,fileName:'September student register',updatedAt:stamp,
+    return {id:sessionId,status:state.run?'PARTIAL':'ANALYZED',engineVersion:2,goal:'FULL',sourceType:'PASTED_TABLE',sourceConfiguration:kind==='legacy'?{}:{experience:state.experience},draftRevision:state.revision,activeEvaluationRevision:state.revision,fileName:'September student register',updatedAt:stamp,
       mapping:{entityTypesDetected:['STUDENT'],columnMappings:[['Name','student.name'],['Phone','student.phone'],['Joined','student.joinedAt'],['Timing','allocation.shiftName'],['Seat','allocation.seatLabel'],['Fee','student.monthlyFee']].map(([sourceColumn,targetField])=>({sourceColumn,targetField,confidence:100,source:'MANUAL',autoApplied:true,needsReview:false})),importOptions:{paymentPolicy:'CURRENT_CALENDAR_MONTH',paymentCycle:'USE_JOINED_AT_ANNIVERSARY'},guidance:{passes:1},analysis:{attention:[],sourceProfile:{rowCount:4,columnCount:6,emptyCellRate:0,columns:[],highSignalColumns:[],lowSignalColumns:[]}}},
       summary:{totalRows:rows.length,readyRows:ready().length,needsReviewRows:needs,blockedRows:needs,warningRows:0,duplicateRows:0,conflictRows:0,skippedRows:rows.filter(r=>r.skipped).length,readinessScore:50,detectedEntityCounts:{STUDENT:4},attention:[]},
       guidance:{businessDate,ready:ready().length,needsHelp:needs,partialStudents:0,createdStudents:state.run?1:0,createdAllocations:state.run?1:0,createdPayments:state.run?1:0,imported:state.run?1:0,groups:[],preparation:{canImprove:false,reusableRows:0,columnsToReview:0},setup:{counts:{matched:2,decision:1,conflict:0,deferred:0},timings:[{value:'Morning',count:2},{value:'FD',count:1}],seats:[{value:'A2',count:2},{value:'Unknown',count:1}]}},
@@ -63,7 +63,11 @@ export async function installCompletionImport(page,kind='guided') {
       state.revision++;return route.fulfill({json:detail(url)});
     }
     if(suffix==='/mapping') {state.revision++;return route.fulfill({json:{draftRevision:state.revision}});}
-    if(suffix==='/plans')return route.fulfill({json:plan(input)});
+    if(suffix==='/plans') {
+      if(state.failPlan)return route.fulfill({status:503,json:{error:'Synthetic review request failed'}});
+      if(input.targetRevision!==state.revision)return route.fulfill({status:409,json:{error:'Synthetic draft revision changed'}});
+      return route.fulfill({json:plan(input)});
+    }
     if(suffix==='/commit') {
       if(state.failCommit)return route.fulfill({status:503,json:{error:'Synthetic import start failure'}});
       state.run={id:'run-completion',importSessionId:sessionId,importPlanId:input.planId,kind:'COMMIT',status:'COMPLETED_WITH_ISSUES',totalItems:3,completedItems:3,succeededItems:3,failedItems:0,skippedItems:0,cancelledItems:0,startedAt:stamp,finishedAt:stamp,createdAt:stamp,items:[]};
