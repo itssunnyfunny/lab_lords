@@ -87,12 +87,12 @@ export function MainChart({
         return (
             <AppPanel
                 density="compact"
-                className="col-span-1 flex min-h-[400px] flex-col lg:col-span-2"
+                className="ui-analytics-chart flex min-w-0 flex-col"
                 title={t.owned(title)}
-                description={chartSummary}
+                description={contextLabel ? t.owned(contextLabel) : chartSummary}
                 contentClassName="flex min-h-0 flex-1"
             >
-                <div className="flex flex-1 items-center justify-center rounded-[var(--ui-radius-control)] border border-dashed border-[color:var(--ui-table-empty-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 text-center text-sm text-[color:var(--text-secondary)]">
+                <div className="flex min-h-48 flex-1 items-center justify-center rounded-[var(--ui-radius-control)] border border-dashed border-[color:var(--ui-table-empty-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 text-center text-sm text-[color:var(--text-secondary)]">
                     {t.owned(emptyLabel)}
                 </div>
             </AppPanel>
@@ -108,22 +108,22 @@ export function MainChart({
     return (
         <AppPanel
             density="compact"
-            className="col-span-1 flex min-h-[400px] flex-col lg:col-span-2"
+            className="ui-analytics-chart flex min-w-0 flex-col"
             title={t.owned(title)}
-            description={chartSummary}
+            description={contextLabel ? t.owned(contextLabel) : chartSummary}
             contentClassName="flex min-h-0 flex-1 flex-col gap-3"
         >
             <div
                 role="img"
                 aria-label={chartSummary}
-                className="min-h-[260px] w-full flex-1 pt-2"
+                className="ui-analytics-plot h-[200px] w-full pt-2 sm:h-[240px] xl:h-[260px]"
             >
                 <ResponsiveContainer width="100%" height="100%">
                     {variant === "bar" ? (
                         <BarChart data={chartData} accessibilityLayer={false}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--ui-table-divider)" />
                             <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} tickFormatter={value => resolvedValueFormatter(Number(value))} />
+                            <YAxis width={80} axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} tickFormatter={value => resolvedValueFormatter(Number(value))} />
                             <Tooltip
                                 cursor={{ fill: "var(--ui-form-muted-surface-bg)" }}
                                 contentStyle={tooltipStyle}
@@ -142,7 +142,7 @@ export function MainChart({
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--ui-table-divider)" />
                             <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} tickFormatter={value => resolvedValueFormatter(Number(value))} />
+                            <YAxis width={80} axisLine={false} tickLine={false} tick={{ fill: "var(--ui-table-muted)", fontSize: 12 }} tickFormatter={value => resolvedValueFormatter(Number(value))} />
                             <Tooltip
                                 contentStyle={tooltipStyle}
                                 itemStyle={{ color: "var(--text-primary)" }}

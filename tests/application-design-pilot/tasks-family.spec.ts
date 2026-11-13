@@ -1,3 +1,4 @@
+import { refreshInterfaceLanguage } from "../browser/helpers/preferences-refresh";
 import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
@@ -49,12 +50,12 @@ test("Tasks retain canonical create/edit commands, validation, failed drafts and
     await dialog.getByLabel("Due date and time (device timezone)").fill("2026-09-26T12:00");
     await dialog.getByRole("combobox", { name: "Owner" }).click(); await page.getByRole("option", { name: "Aditi Sharma" }).click();
     fixture.setFailSave(true); await dialog.getByRole("button", { name: "Save task", exact: true }).click(); await expect(dialog.getByRole("alert")).toBeVisible();
-    await dialog.locator("select").selectOption("hi");
+    await refreshInterfaceLanguage(page, "hi");
     await expect(dialog.getByLabel("काम", { exact: true })).toHaveValue("Verify evening checklist");
     if (info.project.name === "mobile-390") await shot(page, info, "editor-hi");
     fixture.setFailSave(false); await dialog.getByRole("button", { name: "काम सेव करें", exact: true }).click(); await expect(dialog).toHaveCount(0);
     expect(fixture.commands.at(-1)).toMatchObject({ method: "POST", path: "/api/branches/pilot/dashboard/tasks", body: { title: "Verify evening checklist", dueAt: "2026-09-26T06:30:00.000Z", assigneeId: "synthetic-owner" } });
-    await page.locator('select[id$="interfaceLanguage"]').first().selectOption("en");
+    await refreshInterfaceLanguage(page, "en");
     await expect(page.locator('[data-record-list]')).toContainText("Verify evening checklist");
     const edit = info.project.name.startsWith("desktop") ? page.locator('#task-table-synthetic-open-1').getByRole("button", { name: /Edit task/ }) : page.locator('#task-grid-synthetic-open-1').locator(".ui-record-card-details");
     await edit.click(); await expect(dialog).toHaveAccessibleName("Edit task");

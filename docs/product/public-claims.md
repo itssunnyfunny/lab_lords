@@ -1,5 +1,43 @@
 # Public wording and feature claims
 
+## Comprehensive refinement — local, 2026-11-10
+
+Home, Features, Pricing and FAQ retain their approved wording. This refinement
+changes the arrangement and styling of existing authenticated workflows, not
+features, plan inclusions, prices, entitlement rules, trial rules, provider
+promises or the distinction between student fees and the organization subscription.
+Import remains included in all three plans. Standard/Pro navigation groups point
+to existing destinations. No marketing wording change is needed; public visuals
+retain their separately scoped presentation. See the
+[refinement record](../redesign/ui-refinement-2026-11-10.md).
+
+## Sidebar restoration - local, 2026-11-10
+
+No marketing copy change is needed. Home, Features, Pricing and FAQ were checked
+against the restored sidebar appearance; the change adds no capability, plan
+inclusion, price or provider promise. Public navigation and marketing previews
+retain their separate presentation. Current Account/Billing routes and personal
+language settings remain intact. See the
+[local restoration report](../audits/sidebar-restoration-2026-11-10.md).
+
+## Remote-sync visual corrections - local, 2026-11-07
+
+No marketing change needed. Home, Features, Pricing and FAQ retain their approved
+wording: shared Account leave prompts, header sizing and responsive dashboard
+placement and separated mobile workspace labels add no capability, plan
+inclusion, price or provider promise. The unified Account navigation and personal
+language scopes from remote main remain intact. See the
+[fresh local audit](../audits/visual-consistency-remote-sync-2026-11-07.md); this
+verification does not establish production availability or owner acceptance.
+
+## Visual consistency corrections — local, 2026-11-07
+
+Home, Features, Pricing and FAQ were checked against the visual and draft-prompt
+changes. Their existing seat, fee, import and branch claims remain accurate; no
+marketing change is required. No price, plan entitlement, provider guarantee or
+automatic action is introduced. See the [local report](../audits/visual-consistency-2026-11-07.md);
+owner visual acceptance and production release remain separate.
+
 ## Account navigation consolidation - local, 2026-11-06
 
 Home, Features, Pricing and FAQ wording was checked against this navigation change. No marketing copy change is needed: plan features, prices, organization-wide subscription scope, trial terms and provider requirements do not change. Existing purchase entry points now resolve to Account Billing. The public signed-in header is outside the workspace sidebar and retains its existing account menu. See [local review](../redesign/unified-account-review.md).
@@ -272,3 +310,20 @@ student fees for Basic. Restoring the existing student status action, honestly
 reviewing uncertain admissions and correcting receipt calendar dates complete that
 scope without new modules, plan inclusion, prices or availability claims. These
 changes remain unreleased; see the [review-fix report](../redesign/basic-pr-287-review-fixes.md).
+
+**12 November 2026 — No marketing change needed for design completion.**
+Home, Features, Pricing and FAQ retain their approved simple wording. This pass
+changes composition and labels in existing workflows, including the distinction
+between student fee defaults and organization subscription billing. It adds no
+capability, entitlement, price, availability or automatic external action. The
+current plan catalogue and setup/rollout qualifications remain authoritative;
+older dated claims above do not redefine the implemented catalogue. Local visual
+verification and owner acceptance/release are recorded separately in the
+[completion record](../redesign/design-completion-2026-11-12.md).
+
+**12 November 2026 — Final four-area UI refinement.** Home, Features, Pricing
+and FAQ need no copy changes: this pass improves Import priority, Analytics
+composition, displayed financial dates and operational wording. It adds no
+feature, changes no plan/price/eligibility and makes no delivery or payment
+availability promise. Billing still reflects the supplied method availability
+and explicitly identifies test payments; queued reminders are not called sent.

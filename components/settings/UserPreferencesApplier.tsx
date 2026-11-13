@@ -5,10 +5,12 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useState,
     type ReactNode,
 } from "react";
+import { installWorkspaceHistoryGuard } from "@/lib/workspaceNavigationGuard";
 import { LANGUAGE_TAGS, normalizeLanguage, type InterfaceLanguage } from "@/lib/i18n/language";
 
 export type UserDisplayPreferences = {
@@ -80,6 +82,7 @@ export function notifyUserPreferencesChanged(
 }
 
 export function UserPreferencesProvider({ children, signedIn = true, ownerKey = "test", publicLocale }: { children: ReactNode; signedIn?: boolean; ownerKey?: string; publicLocale?: InterfaceLanguage }) {
+    useLayoutEffect(installWorkspaceHistoryGuard, []);
     const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
     const [profileName, setProfileName] = useState<string | null>(null);
 
@@ -178,7 +181,7 @@ export function useUserPreferences(): UserPreferencesContextValue {
             ...DEFAULT_PREFERENCES,
             ownerKey: "signed-out",
             profileName: null,
-            formatDate: input => new Intl.DateTimeFormat(DEFAULT_PREFERENCES.locale, defaultDateOptions(DEFAULT_PREFERENCES.dateFormat)).format(new Date(input)),
+            formatDate: (input, options) => new Intl.DateTimeFormat(DEFAULT_PREFERENCES.locale, { timeZone: DEFAULT_PREFERENCES.timezone, ...(options ?? defaultDateOptions(DEFAULT_PREFERENCES.dateFormat)) }).format(new Date(input)),
             formatDateTime: input => new Intl.DateTimeFormat(DEFAULT_PREFERENCES.locale, { ...defaultDateOptions(DEFAULT_PREFERENCES.dateFormat), hour: "2-digit", minute: "2-digit" }).format(new Date(input)),
             formatNumber: (input, options) => new Intl.NumberFormat(DEFAULT_PREFERENCES.locale, options).format(input),
         };

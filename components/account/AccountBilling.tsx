@@ -18,22 +18,16 @@ export function AccountBilling({ organizations, organizationId, branchId }: {
         if (!selected) return;
         router.push(accountBillingHref(org, selectedBranch, accountWorkspaceReturn(selected, selectedBranch)));
     }
-    return <div className="mx-auto max-w-6xl space-y-5">
-        <section className="ui-account-provider p-4 sm:p-5" aria-label={t.owned("Subscription workspace")}>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)]">{t.owned("Subscription belongs to")}</p>
-            <h2 className="text-xl font-semibold">{organization.name}</h2>
-            <p className="mt-2 text-sm text-[color:var(--text-secondary)]">{t.owned("One organization subscription covers its branches.")}{branch && <> {t.owned("Selected branch")}: <strong>{branch.name}</strong>.</>}</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <SettingsField label={t("Organization")}>
-                    <SettingsSelect value={organizationId} onValueChange={value => select(value)} options={organizations.map(org => ({ value: org.id, label: org.name }))} />
-                </SettingsField>
-                <SettingsField label={t.owned("Branch context")}>
-                    <SettingsSelect value={branchId ?? "all"} onValueChange={value => select(organizationId, value === "all" ? undefined : value)} options={[{ value: "all", label: t.owned("All branches") }, ...organization.branches.map(item => ({ value: item.id, label: item.name }))]} />
-                </SettingsField>
-            </div>
-        </section>
+    return <div className="mx-auto max-w-6xl space-y-4">
         <BillingExperienceProvider key={organizationId} organizationId={organizationId}>
-            <OrganizationBillingContent key={organizationId} orgId={organizationId} returnPath={returnPath} />
+            <OrganizationBillingContent key={organizationId} orgId={organizationId} returnPath={returnPath} context={<section className="ui-account-context" aria-label={t.owned("Subscription workspace")}>
+            <p className="text-sm"><span className="text-[color:var(--text-muted)]">{t.owned("Subscription belongs to")}: </span><strong>{organization.name}</strong></p>
+            <p className="mt-1 text-xs text-[color:var(--text-secondary)]">{t.owned("One organization subscription covers its branches.")}{branch && <> {t.owned("Selected branch")}: {branch.name}.</>}</p>
+            {(organizations.length > 1 || organization.branches.length > 0) && <details className="ui-context-help mt-1"><summary>{t.owned("Change workspace context")}</summary><div className="grid gap-3 py-2 sm:grid-cols-2">
+                {organizations.length > 1 && <SettingsField label={t("Organization")}><SettingsSelect value={organizationId} onValueChange={value => select(value)} options={organizations.map(org => ({ value: org.id, label: org.name }))} /></SettingsField>}
+                {organization.branches.length > 0 && <SettingsField label={t.owned("Branch context")}><SettingsSelect value={branchId ?? "all"} onValueChange={value => select(organizationId, value === "all" ? undefined : value)} options={[{ value: "all", label: t.owned("All branches") }, ...organization.branches.map(item => ({ value: item.id, label: item.name }))]} /></SettingsField>}
+            </div></details>}
+        </section>} />
         </BillingExperienceProvider>
     </div>;
 }

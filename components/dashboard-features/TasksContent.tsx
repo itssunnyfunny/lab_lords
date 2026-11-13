@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, ClipboardList, History, Pencil, Plus, RefreshCw, Settings } from "lucide-react";
+import { ArrowRight, ClipboardList, History, Pencil, Plus, RefreshCw } from "lucide-react";
 import { AppButton, AppPanel, AppSelect, Dialog, FormField } from "@/components/ui";
 import { appActionClassName } from "@/components/ui/AppButton";
 import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
@@ -24,7 +24,7 @@ type SourceResource = ReturnType<typeof useDashboardResource<{ items: DashboardN
 function SourceWork({ resource, excludeManual = false }: { resource: SourceResource; excludeManual?: boolean }) {
     const t = useTranslation();
     const items = resource.data?.items.filter(item => !excludeManual || item.kind !== "TASK");
-    return <AppPanel density="compact" title={t("Source work")} description={t("Open the source to review fees, follow-ups, attendance and renewals.")} aria-busy={resource.loading || undefined}>
+    return <AppPanel density="compact" title={t.owned("Related work")} description={t("Open the source to review fees, follow-ups, attendance and renewals.")} aria-busy={resource.loading || undefined}>
         {resource.loading ? <RecordListState kind="loading" title="Loading…" /> : resource.error ?
             <RecordListState kind="error" title="Something went wrong" description={t.error(resource.error)} onRetry={() => void resource.reload()} /> :
             items?.length === 0 ? <p className="text-sm text-[color:var(--text-muted)]">{t("No source work needs attention.")}</p> :
@@ -64,13 +64,11 @@ export function TasksContent({ branchId, access }: { branchId: string; access: B
         actions={<>{taskId && <Link className={appActionClassName("secondary")} href={`/branch/${branchId}/tasks`}>{t.owned("Show all tasks")}</Link>}<ActivityAction branchId={branchId} /><AppButton density="compact" variant="primary" icon={Plus} disabled={!write.allowed} onClick={() => setEditing("new")}>{t("Add task")}</AppButton></>}
         notices={!write.allowed && <p className="text-sm text-[color:var(--text-muted)]">{t.error(write.reason)}</p>}
         overlays={editing && <TaskEditor key={editing === "new" ? "new" : editing.id} branchId={branchId} task={editing === "new" ? null : editing} assignees={resource.data?.assignees ?? []} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setRestoreFocus(true); void resource.reload(); void sources.reload(); }} />}>
-        <SourceWork resource={sources} excludeManual />
         <RecordListSurface label={t("Manual tasks")} busy={resource.loading} toolbar={<>
             <FormField label={t("Search tasks")} id="task-search" className="min-w-0 flex-1"><input className={inputClass} type="search" disabled={Boolean(taskId)} maxLength={100} value={search} onChange={event => { setSearch(event.target.value); setCursor(""); }} /></FormField>
             <div className="min-w-36"><AppSelect label={t("Status")} disabled={Boolean(taskId)} value={status} onValueChange={value => { setStatus(value); setCursor(""); }} options={[{ value: "OPEN", label: t("Open") }, { value: "DONE", label: t("Completed") }, { value: "ALL", label: t("All") }]} /></div>
             <AppButton density="compact" variant="secondary" icon={RefreshCw} disabled={resource.loading} onClick={() => void resource.reload()}>{t("Refresh")}</AppButton>
-        </>} footer={<div className="flex w-full flex-wrap items-center justify-between gap-2">
-            <Link className={appActionClassName("quiet")} href={`/branch/${branchId}/dashboard-settings`}><Settings size={14} aria-hidden="true" />{t("Dashboard setup")}</Link>
+        </>} footer={<div className="flex w-full flex-wrap items-center justify-end gap-2">
             <div className="flex flex-wrap gap-2"><AppButton density="compact" variant="secondary" disabled={!cursor || resource.loading} onClick={() => setCursor("")}>{t("First page")}</AppButton><AppButton density="compact" variant="secondary" disabled={!resource.data?.nextCursor || resource.loading || !!resource.error} onClick={() => setCursor(resource.data?.nextCursor ?? "")}>{t("Next page")}</AppButton></div>
         </div>}>
             {resource.loading ? <RecordListState kind="loading" title="Loading…" /> : resource.error ? <RecordListState kind="error" title="Something went wrong" description={t.error(resource.error)} onRetry={() => void resource.reload()} /> : !resource.data?.items.length ?
@@ -86,6 +84,7 @@ export function TasksContent({ branchId, access }: { branchId: string; access: B
                     renderGridCard={task => <TaskRecordCard task={task} canEdit={write.allowed} onEdit={() => setEditing(task)} />}
                 />}
         </RecordListSurface>
+        <SourceWork resource={sources} excludeManual />
     </RecordListPage>;
 }
 

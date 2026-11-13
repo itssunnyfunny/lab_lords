@@ -31,6 +31,7 @@ test("real attendance route retains roster, confirmation, and compact history", 
     await page.goto("/branch/pilot/attendance?mode=after&lang=en");
     await expect(page.getByRole("heading", { name: "Attendance", level: 1 })).toBeVisible();
     await expect(page.locator(".ui-record-card:visible")).toHaveCount(2);
+    if (info.project.name === "mobile-390") expect((await page.locator(".ui-record-card:visible").first().boundingBox())!.y).toBeLessThan(640);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     fs.mkdirSync(evidence, { recursive: true });
     await page.evaluate(() => document.fonts.ready);

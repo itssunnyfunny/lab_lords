@@ -1,6 +1,5 @@
 "use client";
 import { useWorkspaceAccess } from "@/components/layout/BranchAccessProvider";
-import { OwnedLabel } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useRef, useState } from "react";
@@ -17,9 +16,22 @@ import {
   type WhatsAppPaymentReminderSuppressionReason,
 } from "@/lib/api/whatsapp";
 
-function titleCase(value: string) {
-  return value.toLowerCase().replaceAll("_", " ").replace(/^./, first => first.toUpperCase());
-}
+const reminderExclusions: Record<WhatsAppPaymentReminderSuppressionReason, string> = {
+  STUDENT_INACTIVE: "Student is inactive",
+  PAYMENT_NOT_DUE: "Fee is not due yet",
+  PAYMENT_ALREADY_RESOLVED: "Fee is already settled",
+  NO_PHONE: "Missing phone number",
+  INVALID_PHONE: "Check the phone number",
+  NO_RECIPIENT_ASSOCIATION: "Phone number is not linked to this student",
+  CONSENT_UNKNOWN: "WhatsApp consent is needed",
+  CONSENT_OPTED_OUT: "Student has opted out of WhatsApp",
+  SENDER_UNAVAILABLE: "WhatsApp sending is unavailable",
+  BRANCH_DISABLED: "WhatsApp reminders are off for this branch",
+  TEMPLATE_UNAVAILABLE: "Approved reminder is unavailable",
+  BUDGET_UNAVAILABLE: "Messaging budget is unavailable",
+  RATE_UNAVAILABLE: "Message cost is unavailable",
+  DESTINATION_UNSUPPORTED: "This phone destination is not supported",
+};
 
 function estimatedInr(value: string) {
   if (!/^\d+$/.test(value)) return "Unavailable";
@@ -46,15 +58,15 @@ export function ApprovedPaymentReminderPreview({
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className={cn("p-3", pageInsetSurfaceClass)}>
-          <p className="text-xs text-[color:var(--text-muted)]">{t("Eligible recipient groups")}</p>
+          <p className="text-xs text-[color:var(--text-muted)]">{t("Messages ready to queue")}</p>
           <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{preview.eligibleRecipientCount}</p>
         </div>
         <div className={cn("p-3", pageInsetSurfaceClass)}>
-          <p className="text-xs text-[color:var(--text-muted)]">{t("Suppressed payments")}</p>
+          <p className="text-xs text-[color:var(--text-muted)]">{t("Payments not included")}</p>
           <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{preview.suppressedCount}</p>
         </div>
         <div className={cn("p-3", pageInsetSurfaceClass)}>
-          <p className="text-xs text-[color:var(--text-muted)]">{t("Estimated Meta usage")}</p>
+          <p className="text-xs text-[color:var(--text-muted)]">{t("Estimated Meta cost")}</p>
           <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{estimatedInr(preview.estimatedCostMicros)}</p>
         </div>
       </div>
@@ -72,14 +84,14 @@ export function ApprovedPaymentReminderPreview({
               </div>
               {group.studentCount > 1 ? (
                 <p className="text-xs text-[color:var(--text-secondary)]">
-                  {t("Shared recipient group: {count} students will receive one summary message.", { count: group.studentCount })}
+                  {t("One summary message covers {count} students who share this phone number.", { count: group.studentCount })}
                 </p>
               ) : null}
               <div className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-input-bg)] p-3">
                 <p className="whitespace-pre-wrap text-sm leading-6 text-[color:var(--text-primary)]">{group.renderedPreview}</p>
               </div>
               <p className="text-xs text-[color:var(--text-muted)]">
-                {t("Fixed catalogue template: {template}", { template: t.owned(titleCase(group.managedTemplateKey)) })}
+                {t("Approved payment reminder")}
               </p>
             </div>
           ))}
@@ -91,16 +103,16 @@ export function ApprovedPaymentReminderPreview({
 
       {suppressions.length > 0 ? (
         <div className={cn("space-y-2 px-3 py-3 text-sm", formWarningBannerClass)}>
-          <p className="font-medium">{t("Server-side suppressions")}</p>
+          <p className="font-medium">{t("Why some payments are not included")}</p>
           <ul className="grid gap-1 sm:grid-cols-2">
             {suppressions.map(([reason, count]) => (
-              <li key={reason}><OwnedLabel text={titleCase(reason)} />: {count}</li>
+              <li key={reason}>{t.owned(reminderExclusions[reason])}: {count}</li>
             ))}
           </ul>
         </div>
       ) : null}
 
-      <p className="text-xs leading-5 text-[color:var(--text-muted)]">{preview.estimateDisclaimer}</p>
+      <p className="text-xs leading-5 text-[color:var(--text-muted)]">{t.owned(preview.estimateDisclaimer)}</p>
     </div>
   );
 }
@@ -143,7 +155,7 @@ function PaymentReminderReviewContent({
     if (operationRef.current || paymentIds.length === 0 || !canSend) return;
     operationRef.current = true;
     setBusy("preview");
-    setNotice({ tone: "status", text: "Resolving recipients, consent, payment truth, grouping, templates, and budget…" });
+    setNotice({ tone: "status", text: "Checking phone numbers, consent, unpaid fees and messaging budget…" });
     try {
       const result = await whatsapp.previewPaymentReminders(branchId, paymentIds);
       setPreviewState({
@@ -153,7 +165,7 @@ function PaymentReminderReviewContent({
       });
       setQueueResult(null);
       setConfirmed(false);
-      setNotice({ tone: "status", text: "Approved Utility-template preview is ready for confirmation." });
+      setNotice({ tone: "status", text: "Review the reminder and cost before adding messages to the queue." });
     } catch {
       setNotice({ tone: "error", text: "The approved reminder preview is unavailable or the selected payments are not authorized." });
     } finally {
@@ -166,7 +178,7 @@ function PaymentReminderReviewContent({
     if (operationRef.current || !currentPreview || !confirmed || currentPreview.preview.groups.length === 0) return;
     operationRef.current = true;
     setBusy("queue");
-    setNotice({ tone: "status", text: "Queueing the confirmed recipient groups…" });
+    setNotice({ tone: "status", text: "Adding the confirmed messages to the queue…" });
     try {
       const result = await whatsapp.queuePaymentReminders(
         branchId,
@@ -176,7 +188,7 @@ function PaymentReminderReviewContent({
       setQueueResult(result);
       setNotice({
         tone: "status",
-        text: `${result.request.queuedMessageCount} message${result.request.queuedMessageCount === 1 ? "" : "s"} queued. Delivery remains subject to send-time revalidation.`,
+        text: t(result.request.queuedMessageCount === 1 ? "1 message queued. Delivery status will show whether it is sent." : "{count} messages queued. Delivery status will show which messages are sent.", { count: result.request.queuedMessageCount }),
       });
     } catch {
       setNotice({
@@ -192,14 +204,14 @@ function PaymentReminderReviewContent({
   return (
     <AppPanel
       title={t("Approved WhatsApp reminder")}
-      description={t("Preview and queue only the official Lab Lords Utility template. Recipient, payment values, template, grouping, suppression, and cost are resolved by the server.")}
-      action={<Badge variant="cyan">{t("Utility only")}</Badge>}
+      description={t("Review the approved payment reminder, included students and estimated Meta cost, then add messages to the queue. Consent, unpaid fees and budget are checked again before sending.")}
+      action={<Badge variant="cyan">{t("Payment reminders")}</Badge>}
       contentClassName="space-y-4"
     >
       {!canSend ? (
         <div className={cn("flex items-start gap-3 px-4 py-3 text-sm", formWarningBannerClass)} role="status">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{blockedReason || "You do not have access to queue approved WhatsApp reminders."}</span>
+          <span>{blockedReason || t("You do not have access to queue approved WhatsApp reminders.")}</span>
         </div>
       ) : null}
 
@@ -235,7 +247,7 @@ function PaymentReminderReviewContent({
               className="mt-0.5 h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-cyan-500"
             />
             <span>
-              {t("I reviewed the official preview, server suppressions, recipient grouping, and estimated customer-owned Meta usage.")}</span>
+              {t("I reviewed the messages, students included, payments left out and estimated Meta charges for my account.")}</span>
           </label>
           <div className="flex justify-end">
             <AppButton
@@ -246,7 +258,7 @@ function PaymentReminderReviewContent({
               disabled={!confirmed || busy !== null}
               isLoading={busy === "queue"}
             >
-              {t("Confirm and queue {count} recipient groups", { count: currentPreview.preview.eligibleRecipientCount })}
+              {t(currentPreview.preview.eligibleRecipientCount === 1 ? "Confirm and queue 1 message" : "Confirm and queue {count} messages", { count: currentPreview.preview.eligibleRecipientCount })}
             </AppButton>
           </div>
         </div>
@@ -256,7 +268,7 @@ function PaymentReminderReviewContent({
         <div className="flex items-start gap-3 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] p-3 text-sm" role="status">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
-            {t("Queue request {status}: {queued} queued, {suppressed} suppressed.", { status: t.owned(currentQueueResult.request.status), queued: currentQueueResult.request.queuedMessageCount, suppressed: currentQueueResult.request.suppressedCount })}
+            {t("Status: {status}. Queued: {queued}; payments not included: {suppressed}.", { status: t.owned(currentQueueResult.request.status), queued: currentQueueResult.request.queuedMessageCount, suppressed: currentQueueResult.request.suppressedCount })}
           </span>
         </div>
       ) : null}

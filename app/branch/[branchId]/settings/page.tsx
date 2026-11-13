@@ -124,11 +124,11 @@ type BranchForm = Pick<
 
 const SECTIONS = [
     { id: "profile", label: "Profile", icon: Building2 },
-    { id: "defaults", label: "Student Defaults", icon: IndianRupee },
+    { id: "defaults", label: "Student fee defaults", icon: IndianRupee },
     { id: "communication", label: "Communication", icon: MessageSquare },
     { id: "ai", label: "AI", icon: Bot },
     { id: "access", label: "Access", icon: Shield },
-    { id: "billing", label: "Billing", icon: CreditCard },
+    { id: "billing", label: "Subscription", icon: CreditCard },
     { id: "system", label: "System Info", icon: Hash },
 ];
 
@@ -529,7 +529,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
         <>
             <SettingsWorkspace
                 title={t("Branch Settings")}
-                subtitle={t("Configure the branch profile, billing defaults, reminders, AI, and access overview.")}
+                subtitle={t("Configure the branch profile, student fee defaults, reminders, AI, and access overview.")}
                 sections={whatsAppAvailable ? SECTIONS_WITH_WHATSAPP : SECTIONS}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
@@ -581,7 +581,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     )}
                 </SettingsPanel>
 
-                <SettingsPanel id="defaults" title={t("Student Defaults")} description={t("Defaults applied when creating new students in this branch.")} icon={IndianRupee}>
+                <SettingsPanel id="defaults" title={t("Student fee defaults")} description={t("Fees charged to your students. These defaults are separate from your Lab Lords subscription.")} icon={IndianRupee}>
                     {showMutationControls && isEditing ? (
                         <>
                             <SettingsField label={t("Default monthly fee")} description={t("Used when a new student has no manual fee or shift-linked fee.")} error={defaultFeeError} errorId="branch-default-fee-error">
@@ -703,7 +703,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     </div>
                 </SettingsPanel>
 
-                <SettingsPanel id="billing" title={t("Billing")} description={t("This branch inherits its organization's billing plan.")} icon={CreditCard}>
+                <SettingsPanel id="billing" title={t("Subscription")} description={t("This branch inherits its organization's billing plan.")} icon={CreditCard}>
                     {billingError && (
                         <div className={cn("mx-5 mt-4 flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)} role="alert">
                             <span>{t("Billing details are unavailable:")} <LocalizedError error={billingError} /></span>
@@ -729,7 +729,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
 
                 <SettingsPanel id="system" title={t("System Info")} description={t("Read-only branch metadata and active shift summary.")} icon={Hash}>
                     <ReadOnlyRow label={t("Organization")} value={<span className="inline-flex items-center gap-2"><GitBranch size={14} />{branch.organization?.name || "N/A"}</span>} />
-                    <ReadOnlyRow label={t("Branch ID")} value={<span className="font-mono">{branch.id}</span>} />
+                    <details className="px-4 py-3 text-sm"><summary className="cursor-pointer">{t("Branch ID")}</summary><p className="mt-2 break-all font-mono text-xs">{branch.id}</p></details>
                     <ReadOnlyRow label={t("Created")} value={<span className="inline-flex items-center gap-2"><Calendar size={14} />{formatDate(branch.createdAt)}</span>} />
                     <ReadOnlyRow label={t("Last data change")} value={formatDateTime(branch.lastDataChange)} />
                     <div className="px-5 py-4">
@@ -743,7 +743,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                                 <SettingsCard key={shift.id}>
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="text-sm font-medium text-[color:var(--text-primary)]">{shift.name}</span>
-                                        <span className="text-xs text-[color:var(--ui-tone-success-text)]">Rs {formatNumber(shift.price)}</span>
+                                        <span className="text-xs text-[color:var(--ui-tone-success-text)]">₹{formatNumber(shift.price)}</span>
                                     </div>
                                     <p className="mt-1 flex items-center gap-1 text-xs text-[color:var(--text-muted)]">
                                         <Clock size={11} />

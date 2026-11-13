@@ -31,9 +31,9 @@ function contrast(foreground: string, background: string) {
 
 describe("application design pilot theme", () => {
   it("selects current branch routes while excluding retired and public pages", () => {
-    for (const path of ["/branch/test", ...["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "renewals", "overdue", "allocations", "shifts", "payments", "attendance", "analytics"].map(page => `/branch/test/${page}`), "/branch/test/ai/reports", "/branch/test/onboarding/import", "/branch/test/onboarding/import/session-1"]) expect(isApplicationDesignPilotPath(path)).toBe(true);
+    for (const path of ["/branch/test", ...["students", "staff", "seats", "follow-ups", "tasks", "reports", "dashboard-settings", "settings", "setup", "fees", "renewals", "overdue", "allocations", "shifts", "payments", "attendance", "analytics"].map(page => `/branch/test/${page}`), "/branch/test/students/student-1", "/branch/test/ai/reports", "/branch/test/onboarding/import", "/branch/test/onboarding/import/session-1"]) expect(isApplicationDesignPilotPath(path)).toBe(true);
     expect(isApplicationDesignPilotPath("/branch/test/ai/messages")).toBe(false);
-    for (const path of ["/", "/hi", "/features", "/pricing", "/faq", "/account", "/branch/test/staff/nested", "/branch/test/onboarding/import/session-1/nested", null]) expect(isApplicationDesignPilotPath(path)).toBe(false);
+    for (const path of ["/", "/hi", "/features", "/pricing", "/faq", "/account", "/branch/test/staff/nested", "/branch/test/students/student-1/nested", "/branch/test/fees/nested", "/branch/test/onboarding/import/session-1/nested", null]) expect(isApplicationDesignPilotPath(path)).toBe(false);
   });
   it("scopes route boundaries to the complete migrated application inventory", () => {
     for (const path of [

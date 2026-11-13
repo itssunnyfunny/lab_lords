@@ -85,17 +85,17 @@ export function BillingPaymentMethodsOverview({
                 {t.owned("Payment methods")}
               </p>
               <h3 id="billing-payment-methods-title" className="mt-1 text-base font-semibold text-[color:var(--text-primary)]">
-                {t.owned(providerManaged ? "Choose securely in Razorpay Checkout" : "Card checkout is currently active")}
+                {t.owned(providerManaged ? "Choose securely in Razorpay Checkout" : "Pay by card")}
               </h3>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-[color:var(--text-secondary)]">
                 {t.owned(providerManaged
-                  ? "After reviewing your plan, Razorpay shows the recurring methods eligible for this account, amount, bank or app, and device."
-                  : "This environment is still in card-only rollout mode. UPI AutoPay and eMandate appear after multi-method checkout and the corresponding Razorpay account capabilities are enabled.")}
+                  ? "Choose an available payment method at checkout. Options depend on your bank or app, payment amount and device."
+                  : "Card payments are available. UPI AutoPay and bank mandates are not currently available for this subscription.")}
               </p>
             </div>
           </div>
           <span className="inline-flex w-fit shrink-0 items-center rounded-full border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--ui-badge-cyan-text)]">
-            {t.owned(providerManaged ? "Razorpay managed" : "Card-only mode")}
+            {t.owned(providerManaged ? "Choose at checkout" : "Card payments")}
           </span>
         </div>
 
@@ -126,10 +126,10 @@ export function BillingPaymentMethodsOverview({
             const status = isCurrent
               ? "Current"
               : providerManaged && isPotential
-                ? "Razorpay decides"
+                ? "Shown if eligible"
                 : isPotential
-                  ? "Enabled"
-                  : "Not enabled";
+                  ? "Available now"
+                  : "Not available";
             const statusClasses = isCurrent || (!providerManaged && isPotential)
               ? "border-[color:var(--ui-badge-success-border)] bg-[color:var(--ui-badge-success-bg)] text-[color:var(--ui-badge-success-text)]"
               : providerManaged && isPotential
@@ -158,7 +158,7 @@ export function BillingPaymentMethodsOverview({
         <div className="flex items-start gap-2.5 border-t border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 py-3 text-xs leading-5 text-[color:var(--text-secondary)]">
           <ShieldCheck className="mt-0.5 shrink-0 text-[color:var(--ui-form-accent)]" size={15} aria-hidden="true" />
           <p>
-            {t.owned("Payment credentials and approvals stay inside Razorpay. Lab Lords records only provider-confirmed mandate and payment status.")}
+            {t.owned("Razorpay securely handles your payment details and approval. Lab Lords shows your confirmed payment status.")}
           </p>
         </div>
       </div>

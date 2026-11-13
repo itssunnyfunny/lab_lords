@@ -232,9 +232,11 @@ describe("WhatsApp collections customer UI", () => {
     };
     const html = renderToStaticMarkup(<ApprovedPaymentReminderPreview preview={preview} />);
 
-    expect(html).toContain("Shared recipient group: 2 students will receive one summary message");
+    expect(html).toContain("One summary message covers 2 students who share this phone number.");
+    expect(html).toContain("Approved payment reminder");
+    expect(html).toContain("Namaste. Two fee records remain due.");
     expect(html).toContain("+91••••••3210");
-    expect(html).toContain("Consent opted out: 1");
+    expect(html).toContain("Student has opted out of WhatsApp: 1");
     expect(html).toContain("Final charges are determined by Meta");
     expect(html).not.toContain("payment_3");
     expect(html).not.toMatch(/textarea|phone number input|custom message/i);

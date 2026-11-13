@@ -17,7 +17,7 @@ export function CollectionHistory({ branchId, studentId, owner = false, refreshK
     branchId: string; studentId?: string; owner?: boolean; refreshKey?: number; targetCollectionId?: string | null;
 }) {
     const t = useTranslation();
-    const { formatNumber } = useUserPreferences();
+    const { formatNumber, interfaceLanguage } = useUserPreferences();
     const [rows, setRows] = useState<FeeCollectionView[]>([]);
     const [search, setSearch] = useState("");
     const [month, setMonth] = useState("");
@@ -92,7 +92,7 @@ export function CollectionHistory({ branchId, studentId, owner = false, refreshK
                             {row.voidedAt && <Badge variant="danger">{t("VOID")}</Badge>}
                         </div>
                         <div className="ui-record-card-context">
-                            <span>{t("{toLocaleString2} · Recorded by {recordedBy}", { toLocaleString2: receiptCollectedAt(row.snapshot.collectedAt), recordedBy: row.snapshot.recordedBy })}</span>
+                            <span>{t("{toLocaleString2} · Recorded by {recordedBy}", { toLocaleString2: receiptCollectedAt(row.snapshot.collectedAt, interfaceLanguage), recordedBy: row.snapshot.recordedBy })}</span>
                         </div>
                         <div className="ui-record-card-summary">
                             <p className="ui-record-card-due">{formatNumber(row.amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>

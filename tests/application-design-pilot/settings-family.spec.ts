@@ -17,13 +17,13 @@ test("dashboard settings keeps compact composition and saved threshold across la
     await page.getByRole("button", { name: "Save threshold" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
     expect(commands.at(-1)).toEqual({ path: "/api/branches/pilot/dashboard/settings", body: { utilizationThreshold: 42 } });
-    await page.locator('select[id$="interfaceLanguage"]').first().selectOption("hi");
+    await page.goto("/branch/pilot/dashboard-settings?mode=after&lang=hi");
     await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");
     await expect(page.getByLabel("स्तर (%)")).toHaveValue("42");
     await page.evaluate(() => document.fonts.ready);
     fs.mkdirSync(output, { recursive: true });
     if (info.project.name === "desktop-1440" || info.project.name === "mobile-390") await page.screenshot({ path: `${output}/dashboard-setup-hi-${info.project.name}.png`, animations: "disabled" });
-    await page.locator('select[id$="interfaceLanguage"]').first().selectOption("hinglish");
+    await page.goto("/branch/pilot/dashboard-settings?mode=after&lang=hinglish");
     await expect(page.locator("html")).toHaveAttribute("lang", "hi-Latn-IN");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
@@ -62,8 +62,8 @@ const closeoutOutput = reviewEvidencePath("docs/redesign/application-closeout-ev
 test("real account settings keeps the application chrome, edit identity, language, and discard overlay", async ({ page }, info) => {
     const fixture = await installSettingsRouteFixture(page);
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
-    await page.goto("/account?mode=after&lang=en");
-    await expect(page.getByRole("heading", { name: "Account Settings" })).toBeVisible();
+    await page.goto("/account/profile?mode=after&lang=en&returnTo=%2Fbranch%2Fpilot");
+    await expect(page.getByRole("heading", { name: "Profile & security" })).toBeVisible();
     if (info.project.name === "desktop-1440") {
         await expect(page.getByRole("link", { name: "Back to workspace", exact: true })).toBeVisible();
         fs.mkdirSync(closeoutOutput, { recursive: true });
@@ -71,7 +71,7 @@ test("real account settings keeps the application chrome, edit identity, languag
         await page.screenshot({ path: `${closeoutOutput}/account-desktop-1440.png`, animations: "disabled" });
     }
     if (info.project.name === "mobile-390") {
-        await expect(page.getByRole("button", { name: "Open navigation" })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Open navigation" })).toBeVisible();
         await expect(page.getByRole("link", { name: "Back to workspace", exact: true })).toBeVisible();
         fs.mkdirSync(closeoutOutput, { recursive: true });
         await page.evaluate(() => document.fonts.ready);
@@ -89,8 +89,12 @@ test("real account settings keeps the application chrome, edit identity, languag
     if (info.project.name === "mobile-390") await page.screenshot({ path: `${closeoutOutput}/account-discard-mobile-390.png`, animations: "disabled" });
     await page.keyboard.press("Escape");
     await expect(page.getByRole("alertdialog", { name: "Discard account changes?" })).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Display name" })).toHaveValue("Unsaved name");
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Discard changes", exact: true }).click();
+    await page.goto("/account/preferences?mode=after&lang=en&returnTo=%2Fbranch%2Fpilot");
     for (const [language, htmlLang] of [["hi", "hi-IN"], ["hinglish", "hi-Latn-IN"]]) {
-        await page.locator('select[id$="interfaceLanguage"]').first().selectOption(language);
+        await page.locator('select[id$="interfaceLanguage"]').selectOption(language);
         await expect(page.locator("html")).toHaveAttribute("lang", htmlLang);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     }
@@ -123,13 +127,14 @@ test("real organization settings and billing processing keep provider status pre
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     await page.goto("/org/org-pilot/settings?mode=after&lang=en");
     await expect(page.getByRole("heading", { name: "Organization Settings" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Current subscription" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Edit settings" })).toBeEnabled();
     if (info.project.name === "desktop-1440") {
         fs.mkdirSync(closeoutOutput, { recursive: true });
         await page.evaluate(() => document.fonts.ready);
         await page.screenshot({ path: `${closeoutOutput}/organization-settings-desktop-1440.png`, animations: "disabled" });
     }
+    await page.getByRole("link", { name: "Manage branch billing", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Current subscription" })).toBeVisible();
     await page.getByRole("button", { name: "Cancel at cycle end" }).click();
     await expect(page.getByRole("alertdialog", { name: "Cancel at cycle end?" })).toBeVisible();
     if (info.project.name === "mobile-390") await page.screenshot({ path: `${closeoutOutput}/billing-confirmation-mobile-390.png`, animations: "disabled" });
@@ -138,7 +143,7 @@ test("real organization settings and billing processing keep provider status pre
     await page.goto("/org/org-pilot/billing/processing/change-pilot?mode=after&lang=en");
     await expect(page.getByRole("heading", { name: "Billing confirmation" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Billing update confirmed" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Continue" })).toHaveAttribute("href", "/org/org-pilot/settings#billing");
+    await expect(page.getByRole("link", { name: "Continue" })).toHaveAttribute("href", /\/account\/billing\?organizationId=org-pilot.*#billing$/);
     if (info.project.name === "mobile-390") await page.screenshot({ path: `${closeoutOutput}/billing-processing-mobile-390.png`, animations: "disabled" });
     await page.goto("/org/org-pilot/billing/processing/change-pilot?mode=after&lang=hi&outcome=declined");
     await expect(page.getByRole("status")).toBeVisible();

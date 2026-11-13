@@ -4,7 +4,7 @@ import type { BranchAccess } from "@/types";
 import { toClientBillingExperience } from "@/lib/billingExperienceView";
 import { workspacePresentation } from "@/lib/workspacePresentation";
 
-type AccessContext = { branchId: string; access: BranchAccess | null; loading: boolean; error: string | null; refresh: () => Promise<void>; presentation: "simple" | "full" | null };
+type AccessContext = { branchId: string; access: BranchAccess | null; loading: boolean; error: string | null; accessDenied: boolean; refresh: () => Promise<void>; presentation: "simple" | "full" | null };
 const Context = createContext<AccessContext | null>(null);
 export const useWorkspaceAccess = () => useContext(Context);
 
@@ -12,29 +12,36 @@ export const useWorkspaceAccess = () => useContext(Context);
 export function BranchAccessProvider({ branchId, children }: { branchId: string; children: ReactNode }) {
     const [access, setAccess] = useState<BranchAccess | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [accessDenied, setAccessDenied] = useState(false);
     const [loading, setLoading] = useState(true);
     const sequence = useRef(0);
     const refresh = useCallback(async () => {
         const version = ++sequence.current;
+        let denied = false;
         try {
             const response = await fetch(`/api/branches/${encodeURIComponent(branchId)}/access`, { cache: "no-store" });
             if (version !== sequence.current) return;
             if (!response.ok) {
                 // Lost membership must discard private records/drafts. A transport
                 // failure may retain the draft behind the blocking retry dialog.
-                if ([401, 403, 404].includes(response.status)) setAccess(null);
+                if ([401, 403, 404].includes(response.status)) { denied = true; setAccess(null); }
                 throw new Error("Branch access is unavailable.");
             }
             const next: BranchAccess = await response.json();
             if (version !== sequence.current) return;
             if (next.branchId !== branchId) {
+                denied = true;
                 setAccess(null);
                 throw new Error("Branch access is unavailable.");
             }
             setAccess(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
             setError(null);
+            setAccessDenied(false);
         } catch {
-            if (version === sequence.current) setError("Access could not be refreshed. Your draft is still here. Retry before continuing.");
+            if (version === sequence.current) {
+                setAccessDenied(denied);
+                setError(denied ? "Branch access is unavailable." : "Access could not be refreshed");
+            }
         } finally { if (version === sequence.current) setLoading(false); }
     }, [branchId]);
     useEffect(() => {
@@ -60,6 +67,6 @@ export function BranchAccessProvider({ branchId, children }: { branchId: string;
         const timer = window.setTimeout(() => { void refresh(); }, Math.min(next - Date.now() + 100, 2_147_000_000));
         return () => clearTimeout(timer);
     }, [access, refresh]);
-    const value = useMemo(() => ({ branchId, access, loading, error, refresh, presentation: workspacePresentation(access) }), [branchId, access, loading, error, refresh]);
+    const value = useMemo(() => ({ branchId, access, loading, error, accessDenied, refresh, presentation: workspacePresentation(access) }), [branchId, access, loading, error, accessDenied, refresh]);
     return <Context.Provider value={value}>{children}</Context.Provider>;
 }

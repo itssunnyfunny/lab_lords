@@ -16,25 +16,26 @@ interface KpiRowProps {
 }
 
 export function KpiCard({ title, value, trend, trendUp = true, data }: KpiRowProps) {
+    const t = useTranslation();
     const chartData = data ? data.map(v => ({ v })) : [];
     const color = trendUp ? "var(--ui-tone-success-progress)" : "var(--ui-tone-danger-progress)";
     const gradientId = `kpi-gradient-${title.replace(/\s+/g, "-").toLowerCase()}`;
 
     return (
-        <AppPanel className="transition-colors hover:border-[color:var(--ui-card-hover-border)]" contentClassName="p-0">
-            <div className="flex items-start justify-between p-5">
+        <AppPanel density="compact" className="ui-kpi-card" contentClassName="ui-analytics-kpi-content p-0">
+            <div className="flex items-start justify-between p-3">
                 <div>
                     <p className="mb-1 text-sm font-medium text-[color:var(--ui-stat-title)]">{title}</p>
                     <h2 className="text-2xl font-semibold tracking-tight text-[color:var(--ui-stat-value)]">{value}</h2>
                     {trend && (
                         <p className={trendUp ? "mt-1 text-xs text-[color:var(--ui-tone-success-text)]" : "mt-1 text-xs text-[color:var(--ui-tone-danger-text)]"}>
-                            {trend}
+                            {t.owned(trend)}
                         </p>
                     )}
                 </div>
             </div>
 
-            <div aria-hidden="true" className="pointer-events-none relative h-16 w-full">
+            {chartData.length > 0 && <div aria-hidden="true" className="ui-analytics-sparkline pointer-events-none relative h-10 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} accessibilityLayer={false}>
                         <defs>
@@ -52,7 +53,7 @@ export function KpiCard({ title, value, trend, trendUp = true, data }: KpiRowPro
                         />
                     </AreaChart>
                 </ResponsiveContainer>
-            </div>
+            </div>}
         </AppPanel>
     );
 }
@@ -105,7 +106,7 @@ export function KpiRow({
 
     if (!snapshot) {
         return (
-            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
                 <KpiCard title={t("Active Students")} value="-" />
                 <KpiCard title={t("Total Utilization")} value="-" />
             </div>
@@ -113,7 +114,7 @@ export function KpiRow({
     }
 
     return (
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className={snapshot.financialAccess ? "grid grid-cols-2 gap-3 lg:grid-cols-4" : "grid grid-cols-2 gap-3"}>
             {snapshot.financialAccess && <KpiCard
                 title={t("Collected Revenue")}
                 value={formatMoney(snapshot.paidAmount)}
@@ -140,7 +141,7 @@ export function KpiRow({
                 })}
                 trend={
                     snapshot.seatDetails
-                        ? `${formatNumber(snapshot.seatDetails.totalUsedSlots)} / ${formatNumber(snapshot.seatDetails.totalShiftCapacity)} slots`
+                        ? t("{used} of {capacity} seat-shift places", {used:formatNumber(snapshot.seatDetails.totalUsedSlots),capacity:formatNumber(snapshot.seatDetails.totalShiftCapacity)})
                         : undefined
                 }
                 data={seatTrend}

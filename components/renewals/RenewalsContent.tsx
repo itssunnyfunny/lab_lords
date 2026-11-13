@@ -97,10 +97,10 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
             {reminder && <ReminderDialog key={reminder.key} row={reminder} branchId={branchId} canSend={send.allowed} blockedReason={send.reason ?? undefined}
                 onClose={() => setReminder(null)} />}
         </>}>
-            <div className="grid gap-3 sm:grid-cols-2">
-                <AppPanel density="compact" title={t("Outstanding recorded dues")}><p className="text-2xl font-semibold tabular-nums">{page ? money(page.outstandingAmount) : "—"}</p></AppPanel>
-                <AppPanel density="compact" title={t("Expected fees · today through next {days} days", { days })}><p className="text-2xl font-semibold tabular-nums">{page ? money(page.expectedAmount) : "—"}</p></AppPanel>
-            </div>
+            <dl className="ui-inline-summary" aria-label={t("Renewals & dues")}>
+                <div><dt>{t("Outstanding recorded dues")}</dt><dd>{page ? money(page.outstandingAmount) : "—"}</dd></div>
+                <div><dt>{t("Expected fees · today through next {days} days", { days })}</dt><dd>{page ? money(page.expectedAmount) : "—"}</dd></div>
+            </dl>
             <RecordListSurface label={t("Renewals & dues")} busy={loading} toolbar={<div className="w-full space-y-3">
                 <div className="flex flex-wrap gap-2" aria-label={t("Fee filters")}>
                 {renewalFilters.map(value => <AppButton density="compact" key={value} variant={filter === value ? "primary" : "secondary"}
@@ -114,7 +114,7 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
                 <AppSelect label={t("Upcoming window")} value={String(days)} onValueChange={value => setDays(value === "3" ? 3 : 7)}
                     options={[{ value: "3", label: t("Next 3 days") }, { value: "7", label: t("Next 7 days") }]} />
                 </div>
-                <p className="text-xs text-[color:var(--text-muted)]">{t("Oldest fee date first. Counts reflect your search; overdue means more than 7 days late. Each period appears separately.")}</p>
+                <details className="ui-context-help"><summary>{t.owned("How this list is ordered")}</summary><p>{t("Oldest fee date first. Counts reflect your search; overdue means more than 7 days late. Each period appears separately.")}</p></details>
             </div>} footer={page && !loading && !error && <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm">{t("Showing {shown} of {total} periods", { shown: page.items.length, total: page.counts[filter] })}</p>
                 <div className="flex gap-2"><AppButton density="compact" variant="secondary" onClick={() => void load()}>{t("First page")}</AppButton>
@@ -126,13 +126,13 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
                 : <div className="grid gap-3">{page?.items.map(row => <AppPanel density="compact" key={row.key} title={row.studentName}
                     action={<Badge variant={row.expected ? "warning" : "cyan"}>{row.expected ? t("Expected fee") : t("Recorded due")}</Badge>}>
                     <div className="space-y-4">
-                        <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                            <div><p className="text-[color:var(--text-muted)]">{t("Contact")}</p><p>{row.phone || t.owned("No phone recorded")}</p>
+                        <div className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
+                            <div><p className="text-[color:var(--text-muted)]">{t("Contact")}</p><p className="ui-phone">{row.phone || t.owned("No phone recorded")}</p>
                                 {row.studentStatus !== "ACTIVE" && <p>{t("Inactive · existing debt")}</p>}</div>
                             <div><p className="text-[color:var(--text-muted)]">{row.type === "ADMISSION" ? t("Admission period") : t("Billing period")}</p>
                                 <p>{formatDate(row.periodStart)} – {formatDate(row.periodEnd)}</p></div>
                             <div><p className="text-[color:var(--text-muted)]">{t("Fee date")}</p><p>{formatDate(row.dueDate)}</p></div>
-                            <div><p className="text-[color:var(--text-muted)]">{row.expected ? t("Expected amount") : t("Amount due")}</p><p className="text-lg font-semibold">{money(row.amount)}</p></div>
+                            <div className="lg:text-right"><p className="text-[color:var(--text-muted)]">{row.expected ? t("Expected amount") : t("Remaining due")}</p><p className="whitespace-nowrap text-lg font-semibold tabular-nums">{money(row.amount)}</p></div>
                         </div>
                         {row.allocations.length > 0 && <p className="text-sm">{t("Seat / shift: {allocations}", { allocations: row.allocations.map(a => `${a.seat} · ${a.shift}`).join(", ") })}</p>}
                         <div className="rounded-lg border border-[color:var(--ui-form-surface-border)] p-3 text-sm">

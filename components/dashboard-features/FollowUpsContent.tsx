@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { AppButton, AppPanel, AppSelect, Dialog } from "@/components/ui";
+import { AppButton, AppSelect, Dialog } from "@/components/ui";
 import { appActionClassName } from "@/components/ui/AppButton";
 import { RecordListPage, RecordListSurface, RecordListState } from "@/components/ui/RecordList";
 import { pageGridCardClass, pageGridCardHoverClass } from "@/components/ui/pageSurface";
@@ -41,7 +41,7 @@ export function FollowUpsContent({ branchId, access }: { branchId: string; acces
         actions={<>{followUpId && <Link className={appActionClassName("secondary")} href={`/branch/${branchId}/follow-ups`}>{t.owned("Show all follow-ups")}</Link>}<Link className={appActionClassName("secondary")} href={`/branch/${branchId}/renewals`}>{t("Renewals & dues")}</Link></>}
         notices={!write.allowed && <p className="text-sm text-[color:var(--text-muted)]">{t.error(write.reason)}</p>}
         overlays={editing && <FollowUpEditor key={editing.id} branchId={branchId} row={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void resource.reload(); }} />}>
-        <div className="grid gap-3 sm:grid-cols-3">{([ ["Follow-ups pending", resource.data?.counts.pending], ["Due today", resource.data?.counts.dueToday], ["Completed", resource.data?.counts.completed] ] as const).map(([label, count]) => <AppPanel key={label} density="compact" title={t.owned(label)}><strong className="text-2xl tabular-nums">{count ?? "—"}</strong></AppPanel>)}</div>
+        <dl className="ui-inline-summary">{([ ["Follow-ups pending", resource.data?.counts.pending], ["Due today", resource.data?.counts.dueToday], ["Completed", resource.data?.counts.completed] ] as const).map(([label, count]) => <div key={label}><dt>{t.owned(label)}</dt><dd>{count ?? "—"}</dd></div>)}</dl>
         <RecordListSurface label={t("Follow-ups")} busy={resource.loading} toolbar={<>
             <label className="min-w-0 flex-1 text-sm">{t("Search by name or phone")}<input className={inputClass} type="search" disabled={Boolean(followUpId)} maxLength={100} value={search} onChange={event => { setSearch(event.target.value); setCursor(""); }} /></label>
             <div className="min-w-40"><AppSelect label={t("Status")} disabled={Boolean(followUpId)} value={filter} onValueChange={value => { setFilter(value); setCursor(""); }} options={[{ value: "ALL", label: t("Follow-ups pending") }, { value: "DUE", label: t("Due today") }, { value: "COMPLETED", label: t("Completed") }]} /></div>

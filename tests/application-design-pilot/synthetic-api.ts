@@ -850,7 +850,9 @@ export function createSyntheticApiMiddleware() {
                     sendJson(response, 201, { id: "allocation-new", branchId: BRANCH_ID, ...body, startDate: NOW, endDate: null });
                     return;
                 }
-                sendJson(response, 200, paged(empty ? [] : allocationRows));
+                const status = url.searchParams.get("status");
+                const scoped = allocationRows.filter(row => status === "ENDED" ? Boolean(row.endDate) : status === "ACTIVE" ? !row.endDate : true);
+                sendJson(response, 200, paged(empty ? [] : scoped));
                 return;
             }
 

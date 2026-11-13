@@ -17,10 +17,10 @@ export function GuidedFinancialTotals({ summary, saved = false }: { summary: Fin
     const t = useTranslation(), { formatNumber } = useUserPreferences();
     const visible = (Object.keys(financialLabels) as FinancialKind[]).filter(kind => summary[kind].count > 0);
     return <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label={t(saved ? "Fees saved by this import" : "Reviewed fee outcomes")}>
-        {visible.map(kind => <div key={kind} className="min-w-0 rounded-[var(--ui-radius-control)] border border-[color:var(--ui-form-section-divider)] bg-[color:var(--ui-form-muted-surface-bg)] p-4">
+        {visible.map(kind => <div key={kind} className="min-w-0 rounded-[var(--ui-radius-control)] border-b border-[color:var(--ui-form-section-divider)] py-3">
             <p className="text-sm text-[color:var(--text-secondary)]">{t(saved ? savedLabels[kind] : financialLabels[kind])}</p>
             <p className="mt-2 text-xl font-semibold tabular-nums">{!["none", "review"].includes(kind) ? `₹${formatNumber(summary[kind].amount)}` : formatNumber(summary[kind].count)}</p>
-            <p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("Students: {count}", { count: summary[kind].count })}{kind === "future" ? ` · ${t("Nothing created early")}` : ""}</p>
+            {!["none", "review"].includes(kind) && <p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("Students: {count}", { count: summary[kind].count })}{kind === "future" ? ` · ${t("Nothing created early")}` : ""}</p>}
         </div>)}
         {!visible.length && <p className="text-sm">{t(saved ? "No fee records have been saved by this import yet." : "No fees will be created from this selection.")}</p>}
     </div>;
@@ -56,11 +56,11 @@ export function GuidedFinancialReview({ plan, currentRevision, policy, busy, dis
         ? t.owned("Review the proposed timings and seats above, then choose whether to create them with this import.") : <LocalizedError error={check.message} />;
     return <div className="space-y-5">
         <AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={onBack} disabled={busy}>{t("Back to students")}</AppButton>
-        <div><h2 className="text-2xl font-semibold">{t("Check what will be saved")}</h2><p className="mt-2 text-sm text-[color:var(--text-secondary)]">{t("This review uses your saved student details. Nothing is added until you confirm.")}</p></div>
+        <div><h2 className="text-xl font-semibold">{t("Check what will be saved")}</h2><p className="mt-2 text-sm text-[color:var(--text-secondary)]">{t("This review uses your saved student details. Nothing is added until you confirm.")}</p></div>
         {!plan || !fresh || !completeSummary ? <AppPanel density="compact"><p role="status">{t(plan && fresh ? "Refresh this saved review to see the complete student and fee summary." : "Refresh the review after changing student details or which students to include.")}</p><AppButton density="compact" className="mt-3" onClick={onRefresh} disabled={disabled} isLoading={busy}>{t("Refresh review")}</AppButton></AppPanel> : <>
             <AppPanel density="compact" title={t("Students and seating")}>
-                <dl className="grid grid-cols-2 gap-5 sm:grid-cols-4">{[["New students", mutations?.students ?? 0], ["Students getting seats", mutations?.affectedRows.allocations ?? 0], ["Seating left for later", review?.seatingDeferredRows ?? 0], ["Students fully completed", plan.alreadyImportedRows ?? 0]].map(([label, count]) => <div key={label}><dt className="text-sm text-[color:var(--text-secondary)]">{t.owned(String(label))}</dt><dd className="mt-1 text-xl font-semibold tabular-nums">{formatNumber(Number(count))}</dd></div>)}</dl>
-                {notSaving > 0 && <p className="mt-5 rounded border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] p-3 text-sm">{t("Students staying in the draft: {count}. You can finish their details after saving the ready students.", { count: notSaving })}</p>}
+                <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[["New students", mutations?.students ?? 0], ["Students getting seats", mutations?.affectedRows.allocations ?? 0], ["Seating left for later", review?.seatingDeferredRows ?? 0], ["Students fully completed", plan.alreadyImportedRows ?? 0]].map(([label, count]) => <div key={label}><dt className="text-sm text-[color:var(--text-secondary)]">{t.owned(String(label))}</dt><dd className="mt-1 text-xl font-semibold tabular-nums">{formatNumber(Number(count))}</dd></div>)}</dl>
+                {notSaving > 0 && <p className="mt-3 rounded border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] p-3 text-sm">{t("Students staying in the draft: {count}. You can finish their details after saving the ready students.", { count: notSaving })}</p>}
                 {leftOut > 0 && <p className="mt-4 text-sm">{t.owned("Source rows deliberately left out: {count}. They will not be imported.", { count: leftOut })}</p>}
             </AppPanel>
             {!!review?.setup && <AppPanel density="compact" title={t.owned("Timings and seats to prepare")}>

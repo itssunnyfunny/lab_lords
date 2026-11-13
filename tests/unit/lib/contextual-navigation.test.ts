@@ -8,11 +8,12 @@ describe("resolveContextualParent", () => {
         expect(resolveContextualParent("/org/org_1")).toBeNull();
     });
 
-    it("routes branch child pages to their dashboard", () => {
-        expect(resolveContextualParent("/branch/branch_1/payments")).toEqual({
-            href: "/branch/branch_1",
-            label: "Back to branch dashboard",
-        });
+    it("keeps top-level workspaces free of redundant back rows", () => {
+        for (const route of ["students", "payments", "seats", "shifts", "attendance", "onboarding/import"]) {
+            expect(resolveContextualParent(`/branch/branch_1/${route}`)).toBeNull();
+        }
+        expect(resolveContextualParent("/branch/branch_1/students/student_1")).toEqual({ href: "/branch/branch_1/students", label: "Back to students" });
+        expect(resolveContextualParent("/branch/branch_1/allocations/allocation_1")).toEqual({ href: "/branch/branch_1/allocations", label: "Back to allocations" });
     });
 
     it("routes nested imports to import history", () => {
@@ -23,7 +24,7 @@ describe("resolveContextualParent", () => {
     });
 
     it("routes organization children and billing processing safely", () => {
-        expect(resolveContextualParent("/org/org_1/settings")?.href).toBe("/org/org_1");
+        expect(resolveContextualParent("/org/org_1/settings")).toBeNull();
         expect(resolveContextualParent("/org/org_1/billing/processing/change_1")).toEqual({
             href: "/org/org_1/billing",
             label: "Back to billing settings",

@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { AppButton, AppPanel, PageShell } from "@/components/ui";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { AppButton, AppPanel, AppSelect, PageShell } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LocalizedError, useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -17,7 +17,7 @@ import { GuidedImportResults } from "./GuidedImportResults";
 import { guidedSavedFields, guidedStudentTasks, guidedTaskLabel, studentTaskLabels, type StudentTask } from "@/importing/utils/guided-import-presentation";
 import { GuidedPaymentProblem } from "./GuidedPaymentProblem";
 import { useBasicNavigationGuard } from "@/components/basic/useBasicNavigationGuard";
-import { CheckCircle2, CircleAlert, ArrowRight, FileText } from "lucide-react";
+import { ArrowRight, CircleAlert, CheckCircle2, FileText } from "lucide-react";
 import type { ImportDetail, ImportRow, Plan, RowDraft, RowFilter, RowPreview, Run } from "./types";
 import { importFieldClass, navigateImportTabs } from "./shared";
 import { parseImportMoney } from "@/importing/utils/row-normalizer";
@@ -82,9 +82,11 @@ function Interpretation({ source, count, suggestionId, detail, disabled, onApply
 
 export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: Props) {
     const t = useTranslation();
+    const inlineEditor = useMediaQuery("(min-width: 1280px)");
+    const editorTrigger = useRef<HTMLElement | null>(null);
     const { formatNumber } = useUserPreferences();
     const [detail, setDetail] = useState<ImportDetail | null>(null);
-    const [filter, setFilter] = useState<RowFilter>("all");
+    const [filter, setFilter] = useState<RowFilter>("attention");
     const [issueFilter, setIssueFilter] = useState<string | undefined>();
     const [section, setSection] = useState<"records" | "timings" | "seats">("records");
     const [setupDirty, setSetupDirty] = useState(false);
@@ -140,7 +142,11 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         if (sequence !== loadSequence.current) return;
         if (!initialDisplay.current) {
             initialDisplay.current = true;
-            if (!isSetupImport(next.sourceConfiguration) && !next.guidance?.needsHelp && (next.summary?.readyRows ?? 0) + (next.summary?.warningRows ?? 0) > 0) setFilter("ready");
+            // Choose the opening queue once. Saves and editor returns retain the
+            // operator's selected filter even when its last issue is resolved.
+            if (!(next.guidance?.needsHelp ?? (next.summary?.needsReviewRows ?? 0) + (next.summary?.blockedRows ?? 0))) {
+                setFilter((next.summary?.readyRows ?? 0) + (next.summary?.warningRows ?? 0) > 0 ? "ready" : "all");
+            }
             const location = new URLSearchParams(window.location.search);
             if (next.latestRun?.kind === "COMMIT" && location.get("work") !== "1") setStage("result");
             else if (location.get("work") === "1") {
@@ -276,6 +282,8 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     };
     const buildPlan = async () => {
         if (!detail || !canNavigate()) return;
+        // Review unmounts the inline editor, so errors must return to the page.
+        setEditorOpen(false);
         setBusy(true); setError(null);
         try { setPlan(await importSessions.createPlan(branchId, sessionId, policy, detail.draftRevision)); setStage("review"); }
         catch (e) { setPlan(null); setStage("review"); setError(e instanceof Error ? e.message : t("Import request failed")); }
@@ -334,6 +342,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         setSaveOutcome(null); setSelectedSnapshot(row); setSelectedId(row.id); setDraft(guidedDraft(row, detail?.mapping?.columnMappings));
         setFeeLinked(["SHIFT_PRICE", "MULTI_SHIFT_PRICE"].includes(row.normalizedData?.student?.feeSource ?? ""));
         draftRevision.current = detail?.draftRevision ?? null;
+        editorTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         setTask(nextTask); setEditorOpen(true); setError(null);
     };
     const rememberWork = (nextSection: typeof section) => {
@@ -343,6 +352,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     };
     const goToSection = (nextSection: typeof section) => {
         if (!canNavigate()) return;
+        setEditorOpen(false);
         rememberWork(nextSection); setStage("help"); setSection(nextSection); setSaveOutcome(null);
         setIssueFilter(undefined); setFilter(nextSection === "records" ? "attention" : "all");
     };
@@ -394,19 +404,33 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         {!!saveOutcome.result.resolved.length && <p>{t.owned("Resolved: {tasks}", { tasks: guidedStudentTasks({ status: "BLOCKED", skipped: false, normalizedData: null, issues: saveOutcome.result.resolved, warnings: [] }).map(item => t(studentTaskLabels[item])).join(" · ") })}</p>}
         {!!saveOutcome.result.remaining.length && <div><p>{t.owned("Still to resolve:")}</p><ul className="list-disc pl-5">{saveOutcome.result.remaining.map(issue => <li key={`${issue.code}:${issue.field}`}><LocalizedError error={issue.message} /></li>)}</ul></div>}
     </div>;
-    return <PageShell data-import-experience="guided" className="space-y-5">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0"><p className="text-xs font-medium text-[color:var(--text-muted)]">{t("Student import")} · {detail.fileName}</p><h1 ref={workspaceHeading} tabIndex={-1} className="mt-2 scroll-mt-4 text-2xl font-semibold">{t(stage === "result" ? "Your import results" : stage === "review" ? "Review your import" : "Check your students")}</h1></div>
-            {stage === "help" && <AppButton density="compact" icon={ArrowRight} disabled={disabled || !ready || dirty || columnsDirty || setupDirty} onClick={() => void buildPlan()}>{t("Review and save")} · {formatNumber(ready)}</AppButton>}
+    const editor = editorOpen && selected && draft && <GuidedStudentEditor inline={inlineEditor} key={`${selected.id}:${task}`} branchId={branchId} sessionId={sessionId} detail={detail} row={selected} draft={draft} focus={task} dirty={dirty} busy={busy} disabled={!!mutationDisabled} error={error} preview={preview} previewLoading={previewLoading} feeLinked={feeLinked} assignmentOnly={assignmentOnly} saveOutcome={outcomeNotice}
+            onChange={(field, value) => {
+                if (saved.student && ["studentName", "phone", "joinedAt", "fee"].includes(field)) return;
+                if (saved.payment && ["paymentAmount", "paymentStatus", "paymentMethod", "referenceId"].includes(field)) return;
+                if (saved.seating && ["seat", "shift", "multiShift"].includes(field)) return;
+                const next = { ...draft, [field]: value, ...(field === "shift" ? { multiShift: "" } : field === "multiShift" ? { shift: "" } : {}) };
+                if (!assignmentOnly && !saved.student && (field === "shift" || field === "multiShift") && (feeLinked || !draft.fee)) { const choice = [...(detail.branchContext?.shifts ?? []), ...(detail.branchContext?.multiShifts ?? [])].find(choice => choice.name === value); if (choice) next.fee = String(choice.price); }
+                if (field === "fee") setFeeLinked(false);
+                setDraft(next); setDirty(true);
+            }}
+            onFeeLinkChange={linked => { if (saved.student) return; setFeeLinked(linked); setDirty(true); if (linked) { const choice = [...(detail.branchContext?.shifts ?? []), ...(detail.branchContext?.multiShifts ?? [])].find(choice => choice.name === (draft.multiShift || draft.shift)); if (choice) setDraft({ ...draft, fee: String(choice.price) }); } }}
+            onSave={() => void saveRow()} onNext={() => void nextStudent()} onDefer={() => void saveRow(true)} onReset={() => { setDirty(false); setError(null); setDraft(guidedDraft(selected, detail.mapping?.columnMappings)); setFeeLinked(["SHIFT_PRICE", "MULTI_SHIFT_PRICE"].includes(selected.normalizedData?.student?.feeSource ?? "")); }}
+            onClose={() => { if (canNavigate()) { setEditorOpen(false); setError(null); if (inlineEditor) requestAnimationFrame(() => { if (editorTrigger.current?.isConnected) editorTrigger.current.focus(); else studentList.current?.focus(); }); } }} onSource={showSource}
+            onExclude={() => { if (canNavigate()) void act(() => importSessions.updateRows(branchId, sessionId, { expectedRevision: detail.draftRevision, ...(selected.skipped ? { unskipRowIds: [selected.id] } : { skipRowIds: [selected.id] }) }), t(selected.skipped ? "Student included in this draft." : "Student left out of this import.")).then(ok => { if (ok) setEditorOpen(false); }); }} />;
+    return <PageShell data-import-experience="guided" className="ui-import-workspace ui-import-focused space-y-4">
+        <header className="ui-import-header flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0"><p className="text-xs font-medium text-[color:var(--text-muted)]">{t("Student import")} · {detail.fileName}</p><h1 ref={workspaceHeading} tabIndex={-1} className="mt-1 scroll-mt-28 text-2xl font-semibold focus:outline-none">{t(stage === "result" ? "Your import results" : stage === "review" ? "Review your import" : "Check your students")}</h1></div>
+            {stage === "help" && <AppButton className="ui-import-review-action" data-mobile-step-replacement={setupExperience || undefined} density="compact" icon={ArrowRight} disabled={disabled || !ready || dirty || columnsDirty || setupDirty} onClick={() => void buildPlan()}>{t("Review and save")} · {formatNumber(ready)}</AppButton>}
         </header>
         {error && !editorOpen && <div role="alert" className="rounded border border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] p-3 text-sm"><LocalizedError error={error} /></div>}
         {notice && <p role="status" className="rounded border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] p-3 text-sm">{notice}</p>}
         {!editorOpen && outcomeNotice}
         {!importDecision.allowed && <p id="import-session-mutation-blocker" role="alert">{t("Import access is currently unavailable.")}</p>}
-        {setupExperience && stage !== "result" && <nav className="flex flex-wrap gap-2 border-b border-[color:var(--ui-form-section-divider)] pb-3" aria-label={t.owned("Import steps")}>
+        {setupExperience && stage !== "result" && <><div className="ui-import-step-select"><AppSelect label={t("Import step")} value={stage === "review" ? "review" : section} disabled={busy || running} onValueChange={value=>{if(value === "review") void buildPlan(); else goToSection(value as typeof section);}} options={[{value:"records",label:t.owned("Records")},{value:"timings",label:t.owned("Timings")},{value:"seats",label:t.owned("Seats and assignments")},{value:"review",label:t.owned("Review and import"),disabled:disabled || !ready}]} /></div><nav className="ui-import-step-buttons flex flex-wrap gap-2 border-b border-[color:var(--ui-form-section-divider)] pb-3" aria-label={t.owned("Import steps")}>
             {([["records", "Records"], ["timings", "Timings"], ["seats", "Seats and assignments"]] as const).map(([value, label]) => <AppButton key={value} density="compact" variant={stage === "help" && section === value ? "primary" : "quiet"} aria-current={stage === "help" && section === value ? "step" : undefined} disabled={busy || running} onClick={() => goToSection(value)}>{t.owned(label)}</AppButton>)}
             <AppButton density="compact" variant={stage === "review" ? "primary" : "quiet"} aria-current={stage === "review" ? "step" : undefined} disabled={disabled || !ready} onClick={() => void buildPlan()}>{t.owned("Review and import")}</AppButton>
-        </nav>}
+        </nav></>}
         {stage === "help" && <>
             {section === "seats" && seatingComplete && <AppPanel density="compact" title={t.owned("Seating is complete for the remaining students")}>
                 <p className="text-sm">{t.owned("Assignments are matched or deliberately left for later. No seating answer is needed.")}</p>
@@ -419,22 +443,13 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
                     onApply={preview => act(() => importSessions.applyCorrection(branchId, sessionId, preview), t.owned("Existing setup corrected. Drafts revalidated; review the remaining decisions."))} />}
             </>}
             {section === "records" && <>
-            <div className="flex items-start gap-3 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-panel-bg)] p-4 sm:p-5">
-                {allReady ? <CheckCircle2 aria-hidden="true" className="mt-1 h-6 w-6 shrink-0 text-[color:var(--ui-tone-success-text)]" /> : <CircleAlert aria-hidden="true" className="mt-1 h-6 w-6 shrink-0 text-[color:var(--ui-tone-warning-text)]" />}
-                <div className="min-w-0"><h2 className="font-semibold">{t(analyzing ? "Preparing your student list" : pdfWaiting ? "Confirm the extracted records" : allReady ? "Your students are ready to review" : !detail.summary?.totalRows ? "No students in this import" : help ? "A few decisions need your help" : "Choose which students to include")}</h2>
-                    <p className="mt-1 text-sm text-[color:var(--text-secondary)]">{t(!detail.summary?.totalRows ? "Start again with a file or pasted table that includes student records." : allReady ? "Check the students below, then review exactly what will be saved." : help ? "Choose a task beside a student's name. Correct details stay prepared while you finish the rest." : "Left-out students stay in this draft. Include them when you are ready.")}</p>
-                    {!detail.summary?.totalRows && <Link className="mt-3 inline-flex underline" href={`/branch/${branchId}/onboarding/import`}>{t("Add your student records")}</Link>}
-                    <p className="mt-2 text-sm">{t("Ready for review: {count}", { count: ready })} · {t("Students needing help: {count}", { count: help })}{!!detail.guidance?.createdStudents && ` · ${t("Already saved: {count}", { count: detail.guidance.createdStudents })}`}</p>
-                </div>
-            </div>
+            {(analyzing || pdfWaiting || !help || !!detail.guidance?.createdStudents) && <p className="text-sm text-[color:var(--text-secondary)]">{t(analyzing ? "Preparing your student list" : pdfWaiting ? "Confirm the extracted records" : allReady ? "Check the students below, then review exactly what will be saved." : !detail.summary?.totalRows ? "Start again with a file or pasted table that includes student records." : help ? "Choose a student to finish their details." : "Left-out students stay in this draft. Include them when you are ready.")}{!!detail.guidance?.createdStudents && ` · ${t("Already saved: {count}", { count: detail.guidance.createdStudents })}`}</p>}
             {!!detail.guidance?.nonStudentRows?.length && <AppPanel density="compact" title={t.owned("Check title and repeated header rows")} description={t.owned("These source rows are retained for your review. Leave them out only after confirming they are not students.")}>
                 <p className="mb-3 text-sm">{t.owned("Source rows: {rows}", { rows: detail.guidance.nonStudentRows.map(row => row.rowNumber).join(", ") })}</p>
                 <AppButton density="compact" variant="secondary" disabled={disabled} onClick={() => { if (canNavigate()) { setIssueFilter("NON_STUDENT_SOURCE_ROW"); setFilter("attention"); } }}>{t.owned("Review title and header rows")}</AppButton>
                 {issueFilter === "NON_STUDENT_SOURCE_ROW" && <AppButton className="ml-2" density="compact" disabled={disabled} onClick={() => { if (canNavigate()) void act(() => importSessions.updateRows(branchId, sessionId, { expectedRevision: detail.draftRevision, bulkAction: { action: "SKIP", issueCode: "NON_STUDENT_SOURCE_ROW" } }), t.owned("Reviewed title and header rows left out. Source evidence remains in this draft.")).then(ok => { if (ok) { setIssueFilter(undefined); setFilter("all"); } }); }}>{t.owned("These are not students — leave them out")}</AppButton>}
             </AppPanel>}
-            <GuidedPaymentChoices branchId={branchId} sessionId={sessionId} revision={detail.draftRevision} disabled={disabled || dirty || columnsDirty || setupDirty} onDirtyChange={setPaymentsDirty}
-                onReview={code => { if (canNavigate()) { setIssueFilter(code); setFilter("attention"); setSaveOutcome(null); } }} onRecheck={recheckDraft}
-                onApply={input => act(() => importSessions.resolvePayments(branchId, sessionId, input), t.owned("Payment choices saved to draft. Review them before final import."))} />
+
             {(analyzing || pdfWaiting || (help > 0 && preparation?.canImprove && passes < 3)) && <AppPanel density="compact">
                 {pdfWaiting ? <div className="space-y-3"><h2 className="font-semibold">{t("Check the extracted PDF rows before preparing records.")}</h2>{detail.extractionPreview?.map(row => <pre className="whitespace-pre-wrap break-words text-xs" key={row.rowNumber}>{Object.entries(row.rawData).map(([key, value]) => `${key}: ${String(value)}`).join(" · ")}</pre>)}<AppButton density="compact" disabled={busy || !importDecision.allowed} onClick={() => void act(() => importSessions.analyze(branchId, sessionId, { confirmPdfExtraction: true }), t("Preparation finished. Check the remaining decisions."))}>{t("Confirm PDF extraction and prepare")}</AppButton></div>
                 : analyzing ? <div className="flex flex-wrap items-center justify-between gap-3"><p role="status">{t("Preparing your records...")}</p><AppButton density="compact" variant="quiet" disabled={busy || !importDecision.allowed} onClick={() => void act(() => importSessions.cancelRun(branchId, detail.latestRun!.id), t("Preparation stopped. Your saved work is still here."))}>{t("Cancel preparation")}</AppButton></div>
@@ -447,31 +462,40 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
                 <div className="grid gap-3 md:grid-cols-2">{detail.guidance.groups.map(group => <Interpretation key={`${detail.draftRevision}:${group.source}`} {...group} detail={detail} disabled={disabled || dirty || columnsDirty} onApply={targetId => void act(() => importSessions.confirmInterpretation(branchId, sessionId, { expectedRevision: detail.draftRevision, source: group.source, targetId }), t("Meaning applied to matching students."))} />)}</div>
             </AppPanel>}
             </>}
-            {(section === "records" || (section === "seats" && (!seatingComplete || showAssignments))) && <section ref={studentList} aria-label={t("Students in this import")} className="scroll-mt-4 space-y-4">
-                {section === "records" && <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label={t("Filter students")} onKeyDown={navigateImportTabs}>
-                    {([["attention", "Needs your help", help], ["ready", "Ready for review", ready], ["all", "All students", detail.summary?.totalRows ?? 0], ["skipped", "Left out", detail.summary?.skippedRows ?? 0]] as const).map(([value, label, count]) => <AppButton key={value} role="tab" tabIndex={filter === value ? 0 : -1} aria-selected={filter === value} density="compact" variant={filter === value ? "primary" : "quiet"} disabled={busy} onClick={() => changeFilter(value)}>{t(label)} · {formatNumber(count)}</AppButton>)}
+            {(section === "records" || (section === "seats" && (!seatingComplete || showAssignments))) && <div className={inlineEditor && editor ? "ui-import-record-workspace is-editing" : "ui-import-record-workspace"}><section ref={studentList} tabIndex={-1} aria-label={t("Students in this import")} className="min-w-0 scroll-mt-28 space-y-3 focus:outline-none">
+                {section === "records" && <div className="ui-import-filters grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center" role="tablist" aria-label={t("Filter students")} onKeyDown={navigateImportTabs}>
+                    {([["attention", "Needs review", help], ["ready", "Ready", ready], ["all", "All students", detail.summary?.totalRows ?? 0], ["skipped", "Left out", detail.summary?.skippedRows ?? 0]] as const).map(([value, label, count]) => <AppButton key={value} role="tab" tabIndex={filter === value ? 0 : -1} aria-selected={filter === value} density="compact" variant={filter === value ? "primary" : "quiet"} disabled={busy} onClick={() => changeFilter(value)}>{t.owned(label)} · {formatNumber(count)}</AppButton>)}
                 </div>}
-                <p className="text-xs text-[color:var(--text-muted)]">{t("Showing {shown} of {total} students", { shown: detail.rows.length, total: detail.rowPage?.filteredRows ?? detail.rows.length })}</p>
-                <div className="grid min-w-0 gap-3 lg:grid-cols-2">{detail.rows.map(row => {
+                <p className="text-xs text-[color:var(--text-muted)]">{t("Showing {shown} of {total} students", { shown: detail.rows.length, total: detail.rowPage?.filteredRows ?? detail.rows.length })}{filter === "all" && <> · {t("In source order")}</>}</p>
+                <div className={inlineEditor && editor ? "grid min-w-0 gap-3" : "grid min-w-0 gap-3 md:grid-cols-2"}>{detail.rows.map(row => {
                     const tasks = guidedStudentTasks(row), needsHelp = importReadiness(row) === "attention";
                     const name = row.normalizedData?.student?.name || t("Student details to confirm");
                     const hasStudent = !!row.createdEntityIds?.studentId;
-                    return <article key={row.id} className="min-w-0 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] p-4 sm:p-5">
-                        <div className="flex items-start justify-between gap-3"><button className="min-w-0 text-left font-semibold underline-offset-4 hover:underline focus-visible:underline" onClick={() => openStudent(row, section === "seats" ? "seat" : undefined)} disabled={busy}>{name}</button>{section === "records" && <span className="shrink-0 rounded-full border border-[color:var(--ui-form-section-divider)] px-2 py-1 text-xs">{t(row.skipped ? "Left out" : row.status === "IMPORTED" ? "Saved" : needsHelp ? "Needs your help" : "Ready for review")}</span>}</div>
-                        <p className="mt-2 text-xs text-[color:var(--text-muted)]">{t("Source record {number}", { number: row.rowNumber })}{hasStudent && row.status !== "IMPORTED" ? ` · ${t("Student saved; remaining work is kept for recovery")}` : ""}</p>
+                    return <article key={row.id} aria-current={editorOpen && selectedId === row.id ? "true" : undefined} data-readiness={needsHelp ? "attention" : row.skipped ? "skipped" : "ready"} className="ui-import-record min-w-0 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-panel-bg)] p-3">
+                        <div className="ui-import-record-heading flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0"><button className="min-w-0 break-words text-left font-semibold underline-offset-4 hover:underline focus-visible:underline" onClick={() => openStudent(row, section === "seats" ? "seat" : undefined)} disabled={busy}>{name}</button>
+                                <p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("Source record {number}", { number: row.rowNumber })}{hasStudent && row.status !== "IMPORTED" ? ` · ${t("Student saved; remaining work is kept for recovery")}` : ""}</p>
+                            </div>
+                            {section === "records" && <span className="ui-import-record-status inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs">{!row.skipped && (needsHelp ? <CircleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /> : <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />)}{t(row.skipped ? "Left out" : row.status === "IMPORTED" ? "Saved" : needsHelp ? "Needs your help" : "Ready for review")}</span>}
+                        </div>
+                        {section === "records" && needsHelp && <div className="mt-3 flex flex-wrap gap-2">{tasks.map((nextTask, index) => <AppButton key={nextTask} density="compact" variant={index === 0 ? "primary" : "quiet"} disabled={busy} onClick={() => openStudent(row, nextTask)}>{t.owned(guidedTaskLabel(row, nextTask))}</AppButton>)}</div>}
                         {issueFilter === "NON_STUDENT_SOURCE_ROW" && <dl className="mt-3 text-sm">{Object.entries(row.rawData).map(([key, value]) => <div className="break-words" key={key}><dt className="inline text-[color:var(--text-muted)]">{key}: </dt><dd className="inline">{value || "—"}</dd></div>)}</dl>}
-                        {!row.skipped && <AssignmentSummary row={row} detail={detail} />}
-                        {importReadiness(row) === "ready" && !!row.warnings.length && <details className="mt-3 text-sm"><summary className="cursor-pointer text-[color:var(--text-secondary)]">{t.owned("Notes that do not block import")} · {row.warnings.length}</summary><ul className="mt-2 list-disc space-y-1 pl-5">{row.warnings.map((issue, index) => <li key={`${issue.code}:${index}`}><LocalizedError error={issue.message} /></li>)}</ul></details>}
-                        {!row.skipped && row.status !== "IMPORTED" && <AppButton className="mt-3" density="compact" variant="secondary" disabled={busy} onClick={() => openStudent(row, "seat")}>{t.owned("Edit assignment")}</AppButton>}
-                        {section === "records" && row.normalizedData?.student?.monthlyFee !== undefined && <p className="mt-3 text-sm">{t("Monthly fee")}: <strong>₹{formatNumber(row.normalizedData.student.monthlyFee)}</strong></p>}
-                        {section === "records" && needsHelp && <div className="mt-3"><GuidedPaymentProblem row={row} /></div>}
-                        {section === "records" && (needsHelp ? <div className="mt-3 flex flex-wrap gap-2">{tasks.map(nextTask => <AppButton key={nextTask} density="compact" variant="secondary" disabled={busy} onClick={() => openStudent(row, nextTask)}>{t.owned(guidedTaskLabel(row, nextTask))}</AppButton>)}</div>
-                        : <div className="mt-3 space-y-3">{row.paymentOutcome && row.status !== "IMPORTED" && !row.skipped && <GuidedFinancialOutcome outcome={row.paymentOutcome} />}<AppButton density="compact" variant="quiet" disabled={busy} onClick={() => openStudent(row, "details")}>{t(row.status === "IMPORTED" || row.skipped ? "View student" : "Check or change details")}</AppButton></div>)}
+                        {!row.skipped && <AssignmentSummary compact row={row} detail={detail} />}
+                        {section === "seats" && !row.skipped && row.status !== "IMPORTED" && <AppButton className="mt-2" density="compact" variant="secondary" disabled={busy} onClick={() => openStudent(row, "seat")}>{t.owned("Edit assignment")}</AppButton>}
+                        {section === "records" && row.normalizedData?.student?.monthlyFee !== undefined && <p className="mt-2 text-sm">{t("Monthly fee")}: <strong>₹{formatNumber(row.normalizedData.student.monthlyFee)}</strong></p>}
+                        {section === "records" && needsHelp && <div className="mt-2"><GuidedPaymentProblem row={row} /></div>}
+                        {importReadiness(row) === "ready" && !!row.warnings.length && <details className="mt-2 text-sm"><summary className="cursor-pointer text-[color:var(--text-secondary)]">{t.owned("Notes that do not block import")} · {row.warnings.length}</summary><ul className="mt-2 list-disc space-y-1 pl-5">{row.warnings.map((issue, index) => <li key={`${issue.code}:${index}`}><LocalizedError error={issue.message} /></li>)}</ul></details>}
+                        {section === "records" && !needsHelp && <div className="ui-import-record-footer mt-2 flex flex-wrap items-center justify-between gap-2">{row.paymentOutcome && row.status !== "IMPORTED" && !row.skipped && <details className="w-full text-sm"><summary className="cursor-pointer py-1">{t.owned("Payment review")}</summary><GuidedFinancialOutcome outcome={row.paymentOutcome} /></details>}<AppButton density="compact" variant="quiet" disabled={busy} onClick={() => openStudent(row, "details")}>{t(row.status === "IMPORTED" || row.skipped ? "View student" : "Check or change details")}</AppButton></div>}
                     </article>;
                 })}</div>
                 {!detail.rows.length && <AppPanel density="compact"><p>{t(filter === "attention" && allReady ? "Nothing needs your help. The ready students can now be reviewed." : filter === "ready" ? "No students are ready yet. Choose Needs your help to finish their details." : filter === "skipped" ? "No students have been left out." : "No students match this view.")}</p>{filter === "attention" && allReady && <AppButton density="compact" className="mt-3" variant="secondary" onClick={() => changeFilter("ready")}>{t("See ready students")}</AppButton>}</AppPanel>}
                 {detail.rowPage?.hasMore && <AppButton density="compact" variant="secondary" disabled={disabled || dirty || columnsDirty} onClick={() => void load(true, detail.rowPage?.nextCursor).catch(e => setError(e.message))}>{t("Show more students")}</AppButton>}
-            </section>}
+            </section>{inlineEditor && editor}</div>}
+            {section === "records" && <>
+            <GuidedPaymentChoices branchId={branchId} sessionId={sessionId} revision={detail.draftRevision} disabled={disabled || dirty || columnsDirty || setupDirty} onDirtyChange={setPaymentsDirty}
+                onReview={code => { if (canNavigate()) { setIssueFilter(code); setFilter("attention"); setSaveOutcome(null); } }} onRecheck={recheckDraft}
+                onApply={input => act(() => importSessions.resolvePayments(branchId, sessionId, input), t.owned("Payment choices saved to draft. Review them before final import."))} />
+            </>}
             {section === "records" && <details ref={sourceSection} open={sourceOpen || columnsDirty} onToggle={event => setSourceOpen(event.currentTarget.open)} className="rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-panel-bg)] p-4">
                 <summary className="cursor-pointer text-sm font-medium"><FileText aria-hidden="true" className="mr-2 inline h-4 w-4" />{t(preparation?.columnsToReview ? "Confirm the remaining source columns" : "Inspect uploaded columns and meanings")}</summary>
                 <div className="mt-4"><ColumnsStep detail={detail} goal="FULL" saving={busy} mutationsDisabled={disabled || dirty} onDirtyChange={setColumnsDirty} onSave={async columnMappings => { await act(async () => { await importSessions.updateMapping(branchId, sessionId, { expectedRevision: detail.draftRevision, columnMappings }); setColumnsDirty(false); setSourceOpen(false); }, t("Source meanings saved.")); }} /></div>
@@ -480,21 +504,9 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
         </>}
         {stage === "review" && <GuidedFinancialReview plan={plan} currentRevision={detail.draftRevision} policy={policy} busy={busy} disabled={disabled} onBack={() => { if (canNavigate()) setStage("help"); }} onPolicyChange={value => { setPolicy(value); setPlan(null); }} onRefresh={() => void refreshReview()} onConfirm={() => setConfirm(true)} onApproveSetup={canConfigure ? () => void approveSetup() : undefined} />}
         {stage === "result" && <GuidedImportResults branchId={branchId} detail={detail} run={run} busy={busy} onRepair={() => { if (canNavigate()) { goToSection("records"); setPlan(null); } }} onCancel={() => run && void act(() => importSessions.cancelRun(branchId, run.id))} onRefresh={() => void act(async () => {})} onExport={() => { if (!run) return; void importSessions.exportRunErrors(branchId, run.id, "csv").then(blob => { const url = URL.createObjectURL(blob), link = document.createElement("a"); link.href = url; link.download = "import-recovery.csv"; link.click(); URL.revokeObjectURL(url); }).catch(e => setError(e.message)); }} />}
-        {run && stage === "help" && <AppButton density="compact" variant="quiet" onClick={() => { if (canNavigate()) { const url = new URL(window.location.href); url.searchParams.delete("work"); url.searchParams.delete("section"); window.history.replaceState(null, "", url); setSaveOutcome(null); setStage("result"); } }}>{t("View saved progress")}</AppButton>}
-        {editorOpen && selected && draft && <GuidedStudentEditor key={`${selected.id}:${task}`} branchId={branchId} sessionId={sessionId} detail={detail} row={selected} draft={draft} focus={task} dirty={dirty} busy={busy} disabled={!!mutationDisabled} error={error} preview={preview} previewLoading={previewLoading} feeLinked={feeLinked} assignmentOnly={assignmentOnly} saveOutcome={outcomeNotice}
-            onChange={(field, value) => {
-                if (saved.student && ["studentName", "phone", "joinedAt", "fee"].includes(field)) return;
-                if (saved.payment && ["paymentAmount", "paymentStatus", "paymentMethod", "referenceId"].includes(field)) return;
-                if (saved.seating && ["seat", "shift", "multiShift"].includes(field)) return;
-                const next = { ...draft, [field]: value, ...(field === "shift" ? { multiShift: "" } : field === "multiShift" ? { shift: "" } : {}) };
-                if (!assignmentOnly && !saved.student && (field === "shift" || field === "multiShift") && (feeLinked || !draft.fee)) { const choice = [...(detail.branchContext?.shifts ?? []), ...(detail.branchContext?.multiShifts ?? [])].find(choice => choice.name === value); if (choice) next.fee = String(choice.price); }
-                if (field === "fee") setFeeLinked(false);
-                setDraft(next); setDirty(true);
-            }}
-            onFeeLinkChange={linked => { if (saved.student) return; setFeeLinked(linked); setDirty(true); if (linked) { const choice = [...(detail.branchContext?.shifts ?? []), ...(detail.branchContext?.multiShifts ?? [])].find(choice => choice.name === (draft.multiShift || draft.shift)); if (choice) setDraft({ ...draft, fee: String(choice.price) }); } }}
-            onSave={() => void saveRow()} onNext={() => void nextStudent()} onDefer={() => void saveRow(true)} onReset={() => { setDirty(false); setError(null); setDraft(guidedDraft(selected, detail.mapping?.columnMappings)); setFeeLinked(["SHIFT_PRICE", "MULTI_SHIFT_PRICE"].includes(selected.normalizedData?.student?.feeSource ?? "")); }}
-            onClose={() => { if (canNavigate()) { setEditorOpen(false); setError(null); } }} onSource={showSource}
-            onExclude={() => { if (canNavigate()) void act(() => importSessions.updateRows(branchId, sessionId, { expectedRevision: detail.draftRevision, ...(selected.skipped ? { unskipRowIds: [selected.id] } : { skipRowIds: [selected.id] }) }), t(selected.skipped ? "Student included in this draft." : "Student left out of this import.")).then(ok => { if (ok) setEditorOpen(false); }); }} />}
+        {run && stage === "help" && <AppButton density="compact" variant="quiet" onClick={() => { if (canNavigate()) { const url = new URL(window.location.href); url.searchParams.delete("work"); url.searchParams.delete("section"); window.history.replaceState(null, "", url); setSaveOutcome(null); setEditorOpen(false); setStage("result"); } }}>{t("View saved progress")}</AppButton>}
+        {!inlineEditor && editor}
+
         <ConfirmDialog isOpen={confirm} onClose={() => setConfirm(false)} onConfirm={() => void commit()} title={t("Save the reviewed students?")} description={t("Only this reviewed plan will run. Successful records stay saved if another operation needs recovery.")} confirmText={t("Confirm import")} loading={busy} />
     </PageShell>;
 }

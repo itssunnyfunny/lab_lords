@@ -65,20 +65,20 @@ describe("BranchSidebar", () => {
     };
 
     const pilot = renderToStaticMarkup(<BranchSidebar />);
-    expect(pilot).toContain("Daily work");
-    expect(pilot).toContain("Seats and shifts");
+    expect(pilot).toContain("Follow-ups &amp; tasks");
+    expect(pilot).toContain("Seats &amp; shifts");
     expect(pilot).toContain("Setup and access");
     expect(pilot).not.toContain(">Operations<");
 
     mocks.pathname = "/branch/branch_1/payments";
     const migrated = renderToStaticMarkup(<BranchSidebar />);
-    expect(migrated).toContain("Daily work");
+    expect(migrated).toContain("Follow-ups &amp; tasks");
     expect(migrated).not.toContain(">Operations<");
 
     mocks.pathname = "/branch/branch_1/ai/reports";
     mocks.sidebarItems.length = 0;
     const existing = renderToStaticMarkup(<BranchSidebar />);
-    expect(existing).toContain("Daily work");
+    expect(existing).toContain("Follow-ups &amp; tasks");
     expect(existing).not.toContain(">Operations<");
     expect(existing).toContain("Reports");
     expect(existing).toContain("Setup and access");

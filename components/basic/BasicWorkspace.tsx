@@ -18,6 +18,7 @@ import type { BranchAccess } from "@/types";
 import type { StudentListItem } from "@/lib/api/students";
 import type { FeeCollectionView } from "@/lib/feeCollections";
 import { remainingFee } from "@/lib/feeBalance";
+import { isOverdue } from "@/lib/utils/paymentStatus";
 import { activeAllocations, initials, loadBasicData, type BasicData } from "./data";
 import { basicRequest, useBasicOperation } from "./useBasicOperation";
 import { BasicStudentForm, type StudentInput } from "./BasicStudentForm";
@@ -28,6 +29,7 @@ import { BasicStudentStatus } from "./BasicStudentStatus";
 import { BasicAdmissionReview } from "./BasicAdmissionReview";
 import "@/styles/basic-product.css";
 import { useBasicNavigationGuard } from "./useBasicNavigationGuard";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const areas: { key: string; label: string; capability: BranchCapabilityKey; icon: typeof House }[] = [
     { key: "", label: "Overview", capability: "basicOverview", icon: House },
@@ -51,6 +53,8 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
     const [shift,setShift] = useState(""), [selectedStudent,setSelectedStudent] = useState(""), [seat,setSeat] = useState(""), [source,setSource] = useState("");
     const [availability,setAvailability]=useState<{available:number;total:number;shift:string}|null>(null);
     const [notice,setNotice] = useState(""), [dirty,setDirty] = useState(false);
+    const [confirmation, setConfirmation] = useState<{ scope: string; pathname: string; operationKey: string | null; description: string; action: () => void } | null>(null);
+    const [navigationNotice, setNavigationNotice] = useState(false);
     const dirtyRef = useRef(false);
     const markDirty = () => { dirtyRef.current = true; setDirty(true); };
     const clean = useCallback(() => { dirtyRef.current = false; setDirty(false); }, []);
@@ -74,17 +78,40 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         loadBasicData(access).then(value => { if(current) setData(value); }).catch(cause => { if(current) { setData(null); setError(cause instanceof Error ? cause.message : "Unable to load this workspace."); } }).finally(()=>{if(current)setLoading(false);});
         return ()=>{ current=false; };
     }, [access,revision]);
-    function allowNavigation() {
-        if(operation.pending) { window.alert(t.owned("Wait for the current operation to finish.")); return false; }
-        if(dirtyRef.current && !window.confirm(t.owned("Leave with unsaved changes? Your student draft is saved for this branch."))) return false;
-        clean(); return true;
+    if (confirmation && (confirmation.scope !== scope || confirmation.pathname !== pathname)) setConfirmation(null);
+    function requestConfirmation(description: string, action: () => void) {
+        setConfirmation(current => current?.scope === scope && current.pathname === pathname ? current : {
+            scope, pathname, operationKey: operation.saved?.key ?? null, description, action,
+        });
     }
-    const navigationRef = useRef(allowNavigation);
-    useEffect(()=>{navigationRef.current=allowNavigation;});
+    function allowNavigation(resume: () => void) {
+        if (operation.pending) { setNavigationNotice(true); return false; }
+        if (dirtyRef.current) {
+            requestConfirmation("Leave with unsaved changes? Your student draft is saved for this branch.", () => { setModal(null); resume(); });
+            return false;
+        }
+        clean();
+        return true;
+    }
     useBasicNavigationGuard(allowNavigation, dirty || operation.pending);
     useEffect(()=>{onInteractionState?.({dirty:dirty || !!operation.saved,pending:operation.pending});},[dirty,operation.saved,operation.pending,onInteractionState]);
-    function go(path: string) { if(allowNavigation()) {setModal(null);setQuery("");setLimit(50);router.push(path);} }
-    function close() { if(operation.pending) return; if(dirtyRef.current && !window.confirm(t.owned("Close with unsaved changes?"))) return; clean();setModal(null); }
+    function go(path: string) {
+        const navigate = () => { setModal(null); setQuery(""); setLimit(50); router.push(path); };
+        if (allowNavigation(navigate)) navigate();
+    }
+    function close() {
+        if (operation.pending) return;
+        if (dirtyRef.current) { requestConfirmation("Close with unsaved changes?", () => setModal(null)); return; }
+        clean(); setModal(null);
+    }
+    function confirmRequestedAction() {
+        if (!confirmation || confirmation.scope !== scope || confirmation.pathname !== pathname || operation.pending || blocked) return;
+        setConfirmation(null);
+        // A refreshed/replaced recovery request must never be cleared by an old prompt.
+        if (confirmation.operationKey !== (operation.saved?.key ?? null)) return;
+        clean();
+        confirmation.action();
+    }
     async function saveStudent(input: StudentInput, chooseSeat: boolean) {
         if(!can("studentsManage") || disabled) return;
         const id = modal?.kind==="student" ? modal.id : undefined;
@@ -102,8 +129,9 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         if(result) { setModal(null);setNotice(t.owned(result.status==="INACTIVE" ? "Student marked inactive. Existing fees and history are unchanged." : "Student reactivated. Choose an available seat and shift.")); }
     }
     function finishAdmissionReview() {
-        if(!window.confirm(t.owned("Close recovery without confirming this admission? Your draft stays saved. Review existing records before submitting it again."))) return;
-        operation.clear();clean();setModal(null);setNotice("");
+        requestConfirmation("Close recovery without confirming this admission? Your draft stays saved. Review existing records before submitting it again.", () => {
+            operation.clear(); setModal(null); setNotice("");
+        });
     }
     async function recordPayment(amount: number, method: "CASH"|"UPI"|"BANK_TRANSFER", ids: string[]) {
         if(!can("paymentsRecord") || disabled || modal?.kind!=="payment") return;
@@ -169,7 +197,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
     const navigation = visibleAreas.map(({key,label,icon}) => <SidebarItem key={key} icon={icon} label={label} href={root+(key?"/"+key:"")} isActive={area===key} density="compact" />);
     const sidebar = <SidebarFrame homeHref={root} label="Branch navigation">
         {navigation}
-        <div className="mt-6 space-y-1 border-t border-[color:var(--ui-panel-border)] pt-4">
+        <div className="ui-navigation-secondary">
             {can("importView") && <SidebarItem icon={UploadCloud} label="Import students" href={root+"/onboarding/import"} isActive={area === "imports"} density="compact" />}
             {access.permissions.manage_branch && <SidebarItem icon={Settings} label="Library setup" href={root+"/setup"} isActive={area === "setup"} density="compact" />}
             {access.isOwner && <SidebarItem icon={ArrowLeft} label="Back to organization" href={"/org/"+access.organizationId} isActive={false} density="compact" />}
@@ -188,12 +216,13 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         {!compactLayout && <div className="ui-basic-navigation">{sidebar}</div>}
         {compactLayout && <Drawer open={navigationOpen} onClose={()=>setNavigationOpen(false)} title={t("Branch navigation")} closeLabel={t("Close navigation")} variant="navigation" className="max-w-[19rem]"><div className="h-full">{sidebar}</div></Drawer>}
         <div className="bp-workspace">
-            <header className="bp-topbar"><button type="button" className="ui-basic-menu" onClick={()=>setNavigationOpen(true)} aria-label={t("Open navigation")} aria-expanded={navigationOpen}><Menu size={20}/></button><WorkspaceSwitcher beforeNavigate={()=>navigationRef.current()}/></header>
+            <header className="bp-topbar"><button type="button" className="ui-basic-menu" onClick={()=>setNavigationOpen(true)} aria-label={t("Open navigation")} aria-expanded={navigationOpen}><Menu size={20}/></button><WorkspaceSwitcher wrapBranchName/></header>
             <main id="bp-main" tabIndex={-1} aria-busy={loading || operation.pending}>
                 {access.billingExperience?.accessMode==="READ_ONLY" && <p className="bp-warning" role="status">{t.owned("Records are read-only. Open Account billing to restore access.")}</p>}
+                {navigationNotice && operation.pending && <p role="status" className="bp-warning">{t.owned("Wait for the current operation to finish.")}</p>}
                 {notice && <p role="status" className="bp-notice"><Check size={17}/>{notice}</p>}
                 {operation.saved && !operation.pending && <section role="alert" className="bp-recovery"><strong>{t.owned("An operation needs confirmation")}</strong><p>{t.error(operation.error || "Check the saved operation before making another change.")}</p><button className="bp-button bp-button-secondary" disabled={blocked} onClick={()=>void recover()}>{t.owned("Check saved operation")}</button>
-                    {!["payment","move","student"].includes(operation.saved.kind) && <button className="bp-text-button" onClick={()=>{if(window.confirm(t.owned("Have you reviewed the current records? Clearing recovery does not undo an operation."))){operation.clear();clean();setModal(null);}}}>{t.owned("I reviewed the records")}</button>}
+                    {!["payment","move","student"].includes(operation.saved.kind) && <button className="bp-text-button" onClick={()=>requestConfirmation("Have you reviewed the current records? Clearing recovery does not undo an operation.", () => { operation.clear(); setModal(null); })}>{t.owned("I reviewed the records")}</button>}
                 </section>}
                 {operation.error && !operation.saved && <p className="bp-error" role="alert">{t.error(operation.error)}</p>}
                 {!pageAllowed ? <div className="bp-empty"><h1>{t.owned(blockedPageReason)}</h1><Link className="bp-button" href={root}>{t.owned("Back to overview")}</Link></div>
@@ -208,14 +237,14 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
                     {area==="students" && !studentId && <>
                         <div className="bp-page-heading"><div><h1>{t.owned("Your students")}</h1><p>{data.students.length} {t("Students")}</p></div><div className="flex flex-wrap gap-2">{can("importView") && <Link className="bp-button bp-button-secondary" href={root+"/onboarding/import"}><UploadCloud size={18}/>{t.owned("Import students")}</Link>}<button className="bp-button bp-button-primary" disabled={disabled||!can("studentsManage")} onClick={()=>setModal({kind:"student"})}><Plus size={18}/>{t("Add student")}</button></div></div>
                         <div className="bp-list-panel"><label className="bp-search"><Search size={19}/><input aria-label={t.owned("Search students")} placeholder={t.owned("Find a student by name or phone")} value={query} onChange={e=>{setQuery(e.target.value);setLimit(50);}}/></label>
-                            {roster.slice(0,limit).map(s=><button className="bp-student-row" key={s.id} onClick={()=>go(root+"/students/"+s.id)}><span className="bp-person"><span className="bp-avatar">{initials(s.name)}</span><span><strong>{s.name}</strong><small>{s.phone??t.owned("No mobile number")} · {t.owned(s.status)}</small></span></span><span className="bp-roster-seat">{activeAllocations(s).map(a=><small key={a.id}>{a.seat.label} · {a.shift.name}</small>)}{!activeAllocations(s).length&&t.owned("Choose a seat")}</span>{can("paymentsView")&&<span className={"bp-fee-status "+(!balance(s.id)?"is-paid":"")}>{balance(s.id)?money(balance(s.id))+" "+t("Due"):t.owned("No outstanding dues")}</span>}<ChevronRight size={18}/></button>)}
+                            {roster.slice(0,limit).map(s=><button className="bp-student-row" key={s.id} onClick={()=>go(root+"/students/"+s.id)}><span className="bp-person"><span className="bp-avatar">{initials(s.name)}</span><span><strong>{s.name}</strong><small className="bp-person-meta"><span className="bp-phone">{s.phone??t.owned("No mobile number")}</span><span>{t.owned(s.status)}</span></small></span></span><span className="bp-roster-seat">{activeAllocations(s).map(a=><small key={a.id}>{a.seat.label} · {a.shift.name}</small>)}{!activeAllocations(s).length&&t.owned("Choose a seat")}</span>{can("paymentsView")&&<span className={"bp-fee-status "+(!balance(s.id)?"is-paid":"")}>{balance(s.id)?money(balance(s.id))+" "+t("Due"):t.owned("No outstanding dues")}</span>}<ChevronRight className="bp-row-chevron" size={18} aria-hidden="true"/></button>)}
                             {!roster.length&&<div className="bp-empty"><Users size={28}/><h2>{t.owned("No students found")}</h2><p>{t.owned("Try another name or add a student.")}</p></div>}
                             {roster.length>limit&&<button className="bp-button" onClick={()=>setLimit(v=>v+50)}>{t("Load more")}</button>}
                         </div>
                     </>}
                     {area==="students"&&studentId&&(currentStudent?<>
                         <button className="bp-back" onClick={()=>go(root+"/students")}><ArrowLeft size={17}/>{t("All students")}</button>
-                        <div className="bp-student-heading"><span className="bp-avatar bp-avatar-large">{initials(currentStudent.name)}</span><div><h1>{currentStudent.name}</h1><p>{currentStudent.phone??t.owned("No mobile number")} · {t.owned(currentStudent.status)}</p></div><button className="bp-button bp-button-quiet" disabled={disabled||!can("studentsManage")} onClick={()=>setModal({kind:"student",id:currentStudent.id})}>{t.owned("Edit details")}</button><button className="bp-button bp-button-secondary" disabled={disabled||!can("studentsManage")} onClick={()=>{setNotice("");setModal({kind:"status",id:currentStudent.id,status:currentStudent.status==="ACTIVE"?"INACTIVE":"ACTIVE"});}}>{t.owned(currentStudent.status==="ACTIVE"?"Mark inactive":"Reactivate student")}</button></div>
+                        <div className="bp-student-heading"><span className="bp-avatar bp-avatar-large">{initials(currentStudent.name)}</span><div className="bp-student-heading-identity"><h1>{currentStudent.name}</h1><p className="bp-person-meta"><span className="bp-phone">{currentStudent.phone??t.owned("No mobile number")}</span><span>{t.owned(currentStudent.status)}</span></p></div><div className="bp-student-heading-actions"><button className="bp-button bp-button-quiet" disabled={disabled||!can("studentsManage")} onClick={()=>setModal({kind:"student",id:currentStudent.id})}>{t.owned("Edit details")}</button><button className="bp-button bp-button-secondary" disabled={disabled||!can("studentsManage")} onClick={()=>{setNotice("");setModal({kind:"status",id:currentStudent.id,status:currentStudent.status==="ACTIVE"?"INACTIVE":"ACTIVE"});}}>{t.owned(currentStudent.status==="ACTIVE"?"Mark inactive":"Reactivate student")}</button></div></div>
                         <div className="bp-detail-grid">{can("seatsView")&&<section className="bp-detail-card"><Armchair size={23}/><h2>{t("Seats")}</h2>{activeAllocations(currentStudent).map(a=><p key={a.id}>{a.seat.label} · {a.shift.name}{a.multiShift?" · "+a.multiShift.name:""}</p>)}{!activeAllocations(currentStudent).length&&<p>{t.owned(currentStudent.status==="ACTIVE"?"Choose a shift and an available seat.":"Reactivate this student before assigning a seat.")}</p>}<button className="bp-button bp-button-secondary" disabled={disabled||!can("allocationsManage")||currentStudent.status!=="ACTIVE"} onClick={()=>{chooseStudent(currentStudent.id);go(root+"/seats");}}>{t.owned("Choose or change a seat")}<ArrowRight size={17}/></button></section>}
                         {can("paymentsView")&&<section className="bp-detail-card"><IndianRupee size={23}/><h2>{money(balance(currentStudent.id))} {t("Due")}</h2><p>{t("Monthly fee")}: {money(currentStudent.monthlyFee)}</p><p>{t.owned("Monthly fees start one month after joining. Changes apply to future dues.")}</p><button className="bp-button bp-button-primary" disabled={disabled||!can("paymentsRecord")||!balance(currentStudent.id)} onClick={()=>setModal({kind:"payment",id:currentStudent.id})}>{t.owned("Record payment")}</button></section>}</div>
                         {can("paymentsView")&&<><FeeDetails fees={studentFees(currentStudent.id)}/><BasicHistory key={currentStudent.id} branchId={access.branchId} studentId={currentStudent.id} revision={revision} onReceipt={receipt=>setModal({kind:"receipt",receipt})}/></>}
@@ -234,7 +263,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
                     {area==="fees"&&<><div className="bp-page-heading"><div><h1>{t.owned("Student fees")}</h1><p>{t.owned("A clear view of what’s paid and what’s left.")}</p></div><button className="bp-button bp-button-secondary" disabled={disabled||!can("paymentsGenerate")} onClick={async()=>{const result=await operation.run(operation.command("setup","/branches/"+access.branchId+"/payments/generate","POST",{}));if(result)setNotice(t.owned("Due fees refreshed."));}}>{t.owned("Refresh due fees")}</button></div>
                         <div className="bp-fee-summary"><div><span>{t.owned("Left to collect")}</span><strong>{money(feeRows.reduce((sum,p)=>sum+remainingFee(p),0))}</strong></div><div><span>{t.owned("Received this month")}</span><strong>{money(data.summary.money?.collectedThisMonth??0)}</strong></div></div>
                         <div className="bp-list-panel"><label className="bp-search"><Search size={18}/><input aria-label={t.owned("Search fees")} placeholder={t.owned("Find a student")} value={query} onChange={e=>{setQuery(e.target.value);setLimit(50);}}/></label>
-                            {feeStudents.slice(0,limit).map(s=><div className="bp-fee-row" key={s.id}><span className="bp-person"><span className="bp-avatar">{initials(s.name)}</span><strong>{s.name}</strong></span><div className="bp-fee-amount"><strong>{money(balance(s.id))}</strong><small>{t("Due")}</small></div><button className="bp-button bp-button-secondary" disabled={disabled||!can("paymentsRecord")||!balance(s.id)} onClick={()=>setModal({kind:"payment",id:s.id})}>{t.owned("Record payment")}</button></div>)}
+                            {feeStudents.slice(0,limit).map(s=><div className="bp-fee-row" key={s.id}><span className="bp-person"><span className="bp-avatar">{initials(s.name)}</span><strong>{s.name}</strong></span><div className="bp-fee-amount"><strong>{money(balance(s.id))}</strong><small>{t("Remaining due")}</small></div><button className="bp-button bp-button-secondary" disabled={disabled||!can("paymentsRecord")||!balance(s.id)} onClick={()=>setModal({kind:"payment",id:s.id})}>{t.owned("Record payment")}</button></div>)}
                             {!feeStudents.length&&<p className="bp-empty">{t.owned("No student fees are waiting for payment.")}</p>}{feeStudents.length>limit&&<button className="bp-button" onClick={()=>setLimit(v=>v+50)}>{t("Load more")}</button>}
                         </div><FeeDetails fees={feeRows}/><BasicHistory branchId={access.branchId} revision={revision} onReceipt={receipt=>setModal({kind:"receipt",receipt})}/>
                     </>}
@@ -248,10 +277,15 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         {modal?.kind==="status"&&data&&<BasicStudentStatus name={data.students.find(s=>s.id===modal.id)?.name??t("Student")} status={modal.status} pending={operation.pending} locked={!!operation.saved||!can("studentsManage")} error={operation.error} onConfirm={()=>void changeStatus()} onRecover={operation.saved?()=>void recover():undefined} onClose={close}/>}
         {modal?.kind==="admission-review"&&operation.saved?.kind==="student"&&<BasicAdmissionReview command={operation.saved} matches={modal.matches} onRecord={id=>go(root+"/students/"+id)} onFinish={finishAdmissionReview} onClose={()=>setModal(null)}/>}
         {modal?.kind==="receipt"&&<BasicReceipt branchId={access.branchId} receipt={modal.receipt} onClose={()=>setModal(null)}/>}
+        <ConfirmDialog isOpen={!!confirmation && confirmation.scope === scope && confirmation.pathname === pathname}
+            title={operation.saved ? "An operation needs confirmation" : "Unsaved changes"}
+            description={confirmation?.description ?? ""} confirmText="Continue" variant="warning"
+            loading={operation.pending || blocked} onClose={() => setConfirmation(null)} onConfirm={confirmRequestedAction}
+            overlayClassName="app-design-pilot-overlay bp-prototype bp-modal-overlay" className="bp-modal-card" />
         {dirty&&<span className="bp-sr-only" role="status">{t.owned("Unsaved changes")}</span>}
     </div>;
 }
 function FeeDetails({fees}:{fees:BasicData["payments"]}) {
-    const t=useTranslation(),{money,date}=useBasicFormat();
-    return <details className="bp-fee-details"><summary>{t.owned("Fee balances and waivers")}</summary>{fees.map(p=><div key={p.id}><strong>{p.student?.name} · {t.owned(p.type==="ADMISSION"?"Admission fee":"Monthly fee")} · {date(p.dueDate)}</strong><p>{t.owned("Billed")}: {money(p.amount)} · {t("Paid")}: {money(p.ledgerBacked?p.collectedAmount:p.status==="PAID"?p.amount:0)} · {t("Waived")}: {money(p.ledgerBacked?p.waivedAmount:p.status==="WAIVED"?p.amount:0)} · {t("Due")}: {money(remainingFee(p))}</p></div>)}</details>;
+    const t=useTranslation(),{money,feeDate:date}=useBasicFormat();
+    return <details className="bp-fee-details"><summary>{t.owned("Fee balances and waivers")}</summary>{fees.map(p=><div key={p.id}><strong>{p.student?.name} · {t.owned(p.type==="ADMISSION"?"Admission fee":"Monthly fee")}</strong><p>{t("Due date")}: {date(p.dueDate)}{p.periodStart&&p.periodEnd&&<> · {t("Fee period")}: {date(p.periodStart)} – {date(p.periodEnd)}</>}</p><div className="ui-fee-state"><span>{t.owned(p.status)}</span>{p.status==="DUE"&&p.collectedAmount>0&&<span>{t("Partially paid")}</span>}{p.status==="DUE"&&remainingFee(p)>0&&isOverdue(p.dueDate)&&<span>{t("Overdue")}</span>}</div><p>{t.owned("Billed")}: {money(p.amount)} · {t("Paid")}: {money(p.ledgerBacked?p.collectedAmount:p.status==="PAID"?p.amount:0)} · {t("Waived")}: {money(p.ledgerBacked?p.waivedAmount:p.status==="WAIVED"?p.amount:0)} · {t("Remaining due")}: {money(remainingFee(p))}</p></div>)}</details>;
 }

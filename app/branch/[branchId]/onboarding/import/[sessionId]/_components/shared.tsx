@@ -6,7 +6,6 @@ import { formControlClass } from "@/components/ui/formSurface";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { cn } from "@/lib/utils";
 import {
-    pageInsetMetricClass,
     pageInsetSurfaceClass,
     pageMutedTextClass,
     pageSubtleTextClass,
@@ -90,7 +89,7 @@ export function AccessibleTableScroll({
 
 function FormattedImportAmount({ value }: { value: number }) {
     const { formatNumber } = useUserPreferences();
-    return <>Rs {formatNumber(value)}</>;
+    return <>₹{formatNumber(value)}</>;
 }
 
 export function formatAmount(value: number | null | undefined): ReactNode {
@@ -111,13 +110,9 @@ export function Metric({
     const displayValue = typeof value === "number" ? formatNumber(value) : value;
 
     return (
-        <div className={pageInsetMetricClass}>
-            <div className="flex items-center justify-between gap-2">
-                <p className={cn("text-xs", pageMutedTextClass)}><OwnedLabel text={label} /></p>
-                <Badge variant={tone}>{displayValue}</Badge>
-            </div>
-            <p className="mt-2 text-lg font-semibold text-[color:var(--text-primary)]">{displayValue}</p>
-        </div>
+        <dl className="ui-import-metric">
+            <dt><OwnedLabel text={label} /></dt><dd><Badge variant={tone}>{displayValue}</Badge></dd>
+        </dl>
     );
 }
 

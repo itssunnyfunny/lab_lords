@@ -34,9 +34,9 @@ export function PageHeader({
 }: PageHeaderProps) {
     const t = useTranslation();
     return (
-        <div className="mb-6 flex flex-col justify-between gap-4 md:mb-8 md:flex-row md:items-end">
+        <div className="mb-4 flex flex-col justify-between gap-3 md:mb-5 md:flex-row md:items-end">
             <div className="min-w-0">
-                <h1 className={`${pageTitleClass} truncate`}>{title}</h1>
+                <h1 className={`${pageTitleClass} break-words`}>{title}</h1>
                 {subtitle && <p className={pageDescriptionClass}>{subtitle}</p>}
             </div>
 

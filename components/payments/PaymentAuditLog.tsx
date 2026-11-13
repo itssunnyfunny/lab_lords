@@ -15,6 +15,7 @@ import {
     formSurfaceClass,
 } from "@/components/ui/formSurface";
 import { cn } from "@/lib/utils";
+import { financialDateTime } from "@/lib/feeReceiptDates";
 
 const ACTION_LABEL: Record<AuditLogEntry["action"], string> = {
     PAYMENT_MARKED_PAID: "Marked as Paid",
@@ -44,7 +45,7 @@ export function PaymentAuditLog({
     onClose,
 }: PaymentAuditLogProps) {
     const t = useTranslation();
-    const { formatDateTime, formatNumber } = useUserPreferences();
+    const { interfaceLanguage, timezone, formatNumber } = useUserPreferences();
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -151,7 +152,7 @@ export function PaymentAuditLog({
                                     </span>
                                     <span>·</span>
                                     <span>
-                                        {formatDateTime(log.createdAt)}
+                                        {financialDateTime(log.createdAt, interfaceLanguage, timezone)}
                                     </span>
                                 </div>
                                 <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-[color:var(--ui-table-subtle)]">

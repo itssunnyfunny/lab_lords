@@ -265,7 +265,7 @@ export function AddStudentDialog({
                 <>
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                         {t("Cancel")}</Button>
-                    <Button type="submit" form="add-student-form" disabled={isLoading} className="min-w-[140px]">
+                    <Button type="submit" variant="primary" form="add-student-form" disabled={isLoading} className="min-w-[140px]">
                         {isLoading ? (
                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />  {t("Saving...")}</>
                         ) : wantsAllocation && allocationDecision.allowed ? (

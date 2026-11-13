@@ -6,7 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, FileUp, ListChecks, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
-import { AppButton, AppPanel, PageShell } from "@/components/ui";
+import { AppButton, AppPanel, AppSelect, ErrorState, PageShell } from "@/components/ui";
+import { appActionClassName } from "@/components/ui/AppButton";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -34,8 +35,6 @@ import {
     studentOnlyNormalizedData,
 } from "@/importing/utils/import-wizard-view-model";
 import {
-    pageDescriptionClass,
-    pageEyebrowClass,
     pageInsetMetricClass,
     pageMutedTextClass,
     pageProgressTrackClass,
@@ -48,6 +47,7 @@ import { PaymentsStep } from "./PaymentsStep";
 import { PreviewStep } from "./PreviewStep";
 import { ResultStep } from "./ResultStep";
 import { RowsStep } from "./RowsStep";
+import { Metric } from "./shared";
 import { GuidedImportWorkspace } from "./GuidedImportWorkspace";
 import type { ImportDetail, ImportGoal, ImportRow, PaymentDraft, Plan, RowDraft, RowFilter, RowPreview, Run } from "./types";
 
@@ -72,27 +72,6 @@ function detectedPaymentValuesFrom(detail: ImportDetail | null, rows: ImportRow[
     return Array.from(new Set(rows
         .map(row => row.normalizedData?.payment?.rawStatus)
         .filter((value): value is string => Boolean(value))));
-}
-
-function Metric({
-    label,
-    value,
-    tone = "default",
-}: {
-    label: string;
-    value: string | number;
-    tone?: "success" | "warning" | "danger" | "default" | "cyan" | "purple";
-}) {
-    const t = useTranslation();
-    return (
-        <div className={pageInsetMetricClass}>
-            <p className={cn("text-xs", pageMutedTextClass)}>{label}</p>
-            <p className="mt-1 text-xl font-semibold text-[color:var(--text-primary)]">{String(value)}</p>
-            <Badge className="mt-2" variant={tone}>
-                {tone === "success" ? t("Ready") : tone === "warning" ? t("Review") : tone === "danger" ? t("Action needed") : t("Info")}
-            </Badge>
-        </div>
-    );
 }
 
 function paymentDraftFromOptions(options: ImportOptions): PaymentDraft {
@@ -165,6 +144,8 @@ function goalAllowsQuestion(goal: ImportGoal, field: string | null) {
 }
 
 export function ImportSessionWizard(props: ImportSessionWizardProps) {
+    const t = useTranslation();
+    const [retry, setRetry] = useState(0);
     const [guided, setGuided] = useState<boolean | null>(null);
     const [error, setError] = useState<string | null>(null);
     const { branchId, sessionId } = props;
@@ -174,8 +155,12 @@ export function ImportSessionWizard(props: ImportSessionWizardProps) {
             .then(detail => { if (alive) setGuided(["GUIDED_CURRENT_MONTH_V1", "GUIDED_SETUP_V2"].includes(String(detail.sourceConfiguration?.experience))); })
             .catch(error => { if (alive) setError(error.message); });
         return () => { alive = false; };
-    }, [branchId, sessionId]);
-    if (guided === null) return <PageShell><p role="status">{error ? <LocalizedError error={error} /> : "Loading import…"}</p></PageShell>;
+    }, [branchId, sessionId, retry]);
+    if (guided === null) return <PageShell className="ui-record-page">
+        <header className="ui-record-header"><h1>{t("Import review")}</h1><Link className={appActionClassName("secondary")} href={`/branch/${branchId}/onboarding/import`}>{t("All imports")}</Link></header>
+        {error ? <ErrorState title="Import could not be loaded" description={error} onRetry={() => { setError(null); setRetry(value => value + 1); }} />
+            : <AppPanel density="compact"><p role="status">{t("Loading import session...")}</p></AppPanel>}
+    </PageShell>;
     return guided ? <GuidedImportWorkspace {...props} /> : <LegacyImportSessionWizard {...props} />;
 }
 
@@ -1076,18 +1061,17 @@ function LegacyImportSessionWizard({ branchId, sessionId, importDecision }: Impo
     }
 
     return (
-        <PageShell>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <PageShell className="[--ui-page-gap:12px]">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <p className={pageEyebrowClass}>{t("Data import")}</p>
+                    <p className={cn("mb-1 text-xs", pageMutedTextClass)}>{detail?.fileName ?? t("Data import")}</p>
                     <h1 className={pageTitleClass}>{t("Import review")}</h1>
-                    <p className={pageDescriptionClass}>{detail?.fileName ?? "Review staged records before import."}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="cyan">{importGoalLabel(goal)}</Badge>
-                    {detail?.status && <Badge variant={statusTone(detail.status)}>{labelImportStatus(detail.status)}</Badge>}
-                    <AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={() => requestNavigation({ kind: "imports" })}>
-                        {t("All imports")}</AppButton>
+                    <Badge variant="cyan">{t.owned(importGoalLabel(goal))}</Badge>
+                    {detail?.status && <Badge variant={statusTone(detail.status)}>{t.owned(labelImportStatus(detail.status))}</Badge>}
+                    <span className="hidden lg:block"><AppButton density="compact" variant="quiet" icon={ArrowLeft} onClick={() => requestNavigation({ kind: "imports" })}>
+                        {t("All imports")}</AppButton></span>
                 </div>
             </div>
 
@@ -1171,8 +1155,12 @@ function LegacyImportSessionWizard({ branchId, sessionId, importDecision }: Impo
 
             {detail && !waitingForPdfConfirmation && (
                 <>
-                    <AppPanel density="compact" contentClassName="space-y-5">
-                        <nav aria-label={t("Import progress")} className="grid gap-2 sm:grid-cols-3">
+                    <section className="ui-import-progress space-y-3">
+                        <div className="sm:hidden">
+                            <label className="mb-1 block text-sm font-medium" htmlFor="legacy-import-step">{t("Import step")}</label>
+                            <AppSelect id="legacy-import-step" aria-label={t("Import step")} value={activeStep} onValueChange={value => requestNavigation({ kind: "step", step: value as typeof activeStep })} options={steps.map(step => ({ value: step.id, label: `${t.owned(step.label)}${step.count ? ` · ${step.count}` : ""}` }))} />
+                        </div>
+                        <nav aria-label={t("Import progress")} className="hidden grid-cols-3 gap-2 sm:grid">
                             {[
                                 { id: "upload", label: "Upload", detail: "Source staged", icon: FileUp },
                                 { id: "fix", label: "Fix issues", detail: relevantAttention.length > 0 ? `${relevantAttention.length} issue groups` : "Checks reviewed", icon: ListChecks },
@@ -1195,29 +1183,29 @@ function LegacyImportSessionWizard({ branchId, sessionId, importDecision }: Impo
                                             if (stage.id === "review") requestNavigation({ kind: "step", step: run?.kind === "COMMIT" || detail.commits?.length ? "result" : "preview" });
                                         }}
                                         className={cn(
-                                            "flex min-h-20 items-center gap-3 rounded-[var(--ui-radius-control)] border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
+                                            "flex min-h-11 items-center gap-2 rounded-[var(--ui-radius-control)] border px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]",
                                             stageActive
                                                 ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)]"
                                                 : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] hover:bg-[color:var(--ui-form-surface-hover-bg)]"
                                         )}
                                     >
-                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[color:var(--ui-form-surface-border)] text-xs font-semibold">
+                                        <span className="hidden h-7 w-7 shrink-0 sm:flex items-center justify-center rounded-full border border-[color:var(--ui-form-surface-border)] text-xs font-semibold">
                                             {stage.id === "upload" || stage.id === "fix" && relevantAttention.length === 0 || stage.id === "review" && (run?.kind === "COMMIT" || Boolean(detail.commits?.length)) ? <CheckCircle2 className="h-4 w-4 text-[color:var(--ui-tone-success-text)]" /> : index + 1}
                                         </span>
-                                        <span className="min-w-0"><span className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]"><StageIcon className="h-4 w-4" />{t.owned(stage.label)}</span><span className={cn("mt-1 block text-xs", pageMutedTextClass)}>{t.owned(stage.detail)}</span></span>
+                                        <span className="min-w-0"><span className="flex items-center gap-2 text-sm font-semibold text-[color:var(--text-primary)]"><StageIcon className="hidden h-4 w-4 shrink-0 sm:block" />{t.owned(stage.label)}</span></span>
                                     </button>
                                 );
                             })}
                         </nav>
 
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
                             <Metric label={t("Ready to import")} value={detail.summary?.readyRows ?? 0} tone="success" />
                             <Metric label={t("Needs review")} value={(detail.summary?.needsReviewRows ?? 0) + (detail.summary?.duplicateRows ?? 0)} tone={(detail.summary?.needsReviewRows ?? 0) + (detail.summary?.duplicateRows ?? 0) > 0 ? "warning" : "success"} />
                             <Metric label={t("Blocked")} value={(detail.summary?.blockedRows ?? 0) + (detail.summary?.conflictRows ?? 0)} tone={(detail.summary?.blockedRows ?? 0) + (detail.summary?.conflictRows ?? 0) > 0 ? "danger" : "success"} />
                             <Metric label={t("Skipped")} value={detail.summary?.skippedRows ?? 0} tone="default" />
                         </div>
                         <div>
-                            <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+                            <div className="mb-1 flex items-center justify-between gap-3 text-xs">
                                 <span className={pageMutedTextClass}>{t("Import readiness")}</span>
                                 <span className="font-semibold text-[color:var(--text-primary)]">{readiness}%</span>
                             </div>
@@ -1227,7 +1215,7 @@ function LegacyImportSessionWizard({ branchId, sessionId, importDecision }: Impo
                         </div>
 
                         {fixSteps.some(step => step.id === activeStep) && (
-                            <nav className="flex gap-2 overflow-x-auto pb-1" aria-label={t("Fix import issues")}>
+                            <nav className="hidden flex-wrap gap-2 sm:flex" aria-label={t("Fix import issues")}>
                                 {fixSteps.map(step => (
                                     <button
                                         key={step.id}
@@ -1245,7 +1233,7 @@ function LegacyImportSessionWizard({ branchId, sessionId, importDecision }: Impo
                                 ))}
                             </nav>
                         )}
-                    </AppPanel>
+                    </section>
 
                     {relevantAttention.length > 0 && fixSteps.some(step => step.id === activeStep) && (
                         <AppPanel density="compact" title={t("Fix these first")} description={t("Open an issue group to jump to the best place to resolve it.")}>

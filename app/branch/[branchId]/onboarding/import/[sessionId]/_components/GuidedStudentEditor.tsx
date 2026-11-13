@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AppButton, AppSelect, Dialog } from "@/components/ui";
+import { useEffect, useId, useRef, useState } from "react";
+import { AppButton, AppSelect, Dialog, type DialogProps } from "@/components/ui";
 import { LocalizedError, useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { guidedSavedFields, guidedStudentTasks, guidedTaskLabel, type StudentTask } from "@/importing/utils/guided-import-presentation";
@@ -17,10 +17,21 @@ type Tab = "details" | "seating" | "payment";
 const tabFor = (task: StudentTask): Tab => ["shift", "seat"].includes(task) ? "seating" : task === "payment" ? "payment" : "details";
 type Props = {
     branchId: string; sessionId: string; detail: ImportDetail; row: ImportRow; draft: RowDraft; focus: StudentTask;
-    dirty: boolean; busy: boolean; disabled: boolean; error: string | null; preview: RowPreview | null; previewLoading: boolean; feeLinked: boolean; assignmentOnly?: boolean; saveOutcome?: React.ReactNode;
+    dirty: boolean; busy: boolean; disabled: boolean; error: string | null; preview: RowPreview | null; previewLoading: boolean; feeLinked: boolean; inline?: boolean; assignmentOnly?: boolean; saveOutcome?: React.ReactNode;
     onChange: (field: keyof RowDraft, value: string) => void; onFeeLinkChange: (linked: boolean) => void;
     onSave: () => void; onNext: () => void; onReset: () => void; onDefer: () => void; onExclude: () => void; onClose: () => void; onSource: () => void;
 };
+
+function EditorSurface({ inline, ...props }: DialogProps & { inline?: boolean }) {
+    const label = useId();
+    if (!inline) return <Dialog {...props} />;
+    return <aside className="ui-import-editor" aria-labelledby={label}>
+        <header className="ui-import-editor-heading"><h2 id={label}>{props.title}</h2><p>{props.description}</p>
+        </header>
+        <div className="ui-import-editor-body">{props.children}</div>
+        <footer className="ui-import-editor-footer">{props.footer}</footer>
+    </aside>;
+}
 
 export function GuidedStudentEditor(props: Props) {
     const { branchId, sessionId, detail, row, draft, focus, dirty, busy, disabled, error, preview, previewLoading, feeLinked,
@@ -44,7 +55,7 @@ export function GuidedStudentEditor(props: Props) {
         .flatMap(column => row.rawData[column.sourceColumn]?.trim() ? [row.rawData[column.sourceColumn]] : []).join(" · ") ?? "";
     const title = draft.studentName || t("Student details to confirm");
     const sourceTimings = source("shift.name") || source("allocation.shiftName") || source("allocation.multiShiftName");
-    return <Dialog open title={<span><span className="block">{title}</span>{tab === "seating" && sourceTimings && <span className="mt-2 block text-xs font-normal leading-normal">{t("Uploaded timings: {value}", { value: sourceTimings })}</span>}</span>} description={t("Source record {number}. Changes stay in this draft until you confirm the import.", { number: row.rowNumber })}
+    return <EditorSurface inline={props.inline} open title={<span><span className="block">{title}</span>{tab === "seating" && sourceTimings && <span className="mt-2 block text-xs font-normal leading-normal">{t("Uploaded timings: {value}", { value: sourceTimings })}</span>}</span>} description={t("Source record {number}. Changes stay in this draft until you confirm the import.", { number: row.rowNumber })}
         onClose={onClose} closeDisabled={busy} dismissOnBackdrop={!dirty && !busy} density="compact" languagePlacement="header"
         className="!max-w-4xl [&>.ui-dialog-header-language]:sticky [&>.ui-dialog-header-language]:-top-4 sm:[&>.ui-dialog-header-language]:-top-6 [&>.ui-dialog-header-language]:z-20 [&>.ui-dialog-header-language]:bg-[color:var(--ui-dialog-bg)] [&>.ui-dialog-header-language]:py-2 [&>button[aria-label]]:z-30"
         footer={<div className="space-y-3">
@@ -101,5 +112,5 @@ export function GuidedStudentEditor(props: Props) {
             {!!relevant.length && <ul className="space-y-2 rounded border border-[color:var(--ui-tone-warning-border)] bg-[color:var(--ui-tone-warning-bg)] p-3 text-sm" aria-label={t("Information to check")}>{relevant.map((issue, index) => <li key={`${issue.code}:${index}`}>{issue.code.startsWith("ALLOCATION_SKIPPED_") ? t("Seating is left for later. The student can still be saved.") : ["UNKNOWN_SHIFT", "UNKNOWN_MULTI_SHIFT"].includes(issue.code) ? t("Choose the timings meant by the uploaded value.") : issue.code === "UNKNOWN_SEAT" ? t("Choose an existing seat or add seating later.") : /ALLOCATION_CONFLICT|SEAT_CONFLICT|OVERLAP/.test(issue.code) ? t("Check the marked seats and timings, then choose an available seat.") : <LocalizedError error={issue.message} />}</li>)}</ul>}
             <details><summary className="cursor-pointer text-xs text-[color:var(--text-muted)]">{t("Uploaded values for this student")}</summary><dl className="mt-3 grid gap-3 sm:grid-cols-2">{Object.entries(row.rawData).map(([key, value]) => <div className="min-w-0" key={key}><dt className="text-xs text-[color:var(--text-muted)]">{key}</dt><dd className="break-words text-sm">{value || "—"}</dd></div>)}</dl></details>
         </div>
-    </Dialog>;
+    </EditorSurface>;
 }

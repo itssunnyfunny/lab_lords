@@ -21,15 +21,13 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { SidebarItem } from "./SidebarItem";
+import { SidebarGroup } from "./SidebarGroup";
 import { SidebarFrame } from "./SidebarFrame";
 import { useBranchAccess } from "@/hooks/useBranchAccess";
 import type { StaffAction } from "@/types";
 import type { BillingFeatureKey } from "@/lib/billingPolicy";
 import { hasFeatureEntitlement } from "@/lib/billingPolicy";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
-import {
-    chromeSidebarSectionLabelClass,
-} from "@/components/ui/chromeSurface";
 import { isApplicationDesignPilotPath } from "@/lib/applicationDesignPilot";
 
 type BranchNavItem = {
@@ -72,7 +70,7 @@ export function BranchSidebar() {
     ];
 
     const operationItems: BranchNavItem[] = [
-        { icon: Users, label: "Students", href: `${basePath}/students`, permission: "students", active: current => current === `${basePath}/students` },
+        { icon: Users, label: "Students", href: `${basePath}/students`, permission: "students", active: current => current === `${basePath}/students` || !!current?.startsWith(`${basePath}/students/`) },
         { icon: CalendarCheck, label: "Attendance", href: `${basePath}/attendance`, permission: "students", active: current => current === `${basePath}/attendance` },
         { icon: UploadCloud, label: "Import Assistant", href: `${basePath}/onboarding/import`, permission: "students", active: current => current?.startsWith(`${basePath}/onboarding/import`) ?? false },
         { icon: Grid, label: "Seats & Maps", href: `${basePath}/seats`, permission: "seat_allocation", active: current => current === `${basePath}/seats` },
@@ -96,27 +94,15 @@ export function BranchSidebar() {
     const canOpenSetup = canSee("manage_branch") || canSee("students") || canSee("seat_allocation");
 
     const pilotSections = [
-        {
-            label: "Daily work",
-            items: [overviewItems[0], operationItems[0], operationItems[1], followUpsItem, tasksItem],
-        },
-        {
-            label: "Seats and shifts",
-            items: [operationItems[3], operationItems[4], operationItems[5]],
-        },
-        {
-            label: "Fees",
-            items: [operationItems[6], operationItems[7], operationItems[8]],
-        },
-        {
-            label: "Reports",
-            items: [overviewItems[1], ...intelligenceItems, ...(canSee("view_payments") || canSee("students") ? [reportsItem] : [])],
-        },
-        {
-            label: "Setup and access",
-            items: [...(canOpenSettings ? [settingsItem] : []), ...(canOpenSetup ? [setupItem] : []), ...(canManageBranchSettings && canViewWhatsApp ? [{ ...settingsItem, icon: MessageSquare, label: "WhatsApp", href: `${basePath}/settings#whatsapp`, active: () => false }] : []), operationItems[2], { ...operationItems[9], label: "Staff & Permissions" }],
-        },
+        { label: "Overview", items: [overviewItems[0]] },
+        { label: "Students", items: [operationItems[0], operationItems[2]] },
+        { label: "Fees", items: [operationItems[6], operationItems[7], operationItems[8]] },
+        { label: "Seats & shifts", items: [operationItems[3], operationItems[4], operationItems[5]] },
+        { label: "Attendance", items: [operationItems[1]] },
+        { label: "Follow-ups & tasks", items: [followUpsItem, tasksItem] },
+        { label: "Reports", items: [overviewItems[1], ...intelligenceItems, ...(canSee("view_payments") || canSee("students") ? [reportsItem] : [])] },
     ];
+    const setupItems = [...(canOpenSettings ? [settingsItem] : []), ...(canOpenSetup ? [setupItem] : []), ...(canManageBranchSettings && canViewWhatsApp ? [{ ...settingsItem, icon: MessageSquare, label: "WhatsApp", href: `${basePath}/settings#whatsapp`, active: () => false }] : []), { ...operationItems[9], label: "Staff & Permissions" }];
 
     const renderItems = (items: BranchNavItem[]) => items.map(item => (
         <SidebarItem
@@ -135,18 +121,14 @@ export function BranchSidebar() {
         const visibleItems = items.filter(item => canSee(item.permission));
         if (visibleItems.length === 0) return null;
 
-        return (
-            <div className="space-y-2">
-                <div data-sidebar-label className={chromeSidebarSectionLabelClass}>{t.owned(label)}</div>
-                {renderItems(visibleItems)}
-            </div>
-        );
+        if (visibleItems.length === 1) return renderItems(visibleItems);
+        return <SidebarGroup label={label} icon={visibleItems[0].icon} active={visibleItems.some(item => item.active(pathname))}>{renderItems(visibleItems)}</SidebarGroup>;
     };
 
     return (
         <SidebarFrame homeHref={basePath} label="Branch navigation">
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-                <div className="space-y-4">
+            <div className="ui-navigation-body">
+                <div className="ui-navigation-groups">
                     {designPilot
                         ? pilotSections.map(section => (
                             <div key={section.label}>{renderSection(section.label, section.items)}</div>
@@ -159,9 +141,10 @@ export function BranchSidebar() {
                             </>
                         )}
                 </div>
+                {designPilot && <div className="ui-navigation-secondary">{renderSection("Setup and access", setupItems)}</div>}
                 {access?.isOwner && (
-                    <div className="mt-5 space-y-2 border-t border-[color:var(--ui-panel-header-border)] pt-4" aria-label={t.owned("Workspace")}>
-                        <div data-sidebar-label className={chromeSidebarSectionLabelClass}>{t.owned("Workspace")}</div>
+                    <div className="ui-navigation-section ui-navigation-secondary" aria-label={t.owned("Workspace")}>
+                        <div data-sidebar-label className="ui-navigation-section-label">{t.owned("Workspace")}</div>
                         <SidebarItem icon={ArrowLeft} label={t("Back to organization")} isActive={false} href={`/org/${access.organizationId}`} density="compact" />
                     </div>
                 )}

@@ -101,32 +101,34 @@ test("onboarding keeps four-step validation and staged trial request identity", 
     });
     await page.goto("/onboarding?mode=after&lang=en");
     await expect(page.getByRole("heading", { level: 1, name: "Set up Lab Lords" })).toBeVisible();
-    await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
-    await expect(page.getByRole("img", { name: "Lab Lords logo" })).toHaveAttribute("viewBox", "0 0 180 116");
-    await expect(page.getByRole("heading", { level: 2, name: "Organization details" })).toBeVisible();
+    await expect(page.locator('[data-app-design-pilot="workspace"]').first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Tell us about your business" })).toBeVisible();
     await capture(page, info, "onboarding-entry");
     await expectNoHorizontalOverflow(page);
-    await page.getByRole("button", { name: "Continue" }).click();
-    await expect(page.locator("#onboarding-org-name-error")).toBeVisible();
-    await page.locator('input[name="orgName"]').fill("Shanti Learning Spaces");
-    await page.locator('input[name="ownerPhone"]').fill("9876543210");
-    await page.getByRole("button", { name: "Continue" }).click();
-    await expect(page.getByRole("heading", { level: 2, name: "First branch details" })).toBeVisible();
-    await page.locator('input[name="branchName"]').fill("Shanti Study Library");
-    await page.locator('input[name="seatCount"]').fill("8");
-    await page.getByRole("button", { name: "Choose plan" }).click();
-    await expect(page.getByRole("heading", { level: 2, name: "Choose your post-trial plan" })).toBeVisible();
-    await expect(page.getByText("Selecting a plan does not open Checkout", { exact: false })).toBeVisible();
-    await page.getByRole("button", { name: /^Standard\b/ }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
-    await expect(page.getByRole("heading", { level: 2, name: "Import assistance and trial confirmation" })).toBeVisible();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.locator("#setup-business-error")).toBeVisible();
+    await page.getByLabel("Library / centre name", { exact: true }).fill("Shanti Study Library");
+    await page.getByLabel("Owner phone", { exact: true }).fill("9876543210");
+    await page.locator("summary").filter({ hasText: "Workspace name (optional)" }).click();
+    await page.getByLabel("Workspace name", { exact: true }).fill("Shanti Learning Spaces");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "Make room for your students" })).toBeVisible();
+    await page.getByLabel("How many physical seats are here?", { exact: true }).fill("8");
+    await page.getByLabel("Student monthly fee (₹)", { exact: true }).fill("600");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "Try the plan that fits your work" })).toBeVisible();
+    await page.getByRole("button").filter({ has: page.getByText("Standard", { exact: true }) }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "A good start, your way" })).toBeVisible();
     await page.getByRole("button", { name: /Import existing records/ }).click();
     await capture(page, info, "onboarding-review");
-    await page.getByRole("button", { name: "Start Standard trial" }).click();
+    expect(requests).toHaveLength(0);
+    await page.getByRole("button", { name: "Create my workspace", exact: true }).click();
     await expect.poll(() => requests.length).toBe(1);
     expect(requests[0]).toMatchObject({
         orgName: "Shanti Learning Spaces", branchName: "Shanti Study Library", seatCount: 8,
-        selectedPostTrialPlan: "PRO",
+        trialPlan: "STANDARD", selectedPostTrialPlan: "STANDARD", multiShifts: [],
+        shifts: [{ name: "Daily session", startTime: "06:00", endTime: "22:00", price: 600 }],
     });
     await expect(page.getByText("Something went wrong. Try again.")).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "Recover your saved setup" })).toBeVisible();
@@ -162,7 +164,7 @@ test("invite preview keeps accept, signed-out and invalid states distinct", asyn
     });
     await page.goto("/invite/invalid?mode=after&lang=en");
     await expect(page.getByRole("heading", { level: 1, name: "Invite not found" })).toBeVisible();
-    await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
+    await expect(page.locator('[data-app-design-pilot="workspace"]').first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Return to workspaces" })).toHaveAttribute("href", "/app");
     await expectNoHorizontalOverflow(page);
     if (info.project.name !== "mobile-320") {
@@ -197,7 +199,7 @@ test("import assistant recovers history and preserves pasted staging request", a
     fixture.historyFails = true;
     await page.goto("/branch/pilot/onboarding/import?mode=after&lang=en");
     await expect(page.getByRole("heading", { level: 1, name: "Import assistant" })).toBeVisible();
-    await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
+    await expect(page.locator('[data-app-design-pilot="workspace"]').first()).toBeVisible();
     await expect(page.getByText("Nothing is created until the final review.", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: "Retry history" })).toBeVisible();
     fixture.historyFails = false;
@@ -211,12 +213,12 @@ test("import assistant recovers history and preserves pasted staging request", a
     await page.getByRole("button", { name: "Paste table" }).click();
     await page.getByRole("textbox", { name: "Paste rows with a header" }).fill("Name\tMobile\nAarav Mehta\t9876543210");
     fixture.createFails = true;
-    await page.getByRole("button", { name: /Upload and review students/i }).click();
+    await page.getByRole("button", { name: "Prepare my records", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Something went wrong. Try again.");
-    expect(fixture.creates[0]).toMatchObject({ method: "POST", body: { goal: "STUDENTS", fileName: "Pasted table", pastedTable: "Name\tMobile\nAarav Mehta\t9876543210" } });
+    expect(fixture.creates[0]).toMatchObject({ method: "POST", body: { goal: "FULL", experience: "GUIDED_SETUP_V2", fileName: "Pasted table", pastedTable: "Name\tMobile\nAarav Mehta\t9876543210" } });
     fixture.createFails = false;
-    await page.getByRole("button", { name: /Upload and review students/i }).click();
-    await expect(page).toHaveURL(/\/onboarding\/import\/session-pilot\?goal=STUDENTS/);
+    await page.getByRole("button", { name: "Prepare my records", exact: true }).click();
+    await expect(page).toHaveURL(/\/onboarding\/import\/session-pilot\?goal=FULL/);
     await expect.poll(() => fixture.creates.length).toBe(2);
     await expectNoHorizontalOverflow(page);
     expect(errors).toEqual([]);
@@ -229,10 +231,10 @@ test("import review handles load failure and read-only staged data", async ({ pa
     fixture.detailFails = true;
     await page.goto(`${sessionPath}?mode=after&lang=en`);
     await expect(page.getByRole("heading", { level: 1, name: "Import review" })).toBeVisible();
-    await expect(page.locator('[data-app-design-pilot="workspace"]')).toBeVisible();
+    await expect(page.locator('[data-app-design-pilot="workspace"]').first()).toBeVisible();
     await expect(page.getByRole("alert")).toContainText("Something went wrong. Try again.");
     fixture.detailFails = false;
-    await page.reload();
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Column meanings" })).toBeVisible();
     await expect(page.getByRole("progressbar", { name: "Import readiness" })).toHaveAttribute("aria-valuenow", "100");
     await capture(page, info, "import-review");
@@ -240,8 +242,11 @@ test("import review handles load failure and read-only staged data", async ({ pa
     await page.goto(`${sessionPath}?mode=after&lang=en&role=readonly`);
     await expect(page.getByText("Import changes are disabled.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirm columns" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "All imports" })).toBeEnabled();
-    await page.getByRole("button", { name: "All imports" }).click();
+    const history = info.project.name.startsWith("mobile")
+        ? page.getByRole("link", { name: "Back to import history", exact: true })
+        : page.getByRole("button", { name: "All imports", exact: true });
+    await expect(history).toBeEnabled();
+    await history.click();
     await expect(page).toHaveURL(/\/branch\/pilot\/onboarding\/import$/);
     expect(errors).toEqual([]);
 });

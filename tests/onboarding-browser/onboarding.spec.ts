@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { refreshInterfaceLanguage } from "../browser/helpers/preferences-refresh";
 import { translateOwnedText } from "@/lib/i18n";
 import type { InterfaceLanguage } from "@/lib/i18n/language";
 import { basicImportAccess } from "./basic-access";
@@ -44,7 +45,7 @@ async function choosePlan(page: Page, plan: string) {
 for (const plan of ["Basic", "Standard", "Pro"]) test(`single-session ${plan} setup has explicit fees and no unwanted combinations`, async ({ page }, testInfo) => {
     const { submissions, errors } = await prepare(page);
     const capture = async (step: string) => {
-        if (plan === "Basic") await page.locator('[data-app-design-pilot="workspace"]').screenshot({ path: testInfo.outputPath(`${step}.png`) });
+        if (plan === "Basic") await page.locator('[data-app-design-pilot="workspace"]').last().screenshot({ path: testInfo.outputPath(`${step}.png`) });
     };
     await capture("business");
     await expect(page.getByText("Business Type", { exact: true })).toHaveCount(0);
@@ -202,7 +203,7 @@ test("language changes preserve drafts and keyboard navigation reaches labelled 
     await page.keyboard.type("My Library");
     await page.keyboard.press("Tab");
     await expect(page.getByLabel("Owner phone", { exact: true })).toBeFocused();
-    await page.getByRole("combobox", { name: "Interface language", exact: true }).selectOption("hi");
+    await refreshInterfaceLanguage(page, "hi", "onboarding-owner-A");
     await expect(page.getByLabel(translateOwnedText("hi", "Library / centre name"), { exact: true })).toHaveValue("My Library");
     await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");
 });
