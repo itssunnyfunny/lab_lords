@@ -4,7 +4,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 /** Reuse Next's actual self-hosted font files. Never claim a shim is font evidence. */
 export function pilotFonts() {
-    const root = path.resolve(".next/static");
+    // A test-only override can reuse captured self-hosted assets during an isolated build.
+    const root = path.resolve(process.env.PILOT_FONT_STATIC_ROOT || ".next/static");
     const chunks = path.join(root, "chunks");
     const faces = readdirSync(chunks).filter(file => file.endsWith(".css"))
         .flatMap(file => readFileSync(path.join(chunks, file), "utf8").match(/@font-face\{[^}]+\}/g) ?? [])

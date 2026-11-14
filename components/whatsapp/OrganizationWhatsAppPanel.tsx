@@ -124,6 +124,16 @@ export async function fetchOrganizationWhatsAppOperations(
   };
 }
 
+function WhatsAppSenderLoadError({ onRetry }: { onRetry: () => void }) {
+  const t = useTranslation();
+  return (
+    <div className="space-y-3">
+      <p role="alert" className="text-sm text-[color:var(--ui-form-error-text)]">{t("Connected senders could not be loaded. Retry to check the connection before making changes.")}</p>
+      <AppButton variant="secondary" onClick={onRetry}>{t("Retry")}</AppButton>
+    </div>
+  );
+}
+
 export function WhatsAppSenderSummaryCard({
   sender,
   canManage,
@@ -568,7 +578,7 @@ export function OrganizationWhatsAppPanel({
                 ? "text-sm text-[color:var(--ui-form-error-text)]"
                 : "text-sm text-[color:var(--text-secondary)]"}
             >
-              {notice.message}
+              {t.owned(notice.message)}
             </p>
           </div>
         ) : null}
@@ -605,7 +615,9 @@ export function OrganizationWhatsAppPanel({
           {loading ? (
             <p role="status" className="text-sm text-[color:var(--text-secondary)]">
               {t("Loading WhatsApp readiness...")}</p>
-          ) : sendersResponse?.senders.length ? (
+          ) : !sendersResponse ? (
+            <WhatsAppSenderLoadError onRetry={() => setLoadAttempt(current => current + 1)} />
+          ) : sendersResponse.senders.length ? (
             <div className="grid gap-3">
               {sendersResponse.senders.map(sender => (
                 <WhatsAppSenderSummaryCard
