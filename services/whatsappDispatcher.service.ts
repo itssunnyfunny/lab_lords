@@ -40,6 +40,7 @@ import { normalizeWhatsAppPhone } from "@/lib/whatsappPhone";
 import { whatsappBudgetMonth } from "@/lib/whatsappSchedule";
 import { lockWhatsAppProviderMessage } from "@/lib/whatsappProviderMessageLock";
 import { EntitlementService } from "@/services/entitlement.service";
+import { StaffService } from "@/services/staff.service";
 import {
   createWhatsAppManualSourceFingerprint,
   deriveWhatsAppManualCollectionContent,
@@ -781,6 +782,29 @@ async function prepareSubmission(input: {
       }
     } catch {
       return suppress("ENTITLEMENT_REQUIRED");
+    }
+    // Queue-time permission is not durable authority for a later billable send.
+    // Use the same current branch permissions as the originating user action.
+    if (message.purpose === "MANUAL_REMINDER" || isServiceNotice) {
+      if (!message.createdByUserId || !message.branch) {
+        return suppress("SOURCE_AUTHORIZATION_CHANGED");
+      }
+      const requiredActions = isServiceNotice
+        ? ["manage_whatsapp", "send_whatsapp", "view_whatsapp"] as const
+        : ["view_payments", "view_whatsapp", "send_whatsapp"] as const;
+      try {
+        for (const action of requiredActions) {
+          await StaffService.authorize(message.createdByUserId, message.branch.id, action, tx);
+        }
+      } catch (error) {
+        if (error instanceof Error && (
+          error.message === "Branch not found" || error.message.startsWith("Unauthorized:")
+        )) {
+          return suppress("SOURCE_AUTHORIZATION_CHANGED");
+        }
+        // A transient authorization read failure is not proof of revocation.
+        throw error;
+      }
     }
     if (
       message.sender.organizationId !== message.organizationId
