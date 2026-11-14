@@ -513,6 +513,21 @@ async function reconcileProviderTemplates(input: {
   };
 }
 
+class StaleHealthFinalizationError extends Error {}
+
+function healthFinalizationScope(sender: ClaimedSender, now: Date) {
+  return {
+    id: sender.id,
+    organizationId: sender.organizationId,
+    providerMode: sender.providerMode,
+    wabaId: sender.wabaId,
+    phoneNumberId: sender.phoneNumberId,
+    healthLeaseToken: sender.healthLeaseToken,
+    healthLeaseUntil: { gt: now },
+    status: { in: [...WHATSAPP_HEALTH_ELIGIBLE_SENDER_STATUSES] },
+  };
+}
+
 async function finalizeHealthSuccess(input: {
   sender: ClaimedSender;
   snapshot: ProviderHealthSnapshot;
@@ -520,15 +535,7 @@ async function finalizeHealthSuccess(input: {
 }) {
   return prisma.$transaction(async tx => {
     const sender = await tx.whatsAppSender.findFirst({
-      where: {
-        id: input.sender.id,
-        organizationId: input.sender.organizationId,
-        providerMode: input.sender.providerMode,
-        wabaId: input.sender.wabaId,
-        phoneNumberId: input.sender.phoneNumberId,
-        healthLeaseToken: input.sender.healthLeaseToken,
-        status: { in: [...WHATSAPP_HEALTH_ELIGIBLE_SENDER_STATUSES] },
-      },
+      where: healthFinalizationScope(input.sender, input.now),
       include: { safetyState: true },
     });
     if (!sender) return { stale: true as const };
@@ -539,8 +546,8 @@ async function finalizeHealthSuccess(input: {
       now: input.now,
     });
     const restricted = input.snapshot.restrictionCode !== null;
-    await tx.whatsAppSender.update({
-      where: { id: sender.id },
+    const finalized = await tx.whatsAppSender.updateMany({
+      where: healthFinalizationScope(input.sender, new Date()),
       data: {
         verifiedName: input.snapshot.phone.verifiedName,
         qualityRating: boundedToken(input.snapshot.phone.qualityRating),
@@ -556,6 +563,9 @@ async function finalizeHealthSuccess(input: {
         healthLeaseUntil: null,
       },
     });
+    // Abort the entire transaction, including template reconciliation, if
+    // disconnect or lease reclamation won after the initial read.
+    if (finalized.count !== 1) throw new StaleHealthFinalizationError();
     await tx.whatsAppSenderSafetyState.upsert({
       where: { senderId: sender.id },
       create: {
@@ -651,6 +661,9 @@ async function finalizeHealthSuccess(input: {
       restricted,
       ...templateResult,
     };
+  }).catch((error: unknown) => {
+    if (error instanceof StaleHealthFinalizationError) return { stale: true as const };
+    throw error;
   });
 }
 
@@ -660,17 +673,8 @@ async function finalizeHealthFailure(input: {
   safeErrorCode: string;
 }) {
   return prisma.$transaction(async tx => {
-    const current = await tx.whatsAppSender.findFirst({
-      where: {
-        id: input.sender.id,
-        organizationId: input.sender.organizationId,
-        healthLeaseToken: input.sender.healthLeaseToken,
-      },
-      select: { id: true },
-    });
-    if (!current) return false;
-    await tx.whatsAppSender.update({
-      where: { id: current.id },
+    const finalized = await tx.whatsAppSender.updateMany({
+      where: healthFinalizationScope(input.sender, new Date()),
       data: {
         lastHealthCheckAt: input.now,
         lastErrorCode: input.safeErrorCode,
@@ -678,9 +682,10 @@ async function finalizeHealthFailure(input: {
         healthLeaseUntil: null,
       },
     });
+    if (finalized.count !== 1) return false;
     await tx.whatsAppSenderSafetyState.upsert({
-      where: { senderId: current.id },
-      create: { senderId: current.id, lastHealthCheckAt: input.now },
+      where: { senderId: input.sender.id },
+      create: { senderId: input.sender.id, lastHealthCheckAt: input.now },
       update: { lastHealthCheckAt: input.now },
     });
     return true;
