@@ -99,6 +99,7 @@ describe("Meta webhook trust boundary", () => {
                 status: "delivered",
                 timestamp: "1700000000",
                 recipient_id: "919876543210",
+                biz_opaque_callback_data: "local-message_1",
                 pricing: { billable: true, category: "utility" },
               },
               { id: "wamid.ignored", status: "deleted", timestamp: "1700000001" },
@@ -118,6 +119,7 @@ describe("Meta webhook trust boundary", () => {
       {
         kind: "STATUS",
         providerMessageId: "wamid.HBgMTA",
+        correlationId: "local-message_1",
         status: "DELIVERED",
         providerTimestamp: new Date("2023-11-14T22:13:20.000Z"),
         providerRecipientWaId: "919876543210",
@@ -128,6 +130,7 @@ describe("Meta webhook trust boundary", () => {
       {
         kind: "STATUS",
         providerMessageId: "wamid.failed",
+        correlationId: null,
         status: "FAILED",
         providerTimestamp: new Date("2023-11-14T22:13:22.000Z"),
         providerRecipientWaId: null,
@@ -136,6 +139,21 @@ describe("Meta webhook trust boundary", () => {
         safeErrorCode: "META_131026",
       },
     ]);
+  });
+
+  it("ignores unusable callback correlation while retaining signed status evidence", () => {
+    for (const correlation of [undefined, null, "", "x".repeat(129), "bad id", { id: "local-message" }]) {
+      const parsed = parseMetaWebhookEnvelope(Buffer.from(JSON.stringify({
+        object: "whatsapp_business_account",
+        entry: [{ id: "123", changes: [{ field: "messages", value: {
+          metadata: { phone_number_id: "456" },
+          statuses: [{ id: "wamid.bounded", status: "sent", biz_opaque_callback_data: correlation }],
+        } }] }],
+      })));
+      expect(extractMetaWebhookEvents(parsed)).toEqual([
+        expect.objectContaining({ providerMessageId: "wamid.bounded", status: "SENT", correlationId: null }),
+      ]);
+    }
   });
 
   it("accepts the same bounded opaque WAMID range as provider-response finalization", () => {
