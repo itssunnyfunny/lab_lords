@@ -861,10 +861,14 @@ export function buildCollectionCandidates(input: {
   tone: string;
 }) {
   const { byPhone } = candidateRecipientGroups(input.recipients);
-  const paymentsByStudent = new Map<string, typeof input.payments>();
-  for (const payment of input.payments) {
+  const payments = input.payments.map(payment => ({
+    ...payment,
+    amount: remainingFee(payment),
+  }));
+  const paymentsByStudent = new Map<string, typeof payments>();
+  for (const payment of payments) {
     const rows = paymentsByStudent.get(payment.studentId) ?? [];
-    rows.push({ ...payment, amount: remainingFee(payment) });
+    rows.push(payment);
     paymentsByStudent.set(payment.studentId, rows);
   }
   const candidates: PlannerCandidate[] = [];
@@ -874,7 +878,7 @@ export function buildCollectionCandidates(input: {
     for (const [phoneE164, recipients] of byPhone) {
       const choices: Array<CollectionChoice<PlannerCandidate>> = [];
       const recipientStudentIds = new Set(recipients.map(row => row.student.id));
-      const phonePayments = input.payments.filter(payment => recipientStudentIds.has(payment.studentId));
+      const phonePayments = payments.filter(payment => recipientStudentIds.has(payment.studentId));
 
       for (const [stage, offset, priority] of PAST_DUE_STAGES) {
         if (!input.enabledStages.has(stage)) continue;
