@@ -380,6 +380,30 @@ describe("WhatsAppConnectionService intent acceptance", () => {
 });
 
 describe("WhatsAppConnectionService provider acceptance", () => {
+  it("rejects a lost final lease instead of completing the successor's intent", async () => {
+    mocks.intentUpdateMany.mockImplementation(async input => ({
+      count: input.data.status === "COMPLETED" ? 0 : 1,
+    }));
+    await expect(WhatsAppConnectionService.complete(COMPLETE_INPUT)).rejects.toBeInstanceOf(
+      WhatsAppConflictError
+    );
+    const finalization = mocks.intentUpdateMany.mock.calls.find(
+      ([input]) => input.data.status === "COMPLETED"
+    )![0];
+    const claim = mocks.intentUpdateMany.mock.calls.find(
+      ([input]) => input.data.status === "PROCESSING"
+    )![0];
+    expect(finalization.where).toMatchObject({
+      id: INTENT_ID,
+      organizationId: ORGANIZATION_ID,
+      actorUserId: ACTOR_ID,
+      providerMode: "TEST",
+      status: "PROCESSING",
+      leaseToken: claim.data.leaseToken,
+      leaseUntil: { gt: expect.any(Date) },
+    });
+  });
+
   it.each([
     ["a WABA absent from the provider-authorized set", () => {
       mocks.listOrResolveSharedWabas.mockResolvedValueOnce([

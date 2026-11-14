@@ -574,8 +574,17 @@ export class WhatsAppConnectionService {
             },
           },
         });
-        await tx.whatsAppConnectionIntent.update({
-          where: { id: intent.id },
+        const consumedAt = new Date();
+        const consumed = await tx.whatsAppConnectionIntent.updateMany({
+          where: {
+            id: intent.id,
+            organizationId: input.organizationId,
+            actorUserId: input.actorUserId,
+            providerMode: claim.providerMode,
+            status: "PROCESSING",
+            leaseToken: claim.leaseToken,
+            leaseUntil: { gt: consumedAt },
+          },
           data: {
             status: "COMPLETED",
             leaseToken: null,
@@ -583,10 +592,15 @@ export class WhatsAppConnectionService {
             providerBusinessId: businessId,
             wabaId: authoritativeWaba.id,
             phoneNumberId: authoritativePhone.id,
-            consumedAt: now,
+            consumedAt,
             lastErrorCode: null,
           },
         });
+        // A reclaimed or expired lease must roll back the sender and audit
+        // writes above, not complete a successor's connection attempt.
+        if (consumed.count !== 1) {
+          throw new WhatsAppConflictError("Connection intent lease expired");
+        }
         return persisted;
       });
 
