@@ -716,14 +716,22 @@ unit/API/integration coverage.
   provider-response finalization. Missing or mismatching evidence stays orphaned;
   no recovery sends a message or replaces another message's provider ID.
   (`services/whatsappWebhook.service.ts`, `lib/whatsappWebhookProjection.ts`)
+- **Must preserve—enforced:** Dispatcher acceptance evidence can recognize a
+  matching admitted attempt already completed by its signed callback. It checks
+  tenant, sender, recipient, attempt count, committed acceptance and the attached
+  provider event; a returned provider ID must also match. Recognition changes
+  only job counts, never message status, budget or events. Acceptance does not
+  imply delivery; even a later provider delivery failure retains acceptance.
+  (`services/whatsappDispatcher.service.ts`)
 - **Must preserve—enforced:** Expired-rate maintenance excludes senders already
   covered by an unresolved incident for the current rate-card version, allowing
   subsequent bounded runs to reach later senders. Dispatch and maintenance share
   sender incident identity; older branch-scoped evidence retains its validated
   branch. Cross-tenant or incompatible dedupe collisions are rejected.
   (`services/whatsappMaintenance.service.ts`, `services/whatsappIncident.service.ts`)
-- **Must preserve—enforced:** Health finalization conditionally checks exact
-  sender identity, eligible status and the unexpired lease token. A lost claim
+- **Must preserve—enforced:** Each health lease starts when that sender is
+  claimed, not when the sequential batch started. Health finalization checks
+  exact sender identity, eligible status and the unexpired lease token. A lost claim
   rolls back template, sender, safety and incident changes; failure finalization
   cannot clear a successor's lease. Onboarding's final conditional intent consume
   likewise rolls back sender and audit writes if its owner/organization/mode

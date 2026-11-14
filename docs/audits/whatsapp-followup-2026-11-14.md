@@ -126,3 +126,64 @@ database suite and Production build above were not repeated during that review.
 The application and test behavior is unchanged while separating commits.
 Publication updates the audit wording and removes one trailing blank line in
 the extracted projection helper caught by staged whitespace validation.
+
+## PR #295 review corrections — 14 November
+
+Subsequent owner-supplied review identified two additional regressions. Both
+were reproduced before correction against `20e9493` using real PostgreSQL
+transactions and synthetic provider clients.
+
+- **P2: later health leases expired during the batch.** Ten sequential sender
+  checks each advanced the test clock by 14 seconds, keeping every individual
+  read within its 15-second deadline. The original PR saved eight results and
+  rejected two as stale. Each claim now uses the current time; the batch-start
+  eligibility cutoff and all finalization identity, status, token and expiry
+  checks remain. The regression proves all ten sender/template updates persist,
+  each lease has its full 120 seconds, and the tenth claim starts at 126 seconds
+  in a batch lasting 140 seconds. Commit: `2cc1428`.
+- **P3: early callbacks undercounted accepted sends.** Both early-read cases
+  originally reported one claimed message and zero accepted. After losing its
+  finalization lease, the dispatcher can now recognize the exact admitted
+  attempt already completed by a matching webhook event. It verifies message,
+  tenant, sender, recipient, attempt, committed acceptance, cleared lease and
+  provider-ID evidence. Recognition only increments the run's acceptance count;
+  it neither rewrites the message/budget/events nor calls the provider again.
+  Acceptance is distinct from successful delivery, including a callback that
+  confirms provider acceptance but reports delivery failure. Commit: `9c69903`.
+
+Coverage includes READ and FAILED callbacks before HTTP acceptance, ambiguity,
+rate limiting and rejection; duplicate receipts; invocation replay; subsequent
+dispatches; and refusal to credit mismatched provider IDs, successor attempts or
+missing webhook evidence. Previously added disconnect, reclaim and expiry races
+remain passing. No prior completed job counts are backfilled.
+
+The fresh database was `lablords_whatsapp_pr295_review_test`, in a newly created
+PostgreSQL 16 container with temporary storage and a random loopback-only port.
+Container purpose/name/ID and exact database identity were verified before
+applying all 58 existing migrations and before each test invocation. No saved
+environment or shared database was used. The container and temporary credential
+file were removed and their absence checked after verification.
+
+| Command | Result |
+| --- | --- |
+| `pnpm exec vitest run tests/integration/services/whatsapp-audit-closures.test.ts tests/integration/services/whatsapp-delivery.test.ts -t 'full lease\|early correlated' --reporter=verbose` before correction | Three expected failures: 8/10 health results and 0 accepted for both callback races. |
+| `pnpm exec vitest run tests/integration/services/whatsapp-audit-closures.test.ts tests/integration/services/whatsapp-delivery.test.ts -t 'full lease\|early correlated\|mismatched' --reporter=verbose` after correction | 13 passed; 38 unrelated tests skipped by the filter. |
+| `pnpm exec vitest run --config vitest.unit.safe.config.ts --fileParallelism --maxWorkers=4 --reporter=dot` | 319 files / 2,521 tests passed. |
+| `pnpm exec vitest run tests/integration/services/whatsapp tests/integration/services/billing-whatsapp-tenant-migration.test.ts --reporter=verbose` | 8 files / 68 tests passed, including 22 audit-closure and 29 delivery tests. |
+| `pnpm exec tsc --noEmit` | Passed. |
+| `pnpm lint` | Passed; zero errors and the same two generated/coverage unused-disable warnings. |
+| `pnpm exec node test-results/whatsapp-offline-webpack.mjs` | Production Webpack compile, TypeScript, static generation and traces passed. |
+| `pnpm exec node scripts/verify-import-workflow-manifest.mjs` | Both import workflows verified. |
+| `git diff --check`, `git diff origin/main...HEAD --check` and local document-link validation | Passed; 190 local document targets resolve. |
+
+Logs are ignored local evidence under `test-results/whatsapp-pr295-review/`.
+The database wrapper only supplies the verified disposable process environment;
+it invokes the exact test commands above. Browser checks were not repeated for
+these service-only corrections; the previous 24 passing UI checks remain the
+presentation evidence. The documented default Turbopack limitation is unchanged.
+
+No schema, migration, dependency, saved environment, provider setting or rollout
+change is needed. Existing expiry/ownership fences, webhook verification,
+message status, budget accounting and no-resend behavior remain in force. Home,
+Features, Pricing and FAQ need no copy change: these repairs improve existing
+health and operational evidence without a new entitlement or delivery promise.
