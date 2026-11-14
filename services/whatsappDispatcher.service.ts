@@ -1251,6 +1251,46 @@ async function prepareSubmission(input: {
   });
 }
 
+async function wasSubmissionAcceptedByCallback(
+  tx: Prisma.TransactionClient,
+  submission: PreparedWhatsAppSubmission,
+  providerMessageId?: string
+) {
+  // A callback can finish this admitted attempt and clear its lease before the
+  // HTTP result returns. Recognize that evidence for counters only; never
+  // rewrite its projection or credit a different attempt/provider message.
+  const message = await tx.whatsAppMessage.findFirst({
+    where: {
+      id: submission.messageId,
+      organizationId: submission.organizationId,
+      senderId: submission.senderId,
+      recipientPhoneE164: submission.recipientPhoneE164,
+      attemptCount: submission.attemptCount,
+      submissionStartedAt: { not: null },
+      providerCallAdmittedAt: { not: null },
+      providerMessageId: providerMessageId ?? { not: null },
+      acceptedAt: { not: null },
+      budgetState: "COMMITTED",
+      leaseToken: null,
+      leaseUntil: null,
+      status: { in: ["ACCEPTED", "SENT", "DELIVERED", "READ", "FAILED"] },
+    },
+    select: { providerMessageId: true },
+  });
+  if (!message?.providerMessageId) return false;
+  const event = await tx.whatsAppMessageEvent.findFirst({
+    where: {
+      messageId: submission.messageId,
+      senderId: submission.senderId,
+      providerMessageId: message.providerMessageId,
+      source: "PROVIDER_WEBHOOK",
+      status: { in: ["SENT", "DELIVERED", "READ", "FAILED"] },
+    },
+    select: { id: true },
+  });
+  return event !== null;
+}
+
 async function finalizeAccepted(input: {
   submission: PreparedWhatsAppSubmission;
   result: Awaited<ReturnType<MetaWhatsAppProviderClient["sendApprovedUtilityTemplate"]>>;
@@ -1283,7 +1323,9 @@ async function finalizeAccepted(input: {
         leaseUntil: null,
       },
     });
-    if (updated.count !== 1) return false;
+    if (updated.count !== 1) {
+      return wasSubmissionAcceptedByCallback(tx, input.submission, input.result.providerMessageId);
+    }
     await WhatsAppSenderSafetyService.recordAcceptedInTransaction({
       tx,
       organizationId: input.submission.organizationId,
@@ -1401,7 +1443,9 @@ async function finalizeProviderFailure(input: {
           leaseUntil: null,
         },
       });
-      if (result.count !== 1) return "STALE" as const;
+      if (result.count !== 1) {
+        return await wasSubmissionAcceptedByCallback(tx, input.submission) ? "ACCEPTED" as const : "STALE" as const;
+      }
       await WhatsAppSenderSafetyService.finalizeRequestedPauseInTransaction({
         tx,
         organizationId: input.submission.organizationId,
@@ -1431,7 +1475,9 @@ async function finalizeProviderFailure(input: {
         leaseUntil: null,
       },
     });
-    if (result.count !== 1) return "STALE" as const;
+    if (result.count !== 1) {
+      return await wasSubmissionAcceptedByCallback(tx, input.submission) ? "ACCEPTED" as const : "STALE" as const;
+    }
     if (ambiguous) {
       await WhatsAppSenderSafetyService.recordAmbiguousOutcomeInTransaction({
         tx,
@@ -1596,6 +1642,7 @@ export class WhatsAppDispatcherService {
           error,
           now: operationClock(),
         });
+        if (outcome === "ACCEPTED") counts.messagesAccepted += 1;
         if (outcome === "RETRIED") counts.messagesRetried += 1;
         if (outcome === "FAILED") counts.messagesFailed += 1;
         if (outcome === "UNKNOWN") counts.messagesUnknown += 1;

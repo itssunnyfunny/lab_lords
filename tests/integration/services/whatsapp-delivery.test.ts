@@ -624,38 +624,81 @@ describe("WhatsApp durable delivery integration", () => {
     });
   });
 
-  it.each(["accept", "timeout"] as const)("keeps an early correlated READ when the provider response is %s", async outcome => {
+  it.each(["accept", "timeout", "rate-limit", "reject"].flatMap(outcome =>
+    ["read", "failed"].map(status => ({ outcome, status }))
+  ))("counts an early correlated $status when the provider response is $outcome", async ({ outcome, status }) => {
     const world = await createDeliveryWorld();
     await queueGroupedReminder(world, `early-callback-${outcome}`);
     const message = await testPrisma.whatsAppMessage.findFirstOrThrow();
     const { provider, sendApprovedUtilityTemplate } = fakeProvider();
     sendApprovedUtilityTemplate.mockImplementation(async () => {
-      await WhatsAppWebhookService.handle(signedWebhookRequest(messagesEnvelope({
+      const callback = messagesEnvelope({
         statuses: [{
           id: "wamid.early.correlated",
-          status: "read",
+          status,
           timestamp: String(Math.floor(NOW.getTime() / 1_000)),
           recipient_id: "919876543210",
           biz_opaque_callback_data: message.id,
         }],
-      })));
+      });
+      await WhatsAppWebhookService.handle(signedWebhookRequest(callback));
+      await WhatsAppWebhookService.handle(signedWebhookRequest(callback));
       if (outcome === "timeout") throw new MetaWhatsAppAmbiguousMutationError({ status: 503 });
+      if (outcome === "rate-limit") throw new MetaWhatsAppProviderError("rate limited", { kind: "RATE_LIMIT", status: 429 });
+      if (outcome === "reject") throw new MetaWhatsAppProviderError("rejected", { kind: "REQUEST", status: 400 });
       return {
         providerMessageId: "wamid.early.correlated",
         providerRecipientWaId: "919876543210",
         submissionStatus: "ACCEPTED",
       };
     });
-    await WhatsAppDispatcherService.run({ now: NOW, limit: 1, env: DELIVERY_ENV, provider });
-    await expect(testPrisma.whatsAppMessage.findUniqueOrThrow({ where: { id: message.id } }))
+    const invocationId = `early-callback-job-${outcome}`;
+    const result = await WhatsAppDispatcherService.run({ invocationId, now: NOW, limit: 1, env: DELIVERY_ENV, provider });
+    expect(result).toMatchObject({ messagesClaimed: 1, messagesAccepted: 1, messagesUnknown: 0, messagesFailed: 0, messagesRetried: 0 });
+    await expect(testPrisma.whatsAppJobRun.findFirstOrThrow({ where: { invocationId } }))
+      .resolves.toMatchObject({ status: "SUCCEEDED", counts: expect.objectContaining({ messagesClaimed: 1, messagesAccepted: 1 }) });
+    await expect(testPrisma.whatsAppMessage.findUniqueOrThrow({ where: { id: message.id }, include: { events: true } }))
       .resolves.toMatchObject({
-        status: "READ", providerMessageId: "wamid.early.correlated",
-        budgetState: "COMMITTED", leaseToken: null, failureCode: null,
+        status: status.toUpperCase(), providerMessageId: "wamid.early.correlated",
+        budgetState: "COMMITTED", leaseToken: null, failureCode: status === "failed" ? "META_FAILED" : null,
+        events: [expect.objectContaining({ source: "PROVIDER_WEBHOOK", status: status.toUpperCase() })],
       });
+    const replay = await WhatsAppDispatcherService.run({ invocationId, now: NOW, limit: 1, env: DELIVERY_ENV, provider });
+    expect(replay).toMatchObject({ replayed: true, messagesClaimed: 0, messagesAccepted: 0 });
     const second = await WhatsAppDispatcherService.run({ now: NOW, limit: 1, env: DELIVERY_ENV, provider });
-    expect(second.messagesClaimed).toBe(0);
+    expect(second).toMatchObject({ messagesClaimed: 0, messagesAccepted: 0 });
     expect(sendApprovedUtilityTemplate).toHaveBeenCalledTimes(1);
     expect(await testPrisma.whatsAppOperationalIncident.count({ where: { type: "UNKNOWN_DELIVERY" } })).toBe(0);
+  });
+
+  it.each(["provider-id", "attempt", "webhook-evidence"])("does not count callback completion with mismatched %s", async mismatch => {
+    const world = await createDeliveryWorld();
+    await queueGroupedReminder(world, `callback-evidence-${mismatch}`);
+    const message = await testPrisma.whatsAppMessage.findFirstOrThrow();
+    const { provider, sendApprovedUtilityTemplate } = fakeProvider();
+    let completedMessage: typeof message;
+    sendApprovedUtilityTemplate.mockImplementation(async () => {
+      await WhatsAppWebhookService.handle(signedWebhookRequest(messagesEnvelope({ statuses: [{
+        id: "wamid.callback.evidence", status: "read",
+        timestamp: String(Math.floor(NOW.getTime() / 1_000)), recipient_id: "919876543210",
+        biz_opaque_callback_data: message.id,
+      }] })));
+      // Fault injection: do not credit a successor attempt or a row without
+      // matching signed-event evidence, even if its projection looks accepted.
+      if (mismatch === "attempt") await testPrisma.whatsAppMessage.update({
+        where: { id: message.id }, data: { attemptCount: { increment: 1 } },
+      });
+      if (mismatch === "webhook-evidence") await testPrisma.whatsAppMessageEvent.deleteMany({ where: { messageId: message.id } });
+      completedMessage = await testPrisma.whatsAppMessage.findUniqueOrThrow({ where: { id: message.id } });
+      return {
+        providerMessageId: mismatch === "provider-id" ? "wamid.different.response" : "wamid.callback.evidence",
+        providerRecipientWaId: "919876543210", submissionStatus: "ACCEPTED",
+      };
+    });
+    const result = await WhatsAppDispatcherService.run({ now: NOW, limit: 1, env: DELIVERY_ENV, provider });
+    expect(result).toMatchObject({ messagesClaimed: 1, messagesAccepted: 0, messagesRetried: 0 });
+    await expect(testPrisma.whatsAppMessage.findUniqueOrThrow({ where: { id: message.id } })).resolves.toEqual(completedMessage!);
+    expect(sendApprovedUtilityTemplate).toHaveBeenCalledTimes(1);
   });
 
   it.each(["sent", "read", "failed"])("recovers UNKNOWN from signed %s correlation and replays orphan evidence without resending", async correlatedStatus => {
