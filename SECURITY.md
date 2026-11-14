@@ -838,6 +838,17 @@ These exclusions do not suppress:
 There are no repository-approved accepted risks or blanket finding
 suppressions.
 
+The [14 November WhatsApp follow-up](docs/audits/whatsapp-followup-2026-11-14.md)
+closes the prior callback, rate-expiry and lease-finalization discrepancies.
+Callback correlation is only an identifier: recovery still requires a signed
+payload, exact sender/tenant/mode/recipient scope and durable provider-call
+admission. Recovery commits the existing estimate and never initiates a resend.
+Health and onboarding must conditionally consume their unexpired lease at the
+final write and roll back earlier transaction effects on loss of ownership.
+Rate-card compatibility preserves historical branch evidence without weakening
+the general incident scope checks. These changes grant no provider access or
+release approval.
+
 ## Known unresolved limitations
 
 Treat these as review context and remediation candidates, not accepted risks:

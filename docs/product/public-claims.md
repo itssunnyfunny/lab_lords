@@ -1,5 +1,20 @@
 # Public wording and feature claims
 
+## WhatsApp audit and controls — local, 2026-11-13
+
+Home, Features, Pricing and FAQ retain their approved conditional WhatsApp
+wording. Saved-state controls, field validation, sender-removal confirmation,
+read-error recovery and dispatch permission/evidence repairs add no capability,
+plan inclusion or provider promise. Pro still requires setup and rollout
+availability; messaging charges/usage terms apply and unlimited messages are
+not included. No marketing copy change is needed. See the
+[original audit](../audits/whatsapp-integration-2026-11-13.md) and
+[14 November fixes](../audits/whatsapp-followup-2026-11-14.md).
+Callback recovery, incident batching and lease fencing restore intended behavior;
+they add no delivery guarantee or new availability claim. Home, Features, Pricing
+and FAQ therefore require no copy change for this follow-up either.
+Local checks, owner visual acceptance and release remain separate.
+
 ## Comprehensive refinement — local, 2026-11-10
 
 Home, Features, Pricing and FAQ retain their approved wording. This refinement

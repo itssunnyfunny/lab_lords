@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { AlertTriangle, CheckCircle2, Circle, HeartPulse, MessageCircle } from "lucide-react";
 import { AppButton } from "@/components/ui/AppButton";
 import { Badge } from "@/components/ui/Badge";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   ReadOnlyRow,
   SettingsField,
@@ -90,6 +91,16 @@ function parseBudgetMinor(value: string) {
   const paise = Math.round(Number(trimmed) * 100);
   if (!Number.isSafeInteger(paise) || paise < 1 || paise > 10_000_000) return undefined;
   return paise;
+}
+
+function hasSettingsChanges(form: BranchSettingsForm, settings: WhatsAppBranchSettings) {
+  return form.defaultLanguage !== settings.defaultLanguage
+    || form.defaultTone !== settings.defaultTone
+    || form.sendTimeLocal !== settings.sendTimeLocal
+    || Number(form.dailyAutomaticMessageLimit) !== settings.dailyAutomaticMessageLimit
+    || Number(form.maxAutomaticCollectionMessagesPerCycle) !== settings.maxAutomaticCollectionMessagesPerCycle
+    || parseBudgetMinor(form.monthlyBudgetRupees) !== settings.monthlyBudgetMinor
+    || WHATSAPP_AUTOMATION_STAGES.some(stage => form.rules[stage] !== settings.rules.some(rule => rule.stage === stage && rule.enabled));
 }
 
 function estimatedInr(micros: string | null) {
@@ -218,6 +229,7 @@ export function BranchWhatsAppReadiness({
   onUnassign: () => void;
 }) {
     const t = useTranslation();
+  const [confirmUnassign, setConfirmUnassign] = useState(false);
   const assignment = response.assignment;
   const sender = assignment?.sender ?? null;
   const currentSenderId = sender?.id ?? "";
@@ -290,7 +302,7 @@ export function BranchWhatsAppReadiness({
             />
           </SettingsField>
           <div className="flex flex-wrap justify-end gap-2">
-            {sender ? <AppButton variant="quiet" size="sm" disabled={busy} onClick={onUnassign}>{t("Unassign sender")}</AppButton> : null}
+            {sender ? <AppButton variant="quiet" size="sm" disabled={busy} onClick={() => setConfirmUnassign(true)}>{t("Unassign sender")}</AppButton> : null}
             <AppButton
               variant="primary"
               size="sm"
@@ -302,6 +314,16 @@ export function BranchWhatsAppReadiness({
           </div>
         </div>
       ) : null}
+      <ConfirmDialog
+        isOpen={confirmUnassign && Boolean(sender) && canManage}
+        onClose={() => { if (!busy) setConfirmUnassign(false); }}
+        onConfirm={() => { setConfirmUnassign(false); onUnassign(); }}
+        title={t("Unassign this branch’s sender?")}
+        description={t("This turns off branch delivery and automation and cancels messages that have not been submitted. Report recipients will need confirmation again. Submitted messages and history remain.")}
+        confirmText={t("Unassign sender")}
+        variant="danger"
+        loading={busy}
+      />
     </>
   );
 }
@@ -344,16 +366,17 @@ export function BranchWhatsAppSettingsEditor({
       : null;
   const parsedDailyLimit = Number(form.dailyAutomaticMessageLimit);
   const parsedCycleLimit = Number(form.maxAutomaticCollectionMessagesPerCycle);
-  const dailyLimitError = !isOwner
-    && Number.isSafeInteger(parsedDailyLimit)
-    && parsedDailyLimit > settings.dailyAutomaticMessageLimit
-    ? "Only the organization owner can increase automatic message limits."
-    : null;
-  const cycleLimitError = !isOwner
-    && Number.isSafeInteger(parsedCycleLimit)
-    && parsedCycleLimit > settings.maxAutomaticCollectionMessagesPerCycle
-    ? "Only the organization owner can increase automatic message limits."
-    : null;
+  const dailyLimitError = !Number.isSafeInteger(parsedDailyLimit) || parsedDailyLimit < 1 || parsedDailyLimit > 200
+    ? t("Enter a whole number from 1 to 200.")
+    : !isOwner && parsedDailyLimit > settings.dailyAutomaticMessageLimit
+      ? t("Only the organization owner can increase automatic message limits.") : null;
+  const cycleLimitError = !Number.isSafeInteger(parsedCycleLimit) || parsedCycleLimit < 1 || parsedCycleLimit > 4
+    ? t("Enter a whole number from 1 to 4.")
+    : !isOwner && parsedCycleLimit > settings.maxAutomaticCollectionMessagesPerCycle
+      ? t("Only the organization owner can increase automatic message limits.") : null;
+  const sendTimeError = /^([01]\d|2[0-3]):[0-5]\d$/.test(form.sendTimeLocal)
+    ? null : t("Choose a valid local send time.");
+  const hasChanges = hasSettingsChanges(form, settings);
   const enabledStageCount = settings.rules.filter(rule => rule.enabled).length;
   const enabledStages = settings.rules.filter(rule => rule.enabled).map(rule => rule.stage);
   const requiredKeys = requiredTemplateKeys(enabledStages, settings.defaultTone);
@@ -370,6 +393,9 @@ export function BranchWhatsAppSettingsEditor({
     && enabledStageCount > 0
     && requiredKeys.every(key => approvedKeys.has(key))
     && settings.consentCoverage.optedIn > 0;
+  const deliveryPrerequisitesMet = settings.sender?.status === "ACTIVE"
+    && settings.monthlyBudgetMinor !== null
+    && requiredTemplateKeys(["FEE_DUE_TODAY"], settings.defaultTone).every(key => approvedKeys.has(key));
 
   return (
     <>
@@ -389,14 +415,14 @@ export function BranchWhatsAppSettingsEditor({
           options={[{ value: "polite", label: t("Polite") }, { value: "friendly", label: t("Friendly") }, { value: "firm", label: t("Firm") }]}
         />
       </SettingsField>
-      <SettingsField label={t("Send time")} description={`Local branch time in ${settings.timeZone}.`}>
-        <SettingsInput type="time" value={form.sendTimeLocal} onChange={event => onFormChange({ ...form, sendTimeLocal: event.target.value })} disabled={!canManage || busy} />
+      <SettingsField label={t("Send time")} description={`Local branch time in ${settings.timeZone}.`} error={sendTimeError}>
+        <SettingsInput type="time" value={form.sendTimeLocal} onChange={event => onFormChange({ ...form, sendTimeLocal: event.target.value })} disabled={!canManage || busy} aria-invalid={Boolean(sendTimeError)} />
       </SettingsField>
       <SettingsField label={t("Daily automatic limit")} description={isOwner ? t("Automatic messages are additionally limited by consent, stages, frequency, and budget.") : t("Managers may keep or reduce this limit; only the owner may increase it.")} error={dailyLimitError}>
-        <SettingsInput type="number" min={1} max={isOwner ? 200 : settings.dailyAutomaticMessageLimit} inputMode="numeric" value={form.dailyAutomaticMessageLimit} onChange={event => onFormChange({ ...form, dailyAutomaticMessageLimit: event.target.value })} disabled={!canManage || busy} />
+        <SettingsInput type="number" min={1} max={isOwner ? 200 : settings.dailyAutomaticMessageLimit} inputMode="numeric" value={form.dailyAutomaticMessageLimit} onChange={event => onFormChange({ ...form, dailyAutomaticMessageLimit: event.target.value })} disabled={!canManage || busy} aria-invalid={Boolean(dailyLimitError)} />
       </SettingsField>
       <SettingsField label={t("Collection messages per cycle")} description={isOwner ? t("Maximum automatic collection reminders per student billing cycle.") : t("Managers may keep or reduce this limit; only the owner may increase it.")} error={cycleLimitError}>
-        <SettingsInput type="number" min={1} max={isOwner ? 4 : settings.maxAutomaticCollectionMessagesPerCycle} inputMode="numeric" value={form.maxAutomaticCollectionMessagesPerCycle} onChange={event => onFormChange({ ...form, maxAutomaticCollectionMessagesPerCycle: event.target.value })} disabled={!canManage || busy} />
+        <SettingsInput type="number" min={1} max={isOwner ? 4 : settings.maxAutomaticCollectionMessagesPerCycle} inputMode="numeric" value={form.maxAutomaticCollectionMessagesPerCycle} onChange={event => onFormChange({ ...form, maxAutomaticCollectionMessagesPerCycle: event.target.value })} disabled={!canManage || busy} aria-invalid={Boolean(cycleLimitError)} />
       </SettingsField>
       <SettingsField
         label={t("Monthly estimated-usage budget")}
@@ -413,6 +439,7 @@ export function BranchWhatsAppSettingsEditor({
           placeholder={t("Amount in INR")}
           disabled={!canManage || busy || (!isOwner && settings.monthlyBudgetMinor === null)}
           aria-label={t("Monthly estimated usage budget in INR")}
+          aria-invalid={Boolean(budgetError)}
         />
       </SettingsField>
 
@@ -438,19 +465,38 @@ export function BranchWhatsAppSettingsEditor({
       </div>
 
       <div className="space-y-3 px-5 py-4">
+        <p role="status" className="text-sm text-[color:var(--text-secondary)]">
+          {hasChanges ? t("You have unsaved WhatsApp settings. Save or discard changes before enabling delivery or automation.") : t("WhatsApp settings are saved.")}
+        </p>
         <div className="flex flex-wrap justify-end gap-2">
-          <AppButton variant="secondary" size="sm" onClick={onSave} disabled={!canManage || busy || Boolean(budgetError || dailyLimitError || cycleLimitError)} isLoading={busy}>{t("Save WhatsApp settings")}</AppButton>
+          {hasChanges ? <AppButton variant="quiet" size="sm" onClick={() => { onFormChange(settingsForm(settings)); onAutomationConfirmedChange(false); }} disabled={!canManage || busy}>{t("Discard changes")}</AppButton> : null}
+          <AppButton variant="secondary" size="sm" onClick={onSave} disabled={!canManage || busy || !hasChanges || Boolean(budgetError || dailyLimitError || cycleLimitError || sendTimeError)}>{t("Save WhatsApp settings")}</AppButton>
+        </div>
+      </div>
+      <div className="space-y-3 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Branch delivery")}</h3>
+          <Badge variant={settings.enabled ? "success" : "default"}>{settings.enabled ? t("Enabled") : t("Disabled")}</Badge>
+        </div>
+        <p className="text-xs text-[color:var(--text-muted)]">{t("Turning delivery off also stops automation and cancels messages that have not been submitted. Messages already submitted are kept in history.")}</p>
+        {!settings.enabled && !deliveryPrerequisitesMet ? <p className="text-sm text-[color:var(--ui-form-warning-text)]">{t("Assign an active sender, save a budget, and approve the collection templates for the saved language before enabling delivery.")}</p> : null}
+        <div className="flex justify-end">
           <AppButton
             variant={settings.enabled ? "danger" : "primary"}
             size="sm"
             onClick={() => onSetDelivery(!settings.enabled)}
-            disabled={!canManage || busy || (!settings.enabled && settings.monthlyBudgetMinor === null)}
+            disabled={!canManage || busy || (!settings.enabled && (hasChanges || !deliveryPrerequisitesMet))}
           >
             {settings.enabled ? t("Disable branch delivery") : t("Enable branch delivery")}
           </AppButton>
         </div>
         {settings.enabled ? (
           <>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ui-form-section-divider)] pt-4">
+              <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Prospective automation")}</h3>
+              <Badge variant={settings.automationEnabled ? "success" : "default"}>{settings.automationEnabled ? t("Enabled") : t("Disabled")}</Badge>
+            </div>
+            {!settings.automationEnabled && !automationPrerequisitesMet ? <p className="text-sm text-[color:var(--ui-form-warning-text)]">{t("Complete the activation checklist using saved settings before enabling automation.")}</p> : null}
             {!settings.automationEnabled ? (
               <label className="flex cursor-pointer items-start gap-3 text-sm">
                 <input
@@ -469,7 +515,7 @@ export function BranchWhatsAppSettingsEditor({
                 variant={settings.automationEnabled ? "danger" : "primary"}
                 size="sm"
                 onClick={() => onSetAutomation(!settings.automationEnabled)}
-                disabled={!canManage || busy || (!settings.automationEnabled && (!automationConfirmed || !automationPrerequisitesMet))}
+                disabled={!canManage || busy || (!settings.automationEnabled && (hasChanges || !automationConfirmed || !automationPrerequisitesMet))}
               >
                 {settings.automationEnabled ? t("Disable automation") : t("Enable prospective automation")}
               </AppButton>
@@ -572,10 +618,12 @@ export function BranchWhatsAppPanel({
     organizationId, branchId, canReceiveReports, canViewNotices,
   }), [branchId, canReceiveReports, canViewNotices, organizationId]);
 
-  const applyOverview = useCallback((overview: Awaited<ReturnType<typeof fetchOverview>>) => {
+  const applyOverview = useCallback((overview: Awaited<ReturnType<typeof fetchOverview>>, resetForm = true) => {
     setResponse(overview.assignment);
     setSettings(overview.settings);
-    setForm(overview.settings ? settingsForm(overview.settings) : null);
+    setForm(current => overview.settings
+      ? resetForm || !current ? settingsForm(overview.settings) : current
+      : null);
     setReportSubscriptionResponse(
       overview.reportSubscription?.operationsUiEnabled === true
         ? overview.reportSubscription
@@ -587,9 +635,9 @@ export function BranchWhatsAppPanel({
     availabilityHandlerRef.current(overview.assignment.enabled);
   }, []);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (resetForm = false) => {
     const overview = await fetchOverview();
-    applyOverview(overview);
+    applyOverview(overview, resetForm);
   }, [applyOverview, fetchOverview]);
 
   useEffect(() => {
@@ -647,7 +695,8 @@ export function BranchWhatsAppPanel({
   const runMutation = async (
     allowed: boolean,
     message: string,
-    operation: () => Promise<unknown>
+    operation: () => Promise<unknown>,
+    resetForm = false
   ) => {
     if (mutationRef.current || busy || !allowed) return;
     mutationRef.current = true;
@@ -655,7 +704,7 @@ export function BranchWhatsAppPanel({
     setNotice({ tone: "status", message });
     try {
       await operation();
-      await reload();
+      await reload(resetForm);
       setAutomationConfirmed(false);
       setNotice({ tone: "status", message: "WhatsApp branch settings were updated." });
     } catch {
@@ -671,7 +720,7 @@ export function BranchWhatsAppPanel({
     const budgetMinor = parseBudgetMinor(form.monthlyBudgetRupees);
     const dailyLimit = Number(form.dailyAutomaticMessageLimit);
     const cycleLimit = Number(form.maxAutomaticCollectionMessagesPerCycle);
-    if (budgetMinor === undefined || !Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 200 || !Number.isInteger(cycleLimit) || cycleLimit < 1 || cycleLimit > 4) {
+    if (budgetMinor === undefined || !Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 200 || !Number.isInteger(cycleLimit) || cycleLimit < 1 || cycleLimit > 4 || !/^([01]\d|2[0-3]):[0-5]\d$/.test(form.sendTimeLocal)) {
       setNotice({ tone: "error", message: "Review the budget and message limits before saving." });
       return;
     }
@@ -683,7 +732,7 @@ export function BranchWhatsAppPanel({
       maxAutomaticCollectionMessagesPerCycle: cycleLimit,
       monthlyBudgetMinor: budgetMinor,
       rules: WHATSAPP_AUTOMATION_STAGES.map(stage => ({ stage, enabled: form.rules[stage] })),
-    }));
+    }), true);
   };
 
   return (
@@ -692,7 +741,7 @@ export function BranchWhatsAppPanel({
       {response.safeReason ? <div className="px-5 py-4 text-sm text-[color:var(--text-secondary)]">{response.safeReason}</div> : null}
       {notice ? (
         <div className="px-5 py-4">
-          <p role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"} className={notice.tone === "error" ? "text-sm text-[color:var(--ui-form-error-text)]" : "text-sm text-[color:var(--text-secondary)]"}>{notice.message}</p>
+          <p role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"} className={notice.tone === "error" ? "text-sm text-[color:var(--ui-form-error-text)]" : "text-sm text-[color:var(--text-secondary)]"}>{t.owned(notice.message)}</p>
         </div>
       ) : null}
       <BranchWhatsAppReadiness
@@ -702,8 +751,8 @@ export function BranchWhatsAppPanel({
         busy={busy}
         canManage={mayManageAssignment}
         onSelectedSenderChange={setSelectedSenderId}
-        onAssign={() => void runMutation(mayManageAssignment, "Assigning the organization-owned sender…", () => whatsapp.assignBranch(organizationId, branchId, selectedSenderId))}
-        onUnassign={() => void runMutation(mayManageAssignment, "Removing the sender assignment…", () => whatsapp.unassignBranch(organizationId, branchId))}
+        onAssign={() => void runMutation(mayManageAssignment, "Assigning the organization-owned sender…", () => whatsapp.assignBranch(organizationId, branchId, selectedSenderId), true)}
+        onUnassign={() => void runMutation(mayManageAssignment, "Removing the sender assignment…", () => whatsapp.unassignBranch(organizationId, branchId), true)}
       />
       {settings && form ? (
         <BranchWhatsAppSettingsEditor
@@ -714,7 +763,7 @@ export function BranchWhatsAppPanel({
           busy={busy}
           automationConfirmed={automationConfirmed}
           onAutomationConfirmedChange={setAutomationConfirmed}
-          onFormChange={setForm}
+          onFormChange={next => { setForm(next); setAutomationConfirmed(false); }}
           onSave={() => void saveSettings()}
           onSetDelivery={enabled => void runMutation(mayManageBranch, enabled ? "Enabling branch delivery…" : "Disabling branch delivery…", () => whatsapp.setBranchDelivery(branchId, enabled))}
           onSetAutomation={enabled => void runMutation(mayManageBranch, enabled ? "Enabling prospective automation…" : "Disabling automation…", () => whatsapp.setBranchAutomation(branchId, enabled))}

@@ -1,5 +1,26 @@
 # Application page-family migration
 
+## WhatsApp settings controls — local, 2026-11-13
+
+Family E's branch and organization WhatsApp panels reuse SettingsField,
+AppButton, Badge and ConfirmDialog for explicit saved/unsaved state, discard,
+bounded input validation, delivery/automation prerequisites, unassignment
+confirmation and sender-read retry. Disabling delivery remains available with
+an invalid draft and preserves the draft. English/Hindi/Hinglish feedback uses
+the existing catalogue. No shared visual defaults or public claims changed.
+
+The [audit record](../audits/whatsapp-integration-2026-11-13.md) separates the
+local unit/browser/build evidence, remaining backend issues, owner visual
+acceptance (pending) and release (not performed). The isolated browser suite
+uses synthetic routes and the existing fixture's shared font loader; it is not
+provider or connected authorization evidence.
+
+The [14 November follow-up](../audits/whatsapp-followup-2026-11-14.md) closes the
+five backend findings and reruns all 24 mounted WhatsApp checks at 1440, 834,
+390 and 320 pixels, including Hindi/Hinglish, keyboard behavior, axe and overflow
+assertions. The approved visual owners and controls are unchanged by these
+backend fixes. Owner visual acceptance remains pending; no release was performed.
+
 ## Comprehensive refinement — 10 November 2026
 
 The owner's attached brief authorizes the application-wide presentation changes

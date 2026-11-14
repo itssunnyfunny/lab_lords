@@ -14,6 +14,10 @@ import { reduceWhatsAppStatusProjection } from "@/lib/whatsappMessageState";
 import { normalizeWhatsAppPhone } from "@/lib/whatsappPhone";
 import { lockWhatsAppProviderMessage } from "@/lib/whatsappProviderMessageLock";
 import {
+  projectAttachedWhatsAppWebhookEvents,
+  type AttachedWebhookEvent,
+} from "@/lib/whatsappWebhookProjection";
+import {
   META_WHATSAPP_MESSAGE_ID_MAX_LENGTH,
   META_WHATSAPP_MESSAGE_ID_PATTERN,
 } from "@/lib/whatsappProviderMessageId";
@@ -45,6 +49,8 @@ const statusSchema = z.object({
   status: z.string().min(1).max(32),
   timestamp: providerTimestamp.optional(),
   recipient_id: z.string().min(1).max(32).regex(/^\+?\d+$/).optional(),
+  biz_opaque_callback_data: z.string().min(1).max(128)
+    .regex(/^[A-Za-z0-9_-]+$/).optional().catch(undefined),
   pricing: z.object({
     billable: z.boolean().optional(),
     category: z.string().min(1).max(64).optional(),
@@ -115,6 +121,7 @@ type WebhookEnvelope = z.infer<typeof webhookEnvelopeSchema>;
 type NormalizedStatusEvent = Readonly<{
   kind: "STATUS";
   providerMessageId: string;
+  correlationId: string | null;
   status: "SENT" | "DELIVERED" | "READ" | "FAILED";
   providerTimestamp: Date | null;
   providerRecipientWaId: string | null;
@@ -322,6 +329,7 @@ function extractMetaWebhookEventGroups(envelope: WebhookEnvelope) {
           groupFor(entry.id, phoneNumberId).events.push({
             kind: "STATUS",
             providerMessageId: status.id,
+            correlationId: status.biz_opaque_callback_data ?? null,
             status: normalizedStatus,
             providerTimestamp: parseProviderTimestamp(status.timestamp),
             providerRecipientWaId: status.recipient_id ?? null,
@@ -595,6 +603,7 @@ type ResolvedSender = {
   id: string;
   organizationId: string;
   wabaId: string;
+  providerMode: "TEST" | "LIVE";
 };
 
 type WebhookSenderMetadata = Readonly<{
@@ -618,7 +627,7 @@ async function resolveWebhookSender(
       select: { id: true, organizationId: true, wabaId: true },
     });
     return sender && (!metadata.wabaId || sender.wabaId === metadata.wabaId)
-      ? sender
+      ? { ...sender, providerMode }
       : null;
   }
   if (!metadata.wabaId) return null;
@@ -632,7 +641,7 @@ async function resolveWebhookSender(
     select: { id: true, organizationId: true, wabaId: true },
     take: 2,
   });
-  return candidates.length === 1 ? candidates[0] : null;
+  return candidates.length === 1 ? { ...candidates[0], providerMode } : null;
 }
 
 async function resolveWebhookEventGroupSenders(
@@ -667,7 +676,7 @@ async function resolveWebhookEventGroupSenders(
   if (senders.length > MAX_META_WEBHOOK_EVENTS) {
     throw new Error("WhatsApp template webhook sender fanout exceeds the safe bound");
   }
-  return senders;
+  return senders.map(sender => ({ ...sender, providerMode }));
 }
 
 async function claimReceipt(input: {
@@ -839,20 +848,72 @@ async function processStatusEvent(input: {
     senderId: input.sender.id,
     providerMessageId: input.event.providerMessageId,
   });
-  const message = await input.tx.whatsAppMessage.findFirst({
+  const messageSelect = {
+    id: true,
+    organizationId: true,
+    branchId: true,
+    senderId: true,
+    serviceNoticeId: true,
+    status: true,
+  } as const;
+  const senderScope = {
+    senderId: input.sender.id,
+    organizationId: input.sender.organizationId,
+    sender: { provider: "META_CLOUD" as const, providerMode: input.sender.providerMode },
+  };
+  let message = await input.tx.whatsAppMessage.findFirst({
     where: {
-      senderId: input.sender.id,
+      ...senderScope,
       providerMessageId: input.event.providerMessageId,
     },
-    select: {
-      id: true,
-      organizationId: true,
-      branchId: true,
-      senderId: true,
-      serviceNoticeId: true,
-      status: true,
-    },
+    select: messageSelect,
   });
+  let recovered = false;
+  const recipientPhone = input.event.providerRecipientWaId
+    ? normalizeProviderPhone(input.event.providerRecipientWaId.replace(/^\+/, ""))
+    : null;
+  if (!message && input.event.correlationId && recipientPhone) {
+    const recoveryScope = {
+      ...senderScope,
+      id: input.event.correlationId,
+      recipientPhoneE164: recipientPhone,
+      providerMessageId: null,
+      status: { in: ["SUBMITTING", "UNKNOWN"] as ("SUBMITTING" | "UNKNOWN")[] },
+      submissionStartedAt: { not: null },
+      providerCallAdmittedAt: { not: null },
+      budgetState: { in: ["RESERVED", "COMMITTED"] as ("RESERVED" | "COMMITTED")[] },
+    };
+    const candidate = await input.tx.whatsAppMessage.findFirst({
+      where: recoveryScope,
+      select: messageSelect,
+    });
+    const alreadyBound = candidate && await input.tx.whatsAppMessage.findUnique({
+      where: { providerMessageId: input.event.providerMessageId },
+      select: { id: true },
+    });
+    if (candidate && !alreadyBound) {
+      // The signed, sender-scoped callback confirms an admitted attempt. Claim
+      // its result atomically so an in-flight dispatcher cannot regress it or
+      // schedule another send. A global provider-ID collision rolls back.
+      const bound = await input.tx.whatsAppMessage.updateMany({
+        where: recoveryScope,
+        data: {
+          providerMessageId: input.event.providerMessageId,
+          acceptedAt: input.now,
+          status: "ACCEPTED",
+          budgetState: "COMMITTED",
+          leaseToken: null,
+          leaseUntil: null,
+          failureCode: null,
+          safeFailureMessage: null,
+        },
+      });
+      if (bound.count === 1) {
+        message = candidate;
+        recovered = true;
+      }
+    }
+  }
   const eventKey = statusEventKey(input.sender.id, input.event);
   await input.tx.whatsAppMessageEvent.createMany({
     data: [{
@@ -892,20 +953,66 @@ async function processStatusEvent(input: {
       data: { messageId: message.id, expiresAt: null },
     });
   }
-  await projectStatusEvent(input.tx, message.id, input.event, input.now);
-  if (input.event.status === "DELIVERED" || input.event.status === "READ") {
+  let deliveredAt = input.event.status === "DELIVERED" || input.event.status === "READ"
+    ? input.event.providerTimestamp ?? input.now
+    : null;
+  let providerFailureConfirmed = input.event.status === "FAILED";
+  if (recovered) {
+    await input.tx.whatsAppMessageEvent.updateMany({
+      where: {
+        senderId: input.sender.id,
+        providerMessageId: input.event.providerMessageId,
+        messageId: null,
+      },
+      data: { messageId: message.id, expiresAt: null },
+    });
+    const events = await input.tx.whatsAppMessageEvent.findMany({
+      where: {
+        messageId: message.id,
+        source: "PROVIDER_WEBHOOK",
+        status: { in: ["SENT", "DELIVERED", "READ", "FAILED"] },
+      },
+      select: {
+        id: true, status: true, providerTimestamp: true, receivedAt: true,
+        providerRecipientWaId: true, providerBillable: true,
+        providerPricingCategory: true, safeErrorCode: true,
+      },
+    });
+    const projection = projectAttachedWhatsAppWebhookEvents(events as AttachedWebhookEvent[]);
+    await input.tx.whatsAppMessage.updateMany({
+      where: { ...senderScope, id: message.id, providerMessageId: input.event.providerMessageId },
+      data: projection,
+    });
+    deliveredAt = projection.deliveredAt;
+    providerFailureConfirmed = projection.status === "FAILED";
+    await WhatsAppSenderSafetyService.recordAcceptedInTransaction({
+      tx: input.tx,
+      organizationId: message.organizationId,
+      senderId: message.senderId,
+      at: input.now,
+    });
+    await WhatsAppSenderSafetyService.finalizeRequestedPauseInTransaction({
+      tx: input.tx,
+      organizationId: message.organizationId,
+      senderId: message.senderId,
+      now: input.now,
+    });
+  } else {
+    await projectStatusEvent(input.tx, message.id, input.event, input.now);
+  }
+  if (deliveredAt) {
     await WhatsAppSenderSafetyService.recordDeliveredInTransaction({
       tx: input.tx,
       organizationId: message.organizationId,
       senderId: message.senderId,
-      at: input.event.providerTimestamp ?? input.now,
+      at: deliveredAt,
     });
   }
   if (message.status === "UNKNOWN") {
     await WhatsAppIncidentService.resolveInTransaction({
       tx: input.tx,
       dedupeKey: `message:${message.id}:unknown`,
-      resolutionCode: input.event.status === "FAILED"
+      resolutionCode: providerFailureConfirmed
         ? "PROVIDER_FAILURE_CONFIRMED"
         : "PROVIDER_DELIVERY_CONFIRMED",
       now: input.now,

@@ -35,11 +35,16 @@ import {
   type WhatsAppManagedTemplateKey,
   type WhatsAppManagedTemplateLanguage,
 } from "@/lib/whatsappManagedTemplates";
-import { projectWhatsAppStatus } from "@/lib/whatsappMessageState";
+import {
+  projectAttachedWhatsAppWebhookEvents,
+  type AttachedWebhookEvent,
+} from "@/lib/whatsappWebhookProjection";
+export { projectAttachedWhatsAppWebhookEvents } from "@/lib/whatsappWebhookProjection";
 import { normalizeWhatsAppPhone } from "@/lib/whatsappPhone";
 import { whatsappBudgetMonth } from "@/lib/whatsappSchedule";
 import { lockWhatsAppProviderMessage } from "@/lib/whatsappProviderMessageLock";
 import { EntitlementService } from "@/services/entitlement.service";
+import { StaffService } from "@/services/staff.service";
 import {
   createWhatsAppManualSourceFingerprint,
   deriveWhatsAppManualCollectionContent,
@@ -782,6 +787,29 @@ async function prepareSubmission(input: {
     } catch {
       return suppress("ENTITLEMENT_REQUIRED");
     }
+    // Queue-time permission is not durable authority for a later billable send.
+    // Use the same current branch permissions as the originating user action.
+    if (message.purpose === "MANUAL_REMINDER" || isServiceNotice) {
+      if (!message.createdByUserId || !message.branch) {
+        return suppress("SOURCE_AUTHORIZATION_CHANGED");
+      }
+      const requiredActions = isServiceNotice
+        ? ["manage_whatsapp", "send_whatsapp", "view_whatsapp"] as const
+        : ["view_payments", "view_whatsapp", "send_whatsapp"] as const;
+      try {
+        for (const action of requiredActions) {
+          await StaffService.authorize(message.createdByUserId, message.branch.id, action, tx);
+        }
+      } catch (error) {
+        if (error instanceof Error && (
+          error.message === "Branch not found" || error.message.startsWith("Unauthorized:")
+        )) {
+          return suppress("SOURCE_AUTHORIZATION_CHANGED");
+        }
+        // A transient authorization read failure is not proof of revocation.
+        throw error;
+      }
+    }
     if (
       message.sender.organizationId !== message.organizationId
       || message.sender.status !== "ACTIVE"
@@ -1113,16 +1141,11 @@ async function prepareSubmission(input: {
         try {
           const configuredCard = readWhatsAppRateCard(input.env);
           if (getWhatsAppRateCardStatus(configuredCard, submissionNow) === "EXPIRED") {
-            await WhatsAppIncidentService.createOrTouchInTransaction({
+            await WhatsAppIncidentService.recordRateCardExpiredInTransaction({
               tx,
               organizationId: message.organizationId,
-              branchId: message.branchId,
               senderId: message.senderId,
-              type: "RATE_CARD_EXPIRED",
-              severity: "CRITICAL",
-              dedupeKey: `sender:${message.senderId}:rate-card`,
-              safeCode: "RATE_CARD_EXPIRED",
-              details: { rateCardVersion: configuredCard.version },
+              rateCardVersion: configuredCard.version,
               now: submissionNow,
             });
           }
@@ -1228,58 +1251,44 @@ async function prepareSubmission(input: {
   });
 }
 
-type AttachedWebhookEvent = Readonly<{
-  id: string;
-  status: "SENT" | "DELIVERED" | "READ" | "FAILED";
-  providerTimestamp: Date | null;
-  receivedAt: Date;
-  providerRecipientWaId: string | null;
-  providerBillable: boolean | null;
-  providerPricingCategory: string | null;
-  safeErrorCode: string | null;
-}>;
-
-export function projectAttachedWhatsAppWebhookEvents(
-  events: readonly AttachedWebhookEvent[]
+async function wasSubmissionAcceptedByCallback(
+  tx: Prisma.TransactionClient,
+  submission: PreparedWhatsAppSubmission,
+  providerMessageId?: string
 ) {
-  const ordered = [...events].sort((left, right) => {
-    const timeDifference = (left.providerTimestamp ?? left.receivedAt).getTime()
-      - (right.providerTimestamp ?? right.receivedAt).getTime();
-    return timeDifference || left.id.localeCompare(right.id);
+  // A callback can finish this admitted attempt and clear its lease before the
+  // HTTP result returns. Recognize that evidence for counters only; never
+  // rewrite its projection or credit a different attempt/provider message.
+  const message = await tx.whatsAppMessage.findFirst({
+    where: {
+      id: submission.messageId,
+      organizationId: submission.organizationId,
+      senderId: submission.senderId,
+      recipientPhoneE164: submission.recipientPhoneE164,
+      attemptCount: submission.attemptCount,
+      submissionStartedAt: { not: null },
+      providerCallAdmittedAt: { not: null },
+      providerMessageId: providerMessageId ?? { not: null },
+      acceptedAt: { not: null },
+      budgetState: "COMMITTED",
+      leaseToken: null,
+      leaseUntil: null,
+      status: { in: ["ACCEPTED", "SENT", "DELIVERED", "READ", "FAILED"] },
+    },
+    select: { providerMessageId: true },
   });
-  const projection = projectWhatsAppStatus(
-    { status: "ACCEPTED", providerStatusTimestamp: null },
-    ordered.map(event => ({
-      status: event.status,
-      providerTimestamp: event.providerTimestamp,
-      stableOrder: event.id,
-    }))
-  );
-  const firstOf = (...statuses: AttachedWebhookEvent["status"][]) =>
-    ordered.find(event => statuses.includes(event.status));
-  const occurredAt = (event: AttachedWebhookEvent | undefined) =>
-    event ? event.providerTimestamp ?? event.receivedAt : null;
-  const latestWith = <K extends keyof AttachedWebhookEvent>(key: K) =>
-    [...ordered].reverse().find(event => event[key] !== null)?.[key] ?? null;
-  const projectedFailure = projection.status === "FAILED"
-    ? [...ordered].reverse().find(event => event.status === "FAILED")
-    : undefined;
-
-  return {
-    status: projection.status,
-    providerStatusTimestamp: projection.providerStatusTimestamp,
-    providerRecipientWaId: latestWith("providerRecipientWaId") as string | null,
-    providerBillable: latestWith("providerBillable") as boolean | null,
-    providerPricingCategory: latestWith("providerPricingCategory") as string | null,
-    sentAt: occurredAt(firstOf("SENT", "DELIVERED", "READ")),
-    deliveredAt: occurredAt(firstOf("DELIVERED", "READ")),
-    readAt: occurredAt(firstOf("READ")),
-    failedAt: projection.status === "FAILED" ? occurredAt(projectedFailure) : null,
-    failureCode: projection.status === "FAILED"
-      ? projectedFailure?.safeErrorCode ?? "META_FAILED"
-      : null,
-    safeFailureMessage: null,
-  } satisfies Prisma.WhatsAppMessageUpdateInput;
+  if (!message?.providerMessageId) return false;
+  const event = await tx.whatsAppMessageEvent.findFirst({
+    where: {
+      messageId: submission.messageId,
+      senderId: submission.senderId,
+      providerMessageId: message.providerMessageId,
+      source: "PROVIDER_WEBHOOK",
+      status: { in: ["SENT", "DELIVERED", "READ", "FAILED"] },
+    },
+    select: { id: true },
+  });
+  return event !== null;
 }
 
 async function finalizeAccepted(input: {
@@ -1314,7 +1323,9 @@ async function finalizeAccepted(input: {
         leaseUntil: null,
       },
     });
-    if (updated.count !== 1) return false;
+    if (updated.count !== 1) {
+      return wasSubmissionAcceptedByCallback(tx, input.submission, input.result.providerMessageId);
+    }
     await WhatsAppSenderSafetyService.recordAcceptedInTransaction({
       tx,
       organizationId: input.submission.organizationId,
@@ -1432,7 +1443,9 @@ async function finalizeProviderFailure(input: {
           leaseUntil: null,
         },
       });
-      if (result.count !== 1) return "STALE" as const;
+      if (result.count !== 1) {
+        return await wasSubmissionAcceptedByCallback(tx, input.submission) ? "ACCEPTED" as const : "STALE" as const;
+      }
       await WhatsAppSenderSafetyService.finalizeRequestedPauseInTransaction({
         tx,
         organizationId: input.submission.organizationId,
@@ -1462,7 +1475,9 @@ async function finalizeProviderFailure(input: {
         leaseUntil: null,
       },
     });
-    if (result.count !== 1) return "STALE" as const;
+    if (result.count !== 1) {
+      return await wasSubmissionAcceptedByCallback(tx, input.submission) ? "ACCEPTED" as const : "STALE" as const;
+    }
     if (ambiguous) {
       await WhatsAppSenderSafetyService.recordAmbiguousOutcomeInTransaction({
         tx,
@@ -1575,19 +1590,13 @@ export class WhatsAppDispatcherService {
         organizationScope,
         resolveWhatsAppProviderMode(env)
       );
-      const counts = {
-      held: false,
-      replayed: false as const,
-      messagesClaimed: claim.claimed.length,
-      messagesAccepted: 0,
-      messagesRetried: 0,
-      messagesFailed: 0,
-      messagesUnknown: claim.staleSubmitting,
-      messagesSuppressed: 0,
-      staleClaimsRecovered: claim.staleClaimed,
-      staleSubmissionsMarkedUnknown: claim.staleSubmitting,
-      backlogRemaining: 0,
-      };
+      // Keep committed progress in the same counters used by failure reporting.
+      // A later preparation or backlog read can fail after earlier sends finish.
+      const counts = evidenceCounts;
+      counts.messagesClaimed = claim.claimed.length;
+      counts.messagesUnknown = claim.staleSubmitting;
+      counts.staleClaimsRecovered = claim.staleClaimed;
+      counts.staleSubmissionsMarkedUnknown = claim.staleSubmitting;
       const provider = input.provider ?? getMetaWhatsAppClient();
       for (const claimed of claim.claimed) {
       if (!areWhatsAppMessageWritesEnabled(claimed.organizationId, env)) {
@@ -1633,6 +1642,7 @@ export class WhatsAppDispatcherService {
           error,
           now: operationClock(),
         });
+        if (outcome === "ACCEPTED") counts.messagesAccepted += 1;
         if (outcome === "RETRIED") counts.messagesRetried += 1;
         if (outcome === "FAILED") counts.messagesFailed += 1;
         if (outcome === "UNKNOWN") counts.messagesUnknown += 1;
@@ -1647,17 +1657,6 @@ export class WhatsAppDispatcherService {
             : { organizationId: { in: organizationScope } }),
         },
       });
-      Object.assign(evidenceCounts, {
-        messagesClaimed: counts.messagesClaimed,
-        messagesAccepted: counts.messagesAccepted,
-        messagesRetried: counts.messagesRetried,
-        messagesFailed: counts.messagesFailed,
-        messagesUnknown: counts.messagesUnknown,
-        messagesSuppressed: counts.messagesSuppressed,
-        staleClaimsRecovered: counts.staleClaimsRecovered,
-        staleSubmissionsMarkedUnknown: counts.staleSubmissionsMarkedUnknown,
-        backlogRemaining: counts.backlogRemaining,
-      });
       const jobStatus = counts.messagesFailed > 0 || counts.messagesUnknown > 0
         ? "PARTIAL" as const
         : "SUCCEEDED" as const;
@@ -1668,7 +1667,7 @@ export class WhatsAppDispatcherService {
         safeErrorCode: jobStatus === "PARTIAL" ? "DISPATCH_REVIEW_REQUIRED" : null,
         now: operationClock(),
       });
-      return { ...counts, status: jobStatus };
+      return { held: false, replayed: false as const, ...counts, status: jobStatus };
     } catch (error) {
       await WhatsAppJobRunService.finish({
         runId: started.run.id,

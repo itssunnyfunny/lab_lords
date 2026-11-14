@@ -183,6 +183,61 @@ describe("WhatsApp planner pure planning", () => {
     });
   });
 
+  it.each([
+    ["FEE_DUE_TODAY", "2026-08-23T00:00:00.000Z", false],
+    ["FEE_DUE_TODAY", "2026-08-23T00:00:00.000Z", true],
+    ["PAST_DUE_PLUS_1", "2026-08-22T00:00:00.000Z", false],
+    ["PAST_DUE_PLUS_1", "2026-08-22T00:00:00.000Z", true],
+  ] as const)("uses remaining fees for %s due %s (shared phone: %s)", (stage, dueAt, shared) => {
+    const payments = [{
+      id: "partial_fee_1",
+      studentId: "student_1",
+      amount: 1_000,
+      collectedAmount: 400,
+      waivedAmount: 100,
+      dueDate: new Date(dueAt),
+      periodStart: new Date("2026-07-23T00:00:00.000Z"),
+    }, ...(shared ? [{
+      id: "partial_fee_2",
+      studentId: "student_2",
+      amount: 2_000,
+      collectedAmount: 500,
+      waivedAmount: 200,
+      dueDate: new Date(dueAt),
+      periodStart: new Date("2026-07-23T00:00:00.000Z"),
+    }] : [])];
+    const candidates = buildCollectionCandidates({
+      recipients: [
+        recipient({ id: "r_1", studentId: "student_1" }),
+        ...(shared ? [recipient({ id: "r_2", studentId: "student_2" })] : []),
+      ] as never,
+      payments,
+      enabledStages: new Set([stage]),
+      slots: [SLOT],
+      now: NOW,
+      horizonEnd: HORIZON_END,
+      timeZone: "Asia/Kolkata",
+      language: "en_IN",
+      branchName: "Central",
+      tone: "polite",
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({
+      stage,
+      paymentIds: shared ? ["partial_fee_1", "partial_fee_2"] : ["partial_fee_1"],
+      values: { amount: shared ? "1,800" : "500" },
+    });
+    const facts = stage === "FEE_DUE_TODAY"
+      ? candidates[0]!.fingerprintFacts
+      : (candidates[0]!.fingerprintFacts as { unresolved: unknown }).unresolved;
+    expect(facts).toEqual([
+      expect.objectContaining({ id: "partial_fee_1", amount: 500 }),
+      ...(shared ? [expect.objectContaining({ id: "partial_fee_2", amount: 1_300 })] : []),
+    ]);
+    expect(payments[0]!.amount).toBe(1_000);
+  });
+
   it("aggregates shared-phone DUE rows and gives past due priority over due today", () => {
     const candidates = buildCollectionCandidates({
       recipients: [
