@@ -4,7 +4,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import * as meta from "@/lib/metaWhatsApp";
 import { WhatsAppConnectionService } from "@/services/whatsappConnection.service";
-import { WhatsAppHealthService, type WhatsAppHealthProvider } from "@/services/whatsappHealth.service";
+import { WhatsAppHealthService, WHATSAPP_HEALTH_LEASE_MS, type WhatsAppHealthProvider } from "@/services/whatsappHealth.service";
 import { WhatsAppIncidentService } from "@/services/whatsappIncident.service";
 import { WhatsAppMaintenanceService } from "@/services/whatsappMaintenance.service";
 import { WhatsAppWebhookService } from "@/services/whatsappWebhook.service";
@@ -107,6 +107,50 @@ function healthProvider(): WhatsAppHealthProvider {
 }
 
 describe("WhatsApp health lease finalization", () => {
+  it("gives every sender a full lease in a sequential batch lasting over two minutes", async () => {
+    const { org, sender } = await world();
+    const senders = [sender];
+    for (let index = 1; index < 10; index += 1) {
+      senders.push(await testPrisma.whatsAppSender.create({ data: {
+        organizationId: org.id, provider: "META_CLOUD", providerMode: "TEST",
+        wabaId: String(Number(WABA.id) + index),
+        phoneNumberId: String(Number(PHONE.id) + index),
+        displayPhoneNumber: PHONE.displayPhoneNumber, status: "ACTIVE",
+      } }));
+    }
+    const provider = healthProvider();
+    const reads: Array<{ senderId: string; startedAt: Date; leaseUntil: Date; finishedAt: Date }> = [];
+    vi.mocked(provider.fetchWaba).mockImplementation(async ({ wabaId }) => ({ ...WABA, id: wabaId }));
+    vi.mocked(provider.fetchPhoneNumber).mockImplementation(async ({ wabaId, phoneNumberId }) => ({
+      ...PHONE, id: phoneNumberId, wabaId,
+    }));
+    vi.mocked(provider.listMessageTemplates).mockImplementation(async ({ wabaId }) => {
+      const claimed = await testPrisma.whatsAppSender.findFirstOrThrow({ where: { wabaId } });
+      const startedAt = new Date();
+      // Advance only Date: PostgreSQL and timeout scheduling remain real. Each
+      // bounded provider read completes in 14 seconds of simulated wall time.
+      vi.setSystemTime(new Date(startedAt.getTime() + 14_000));
+      reads.push({ senderId: claimed.id, startedAt, leaseUntil: claimed.healthLeaseUntil!, finishedAt: new Date() });
+      return [{ id: "70007", name: "audit_template", language: "en", category: "UTILITY", status: "APPROVED", components: [] }];
+    });
+
+    const result = await WhatsAppHealthService.run({
+      invocationId: "audit-health-long-batch", batchSize: 10, now: NOW, env: ENV, provider,
+    });
+    expect(result.counts).toMatchObject({
+      sendersClaimed: 10, staleFinalizations: 0, templatesFetched: 10, templatesChanged: 10,
+    });
+    expect(reads).toHaveLength(10);
+    expect(reads[9].startedAt.getTime() - NOW.getTime()).toBe(126_000);
+    expect(new Date().getTime() - NOW.getTime()).toBe(140_000);
+    for (const read of reads) {
+      expect(read.leaseUntil.getTime() - read.startedAt.getTime()).toBe(WHATSAPP_HEALTH_LEASE_MS);
+      await expect(testPrisma.whatsAppSender.findUniqueOrThrow({ where: { id: read.senderId } }))
+        .resolves.toMatchObject({ lastHealthCheckAt: read.finishedAt, healthLeaseToken: null, healthLeaseUntil: null });
+    }
+    expect(await testPrisma.whatsAppTemplate.count({ where: { senderId: { in: senders.map(item => item.id) } } })).toBe(10);
+  }, 60_000);
+
   it("commits provider health and template evidence with a current lease", async () => {
     const { sender, owner, org } = await world();
     await WhatsAppHealthService.run({ invocationId: "audit-health-current", batchSize: 1, now: NOW, env: ENV, provider: healthProvider() });

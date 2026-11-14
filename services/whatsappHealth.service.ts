@@ -751,7 +751,7 @@ export class WhatsAppHealthService {
           allowedOrganizationIds,
           excludedSenderIds: claimedIds,
           startedAt: started.run.startedAt,
-          now: new Date(now.getTime() + index),
+          now: new Date(),
         });
         if (!sender) break;
         claimedIds.push(sender.id);
