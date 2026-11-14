@@ -1321,6 +1321,27 @@ Do not treat a successful build or domain assignment as a successful release.
 
 ## WhatsApp managed Utility-delivery, reports, and operations rollout
 
+The [13 November 2026 local audit](audits/whatsapp-integration-2026-11-13.md)
+and [14 November follow-up](audits/whatsapp-followup-2026-11-14.md) record the
+audit fixes and local verification; their tests are not rollout approval. The application-only
+fixes require no migration or saved environment change. Automatic collection
+candidates now use remaining fees after collections/waivers, so previously
+queued gross-amount candidates fail current-source comparison unless safely
+refreshed. Revoked/missing manual-message creators are suppressed at dispatch
+with reserved estimates released. Preserve submitted/UNKNOWN history and never
+manually replay such messages merely to clear a queue. Existing flags, canaries
+and provider approval gates below remain required.
+
+After rollout, new signed statuses with matching local correlation can resolve
+admitted `UNKNOWN` work even if the provider response was lost. Previously
+processed receipts are not automatically reprocessed, and absent or mismatching
+correlation remains uncertain; never resend to manufacture recovery evidence.
+Expired-rate maintenance progresses over successive bounded runs. Existing
+branch-scoped rate incidents retain their identity and history; no backfill is
+required. Health and onboarding workers that lose their lease discard local
+transaction effects. A rollback would restore the five audit defects, so keep
+affected delivery/onboarding/health operations held while evaluating rollback.
+
 > **Held capability, not live readiness:** the repository can create Lab
 > Lords-managed Utility templates and submit one approved Utility template to an
 > explicitly authorized recipient. It can also create deterministic aggregate

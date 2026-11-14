@@ -1201,6 +1201,24 @@ Authoritative code: `services/staff.service.ts`, `services/staffInvite.service.t
 
 ### WhatsApp managed Utility delivery, reports, and operations
 
+The [13 November 2026 local audit](../audits/whatsapp-integration-2026-11-13.md)
+adds current creator-permission checks before dispatching queued manual reminders
+and service notices, and retains committed dispatcher counts on later batch
+failure. Automatic due-today/past-due candidates and their source fingerprints
+now consistently use fees remaining after collections and waivers, including
+shared-phone groups. Branch controls expose unsaved drafts, discard, inline validation,
+saved-state activation prerequisites and unassignment confirmation; disabling
+delivery preserves an edited draft. Organization sender-read failures have a
+separate retry state. These are local changes, not provider/release evidence.
+The [14 November follow-up](../audits/whatsapp-followup-2026-11-14.md) fixes the
+five remaining source discrepancies. Signed callbacks can bind a missing provider
+ID using exact scoped correlation and replay orphan evidence without another send.
+Rate-expiry maintenance advances across batches and shares incident identity with
+dispatch while preserving historical branch scope. Health and onboarding final
+writes conditionally fence their current, unexpired lease; losing that fence rolls
+back the transaction. This is local implementation and verification evidence;
+provider readiness and deployment remain separate.
+
 The working tree extends the PR2 sender foundation with a deliberately narrow
 official Meta Cloud API delivery capability. It is repository implementation,
 not evidence that any environment or provider account is ready.

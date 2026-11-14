@@ -697,6 +697,39 @@ unit/API/integration coverage.
 
 ## WhatsApp managed Utility delivery and collections
 
+- **Must preserve—enforced:** Automatic due-today and past-due reminder values
+  and fingerprints use the existing remaining-fee calculation after collections
+  and waivers, for both individual and shared-phone groups. The planner, safe
+  refresh and send-time verification share this candidate builder; message
+  creation never changes payment truth. (`services/whatsappPlanner.service.ts`)
+- **Must preserve—enforced:** Dispatch rechecks the persisted creator's current
+  branch membership and original action permissions for manual reminders and
+  service notices. Missing/revoked authority suppresses only safely unsubmitted
+  work and releases its reservation; a storage failure is not treated as proven
+  revocation. Report and automation source authorization remain purpose-specific.
+  (`services/whatsappDispatcher.service.ts`)
+- **Must preserve—enforced:** Signed statuses can recover an unbound provider ID
+  through bounded local callback correlation only for the exact organization,
+  sender, provider mode and normalized recipient of an admitted `SUBMITTING` or
+  `UNKNOWN` message. Binding commits its estimate and clears the dispatch lease;
+  existing orphan statuses are attached and projected using the same ordering as
+  provider-response finalization. Missing or mismatching evidence stays orphaned;
+  no recovery sends a message or replaces another message's provider ID.
+  (`services/whatsappWebhook.service.ts`, `lib/whatsappWebhookProjection.ts`)
+- **Must preserve—enforced:** Expired-rate maintenance excludes senders already
+  covered by an unresolved incident for the current rate-card version, allowing
+  subsequent bounded runs to reach later senders. Dispatch and maintenance share
+  sender incident identity; older branch-scoped evidence retains its validated
+  branch. Cross-tenant or incompatible dedupe collisions are rejected.
+  (`services/whatsappMaintenance.service.ts`, `services/whatsappIncident.service.ts`)
+- **Must preserve—enforced:** Health finalization conditionally checks exact
+  sender identity, eligible status and the unexpired lease token. A lost claim
+  rolls back template, sender, safety and incident changes; failure finalization
+  cannot clear a successor's lease. Onboarding's final conditional intent consume
+  likewise rolls back sender and audit writes if its owner/organization/mode
+  lease is lost or expired. (`services/whatsappHealth.service.ts`,
+  `services/whatsappConnection.service.ts`)
+
 - **Must preserve—enforced:** A Meta Cloud sender belongs to one organization,
   and `(provider, providerMode, phoneNumberId)` is database-unique. A connected
   phone cannot be represented as independent same-mode senders for two
