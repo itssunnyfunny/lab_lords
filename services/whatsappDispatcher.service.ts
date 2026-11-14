@@ -1599,19 +1599,13 @@ export class WhatsAppDispatcherService {
         organizationScope,
         resolveWhatsAppProviderMode(env)
       );
-      const counts = {
-      held: false,
-      replayed: false as const,
-      messagesClaimed: claim.claimed.length,
-      messagesAccepted: 0,
-      messagesRetried: 0,
-      messagesFailed: 0,
-      messagesUnknown: claim.staleSubmitting,
-      messagesSuppressed: 0,
-      staleClaimsRecovered: claim.staleClaimed,
-      staleSubmissionsMarkedUnknown: claim.staleSubmitting,
-      backlogRemaining: 0,
-      };
+      // Keep committed progress in the same counters used by failure reporting.
+      // A later preparation or backlog read can fail after earlier sends finish.
+      const counts = evidenceCounts;
+      counts.messagesClaimed = claim.claimed.length;
+      counts.messagesUnknown = claim.staleSubmitting;
+      counts.staleClaimsRecovered = claim.staleClaimed;
+      counts.staleSubmissionsMarkedUnknown = claim.staleSubmitting;
       const provider = input.provider ?? getMetaWhatsAppClient();
       for (const claimed of claim.claimed) {
       if (!areWhatsAppMessageWritesEnabled(claimed.organizationId, env)) {
@@ -1671,17 +1665,6 @@ export class WhatsAppDispatcherService {
             : { organizationId: { in: organizationScope } }),
         },
       });
-      Object.assign(evidenceCounts, {
-        messagesClaimed: counts.messagesClaimed,
-        messagesAccepted: counts.messagesAccepted,
-        messagesRetried: counts.messagesRetried,
-        messagesFailed: counts.messagesFailed,
-        messagesUnknown: counts.messagesUnknown,
-        messagesSuppressed: counts.messagesSuppressed,
-        staleClaimsRecovered: counts.staleClaimsRecovered,
-        staleSubmissionsMarkedUnknown: counts.staleSubmissionsMarkedUnknown,
-        backlogRemaining: counts.backlogRemaining,
-      });
       const jobStatus = counts.messagesFailed > 0 || counts.messagesUnknown > 0
         ? "PARTIAL" as const
         : "SUCCEEDED" as const;
@@ -1692,7 +1675,7 @@ export class WhatsAppDispatcherService {
         safeErrorCode: jobStatus === "PARTIAL" ? "DISPATCH_REVIEW_REQUIRED" : null,
         now: operationClock(),
       });
-      return { ...counts, status: jobStatus };
+      return { held: false, replayed: false as const, ...counts, status: jobStatus };
     } catch (error) {
       await WhatsAppJobRunService.finish({
         runId: started.run.id,
