@@ -1137,16 +1137,11 @@ async function prepareSubmission(input: {
         try {
           const configuredCard = readWhatsAppRateCard(input.env);
           if (getWhatsAppRateCardStatus(configuredCard, submissionNow) === "EXPIRED") {
-            await WhatsAppIncidentService.createOrTouchInTransaction({
+            await WhatsAppIncidentService.recordRateCardExpiredInTransaction({
               tx,
               organizationId: message.organizationId,
-              branchId: message.branchId,
               senderId: message.senderId,
-              type: "RATE_CARD_EXPIRED",
-              severity: "CRITICAL",
-              dedupeKey: `sender:${message.senderId}:rate-card`,
-              safeCode: "RATE_CARD_EXPIRED",
-              details: { rateCardVersion: configuredCard.version },
+              rateCardVersion: configuredCard.version,
               now: submissionNow,
             });
           }

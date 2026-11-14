@@ -373,22 +373,28 @@ export class WhatsAppMaintenanceService {
         }
         if (expiredRateCardVersion) {
           const senders = await tx.whatsAppSender.findMany({
-            where: { status: "ACTIVE" },
+            where: {
+              status: "ACTIVE",
+              operationalIncidents: {
+                none: {
+                  type: "RATE_CARD_EXPIRED",
+                  status: { not: "RESOLVED" },
+                  messageId: null,
+                  details: { path: ["rateCardVersion"], equals: expiredRateCardVersion },
+                },
+              },
+            },
             orderBy: [{ id: "asc" }],
             take: limit,
             select: { id: true, organizationId: true },
           });
           if (senders.length === limit) counts.batchesAtLimit += 1;
           for (const sender of senders) {
-            await WhatsAppIncidentService.createOrTouchInTransaction({
+            await WhatsAppIncidentService.recordRateCardExpiredInTransaction({
               tx,
               organizationId: sender.organizationId,
               senderId: sender.id,
-              type: "RATE_CARD_EXPIRED",
-              severity: "CRITICAL",
-              dedupeKey: `sender:${sender.id}:rate-card`,
-              safeCode: "RATE_CARD_EXPIRED",
-              details: { rateCardVersion: expiredRateCardVersion },
+              rateCardVersion: expiredRateCardVersion,
               now,
             });
             counts.rateCardIncidents += 1;

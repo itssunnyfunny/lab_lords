@@ -110,6 +110,44 @@ function maskPhone(value: string) {
 }
 
 export class WhatsAppIncidentService {
+  static async recordRateCardExpiredInTransaction(input: {
+    tx: Prisma.TransactionClient;
+    organizationId: string;
+    senderId: string;
+    rateCardVersion: string;
+    now: Date;
+  }) {
+    const dedupeKey = `sender:${input.senderId}:rate-card`;
+    await input.tx.$executeRaw(Prisma.sql`
+      SELECT pg_advisory_xact_lock(hashtextextended(${dedupeKey}, 0))
+    `);
+    const existing = await input.tx.whatsAppOperationalIncident.findUnique({
+      where: { dedupeKey },
+    });
+    if (existing && (
+      existing.organizationId !== input.organizationId
+      || existing.senderId !== input.senderId
+      || existing.messageId !== null
+      || existing.type !== "RATE_CARD_EXPIRED"
+    )) throw new WhatsAppValidationError();
+
+    // New expiry incidents belong to the sender. Preserve the branch recorded
+    // by older dispatchers instead of rewriting historical evidence. The
+    // general helper still validates that branch's tenant and exact identity.
+    return this.createOrTouchInTransaction({
+      tx: input.tx,
+      organizationId: input.organizationId,
+      senderId: input.senderId,
+      branchId: existing?.branchId ?? null,
+      type: "RATE_CARD_EXPIRED",
+      severity: "CRITICAL",
+      dedupeKey,
+      safeCode: "RATE_CARD_EXPIRED",
+      details: { rateCardVersion: input.rateCardVersion },
+      now: input.now,
+    });
+  }
+
   static async createOrTouchInTransaction(input: {
     tx: Prisma.TransactionClient;
     organizationId: string;
