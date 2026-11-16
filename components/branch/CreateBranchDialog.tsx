@@ -4,9 +4,8 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
-import { Dialog } from "@/components/ui/Dialog";
-import { X, MapPin, Loader2, Phone, Plus, AlertCircle, AlertTriangle } from "lucide-react";
+import { AppButton, AppPanel, Dialog, FormField } from "@/components/ui";
+import { X, Plus, AlertCircle, AlertTriangle } from "lucide-react";
 import {
     SeatNumberingBuilder,
     createSimpleSeatNumbering,
@@ -15,16 +14,11 @@ import {
 import {
     formControlClass,
     formErrorBannerClass,
-    formHelpTextClass,
-    formIconClass,
-    formInlineControlClass,
-    formLabelClass,
-    formRequiredClass,
     formSurfaceClass,
     formWarningActionClass,
     formWarningBannerClass,
 } from "@/components/ui/formSurface";
-import { FieldError, fieldErrorClass, fieldErrorProps, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
+import { FieldError, fieldErrorClass, useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import {
     FORM_LIMITS,
@@ -79,6 +73,7 @@ const DEFAULT_SHIFTS: ShiftDraft[] = [
     { name: "Evening", startTime: "16:00", endTime: "21:59", price: 0 },
 ];
 
+const controlClassName = cn(formControlClass, "min-h-11 min-w-0 px-3 py-2 text-base sm:text-sm");
 
 export function CreateBranchDialog({
     isOpen,
@@ -326,33 +321,39 @@ export function CreateBranchDialog({
                 description={t("Set up a new location under this organization.")}
                 closeLabel={t("Close create branch dialog")}
                 closeDisabled={loading}
-                className="max-w-lg"
+                density="compact"
+                className="flex max-w-3xl flex-col overflow-hidden"
+                contentClassName="min-h-0 overflow-y-auto"
                 footer={(
                     <>
-                        <Button variant="ghost" onClick={handleClose} disabled={loading}>
-                            {t("Cancel")}</Button>
-                        <Button
-                            onClick={handleSubmit}
+                        <AppButton density="compact" variant="quiet" onClick={handleClose} disabled={loading}>
+                            {t("Cancel")}
+                        </AppButton>
+                        <AppButton
+                            density="compact"
+                            variant="primary"
+                            type="submit"
+                            form="create-branch-form"
                             disabled={loading}
-                            className="min-w-[130px] justify-center"
+                            isLoading={loading}
                         >
-                            {loading ? (
-                                <><Loader2 size={14} className="mr-2 animate-spin" aria-hidden="true" />  {t("Creating...")}</>
-                            ) : (
-                                t("Create Branch")
-                            )}
-                        </Button>
+                            {loading ? t("Creating...") : t("Create Branch")}
+                        </AppButton>
                     </>
                 )}
             >
-                <div className="space-y-5" aria-describedby={error ? "create-branch-submit-error" : undefined}>
-                    {/* Branch Name */}
-                    <div className="space-y-1.5">
-                        <label htmlFor="create-branch-name" className={formLabelClass}>
-                            {t("Branch Name")} <span className={formRequiredClass}>*</span>
-                        </label>
-                        <div className="relative">
-                            <MapPin className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={16} aria-hidden="true" />
+                <form
+                    id="create-branch-form"
+                    noValidate
+                    className="space-y-4"
+                    aria-describedby={error ? "create-branch-submit-error" : undefined}
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!loading) void handleSubmit();
+                    }}
+                >
+                    <AppPanel density="compact" title={t("Branch details")} contentClassName="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <FormField label={t("Branch Name")} required error={nameError} className="min-w-0 sm:col-span-2">
                             <input
                                 id="create-branch-name"
                                 type="text"
@@ -363,19 +364,11 @@ export function CreateBranchDialog({
                                 placeholder={t("e.g. Main Branch, Downtown")}
                                 data-dialog-initial-focus
                                 maxLength={120}
-                                className={cn(formControlClass, "py-2.5 pl-9 pr-4 text-sm", fieldErrorClass(nameError))}
-                                {...fieldErrorProps("create-branch-name-error", nameError)}
+                                disabled={loading}
+                                className={cn(controlClassName, fieldErrorClass(nameError))}
                             />
-                        </div>
-                        <FieldError id="create-branch-name-error" error={nameError} />
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <label htmlFor="create-branch-contact-phone" className={formLabelClass}>
-                            {t("Contact Phone")} <span className={formRequiredClass}>*</span>
-                        </label>
-                        <div className="relative">
-                            <Phone className={cn("absolute left-3 top-1/2 -translate-y-1/2", formIconClass)} size={16} aria-hidden="true" />
+                        </FormField>
+                        <FormField label={t("Contact Phone")} required error={contactPhoneError} className="min-w-0">
                             <input
                                 id="create-branch-contact-phone"
                                 type="tel"
@@ -384,19 +377,11 @@ export function CreateBranchDialog({
                                 onChange={handleChange}
                                 onBlur={() => markTouched("contactPhone")}
                                 placeholder="+91 98765 43210"
-                                className={cn(formControlClass, "py-2.5 pl-9 pr-4 text-sm", fieldErrorClass(contactPhoneError))}
-                                {...fieldErrorProps("create-branch-contact-phone-error", contactPhoneError)}
+                                disabled={loading}
+                                className={cn(controlClassName, fieldErrorClass(contactPhoneError))}
                             />
-                        </div>
-                        <FieldError id="create-branch-contact-phone-error" error={contactPhoneError} />
-                    </div>
-
-                    {/* City + Seats */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                            <label htmlFor="create-branch-city" className={formLabelClass}>
-                                {t("City / Area")} <span className={formHelpTextClass}>{t("(Optional)")}</span>
-                            </label>
+                        </FormField>
+                        <FormField label={t("City / Area")} description={t("(Optional)")} error={cityError} className="min-w-0">
                             <input
                                 id="create-branch-city"
                                 type="text"
@@ -406,186 +391,173 @@ export function CreateBranchDialog({
                                 onBlur={() => markTouched("city")}
                                 placeholder={t("e.g. Mumbai")}
                                 maxLength={FORM_LIMITS.cityMax}
-                                className={cn(formControlClass, "px-4 py-2.5 text-sm", fieldErrorClass(cityError))}
-                                {...fieldErrorProps("create-branch-city-error", cityError)}
+                                disabled={loading}
+                                className={cn(controlClassName, fieldErrorClass(cityError))}
                             />
-                            <FieldError id="create-branch-city-error" error={cityError} />
+                        </FormField>
+                    </AppPanel>
+
+                    <AppPanel density="compact" title={t("Seats")} contentClassName="space-y-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <FormField label={t("Total Seats")} required error={seatCountError} className="min-w-0">
+                                <input
+                                    id="create-branch-seat-count"
+                                    type="number"
+                                    name="seatCount"
+                                    value={formData.seatCount}
+                                    onChange={handleChange}
+                                    onBlur={() => markTouched("seatCount")}
+                                    placeholder="e.g. 50"
+                                    min="1"
+                                    max={FORM_LIMITS.seatsMax}
+                                    step="1"
+                                    inputMode="numeric"
+                                    disabled={loading}
+                                    className={cn(controlClassName, fieldErrorClass(seatCountError))}
+                                />
+                            </FormField>
+                            <FormField label={`${t("Default Monthly Fee")} (₹)`} description={t("(Optional)")} error={defaultFeeError} className="min-w-0">
+                                <input
+                                    id="create-branch-default-fee"
+                                    type="number"
+                                    name="defaultFee"
+                                    value={formData.defaultFee}
+                                    onChange={handleChange}
+                                    onBlur={() => markTouched("defaultFee")}
+                                    placeholder="₹ 1500"
+                                    min="0"
+                                    max={FORM_LIMITS.moneyMax}
+                                    step="1"
+                                    inputMode="numeric"
+                                    disabled={loading}
+                                    className={cn(controlClassName, fieldErrorClass(defaultFeeError))}
+                                />
+                            </FormField>
                         </div>
-                        <div className="space-y-1.5">
-                            <label htmlFor="create-branch-seat-count" className={formLabelClass}>
-                                {t("Total Seats")} <span className={formRequiredClass}>*</span>
-                            </label>
-                            <input
-                                id="create-branch-seat-count"
-                                type="number"
-                                name="seatCount"
-                                value={formData.seatCount}
-                                onChange={handleChange}
-                                onBlur={() => markTouched("seatCount")}
-                                placeholder="e.g. 50"
-                                min="1"
-                                max={FORM_LIMITS.seatsMax}
-                                step="1"
-                                inputMode="numeric"
-                                className={cn(formControlClass, "px-4 py-2.5 text-sm", fieldErrorClass(seatCountError))}
-                                {...fieldErrorProps("create-branch-seat-count-error", seatCountError)}
+                        <fieldset className="min-w-0 space-y-3" aria-describedby={seatNumberingError ? "create-branch-seat-numbering-error" : undefined}>
+                            <legend className="text-sm font-medium text-[color:var(--ui-form-label)]">{t("Seat numbering")}</legend>
+                            <SeatNumberingBuilder
+                                value={formData.seatNumbering as SeatNumberingConfig}
+                                expectedCount={seatCountPreview}
+                                onChange={(seatNumbering) => {
+                                    markTouched("seatNumbering");
+                                    setFormData(prev => ({ ...prev, seatNumbering }));
+                                }}
+                                disabled={loading}
                             />
-                            <FieldError id="create-branch-seat-count-error" error={seatCountError} />
-                        </div>
-                    </div>
+                            <FieldError id="create-branch-seat-numbering-error" error={seatNumberingError} />
+                        </fieldset>
+                    </AppPanel>
 
-                    <div
-                        className="space-y-2"
-                        role="group"
-                        aria-labelledby="create-branch-seat-numbering-label"
-                        aria-describedby={seatNumberingError ? "create-branch-seat-numbering-error" : undefined}
-                    >
-                        <p id="create-branch-seat-numbering-label" className={formLabelClass}>{t("Seat numbering")}</p>
-                        <SeatNumberingBuilder
-                            value={formData.seatNumbering as SeatNumberingConfig}
-                            expectedCount={seatCountPreview}
-                            onChange={(seatNumbering) => {
-                                markTouched("seatNumbering");
-                                setFormData(prev => ({ ...prev, seatNumbering }));
-                            }}
-                            disabled={loading}
-                        />
-                        <FieldError id="create-branch-seat-numbering-error" error={seatNumberingError} />
-                    </div>
-
-                    {/* Default Monthly Fee */}
-                    <div className="space-y-1.5">
-                        <label htmlFor="create-branch-default-fee" className={formLabelClass}>
-                            {t("Default Monthly Fee")} <span className={formHelpTextClass}>{t("(Optional)")}</span>
-                        </label>
-                        <div className="relative">
-                            <span className={cn("absolute left-3 top-1/2 -translate-y-1/2 text-sm", formIconClass)}>₹</span>
-                            <input
-                                id="create-branch-default-fee"
-                                type="number"
-                                name="defaultFee"
-                                value={formData.defaultFee}
-                                onChange={handleChange}
-                                onBlur={() => markTouched("defaultFee")}
-                                placeholder="e.g. 1500"
-                                min="0"
-                                max={FORM_LIMITS.moneyMax}
-                                step="1"
-                                inputMode="numeric"
-                                className={cn(formControlClass, "py-2.5 pl-7 pr-4 text-sm", fieldErrorClass(defaultFeeError))}
-                                {...fieldErrorProps("create-branch-default-fee-error", defaultFeeError)}
-                            />
-                        </div>
-                        <FieldError id="create-branch-default-fee-error" error={defaultFeeError} />
-                    </div>
-
-                    {/* Shifts */}
-                    <div
-                        className="space-y-2"
-                        role="group"
-                        aria-labelledby="create-branch-shifts-label"
+                    <AppPanel
+                        density="compact"
+                        title={t("Shifts & Pricing")}
+                        action={(
+                            <AppButton type="button" density="compact" variant="secondary" icon={Plus} onClick={addShift} disabled={loading}>
+                                {t("Add Shift")}
+                            </AppButton>
+                        )}
+                        contentClassName="space-y-3"
                         aria-describedby={shiftsError ? "create-branch-shifts-error" : undefined}
                     >
-                        <div className="flex items-center justify-between">
-                            <p id="create-branch-shifts-label" className={formLabelClass}>{t("Shifts & Pricing")}</p>
-                            <button
-                                type="button"
-                                onClick={addShift}
-                                className="flex items-center gap-1 text-xs text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)]"
-                            >
-                                <Plus size={12} aria-hidden="true" />  {t("Add Shift")}</button>
-                        </div>
-
-                        <div className="space-y-3">
-                            {shifts.map((shift, idx) => (
-                                <div key={idx} className="flex flex-col gap-1">
-                                <div className={cn("flex flex-col gap-2 p-3 sm:flex-row sm:items-center", formSurfaceClass)}>
-                                    <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-12 sm:items-center">
-                                        <div className="col-span-2 sm:col-span-4">
-                                            <input
-                                                type="text"
-                                                aria-label={`Shift ${idx + 1} name`}
-                                                placeholder={t("Name")}
-                                                value={shift.name}
-                                                onChange={(e) => handleShiftChange(idx, "name", e.target.value)}
-                                                className={cn(formInlineControlClass, "py-1 text-xs")}
-                                            />
-                                        </div>
-                                        <div className="col-span-1 sm:col-span-3">
-                                            <input
-                                                type="time"
-                                                aria-label={`Shift ${idx + 1} start time`}
-                                                value={shift.startTime}
-                                                onChange={(e) => handleShiftChange(idx, "startTime", e.target.value)}
-                                                className={cn(formInlineControlClass, "py-1 text-xs")}
-                                            />
-                                        </div>
-                                        <div className="col-span-1 sm:col-span-3">
-                                            <input
-                                                type="time"
-                                                aria-label={`Shift ${idx + 1} end time`}
-                                                value={shift.endTime}
-                                                onChange={(e) => handleShiftChange(idx, "endTime", e.target.value)}
-                                                className={cn(formInlineControlClass, "py-1 text-xs")}
-                                            />
-                                        </div>
-                                        <div className="col-span-2 relative sm:col-span-2">
-                                            <span className={cn("absolute left-0 top-1 text-xs", formIconClass)}>₹</span>
-                                            <input
-                                                type="number"
-                                                aria-label={`Shift ${idx + 1} monthly price`}
-                                                placeholder="0"
-                                                value={shift.price}
-                                                onChange={(e) => handleShiftChange(idx, "price", e.target.value)}
-                                                min={0}
-                                                max={FORM_LIMITS.moneyMax}
-                                                step={1}
-                                                inputMode="numeric"
-                                                className={cn(formInlineControlClass, "py-1 pl-3 text-xs")}
-                                            />
-                                        </div>
-                                    </div>
+                        {shifts.map((shift, idx) => (
+                            <div key={idx} className={cn("space-y-3 p-3", formSurfaceClass)}>
+                                <div className="flex items-center justify-between gap-3">
+                                    <h3 className="text-sm font-medium text-[color:var(--ui-form-label)]">{t("Shift {number}", { number: idx + 1 })}</h3>
                                     {shifts.length > 1 && (
-                                        <button
+                                        <AppButton
                                             type="button"
+                                            density="compact"
+                                            variant="quiet"
+                                            icon={X}
                                             onClick={() => removeShift(idx)}
-                                            aria-label={`Remove shift ${shift.name || idx + 1}`}
-                                            className={cn("flex-shrink-0 self-end transition-colors hover:text-[color:var(--ui-form-error-text)] sm:ml-1 sm:self-auto", formHelpTextClass)}
+                                            disabled={loading}
+                                            aria-label={t("Remove shift {name}", { name: shift.name || idx + 1 })}
                                         >
-                                            <X size={14} aria-hidden="true" />
-                                        </button>
+                                            {t("Remove shift")}
+                                        </AppButton>
                                     )}
                                 </div>
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <FormField label={t("Name")} className="min-w-0">
+                                        <input
+                                            id={`create-branch-shift-${idx}-name`}
+                                            type="text"
+                                            aria-label={t("Shift {number} name", { number: idx + 1 })}
+                                            placeholder={t("Name")}
+                                            value={shift.name}
+                                            onChange={(event) => handleShiftChange(idx, "name", event.target.value)}
+                                            disabled={loading}
+                                            className={controlClassName}
+                                        />
+                                    </FormField>
+                                    <FormField label={`${t("Monthly price")} (₹)`} className="min-w-0">
+                                        <input
+                                            id={`create-branch-shift-${idx}-price`}
+                                            type="number"
+                                            aria-label={t("Shift {number} monthly price", { number: idx + 1 })}
+                                            placeholder="₹ 0"
+                                            value={shift.price}
+                                            onChange={(event) => handleShiftChange(idx, "price", event.target.value)}
+                                            min={0}
+                                            max={FORM_LIMITS.moneyMax}
+                                            step={1}
+                                            inputMode="numeric"
+                                            disabled={loading}
+                                            className={controlClassName}
+                                        />
+                                    </FormField>
+                                    <FormField label={t("Start time")} className="min-w-0">
+                                        <input
+                                            id={`create-branch-shift-${idx}-start`}
+                                            type="time"
+                                            aria-label={t("Shift {number} start time", { number: idx + 1 })}
+                                            value={shift.startTime}
+                                            onChange={(event) => handleShiftChange(idx, "startTime", event.target.value)}
+                                            disabled={loading}
+                                            className={controlClassName}
+                                        />
+                                    </FormField>
+                                    <FormField label={t("End time")} className="min-w-0">
+                                        <input
+                                            id={`create-branch-shift-${idx}-end`}
+                                            type="time"
+                                            aria-label={t("Shift {number} end time", { number: idx + 1 })}
+                                            value={shift.endTime}
+                                            onChange={(event) => handleShiftChange(idx, "endTime", event.target.value)}
+                                            disabled={loading}
+                                            className={controlClassName}
+                                        />
+                                    </FormField>
+                                </div>
                                 {overlaps.has(idx) && (
-                                    <div className={cn("mt-1 flex flex-col gap-1.5 px-3 py-2 text-xs", formWarningBannerClass)}>
-                                        <div className="flex items-center gap-1.5">
-                                            <AlertTriangle size={12} aria-hidden="true" />
+                                    <div className={cn("flex flex-col gap-2 px-3 py-2 text-sm", formWarningBannerClass)}>
+                                        <div className="flex items-center gap-2">
+                                            <AlertTriangle size={16} className="shrink-0" aria-hidden="true" />
                                             <span>{overlaps.get(idx)!.text}</span>
                                         </div>
-                                        <div className="flex flex-col gap-2 sm:flex-row">
-                                            <button type="button" onClick={() => handleShiftChange(overlaps.get(idx)!.fix1.idx, overlaps.get(idx)!.fix1.field, overlaps.get(idx)!.fix1.val)} className={cn("px-2 py-1", formWarningActionClass)}>
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                            <button type="button" disabled={loading} onClick={() => handleShiftChange(overlaps.get(idx)!.fix1.idx, overlaps.get(idx)!.fix1.field, overlaps.get(idx)!.fix1.val)} className={cn("min-h-11 px-3 py-2", formWarningActionClass)}>
                                                 {overlaps.get(idx)!.fix1.label}
                                             </button>
-                                            <button type="button" onClick={() => handleShiftChange(overlaps.get(idx)!.fix2.idx, overlaps.get(idx)!.fix2.field, overlaps.get(idx)!.fix2.val)} className={cn("px-2 py-1", formWarningActionClass)}>
+                                            <button type="button" disabled={loading} onClick={() => handleShiftChange(overlaps.get(idx)!.fix2.idx, overlaps.get(idx)!.fix2.field, overlaps.get(idx)!.fix2.val)} className={cn("min-h-11 px-3 py-2", formWarningActionClass)}>
                                                 {overlaps.get(idx)!.fix2.label}
                                             </button>
                                         </div>
                                     </div>
                                 )}
-                                </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                         <FieldError id="create-branch-shifts-error" error={shiftsError} />
-                    </div>
+                    </AppPanel>
 
-                    {/* Error */}
                     {error && (
                         <div id="create-branch-submit-error" role="alert" className={cn("flex items-center gap-2 px-3 py-2 text-sm", formErrorBannerClass)}>
                             <AlertCircle size={14} aria-hidden="true" />
                             <LocalizedError error={error} />
                         </div>
                     )}
-                </div>
+                </form>
             </Dialog>
         </>
     );

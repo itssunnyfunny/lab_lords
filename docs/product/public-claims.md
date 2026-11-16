@@ -1,5 +1,14 @@
 # Public wording and feature claims
 
+## Branch setup form correction — local, 2026-11-16
+
+**No marketing change needed.** Home, Features, Pricing and FAQ retain their
+approved wording. Branch creation and the shared seat-numbering editor receive
+presentation/accessibility corrections only: no new workflow, plan entitlement,
+price, provider guarantee or availability claim. Local verification and pending
+owner review/release are tracked in the
+[migration ledger](../redesign/page-family-migration.md).
+
 ## WhatsApp audit and controls — local, 2026-11-13
 
 Home, Features, Pricing and FAQ retain their approved conditional WhatsApp

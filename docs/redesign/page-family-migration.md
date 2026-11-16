@@ -1,5 +1,117 @@
 # Application page-family migration
 
+## Branch and seat setup forms — local, 2026-11-16
+
+Families H/G/C: organization Add Branch retained a narrow unsectioned form and
+tiny underline-only shift fields. It now uses compact Dialog/AppPanel/FormField
+owners with Branch details, Seats and Shifts & Pricing sections, full outlined
+controls, visible currency labels, translated shift labels and responsive grids.
+The shared SeatNumberingBuilder correction reaches onboarding and Add Seats.
+Native form submission retains inline validation; editing is disabled while the
+existing create request is pending. Dialog's optional `contentClassName` keeps
+this form's scrolling fields separate from its stationary header/footer; this
+also prevents blur-time error messages moving Create Branch during a pointer
+click. Other dialogs retain their defaults. The shared dialog still owns focus
+and dismissal. Validation, defaults, range generation, overlap checks, API payloads,
+idempotency keys, activation/checkout handling and server authorization are
+unchanged. No schema, migration, dependency or saved environment change is needed.
+
+Other reviewed forms already use the current owners: Organization Settings,
+Account Preferences, onboarding main fields, Students, Staff, Tasks, Attendance,
+fee collection and Shift/Bundle dialogs. Add Seats' existing outer mode choices
+are token-based and remain unchanged. No general form/palette rewrite was made.
+Home, Features, Pricing and FAQ need no marketing copy change.
+
+Local verification uses only synthetic browser data and the guarded unit suite.
+Commands and results:
+
+- `pnpm lint`: passed, zero errors; two existing unused-disable warnings in
+  generated workflow/coverage JavaScript.
+- `pnpm exec tsc --noEmit`: passed.
+- `pnpm exec node node_modules/vitest/vitest.mjs run --config tests/shared-system/vitest.config.ts --maxWorkers=1`:
+  29 files / 181 tests passed. The initial sandbox temp-directory rename failed
+  before tests ran; rerunning with process-only TEMP/TMP set to the workspace's
+  `test-results/branch-form-temp` fixed it. No saved environment was changed.
+- After adding the optional Dialog content slot,
+  `pnpm exec node node_modules/vitest/vitest.mjs run --config tests/shared-system/vitest.config.ts tests/unit/components/record-pattern.test.tsx tests/unit/lib/localization.test.ts --maxWorkers=1`:
+  2 files / 17 tests passed with the same temporary-directory override.
+- `pnpm exec node tests/shared-system/check-presentation.mjs HEAD`: passed.
+- `git diff --check`: passed.
+- `pnpm exec node scripts/verify-offline-build.mjs`: passed production build,
+  TypeScript, 76 static pages and the two-workflow manifest check. The connected
+  wrapper (`pnpm exec node tests/dashboard-connected/start-local.mjs build`)
+  stopped at its unavailable verified Docker container; no database fallback
+  was attempted. The existing offline wrapper uses an unreachable local database
+  and disables provider writes. Its sandboxed attempt stalled; the successful
+  run used automatic tool approval outside the sandbox.
+- Final catalogue-only follow-up:
+  `pnpm exec node node_modules/vitest/vitest.mjs run --config tests/shared-system/vitest.config.ts tests/unit/lib/localization.test.ts --maxWorkers=1`:
+  7 tests passed, including placeholder parity for the new shift labels/error.
+
+Browser commands use process-only
+`PILOT_FONT_STATIC_ROOT=test-results/whatsapp-audit-2026-11-13/fonts` (captured
+self-hosted assets through the existing loader) and
+`PLAYWRIGHT_REVIEW_EVIDENCE_DIR=test-results/branch-form-review`. The local fixture
+server could not be reached in the sandbox; automatically approved runs outside
+it retain the same synthetic-only API and provider boundaries.
+
+`pnpm exec node node_modules/@playwright/test/cli.js test --config tests/shared-system/playwright.config.ts workspace-entry-family.spec.ts guided-family.spec.ts seats-shifts-family.spec.ts shared-system.spec.ts --grep 'create branch keeps|translated branch forms|real organization selection|Hindi and Hinglish workspace|overview retains|empty organization directory|onboarding keeps|guided entry|seat map|gallery renders'`
+passed 30 checks with 6 intentional desktop-only skips; four new branch tests
+identified a missing owned overlap-error translation and a test expectation
+that incorrectly expected an arbitrary synthetic server error to be exposed.
+The overlap error is now catalogued; unknown errors retain their generic safe
+message. The focused rerun verifies those corrections:
+
+`pnpm exec node node_modules/@playwright/test/cli.js test --config tests/shared-system/playwright.config.ts workspace-entry-family.spec.ts --grep 'create branch keeps'`:
+4/4 passed at 1440, 834, 390 and 320px. Together the final affected checks are
+34 passed / 6 intentional skips. English/Hindi/Hinglish screenshots are in
+`test-results/workspace-entry-evidence/create-branch-*.png`; local desktop and
+phone captures were visually inspected. Screenshots are synthetic presentation
+evidence, not connected authorization/provider verification.
+
+New browser assertions
+cover required-field errors on the first pointer submit, custom seat-count
+validation, shift editing/overlaps, failed-submit draft preservation, normalized
+payloads and stable retry keys, success reset, focus restoration, 44px fields,
+16px phone input text and English/Hindi/Hinglish overflow checks. The initial
+broader run also found an unrelated existing tablet import-history selector
+expectation (`All imports` button versus the rendered history link). The
+test-only follow-up below resolves it; the application workflow is unchanged.
+
+Owner visual acceptance is pending. Source publication is separate from
+deployment and release confirmation; the checks above establish local evidence.
+
+### Tablet import test follow-up — local, 2026-11-16
+
+`guided-family.spec.ts` previously treated every project not named `mobile*` as
+desktop. At 834px the intended `lg` breakpoint hides the wizard's All imports
+button and exposes ContextualBackLink's Back to import history link. The test
+now selects the accessible history link/button union, requires exactly one
+visible enabled action and verifies its destination. Read-only confirmation
+remains disabled, and error recovery/console-error assertions are preserved.
+Only the browser test and this evidence record change in this follow-up. No
+runtime, domain, schema, migration, dependency or saved environment changes;
+Home, Features, Pricing and FAQ need no marketing change.
+
+Verification uses the existing synthetic fixture, captured self-hosted fonts
+and process-only overrides from the branch checks above, with
+`PLAYWRIGHT_REVIEW_EVIDENCE_DIR=test-results/tablet-import-review` to preserve
+historical captures. No database or external provider was used.
+
+- `pnpm exec node node_modules/@playwright/test/cli.js test --config tests/shared-system/playwright.config.ts guided-family.spec.ts --project=tablet-834 --grep 'import review handles'`:
+  passed, 1/1.
+- `pnpm exec node node_modules/@playwright/test/cli.js test --config tests/shared-system/playwright.config.ts guided-family.spec.ts`:
+  passed, 20/20 with no skips or retries at 1440, 834, 390 and 320px, including
+  onboarding validation/localization, invitation states, import staging/retry
+  and read-only import history navigation.
+- `pnpm exec eslint tests/application-design-pilot/guided-family.spec.ts`:
+  passed, no warnings.
+- `git diff --check`: passed.
+
+No production build or application unit rerun is needed for this test-selector
+and evidence-only correction; the prior application build/unit results remain
+recorded above.
+
 ## WhatsApp settings controls — local, 2026-11-13
 
 Family E's branch and organization WhatsApp panels reuse SettingsField,

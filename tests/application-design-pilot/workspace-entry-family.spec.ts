@@ -178,3 +178,121 @@ test("an empty organization directory keeps the onboarding destination", async (
     await page.goto("/org?mode=after&lang=en");
     await expect(page).toHaveURL(/\/onboarding$/);
 });
+
+test("create branch keeps validation, seat ranges and retry identity across the responsive form", async ({ page }, info) => {
+    await installOrgFixtures(page);
+    const requests: Array<{ key: string | undefined; body: Record<string, unknown> }> = [];
+    await page.route(/\/api\/branches$/, async route => {
+        expect(route.request().method()).toBe("POST");
+        requests.push({
+            key: route.request().headers()["idempotency-key"],
+            body: route.request().postDataJSON(),
+        });
+        await route.fulfill(requests.length === 1
+            ? { status: 503, json: { error: "Synthetic branch create failure" } }
+            : { status: 201, json: { id: "created-branch", name: "Synthetic Library", action: "NONE" } });
+    });
+    await page.goto("/org/org-pilot?mode=after&lang=en");
+    const open = page.getByRole("button", { name: "Create branch", exact: true }).first();
+    await open.click();
+    const dialog = page.getByRole("dialog", { name: "Create new branch" });
+    const submit = dialog.getByRole("button", { name: "Create Branch", exact: true });
+    await expect(dialog.locator("#create-branch-name")).toBeFocused();
+    await submit.click();
+    for (const id of ["name", "contact-phone", "seat-count"]) {
+        await expect(dialog.locator(`#create-branch-${id}`)).toHaveAttribute("aria-invalid", "true");
+    }
+    expect(requests).toHaveLength(0);
+
+    await dialog.locator("#create-branch-name").fill("  Synthetic Library  ");
+    await dialog.locator("#create-branch-contact-phone").fill("9876543210");
+    await dialog.locator("#create-branch-city").fill("Indore");
+    await dialog.locator("#create-branch-seat-count").fill("4");
+    await dialog.locator("#create-branch-default-fee").fill("1900");
+    await dialog.getByRole("button", { name: "Custom ranges", exact: true }).click();
+    await dialog.getByRole("spinbutton", { name: "Range 1 end", exact: true }).fill("3");
+    await submit.click();
+    await expect(dialog.locator("#create-branch-seat-numbering-error")).toHaveText("Seat labels total 3, but physical seats is 4.");
+    expect(requests).toHaveLength(0);
+    await dialog.getByRole("spinbutton", { name: "Range 1 end", exact: true }).fill("4");
+    await expect(dialog.getByText("A4", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Add range", exact: true }).click();
+    await expect(dialog.getByRole("textbox", { name: "Range 2 prefix", exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Remove range", exact: true }).last().click();
+    await expect(dialog.getByRole("textbox", { name: "Range 2 prefix", exact: true })).toHaveCount(0);
+
+    await dialog.getByRole("button", { name: "Add Shift", exact: true }).click();
+    await dialog.getByRole("textbox", { name: "Shift 4 name", exact: true }).fill("Late");
+    await dialog.getByRole("button", { name: "Remove shift Late", exact: true }).click();
+    await expect(dialog.getByRole("textbox", { name: "Shift 4 name", exact: true })).toHaveCount(0);
+    await dialog.getByLabel("Shift 1 end time", { exact: true }).fill("10:30");
+    await submit.click();
+    await expect(dialog.locator("#create-branch-shifts-error")).toContainText("Resolve all shift time overlaps");
+    expect(requests).toHaveLength(0);
+    await dialog.getByLabel("Shift 1 end time", { exact: true }).fill("09:59");
+    await dialog.getByRole("spinbutton", { name: "Shift 1 monthly price", exact: true }).fill("700");
+
+    const geometry = await dialog.evaluate(element => ({
+        overflow: element.scrollWidth > element.clientWidth + 1,
+        controls: Array.from(element.querySelectorAll("input")).map(input => ({
+            height: input.getBoundingClientRect().height,
+            fontSize: parseFloat(getComputedStyle(input).fontSize),
+        })),
+    }));
+    expect(geometry.overflow).toBe(false);
+    for (const control of geometry.controls) {
+        expect(control.height).toBeGreaterThanOrEqual(44);
+        if (info.project.name.startsWith("mobile")) expect(control.fontSize).toBeGreaterThanOrEqual(16);
+    }
+    await dialog.locator("#create-branch-form").evaluate(element => { element.parentElement!.scrollTop = 0; });
+    await page.screenshot({ path: screenshotPath(`create-branch-${info.project.name}.png`), animations: "disabled" });
+    await submit.click();
+    await expect(dialog.locator("#create-branch-submit-error")).toHaveText("Something went wrong. Try again.");
+    expect(requests).toHaveLength(1);
+    expect(requests[0].key).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(requests[0].body).toEqual({
+        organizationId: "org-pilot",
+        name: "Synthetic Library",
+        contactPhone: "+91 98765 43210",
+        city: "Indore",
+        seatCount: 4,
+        seatNumbering: { mode: "RANGE", ranges: [{ prefix: "A", start: 1, end: 4, separator: "" }] },
+        defaultFee: 1900,
+        shifts: [
+            { name: "Morning", startTime: "06:00", endTime: "09:59", price: 700 },
+            { name: "Afternoon", startTime: "10:00", endTime: "15:59", price: 0 },
+            { name: "Evening", startTime: "16:00", endTime: "21:59", price: 0 },
+        ],
+    });
+    await expect(dialog.locator("#create-branch-name")).toHaveValue("  Synthetic Library  ");
+    await submit.click();
+    await expect(dialog).toHaveCount(0);
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toEqual(requests[0]);
+    await open.click();
+    await expect(dialog.locator("#create-branch-name")).toHaveValue("");
+    await expect(dialog.getByRole("button", { name: "Default", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Escape");
+    await expect(open).toBeFocused();
+});
+
+test("translated branch forms and custom ranges fit the dialog without horizontal scrolling", async ({ page }, info) => {
+    await installOrgFixtures(page);
+    for (const [language, createLabel, customRanges] of [
+        ["hi", "ब्रांच बनाएँ", "अपनी नंबर रेंज"],
+        ["hinglish", "Branch banayein", "Apni number ranges"],
+    ]) {
+        await page.goto(`/org/org-pilot?mode=after&lang=${language}`);
+        await page.getByRole("button", { name: createLabel, exact: true }).first().click();
+        const dialog = page.getByRole("dialog");
+        await dialog.locator("#create-branch-seat-count").fill("4");
+        await dialog.getByRole("button", { name: customRanges, exact: true }).click();
+        await expect(dialog.locator("input[aria-label]").first()).toBeVisible();
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+        await expectNoHorizontalOverflow(page);
+        await dialog.locator("#create-branch-form").evaluate(element => { element.parentElement!.scrollTop = 0; });
+        await page.screenshot({ path: screenshotPath(`create-branch-${language}-${info.project.name}.png`), animations: "disabled" });
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+    }
+});
