@@ -242,9 +242,11 @@ test("import review handles load failure and read-only staged data", async ({ pa
     await page.goto(`${sessionPath}?mode=after&lang=en&role=readonly`);
     await expect(page.getByText("Import changes are disabled.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirm columns" })).toBeDisabled();
-    const history = info.project.name.startsWith("mobile")
-        ? page.getByRole("link", { name: "Back to import history", exact: true })
-        : page.getByRole("button", { name: "All imports", exact: true });
+    // Tablet uses the compact link too; select the accessible action, not a project-name heuristic.
+    const history = page.getByRole("link", { name: "Back to import history", exact: true })
+        .or(page.getByRole("button", { name: "All imports", exact: true }));
+    await expect(history).toHaveCount(1);
+    await expect(history).toBeVisible();
     await expect(history).toBeEnabled();
     await history.click();
     await expect(page).toHaveURL(/\/branch\/pilot\/onboarding\/import$/);

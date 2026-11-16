@@ -3,12 +3,10 @@ import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { Hash, Plus, Trash2 } from "lucide-react";
-import { AppSelect } from "@/components/ui";
+import { AppButton, AppSelect, FormField } from "@/components/ui";
 import {
     formControlClass,
     formHelpTextClass,
-    formInlineControlClass,
-    formLabelClass,
     formSurfaceClass,
 } from "@/components/ui/formSurface";
 import {
@@ -140,39 +138,30 @@ export function SeatNumberingBuilder({
     return (
         <div className={cn("space-y-3", className)}>
             <div className="flex flex-wrap gap-2">
-                <button
+                <AppButton
                     type="button"
+                    density="compact"
+                    variant={value.mode === "SIMPLE" ? "primary" : "secondary"}
+                    icon={Hash}
                     disabled={disabled}
                     onClick={() => switchMode("SIMPLE")}
-                    className={cn(
-                        "inline-flex min-h-11 items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
-                        value.mode === "SIMPLE"
-                            ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
-                            : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--ui-form-help)] hover:border-[color:var(--ui-form-input-border)]"
-                    )}
                     aria-pressed={value.mode === "SIMPLE"}
                 >
-                    <Hash size={15} />
-                    {t("Default")}</button>
-                <button
+                    {t("Default")}</AppButton>
+                <AppButton
                     type="button"
+                    density="compact"
+                    variant={value.mode === "RANGE" ? "primary" : "secondary"}
+                    icon={Hash}
                     disabled={disabled}
                     onClick={() => switchMode("RANGE")}
-                    className={cn(
-                        "inline-flex min-h-11 items-center gap-2 rounded-[var(--ui-radius-control)] border px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]",
-                        value.mode === "RANGE"
-                            ? "border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] text-[color:var(--ui-badge-cyan-text)]"
-                            : "border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] text-[color:var(--ui-form-help)] hover:border-[color:var(--ui-form-input-border)]"
-                    )}
                     aria-pressed={value.mode === "RANGE"}
                 >
-                    <Hash size={15} />
-                    {t("Custom ranges")}</button>
+                    {t("Custom ranges")}</AppButton>
             </div>
 
             {value.mode === "SIMPLE" && expectedCount === undefined && (
-                <div className="max-w-xs space-y-1.5">
-                    <label className={formLabelClass}>{t("Seat count")}</label>
+                <FormField label={t("Seat count")} className="min-w-0 max-w-xs">
                     <input
                         aria-label={t("Seat count")}
                         type="number"
@@ -183,18 +172,17 @@ export function SeatNumberingBuilder({
                         disabled={disabled}
                         value={value.count}
                         onChange={(event) => updateSimpleCount(event.target.value)}
-                        className={cn(formControlClass, "px-3 py-2 text-sm")}
+                        className={cn(formControlClass, "min-h-11 min-w-0 px-3 py-2 text-base sm:text-sm")}
                     />
-                </div>
+                </FormField>
             )}
 
             {value.mode === "RANGE" && (
                 <div className="space-y-3">
                     {value.ranges.map((range, index) => (
                         <div key={index} className={cn("space-y-3 p-3", formSurfaceClass)}>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-12">
-                                <div className="col-span-2 sm:col-span-3">
-                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Prefix")}</label>
+                            <div className="grid grid-cols-2 items-end gap-3 sm:grid-cols-3">
+                                <FormField label={t("Prefix")} className="col-span-2 min-w-0 sm:col-span-1">
                                     <input
                                         aria-label={t("Range {number} prefix", { number: index + 1 })}
                                         type="text"
@@ -202,12 +190,11 @@ export function SeatNumberingBuilder({
                                         value={range.prefix}
                                         maxLength={16}
                                         onChange={(event) => updateRange(index, { prefix: event.target.value })}
-                                        className={cn(formInlineControlClass, "py-1 text-xs")}
+                                        className={cn(formControlClass, "min-h-11 min-w-0 px-3 py-2 text-base sm:text-sm")}
                                         placeholder="A"
                                     />
-                                </div>
-                                <div className="sm:col-span-2">
-                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Start")}</label>
+                                </FormField>
+                                <FormField label={t("Start")} className="min-w-0">
                                     <input
                                         aria-label={t("Range {number} start", { number: index + 1 })}
                                         type="number"
@@ -217,11 +204,10 @@ export function SeatNumberingBuilder({
                                         max={FORM_LIMITS.seatsMax}
                                         step={1}
                                         onChange={(event) => updateRange(index, { start: Number(event.target.value) || 0 })}
-                                        className={cn(formInlineControlClass, "py-1 text-xs")}
+                                        className={cn(formControlClass, "min-h-11 min-w-0 px-3 py-2 text-base sm:text-sm")}
                                     />
-                                </div>
-                                <div className="sm:col-span-2">
-                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("End")}</label>
+                                </FormField>
+                                <FormField label={t("End")} className="min-w-0">
                                     <input
                                         aria-label={t("Range {number} end", { number: index + 1 })}
                                         type="number"
@@ -231,11 +217,10 @@ export function SeatNumberingBuilder({
                                         max={FORM_LIMITS.seatsMax}
                                         step={1}
                                         onChange={(event) => updateRange(index, { end: Number(event.target.value) || 0 })}
-                                        className={cn(formInlineControlClass, "py-1 text-xs")}
+                                        className={cn(formControlClass, "min-h-11 min-w-0 px-3 py-2 text-base sm:text-sm")}
                                     />
-                                </div>
-                                <div className="sm:col-span-2">
-                                    <label className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Padding")}</label>
+                                </FormField>
+                                <FormField label={t("Padding")} className="min-w-0">
                                     <input
                                         aria-label={t("Range {number} padding", { number: index + 1 })}
                                         type="number"
@@ -245,44 +230,45 @@ export function SeatNumberingBuilder({
                                         max={FORM_LIMITS.seatLabelMax}
                                         step={1}
                                         onChange={(event) => updateRange(index, { padTo: Number(event.target.value) || undefined })}
-                                        className={cn(formInlineControlClass, "py-1 text-xs")}
+                                        className={cn(formControlClass, "min-h-11 min-w-0 px-3 py-2 text-base sm:text-sm")}
                                     />
-                                </div>
-                                <div className="sm:col-span-2">
-                                    <label htmlFor={`seat-range-${index}-separator`} className={cn("mb-1 block text-[10px] uppercase", formHelpTextClass)}>{t("Separator")}</label>
+                                </FormField>
+                                <FormField label={t("Separator")} className="min-w-0">
                                     <AppSelect
-                                        id={`seat-range-${index}-separator`}
                                         aria-label={t("Range {number} separator", { number: index + 1 })}
                                         disabled={disabled}
                                         value={range.separator ?? ""}
                                         onValueChange={value => updateRange(index, { separator: value as SeatNumberingSeparator })}
                                         options={SEPARATOR_OPTIONS}
-                                        className={cn(formInlineControlClass, "rounded-none border-x-0 border-t-0 bg-transparent px-0 py-1 text-xs lg:min-h-9")}
+                                        className="min-h-11 min-w-0 text-base sm:text-sm"
                                     />
-                                </div>
-                                <div className="flex items-end justify-end sm:col-span-1">
-                                    <button
+                                </FormField>
+                                <div className="col-span-2 flex justify-end sm:col-span-1">
+                                    <AppButton
                                         type="button"
+                                        variant="quiet"
+                                        size="icon"
                                         disabled={disabled || value.ranges.length <= 1}
                                         onClick={() => removeRange(index)}
-                                        className={cn("inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--ui-radius-control)] p-2 transition-colors hover:text-[color:var(--ui-form-error-text)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]", formHelpTextClass)}
+                                        className="sm:h-11 sm:w-11"
                                         aria-label={t("Remove range")}
                                     >
                                         <Trash2 size={14} />
-                                    </button>
+                                    </AppButton>
                                 </div>
                             </div>
                             <div className={cn("text-xs", formHelpTextClass)}>{t("{rangeCount} seats", { rangeCount: rangeCount(range) })}</div>
                         </div>
                     ))}
-                    <button
+                    <AppButton
                         type="button"
+                        variant="secondary"
+                        density="compact"
+                        icon={Plus}
                         disabled={disabled}
                         onClick={addRange}
-                        className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-[color:var(--ui-form-accent)] transition-colors hover:text-[color:var(--ui-form-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--ui-control-disabled-opacity)]"
                     >
-                        <Plus size={13} />
-                        {t("Add range")}</button>
+                        {t("Add range")}</AppButton>
                 </div>
             )}
 

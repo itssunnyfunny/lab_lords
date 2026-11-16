@@ -1,5 +1,15 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Branch setup form correction — local, 2026-11-16
+
+Organization branch creation now uses compact shared panels and labeled form
+fields. The shared seat-numbering editor also updates onboarding and Add Seats
+with full outlined controls and responsive range layouts. Existing validation,
+seat generation, branch requests, retry keys and billing outcomes are preserved;
+API/service, schema and saved environment contracts are unchanged. Local checks,
+pending owner visual review and unreleased status are recorded in the
+[migration ledger](../redesign/page-family-migration.md).
+
 ## Import review navigation corrections — local, 2026-11-13
 
 Supported `GUIDED_CURRENT_MONTH_V1` imports retain their mobile final-review

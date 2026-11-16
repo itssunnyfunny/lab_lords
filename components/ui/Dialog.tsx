@@ -80,6 +80,7 @@ export interface DialogProps {
   showCloseButton?: boolean;
   placement?: "center" | "right" | "bottom";
   className?: string;
+  contentClassName?: string;
   overlayClassName?: string;
   density?: "comfortable" | "compact";
   languagePlacement?: "below" | "header";
@@ -108,6 +109,7 @@ export function Dialog({
   showCloseButton = true,
   placement = "center",
   className,
+  contentClassName,
   overlayClassName,
   density = "comfortable",
   languagePlacement = "below",
@@ -284,7 +286,7 @@ export function Dialog({
           </button>
         ) : null}
 
-        {children ? <div className={variant === "navigation" ? "h-full" : "mt-5"}>{children}</div> : null}
+        {children ? <div className={cn(variant === "navigation" ? "h-full" : "mt-5", contentClassName)}>{children}</div> : null}
         {footer ? (
           <div className={cn("mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end", density === "compact" && "ui-record-detail-footer")}>
             {footer}

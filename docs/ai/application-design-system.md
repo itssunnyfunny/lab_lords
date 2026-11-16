@@ -11,6 +11,20 @@ See the [refinement record](../redesign/ui-refinement-2026-11-10.md) and
 [migration ledger](../redesign/page-family-migration.md). Implementation and local
 test evidence are separate from final owner visual acceptance and release.
 
+## Branch setup forms — local, 16 November 2026
+
+`CreateBranchDialog` composes compact Dialog/AppPanel sections and FormField
+controls for branch details, seats and shift pricing. Full outlined inputs have
+44px targets and 16px phone text; shift labels remain visible when filled.
+`SeatNumberingBuilder` shares this treatment with onboarding and Add Seats,
+including AppButton mode choices and the existing AppSelect. Preserve the shared
+portal/focus owner, validation, generation, retry identity and billing handling.
+Dialog's optional `contentClassName` lets this long form scroll its fields while
+keeping its header/actions stationary; existing consumers retain their defaults.
+No primitive defaults or Basic-specific forms change. See the
+[migration ledger](../redesign/page-family-migration.md) for local verification,
+owner review and release status.
+
 ## Completion pass — local, 12 November 2026
 
 The owner’s continuation brief finishes record interiors and deeper workflows on
