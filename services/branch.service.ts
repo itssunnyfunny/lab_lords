@@ -127,7 +127,7 @@ const BRANCH_DETAILS_SELECT = {
             seats: true,
             students: { where: { status: "ACTIVE" } },
             shifts: { where: { status: "ACTIVE" } },
-            payments: { where: { status: "DUE" } },
+            payments: { where: { status: "DUE", amount: { gt: 0 } } },
             staff: true,
         },
     },

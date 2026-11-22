@@ -106,9 +106,13 @@ describe("WhatsApp daily-report analytics", () => {
     expect(mocks.paymentAggregate).toHaveBeenNthCalledWith(2, expect.objectContaining({
       where: expect.objectContaining({
         status: "DUE",
+        amount: { gt: 0 },
         createdAt: { lte: metricsAsOfAt },
         dueDate: { lte: new Date("2026-08-23T18:29:59.999Z") },
       }),
+    }));
+    expect(mocks.paymentAggregate).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      where: expect.objectContaining({ status: "DUE", amount: { gt: 0 } }),
     }));
     expect(mocks.studentCount).toHaveBeenNthCalledWith(1, {
       where: expect.objectContaining({

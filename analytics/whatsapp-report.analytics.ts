@@ -276,6 +276,7 @@ export async function getWhatsAppDailyReportMetrics(
       where: {
         ...branchWhere,
         status: "DUE",
+        amount: { gt: 0 },
         createdAt: { lte: input.metricsAsOfAt },
         dueDate: { lte: dayEnd },
       },
@@ -286,6 +287,7 @@ export async function getWhatsAppDailyReportMetrics(
       where: {
         ...branchWhere,
         status: "DUE",
+        amount: { gt: 0 },
         createdAt: { lte: input.metricsAsOfAt },
         dueDate: { lt: overdueBefore },
       },

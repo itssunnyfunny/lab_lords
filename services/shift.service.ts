@@ -1,6 +1,7 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
 
 import { prisma } from "@/lib/prisma";
+import { updateLinkedStudentFees } from "@/services/studentFeePeriod";
 import { StaffService } from "@/services/staff.service";
 import { CreateShiftDto } from "@/types";
 import type { StaffAction } from "@/types";
@@ -192,15 +193,7 @@ export class ShiftService {
             });
 
             if (priceChanged) {
-                await tx.student.updateMany({
-                    where: {
-                        branchId: shift.branchId,
-                        feeLinkedShiftId: shiftId,
-                    },
-                    data: {
-                        monthlyFee: normalizedPrice,
-                    },
-                });
+                await updateLinkedStudentFees(tx, { branchId: shift.branchId, feeLinkedShiftId: shiftId }, normalizedPrice);
             }
 
             await tx.branch.update({

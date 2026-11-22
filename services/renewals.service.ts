@@ -60,7 +60,7 @@ export class RenewalsService {
             let paymentCursor: string | undefined;
             while (true) {
                 const payments = await tx.payment.findMany({
-                    where: { branchId, status: "DUE", dueDate: { lte: through }, student: { branchId, ...search } },
+                    where: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lte: through }, student: { branchId, ...search } },
                     select: { id: true, studentId: true, type: true, periodStart: true, periodEnd: true,
                         dueDate: true, amount: true, collectedAmount: true, waivedAmount: true, student: { select: studentSelect } },
                     orderBy: { id: "asc" }, take: BATCH,
@@ -80,7 +80,7 @@ export class RenewalsService {
             let studentCursor: string | undefined;
             while (true) {
                 const students = await tx.student.findMany({
-                    where: { branchId, status: "ACTIVE", ...search },
+                    where: { branchId, status: "ACTIVE", monthlyFee: { gt: 0 }, ...search },
                     select: { ...studentSelect, joinedAt: true, billingStartAt: true, monthlyFee: true },
                     orderBy: { id: "asc" }, take: BATCH,
                     ...(studentCursor ? { cursor: { id: studentCursor }, skip: 1 } : {}),
@@ -149,15 +149,16 @@ export class RenewalsService {
             await AccessPolicy.authorizeCapability(actorId, branchId, "paymentsRecord", tx);
             await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const student = await tx.student.findFirst({ where: { id: data.studentId, branchId },
-                select: { id: true, status: true, joinedAt: true, billingStartAt: true } });
+                select: { id: true, status: true, joinedAt: true, billingStartAt: true, monthlyFee: true } });
             if (!student) throw new Error("Student not found");
             const periodStart = new Date(data.periodStart);
             const payment = await tx.payment.findFirst({ where: {
                 branchId, studentId: student.id, type: data.type, periodStart,
-            }, select: { status: true } });
+            }, select: { status: true, amount: true } });
             if (payment && payment.status !== "DUE") throw new RenewalInputError("This payment is already resolved. Refresh the queue.");
+            if (payment?.amount === 0) throw new RenewalInputError("This fee has no outstanding balance.");
             if (!payment) {
-                const cycle = data.type === "MONTHLY" && student.status === "ACTIVE"
+                const cycle = data.type === "MONTHLY" && student.status === "ACTIVE" && student.monthlyFee > 0
                     ? upcomingCyclesBetween(student.joinedAt, startOfDay(asOf), endOfDay(addDays(asOf, 7)), student.billingStartAt)
                         .find(c => c.periodStart.getTime() === periodStart.getTime()) : undefined;
                 const coveringPayment = cycle ? await tx.payment.findFirst({ where: {

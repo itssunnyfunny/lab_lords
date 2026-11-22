@@ -22,6 +22,7 @@ export function guidedPaymentChoice(row: Row, mappings: ImportColumnMapping[], a
     const eligible = !row.skipped && !saved && !protectedFacts && outcome.state === "CREATE_NOW" && outcome.status === "DUE";
     const reason = row.skipped ? "Left out of this import" : saved ? "Already imported; saved payment facts stay unchanged"
         : protectedFacts ? "Source or confirmed payment: review individually"
+        : outcome.state === "NO_DUE" && outcome.amount === 0 ? "No monthly fee is due"
         : outcome.state === "GENERATE_LATER" || outcome.state === "NO_DUE" ? "Not due yet; normal generation will handle it later"
         : outcome.state === "NEEDS_REVIEW" ? "Resolve the payment or joining-date questions first"
         : batchDue ? "Confirmed Due; record collections later or review as Paid" : "No payment recorded; eligible fee will start as Due";

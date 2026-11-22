@@ -72,7 +72,8 @@ export function currentMonthOutcome(row: ImportNormalizedRow, asOf = new Date())
         issue("PAYMENT_BEFORE_DUE_REVIEW", "payment.status", "The source records a payment before an eligible due. Review this row; an early due or advance payment will not be created.");
     }
     if (result.issues.length) return result;
-    result.state = !cycle ? "NO_DUE" : isCycleDue(cycle, startOfDay(asOf)) ? "CREATE_NOW" : "GENERATE_LATER";
+    result.state = !cycle || (result.amount === 0 && result.status === "DUE") ? "NO_DUE"
+        : isCycleDue(cycle, startOfDay(asOf)) ? "CREATE_NOW" : "GENERATE_LATER";
     return result;
 }
 

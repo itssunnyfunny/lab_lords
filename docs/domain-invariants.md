@@ -337,7 +337,11 @@ unit/API/integration coverage.
   tests)
 - **Must preserve—enforced:** Monthly generation rechecks the student's
   status, branch, fee and billing cutoff under the settlement lock before
-  inserting a staged cycle.
+  inserting a staged cycle. Free anniversaries generate no collectible fee.
+  Moving a student from a zero fee to a positive fee preserves completed free
+  periods, including when the price comes from a linked shift or multi-shift.
+  The next anniversary uses the new price. A historical zero-value due cannot
+  enter the payment or renewal worklist.
 - **Known discrepancy—do not rely on:** Creating a student and an admission
   payment commits before the optional initial seat allocation, which is made in
   a separate operation. If allocation fails, the student and payment remain.

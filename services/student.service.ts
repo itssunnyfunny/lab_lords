@@ -1,6 +1,7 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { runSerializableTransaction } from "@/lib/serializableTransaction";
 import { prisma } from "@/lib/prisma";
+import { billingStartAfterFreePeriods } from "@/services/studentFeePeriod";
 import {
     isDueResolution,
     PaymentResolutionEventSource,
@@ -518,6 +519,7 @@ export class StudentService {
                     ...(nameResult?.ok ? { name: nameResult.value } : {}),
                     ...(phoneResult?.ok ? { phone: phoneResult.value ?? null } : {}),
                     ...feeData,
+                    billingStartAt: billingStartAfterFreePeriods(verifiedStudent, feeData.monthlyFee),
                 },
             });
 
@@ -759,6 +761,7 @@ export class StudentService {
                             studentId,
                             branchId: verifiedStudent.branchId,
                             status: PaymentStatus.DUE,
+                            amount: { gt: 0 },
                         },
                     });
 

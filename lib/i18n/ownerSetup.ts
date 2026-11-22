@@ -81,6 +81,7 @@ export const ownerSetupMessages = {
     "Already imported; saved payment facts stay unchanged": ["पहले इम्पोर्ट हुआ; सहेजे भुगतान के तथ्य नहीं बदलेंगे", "Pehle import hua; saved payment facts nahi badlenge"],
     "Source or confirmed payment: review individually": ["स्रोत या पुष्टि किया भुगतान: अलग से जाँचें", "Source ya confirmed payment: alag se check karein"],
     "Not due yet; normal generation will handle it later": ["अभी देय नहीं; सामान्य तारीख़ पर फ़ीस बनेगी", "Abhi due nahi; normal date par fees banegi"],
+    "No monthly fee is due": ["कोई मासिक फ़ीस देय नहीं है", "Koi maasik fees due nahi hai"],
     "Resolve the payment or joining-date questions first": ["पहले भुगतान या जुड़ने की तारीख़ के सवाल हल करें", "Pehle payment ya joining date ke sawal hal karein"],
     "Confirmed Due; record collections later or review as Paid": ["बकाया की पुष्टि है; वसूली बाद में दर्ज करें या चुकाए भुगतान की जाँच करें", "Due confirmed hai; collection baad mein record karein ya Paid review karein"],
     "No payment recorded; eligible fee will start as Due": ["भुगतान दर्ज नहीं है; योग्य फ़ीस बकाया से शुरू होगी", "Payment recorded nahi; eligible fees Due se shuru hogi"],

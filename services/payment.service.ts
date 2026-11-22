@@ -165,7 +165,7 @@ export class PaymentService {
             // cycle must still be eligible after we acquire the write lock.
             const students = await tx.$queryRaw<Array<{ id: string; branchId: string; monthlyFee: number; billingStartAt: Date | null }>>(Prisma.sql`
                 SELECT "id", "branchId", "monthlyFee", "billingStartAt" FROM "Student"
-                WHERE "id" IN (${Prisma.join(ids)}) AND "status" = 'ACTIVE'
+                WHERE "id" IN (${Prisma.join(ids)}) AND "status" = 'ACTIVE' AND "monthlyFee" > 0
                 ORDER BY "id" FOR UPDATE
             `);
             const eligible = new Map(students.map(student => [student.id, student]));
@@ -240,6 +240,7 @@ export class PaymentService {
             const batchPaymentsToCreate: Prisma.PaymentCreateManyInput[] = [];
 
             for (const student of students) {
+                if (student.monthlyFee <= 0) continue;
                 for (const cycle of dueCyclesThrough(student.joinedAt, today, student.billingStartAt)) {
                     batchPaymentsToCreate.push({
                         branchId: student.branchId,
@@ -514,6 +515,9 @@ export class PaymentService {
             }
         }
 
+        // Pre-existing zero-price dues retain their cycle identity for imports
+        // and generation, but have no balance to collect or display as debt.
+        whereClause = { AND: [whereClause, { OR: [{ status: { not: "DUE" } }, { amount: { gt: 0 } }] }] };
         if (!pagination) {
             return prisma.payment.findMany({
                 where: whereClause,

@@ -43,6 +43,7 @@ export async function getOpenPaymentLedger(
     where: {
       branchId,
       status: "DUE",
+      amount: { gt: 0 },
       dueDate: { lte: dueDateEnd },
     },
     select: {
@@ -271,6 +272,7 @@ export async function getOverduePaymentsPage(
   const baseWhere: Prisma.PaymentWhereInput = {
     branchId,
     status: "DUE",
+    amount: { gt: 0 },
     dueDate: { lt: overdueCutoff(date) },
   }
   const cursor = options.cursor ?? null

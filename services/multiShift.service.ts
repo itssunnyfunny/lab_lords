@@ -1,5 +1,6 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { prisma } from "@/lib/prisma";
+import { updateLinkedStudentFees } from "@/services/studentFeePeriod";
 import { runAllocationTransaction } from "@/lib/allocationTransaction";
 import { FORM_LIMITS, parseIntegerField, validateRequiredText } from "@/lib/formValidation";
 import { StaffService } from "@/services/staff.service";
@@ -221,15 +222,7 @@ export class MultiShiftService {
             });
 
             if (priceChanged) {
-                await tx.student.updateMany({
-                    where: {
-                        branchId: ms.branchId,
-                        feeLinkedMultiShiftId: multiShiftId,
-                    },
-                    data: {
-                        monthlyFee: normalizedPrice,
-                    },
-                });
+                await updateLinkedStudentFees(tx, { branchId: ms.branchId, feeLinkedMultiShiftId: multiShiftId }, normalizedPrice);
             }
 
             await tx.branch.update({

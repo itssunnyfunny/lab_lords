@@ -144,6 +144,8 @@ export function buildImportPaymentPlan(
     const joinedStart = startOfDay(joinedAt);
     const currentCycle = currentMonthJoinedCycle(joinedStart, asOf);
     const statusForCurrent = currentStatus(normalized, options);
+    const cycleAmount = normalized.payment?.amount ?? normalized.student?.monthlyFee;
+    const includeCurrent = statusForCurrent !== "DUE" || cycleAmount !== 0;
 
     if (historyMode === "FROM_JOINED_MARK_PAID") {
         const selected = collectDueCycles(joinedStart, asOf, limits.maxItems);
@@ -154,6 +156,7 @@ export function buildImportPaymentPlan(
     }
 
     if (historyMode === "FROM_JOINED_MARK_DUE") {
+        if (cycleAmount === 0) return { enabled: true, historyMode, billingStartAt: joinedStart, items: [], hasMoreItems: false, skippedHistoricalPayments: 0 };
         const selected = collectDueCycles(joinedStart, asOf, limits.maxItems);
         const items = selected.cycles.map(cycle =>
             itemFor(cycle, "DUE", currentCycle)
@@ -168,7 +171,7 @@ export function buildImportPaymentPlan(
         const items = selected.cycles.map(cycle => itemFor(cycle, "PAID", currentCycle));
         let hasMoreItems = selected.hasMore;
 
-        if (currentCycle && isCycleDue(currentCycle, asOf)) {
+        if (includeCurrent && currentCycle && isCycleDue(currentCycle, asOf)) {
             const limit = boundedCycleLimit(limits.maxItems);
             if (items.length < limit) items.push(itemFor(currentCycle, statusForCurrent, currentCycle));
             else hasMoreItems = true;
@@ -180,7 +183,7 @@ export function buildImportPaymentPlan(
     const previousCount = currentCycle
         ? countPreviousCycles(joinedStart, currentCycle.dueDate)
         : collectDueCycles(joinedStart, asOf).cycles.length;
-    const currentItem = currentCycle && isCycleDue(currentCycle, asOf)
+    const currentItem = includeCurrent && currentCycle && isCycleDue(currentCycle, asOf)
         ? [itemFor(currentCycle, statusForCurrent, currentCycle)]
         : [];
     const limit = boundedCycleLimit(limits.maxItems);

@@ -161,9 +161,9 @@ export class DashboardService {
         const [collections, legacy, pending, overdue, students] = await completeReads([
             client.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: { gte: month.start, lt: month.end } }, _sum: { amount: true } }),
             client.payment.aggregate({ where: { branchId, ledgerBacked: false, status: "PAID", paidAt: { gte: month.start, lt: month.end } }, _sum: { amount: true } }),
-            client.payment.aggregate({ where: { branchId, status: "DUE", dueDate: { lt: through } }, _sum: { amount: true, collectedAmount: true, waivedAmount: true } }),
-            client.payment.aggregate({ where: { branchId, status: "DUE", dueDate: { lt: overdueBefore } }, _sum: { amount: true, collectedAmount: true, waivedAmount: true } }),
-            client.student.count({ where: { branchId, payments: { some: { branchId, status: "DUE", dueDate: { lt: overdueBefore } } } } }),
+            client.payment.aggregate({ where: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: through } }, _sum: { amount: true, collectedAmount: true, waivedAmount: true } }),
+            client.payment.aggregate({ where: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: overdueBefore } }, _sum: { amount: true, collectedAmount: true, waivedAmount: true } }),
+            client.student.count({ where: { branchId, payments: { some: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: overdueBefore } } } } }),
         ]);
         const remaining = (value: typeof pending) => (value._sum.amount ?? 0) - (value._sum.collectedAmount ?? 0) - (value._sum.waivedAmount ?? 0);
         return { collectedThisMonth: (collections._sum.amount ?? 0) + (legacy._sum.amount ?? 0), pendingDues: remaining(pending),

@@ -3,15 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   paymentAggregate: vi.fn(),
   paymentFindMany: vi.fn(),
+  paymentCount: vi.fn(),
   collectionAggregate: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: {
-  payment: { aggregate: mocks.paymentAggregate, findMany: mocks.paymentFindMany },
+  payment: { aggregate: mocks.paymentAggregate, findMany: mocks.paymentFindMany, count: mocks.paymentCount },
   feeCollection: { aggregate: mocks.collectionAggregate },
 } }));
 
-import { getPaymentPeriodStats } from "@/analytics/payment.analytics";
+import { getOpenPaymentLedger, getOverduePaymentsPage, getPaymentPeriodStats } from "@/analytics/payment.analytics";
 import { getPaymentTrend } from "@/analytics/trends/payment.trends";
 
 type Status = "DUE" | "PAID" | "WAIVED";
@@ -24,7 +25,7 @@ type Payment = {
 };
 type PaymentWhere = {
   branchId?: string; status?: Status | { not: Status }; ledgerBacked?: boolean;
-  dueDate?: DateRange; paidAt?: DateRange; OR?: PaymentWhere[];
+  dueDate?: DateRange; paidAt?: DateRange; OR?: PaymentWhere[]; amount?: { gt: number };
   resolutionEvents?: { none: { source: string } };
 };
 type Collection = { branchId: string; amount: number; collectedAt: Date; voidedAt: Date | null };
@@ -49,6 +50,7 @@ function within(value: Date | null, range: DateRange) {
 }
 function matches(row: Payment, where: PaymentWhere): boolean {
   return (!where.branchId || row.branchId === where.branchId)
+    && (!where.amount || row.amount > where.amount.gt)
     && (!where.status || (typeof where.status === "string"
       ? row.status === where.status : row.status !== where.status.not))
     && (where.ledgerBacked === undefined || row.ledgerBacked === where.ledgerBacked)
@@ -74,6 +76,8 @@ beforeEach(() => {
   });
   mocks.paymentFindMany.mockImplementation(async ({ where }: { where: PaymentWhere }) =>
     payments.filter(row => matches(row, where)));
+  mocks.paymentCount.mockImplementation(async ({ where }: { where: PaymentWhere }) =>
+    payments.filter(row => matches(row, where)).length);
   mocks.collectionAggregate.mockImplementation(async ({ where }: {
     where: { branchId: string; voidedAt: null; collectedAt: DateRange };
   }) => ({ _sum: { amount: collections
@@ -83,6 +87,15 @@ beforeEach(() => {
 });
 
 describe("billable revenue after ledger waivers", () => {
+  it("does not list or count a historical zero-value open fee", async () => {
+    payments.push(payment({ id: "zero", amount: 0, ledgerBacked: false }), payment({ id: "owed", amount: 250 }));
+    const ledger = await getOpenPaymentLedger("branch", day(20));
+    const queue = await getOverduePaymentsPage("branch", { asOf: day(20) });
+    expect(ledger).toMatchObject({ dueCount: 1, overdueCount: 1, dueAmount: 250, overdueAmount: 250 });
+    expect(queue.total).toBe(1);
+    expect(queue.items.map(row => row.paymentId)).toEqual(["owed"]);
+  });
+
   it.each([
     { label: "partial collection", status: "DUE", collected: 700, waived: 0, revenue: 1200, due: 500 },
     { label: "waived remainder", status: "WAIVED", collected: 700, waived: 500, revenue: 700, due: 0 },

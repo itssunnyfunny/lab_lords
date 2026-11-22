@@ -20,7 +20,7 @@ describe("renewal dates and manual reminders", () => {
     it("keeps today separate from inclusive upcoming 3 and 7 day windows", () => {
         const asOf = day("2026-09-08");
         const categories = (offset: number, days: number, expected = true) => renewalCategories({
-            dueDate: addDays(asOf, offset).toISOString(), expected,
+            dueDate: addDays(asOf, offset).toISOString(), expected, amount: 100,
         }, asOf, days);
         expect(categories(0, 7)).toEqual(["ALL", "TODAY"]);
         expect(categories(0, 7, false)).toEqual(["ALL", "TODAY", "OUTSTANDING"]);
@@ -31,6 +31,9 @@ describe("renewal dates and manual reminders", () => {
         expect(categories(8, 7)).not.toContain("UPCOMING");
         expect(categories(-7, 7, false)).not.toContain("OVERDUE");
         expect(categories(-8, 7, false)).toContain("OVERDUE");
+    });
+    it.each([true, false])("excludes zero balances from every renewal category (projected=%s)", expected => {
+        expect(renewalCategories({ dueDate: day("2026-08-01").toISOString(), expected, amount: 0 }, day("2026-09-08"), 7)).toEqual([]);
     });
     it("respects billingStartAt at the start of a cycle", () => {
         expect(upcomingCyclesBetween(day("2026-01-08"), day("2026-09-08"), day("2026-09-15"), day("2026-08-09"))).toEqual([]);

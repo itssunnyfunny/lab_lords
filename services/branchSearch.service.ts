@@ -101,6 +101,7 @@ export class BranchSearchService {
                 ? prisma.payment.findMany({
                     where: {
                         branchId,
+                        NOT: { status: "DUE", amount: 0 },
                         OR: [
                             { student: { name: { contains: normalizedQuery, mode: "insensitive" } } },
                             { student: { phone: { contains: normalizedQuery, mode: "insensitive" } } },

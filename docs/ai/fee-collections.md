@@ -74,7 +74,10 @@ records have no automatic void action.
 ## Readers and reminders
 
 Monthly generation locks each candidate student before inserting dues and
-rechecks its status, branch and billing cutoff.
+rechecks the current status, branch, cutoff and positive monthly fee. A free
+student's completed anniversaries stay free after a manual or linked price
+increase. Historical zero-value dues remain available as cycle evidence and
+are excluded from collection and follow-up queues.
 
 Renewals, outstanding/overdue analytics, student fee summaries, fee displays and
 reminder source fingerprints use the remaining collectible balance. Collection

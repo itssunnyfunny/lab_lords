@@ -69,6 +69,34 @@ describe("PaymentService Integration", () => {
       }
     });
 
+    it("skips completed free anniversaries and bills only the new paid period after a fee change", async () => {
+      const joinedAt = new Date(2026, 0, 1);
+      const paidPeriod = addMonths(joinedAt, 2);
+      freezeTime(new Date(2026, 2, 15));
+      try {
+        const { user, branch } = await createTestWorld();
+        const student = await createStudent({ branchId: branch.id, joinedAt, monthlyFee: 0 });
+        const generate = (date: Date) => PaymentService.generateDuePaymentsForBranch(user.id, branch.id, date);
+        expect((await generate(new Date())).generatedCount).toBe(0);
+        expect(await testPrisma.payment.count({ where: { studentId: student.id } })).toBe(0);
+        const legacy = await createPayment({ branchId: branch.id, studentId: student.id, amount: 0, status: "DUE",
+          periodStart: joinedAt, periodEnd: addMonths(joinedAt, 1), dueDate: addMonths(joinedAt, 1) });
+        expect(await PaymentService.listPayments(user.id, branch.id)).toEqual([]);
+        expect(await PaymentService.listPayments(user.id, branch.id, "DUE", new Date(), { limit: 10 }))
+          .toMatchObject({ items: [], total: 0 });
+        await StudentService.updateStudentProfile(user.id, student.id, { monthlyFee: 950 });
+        expect((await generate(new Date())).generatedCount).toBe(0);
+        const nextDue = addMonths(paidPeriod, 1);
+        expect((await generate(nextDue)).generatedCount).toBe(1);
+        expect((await generate(nextDue)).generatedCount).toBe(0);
+        expect(await testPrisma.payment.findMany({ where: { studentId: student.id }, orderBy: { dueDate: "asc" } }))
+          .toMatchObject([{ id: legacy.id, amount: 0 }, { amount: 950, status: "DUE", periodStart: paidPeriod, dueDate: nextDue }]);
+        expect(await PaymentService.listPayments(user.id, branch.id, "DUE", nextDue)).toMatchObject([{ amount: 950 }]);
+      } finally {
+        freezeTime();
+      }
+    });
+
     it("generates 1 payment for a student joined 1 month ago (time advanced by 1 month)", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       const { user, branch } = await createTestWorld();
