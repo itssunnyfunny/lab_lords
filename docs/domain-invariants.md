@@ -275,6 +275,8 @@ unit/API/integration coverage.
   provider intent, and the owner's next-period quote use that same count.
   Branch changes wait for resolution when the first checkout outcome is
   uncertain, so recovery can adopt the original mandate at its frozen quantity.
+  All active trial tiers quote a zero plan fee today. The monthly total
+  displays the chosen plan's branch price times the projected count.
 - **Must preserve—enforced:** Scheduled removal does not delete the branch. It
   becomes read-only and is archived only at the effective boundary after the
   required provider confirmation. Historical data remains available according

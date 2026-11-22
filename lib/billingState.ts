@@ -1,9 +1,14 @@
 import { billingPlanName, billingPlanRank, type BillingPlanId } from "@/lib/billingPlans";
 import type { BranchBillingStatus, SaasSubscriptionStatus } from "@/app/generated/prisma/enums";
+import type { BillingExperience } from "@/types/billingExperience";
 
 /** Branches included in the next recurring mandate. Confirmed quantity is provider-owned. */
 export const projectedBillableStatuses: BranchBillingStatus[] = ["ACTIVE", "PENDING_ACTIVATION"];
 export const TERMINAL_STATUSES = new Set<SaasSubscriptionStatus>(["CANCELLED", "COMPLETED", "EXPIRED"]);
+
+export function hasActiveBillingTrial(experience?: Pick<BillingExperience, "effectivePlan" | "trialDaysRemaining"> | null) {
+  return experience?.effectivePlan === "STANDARD_TRIAL" || (experience?.trialDaysRemaining ?? 0) > 0;
+}
 
 export type BillingAccessMode = "FULL" | "WARNING" | "READ_ONLY";
 

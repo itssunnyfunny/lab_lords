@@ -1,5 +1,14 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Trial branch billing corrections — local, 2026-11-18
+
+Branch-removal scheduling, first checkout and the Billing overview use the
+projected count of active branches and branches pending activation. The
+provider-confirmed quantity continues to come from the subscription. Owners
+see the monthly total and a zero plan fee due today on Basic, Standard and Pro
+trial authorization. At the trial deadline, the archival worker reports older
+conflicting schedules for [operator review](../production-runbook.md#trial-branch-removal-review).
+
 ## Branch setup form correction — local, 2026-11-16
 
 Organization branch creation now uses compact shared panels and labeled form

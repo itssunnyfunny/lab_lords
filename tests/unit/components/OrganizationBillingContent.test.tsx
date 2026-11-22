@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { BillingPlanCard, getSubscriptionCancellationMode, hasComplimentaryReplacementAccess } from "@/components/billing/OrganizationBillingContent";
+import { BillingPlanCard, getPlanConfirmationQuote, getSubscriptionCancellationMode, hasComplimentaryReplacementAccess } from "@/components/billing/OrganizationBillingContent";
 import { publicBillingPlans } from "@/lib/billingPlans";
 import type { BillingOverview, OrganizationSubscriptionDto } from "@/lib/api/billing";
 
@@ -33,6 +33,17 @@ function render(plan = standard, current: OrganizationSubscriptionDto = subscrip
 }
 
 describe("dedicated billing plan selection", () => {
+    it.each(["BASIC", "STANDARD_TRIAL", "PRO"] as const)("quotes a zero plan fee today during a %s trial", effectivePlan => {
+        const quote = getPlanConfirmationQuote(standard, { ...experience, effectivePlan, trialDaysRemaining: 14, projectedQuantity: 2 }, false);
+        expect(quote).toEqual({ unitAmount: 299, quantity: 2, monthlyTotal: 598, trialActive: true, planFeeDueToday: 0 });
+    });
+
+    it("quotes the recurring fee for a first checkout after trial and zero for a replacement", () => {
+        const access = { ...experience, projectedQuantity: 2 };
+        expect(getPlanConfirmationQuote(standard, access, false).planFeeDueToday).toBe(598);
+        expect(getPlanConfirmationQuote(standard, access, true).planFeeDueToday).toBe(0);
+    });
+
     it("requires payment recovery before another plan change and re-enables an upgrade after recovered evidence", () => {
         const halted = render(standard, { ...subscription, status: "HALTED" }, { ...experience, accessMode: "READ_ONLY", effectivePlan: "NONE" });
         expect(halted).toContain("Resolve payment first");

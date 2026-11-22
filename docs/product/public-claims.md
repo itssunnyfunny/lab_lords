@@ -99,6 +99,13 @@ the same claims. Their [workspace evidence](../redesign/import-workspace-review.
 does not claim arbitrary AI correction, live-provider approval or release.
 
 
+## Trial branch billing correction — local, 2026-11-18
+
+The 2026-11-18 billing correction brings the first mandate and its quote into
+line with the existing Home, Features, Pricing and FAQ statements on the
+eligible-owner trial and monthly per-billable-branch price. Those pages already
+describe the applicable terms.
+
 ## Guided onboarding policy update — local, 2026-11-02
 
 The requested product change makes a new owner's trial tier explicit and makes

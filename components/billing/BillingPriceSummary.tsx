@@ -6,6 +6,7 @@ import { billingPlanName, isBillingPlanId } from "@/lib/billingPlans";
 import type { OrganizationSubscriptionDto } from "@/lib/api/billing";
 import { getProviderPaymentMethodLabel } from "@/lib/billingPaymentMethods";
 import type { BillingExperience } from "@/types/billingExperience";
+import { hasActiveBillingTrial } from "@/lib/billingState";
 
 type BillingPriceSummaryProps = {
   experience: BillingExperience;
@@ -38,8 +39,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
   const { formatNumber, formatDate: preferenceDate } = useUserPreferences();
   const formatDate = (value: string) => preferenceDate(value, { day: "numeric", month: "long", year: "numeric" });
   const formatInr = (amount: number) => formatNumber(amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 });
-  const trialActive = experience.effectivePlan === "STANDARD_TRIAL"
-    || (experience.trialDaysRemaining != null && experience.trialDaysRemaining > 0);
+  const trialActive = hasActiveBillingTrial(experience);
   const paidPlanActive = isBillingPlanId(experience.effectivePlan)
     && (experience.billingAccessSource === undefined || experience.billingAccessSource === "PAID" || experience.billingAccessSource === "PAYMENT_RETRY")
     && experience.paidThrough != null;

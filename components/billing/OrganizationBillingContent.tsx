@@ -1,6 +1,6 @@
 "use client";
-import { projectedBillableStatuses } from "@/lib/billingState";
 import { accountBillingHref, accountBillingProcessingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
+import { hasActiveBillingTrial, projectedBillableStatuses } from "@/lib/billingState";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -589,7 +589,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         ? "AUTHORIZATION" as const
         : !confirmationUsesProviderUpdate
         ? "AUTHORIZATION" as const
-        : billingOverview?.experience.effectivePlan === "STANDARD_TRIAL"
+        : hasActiveBillingTrial(billingOverview?.experience)
             ? "FUTURE_TRIAL" as const
             : billingPlanRank(confirmationPlan) < billingPlanRank(billingOverview?.current?.plan)
                 ? "NEXT_CYCLE" as const
@@ -889,19 +889,13 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                     purpose={confirmationUsesReplacement ? "REPLACEMENT" : "PLAN"}
                     planName={confirmationPlanDetails.shortName}
                     downgradeNotice={workspaceDowngradeNotice(billingOverview.experience.effectivePlan, confirmationPlanDetails.id)}
-                    unitAmount={confirmationPlanDetails.amount ?? 0}
-                    quantity={billingOverview.experience.projectedQuantity}
-                    monthlyTotal={(confirmationPlanDetails.amount ?? 0) * billingOverview.experience.projectedQuantity}
-                    trialActive={billingOverview.experience.effectivePlan === "STANDARD_TRIAL" || (billingOverview.experience.trialDaysRemaining ?? 0) > 0}
+                    {...getPlanConfirmationQuote(confirmationPlanDetails, billingOverview.experience, confirmationUsesReplacement)}
                     changeTiming={confirmationChangeTiming}
                     trialEndsAt={billingOverview.experience.trialEndsAt}
                     providerChargeAt={billingOverview.experience.nextChargeAt}
                     effectiveAt={confirmationChangeTiming === "NEXT_CYCLE"
                         ? billingOverview.current?.currentEnd ?? billingOverview.experience.paidThrough
                         : null}
-                    planFeeDueToday={confirmationUsesReplacement || billingOverview.experience.effectivePlan === "STANDARD_TRIAL"
-                        ? 0
-                        : (confirmationPlanDetails.amount ?? 0) * billingOverview.experience.projectedQuantity}
                     contactEmail={org.contactEmail || org.owner?.email}
                     contactPhone={org.contactPhone}
                     testMode={billingOverview.razorpayTestMode}
@@ -1084,6 +1078,14 @@ function formatPlanAmount(plan: BillingPlanDto) {
     }).format(plan.amount);
 }
 
+export function getPlanConfirmationQuote(plan: BillingPlanDto, experience: BillingOverview["experience"], replacement: boolean) {
+    const unitAmount = plan.amount ?? 0;
+    const quantity = experience.projectedQuantity;
+    const monthlyTotal = unitAmount * quantity;
+    const trialActive = hasActiveBillingTrial(experience);
+    return { unitAmount, quantity, monthlyTotal, trialActive, planFeeDueToday: trialActive || replacement ? 0 : monthlyTotal };
+}
+
 function isCurrentBillingPlan(
     plan: BillingPlanDto,
     current: OrganizationSubscriptionDto | null,
@@ -1101,8 +1103,8 @@ function isAuthorizedPostTrialPlan(
     experience: BillingOverview["experience"] | null | undefined
 ) {
     const selectedPlanId = experience?.selectedPostTrialPlan;
-    return experience?.effectivePlan === "STANDARD_TRIAL"
-        && experience.authorizationStatus === "AUTHORIZED"
+    return hasActiveBillingTrial(experience)
+        && experience?.authorizationStatus === "AUTHORIZED"
         && selectedPlanId === plan.id
         && current?.plan === plan.id;
 }
@@ -1127,7 +1129,7 @@ export function BillingPlanCard({
     const t = useTranslation();
     const isCurrent = isCurrentBillingPlan(plan, current, experience);
     const selectedPlanId = experience?.selectedPostTrialPlan;
-    const isSelectedAfterTrial = experience?.effectivePlan === "STANDARD_TRIAL" && selectedPlanId === plan.id;
+    const isSelectedAfterTrial = hasActiveBillingTrial(experience) && selectedPlanId === plan.id;
     const isAuthorizedAfterTrial = isAuthorizedPostTrialPlan(plan, current, experience);
     const providerUpdate = canChangeProviderPlan(current);
     const replacementUpdate = requiresReplacementPlanChange(current);
@@ -1164,7 +1166,7 @@ export function BillingPlanCard({
     else if (unsupportedProviderUpdate) buttonLabel = "Payment method confirmation required";
     else if (operationInProgress) buttonLabel = "Authorization in progress";
     else if (!checkoutReady && requiresCheckout) buttonLabel = "Loading checkout...";
-    else if (providerUpdate && experience?.effectivePlan === "STANDARD_TRIAL") {
+    else if (providerUpdate && hasActiveBillingTrial(experience)) {
         buttonLabel = `Change to ${plan.shortName} after trial`;
     } else if (providerUpdate && billingPlanRank(plan.id) > billingPlanRank(current?.plan)) {
         buttonLabel = `Upgrade to ${plan.shortName}`;
