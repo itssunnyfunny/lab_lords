@@ -331,7 +331,7 @@ export function normalizedFromImportDraft(
     else delete payment.amount;
     if (paymentStatus) {
         payment.status = paymentStatus as PaymentStatusDraft;
-        if (paymentStatus !== next.payment?.status || next.payment?.rawStatus !== undefined) payment.rawStatus = paymentStatus;
+        if (paymentStatus !== next.payment?.status) payment.rawStatus = paymentStatus;
     } else {
         delete payment.status;
         delete payment.rawStatus;

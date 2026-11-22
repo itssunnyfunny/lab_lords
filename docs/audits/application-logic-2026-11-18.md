@@ -51,6 +51,14 @@ preserved.
 
 These corrections use the existing schema, migrations and environment configuration. The outgoing rate is available when a new edit occurs. Recovering a fee already lost to a historical edit requires independent evidence of the rate. Home, Features, Pricing and FAQ already describe per-branch pricing, fee records, shift availability and reviewed imports. The corrections require no change to those public claims.
 
+### Follow-up on manually edited import rows
+
+A real PostgreSQL regression reproduced an older row retaining `PAID` after the owner corrected its shift and repaired the meaning of `X`. Revalidation now keeps the shift and checks the payment status against the uploaded label and any recorded payment choice. The integration test confirms that the ₹900 fee stays out of the plan until reviewed, and that choosing Due creates one `DUE` fee and the intended seat allocation. Additional cases cover an explicit Paid choice and a plan frozen between the earlier legend fix and this correction. The existing public description of reviewed imports still applies. [Guided import regressions](../../tests/integration/importing/guided-import.test.ts) · [First-commit checks](../../tests/unit/importing/import-run.service.test.ts)
+
+- `pnpm.cmd exec vitest run tests/integration/importing --hookTimeout=120000 --testTimeout=120000 --reporter=default` passed all 49 import tests in four suites on disposable local PostgreSQL 16. The partial-recovery case also checks that repairing a seat preserves an already recorded payment.
+- `pnpm.cmd exec vitest run --config vitest.unit.safe.config.ts --fileParallelism --maxWorkers=2 --hookTimeout=120000 --testTimeout=120000 --reporter=dot` passed all 2,594 tests in 327 files with `TZ=UTC`.
+- `node tests/dashboard-connected/build.mjs` passed the production build and verified both import workflows. `pnpm.cmd lint` reported zero errors and two existing unused-directive warnings in generated files.
+
 ### Verification of the fixes
 
 The database-backed checks used disposable, loopback PostgreSQL 16 containers with the repository's migration chain. Billing tests used a simulated provider. The browser checks used the isolated desktop design-pilot fixture. The changes require the existing schema and environment configuration.

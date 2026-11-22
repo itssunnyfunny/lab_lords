@@ -1105,7 +1105,12 @@ unit/API/integration coverage.
   payment legend gives each normalized label a single meaning. Historical
   conflicting labels are classified as unclear. Before the first commit of
   a saved plan that imports payment statuses, the owner must resolve a
-  conflicting legend and review the recalculated revision. Already-started
+  conflicting legend and review the recalculated revision. A whole-row
+  manual edit does not establish a payment decision. If its saved status
+  disagrees with the uploaded label under the confirmed legend, the payment
+  field requires review unless a recorded field-level choice supports it.
+  Unrelated corrections such as shift assignments survive this review.
+  First commit checks frozen evaluations for this disagreement. Already-started
   runs recover through their existing mutation ledger.
   (`importing/parsers/xlsx.parser.ts`, `importing/utils/row-normalizer.ts`,
   `importing/services/import-run.service.ts`)

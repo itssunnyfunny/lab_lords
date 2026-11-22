@@ -1,4 +1,8 @@
 export const importMessages = {
+    "Refresh the review and confirm the affected student's payment status before importing.": [
+        "इम्पोर्ट करने से पहले समीक्षा रीफ़्रेश करें और संबंधित छात्र के भुगतान की स्थिति की पुष्टि करें।",
+        "Import karne se pehle review refresh karein aur sambandhit student ka payment status confirm karein.",
+    ],
     "Correct the conflicting payment labels, then review the recalculated rows before importing.": [
         "भुगतान के जिन शब्दों के एक से ज़्यादा मतलब हैं उन्हें ठीक करें। फिर इम्पोर्ट करने से पहले पंक्तियों के नए नतीजे जाँचें।",
         "Payment ke jin labels ke ek se zyada matlab hain unhein theek karein. Phir import karne se pehle rows ke naye results check karein.",

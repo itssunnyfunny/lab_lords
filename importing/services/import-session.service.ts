@@ -15,6 +15,7 @@ import type {
     ImportNormalizedRow,
     ImportSessionSummary,
     ImportSourceProfile,
+    ParsedImportRow,
     ParsedImportSource,
 } from "@/importing/contracts/import-session.contract";
 import { parseCsv } from "@/importing/parsers/csv.parser";
@@ -34,6 +35,7 @@ import { detectDuplicateImportRows, detectExistingStudentDuplicates } from "@/im
 import { dedupeImportQuestionDrafts } from "@/importing/utils/import-question-dedupe";
 import { findStagedAllocationConflicts, stagedAllocationConflictWarnings } from "@/importing/utils/staged-allocation-conflicts";
 import { applyImportDefaults, normalizeImportRow } from "@/importing/utils/row-normalizer";
+import { paymentStatusForManualRow, recordEditedPaymentStatus } from "../utils/manual-payment-status";
 import { promoteKnownMultiShiftAllocation } from "@/importing/utils/shift-alias-resolver";
 import { buildFallbackMappings } from "@/importing/utils/column-normalizer";
 import { mergeValidatorResults, validateRequiredImportFields } from "@/importing/validators/import-required-fields.validator";
@@ -1359,6 +1361,10 @@ export class ImportSessionService {
             for (const edit of edits) {
                 const existingRow = targetRowsById.get(edit.rowId)!;
                 let manualMetadata: Record<string, unknown> = markManualNormalizedData(existingRow.mappedData ?? {});
+                if (edit.normalizedData && !confirmedAnswer && !preserveSourceHolds) {
+                    const before = existingRow.normalizedData as ImportNormalizedRow | null;
+                    manualMetadata = recordEditedPaymentStatus(manualMetadata, before?.payment?.status, edit.normalizedData.payment?.status);
+                }
                 if (edit.normalizedData && isGuidedImport(session.sourceConfiguration)) {
                     const sourceFields = confirmedAnswer || preserveSourceHolds ? [] : normalizeMapping(session.mapping, []).columnMappings
                         .filter(column => column.targetField !== "ignore" && String((existingRow.rawData as Record<string, unknown>)?.[column.sourceColumn] ?? "").trim())
@@ -1503,6 +1509,7 @@ export class ImportSessionService {
             : [];
         const succeededStudentIdByRow = new Map<string, string>();
         const allocationSucceededRowIds = new Set<string>();
+        const paymentSucceededRowIds = new Set<string>();
         for (const item of succeededRowItems) {
             if (!item.importRowId) continue;
             if (item.kind === "STUDENT" && !succeededStudentIdByRow.has(item.importRowId)) {
@@ -1510,6 +1517,7 @@ export class ImportSessionService {
                 if (studentId) succeededStudentIdByRow.set(item.importRowId, studentId);
             }
             if (item.kind === "ALLOCATION") allocationSucceededRowIds.add(item.importRowId);
+            if (item.kind === "PAYMENT_CYCLE") paymentSucceededRowIds.add(item.importRowId);
         }
         for (const row of session.rows) {
             const studentId = retainedCreatedEntityId(row.createdEntityIds, "studentId");
@@ -1519,6 +1527,7 @@ export class ImportSessionService {
             if (retainedCreatedEntityIds(row.createdEntityIds, "allocationIds").length > 0) {
                 allocationSucceededRowIds.add(row.id);
             }
+            if (retainedCreatedEntityIds(row.createdEntityIds, "paymentIds").length > 0) paymentSucceededRowIds.add(row.id);
         }
 
         const columns = Object.keys((session.rows[0]?.rawData ?? {}) as Record<string, unknown>);
@@ -1546,7 +1555,11 @@ export class ImportSessionService {
                 !Array.isArray(row.normalizedData) &&
                 Object.keys(row.normalizedData as Record<string, unknown>).length > 0
             ) {
-                const defaulted = applyImportDefaults(row.normalizedData as ImportNormalizedRow, mapping.importOptions);
+                const saved = row.normalizedData as ImportNormalizedRow;
+                // A guided row has one payment cycle. Seating recovery can follow a completed payment.
+                const reviewed = guided && paymentSucceededRowIds.has(row.id) ? saved
+                    : paymentStatusForManualRow(row.rawData as ParsedImportRow, mapping, saved, row.mappedData);
+                const defaulted = applyImportDefaults(reviewed, mapping.importOptions);
                 const promoted = promoteKnownMultiShiftAllocation(defaulted, context);
                 const normalizedData = applyImportDefaults(promoted, mapping.importOptions, context);
                 return {

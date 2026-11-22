@@ -15,6 +15,7 @@ import { createTestWorld, createSaasSubscription, createSeat, createShift, creat
 import { resetDatabase, disconnectDatabase, testPrisma as db } from "@/tests/setup/db";
 import { prisma } from "@/lib/prisma";
 import { draftFromImportRowWithFallback, normalizedFromImportDraft } from "@/importing/utils/manual-row-draft";
+import { paymentLegendForRowReview } from "@/importing/utils/import-wizard-view-model";
 import { freezeTime, restoreTime } from "@/tests/setup/time";
 import type { ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
 import type { ImportPlanSnapshot } from "@/importing/contracts/import-v2.contract";
@@ -55,38 +56,114 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         await db.organization.update({ where: { id: f.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
         await createSaasSubscription({ organizationId: f.org.id, plan, paidThrough: new Date(2027, 0, 1) }); return f;
     }
+    async function chooseRowPaymentStatus(f: World, detail: Awaited<ReturnType<typeof draft>>, status: "DUE" | "PAID") {
+        const row = detail.rows[0];
+        const editorRow = { normalizedData: row.normalizedData as ImportNormalizedRow, rawData: row.rawData as Record<string, string>, mappedData: row.mappedData };
+        const editor = draftFromImportRowWithFallback(editorRow, detail.mapping.columnMappings, "RECORDED_ONLY");
+        const normalizedData = normalizedFromImportDraft(editorRow, { ...editor, paymentStatus: status }, detail.branchContext, "RECORDED_ONLY");
+        return ImportSessionService.updateRows(f.user.id, f.branch.id, detail.id, {
+            expectedRevision: detail.draftRevision, edits: [{ rowId: row.id, normalizedData }],
+        });
+    }
     it("requires a new review before the first commit of an old contradictory payment legend", async () => {
         const f = await world();
-        const source = await draft(f, ["Legend Student\t9876509012\t2026-01-01\t900\t\t\tX\tCASH\t900"]);
+        const source = await draft(f, [`Legend Student\t9876509012\t2026-01-01\t900\tFD\t${f.seat.label}\tX\tCASH\t900`]);
         const paidLegend = { confirmed: true, paidValues: ["X"], unpaidValues: [], waivedValues: [], unclearValues: [] };
         const paid = await ImportSessionService.updateMapping(f.user.id, f.branch.id, source.id, {
             expectedRevision: source.draftRevision, importOptions: { paymentMapping: paidLegend },
         });
-        // Pre-deployment drafts could publish this mapping with X already evaluated as PAID.
-        await db.importSession.update({ where: { id: paid.id }, data: { mapping: JSON.parse(JSON.stringify({
-            ...paid.mapping, importOptions: { ...paid.mapping.importOptions, paymentMapping: { ...paidLegend, unpaidValues: [" x "] } },
+        const shifted = await ImportSessionService.confirmShiftInterpretation(f.user.id, f.branch.id, paid.id, {
+            expectedRevision: paid.draftRevision, source: "FD", targetId: f.shift.id,
+        });
+        expect(shifted.rows[0].normalizedData).toMatchObject({ allocation: { shiftName: f.shift.name }, payment: { status: "PAID", rawStatus: "X" } });
+        // Under the old classifier this conflicting legend produced the same PAID evaluation.
+        const legacyLegend = { ...paidLegend, unpaidValues: [" x "] };
+        await db.importSession.update({ where: { id: shifted.id }, data: { mapping: JSON.parse(JSON.stringify({
+            ...shifted.mapping, importOptions: { ...shifted.mapping.importOptions, paymentMapping: legacyLegend },
         })) } });
         const oldPlan = await ImportPlanService.compilePlan({ userId: f.user.id, branchId: f.branch.id,
-            sessionId: paid.id, targetRevision: paid.draftRevision, readinessPolicy: "READY_ROWS_ONLY" });
+            sessionId: shifted.id, targetRevision: shifted.draftRevision, readinessPolicy: "READY_ROWS_ONLY" });
         expect(oldPlan.canRun).toBe(true);
         expect((oldPlan.snapshot as unknown as ImportPlanSnapshot).items).toContainEqual(expect.objectContaining({
             kind: "PAYMENT_CYCLE", payload: expect.objectContaining({ status: "PAID" }),
         }));
-        const request = { userId: f.user.id, branchId: f.branch.id, sessionId: paid.id, kind: "COMMIT" as const,
-            targetRevision: paid.draftRevision, importPlanId: oldPlan.id, confirmedPlanVersion: oldPlan.planVersion, idempotencyKey: randomUUID() };
+        const request = { userId: f.user.id, branchId: f.branch.id, sessionId: shifted.id, kind: "COMMIT" as const,
+            targetRevision: shifted.draftRevision, importPlanId: oldPlan.id, confirmedPlanVersion: oldPlan.planVersion, idempotencyKey: randomUUID() };
         await expect(ImportRunService.createOrGetRun(request)).rejects.toMatchObject({ code: "IMPORT_PAYMENT_LEGEND_CONFLICT" });
         expect(await db.importRun.count({ where: { importSessionId: paid.id, kind: "COMMIT" } })).toBe(0);
         expect(await db.payment.count({ where: { branchId: f.branch.id } })).toBe(0);
 
-        const corrected = await ImportSessionService.updateMapping(f.user.id, f.branch.id, paid.id, {
-            expectedRevision: paid.draftRevision, importOptions: { paymentMapping: { ...paidLegend, paidValues: [], unpaidValues: ["X"] } },
+        const corrected = await ImportSessionService.updateMapping(f.user.id, f.branch.id, shifted.id, {
+            expectedRevision: shifted.draftRevision, importOptions: { paymentMapping: paymentLegendForRowReview(legacyLegend)! },
         });
         await expect(ImportRunService.createOrGetRun(request)).rejects.toMatchObject({ code: "IMPORT_REVISION_CONFLICT" });
-        const { plan } = await commit(f, corrected);
+        const row = corrected.rows[0];
+        expect(row.normalizedData).toMatchObject({ allocation: { shiftName: f.shift.name }, payment: { amount: 900, status: "UNCLEAR" } });
+        expect(row.issues).toContainEqual(expect.objectContaining({ field: "payment.status", severity: "error" }));
+        const held = await ImportPlanService.compilePlan({ userId: f.user.id, branchId: f.branch.id,
+            sessionId: corrected.id, targetRevision: corrected.draftRevision, readinessPolicy: "READY_ROWS_ONLY" });
+        expect(held.canRun).toBe(false);
+        expect((held.snapshot as unknown as ImportPlanSnapshot).items.some(item => item.kind === "PAYMENT_CYCLE")).toBe(false);
+        expect(await db.payment.count({ where: { branchId: f.branch.id } })).toBe(0);
+
+        const due = await chooseRowPaymentStatus(f, corrected, "DUE");
+        const { plan } = await commit(f, due);
         expect((plan.snapshot as unknown as ImportPlanSnapshot).items).toContainEqual(expect.objectContaining({
             kind: "PAYMENT_CYCLE", payload: expect.objectContaining({ status: "DUE" }),
         }));
-        expect(await db.payment.findMany({ where: { branchId: f.branch.id }, select: { status: true } })).toEqual([{ status: "DUE" }]);
+        expect(await db.payment.findMany({ where: { branchId: f.branch.id }, select: { amount: true, status: true } })).toEqual([{ amount: 900, status: "DUE" }]);
+        expect(await db.seatAllocation.findMany({ where: { branchId: f.branch.id }, select: { seatId: true, shiftId: true } }))
+            .toEqual([{ seatId: f.seat.id, shiftId: f.shift.id }]);
+    });
+    it("preserves a payment status explicitly chosen for a student through a shift edit and payment legend change", async () => {
+        const f = await world();
+        const source = await draft(f, [`Reviewed Student\t9876509013\t2026-01-01\t900\tFD\t${f.seat.label}\tX\tCASH\t900`]);
+        const dueLegend = { confirmed: true, paidValues: [], unpaidValues: ["X"], waivedValues: [], unclearValues: [] };
+        let detail = await ImportSessionService.updateMapping(f.user.id, f.branch.id, source.id, {
+            expectedRevision: source.draftRevision, importOptions: { paymentMapping: dueLegend },
+        });
+        expect(detail.rows[0].normalizedData).toMatchObject({ payment: { status: "DUE" } });
+        detail = await chooseRowPaymentStatus(f, detail, "PAID");
+        detail = await ImportSessionService.confirmShiftInterpretation(f.user.id, f.branch.id, detail.id, {
+            expectedRevision: detail.draftRevision, source: "FD", targetId: f.shift.id,
+        });
+        detail = await ImportSessionService.updateMapping(f.user.id, f.branch.id, detail.id, {
+            expectedRevision: detail.draftRevision, importOptions: { paymentMapping: { ...dueLegend, unpaidValues: [], unclearValues: ["X"] } },
+        });
+        expect(detail.rows[0].normalizedData).toMatchObject({ allocation: { shiftName: f.shift.name }, payment: { status: "PAID", amount: 900 } });
+        await commit(f, detail);
+        expect(await db.payment.findMany({ where: { branchId: f.branch.id }, select: { status: true, amount: true } })).toEqual([{ status: "PAID", amount: 900 }]);
+    });
+    it("blocks an already-reviewed plan whose corrected legend still has a stale paid evaluation", async () => {
+        const f = await world();
+        const source = await draft(f, [`Historical Student\t9876509014\t2026-01-01\t900\tFD\t${f.seat.label}\tX\tCASH\t900`]);
+        const paidLegend = { confirmed: true, paidValues: ["X"], unpaidValues: [], waivedValues: [], unclearValues: [] };
+        const paid = await ImportSessionService.updateMapping(f.user.id, f.branch.id, source.id, {
+            expectedRevision: source.draftRevision, importOptions: { paymentMapping: paidLegend },
+        });
+        const shifted = await ImportSessionService.confirmShiftInterpretation(f.user.id, f.branch.id, paid.id, {
+            expectedRevision: paid.draftRevision, source: "FD", targetId: f.shift.id,
+        });
+        // The previous release could publish a corrected mapping alongside this unchanged manual evaluation.
+        const clearedLegend = paymentLegendForRowReview({ ...paidLegend, unpaidValues: ["X"] })!;
+        await db.importSession.update({ where: { id: shifted.id }, data: { mapping: JSON.parse(JSON.stringify({
+            ...shifted.mapping, importOptions: { ...shifted.mapping.importOptions, paymentMapping: clearedLegend },
+        })) } });
+        const input = { userId: f.user.id, branchId: f.branch.id, sessionId: shifted.id, targetRevision: shifted.draftRevision };
+        const plan = await ImportPlanService.compilePlan({ ...input, readinessPolicy: "READY_ROWS_ONLY" });
+        expect(plan.canRun).toBe(true);
+        expect((plan.snapshot as unknown as ImportPlanSnapshot).items).toContainEqual(expect.objectContaining({
+            kind: "PAYMENT_CYCLE", payload: expect.objectContaining({ amount: 900, status: "PAID" }),
+        }));
+        await expect(ImportRunService.createOrGetRun({ ...input, kind: "COMMIT", importPlanId: plan.id,
+            confirmedPlanVersion: plan.planVersion, idempotencyKey: randomUUID() })).rejects.toMatchObject({ code: "IMPORT_PAYMENT_REVIEW_REQUIRED" });
+        expect(await db.importRun.count({ where: { importSessionId: shifted.id, kind: "COMMIT" } })).toBe(0);
+        expect(await db.payment.count({ where: { branchId: f.branch.id } })).toBe(0);
+        // Refresh review republishes the same columns on a fresh revision.
+        const refreshed = await ImportSessionService.updateMapping(f.user.id, f.branch.id, shifted.id, {
+            expectedRevision: shifted.draftRevision, columnMappings: shifted.mapping.columnMappings,
+        });
+        expect(refreshed.rows[0].normalizedData).toMatchObject({ allocation: { shiftName: f.shift.name }, payment: { status: "UNCLEAR", amount: 900 } });
     });
     it("keeps saved progress visible when an early recorded payment is rechecked", async () => {
         const f = await world();
@@ -355,7 +432,14 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
     });
     it("repairs seating in a later month without resetting the successful student or reapplying old paid facts to a new cycle", async () => {
         const f = await world(); const destination = await createSeat({ branchId: f.branch.id });
-        let detail = await draft(f, [`Recover Student\t9876501001\t2026-01-01\t1000\tFull Day\t${f.seat.label}\tPAID\tUPI\t1000`]);
+        let detail = await draft(f, [`Recover Student\t9876501001\t2026-01-01\t1000\tFD\t${f.seat.label}\tX\tUPI\t1000`]);
+        const paidLegend = { confirmed: true, paidValues: ["X"], unpaidValues: [], waivedValues: [], unclearValues: [] };
+        detail = await ImportSessionService.updateMapping(f.user.id, f.branch.id, detail.id, {
+            expectedRevision: detail.draftRevision, importOptions: { paymentMapping: paidLegend },
+        });
+        detail = await ImportSessionService.confirmShiftInterpretation(f.user.id, f.branch.id, detail.id, {
+            expectedRevision: detail.draftRevision, source: "FD", targetId: f.shift.id,
+        });
         const plan = await ImportPlanService.compilePlan({ userId: f.user.id, branchId: f.branch.id, sessionId: detail.id, targetRevision: detail.draftRevision, readinessPolicy: "READY_ROWS_ONLY" });
         const run = await ImportRunService.createOrGetRun({ userId: f.user.id, branchId: f.branch.id, sessionId: detail.id, kind: "COMMIT", targetRevision: detail.draftRevision, importPlanId: plan.id, confirmedPlanVersion: plan.planVersion, idempotencyKey: randomUUID() });
         const [studentItem] = await ImportRunRunner.claimBatch({ importRunId: run.id, workerId: "month-repair", limit: 25 });
@@ -371,7 +455,13 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         await ImportRunRunner.finalizeRun(run.id);
         expect((await db.importSession.findUniqueOrThrow({ where: { id: detail.id } })).status).toBe("PARTIAL");
         const student = await db.student.findFirstOrThrow({ where: { name: "Recover Student" } });
+        const paid = await db.payment.findFirstOrThrow({ where: { branchId: f.branch.id, studentId: student.id } });
+        expect(paid).toMatchObject({ status: "PAID", amount: 1000, paymentMethod: "UPI" });
         vi.setSystemTime(new Date(2026, 11, 2, 12));
+        detail = await ImportSessionService.updateMapping(f.user.id, f.branch.id, detail.id, {
+            expectedRevision: detail.draftRevision, importOptions: { paymentMapping: { ...paidLegend, paidValues: [], unclearValues: ["X"] } },
+        });
+        expect(detail.rows[0].normalizedData).toMatchObject({ payment: { status: "PAID" }, allocation: { shiftName: f.shift.name } });
         const data = JSON.parse(JSON.stringify(detail.rows[0].normalizedData)) as ImportNormalizedRow;
         data.allocation!.seatLabel = destination.label; data.seat!.label = destination.label;
         detail = await ImportSessionService.updateRows(f.user.id, f.branch.id, detail.id, { expectedRevision: detail.draftRevision, edits: [{ rowId: detail.rows[0].id, normalizedData: data }] });
@@ -379,7 +469,10 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         expect(repaired.plan.canRun).toBe(true);
         expect(await db.student.count()).toBe(1);
         expect((await db.student.findUniqueOrThrow({ where: { id: student.id } })).billingStartAt).toEqual(student.billingStartAt);
-        expect(await db.payment.count()).toBe(1);
+        expect((repaired.plan.snapshot as unknown as ImportPlanSnapshot).items.map(item => item.kind)).toEqual(["ALLOCATION"]);
+        expect(await db.seatAllocation.findMany({ where: { branchId: f.branch.id, studentId: student.id }, select: { seatId: true, shiftId: true } }))
+            .toEqual([{ seatId: destination.id, shiftId: f.shift.id }]);
+        expect(await db.payment.findMany({ where: { branchId: f.branch.id, studentId: student.id } })).toEqual([paid]);
         await PaymentService.generateDuePaymentsForBranch(f.user.id, f.branch.id, new Date(2026, 11, 2, 12));
         const payments = await db.payment.findMany({ orderBy: { dueDate: "asc" } });
         expect(payments.map(payment => payment.status)).toEqual(["PAID", "DUE"]);

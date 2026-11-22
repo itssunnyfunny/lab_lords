@@ -1,4 +1,4 @@
-import { ImportParserError, ImportPaymentLegendConflictError, ImportValidationError } from "@/importing/utils/import-errors";
+import { ImportParserError, ImportPaymentLegendConflictError, ImportPaymentReviewRequiredError, ImportValidationError } from "@/importing/utils/import-errors";
 import { ImportRequestError } from "@/importing/http/import-request";
 import {
   ImportMutationLimitConfigurationError,
@@ -28,7 +28,7 @@ export function toImportApiError(
       body: { error: error.message, code: error.code },
     };
   }
-  if (error instanceof ImportPaymentLegendConflictError) {
+  if (error instanceof ImportPaymentLegendConflictError || error instanceof ImportPaymentReviewRequiredError) {
     return { status: 409, body: { error: error.message, code: error.code } };
   }
   if (error instanceof ImportParserError || error instanceof ImportValidationError) {

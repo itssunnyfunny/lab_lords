@@ -1521,6 +1521,10 @@ branch configuration, or import/payment/default/conflict options.
 
 At first commit a saved plan with a conflicting confirmed legend for a
 source-derived payment status requires corrected labels and a new review.
+For manually edited rows, revalidation compares the uploaded status word with
+the saved payment status. A shift edit preserves the owner's shift choice but
+cannot confirm a disputed payment. First commit also checks the frozen row
+evaluation for plans saved after an earlier legend correction.
 Replays and dispatch of an already-started run use its existing ledger.
 Exact remaining payment-cycle review is exposed from immutable plan items by a
 tenant-authorized, required-permission-checked API page of at most 100 cycles;
