@@ -160,7 +160,8 @@ export class DashboardService {
         const through = dashboardDayStart(dashboardDateOffset(today, 1), timezone);
         const [collections, legacy, pending, overdue, students] = await completeReads([
             client.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: { gte: month.start, lt: month.end } }, _sum: { amount: true } }),
-            client.payment.aggregate({ where: { branchId, ledgerBacked: false, status: "PAID", paidAt: { gte: month.start, lt: month.end } }, _sum: { amount: true } }),
+            client.payment.aggregate({ where: { branchId, ledgerBacked: false, status: "PAID", paidAt: { gte: month.start, lt: month.end },
+                resolutionEvents: { none: { source: "IMPORT_EXECUTION" } } }, _sum: { amount: true } }),
             client.payment.aggregate({ where: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: through } }, _sum: { amount: true, collectedAmount: true, waivedAmount: true } }),
             client.payment.aggregate({ where: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: overdueBefore } }, _sum: { amount: true, collectedAmount: true, waivedAmount: true } }),
             client.student.count({ where: { branchId, payments: { some: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: overdueBefore } } } } }),

@@ -45,6 +45,23 @@ describe("dashboard scoped service boundary", () => {
         expect(data.collections.status).toBe("locked"); expect(data.money.data?.collectedThisMonth).toBe(1900);
         expect(mocks.db.$queryRaw).not.toHaveBeenCalled(); expect(data.money.data?.comparisonPercent).toBeNull();
     });
+    it("excludes imported paid fees with legacy dates from this month's collected cash", async () => {
+        mocks.resolve.mockResolvedValue({ ...access(), permissions: { ...permissions, view_payments: true } });
+        const fees = [{ amount: 300, source: "MANUAL" }, { amount: 500, source: "IMPORT_EXECUTION" }];
+        mocks.db.payment.aggregate.mockImplementation(({ where }) => {
+            const amount = where.paidAt
+                ? fees.filter(fee => fee.source !== where.resolutionEvents?.none.source).reduce((sum, fee) => sum + fee.amount, 0)
+                : 0;
+            return { _sum: { amount, collectedAmount: 0, waivedAmount: 0 } };
+        });
+        mocks.db.student.count.mockResolvedValue(0);
+        mocks.db.feeCollection.aggregate.mockResolvedValue({ _sum: { amount: 100 } });
+        const data = await DashboardService.overview("actor", "branch", "2026-11", new Date("2026-11-18T12:00:00Z"));
+        expect(data.money.data?.collectedThisMonth).toBe(400);
+        expect(mocks.db.student.count).toHaveBeenCalledWith({ where: { branchId: "branch", payments: {
+            some: { branchId: "branch", status: "DUE", amount: { gt: 0 }, dueDate: { lt: expect.any(Date) } },
+        } } });
+    });
     it("isolates source failures and never converts them into a zero metric", async () => {
         mocks.resolve.mockResolvedValue({ ...access(), permissions: { ...permissions, students: true } });
         mocks.db.student.count.mockRejectedValue(new Error("database details"));
