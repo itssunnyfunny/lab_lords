@@ -573,6 +573,25 @@ describe("workspace branch billing lifecycle", () => {
     await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } })).resolves.toMatchObject({ status: "SCHEDULED" });
   });
 
+  it("keeps an active trial branch addition queued when Billing receives an undo", async () => {
+    vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "true");
+    vi.stubEnv("RAZORPAY_MODE", "TEST");
+    vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_branchfixture");
+    const { owner, organization, trialEndsAt } = await trialOrganization();
+    const departing = await createBranch({ organizationId: organization.id });
+    await BranchService.scheduleBillingRemoval(owner.id, departing.id, "remove-before-adding");
+    await createSaasSubscription({ organizationId: organization.id, status: "AUTHENTICATED" });
+    const added = await BranchService.createBranchForOrg({
+      organizationId: organization.id, userId: owner.id, name: "Third", contactPhone: "9876543210", idempotencyKey: "add-active",
+    });
+    expect(added.billingStatus).toBe("ACTIVE");
+    await expect(BillingService.undoWorkspaceChange(owner.id, organization.id, added.billingChangeId))
+      .rejects.toThrow(/schedule its removal/i);
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: added.billingChangeId } }))
+      .resolves.toMatchObject({ status: "QUEUED" });
+    await expect(BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1))).resolves.toEqual({ archived: 1 });
+  });
+
   it.each([2, null, 1])("checks an unbound first checkout's frozen quantity before trial archival (%s)", async authorizedQuantity => {
     const { owner, organization, trialEndsAt } = await trialOrganization();
     const departing = await createBranch({ organizationId: organization.id });

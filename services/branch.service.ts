@@ -735,9 +735,12 @@ export class BranchService {
         };
     }
 
-    static async discardPendingActivation(userId: string, branchId: string) {
+    static async discardPendingActivation(userId: string, branchId: string, expectedChangeId?: string) {
         const branch = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true } } });
         if (!branch) throw new BillingResourceNotFoundError("Branch not found");
+        if (expectedChangeId && branch.billingStatus === "ACTIVE") {
+            throw new BillingChangeInProgressError(expectedChangeId, "This branch is already active. Schedule its removal from Billing.");
+        }
         if (branch.billingStatus !== "PENDING_ACTIVATION") throw new Error("Branch is not pending activation");
 
         await BillingReconciliationService.reconcileByOrganization(branch.organizationId);
@@ -755,6 +758,9 @@ export class BranchService {
             orderBy: { sequence: "desc" },
         });
         if (!change) throw new Error("Branch activation is still awaiting provider confirmation");
+        if (expectedChangeId && change.id !== expectedChangeId) {
+            throw new BillingChangeInProgressError(expectedChangeId, "The branch activation changed before it could be discarded");
+        }
         const now = new Date();
         if (change.replacementSubscriptionId) {
             await BillingReplacementService.undoReplacement(change.id, now, {
@@ -764,17 +770,17 @@ export class BranchService {
         }
         await prisma.$transaction(async tx => {
             await lockOrganization(tx, branch.organizationId);
-            const organization = await tx.organization.findUniqueOrThrow({
-                where: { id: branch.organizationId },
-                select: { billingMutationLeaseToken: true, billingMutationLeaseUntil: true },
-            });
+            const organization = await AccessPolicy.selectOwnerOrganization(userId, branch.organizationId, {
+                billingMutationLeaseToken: true, billingMutationLeaseUntil: true,
+            }, tx);
+            if (!organization) throw new BillingResourceNotFoundError("Branch not found");
             if (organization.billingMutationLeaseToken
                 || (organization.billingMutationLeaseUntil && organization.billingMutationLeaseUntil > now)) {
                 throw new Error("Another billing operation is still processing; retry shortly");
             }
             await assertInitialCheckoutResolved(tx, branch.organizationId);
 
-            const currentBranch = await tx.branch.findUnique({ where: { id: branchId } });
+            const currentBranch = await tx.branch.findFirst({ where: { id: branchId, organizationId: branch.organizationId } });
             if (!currentBranch) throw new Error("Branch not found");
             if (currentBranch.billingStatus === "ACTIVE") {
                 throw new Error("Razorpay already confirmed this branch activation");
@@ -791,8 +797,8 @@ export class BranchService {
                 },
                 orderBy: { sequence: "desc" },
             });
-            if (!currentChange) {
-                throw new Error("Branch activation is still awaiting provider confirmation");
+            if (currentChange?.id !== change.id) {
+                throw new BillingChangeInProgressError(change.id, "The branch activation changed before it could be discarded");
             }
             if (currentChange.replacementSubscriptionId) {
                 throw new Error("Replacement branch activation must be discarded through its mandate operation");
@@ -1011,7 +1017,7 @@ export class BranchService {
         const change = await prisma.organizationBillingChange.findFirst({
             where: {
                 id: expectedChangeId,
-                branchId,
+                branchId, organizationId: branch.organizationId,
                 type: "BRANCH_REMOVAL",
                 status: { in: ["QUEUED", "PROCESSING", "AWAITING_PAYMENT", "SCHEDULED", "FAILED"] },
             },

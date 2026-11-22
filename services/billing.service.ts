@@ -3981,9 +3981,16 @@ export class BillingService {
     if (change.type === "CANCELLATION") {
       return this.undoWorkspaceCancellation(userId, organizationId, undefined, change.id);
     }
-    if (change.type === "BRANCH_REMOVAL" && change.branchId && !change.organizationSubscriptionId) {
+    if (change.type === "BRANCH_REMOVAL" && change.branchId
+      && (!change.organizationSubscriptionId || change.status === "QUEUED")) {
       const { BranchService } = await import("@/services/branch.service");
       return BranchService.undoBillingRemoval(userId, change.branchId, change.id);
+    }
+    if (change.status === "QUEUED" && change.branchId
+      && ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"].includes(change.type)) {
+      const { BranchService } = await import("@/services/branch.service");
+      await BranchService.discardPendingActivation(userId, change.branchId, change.id);
+      return { undone: true };
     }
     if (change.replacementSubscriptionId) {
       await BillingReplacementService.undoReplacement(change.id);
