@@ -20,14 +20,14 @@ export function detectBranchRisks(
   // Strict Rule: > 30% of active students have overdue payments = CRITICAL
   // Strict Rule: > 0 overdue = MEDIUM/HIGH depending on count
   const overduePercent = snapshot.students.active > 0
-    ? (snapshot.payments.overdueCount / snapshot.students.active) * 100
+    ? (snapshot.payments.activeStudentsWithOverdueFees / snapshot.students.active) * 100
     : 0;
 
   if (overduePercent > 30) {
     risks.push({
       type: "PAYMENT_OVERDUE",
       severity: "HIGH",
-      explanation: `Critical: ${overduePercent.toFixed(1)}% of students have overdue payments.`,
+      explanation: `Critical: ${overduePercent.toFixed(1)}% of active students have overdue payments.`,
       meta: {
         relatedEntityIds: snapshot.payments.overduePayments.map(p => p.studentId)
       }
