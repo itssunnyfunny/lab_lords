@@ -73,7 +73,7 @@ export const detailMessages = {
     "Set End Time to {formatMins}": ["समाप्ति का समय {formatMins} रखें", "End time {formatMins} rakhein"],
     "Set Start Time to {formatMins}": ["शुरू होने का समय {formatMins} रखें", "Start time {formatMins} rakhein"],
     "{studentsInShift} student(s)": ["{studentsInShift} छात्र", "{studentsInShift} students"],
-    "{studentsInShift} student(s) will be unallocated. Related bundle allocations on their current seat will also end.": ["{studentsInShift} छात्रों का सीट आवंटन खत्म होगा। उनकी मौजूदा सीट के जुड़े बंडल आवंटन भी खत्म होंगे।", "{studentsInShift} students ka seat allocation khatam hoga. Unki current seat ke related bundle allocations bhi khatam honge."],
+    "{studentsInShift} student(s) will lose their seat assignment in this shift.": ["{studentsInShift} छात्रों का इस शिफ्ट में सीट आवंटन खत्म होगा।", "Is shift mein {studentsInShift} students ka seat assignment khatam hoga."],
     "Time overlaps with “{name}” ({startTime} – {endTime}). Adjust the times before saving.": ["समय “{name}” ({startTime} – {endTime}) से टकराता है। सेव करने से पहले समय ठीक करें।", "Samay “{name}” ({startTime} – {endTime}) se overlap karta hai. Save karne se pehle samay theek karein."],
     "{count} combined": ["{count} जोड़े गए", "{count} combined"],
     "{count} primary / {count2} bundle(s)": ["{count} मुख्य / {count2} बंडल", "{count} primary / {count2} bundles"],

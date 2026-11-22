@@ -118,7 +118,7 @@ export const management = {
     "Deleting...": ["हटा रहे हैं…", "Delete ho raha hai…"], "Delete Shift": ["शिफ्ट हटाएँ", "Shift delete karein"],
     "Removing this shift also ends affected bundle allocations on each student's current seat. Reallocation assigns only the selected target shift.": ["शिफ्ट हटाने से छात्र की मौजूदा सीट पर जुड़े समूहों का आवंटन भी खत्म होगा। दोबारा सीट देने पर सिर्फ चुनी नई शिफ्ट मिलेगी।", "Shift hatane se current seat ke affected bundle allocations bhi khatam honge. Reallocation mein sirf selected target shift milegi."],
     "End All Allocations": ["सभी सीट आवंटन समाप्त करें", "Saare allocations khatam karein"],
-    "All students become unallocated. They remain in the system — only their seat assignment ends.": ["सभी छात्रों की सीट खाली हो जाएगी। छात्र का रिकॉर्ड रहेगा, केवल सीट आवंटन खत्म होगा।", "Saare students unallocated ho jayenge. Unka record rahega, sirf seat assignment khatam hoga."],
+    "End seat assignments for this shift and its affected bundles.": ["इस शिफ्ट और इससे जुड़े बंडलों के सीट आवंटन खत्म करें।", "Is shift aur isse jude bundles ke seat assignments khatam karein."],
     "Move All to One Shift": ["सभी को एक शिफ्ट में भेजें", "Sabko ek shift mein move karein"],
     "All students are moved to a single shift in one step.": ["सभी छात्र एक साथ एक शिफ्ट में जाएँगे।", "Saare students ek saath ek shift mein move honge."],
     "Select target shift": ["नई शिफ्ट चुनें", "Target shift chunein"], "Choose a shift…": ["शिफ्ट चुनें…", "Shift chunein…"],

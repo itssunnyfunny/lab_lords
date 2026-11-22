@@ -373,6 +373,9 @@ unit/API/integration coverage.
   requires every current active source allocation exactly once; all targets must
   be active in that branch. Affected bundle siblings are closed together by
   student, seat, and bundle identity. Validation failure rolls back all changes.
+  The deletion preview evaluates capacity and each student's overlapping
+  assignments after those releases. A bulk target must accommodate every
+  affected student. The writer repeats these checks at confirmation.
 - **Service-layer contract—not DB-enforced:** Shift overlap and the minimum-one-
   active-shift rule are service checks, not schema constraints. Writes that
   bypass `ShiftService` can violate them.
