@@ -271,12 +271,21 @@ unit/API/integration coverage.
   durable billing-change intent are atomic and use stable idempotency. At least
   one billable branch must remain after all scheduled removals. Under the
   organization lock, the projected count includes `ACTIVE` and
-  `PENDING_ACTIVATION` branches.
+  `PENDING_ACTIVATION` branches. The first recurring checkout, its frozen
+  provider intent, and the owner's next-period quote use that same count.
+  Branch changes wait for resolution when the first checkout outcome is
+  uncertain, so recovery can adopt the original mandate at its frozen quantity.
 - **Must preserve—enforced:** Scheduled removal does not delete the branch. It
   becomes read-only and is archived only at the effective boundary after the
   required provider confirmation. Historical data remains available according
-  to authorization. The hourly deadline reports historical schedules that leave
-  zero billable branches for operator review.
+  to authorization. A trial removal recorded before the first mandate can be
+  undone locally before provisioning. Once a live mandate covers the remaining
+  branches, restoring an excluded branch requires a quantity change through
+  the provider-backed reactivation flow after archival. The hourly deadline
+  reports historical schedules that leave zero branches or conflict with the
+  current mandate quantity for operator review. Before a local subscription
+  exists, an unresolved first checkout's frozen quantity must also match the
+  continuing branch count to allow archival.
   (`services/branch.service.ts`, branch-billing-lifecycle integration tests)
 - **Must preserve—enforced:** Each canonical onboarding command requires an
   authenticated-owner-scoped, bounded idempotency key and a stable versioned

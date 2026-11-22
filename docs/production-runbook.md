@@ -2195,12 +2195,30 @@ compatible forward fix.
 
 The 2026-11-18 billing correction uses existing tables. Check the hourly
 billing deadline's `errors` for affected organization IDs. It holds archival
-when scheduled removals would leave zero billable branches.
+when scheduled removals would leave zero billable branches, or when a
+provider-free trial removal conflicts with the current mandate quantity.
+An unresolved first checkout can also trigger the hold. Compare its frozen
+`authorizedQuantity` with the continuing branch count even when the first
+provider response was lost and the subscription has no local record. A missing
+or mismatched quantity requires reconciliation with the original provider
+operation before archival.
 
-For all-branch schedules, confirm with the owner which branch should remain
-and use an approved tenant-scoped repair if the undo deadline has passed.
-After the correction, verify the next deadline run and the resulting branch
-count.
+Previously applied removals are outside the deadline queue. To review those
+cases, identify workspaces with a provider-free `BRANCH_REMOVAL` marked
+`APPLIED` at the trial boundary. Compare the first authorization's timestamp
+and frozen quantity with the branches scheduled to continue on that date,
+using the branch billing-change history. Later additions and removals can
+make today's branch count different from the correct historical quantity.
+
+For each reported workspace, compare the affected branch statuses and removal
+dates with the frozen checkout intent, subscription quantity and same-mode
+Razorpay records. For all-branch schedules, confirm with the owner which branch
+should remain and use an approved tenant-scoped repair if the undo deadline has
+passed. For an existing mandate with excess quantity, arrange an
+owner-authorized correction and review any invoice already issued. Preserve
+the original intent, audit trail and provider evidence. After the correction,
+verify the next deadline run and the resulting branch count. The application
+does not automatically modify a prior charge or reauthorize a historical mandate.
 
 ### Initial subscription-provisioning migration
 

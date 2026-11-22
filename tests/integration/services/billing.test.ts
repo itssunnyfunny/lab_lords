@@ -519,6 +519,45 @@ describe("BillingService SaaS subscriptions", () => {
     }));
   });
 
+  it("excludes a scheduled trial removal from the first mandate, checkout replay and renewal estimate", async () => {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2", selectedPostTrialPlan: "BASIC" });
+    const now = new Date();
+    const trialEndsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await testPrisma.ownerTrialGrant.create({
+      data: { ownerId: owner.id, organizationId: org.id, source: "ONBOARDING", status: "ACTIVE", claimedAt: now, trialStartedAt: now, trialEndsAt, consumedAt: now },
+    });
+    const retained = await createBranch({ organizationId: org.id });
+    const departing = await createBranch({ organizationId: org.id });
+    const { change } = await BranchService.scheduleBillingRemoval(owner.id, departing.id, "trial-remove-before-checkout");
+    const overview = await BillingService.listPlansForOrganization(owner.id, org.id);
+    expect(overview.experience).toMatchObject({ projectedQuantity: 1, projectedMonthlyTotal: 99 });
+    vi.mocked(provider.createSubscription).mockImplementationOnce(async input => {
+      const accepted = providerSubscriptionForCreate(input, "sub_retained_trial_branch");
+      vi.mocked(provider.listSubscriptions!).mockResolvedValueOnce({ entity: "collection", count: 1, items: [accepted] });
+      throw new RazorpayApiError("provider response was lost", { kind: "NETWORK" });
+    });
+    await expect(BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" })).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    await expect(BranchService.undoBillingRemoval(owner.id, departing.id)).rejects.toThrow(/Reconcile the first recurring checkout/);
+    const checkout = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" });
+    expect(checkout.summary).toMatchObject({ quantity: 1, estimatedMonthlyTotal: 99, planFeeDueToday: 0 });
+    expect(provider.createSubscription).toHaveBeenCalledWith(expect.objectContaining({
+      quantity: 1, start_at: Math.floor(trialEndsAt.getTime() / 1000),
+    }));
+    const replay = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" });
+    expect(replay.subscriptionId).toBe(checkout.subscriptionId);
+    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
+    await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } }))
+      .resolves.toMatchObject({ quantity: 1 });
+    await expect(BranchService.undoBillingRemoval(owner.id, departing.id)).rejects.toThrow(/recurring mandate/);
+    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, change.id)).rejects.toThrow(/recurring mandate/);
+    await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: retained.id } })).resolves.toMatchObject({ billingStatus: "ACTIVE" });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: departing.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+  });
+
   it("scopes an active owner trial to its bound organization", async () => {
     const owner = await createUser();
     const trialOrganization = await createOrg({

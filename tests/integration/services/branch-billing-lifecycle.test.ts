@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { BranchService } from "@/services/branch.service";
 import { BillingService } from "@/services/billing.service";
 import { EntitlementService } from "@/services/entitlement.service";
-import { buildCommercialIntentSnapshot } from "@/services/billingCommercialEvidence.service";
+import { buildCommercialIntentSnapshot, buildUnboundCommercialIntentSnapshot } from "@/services/billingCommercialEvidence.service";
 import { BillingChangeInProgressError } from "@/lib/billingErrors";
 import { setRazorpayClientForTests, type RazorpayPayment, type RazorpayPlanCatalogApiClient, type RazorpaySubscription } from "@/lib/razorpay";
 import { createBranch, createOrg, createSaasSubscription, createUser } from "@/tests/factories";
@@ -541,20 +541,56 @@ describe("workspace branch billing lifecycle", () => {
     expect(statuses.map(row => row.billingStatus).sort()).toEqual(["ACTIVE", "ARCHIVED"]);
   });
 
-  it("holds pre-existing removals when all branches are scheduled", async () => {
+  it.each(["all branches scheduled", "oversized mandate"] as const)("holds pre-existing inconsistent removals at the deadline (%s)", async scenario => {
     const { owner, organization, first, trialEndsAt } = await trialOrganization();
     const second = await createBranch({ organizationId: organization.id });
     const { change } = await BranchService.scheduleBillingRemoval(owner.id, second.id, "historical-trial-removal");
-    await testPrisma.branch.update({ where: { id: first.id }, data: { billingStatus: "REMOVAL_SCHEDULED" } });
-    await testPrisma.organizationBillingChange.create({
-      data: { organizationId: organization.id, branchId: first.id, sequence: change.sequence + 1, idempotencyKey: "old-final-removal",
-        type: "BRANCH_REMOVAL", status: "SCHEDULED", operationStatus: "SCHEDULED", toQuantity: 0, effectiveAt: trialEndsAt },
-    });
+    if (scenario === "all branches scheduled") {
+      await testPrisma.branch.update({ where: { id: first.id }, data: { billingStatus: "REMOVAL_SCHEDULED" } });
+      await testPrisma.organizationBillingChange.create({
+        data: { organizationId: organization.id, branchId: first.id, sequence: change.sequence + 1, idempotencyKey: "old-final-removal",
+          type: "BRANCH_REMOVAL", status: "SCHEDULED", operationStatus: "SCHEDULED", toQuantity: 0, effectiveAt: trialEndsAt },
+      });
+    } else {
+      const mandate = await createSaasSubscription({ organizationId: organization.id, status: "AUTHENTICATED" });
+      await testPrisma.organizationSubscription.update({ where: { id: mandate.id }, data: { quantity: 2 } });
+    }
     const result = await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
     expect(result).toMatchObject({ archived: 0, errors: [{ organizationId: organization.id,
-      message: expect.stringMatching(/no billable branch/) }] });
+      message: expect.stringMatching(scenario === "all branches scheduled" ? /no billable branch/ : /mandate quantity/) }] });
     await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: second.id } })).resolves.toMatchObject({ billingStatus: "REMOVAL_SCHEDULED" });
     await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } })).resolves.toMatchObject({ status: "SCHEDULED" });
+  });
+
+  it.each([2, null, 1])("checks an unbound first checkout's frozen quantity before trial archival (%s)", async authorizedQuantity => {
+    const { owner, organization, trialEndsAt } = await trialOrganization();
+    const departing = await createBranch({ organizationId: organization.id });
+    const { change } = await BranchService.scheduleBillingRemoval(owner.id, departing.id, "remove-before-lost-response");
+    const checkout = await testPrisma.organizationBillingChange.create({
+      data: {
+        organizationId: organization.id, type: "SUBSCRIPTION_AUTHORIZATION", sequence: change.sequence + 1,
+        idempotencyKey: "first-checkout-response-lost", provisioningIntentVersion: 1,
+        providerMutationAdmittedAt: new Date(), authorizedBillingModelVersion: "WORKSPACE_V2",
+        ...(authorizedQuantity === null ? {} : buildUnboundCommercialIntentSnapshot({
+          providerMode: "TEST", sourceRazorpayPlanId: null, razorpayPlanId: "plan_test_basic",
+          plan: "BASIC", quantity: authorizedQuantity, unitAmountSubunits: 19900, currency: "INR",
+          period: "monthly", interval: 1,
+        })),
+        status: "FAILED", operationStatus: "FAILED", failureCategory: "MANUAL_REVIEW_REQUIRED",
+      },
+    });
+
+    const result = await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    const matchesRemainingBranches = authorizedQuantity === 1;
+    expect(result).toEqual(matchesRemainingBranches ? { archived: 1 } : {
+      archived: 0, errors: [{ organizationId: organization.id, message: expect.stringContaining("unresolved first checkout") }],
+    });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: departing.id } }))
+      .resolves.toMatchObject({ billingStatus: matchesRemainingBranches ? "ARCHIVED" : "REMOVAL_SCHEDULED" });
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
+      .resolves.toMatchObject({ status: matchesRemainingBranches ? "APPLIED" : "SCHEDULED" });
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: checkout.id } }))
+      .resolves.toMatchObject({ authorizedQuantity, organizationSubscriptionId: null, resolvedAt: null });
   });
 
   it("rolls back branch removal state when its atomic change insert fails", async () => {

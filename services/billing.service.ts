@@ -1,6 +1,7 @@
 import { isHistoricalCommercialModel, historicalCancellationPolicy } from "@/services/legacyCommercialCompatibility";
 import { executeBillingProviderAction, confirmReconciledBillingProviderAction, getConfirmedBillingProviderResponse } from "@/services/billingProviderAction.service";
 import { prisma } from "@/lib/prisma";
+import { projectedBillableStatuses, TERMINAL_STATUSES } from "@/lib/billingState";
 import crypto from "node:crypto";
 import { BILLING_PLANS, billingPlanRank, getActiveBillingPlan, getBillingPlan, publicBillingPlans, type BillingPlan } from "@/lib/billingPlans";
 import {
@@ -145,7 +146,6 @@ type RazorpayWebhookClaim = RazorpayWebhookOwnerClaim | {
   event: string;
 };
 
-const TERMINAL_STATUSES = new Set<SaasSubscriptionStatus>(["CANCELLED", "COMPLETED", "EXPIRED"]);
 const CHECKOUT_REUSABLE_STATUSES = new Set<SaasSubscriptionStatus>(["CREATED"]);
 const ACTIVE_AUTHORIZATION_OPERATION_STATUSES = [
   "CHECKOUT_OPEN",
@@ -711,7 +711,7 @@ async function prepareInitialProvisioningIntent(input: {
       ? await tx.branch.count({
           where: {
             organizationId: input.organizationId,
-            billingStatus: { not: "ARCHIVED" },
+            billingStatus: { in: projectedBillableStatuses },
           },
         })
       : 1;
@@ -1025,7 +1025,7 @@ async function finalizeInitialProvisioning(input: {
       ? await tx.branch.count({
           where: {
             organizationId: input.change.organizationId,
-            billingStatus: { not: "ARCHIVED" },
+            billingStatus: { in: projectedBillableStatuses },
           },
         })
       : 1;
@@ -2038,7 +2038,7 @@ export class BillingService {
     const workspaceBilling = org.billingModelVersion === "WORKSPACE_V2";
     const quantity = workspaceBilling
       ? await prisma.branch.count({
-          where: { organizationId, billingStatus: { not: "ARCHIVED" } },
+          where: { organizationId, billingStatus: { in: projectedBillableStatuses } },
         })
       : 1;
     if (quantity < 1) throw new BillingValidationError("At least one billable branch is required");
@@ -3980,6 +3980,10 @@ export class BillingService {
     }
     if (change.type === "CANCELLATION") {
       return this.undoWorkspaceCancellation(userId, organizationId, undefined, change.id);
+    }
+    if (change.type === "BRANCH_REMOVAL" && change.branchId && !change.organizationSubscriptionId) {
+      const { BranchService } = await import("@/services/branch.service");
+      return BranchService.undoBillingRemoval(userId, change.branchId, change.id);
     }
     if (change.replacementSubscriptionId) {
       await BillingReplacementService.undoReplacement(change.id);

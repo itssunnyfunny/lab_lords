@@ -1,8 +1,9 @@
 import { billingPlanName, billingPlanRank, type BillingPlanId } from "@/lib/billingPlans";
-import type { BranchBillingStatus } from "@/app/generated/prisma/enums";
+import type { BranchBillingStatus, SaasSubscriptionStatus } from "@/app/generated/prisma/enums";
 
 /** Branches included in the next recurring mandate. Confirmed quantity is provider-owned. */
 export const projectedBillableStatuses: BranchBillingStatus[] = ["ACTIVE", "PENDING_ACTIVATION"];
+export const TERMINAL_STATUSES = new Set<SaasSubscriptionStatus>(["CANCELLED", "COMPLETED", "EXPIRED"]);
 
 export type BillingAccessMode = "FULL" | "WARNING" | "READ_ONLY";
 

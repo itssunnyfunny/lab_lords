@@ -1,5 +1,5 @@
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
-import { projectedBillableStatuses } from "@/lib/billingState";
+import { projectedBillableStatuses, TERMINAL_STATUSES } from "@/lib/billingState";
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { prisma } from "@/lib/prisma";
 import {
@@ -330,7 +330,7 @@ async function assertNoActiveOrganizationBillingLease(
         where: { id: organizationId },
         select: { billingMutationLeaseToken: true },
     });
-    if (!organization.billingMutationLeaseToken) return;
+    if (!organization.billingMutationLeaseToken) return assertInitialCheckoutResolved(tx, organizationId);
     const activeChange = await tx.organizationBillingChange.findFirst({
         where: { organizationId, resolvedAt: null },
         orderBy: { sequence: "desc" },
@@ -340,6 +340,20 @@ async function assertNoActiveOrganizationBillingLease(
         activeChange?.id ?? null,
         "A provider billing operation is still processing; retry the branch change shortly"
     );
+}
+
+function unresolvedInitialCheckoutWhere(organizationId: string): Prisma.OrganizationBillingChangeWhereInput {
+    return { organizationId, type: "SUBSCRIPTION_AUTHORIZATION", provisioningIntentVersion: { not: null },
+        organizationSubscriptionId: null, resolvedAt: null };
+}
+
+async function assertInitialCheckoutResolved(tx: Prisma.TransactionClient, organizationId: string) {
+    const pending = await tx.organizationBillingChange.findFirst({
+        where: unresolvedInitialCheckoutWhere(organizationId),
+        select: { id: true },
+    });
+    if (pending) throw new BillingChangeInProgressError(pending.id,
+        "Reconcile the first recurring checkout before changing which branches it covers.");
 }
 
 async function createAtomicBranchChange(
@@ -571,7 +585,7 @@ export class BranchService {
             });
 
             const toQuantity = await tx.branch.count({
-                where: { organizationId, billingStatus: { not: "ARCHIVED" } },
+                where: { organizationId, billingStatus: { in: projectedBillableStatuses } },
             });
             const localChangeType: BillingChangeType = trialActive
                 ? "TRIAL_SUBSCRIPTION_UPDATE"
@@ -758,6 +772,7 @@ export class BranchService {
                 || (organization.billingMutationLeaseUntil && organization.billingMutationLeaseUntil > now)) {
                 throw new Error("Another billing operation is still processing; retry shortly");
             }
+            await assertInitialCheckoutResolved(tx, branch.organizationId);
 
             const currentBranch = await tx.branch.findUnique({ where: { id: branchId } });
             if (!currentBranch) throw new Error("Branch not found");
@@ -874,7 +889,7 @@ export class BranchService {
                 data: { billingStatus: "PENDING_ACTIVATION", billingArchivedAt: null },
             });
             const toQuantity = await tx.branch.count({
-                where: { organizationId: branch.organizationId, billingStatus: { not: "ARCHIVED" } },
+                where: { organizationId: branch.organizationId, billingStatus: { in: projectedBillableStatuses } },
             });
             const change = await createAtomicBranchChange(tx, {
                 organizationId: branch.organizationId,
@@ -990,11 +1005,12 @@ export class BranchService {
         };
     }
 
-    static async undoBillingRemoval(userId: string, branchId: string) {
+    static async undoBillingRemoval(userId: string, branchId: string, expectedChangeId?: string) {
         const branch = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true } } });
         if (!branch) throw new BillingResourceNotFoundError("Branch not found");
         const change = await prisma.organizationBillingChange.findFirst({
             where: {
+                id: expectedChangeId,
                 branchId,
                 type: "BRANCH_REMOVAL",
                 status: { in: ["QUEUED", "PROCESSING", "AWAITING_PAYMENT", "SCHEDULED", "FAILED"] },
@@ -1025,13 +1041,16 @@ export class BranchService {
         if (change.effectiveAt && change.effectiveAt <= new Date()) {
             throw new Error("The branch removal can no longer be undone");
         }
-        if (change.status === "SCHEDULED" && branch.organization.subscription?.providerPaymentMethod === "CARD") {
+        if (change.status === "SCHEDULED" && change.organizationSubscriptionId && branch.organization.subscription?.providerPaymentMethod === "CARD") {
             await BillingMutationService.undoScheduledProviderChange(change.id);
             return { undone: true };
         }
         await prisma.$transaction(async tx => {
             await lockOrganization(tx, branch.organizationId);
-            const currentOrganization = await AccessPolicy.selectOwnerOrganization(userId, branch.organizationId, { billingMutationLeaseToken: true }, tx);
+            const currentOrganization = await AccessPolicy.selectOwnerOrganization(userId, branch.organizationId, {
+                billingMutationLeaseToken: true,
+                subscription: { select: { status: true } },
+            }, tx);
             if (!currentOrganization) throw new BillingResourceNotFoundError("Branch not found");
             if (currentOrganization.billingMutationLeaseToken) {
                 throw new BillingChangeInProgressError(
@@ -1039,6 +1058,7 @@ export class BranchService {
                     "A provider quantity mutation is still processing and cannot be undone"
                 );
             }
+            await assertInitialCheckoutResolved(tx, branch.organizationId);
             const current = await tx.organizationBillingChange.findFirst({
                 where: { id: change.id, organizationId: branch.organizationId, branchId },
             });
@@ -1061,6 +1081,11 @@ export class BranchService {
             }
             if (current.effectiveAt && current.effectiveAt <= new Date()) {
                 throw new Error("The branch removal can no longer be undone");
+            }
+            const subscription = currentOrganization.subscription;
+            if (!current.organizationSubscriptionId && subscription && !TERMINAL_STATUSES.has(subscription.status)) {
+                throw new BillingChangeInProgressError(current.id,
+                    "A recurring mandate now covers the remaining branches. Reactivate this branch after its scheduled removal to authorize its fee.");
             }
             const undoneAt = new Date();
             const undone = await tx.organizationBillingChange.updateMany({
@@ -1108,17 +1133,35 @@ export class BranchService {
                 await lockOrganization(tx, candidate.organizationId);
                 const change = await tx.organizationBillingChange.findFirst({
                     where: { id: candidate.id, organizationId: candidate.organizationId, status: "SCHEDULED", effectiveAt: { lte: now } },
-                    include: { organizationSubscription: true },
+                    include: {
+                        organizationSubscription: true,
+                        organization: { select: { subscription: { select: { status: true, quantity: true } } } },
+                    },
                 });
                 if (!change?.branchId) return false;
                 const projected = await tx.branch.count({
                     where: { organizationId: candidate.organizationId, billingStatus: { in: projectedBillableStatuses } },
                 });
-                // Older schedules may have selected every branch.
+                // Older schedules may have selected every branch or been followed by an oversized initial mandate.
                 if (projected < 1) return "Scheduled removals leave no billable branch. Review the affected branch schedules.";
                 const source = change.organizationSubscription;
                 if (source && (change.toQuantity !== source.quantity
                     || !source.lastReconciledAt || source.lastReconciledAt < (change.effectiveAt ?? now))) return false;
+                const current = change.organization.subscription;
+                if (!source && current && !TERMINAL_STATUSES.has(current.status) && current.quantity !== projected) {
+                    return "A trial branch removal conflicts with the current mandate quantity. Reconcile the mandate before archiving.";
+                }
+                if (!source) {
+                    // A lost create response can leave a provider mandate without a local subscription row.
+                    const unresolved = await tx.organizationBillingChange.findFirst({
+                        where: {
+                            ...unresolvedInitialCheckoutWhere(candidate.organizationId),
+                            OR: [{ authorizedQuantity: null }, { authorizedQuantity: { not: projected } }],
+                        },
+                        select: { id: true },
+                    });
+                    if (unresolved) return "The unresolved first checkout quantity needs reconciliation before archiving.";
+                }
                 const archivedBranch = await tx.branch.updateMany({
                     where: { id: change.branchId, organizationId: candidate.organizationId, billingStatus: "REMOVAL_SCHEDULED" },
                     data: { billingStatus: "ARCHIVED", billingArchivedAt: now },
