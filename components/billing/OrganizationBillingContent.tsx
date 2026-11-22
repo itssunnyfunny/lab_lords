@@ -1,4 +1,5 @@
 "use client";
+import { projectedBillableStatuses } from "@/lib/billingState";
 import { accountBillingHref, accountBillingProcessingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -607,6 +608,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
     const cancellationScheduled = Boolean(billingOverview?.current?.cancelAtCycleEnd || scheduledCancellation);
     const cancellationDate = scheduledCancellation?.effectiveAt ?? billingOverview?.current?.cancellationScheduledAt;
     const pendingReplacement = billingOverview?.pendingReplacement ?? null;
+    const projectedBranchCount = org.branches?.filter(branch => projectedBillableStatuses.some(status => status === branch.billingStatus)).length ?? 0;
     const pendingReplacementChange = billingOverview?.scheduledChanges
         .slice()
         .reverse()
@@ -847,7 +849,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                             <h3 className="px-3 py-3 text-sm font-semibold">{branch.name}{searchParams.get("branchId") === branch.id && <span className="ml-2 text-xs font-normal text-[color:var(--text-muted)]">{t.owned("Selected branch")}</span>}</h3>
                             <BranchBillingControls organizationId={orgId} branchId={branch.id} branchName={branch.name} billingStatus={branch.billingStatus}
                                 canChange={Boolean(billingOverview?.entitlements.canWrite) && !billingOperationLoading}
-                                finalBranch={org.branches!.filter(item => ["ACTIVE", "PENDING_ACTIVATION", "REMOVAL_SCHEDULED"].includes(item.billingStatus)).length <= 1}
+                                finalBranch={projectedBranchCount <= 1}
                                 onChanged={status => { setOrg(current => ({ ...current, branches: current.branches?.map(item => item.id === branch.id ? { ...item, billingStatus: status } : item) })); void loadBilling(); }} />
                         </div>)}
                         {!org.branches && <div role="status" className="text-sm">{contactLoading ? t("Loading") : <><p>{t.owned("Branch billing details are unavailable. Refresh to try again.")}</p><AppButton variant="secondary" onClick={() => { setContactLoading(true); setContactRevision(value => value + 1); }}>{t("Refresh")}</AppButton></>}</div>}

@@ -338,6 +338,7 @@ export class BillingDeadlineService {
       }
     }
     const archivedBranches = await BranchService.archiveDueBillingRemovals(now);
+    errors.push(...(archivedBranches.errors ?? []));
 
     const dueCheckoutConfirmations = await prisma.organizationBillingChange.findMany({
       where: {

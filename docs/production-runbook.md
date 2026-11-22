@@ -2191,6 +2191,17 @@ evidence. Do not roll directly back to the unfenced worker while a new claim is
 active. Do not down-migrate or clear claims to manufacture recovery; prefer a
 compatible forward fix.
 
+### Trial branch removal review
+
+The 2026-11-18 billing correction uses existing tables. Check the hourly
+billing deadline's `errors` for affected organization IDs. It holds archival
+when scheduled removals would leave zero billable branches.
+
+For all-branch schedules, confirm with the owner which branch should remain
+and use an approved tenant-scoped repair if the undo deadline has passed.
+After the correction, verify the next deadline run and the resulting branch
+count.
+
 ### Initial subscription-provisioning migration
 
 The September 5 replacement-provisioning and source-cancellation changes reuse

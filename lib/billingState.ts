@@ -1,4 +1,8 @@
 import { billingPlanName, billingPlanRank, type BillingPlanId } from "@/lib/billingPlans";
+import type { BranchBillingStatus } from "@/app/generated/prisma/enums";
+
+/** Branches included in the next recurring mandate. Confirmed quantity is provider-owned. */
+export const projectedBillableStatuses: BranchBillingStatus[] = ["ACTIVE", "PENDING_ACTIVATION"];
 
 export type BillingAccessMode = "FULL" | "WARNING" | "READ_ONLY";
 

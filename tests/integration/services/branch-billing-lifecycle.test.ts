@@ -527,6 +527,36 @@ describe("workspace branch billing lifecycle", () => {
     })).resolves.toBe(1);
   });
 
+  it("keeps a billable branch after two trial removal requests and the deadline", async () => {
+    const { owner, organization, first, trialEndsAt } = await trialOrganization();
+    const second = await createBranch({ organizationId: organization.id, name: "Second" });
+    const results = await Promise.allSettled([
+      BranchService.scheduleBillingRemoval(owner.id, first.id, "remove-first-in-trial"),
+      BranchService.scheduleBillingRemoval(owner.id, second.id, "remove-second-in-trial"),
+    ]);
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.find(result => result.status === "rejected")?.reason.message).toMatch(/final billable branch/);
+    await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    const statuses = await testPrisma.branch.findMany({ where: { organizationId: organization.id }, select: { billingStatus: true } });
+    expect(statuses.map(row => row.billingStatus).sort()).toEqual(["ACTIVE", "ARCHIVED"]);
+  });
+
+  it("holds pre-existing removals when all branches are scheduled", async () => {
+    const { owner, organization, first, trialEndsAt } = await trialOrganization();
+    const second = await createBranch({ organizationId: organization.id });
+    const { change } = await BranchService.scheduleBillingRemoval(owner.id, second.id, "historical-trial-removal");
+    await testPrisma.branch.update({ where: { id: first.id }, data: { billingStatus: "REMOVAL_SCHEDULED" } });
+    await testPrisma.organizationBillingChange.create({
+      data: { organizationId: organization.id, branchId: first.id, sequence: change.sequence + 1, idempotencyKey: "old-final-removal",
+        type: "BRANCH_REMOVAL", status: "SCHEDULED", operationStatus: "SCHEDULED", toQuantity: 0, effectiveAt: trialEndsAt },
+    });
+    const result = await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    expect(result).toMatchObject({ archived: 0, errors: [{ organizationId: organization.id,
+      message: expect.stringMatching(/no billable branch/) }] });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: second.id } })).resolves.toMatchObject({ billingStatus: "REMOVAL_SCHEDULED" });
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } })).resolves.toMatchObject({ status: "SCHEDULED" });
+  });
+
   it("rolls back branch removal state when its atomic change insert fails", async () => {
     const { owner, organization } = await trialOrganization();
     const second = await createBranch({ organizationId: organization.id, name: "Second" });

@@ -269,11 +269,14 @@ unit/API/integration coverage.
 - **Must preserve—enforced:** Adding, scheduling removal of, and reactivating a
   billable branch are owner-only operations. The branch lifecycle update and
   durable billing-change intent are atomic and use stable idempotency. At least
-  one billable branch must remain.
+  one billable branch must remain after all scheduled removals. Under the
+  organization lock, the projected count includes `ACTIVE` and
+  `PENDING_ACTIVATION` branches.
 - **Must preserve—enforced:** Scheduled removal does not delete the branch. It
   becomes read-only and is archived only at the effective boundary after the
   required provider confirmation. Historical data remains available according
-  to authorization.
+  to authorization. The hourly deadline reports historical schedules that leave
+  zero billable branches for operator review.
   (`services/branch.service.ts`, branch-billing-lifecycle integration tests)
 - **Must preserve—enforced:** Each canonical onboarding command requires an
   authenticated-owner-scoped, bounded idempotency key and a stable versioned

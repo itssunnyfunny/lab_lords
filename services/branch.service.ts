@@ -1,4 +1,5 @@
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
+import { projectedBillableStatuses } from "@/lib/billingState";
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { prisma } from "@/lib/prisma";
 import {
@@ -941,14 +942,14 @@ export class BranchService {
             const current = await AccessPolicy.readOwnerBranch(userId, branchId, { organization: { include: { subscription: true, ownerTrialGrant: true } } }, tx);
             if (!current) throw new BillingResourceNotFoundError("Branch not found");
             if (current.billingStatus !== "ACTIVE") throw new Error("Only an active branch can be removed");
-            const remaining = await tx.branch.count({
+            const toQuantity = await tx.branch.count({
                 where: {
                     organizationId: branch.organizationId,
                     id: { not: branchId },
-                    billingStatus: { in: ["ACTIVE", "PENDING_ACTIVATION", "REMOVAL_SCHEDULED"] },
+                    billingStatus: { in: projectedBillableStatuses },
                 },
             });
-            if (remaining < 1) throw new Error("The final billable branch cannot be removed");
+            if (toQuantity < 1) throw new Error("The final billable branch cannot be removed");
 
             const trialEndsAt = current.organization.ownerTrialGrant?.status === "ACTIVE"
                 ? current.organization.ownerTrialGrant.trialEndsAt
@@ -961,12 +962,6 @@ export class BranchService {
             const updated = await tx.branch.update({
                 where: { id: branchId },
                 data: { billingStatus: "REMOVAL_SCHEDULED" },
-            });
-            const toQuantity = await tx.branch.count({
-                where: {
-                    organizationId: branch.organizationId,
-                    billingStatus: { in: ["ACTIVE", "PENDING_ACTIVATION"] },
-                },
             });
             const providerOperation = current.organization.subscription != null;
             const change = await createAtomicBranchChange(tx, {
@@ -1104,22 +1099,32 @@ export class BranchService {
     static async archiveDueBillingRemovals(now = new Date()) {
         const due = await prisma.organizationBillingChange.findMany({
             where: { type: "BRANCH_REMOVAL", status: "SCHEDULED", effectiveAt: { lte: now } },
-            include: { organizationSubscription: true },
+            select: { id: true, organizationId: true },
         });
         let archived = 0;
-        for (const change of due) {
-            if (!change.branchId) continue;
-            const providerConfirmed = !change.organizationSubscription
-                || (change.toQuantity === change.organizationSubscription.quantity
-                    && change.organizationSubscription.lastReconciledAt != null
-                    && change.organizationSubscription.lastReconciledAt >= (change.effectiveAt ?? now));
-            if (!providerConfirmed) continue;
-            await prisma.$transaction([
-                prisma.branch.update({
-                    where: { id: change.branchId },
+        const holds = new Map<string, string>();
+        for (const candidate of due) {
+            const applied = await prisma.$transaction(async tx => {
+                await lockOrganization(tx, candidate.organizationId);
+                const change = await tx.organizationBillingChange.findFirst({
+                    where: { id: candidate.id, organizationId: candidate.organizationId, status: "SCHEDULED", effectiveAt: { lte: now } },
+                    include: { organizationSubscription: true },
+                });
+                if (!change?.branchId) return false;
+                const projected = await tx.branch.count({
+                    where: { organizationId: candidate.organizationId, billingStatus: { in: projectedBillableStatuses } },
+                });
+                // Older schedules may have selected every branch.
+                if (projected < 1) return "Scheduled removals leave no billable branch. Review the affected branch schedules.";
+                const source = change.organizationSubscription;
+                if (source && (change.toQuantity !== source.quantity
+                    || !source.lastReconciledAt || source.lastReconciledAt < (change.effectiveAt ?? now))) return false;
+                const archivedBranch = await tx.branch.updateMany({
+                    where: { id: change.branchId, organizationId: candidate.organizationId, billingStatus: "REMOVAL_SCHEDULED" },
                     data: { billingStatus: "ARCHIVED", billingArchivedAt: now },
-                }),
-                prisma.organizationBillingChange.update({
+                });
+                if (!archivedBranch.count) return false;
+                await tx.organizationBillingChange.update({
                     where: { id: change.id },
                     data: {
                         status: "APPLIED",
@@ -1128,11 +1133,15 @@ export class BranchService {
                         providerConfirmedAt: now,
                         resolvedAt: now,
                     },
-                }),
-            ]);
-            archived += 1;
+                });
+                return true;
+            });
+            if (typeof applied === "string") holds.set(candidate.organizationId, applied);
+            else if (applied) archived += 1;
         }
-        return { archived };
+        return holds.size
+            ? { archived, errors: Array.from(holds, ([organizationId, message]) => ({ organizationId, message })) }
+            : { archived };
     }
 }
 
