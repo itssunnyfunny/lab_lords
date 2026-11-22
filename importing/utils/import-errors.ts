@@ -23,6 +23,15 @@ export class ImportRevisionConflictError extends Error {
     }
 }
 
+export class ImportPaymentLegendConflictError extends Error {
+    readonly code = "IMPORT_PAYMENT_LEGEND_CONFLICT";
+
+    constructor() {
+        super("Correct the conflicting payment labels, then review the recalculated rows before importing.");
+        this.name = "ImportPaymentLegendConflictError";
+    }
+}
+
 export class ImportIdempotencyConflictError extends Error {
     readonly code = "IMPORT_IDEMPOTENCY_CONFLICT";
 

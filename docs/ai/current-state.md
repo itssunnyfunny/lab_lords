@@ -1519,6 +1519,9 @@ They retain only source type, a server-computed normalized-header signature,
 normalized column mappings, goal, and entity types—never samples, row values,
 branch configuration, or import/payment/default/conflict options.
 
+At first commit a saved plan with a conflicting confirmed legend for a
+source-derived payment status requires corrected labels and a new review.
+Replays and dispatch of an already-started run use its existing ledger.
 Exact remaining payment-cycle review is exposed from immutable plan items by a
 tenant-authorized, required-permission-checked API page of at most 100 cycles;
 the plan response retains only bounded per-student aggregates. Terminal or

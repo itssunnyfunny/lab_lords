@@ -17,7 +17,9 @@ import {
     createImportMutationRequestHash,
     createImportRequestHash,
 } from "../utils/import-plan-compiler";
-import { ImportIdempotencyConflictError, ImportRevisionConflictError } from "../utils/import-errors";
+import { ImportIdempotencyConflictError, ImportPaymentLegendConflictError, ImportRevisionConflictError } from "../utils/import-errors";
+import { indexPaymentLegend } from "../utils/row-normalizer";
+import { usesImportedCurrentStatus } from "../utils/import-payment-plan";
 import { importStagingPurgeAfter } from "../utils/import-retention";
 import { isImportRunDispatchRequired } from "../utils/import-run-dispatch";
 import { syncImportSessionRunLifecycle } from "./import-run-lifecycle.service";
@@ -305,6 +307,13 @@ export class ImportRunService {
                     }
                     for (const permission of snapshot.requiredPermissions) {
                         await StaffService.authorize(input.userId, input.branchId, permission as StaffAction, tx);
+                    }
+                    const options = snapshot.mapping?.importOptions;
+                    if (options?.paymentMapping?.confirmed
+                        && usesImportedCurrentStatus(options)
+                        && snapshot.items.some(item => item.kind === "PAYMENT_CYCLE" && item.payload?.bucket !== "historical")
+                        && indexPaymentLegend(options.paymentMapping).conflicting) {
+                        throw new ImportPaymentLegendConflictError();
                     }
                 } else if (input.importPlanId || input.confirmedPlanVersion) {
                     throw new Error("Analysis runs cannot be attached to an import plan");

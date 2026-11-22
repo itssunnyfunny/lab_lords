@@ -55,6 +55,39 @@ describe("guided import uses real parsing, policy, immutable plans and domain mu
         await db.organization.update({ where: { id: f.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
         await createSaasSubscription({ organizationId: f.org.id, plan, paidThrough: new Date(2027, 0, 1) }); return f;
     }
+    it("requires a new review before the first commit of an old contradictory payment legend", async () => {
+        const f = await world();
+        const source = await draft(f, ["Legend Student\t9876509012\t2026-01-01\t900\t\t\tX\tCASH\t900"]);
+        const paidLegend = { confirmed: true, paidValues: ["X"], unpaidValues: [], waivedValues: [], unclearValues: [] };
+        const paid = await ImportSessionService.updateMapping(f.user.id, f.branch.id, source.id, {
+            expectedRevision: source.draftRevision, importOptions: { paymentMapping: paidLegend },
+        });
+        // Pre-deployment drafts could publish this mapping with X already evaluated as PAID.
+        await db.importSession.update({ where: { id: paid.id }, data: { mapping: JSON.parse(JSON.stringify({
+            ...paid.mapping, importOptions: { ...paid.mapping.importOptions, paymentMapping: { ...paidLegend, unpaidValues: [" x "] } },
+        })) } });
+        const oldPlan = await ImportPlanService.compilePlan({ userId: f.user.id, branchId: f.branch.id,
+            sessionId: paid.id, targetRevision: paid.draftRevision, readinessPolicy: "READY_ROWS_ONLY" });
+        expect(oldPlan.canRun).toBe(true);
+        expect((oldPlan.snapshot as unknown as ImportPlanSnapshot).items).toContainEqual(expect.objectContaining({
+            kind: "PAYMENT_CYCLE", payload: expect.objectContaining({ status: "PAID" }),
+        }));
+        const request = { userId: f.user.id, branchId: f.branch.id, sessionId: paid.id, kind: "COMMIT" as const,
+            targetRevision: paid.draftRevision, importPlanId: oldPlan.id, confirmedPlanVersion: oldPlan.planVersion, idempotencyKey: randomUUID() };
+        await expect(ImportRunService.createOrGetRun(request)).rejects.toMatchObject({ code: "IMPORT_PAYMENT_LEGEND_CONFLICT" });
+        expect(await db.importRun.count({ where: { importSessionId: paid.id, kind: "COMMIT" } })).toBe(0);
+        expect(await db.payment.count({ where: { branchId: f.branch.id } })).toBe(0);
+
+        const corrected = await ImportSessionService.updateMapping(f.user.id, f.branch.id, paid.id, {
+            expectedRevision: paid.draftRevision, importOptions: { paymentMapping: { ...paidLegend, paidValues: [], unpaidValues: ["X"] } },
+        });
+        await expect(ImportRunService.createOrGetRun(request)).rejects.toMatchObject({ code: "IMPORT_REVISION_CONFLICT" });
+        const { plan } = await commit(f, corrected);
+        expect((plan.snapshot as unknown as ImportPlanSnapshot).items).toContainEqual(expect.objectContaining({
+            kind: "PAYMENT_CYCLE", payload: expect.objectContaining({ status: "DUE" }),
+        }));
+        expect(await db.payment.findMany({ where: { branchId: f.branch.id }, select: { status: true } })).toEqual([{ status: "DUE" }]);
+    });
     it("keeps saved progress visible when an early recorded payment is rechecked", async () => {
         const f = await world();
         const detail = await draft(f, [

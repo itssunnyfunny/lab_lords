@@ -1,4 +1,12 @@
 export const importMessages = {
+    "Correct the conflicting payment labels, then review the recalculated rows before importing.": [
+        "भुगतान के जिन शब्दों के एक से ज़्यादा मतलब हैं उन्हें ठीक करें। फिर इम्पोर्ट करने से पहले पंक्तियों के नए नतीजे जाँचें।",
+        "Payment ke jin labels ke ek se zyada matlab hain unhein theek karein. Phir import karne se pehle rows ke naye results check karein.",
+    ],
+    "Mark conflicting labels as unclear and review the students": [
+        "विरोधी भुगतान शब्दों को अस्पष्ट चिह्नित करें और छात्रों की जानकारी जाँचें",
+        "Conflicting payment labels ko unclear mark karein aur students ki details check karein",
+    ],
     "A payment label can have only one meaning. Check the paid, unpaid, waived and unclear lists.": [
         "भुगतान के एक शब्द का एक ही मतलब हो सकता है। चुकाए गए, बकाया, माफ़ और अस्पष्ट भुगतान की सूचियाँ जाँचें।",
         "Ek payment label ka ek hi matlab ho sakta hai. Paid, unpaid, waived aur unclear lists check karein.",

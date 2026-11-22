@@ -1099,8 +1099,12 @@ unit/API/integration coverage.
 - **Must preserve—enforced:** Native Excel calendar dates use the workbook's
   date system and retain their calendar day across display formats. A confirmed
   payment legend gives each normalized label a single meaning. Historical
-  conflicting labels are classified as unclear.
-  (`importing/parsers/xlsx.parser.ts`, `importing/utils/row-normalizer.ts`)
+  conflicting labels are classified as unclear. Before the first commit of
+  a saved plan that imports payment statuses, the owner must resolve a
+  conflicting legend and review the recalculated revision. Already-started
+  runs recover through their existing mutation ledger.
+  (`importing/parsers/xlsx.parser.ts`, `importing/utils/row-normalizer.ts`,
+  `importing/services/import-run.service.ts`)
 - **Must preserve—enforced:** New V2 starts fail closed unless
   `IMPORT_V2_ENABLED=true`. Plan compilation fails closed unless
   `IMPORT_MAX_PLANNED_MUTATIONS` is a configured positive integer, and a plan

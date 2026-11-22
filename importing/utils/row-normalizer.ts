@@ -81,7 +81,7 @@ type PaymentLegend = Pick<ImportPaymentMapping, "paidValues" | "unpaidValues" | 
 
 export function indexPaymentLegend(mapping: PaymentLegend) {
     const meanings = new Map<string, PaymentStatus | "UNCLEAR">();
-    let conflicting = false;
+    const conflictingLabels = new Set<string>();
     for (const [status, values] of [
         ["PAID", mapping.paidValues], ["DUE", mapping.unpaidValues],
         ["WAIVED", mapping.waivedValues], ["UNCLEAR", mapping.unclearValues ?? []],
@@ -90,14 +90,14 @@ export function indexPaymentLegend(mapping: PaymentLegend) {
             const key = compactImportText(value).toLowerCase();
             const previous = meanings.get(key);
             if (previous && previous !== status) {
-                conflicting = true;
+                conflictingLabels.add(key);
                 meanings.set(key, "UNCLEAR");
             } else {
                 meanings.set(key, status);
             }
         }
     }
-    return { meanings, conflicting };
+    return { meanings, conflicting: conflictingLabels.size > 0, conflictingLabels };
 }
 
 export function classifyPaymentStatus(

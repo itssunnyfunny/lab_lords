@@ -3,9 +3,11 @@ import type {
     ImportColumnMapping,
     ImportNormalizedRow,
     ImportOptions,
+    ImportPaymentMapping,
     ImportSessionSummary,
 } from "@/importing/contracts/import-session.contract";
 import type { ImportReadinessPolicy } from "@/importing/contracts/import-v2.contract";
+import { compactImportText, indexPaymentLegend } from "./row-normalizer";
 
 export type ImportWizardStepId = "columns" | "rows" | "decisions" | "payments" | "preview" | "result";
 export type ImportWizardStepState = "completed" | "needs_attention" | "pending";
@@ -141,6 +143,28 @@ export function splitImportValues(value: string) {
 
 export function joinImportValues(values: string[] | undefined | null) {
     return (values ?? []).join(", ");
+}
+
+export function unclearPaymentLabels(
+    detected: string[],
+    classified: Pick<ImportPaymentMapping, "paidValues" | "unpaidValues" | "waivedValues">,
+) {
+    const { meanings } = indexPaymentLegend(classified);
+    return detected.filter(value => !meanings.has(compactImportText(value).toLowerCase()));
+}
+
+export function paymentLegendForRowReview(mapping?: ImportPaymentMapping) {
+    if (!mapping?.confirmed) return null;
+    const { conflictingLabels } = indexPaymentLegend(mapping);
+    if (!conflictingLabels.size) return null;
+    const unambiguous = (value: string) => !conflictingLabels.has(compactImportText(value).toLowerCase());
+    // Unlisted words in a confirmed legend already resolve to UNCLEAR.
+    return {
+        ...mapping,
+        paidValues: mapping.paidValues.filter(unambiguous),
+        unpaidValues: mapping.unpaidValues.filter(unambiguous),
+        waivedValues: mapping.waivedValues.filter(unambiguous),
+    };
 }
 
 export function paymentSkipOptions(): Partial<ImportOptions> {

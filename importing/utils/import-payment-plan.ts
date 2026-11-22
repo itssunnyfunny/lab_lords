@@ -48,8 +48,14 @@ function isPaymentEnabled(options?: ImportOptions | null) {
     );
 }
 
+export function usesImportedCurrentStatus(options?: ImportOptions | null) {
+    return options?.paymentAction === "IMPORT_PAID_UNPAID"
+        && (options.paymentPolicy === "CURRENT_CALENDAR_MONTH"
+            || (options.paymentHistoryMode !== "FROM_JOINED_MARK_PAID" && options.paymentHistoryMode !== "FROM_JOINED_MARK_DUE"));
+}
+
 function currentStatus(normalized: ImportNormalizedRow, options?: ImportOptions | null): ImportPaymentPlanItem["status"] {
-    if (options?.paymentAction === "IMPORT_PAID_UNPAID") {
+    if (usesImportedCurrentStatus(options)) {
         if (normalized.payment?.status === "PAID") return "PAID";
         if (normalized.payment?.status === "WAIVED") return "WAIVED";
     }
