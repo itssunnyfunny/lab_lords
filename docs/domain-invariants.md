@@ -335,6 +335,9 @@ unit/API/integration coverage.
   currently due payments while recording the mutation audit. Reactivation does
   not recreate prior allocations. (Student, allocation, and payment service
   tests)
+- **Must preserve—enforced:** Monthly generation rechecks the student's
+  status, branch, fee and billing cutoff under the settlement lock before
+  inserting a staged cycle.
 - **Known discrepancy—do not rely on:** Creating a student and an admission
   payment commits before the optional initial seat allocation, which is made in
   a separate operation. If allocation fails, the student and payment remain.

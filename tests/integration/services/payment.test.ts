@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterAll, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, beforeAll, vi } from "vitest";
+import { prisma } from "@/lib/prisma";
 import { PaymentService } from "@/services/payment.service";
 import { StudentService } from "@/services/student.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
@@ -44,6 +45,30 @@ describe("PaymentService Integration", () => {
   // ─── generateDuePaymentsForBranch ─────────────────────────────────────────
 
   describe("generateDuePaymentsForBranch", () => {
+    it("does not recreate debt when deactivation settles dues after generation reads its candidates", async () => {
+      const joinedAt = new Date(2026, 0, 1);
+      const firstDue = addMonths(joinedAt, 1);
+      const { user, branch } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, joinedAt, monthlyFee: 800 });
+      const existing = await createPayment({ branchId: branch.id, studentId: student.id, amount: 800,
+        periodStart: joinedAt, periodEnd: firstDue, dueDate: firstDue });
+      const findMany = prisma.payment.findMany.bind(prisma.payment);
+      const read = vi.spyOn(prisma.payment, "findMany").mockImplementationOnce(args => findMany(args).then(async rows => {
+        await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED");
+        return rows;
+      }) as ReturnType<typeof findMany>);
+      try {
+        const result = await PaymentService.generateDuePaymentsForBranch(user.id, branch.id, addMonths(joinedAt, 2));
+        expect(read).toHaveBeenCalled();
+        expect(result).toMatchObject({ totalStudents: 1, generatedCount: 0 });
+        expect(await testPrisma.student.findUniqueOrThrow({ where: { id: student.id } })).toMatchObject({ status: "INACTIVE" });
+        expect(await testPrisma.payment.findMany({ where: { studentId: student.id }, select: { id: true, status: true } }))
+          .toEqual([{ id: existing.id, status: "WAIVED" }]);
+      } finally {
+        read.mockRestore();
+      }
+    });
+
     it("generates 1 payment for a student joined 1 month ago (time advanced by 1 month)", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       const { user, branch } = await createTestWorld();

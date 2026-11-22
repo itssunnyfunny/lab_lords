@@ -73,6 +73,9 @@ records have no automatic void action.
 
 ## Readers and reminders
 
+Monthly generation locks each candidate student before inserting dues and
+rechecks its status, branch and billing cutoff.
+
 Renewals, outstanding/overdue analytics, student fee summaries, fee displays and
 reminder source fingerprints use the remaining collectible balance. Collection
 reports sum actual collections by collection time, excluding voids, plus
