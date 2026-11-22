@@ -111,7 +111,7 @@ export function InviteAcceptanceActions({
             </div>
 
             <Link href="/app" className={cn(appActionClassName("quiet"), "min-h-11 w-full")}>
-                {t("Decline invite and return to workspaces")}</Link>
+                {t("Return to workspaces")}</Link>
         </div>
     );
 }

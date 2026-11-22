@@ -1,5 +1,20 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Student fees, imports and branch operations — local, 2026-11-18
+
+Monthly generation checks eligibility under the settlement lock. Free cycles
+stay out of debt queues. The full workspace scopes unfinished collections to
+the signed-in cashier and preserves uncertainty when payment data is unavailable.
+Excel imports retain native calendar dates and reject conflicting payment
+legends. Capacity edits invalidate AI reports, and AI risk labels and actions
+use the branch's measured data. Shift deletion previews show each student's
+eligible targets after bundle release. Seat search can match a current occupant
+in any shift. User-selected date order applies to dates and timestamps.
+Returning to workspaces leaves the invitation available until acceptance,
+expiry or revocation. Collections planner runs with failures in every claimed
+branch record `FAILED`. Mixed outcomes record `PARTIAL`. The remaining fixes and their regression
+coverage are recorded in the [application logic audit](../audits/application-logic-2026-11-18.md).
+
 ## Trial branch billing corrections — local, 2026-11-18
 
 Branch-removal scheduling, first checkout and the Billing overview use the
