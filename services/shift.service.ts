@@ -63,6 +63,42 @@ function targetOccupancy(target: ShiftTimes, shifts: ReadonlyMap<string, ShiftTi
     return { seats, students };
 }
 
+function countUnplaceableAllocations(
+    allocations: ShiftImpactAnalysis["allocations"], shifts: ShiftImpactAnalysis["otherShifts"],
+) {
+    const targets = new Map(shifts.map(s => [s.shiftId, { capacity: s.emptySeats, assigned: [] as number[] }]));
+
+    // A full target can still take this student if one of its provisional
+    // occupants has an alternate placement. These assignments are preview-only.
+    function place(index: number, visited: Set<string>): boolean {
+        const choices = allocations[index].eligibleTargetShiftIds;
+        for (const id of choices) {
+            const target = targets.get(id)!;
+            if (!visited.has(id) && target.assigned.length < target.capacity) {
+                target.assigned.push(index);
+                return true;
+            }
+        }
+        for (const id of choices) {
+            if (visited.has(id)) continue;
+            visited.add(id);
+            const target = targets.get(id)!;
+            const moved = target.assigned.findIndex(occupant => place(occupant, visited));
+            if (moved !== -1) {
+                target.assigned[moved] = index;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    let unplaced = 0;
+    for (let index = 0; index < allocations.length; index++) {
+        if (!place(index, new Set())) unplaced++;
+    }
+    return unplaced;
+}
+
 export class ShiftService {
     private static async assertBranchAccess(userId: string, branchId: string, action: StaffAction) {
         await StaffService.authorize(userId, branchId, action);
@@ -284,11 +320,11 @@ export class ShiftService {
         });
 
         const totalEmptyElsewhere = otherShifts.reduce((sum, s) => sum + s.emptySeats, 0);
-        const willOverflowBy = Math.max(allocations.filter(a => !a.eligibleTargetShiftIds.length).length, studentsInShift - totalEmptyElsewhere);
         const shiftsWithEnoughCapacity = otherShifts
             .filter(s => s.emptySeats >= studentsInShift && activeStudents.size === studentsInShift &&
                 allocations.every(a => a.eligibleTargetShiftIds.includes(s.shiftId)))
             .map(s => s.shiftId);
+        const willOverflowBy = shiftsWithEnoughCapacity.length ? 0 : countUnplaceableAllocations(allocations, otherShifts);
 
         return {
             studentsInShift,

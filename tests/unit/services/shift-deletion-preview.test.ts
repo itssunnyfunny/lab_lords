@@ -60,6 +60,36 @@ describe("shift deletion targets", () => {
         expect(db.seatAllocation.updateMany).toHaveBeenCalledWith({ where: released, data: { endDate: expect.any(Date) } });
         expect(db.seatAllocation.createMany).toHaveBeenCalledWith({ data: [expect.objectContaining({ studentId: "student1", shiftId: "evening" })] });
     });
+    it("warns before manual selection when students compete for the same eligible seat", async () => {
+        db.seat.count.mockResolvedValue(3);
+        const sources = [source("one"), source("two")];
+        const remaining = [
+            { studentId: "one", seatId: "A", shiftId: "evening" },
+            { studentId: "two", seatId: "B", shiftId: "evening" },
+            { studentId: "three", seatId: "A", shiftId: "afternoon" },
+            { studentId: "four", seatId: "B", shiftId: "afternoon" },
+        ];
+        db.seatAllocation.findMany.mockResolvedValueOnce(sources).mockResolvedValueOnce(remaining);
+        const preview = await ShiftService.analyzeShiftDeletion("actor", "morning");
+        expect(preview.totalEmptyElsewhere).toBe(2);
+        expect(preview.allocations.map(a => a.eligibleTargetShiftIds)).toEqual([["afternoon"], ["afternoon"]]);
+        expect(preview.willOverflowBy).toBe(1);
+    });
+
+    it("can move a flexible student to another shift to make room for a restricted student", async () => {
+        db.seat.count.mockResolvedValue(2);
+        const sources = [source("flexible"), source("restricted")];
+        const remaining = [
+            { studentId: "other", seatId: "A", shiftId: "afternoon" },
+            { studentId: "restricted", seatId: "A", shiftId: "evening" },
+        ];
+        for (const order of [sources, [...sources].reverse()]) {
+            db.seatAllocation.findMany.mockResolvedValueOnce(order).mockResolvedValueOnce(remaining);
+            const preview = await ShiftService.analyzeShiftDeletion("actor", "morning");
+            expect(preview.shiftsWithEnoughCapacity).toEqual([]);
+            expect(preview.willOverflowBy).toBe(0);
+        }
+    });
     it("uses the writer's overlap rule even when an existing assignment belongs to a retired shift", async () => {
         const late = { ...shifts[2], id: "late", startTime: "19:00", endTime: "23:00", status: "INACTIVE" };
         db.shift.findMany.mockImplementation(({ where }) => Promise.resolve(where.id?.in ? [shifts[2]] : [...shifts, late]));

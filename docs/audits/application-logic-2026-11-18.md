@@ -40,6 +40,17 @@ joining date requires comparison with the original workbook or another
 authoritative enrollment record. Existing fee history and issued receipts are
 preserved.
 
+### Pull request review follow-up, 22 November 2026
+
+| Finding | Correction and regression coverage |
+| --- | --- |
+| Two trial removals could block one another | The deadline compares the first mandate with the branch count at the earlier removal's place in the queue. C can archive before B's one-branch checkout opens. If the owner undoes B from Account Billing, B returns to active and C can still archive. A genuinely oversized mandate still goes to operator review, including when a queued addition masks it. [Subscription queue and undo](../../tests/integration/services/billing.test.ts) · [Deadline holds](../../tests/integration/services/branch-billing-lifecycle.test.ts) |
+| A temporary zero rate could erase an accrued fee | A positive-to-zero edit records any missing monthly dues for active students at the outgoing price in the same transaction. Tests cover the November 10 fee, an anniversary inside a free interval, repeated generation, and manual, shift and bundle prices. Edits that create dues require payment-generation permission. [Payment service](../../tests/integration/services/payment.test.ts) |
+| A previously reviewed import could post a contradictory label as paid | The first commit of a plan that uses a conflicting payment legend asks the owner to correct it and review a fresh revision. The same-day PostgreSQL regression follows the old `PAID` snapshot through correction to one `DUE` payment. Replays and dispatch of started runs use their existing ledger. [Guided import](../../tests/integration/importing/guided-import.test.ts) · [Run recovery](../../tests/unit/importing/import-run.service.test.ts) |
+| The shift preview could miss competition for one seat | The preview assigns students to eligible shifts up to each shift's free capacity and reports the number it cannot place. Regressions cover two students needing the last Afternoon seat and the case where moving a flexible student makes room for both. [Shift deletion preview](../../tests/unit/services/shift-deletion-preview.test.ts) |
+
+These corrections use the existing schema, migrations and environment configuration. The outgoing rate is available when a new edit occurs. Recovering a fee already lost to a historical edit requires independent evidence of the rate. Home, Features, Pricing and FAQ already describe per-branch pricing, fee records, shift availability and reviewed imports. The corrections require no change to those public claims.
+
 ### Verification of the fixes
 
 The database-backed checks used disposable, loopback PostgreSQL 16 containers with the repository's migration chain. Billing tests used a simulated provider. The browser checks used the isolated desktop design-pilot fixture. The changes require the existing schema and environment configuration.

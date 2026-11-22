@@ -384,7 +384,9 @@ unit/API/integration coverage.
   student, seat, and bundle identity. Validation failure rolls back all changes.
   The deletion preview evaluates capacity and each student's overlapping
   assignments after those releases. A bulk target must accommodate every
-  affected student. The writer repeats these checks at confirmation.
+  affected student. The preview reports how many allocations cannot fit across
+  all eligible targets, accounting for students competing for the same slots.
+  The writer rechecks the owner's assignments at confirmation.
 - **Service-layer contract—not DB-enforced:** Shift overlap and the minimum-one-
   active-shift rule are service checks, not schema constraints. Writes that
   bypass `ShiftService` can violate them.
