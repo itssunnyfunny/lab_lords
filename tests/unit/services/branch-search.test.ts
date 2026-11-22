@@ -4,9 +4,10 @@ import { STAFF_ACTIONS, type StaffAction } from "@/types";
 const mocks = vi.hoisted(() => ({
   getBranchAccess: vi.fn(),
   getBillingExperience: vi.fn(),
+  findSeats: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/prisma", () => ({ prisma: { seat: { findMany: mocks.findSeats } } }));
 vi.mock("@/services/staff.service", () => ({
   StaffService: { getBranchAccess: mocks.getBranchAccess },
 }));
@@ -65,5 +66,21 @@ describe("BranchSearchService capability filtering", () => {
 
     expect(groups.flatMap(group => group.results).map(result => result.title))
       .toContain("Add Student");
+  });
+
+  it.each([["evening reader", "Evening Reader"], ["A1", "Morning Reader"]])("finds a shared seat by %s with a single occupant projection", async (query, name) => {
+    const active = [{ student: { name: "Morning Reader" } }, { student: { name: "Evening Reader" } }];
+    mocks.findSeats.mockImplementation(async ({ select }) => {
+      const text = { contains: query, mode: "insensitive" };
+      expect(select.seatAllocations.where).toEqual({
+        endDate: null, student: { branchId: "branch_1" }, OR: [{ student: { name: text } }, { seat: { label: text } }],
+      });
+      expect(select.seatAllocations.take).toBe(1);
+      const matches = active.filter(row => "a1".includes(query.toLowerCase()) || row.student.name.toLowerCase().includes(query.toLowerCase()));
+      return [{ id: "s1", label: "A1", seatAllocations: matches.slice(0, select.seatAllocations.take) }];
+    });
+    const { BranchSearchService } = await import("@/services/branchSearch.service");
+    const groups = await BranchSearchService.search("user_1", "branch_1", query, { types: ["seats"] });
+    expect(groups[0]?.results).toEqual([expect.objectContaining({ title: "Seat A1", subtitle: `Occupied by ${name}` })]);
   });
 });
