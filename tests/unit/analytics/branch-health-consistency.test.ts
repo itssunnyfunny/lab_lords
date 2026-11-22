@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getBranchSnapshot } from "@/analytics/branch.analytics";
+import { generateBranchHealthReport } from "@/ai/branchHealthReport";
 import { detectBranchRisks } from "@/ai/riskDetection/branchRiskDetector";
 
 const mocks = vi.hoisted(() => ({
-  groupStudents: vi.fn(), countStudents: vi.fn(), stats: vi.fn(), overdue: vi.fn(),
+  groupStudents: vi.fn(), countStudents: vi.fn(), stats: vi.fn(), overdue: vi.fn(), gemini: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: {
   branch: { findUnique: async () => ({ name: "Fixture" }) },
@@ -14,6 +15,7 @@ vi.mock("@/analytics/seat.analytics", () => ({ getSeatOccupancySnapshot: async (
   totalShiftCapacity: 4, totalUsedSlots: 4, totalOccupancyPercent: 100, shifts: [],
 }) }));
 vi.mock("@/analytics/payment.analytics", () => ({ getPaymentStats: mocks.stats, getOverduePayments: mocks.overdue }));
+vi.mock("@/ai/llm/gemini.client", () => ({ callGemini: mocks.gemini }));
 
 const asOf = new Date(2026, 10, 18, 12);
 const dueDate = new Date(2026, 10, 1, 12);
@@ -45,5 +47,26 @@ describe("branch health risk evidence", () => {
     mocks.groupStudents.mockResolvedValue([{ status: "ACTIVE", _count: { _all: 1 } }]);
     const risk = detectBranchRisks(await getBranchSnapshot("branch", asOf))[0];
     expect(risk.explanation).toContain("100.0% of active students");
+  });
+
+  it("preserves the same deterministic risk badges and actions with generated, malformed, or missing narrative", async () => {
+    const healthy = await getBranchSnapshot("branch", asOf);
+    const generated = JSON.stringify({
+      executiveSummary: "A generated summary.", healthScore: "CRITICAL_RISK",
+      financialAnalysis: { riskLevel: "CRITICAL", observation: "Paid up." },
+      suggestedActions: [{ action: "REENGAGE_INACTIVE_STUDENTS" }],
+    });
+    for (const response of [null, "{", generated]) {
+      mocks.gemini.mockResolvedValue(response);
+      const report = await generateBranchHealthReport(healthy);
+      expect(report).toMatchObject({
+        healthScore: "HEALTHY", financialAnalysis: { riskLevel: "LOW" }, utilizationAnalysis: { riskLevel: "LOW" },
+        studentActivityAnalysis: { riskLevel: "LOW" }, suggestedActions: [],
+      });
+      if (response === generated) expect(report.executiveSummary).toBe("A generated summary.");
+    }
+    const report = await generateBranchHealthReport({ ...healthy, seats: { ...healthy.seats, utilizationPercent: 25 } });
+    expect(report.utilizationAnalysis.riskLevel).toBe("MODERATE");
+    expect(report.suggestedActions.map(action => action.action)).toEqual(["REVIEW_SEAT_UTILIZATION"]);
   });
 });
