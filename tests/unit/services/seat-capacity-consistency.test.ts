@@ -8,15 +8,17 @@ const mocks = vi.hoisted(() => {
     seat: { create: vi.fn(), createMany: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
     shift: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
   };
-  return { tx, authorize: vi.fn() };
+  return { tx, branch: vi.fn(), allocations: vi.fn(), authorize: vi.fn() };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: {
+  branch: { findUnique: mocks.branch }, seatAllocation: { findMany: mocks.allocations },
   $transaction: (write: (tx: typeof mocks.tx) => Promise<unknown>) => write(mocks.tx),
 } }));
 vi.mock("@/services/accessPolicy.service", () => ({ AccessPolicy: { authorizeAction: mocks.authorize } }));
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.branch.mockResolvedValue({ _count: { seats: 2 }, shifts: [{ id: "shift", name: "Morning" }] });
 });
 
 describe("capacity changes invalidate the branch's cached AI report", () => {
@@ -34,5 +36,21 @@ describe("capacity changes invalidate the branch's cached AI report", () => {
     mocks.tx.seat.findFirst.mockResolvedValue({ id: "existing" });
     await expect(SeatService.createSeat("actor", "branch", "A")).rejects.toThrow("already exists");
     expect(mocks.tx.branch.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("occupancy at the instant of a seat move", () => {
+  it("counts only the allocation covering the requested instant before, during, and after a noon move", async () => {
+    const instant = (hour: number) => new Date(2026, 10, 18, hour);
+    const history = [
+      { seat: "A", shiftId: "shift", start: instant(8), end: instant(12) },
+      { seat: "B", shiftId: "shift", start: instant(12), end: null },
+    ];
+    mocks.allocations.mockImplementation(({ where }) => history.filter(row =>
+      row.start <= where.startDate.lte && (row.end === null || row.end > where.OR[1].endDate.gt)));
+    for (const hour of [9, 12, 15]) {
+      const result = await SeatService.generateOccupancySnapshot("branch", instant(hour));
+      expect(result).toMatchObject({ totalUsedSlots: 1, totalOccupancyPercent: 50 });
+    }
   });
 });
