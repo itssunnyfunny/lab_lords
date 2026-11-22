@@ -1,4 +1,8 @@
 export const importMessages = {
+    "A payment label can have only one meaning. Check the paid, unpaid, waived and unclear lists.": [
+        "भुगतान के एक शब्द का एक ही मतलब हो सकता है। चुकाए गए, बकाया, माफ़ और अस्पष्ट भुगतान की सूचियाँ जाँचें।",
+        "Ek payment label ka ek hi matlab ho sakta hai. Paid, unpaid, waived aur unclear lists check karein.",
+    ],
     "What happens next": ["आगे क्या होगा", "Aage kya hoga"], "Data onboarding": ["डेटा की शुरुआत", "Data onboarding"],
     "Import assistant": ["इम्पोर्ट सहायक", "Import assistant"],
     "Upload a spreadsheet or paste a table. AI can help with column suggestions, but manual review always works.": ["स्प्रेडशीट अपलोड करें या टेबल पेस्ट करें। AI कॉलम सुझा सकता है; आप हमेशा खुद जाँच कर सकते हैं।", "Spreadsheet upload karein ya table paste karein. AI columns suggest kar sakta hai; manual review hamesha available hai."],

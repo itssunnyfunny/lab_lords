@@ -5,6 +5,7 @@ import {
 } from "@/importing/contracts/import-session.contract";
 import { ImportRequestError } from "./import-request";
 import { parseImportSetup } from "../utils/guided-setup";
+import { indexPaymentLegend } from "../utils/row-normalizer";
 
 const TARGET_FIELDS = new Set<string>(IMPORT_TARGET_FIELDS);
 const PAYMENT_CYCLES = new Set(["USE_JOINED_AT_ANNIVERSARY", "SKIP_PAYMENTS"]);
@@ -145,7 +146,7 @@ function parsePaymentMapping(value: unknown): ImportOptions["paymentMapping"] {
     if (defaultMethod !== undefined && (typeof defaultMethod !== "string" || !PAYMENT_METHODS.has(defaultMethod))) {
         invalid("Payment mapping default method is not supported.");
     }
-    return {
+    const mapping = {
         paidValues: input.paidValues === undefined ? [] : stringValues(input.paidValues, "Paid values"),
         unpaidValues: input.unpaidValues === undefined ? [] : stringValues(input.unpaidValues, "Unpaid values"),
         waivedValues: input.waivedValues === undefined ? [] : stringValues(input.waivedValues, "Waived values"),
@@ -153,6 +154,10 @@ function parsePaymentMapping(value: unknown): ImportOptions["paymentMapping"] {
         confirmed: confirmed ?? false,
         ...(defaultMethod ? { defaultMethod: defaultMethod as NonNullable<ImportOptions["paymentMapping"]>["defaultMethod"] } : {}),
     };
+    if (mapping.confirmed && indexPaymentLegend(mapping).conflicting) {
+        invalid("A payment label can have only one meaning. Check the paid, unpaid, waived and unclear lists.");
+    }
+    return mapping;
 }
 
 function parseImportOptions(value: unknown): Partial<ImportOptions> | undefined {

@@ -3,6 +3,7 @@ import type {
     ImportIssue,
     ImportBranchContext,
     ImportNormalizedRow,
+    ImportPaymentMapping,
     ImportOptions,
     ParsedImportRow,
 } from "@/importing/contracts/import-session.contract";
@@ -75,20 +76,39 @@ export function parsePaymentMethod(value: unknown): PaymentMethod | undefined {
     return undefined;
 }
 
+type PaymentLegend = Pick<ImportPaymentMapping, "paidValues" | "unpaidValues" | "waivedValues">
+    & Partial<Pick<ImportPaymentMapping, "unclearValues" | "confirmed">>;
+
+export function indexPaymentLegend(mapping: PaymentLegend) {
+    const meanings = new Map<string, PaymentStatus | "UNCLEAR">();
+    let conflicting = false;
+    for (const [status, values] of [
+        ["PAID", mapping.paidValues], ["DUE", mapping.unpaidValues],
+        ["WAIVED", mapping.waivedValues], ["UNCLEAR", mapping.unclearValues ?? []],
+    ] as const) {
+        for (const value of values) {
+            const key = compactImportText(value).toLowerCase();
+            const previous = meanings.get(key);
+            if (previous && previous !== status) {
+                conflicting = true;
+                meanings.set(key, "UNCLEAR");
+            } else {
+                meanings.set(key, status);
+            }
+        }
+    }
+    return { meanings, conflicting };
+}
+
 export function classifyPaymentStatus(
     value: unknown,
-    mapping?: { paidValues: string[]; unpaidValues: string[]; waivedValues: string[]; confirmed?: boolean }
+    mapping?: PaymentLegend
 ): PaymentStatus | "UNCLEAR" | undefined {
     const raw = compactImportText(value);
     if (!raw) return undefined;
     const text = raw.toLowerCase();
-    const contains = (values: string[]) => values.map(v => v.toLowerCase()).includes(text);
-
     if (mapping?.confirmed) {
-        if (contains(mapping.paidValues)) return "PAID";
-        if (contains(mapping.unpaidValues)) return "DUE";
-        if (contains(mapping.waivedValues)) return "WAIVED";
-        return "UNCLEAR";
+        return indexPaymentLegend(mapping).meanings.get(text) ?? "UNCLEAR";
     }
 
     if (["paid", "yes", "y", "done", "clear", "cleared", "received"].includes(text)) return "PAID";
@@ -185,7 +205,7 @@ function setNestedValue(row: ImportNormalizedRow, target: string, value: string,
 export function normalizeImportRow(
     rawData: ParsedImportRow,
     mappings: ImportColumnMapping[],
-    paymentMapping?: { paidValues: string[]; unpaidValues: string[]; waivedValues: string[]; confirmed?: boolean }
+    paymentMapping?: PaymentLegend
 ) {
     const normalized: ImportNormalizedRow = {};
     const mappedData: Record<string, string> = {};
