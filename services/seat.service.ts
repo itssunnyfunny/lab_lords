@@ -6,7 +6,6 @@ import { parseNullableTime, timesOverlap } from "@/utils/shiftTime";
 import { validateSeatLabel } from "@/lib/formValidation";
 import { generateSeatLabels, sortSeatsByLabel, validateSeatNumberingConfig } from "@/lib/seatNumbering";
 import { endOfDay } from "date-fns";
-import { EntitlementService } from "@/services/entitlement.service";
 import {
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
@@ -149,28 +148,27 @@ export class SeatService {
             throw new Error(`Seat with label "${labelResult.value}" already exists in this branch.`);
         }
 
-        return tx.seat.create({
+        const seat = await tx.seat.create({
             data: {
                 branchId,
                 label: labelResult.value,
             },
         });
+        await tx.branch.update({ where: { id: branchId }, data: { lastDataChange: new Date() } });
+        return seat;
     }
 
     static async generateSeats(userId: string, branchId: string, seatNumbering: unknown) {
-        await this.assertBranchAccess(userId, branchId, "manage_branch");
-        await EntitlementService.assertBranchWritable(branchId);
-
-        const numberingResult = validateSeatNumberingConfig(seatNumbering);
-        if (!numberingResult.ok) throw new Error(numberingResult.error);
-
-        const labelsResult = generateSeatLabels(numberingResult.value);
-        if (!labelsResult.ok) throw new Error(labelsResult.error);
-        const labels = labelsResult.value;
-        if (labels.length === 0) throw new Error("Seat numbering must create at least one seat.");
-
         try {
             return await prisma.$transaction(async (tx) => {
+                await AccessPolicy.authorizeAction(userId, branchId, "manage_branch", tx, true);
+                const numberingResult = validateSeatNumberingConfig(seatNumbering);
+                if (!numberingResult.ok) throw new Error(numberingResult.error);
+                const labelsResult = generateSeatLabels(numberingResult.value);
+                if (!labelsResult.ok) throw new Error(labelsResult.error);
+                const labels = labelsResult.value;
+                if (labels.length === 0) throw new Error("Seat numbering must create at least one seat.");
+
                 const existingSeats = await tx.seat.findMany({
                     where: { branchId },
                     select: { label: true },
@@ -186,6 +184,7 @@ export class SeatService {
                 await tx.seat.createMany({
                     data: labels.map(label => ({ branchId, label })),
                 });
+                await tx.branch.update({ where: { id: branchId }, data: { lastDataChange: new Date() } });
 
                 const createdSeats = await tx.seat.findMany({
                     where: {

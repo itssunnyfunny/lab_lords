@@ -125,7 +125,7 @@ export class ShiftService {
         // Always check overlap, even for null times (null = full day, overlaps everything)
         await this.checkTimeOverlap(branchId, startResult.value, endResult.value, undefined, tx);
 
-        return tx.shift.create({
+        const shift = await tx.shift.create({
             data: {
                 branchId,
                 name: nameResult.value,
@@ -135,6 +135,8 @@ export class ShiftService {
                 isReserved: data.isReserved ?? false,
             },
         });
+        await tx.branch.update({ where: { id: branchId }, data: { lastDataChange: new Date() } });
+        return shift;
     }
 
     static async updateShift(
