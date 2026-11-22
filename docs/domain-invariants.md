@@ -1243,10 +1243,10 @@ unit/API/integration coverage.
 - **Known discrepancy—do not rely on:** Validation ceilings differ between
   forms, routes, and services. There is no single repository-wide maximum
   amount, seat count, or student count unless a specific path defines one.
-- **Known discrepancy—do not rely on:** User and organization timezone fields
-  default to `Asia/Kolkata`, but billing-cycle and calendar-day calculations use
-  runtime-local date operations and do not consult the organization timezone.
-  Do not claim explicit per-organization timezone correctness.
+- **Known discrepancy—do not rely on:** Student anniversary generation uses
+  the runtime-local calendar. Its dates can differ from the organization's
+  local calendar at a timezone boundary. Financial chart ranges, daily buckets
+  and labels use the organization's timezone (default `Asia/Kolkata`).
   (`prisma/schema.prisma`, `utils/studentBillingCycles.ts`)
 
 ## Analytics

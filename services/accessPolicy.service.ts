@@ -12,7 +12,7 @@ const issuedContexts = new WeakSet<object>();
 declare const contextBrand: unique symbol;
 export type BranchAccessContext = Readonly<{
   [contextBrand]: true; actorId: string; branchId: string; branchName: string;
-  organizationId: string; isOwner: boolean; role: BranchAccess["role"];
+  organizationId: string; timezone: string; isOwner: boolean; role: BranchAccess["role"];
   staffId?: string; permissions: Readonly<Record<StaffAction, boolean>>;
 }>;
 export class BranchAccessNotFoundError extends Error {
@@ -36,7 +36,7 @@ export class AccessPolicy {
     const staff = isOwner ? null : await client.staff.findUnique({where:{userId_branchId:{userId:actorId,branchId}},
       include:{permissionOverrides:{select:{action:true,allowed:true}}}});
     if (!isOwner && !staff) throw new BranchAccessNotFoundError();
-    const context = Object.freeze({actorId,branchId,branchName:branch.name,organizationId:branch.organizationId,
+    const context = Object.freeze({actorId,branchId,branchName:branch.name,organizationId:branch.organizationId,timezone:branch.organization.timezone,
       isOwner,role:isOwner ? "OWNER" : staff!.role,...(staff ? {staffId:staff.id} : {}),
       permissions:Object.freeze(isOwner ? buildOwnerPermissions() : buildStaffPermissions(staff!.role,staff!.permissionOverrides)),
     }) as BranchAccessContext;

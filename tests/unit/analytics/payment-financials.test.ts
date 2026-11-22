@@ -17,7 +17,7 @@ import { getOpenPaymentLedger, getOverduePaymentsPage, getPaymentPeriodStats } f
 import { getPaymentTrend } from "@/analytics/trends/payment.trends";
 
 type Status = "DUE" | "PAID" | "WAIVED";
-type DateRange = { gte?: Date; lte?: Date };
+type DateRange = { gte?: Date; lte?: Date; lt?: Date };
 type Payment = {
   id: string; branchId: string; studentId: string; status: Status;
   amount: number; collectedAmount: number; waivedAmount: number; ledgerBacked: boolean;
@@ -47,7 +47,8 @@ function payment(overrides: Partial<Payment> = {}): Payment {
 function within(value: Date | null, range: DateRange) {
   return value !== null
     && (!range.gte || value >= range.gte)
-    && (!range.lte || value <= range.lte);
+    && (!range.lte || value <= range.lte)
+    && (!range.lt || value < range.lt);
 }
 function matches(row: Payment, where: PaymentWhere): boolean {
   return (!where.branchId || row.branchId === where.branchId)
@@ -158,6 +159,27 @@ describe("billable revenue after ledger waivers", () => {
 });
 
 describe("monthly payment trends use each plotted day's cutoff", () => {
+  it("buckets midnight on 1 November in the organization's business month", async () => {
+    const october = new Date("2026-10-31T18:29:59.999Z");
+    const november = new Date("2026-10-31T18:30:00.000Z");
+    const nextDay = new Date("2026-11-01T18:30:00.000Z");
+    payments.push(payment({ dueDate: october, amount: 1000 }), payment({ dueDate: nextDay, amount: 500 }));
+    collections.push({ branchId: "branch", amount: 20, collectedAt: november, voidedAt: null });
+    const points = await getPaymentTrend("branch", november, nextDay, "DAY", "month", "Asia/Kolkata");
+    expect(points.map(point => point.asOf)).toEqual([november, nextDay]);
+    expect(points.map(point => point.revenueAmount)).toEqual([0, 500]);
+    expect(points.map(point => point.paidAmount)).toEqual([20, 20]);
+  });
+
+  it("uses the actual day length when an organization's clocks change", async () => {
+    const start = new Date("2026-11-01T04:00:00Z");
+    const end = new Date("2026-11-02T05:00:00Z");
+    payments.push(payment({ amount: 700, dueDate: new Date("2026-11-02T04:59:59Z") }));
+    const points = await getPaymentTrend("branch", start, end, "DAY", "month", "America/New_York");
+    expect(points.map(point => point.asOf)).toEqual([start, end]);
+    expect(points.map(point => point.revenueAmount)).toEqual([700, 700]);
+  });
+
   it("does not backdate receipts or later billable fees into earlier points", async () => {
     payments.push(payment({ amount: 700, collectedAmount: 700, status: "PAID", dueDate: day(20) }));
     collections.push({ branchId: "branch", amount: 700, collectedAt: day(20), voidedAt: null });

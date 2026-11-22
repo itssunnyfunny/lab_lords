@@ -15,8 +15,7 @@ import {
   parsePageLimit,
 } from "@/lib/cursorPagination"
 import type { Prisma } from "@/app/generated/prisma/client"
-import { endOfMonth, startOfMonth } from "date-fns"
-import { dashboardRate } from "@/lib/dashboardMath"
+import { dashboardDateOffset, dashboardDayStart, dashboardMonth, dashboardRate, dashboardToday } from "@/lib/dashboardMath"
 
 type AsOf = Date | undefined
 export type AnalyticsPeriod = "month" | "all"
@@ -29,23 +28,19 @@ function resolvePeriod(period?: AnalyticsPeriod): AnalyticsPeriod {
   return period === "month" ? "month" : "all"
 }
 
-function dayEnd(date: Date): Date {
-  return dueAsOfCutoff(date)
-}
-
 export async function getOpenPaymentLedger(
   branchId: string,
-  asOf?: AsOf
+  asOf?: AsOf,
+  dueDateEnd?: Date
 ) {
   const date = resolveAsOf(asOf)
-  const dueDateEnd = dueAsOfCutoff(date)
 
   const rows = await prisma.payment.findMany({
     where: {
       branchId,
       status: "DUE",
       amount: { gt: 0 },
-      dueDate: { lte: dueDateEnd },
+      dueDate: { lte: dueDateEnd ?? dueAsOfCutoff(date) },
     },
     select: {
       id: true,
@@ -109,15 +104,15 @@ export async function getPaymentPeriodStats(
   branchId: string,
   asOf?: AsOf,
   period?: AnalyticsPeriod,
-  options: { throughAsOfDay?: boolean } = {}
+  options: { throughAsOfDay?: boolean; timezone?: string } = {}
 ) {
   const date = resolveAsOf(asOf)
   const selectedPeriod = resolvePeriod(period)
-  const periodStart = selectedPeriod === "month" ? startOfMonth(date) : undefined
-  const periodEnd = selectedPeriod === "month" && !options.throughAsOfDay
-    ? endOfMonth(date) : dayEnd(date)
-
-  const range = { gte: periodStart, lte: periodEnd }
+  const timezone = options.timezone ?? "Asia/Kolkata"
+  const today = dashboardToday(date, timezone)
+  const nextDay = dashboardDayStart(dashboardDateOffset(today, 1), timezone)
+  const month = selectedPeriod === "month" ? dashboardMonth(today.slice(0, 7), timezone) : null
+  const range = { gte: month?.start, lt: month && !options.throughAsOfDay ? month.end : nextDay }
 
   const [fees, collectedAgg, actual, openLedger] = await Promise.all([
     prisma.payment.groupBy({
@@ -135,7 +130,7 @@ export async function getPaymentPeriodStats(
       _sum: { amount: true },
     }),
     prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: range }, _sum: { amount: true } }),
-    getOpenPaymentLedger(branchId, date),
+    getOpenPaymentLedger(branchId, date, new Date(nextDay.getTime() - 1)),
   ])
 
   let billed = 0, waived = 0, settled = 0

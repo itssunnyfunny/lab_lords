@@ -4,11 +4,12 @@ import { translate } from "@/lib/i18n";
 import type { InterfaceLanguage } from "@/lib/i18n/language";
 
 import { AppPanel } from "@/components/ui";
-import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
+import { formatPreferenceDate, useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { TrendData } from "@/lib/api/analytics";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface MainChartProps {
+    timezone?: string;
     data?: TrendData;
     title?: string;
     variant?: "area" | "bar";
@@ -62,9 +63,10 @@ export function MainChart({
     emptyLabel = "No trend data available.",
     contextLabel,
     dataLabel,
+    timezone,
 }: MainChartProps) {
     const t = useTranslation();
-    const { formatDate, formatNumber, interfaceLanguage } = useUserPreferences();
+    const { dateFormat, locale, timezone: preferredTimezone, formatNumber, interfaceLanguage } = useUserPreferences();
     const resolvedValueFormatter = valueFormatter ?? ((value: number) => formatNumber(value));
     const chartData: DisplayChartPoint[] = data.map(d => ({
         ...d,
@@ -72,7 +74,7 @@ export function MainChart({
             ? d.category ?? d.date
             : Number.isNaN(new Date(d.date).getTime())
                 ? d.date
-                : formatDate(d.date),
+                : formatPreferenceDate(d.date, { dateFormat, locale, timezone: timezone ?? preferredTimezone }),
     }));
     const chartSummary = buildChartSummary({
         title: t.owned(title),

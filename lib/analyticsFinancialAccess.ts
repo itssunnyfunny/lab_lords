@@ -5,6 +5,7 @@ export function withoutFinancialAnalytics(snapshot: BranchSnapshot): BranchSnaps
     return {
         financialAccess: false,
         period: snapshot.period,
+        timezone: snapshot.timezone,
         totalStudents: snapshot.totalStudents,
         activeStudents: snapshot.activeStudents,
         assignedSeats: snapshot.assignedSeats,

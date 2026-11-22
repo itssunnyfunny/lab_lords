@@ -4,6 +4,7 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { AppPanel } from "@/components/ui";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { AnalyticsPeriod, analytics, BranchSnapshot } from "@/lib/api/analytics";
+import { dashboardDateOffset, dashboardToday } from "@/lib/dashboardMath";
 import { useEffect, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 
@@ -72,6 +73,7 @@ export function KpiRow({
     const [paymentTrend, setPaymentTrend] = useState<number[] | undefined>();
     const [dueTrend, setDueTrend] = useState<number[] | undefined>();
     const canViewFinance = snapshot?.financialAccess === true;
+    const timezone = snapshot?.timezone ?? "Asia/Kolkata";
     const { formatNumber } = useUserPreferences();
     const formatMoney = (amount: number) => formatNumber(amount, {
         style: "currency",
@@ -84,12 +86,16 @@ export function KpiRow({
         let active = true;
         const loadTrends = async () => {
             try {
-                const to = new Date().toISOString();
+                const now = new Date();
+                const to = now.toISOString();
                 const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                const businessDay = dashboardToday(now, timezone);
 
                 const [seat, pay] = await Promise.all([
                     analytics.getTrends(branchId, { from, to, type: "seat" }),
-                    canViewFinance ? analytics.getTrends(branchId, { from, to, type: "payment", period }) : Promise.resolve([]),
+                    canViewFinance ? analytics.getTrends(branchId, {
+                        from: dashboardDateOffset(businessDay, -7), to: businessDay, type: "payment", period,
+                    }) : Promise.resolve([]),
                 ]);
 
                 if (!active) return;
@@ -102,7 +108,7 @@ export function KpiRow({
         };
         void loadTrends();
         return () => { active = false; };
-    }, [branchId, canViewFinance, period]);
+    }, [branchId, canViewFinance, period, timezone]);
 
     if (!snapshot) {
         return (

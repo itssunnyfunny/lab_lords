@@ -65,4 +65,19 @@ describe("analytics page loading across permission changes", () => {
         expect(visible).toEqual({ status: "error", message: "The requested analytics view could not be refreshed.", retryable: true });
         expect(mocks.getTrends).not.toHaveBeenCalled();
     });
+
+    it("requests the organization's first day of November when UTC is still in October", async () => {
+        vi.useFakeTimers();
+        try {
+            vi.setSystemTime(new Date("2026-10-31T20:00:00.000Z"));
+            mocks.getSnapshot.mockResolvedValue({ ...operational, financialAccess: true, timezone: "Asia/Kolkata" });
+            mocks.getTrends.mockResolvedValue([]);
+            await loadBranchAnalyticsPage("branch", "month", "revenue", true, vi.fn());
+            expect(mocks.getTrends).toHaveBeenCalledWith("branch", {
+                type: "payment", period: "month", from: "2026-10-31T18:30:00.000Z", to: "2026-10-31T18:30:00.000Z",
+            });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });

@@ -1,6 +1,7 @@
 import { analytics, type AnalyticsPeriod, type BranchSnapshot, type TrendData } from "@/lib/api/analytics";
 import { branches } from "@/lib/api/branches";
 import type { ResourceState } from "@/types";
+import { dashboardDateOffset, dashboardDayStart, dashboardToday } from "@/lib/dashboardMath";
 
 export type AnalyticsChartKey = "revenue" | "collected" | "due" | "utilization" | "students";
 
@@ -14,15 +15,15 @@ export type BranchAnalyticsPayload = {
     to: string;
 };
 
-function trendWindow(period: AnalyticsPeriod, chart: AnalyticsChartKey) {
+function trendWindow(period: AnalyticsPeriod, chart: AnalyticsChartKey, timezone = "Asia/Kolkata") {
     const to = new Date();
-    const from = new Date(to);
-    if (period === "month" && ["revenue", "collected", "due"].includes(chart)) {
-        from.setDate(1);
-        from.setHours(0, 0, 0, 0);
-    } else {
-        from.setDate(from.getDate() - 30);
+    if (["revenue", "collected", "due"].includes(chart)) {
+        const today = dashboardToday(to, timezone);
+        const firstDay = period === "month" ? `${today.slice(0, 7)}-01` : dashboardDateOffset(today, -30);
+        return { from: dashboardDayStart(firstDay, timezone).toISOString(), to: dashboardDayStart(today, timezone).toISOString() };
     }
+    const from = new Date(to);
+    from.setDate(from.getDate() - 30);
     return { from: from.toISOString(), to: to.toISOString() };
 }
 
@@ -46,7 +47,7 @@ export async function loadBranchAnalyticsPage(
         const chart = canViewFinance && snapshot.financialAccess
             ? selectedChart
             : selectedChart === "students" ? "students" : "utilization";
-        const { from, to } = trendWindow(period, chart);
+        const { from, to } = trendWindow(period, chart, snapshot.timezone);
         const trendType = chart === "utilization" ? "seat" : chart === "students" ? "students" : "payment";
         const trends = chart === "students" ? [] : await analytics.getTrends(branchId, { from, to, type: trendType, period });
         if (!isActive()) return;

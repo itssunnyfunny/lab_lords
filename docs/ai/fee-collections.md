@@ -91,7 +91,8 @@ final instalment. Dashboard and Branch Analytics calculate the collection rate
 from fees due in the selected period, using their current settled amount divided
 by original bills less waivers. A fully waived or empty cohort has no rate.
 The separate collected-cash amount uses receipt or eligible legacy payment
-dates. Original billed amount remains distinct. Existing as-of
+dates. Financial charts use the organization's calendar for range boundaries,
+daily totals and labels. Original billed amount remains distinct. Existing as-of
 outstanding analytics still project mutable current fee state; this feature does
 not rebuild a historical accounting system.
 
