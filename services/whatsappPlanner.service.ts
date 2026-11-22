@@ -2712,11 +2712,13 @@ export class WhatsAppPlannerService {
           }
         }
       }
+      const status = failedBranches === 0 ? "SUCCEEDED" : completedBranches === 0 ? "FAILED" : "PARTIAL";
       await WhatsAppJobRunService.finish({
         runId: started.run.id,
-        status: failedBranches > 0 ? "PARTIAL" : "SUCCEEDED",
+        status,
         counts: jobCounts(),
-        safeErrorCode: failedBranches > 0 ? "COLLECTION_PLANNER_PARTIAL_FAILURE" : null,
+        safeErrorCode: status === "FAILED" ? "COLLECTION_PLANNER_FAILED"
+          : status === "PARTIAL" ? "COLLECTION_PLANNER_PARTIAL_FAILURE" : null,
       });
       return {
         held: false,
