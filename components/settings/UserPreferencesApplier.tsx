@@ -56,22 +56,29 @@ function normalizePreferences(value: Partial<UserDisplayPreferences> | null | un
     };
 }
 
-function defaultDateOptions(dateFormat: UserDisplayPreferences["dateFormat"]): Intl.DateTimeFormatOptions {
-    if (dateFormat === "MMM dd, yyyy") {
-        return { month: "short", day: "2-digit", year: "numeric" };
-    }
-    return { day: "2-digit", month: "short", year: "numeric" };
-}
+type DatePreferences = Pick<UserDisplayPreferences, "dateFormat" | "locale" | "timezone">;
 
-function formatIsoDate(date: Date, locale: string, timezone: string) {
+export function formatPreferenceDate(input: Date | number | string, { dateFormat, locale, timezone }: DatePreferences, options?: Intl.DateTimeFormatOptions) {
+    const date = new Date(input);
+    if (!Number.isFinite(date.getTime())) return "Invalid date";
+    if (options) return new Intl.DateTimeFormat(locale, { timeZone: timezone, ...options }).format(date);
     const parts = new Intl.DateTimeFormat(locale, {
         timeZone: timezone,
         day: "2-digit",
-        month: "2-digit",
+        month: dateFormat === "yyyy-MM-dd" ? "2-digit" : "short",
         year: "numeric",
     }).formatToParts(date);
     const values = new Map(parts.map(part => [part.type, part.value]));
-    return `${values.get("year")}-${values.get("month")}-${values.get("day")}`;
+    const year = values.get("year"), month = values.get("month"), day = values.get("day");
+    if (dateFormat === "yyyy-MM-dd") return `${year}-${month}-${day}`;
+    return dateFormat === "MMM dd, yyyy" ? `${month} ${day}, ${year}` : `${day} ${month} ${year}`;
+}
+
+export function formatPreferenceDateTime(input: Date | number | string, preferences: DatePreferences) {
+    const date = new Date(input);
+    if (!Number.isFinite(date.getTime())) return "Invalid date";
+    const time = new Intl.DateTimeFormat(preferences.locale, { timeZone: preferences.timezone, hour: "2-digit", minute: "2-digit" }).format(date);
+    return `${formatPreferenceDate(date, preferences)}, ${time}`;
 }
 
 export function notifyUserPreferencesChanged(
@@ -129,28 +136,11 @@ export function UserPreferencesProvider({ children, signedIn = true, ownerKey = 
         root.lang = LANGUAGE_TAGS[publicLocale ?? preferences.interfaceLanguage];
     }, [preferences, publicLocale]);
 
-    const formatDate = useCallback((value: Date | string | number, options?: Intl.DateTimeFormatOptions) => {
-        const date = value instanceof Date ? value : new Date(value);
-        if (!Number.isFinite(date.getTime())) return "Invalid date";
-        if (!options && preferences.dateFormat === "yyyy-MM-dd") {
-            return formatIsoDate(date, preferences.locale, preferences.timezone);
-        }
-        return new Intl.DateTimeFormat(preferences.locale, {
-            timeZone: preferences.timezone,
-            ...(options ?? defaultDateOptions(preferences.dateFormat)),
-        }).format(date);
-    }, [preferences.dateFormat, preferences.locale, preferences.timezone]);
-
-    const formatDateTime = useCallback((value: Date | string | number) => {
-        const date = value instanceof Date ? value : new Date(value);
-        if (!Number.isFinite(date.getTime())) return "Invalid date";
-        return new Intl.DateTimeFormat(preferences.locale, {
-            timeZone: preferences.timezone,
-            ...defaultDateOptions(preferences.dateFormat),
-            hour: "2-digit",
-            minute: "2-digit",
-        }).format(date);
-    }, [preferences.dateFormat, preferences.locale, preferences.timezone]);
+    const { dateFormat, locale, timezone } = preferences;
+    const formatDate = useCallback((value: Date | string | number, options?: Intl.DateTimeFormatOptions) =>
+        formatPreferenceDate(value, { dateFormat, locale, timezone }, options), [dateFormat, locale, timezone]);
+    const formatDateTime = useCallback((value: Date | string | number) =>
+        formatPreferenceDateTime(value, { dateFormat, locale, timezone }), [dateFormat, locale, timezone]);
 
     const formatNumber = useCallback((value: number, options?: Intl.NumberFormatOptions) => (
         new Intl.NumberFormat(preferences.locale, options).format(value)
@@ -181,8 +171,8 @@ export function useUserPreferences(): UserPreferencesContextValue {
             ...DEFAULT_PREFERENCES,
             ownerKey: "signed-out",
             profileName: null,
-            formatDate: (input, options) => new Intl.DateTimeFormat(DEFAULT_PREFERENCES.locale, { timeZone: DEFAULT_PREFERENCES.timezone, ...(options ?? defaultDateOptions(DEFAULT_PREFERENCES.dateFormat)) }).format(new Date(input)),
-            formatDateTime: input => new Intl.DateTimeFormat(DEFAULT_PREFERENCES.locale, { ...defaultDateOptions(DEFAULT_PREFERENCES.dateFormat), hour: "2-digit", minute: "2-digit" }).format(new Date(input)),
+            formatDate: (input, options) => formatPreferenceDate(input, DEFAULT_PREFERENCES, options),
+            formatDateTime: input => formatPreferenceDateTime(input, DEFAULT_PREFERENCES),
             formatNumber: (input, options) => new Intl.NumberFormat(DEFAULT_PREFERENCES.locale, options).format(input),
         };
     }
