@@ -1,7 +1,7 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { runSerializableTransaction } from "@/lib/serializableTransaction";
 import { prisma } from "@/lib/prisma";
-import { billingStartAfterFreePeriods } from "@/services/studentFeePeriod";
+import { billingStartAfterFreePeriods, preserveAccruedMonthlyFees } from "@/services/studentFeePeriod";
 import {
     isDueResolution,
     PaymentResolutionEventSource,
@@ -513,15 +513,19 @@ export class StudentService {
                 };
             }
 
+            const feeChangedAt = new Date();
             const updated = await tx.student.update({
                 where: { id: studentId, branchId: verifiedStudent.branchId },
                 data: {
                     ...(nameResult?.ok ? { name: nameResult.value } : {}),
                     ...(phoneResult?.ok ? { phone: phoneResult.value ?? null } : {}),
                     ...feeData,
-                    billingStartAt: billingStartAfterFreePeriods(verifiedStudent, feeData.monthlyFee),
+                    billingStartAt: billingStartAfterFreePeriods(verifiedStudent, feeData.monthlyFee, feeChangedAt),
                 },
             });
+            if (feeData.monthlyFee === 0 && verifiedStudent.monthlyFee > 0 && verifiedStudent.status === "ACTIVE") {
+                await preserveAccruedMonthlyFees(tx, userId, verifiedBranchId, [verifiedStudent], feeChangedAt);
+            }
 
             if (
                 phoneResult?.ok

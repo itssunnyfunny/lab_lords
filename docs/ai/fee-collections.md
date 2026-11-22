@@ -83,6 +83,16 @@ student's completed anniversaries stay free after a manual or linked price
 increase. Historical zero-value dues remain available as cycle evidence and
 are excluded from collection and follow-up queues.
 
+When a positive manual, shift-linked or bundle-linked rate becomes zero, the
+rate edit preserves any missing monthly dues already accrued by active students.
+It writes them at the outgoing rate in the same transaction as the edit. The
+saved billing cutoff, typed monthly period and legacy due-day identity all apply.
+An edit creating dues requires the existing payment-generation permission. If
+permission is missing, the transaction rolls back. Once the due periods are
+already recorded, student or shift editing permissions suffice for the change.
+Previously skipped accruals require independent evidence of their old rates and
+effective dates for historical correction.
+
 Renewals, outstanding/overdue analytics, student fee summaries, fee displays and
 reminder source fingerprints use the remaining collectible balance. Collection
 reports sum actual collections by collection time, excluding voids, plus

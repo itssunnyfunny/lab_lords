@@ -14,7 +14,7 @@ import type { StaffAction } from "@/types";
 import { Prisma } from "@/app/generated/prisma/client";
 import { runSerializableTransaction } from "@/lib/serializableTransaction";
 import { startOfDay, startOfMonth, endOfMonth } from "date-fns";
-import { dueCyclesThrough } from "@/utils/studentBillingCycles";
+import { missingMonthlyFees, PAYMENT_INSERT_BATCH_SIZE, STUDENT_GENERATION_BATCH_SIZE } from "@/services/studentFeePeriod";
 import { EntitlementService } from "@/services/entitlement.service";
 import {
     recordPaymentResolutionEvent,
@@ -59,8 +59,6 @@ type EnsureMonthlyPaymentInput = {
     };
 };
 
-const STUDENT_GENERATION_BATCH_SIZE = 250;
-const PAYMENT_INSERT_BATCH_SIZE = 1000;
 const PAYMENT_ACTION_RESOLUTION = {
     source: PaymentResolutionEventSource.PAYMENT_ACTION,
 } satisfies PaymentResolutionContext;
@@ -194,10 +192,6 @@ export class PaymentService {
         return createdPayments.length;
     }
 
-    private static paymentDueDateKey(studentId: string, dueDate: Date | string) {
-        return `${studentId}:${startOfDay(new Date(dueDate)).toISOString()}`;
-    }
-
     private static async generateMissingDuePayments(params: {
         branchId?: string;
         asOfDate?: Date;
@@ -237,46 +231,8 @@ export class PaymentService {
 
             totalStudents += students.length;
             cursor = students[students.length - 1].id;
-            const batchPaymentsToCreate: Prisma.PaymentCreateManyInput[] = [];
-
-            for (const student of students) {
-                if (student.monthlyFee <= 0) continue;
-                for (const cycle of dueCyclesThrough(student.joinedAt, today, student.billingStartAt)) {
-                    batchPaymentsToCreate.push({
-                        branchId: student.branchId,
-                        studentId: student.id,
-                        amount: student.monthlyFee,
-                        status: PaymentStatus.DUE,
-                        type: PaymentType.MONTHLY,
-                        periodStart: cycle.periodStart,
-                        periodEnd: cycle.periodEnd,
-                        dueDate: cycle.dueDate,
-                    });
-                }
-            }
-
-            const existingMonthlyPayments = await prisma.payment.findMany({
-                where: {
-                    type: PaymentType.MONTHLY,
-                    studentId: { in: students.map(student => student.id) },
-                    dueDate: { lte: today },
-                },
-                select: {
-                    studentId: true,
-                    dueDate: true,
-                },
-            });
-            const existingDueDates = new Set(
-                existingMonthlyPayments.map(payment =>
-                    this.paymentDueDateKey(payment.studentId, payment.dueDate)
-                )
-            );
-
-            for (const payment of batchPaymentsToCreate) {
-                if (existingDueDates.has(this.paymentDueDateKey(payment.studentId, payment.dueDate))) {
-                    continue;
-                }
-
+            const missing = await missingMonthlyFees(prisma, students, today, branchId);
+            for (const payment of missing) {
                 paymentsToCreate.push(payment);
 
                 if (paymentsToCreate.length >= PAYMENT_INSERT_BATCH_SIZE) {

@@ -222,7 +222,7 @@ export class MultiShiftService {
             });
 
             if (priceChanged) {
-                await updateLinkedStudentFees(tx, { branchId: ms.branchId, feeLinkedMultiShiftId: multiShiftId }, normalizedPrice);
+                await updateLinkedStudentFees(tx, userId, { branchId: ms.branchId, feeLinkedMultiShiftId: multiShiftId }, normalizedPrice);
             }
 
             await tx.branch.update({

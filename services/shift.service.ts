@@ -213,7 +213,7 @@ export class ShiftService {
             });
 
             if (priceChanged) {
-                await updateLinkedStudentFees(tx, { branchId: shift.branchId, feeLinkedShiftId: shiftId }, normalizedPrice);
+                await updateLinkedStudentFees(tx, userId, { branchId: shift.branchId, feeLinkedShiftId: shiftId }, normalizedPrice);
             }
 
             await tx.branch.update({

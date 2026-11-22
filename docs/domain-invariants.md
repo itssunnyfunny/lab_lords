@@ -341,6 +341,10 @@ unit/API/integration coverage.
 - **Must preserve—enforced:** Monthly generation rechecks the student's
   status, branch, fee and billing cutoff under the settlement lock before
   inserting a staged cycle. Free anniversaries generate no collectible fee.
+  Before a positive manual or linked rate becomes zero, the rate edit and
+  generation of any missing accrued monthly dues for active students commit
+  together at the outgoing rate. Creating such dues requires payment-generation
+  permission. Existing typed periods and legacy due-day rows count as covered.
   Moving a student from a zero fee to a positive fee preserves completed free
   periods, including when the price comes from a linked shift or multi-shift.
   The next anniversary uses the new price. A historical zero-value due cannot
