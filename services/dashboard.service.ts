@@ -36,6 +36,9 @@ function taskView(row: TaskRecord): DashboardTask {
     return { id: row.id, title: row.title, status: row.status as DashboardTask["status"], dueAt: row.dueAt?.toISOString() ?? null,
         assigneeId: row.assigneeId, assigneeName: row.assignee?.name ?? null, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
+function renewalWindow(branchId: string, today: string) {
+    return { branchId, status: "ACTIVE", endDate: { gte: today, lte: dashboardDateOffset(today, 7) }, student: { status: "ACTIVE" as const } };
+}
 function termView(row: { id: string; studentId: string; label: string; startDate: string; endDate: string; status?: string; revision?: number; student: { name: string } }, today: string): DashboardTerm {
     return { id: row.id, studentId: row.studentId, studentName: row.student.name, label: row.label, startDate: row.startDate,
         endDate: row.endDate, status: row.status === "VOIDED" ? "VOIDED" : row.status === "CANCELLED" ? "CANCELLED" : "ACTIVE", revision: row.revision ?? 1,
@@ -204,7 +207,7 @@ export class DashboardService {
         return { pending, dueToday, items: rows.map(followUpView) };
     }
     private static async termSummary(branchId: string, today: string, client: Tx = prisma) {
-        const where = { branchId, status: "ACTIVE", endDate: { gte: today, lte: dashboardDateOffset(today, 7) }, student: { status: "ACTIVE" as const } };
+        const where = renewalWindow(branchId, today);
         const [configured, renewalsThisWeek, rows] = await completeReads([
             client.membershipTerm.count({ where: { branchId, status: "ACTIVE" } }), client.membershipTerm.count({ where }),
             client.membershipTerm.findMany({ where, include: { student: { select: { name: true } } }, orderBy: [{ endDate: "asc" }, { id: "asc" }], take: 3 }),
@@ -533,9 +536,13 @@ export class DashboardService {
             add("FOLLOW_UP", followUps.dueToday, [today, followUps.dueToday, followUps.items.map(r => [r.id, r.updatedAt])], "follow-ups?filter=DUE");
         }
         if (access.permissions.students) {
-            const [attendance, terms] = await completeReads([this.attendance(branchId, timezone, today, now), this.termSummary(branchId, today)]);
+            const [attendance, terms] = await completeReads([
+                this.attendance(branchId, timezone, today, now),
+                prisma.membershipTerm.findMany({ where: renewalWindow(branchId, today), select: { id: true, endDate: true },
+                    orderBy: [{ endDate: "asc" }, { id: "asc" }] }),
+            ]);
             add("ATTENDANCE", attendance.gaps, [today, attendance.gaps, attendance.gapsStudents.map(r => r.id)], "dashboard-settings?section=expectations&filter=gaps");
-            add("RENEWAL", terms.renewalsThisWeek, terms.items.map(r => [r.id, r.endDate]), "dashboard-settings?section=terms");
+            add("RENEWAL", terms.length, terms.map(r => [r.id, r.endDate]), "dashboard-settings?section=terms");
         }
         if (access.permissions.manage_branch) {
             const where = { branchId, status: "OPEN", dueAt: { lte: now }, OR: [{ assigneeId: actorId }, { assigneeId: null }] };

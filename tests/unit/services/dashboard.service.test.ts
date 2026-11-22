@@ -174,6 +174,31 @@ describe("dashboard scoped service boundary", () => {
         expect(mocks.db.membershipTerm.create).not.toHaveBeenCalled();
         expect(mocks.db.payment.update).not.toHaveBeenCalled();
     });
+    it("shows a new renewal alert when a term joins or changes beyond the three dashboard examples", async () => {
+        mocks.resolve.mockResolvedValue({ ...access(), permissions: { ...permissions, students: true } });
+        mocks.db.attendanceExpectation.count.mockResolvedValue(0);
+        mocks.db.attendanceExpectation.findMany.mockResolvedValue([]);
+        mocks.db.student.count.mockResolvedValue(0);
+        const terms = ["01", "02", "03"].map(day => ({ id: day, endDate: `2026-10-${day}`, student: { name: day } }));
+        mocks.db.membershipTerm.count.mockImplementation(() => Promise.resolve(terms.length));
+        mocks.db.membershipTerm.findMany.mockImplementation(({ take }) => Promise.resolve(terms.slice(0, take ?? terms.length)));
+        mocks.db.dashboardNotificationState.findMany.mockResolvedValue([]);
+        const now = new Date("2026-10-01T06:00:00Z");
+        const notifications = () => DashboardService.notifications("actor", "branch", now);
+        const first = (await notifications()).items[0];
+        mocks.db.dashboardNotificationState.findMany.mockResolvedValue([{ key: first.key, dismissedAt: now }]);
+        expect((await notifications()).unreadCount).toBe(0);
+        terms.push({ id: "04", endDate: "2026-10-04", student: { name: "04" } });
+        const added = await notifications();
+        expect(added).toMatchObject({ unreadCount: 1, items: [{ kind: "RENEWAL", count: 4, dismissed: false }] });
+        expect(added.items[0].key).not.toBe(first.key);
+        terms[3].endDate = "2026-10-05";
+        expect((await notifications()).items[0].key).not.toBe(added.items[0].key);
+        expect(mocks.db.membershipTerm.findMany).toHaveBeenLastCalledWith({
+            where: { branchId: "branch", status: "ACTIVE", student: { status: "ACTIVE" }, endDate: { gte: "2026-10-01", lte: "2026-10-08" } },
+            orderBy: [{ endDate: "asc" }, { id: "asc" }], select: { id: true, endDate: true },
+        });
+    });
     it("does not read or advertise membership terms without student permission", async () => {
         mocks.db.dashboardNotificationState.findMany.mockResolvedValue([]);
         expect((await DashboardService.notifications("actor", "branch")).items).toEqual([]);

@@ -94,7 +94,9 @@ unaccepted staff invitations (manage-branch and staff-management permissions plu
 the staff-management entitlement). Invitation tokens are never selected.
 Stable condition keys
 deduplicate repeated renders. Changed amounts/counts, due-day context or recorded
-source changes can produce a new key. User/branch/key-scoped read, snooze and
+source changes can produce a new key. The renewal key covers the ID and end
+date of every qualifying term in the branch's renewal window, including terms
+beyond the three displayed on the overview. User/branch/key-scoped read, snooze and
 dismiss state persists in `DashboardNotificationState`; snooze is bounded to
 30 days. Personal state changes recheck the source permission and branch
 writability. The API retains unresolved conditions with their acknowledgement
