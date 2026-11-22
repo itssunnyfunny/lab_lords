@@ -76,21 +76,25 @@ test("partial collection retains one request through uncertainty and returns a r
         return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
     })).toBe(true);
     const pendingRequest = await page.evaluate(
-        () => sessionStorage.getItem("fee-collection:pilot:student-aarav")
+        () => sessionStorage.getItem("fee-collection:v2:pilot-owner:pilot:student-aarav")
     );
     expect(pendingRequest).toBeTruthy();
 
-    await openPilot(page, "/branch/pilot");
+    await openPilot(page, "/branch/pilot/payments", { surface: "collection", scenario: "uncertain", identity: "second-cashier" });
+    await expect(dialog.getByRole("button", { name: "Confirm collection", exact: true })).toBeEnabled();
+    await expect(dialog.getByRole("button", { name: "Retry same collection" })).toHaveCount(0);
+    await expect(dialog.getByLabel("Reference (optional)")).toHaveValue("");
+    await expect(dialog.getByLabel("Note (shown on receipt, optional)")).toHaveValue("");
     await openPilot(page, "/branch/pilot/payments", { surface: "collection", scenario: "uncertain" });
     dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("button", { name: "Retry same collection" })).toBeVisible();
     await expect(dialog.getByText(/may already be recorded/i)).toBeVisible();
     await expect(dialog.getByLabel("Amount received (whole ₹)")).toBeDisabled();
     expect(await page.evaluate(
-        () => sessionStorage.getItem("fee-collection:pilot:student-aarav")
+        () => sessionStorage.getItem("fee-collection:v2:pilot-owner:pilot:student-aarav")
     )).toBe(pendingRequest);
 
-    await dialog.getByLabel("Interface language").selectOption("hinglish");
+    await openPilot(page, "/branch/pilot/payments", { surface: "collection", scenario: "uncertain", lang: "hinglish" });
     await dialog.getByRole("button", { name: "Usi payment ko dobara confirm karein" }).click();
 
     await expect(dialog.getByRole("heading", { name: "Payment record ho gaya" })).toBeVisible();
@@ -98,6 +102,27 @@ test("partial collection retains one request through uncertainty and returns a r
     await expect(dialog.getByText(/Remaining ₹300/i)).toBeVisible();
     await dialog.getByLabel("Receipt aur report ki language").selectOption("hi");
     await expect(dialog.getByRole("heading", { name: "फीस की रसीद" })).toBeVisible();
+});
+
+test("legacy collection requires a receipt review before a new cashier can record money", async ({ page }) => {
+    const legacy = { studentId: "student-aarav", paymentIds: ["old-fee"], amount: 715, method: "CASH", reference: "private-ref",
+        note: "private-note", idempotencyKey: "legacy-collection-key" };
+    await page.addInitScript(value => sessionStorage.setItem("fee-collection:pilot:student-aarav", JSON.stringify(value)), legacy);
+    let lookups = 0, submissions = 0;
+    await page.route("**/collections?recoveryKey=legacy-collection-key", route => { lookups++; return route.fulfill({ json: null }); });
+    await page.route("**/collections", route => { if (route.request().method() === "POST") submissions++; return route.continue(); });
+    await openPilot(page, "/branch/pilot/payments", { surface: "collection", identity: "second-cashier" });
+    const dialog = page.getByRole("dialog");
+    const confirm = dialog.getByRole("button", { name: "Confirm collection", exact: true });
+    const reviewed = dialog.getByRole("button", { name: "I checked the receipt history" });
+    await expect(reviewed).toBeVisible();
+    await expect(confirm).toBeDisabled();
+    await expect(dialog.getByLabel("Reference (optional)")).toHaveValue("");
+    await expect(dialog.getByLabel("Note (shown on receipt, optional)")).toHaveValue("");
+    await reviewed.click();
+    await expect(confirm).toBeEnabled();
+    expect(lookups).toBeGreaterThan(0);
+    expect(submissions).toBe(0);
 });
 
 test("onboarding recovers one saved command after response loss, reload, and account switch", async ({ page }, info) => {

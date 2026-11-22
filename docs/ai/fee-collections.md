@@ -29,10 +29,14 @@ and sharing does not establish message delivery.
 Every collection rechecks `paymentsRecord`, branch writability and same-branch
 student/payment ownership inside the transaction. All interactive fee writers
 lock the student before fee rows. An advisory transaction lock serializes each
-branch/idempotency key; a canonical request hash rejects changed input. Stable
-same-key retries return the existing collection, including a subsequently voided
-record. Browser session storage preserves an uncertain request across dialog
-close/reload until a definitive response. Financial writes, allocations, receipt
+branch/idempotency key. Replay checks the stored actor and canonical request
+hash. A matching retry returns the original receipt, including its void status.
+Browser session storage preserves an uncertain request for its account, branch
+and student across dialog close or reload. The full-workspace form sends its
+account as a precondition on submission. A draft saved before account scoping
+can recover an existing receipt through the actor-scoped read. When that read
+finds no receipt, the cashier must check receipt history before entering a new
+collection. Financial writes, allocations, receipt
 facts and audit evidence commit together. No PDF or provider call runs there.
 
 Full-payment compatibility callers use the same collection service and default

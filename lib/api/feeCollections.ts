@@ -2,6 +2,8 @@ import { apiClient } from "./core";
 import type { CollectionInput, FeeCollectionView } from "@/lib/feeCollections";
 import type { PaymentListItem } from "./payments";
 export const feeCollections = {
+    recover: (branchId: string, key: string): Promise<FeeCollectionView | null> =>
+        apiClient.get(`/branches/${branchId}/collections?recoveryKey=${encodeURIComponent(key)}`),
     collect: (branchId: string, data: CollectionInput): Promise<FeeCollectionView> => apiClient.post(`/branches/${branchId}/collections`, data),
     dues: (branchId: string, studentId: string): Promise<{ student: { id: string; name: string }; payments: PaymentListItem[] }> =>
         apiClient.get(`/branches/${branchId}/collections?dues=true&studentId=${encodeURIComponent(studentId)}`),
