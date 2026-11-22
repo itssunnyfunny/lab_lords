@@ -1135,7 +1135,7 @@ export class BranchService {
                     where: { id: candidate.id, organizationId: candidate.organizationId, status: "SCHEDULED", effectiveAt: { lte: now } },
                     include: {
                         organizationSubscription: true,
-                        organization: { select: { subscription: { select: { status: true, quantity: true } } } },
+                        organization: { select: { subscription: { select: { id: true, status: true, quantity: true } } } },
                     },
                 });
                 if (!change?.branchId) return false;
@@ -1148,8 +1148,24 @@ export class BranchService {
                 if (source && (change.toQuantity !== source.quantity
                     || !source.lastReconciledAt || source.lastReconciledAt < (change.effectiveAt ?? now))) return false;
                 const current = change.organization.subscription;
-                if (!source && current && !TERMINAL_STATUSES.has(current.status) && current.quantity !== projected) {
-                    return "A trial branch removal conflicts with the current mandate quantity. Reconcile the mandate before archiving.";
+                if (!source && current && !TERMINAL_STATUSES.has(current.status)) {
+                    // FIFO keeps these changes off the mandate until this removal archives.
+                    // Their branch statuses already contribute to the local projection.
+                    const laterBranchChanges = await tx.organizationBillingChange.groupBy({
+                        by: ["type"],
+                        where: {
+                            organizationId: candidate.organizationId, organizationSubscriptionId: current.id,
+                            branch: { organizationId: candidate.organizationId }, sequence: { gt: change.sequence },
+                            status: "QUEUED", resolvedAt: null,
+                            type: { in: ["BRANCH_REMOVAL", "BRANCH_REACTIVATION", "QUANTITY_INCREASE", "TRIAL_SUBSCRIPTION_UPDATE"] },
+                        },
+                        _count: { _all: true },
+                    });
+                    const expectedQuantity = laterBranchChanges.reduce((count, group) =>
+                        group.type === "BRANCH_REMOVAL" ? count + group._count._all : count - group._count._all, projected);
+                    if (current.quantity !== expectedQuantity) {
+                        return "A trial branch removal conflicts with the current mandate quantity. Reconcile the mandate before archiving.";
+                    }
                 }
                 if (!source) {
                     // A lost create response can leave a provider mandate without a local subscription row.

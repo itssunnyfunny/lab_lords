@@ -2197,6 +2197,10 @@ The 2026-11-18 billing correction uses existing tables. Check the hourly
 billing deadline's `errors` for affected organization IDs. It holds archival
 when scheduled removals would leave zero billable branches, or when a
 provider-free trial removal conflicts with the current mandate quantity.
+For a current mandate, start with the count of active branches and branches
+pending activation. Add back each later queued removal for the same mandate
+and subtract each later queued addition or reactivation. This is the quantity
+the provider should cover when the earlier removal archives.
 An unresolved first checkout can also trigger the hold. Compare its frozen
 `authorizedQuantity` with the continuing branch count even when the first
 provider response was lost and the subscription has no local record. A missing

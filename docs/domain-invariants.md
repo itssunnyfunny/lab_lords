@@ -285,9 +285,12 @@ unit/API/integration coverage.
   branches, restoring an excluded branch requires a quantity change through
   the provider-backed reactivation flow after archival. The hourly deadline
   reports historical schedules that leave zero branches or conflict with the
-  current mandate quantity for operator review. Before a local subscription
-  exists, an unresolved first checkout's frozen quantity must also match the
-  continuing branch count to allow archival.
+  current mandate quantity for operator review. When checking a pre-mandate
+  removal, it adds back later queued removals and subtracts later queued
+  additions and reactivations for that mandate. Those changes have updated
+  local branch statuses and still await their turn at the provider. Before a
+  local subscription exists, an unresolved first checkout's frozen quantity
+  must also match the continuing branch count to allow archival.
   (`services/branch.service.ts`, branch-billing-lifecycle integration tests)
 - **Must preserve—enforced:** Each canonical onboarding command requires an
   authenticated-owner-scoped, bounded idempotency key and a stable versioned

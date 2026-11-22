@@ -21,7 +21,10 @@ Branch-removal scheduling, first checkout and the Billing overview use the
 projected count of active branches and branches pending activation. The
 provider-confirmed quantity continues to come from the subscription. Owners
 see the monthly total and a zero plan fee due today on Basic, Standard and Pro
-trial authorization. At the trial deadline, the archival worker reports older
+trial authorization. For a pre-mandate removal, the deadline worker compares
+the current mandate with the branch count before later queued provider changes.
+This lets the earlier removal archive and the next quantity change proceed.
+At the trial deadline, the archival worker reports older
 conflicting schedules for [operator review](../production-runbook.md#trial-branch-removal-review).
 
 ## Branch setup form correction — local, 2026-11-16

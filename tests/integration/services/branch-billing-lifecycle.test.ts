@@ -541,7 +541,7 @@ describe("workspace branch billing lifecycle", () => {
     expect(statuses.map(row => row.billingStatus).sort()).toEqual(["ACTIVE", "ARCHIVED"]);
   });
 
-  it.each(["all branches scheduled", "oversized mandate"] as const)("holds pre-existing inconsistent removals at the deadline (%s)", async scenario => {
+  it.each(["all branches scheduled", "oversized mandate", "oversized mandate masked by a queued addition"] as const)("holds pre-existing inconsistent removals at the deadline (%s)", async scenario => {
     const { owner, organization, first, trialEndsAt } = await trialOrganization();
     const second = await createBranch({ organizationId: organization.id });
     const { change } = await BranchService.scheduleBillingRemoval(owner.id, second.id, "historical-trial-removal");
@@ -554,6 +554,17 @@ describe("workspace branch billing lifecycle", () => {
     } else {
       const mandate = await createSaasSubscription({ organizationId: organization.id, status: "AUTHENTICATED" });
       await testPrisma.organizationSubscription.update({ where: { id: mandate.id }, data: { quantity: 2 } });
+      if (scenario === "oversized mandate masked by a queued addition") {
+        vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "true");
+        vi.stubEnv("RAZORPAY_MODE", "TEST");
+        vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_branchfixture");
+        const added = await BranchService.createBranchForOrg({
+          organizationId: organization.id, userId: owner.id, name: "Third", contactPhone: "9876543210",
+          idempotencyKey: "add-after-oversized-mandate",
+        });
+        await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: added.billingChangeId } }))
+          .resolves.toMatchObject({ status: "QUEUED", toQuantity: 2 });
+      }
     }
     const result = await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
     expect(result).toMatchObject({ archived: 0, errors: [{ organizationId: organization.id,
