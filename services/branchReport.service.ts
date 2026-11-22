@@ -59,7 +59,7 @@ export class BranchReportService {
             } else {
                 columns = ["Student name", "Attendance date", "Status", "Source"];
                 const records = await tx.attendanceMark.findMany({ where: { branchId, date, student: { branchId, ...search },
-                    ...(query.status === "PRESENT" || query.status === "ABSENT" ? { status: query.status } : {}) },
+                    status: query.status === "PRESENT" || query.status === "ABSENT" ? query.status : { in: ["PRESENT", "ABSENT"] } },
                     select: { student: { select: { name: true } }, date: true, status: true, source: true }, orderBy: [{ date: "asc" }, { id: "asc" }], take });
                 assertReportLimit(records);
                 rows = records.map(row => [row.student.name, row.date.toISOString().slice(0, 10), label(row.status), label(row.source)]);

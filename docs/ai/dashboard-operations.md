@@ -196,6 +196,8 @@ while ledger-backed rows use the stored collected and waived amounts. This
 projection does not create a receipt or invent a collection timestamp.
 Fee reports are not a cash collection-date ledger. Local-day boundaries use the
 organization timezone; attendance uses its existing stored calendar date.
+Attendance reports include explicit present and absent marks. Clearing a mark
+removes it from the export.
 
 CSV headers follow the independent document-language preference. Cells with
 spreadsheet formula prefixes, including prefixes after leading whitespace or

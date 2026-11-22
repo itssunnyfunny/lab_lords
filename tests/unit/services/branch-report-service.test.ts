@@ -27,6 +27,22 @@ describe("branch reports authorization and projection", () => {
         expect(mocks.authorize).toHaveBeenCalledWith("actor", "branch", "students", expect.anything());
         expect(mocks.payment).not.toHaveBeenCalled(); expect(mocks.attendance).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ branchId: "branch", student: { branchId: "branch" } }) }));
     });
+    it.each([
+        ["ALL", ["PRESENT", "ABSENT"]],
+        ["PRESENT", ["PRESENT"]],
+        ["ABSENT", ["ABSENT"]],
+    ] as const)("excludes cleared attendance from the %s export", async (status, expected) => {
+        const marks = ["PRESENT", "ABSENT", "NOT_MARKED"].map(mark => ({
+            student: { name: mark }, status: mark, date: new Date("2026-09-01"), source: "MANUAL",
+        }));
+        mocks.attendance.mockImplementation(({ where }) => marks.filter(mark =>
+            !where.status || (typeof where.status === "string" ? where.status === mark.status : where.status.in.includes(mark.status))));
+        const report = await BranchReportService.read("actor", "branch", reportQuerySchema.parse({
+            from: "2026-09-01", through: "2026-09-27", kind: "attendance", status,
+        }));
+        expect(report.rows.map(row => row[0])).toEqual(expected);
+        expect(report.count).toBe(expected.length);
+    });
     it("uses recorded legacy settlement status without inventing ledger receipts", async () => {
         const fee = { student: { name: "Legacy student" }, type: "MONTHLY", periodStart: new Date("2026-09-01"), periodEnd: new Date("2026-09-30"), dueDate: new Date("2026-09-01"), amount: 2000, collectedAmount: 0, waivedAmount: 0, ledgerBacked: false };
         mocks.payment.mockResolvedValue([{ ...fee, status: "PAID" }, { ...fee, status: "WAIVED" },
