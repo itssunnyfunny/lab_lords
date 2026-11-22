@@ -1076,6 +1076,9 @@ unit/API/integration coverage.
   beta extraction; it does not promise visual-table reconstruction or OCR and
   every extracted row remains subject to review.
   (`importing/parsers/xlsx.parser.ts`, `importing/parsers/pdf.parser.ts`)
+- **Must preserve—enforced:** Native Excel calendar dates use the workbook's
+  date system and retain their calendar day across display formats.
+  (`importing/parsers/xlsx.parser.ts`)
 - **Must preserve—enforced:** New V2 starts fail closed unless
   `IMPORT_V2_ENABLED=true`. Plan compilation fails closed unless
   `IMPORT_MAX_PLANNED_MUTATIONS` is a configured positive integer, and a plan
