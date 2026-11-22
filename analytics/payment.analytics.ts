@@ -16,6 +16,7 @@ import {
 } from "@/lib/cursorPagination"
 import type { Prisma } from "@/app/generated/prisma/client"
 import { endOfMonth, startOfMonth } from "date-fns"
+import { dashboardRate } from "@/lib/dashboardMath"
 
 type AsOf = Date | undefined
 export type AnalyticsPeriod = "month" | "all"
@@ -116,50 +117,43 @@ export async function getPaymentPeriodStats(
   const periodEnd = selectedPeriod === "month" && !options.throughAsOfDay
     ? endOfMonth(date) : dayEnd(date)
 
-  // ⚡ Bolt: Replaced memory-heavy findMany + reduce with database-level aggregate
-  // Impact: Reduces memory overhead from O(N) to O(1) and eliminates payload transfer for thousands of payment records.
-  const [revenueAgg, collectedAgg, openLedger] = await Promise.all([
-    prisma.payment.aggregate({
-      where: {
-        branchId,
-        OR: [{ status: { not: "WAIVED" } }, { ledgerBacked: true }],
-        dueDate: selectedPeriod === "month"
-          ? { gte: periodStart, lte: periodEnd }
-          : { lte: periodEnd },
-      },
-      _sum: { amount: true, waivedAmount: true },
+  const range = { gte: periodStart, lte: periodEnd }
+
+  const [fees, collectedAgg, actual, openLedger] = await Promise.all([
+    prisma.payment.groupBy({
+      by: ["ledgerBacked", "status"],
+      where: { branchId, dueDate: range },
+      _sum: { amount: true, waivedAmount: true, collectedAmount: true },
     }),
     prisma.payment.aggregate({
       where: {
         branchId,
         status: "PAID", ledgerBacked: false,
         resolutionEvents: { none: { source: "IMPORT_EXECUTION" } },
-        OR: selectedPeriod === "month"
-          ? [
-              { paidAt: { gte: periodStart, lte: periodEnd } },
-
-            ]
-          : [
-              { paidAt: { lte: periodEnd } },
-
-            ],
+        paidAt: range,
       },
       _sum: { amount: true },
     }),
+    prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: range }, _sum: { amount: true } }),
     getOpenPaymentLedger(branchId, date),
   ])
 
-  const revenueAmount = (revenueAgg._sum.amount ?? 0) - (revenueAgg._sum.waivedAmount ?? 0)
-  const actual = await prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: { gte: periodStart, lte: periodEnd } }, _sum: { amount: true } })
+  let billed = 0, waived = 0, settled = 0
+  for (const fee of fees) {
+    const amount = fee._sum.amount ?? 0
+    billed += amount
+    waived += fee.ledgerBacked ? fee._sum.waivedAmount ?? 0 : fee.status === "WAIVED" ? amount : 0
+    settled += fee.ledgerBacked ? fee._sum.collectedAmount ?? 0 : fee.status === "PAID" ? amount : 0
+  }
   const paidAmount = (collectedAgg._sum.amount ?? 0) + (actual._sum.amount ?? 0)
   const dueAmount = openLedger.dueAmount
 
   return {
     period: selectedPeriod,
-    revenueAmount,
+    revenueAmount: billed - waived,
     paidAmount,
     dueAmount,
-    collectionRate: revenueAmount > 0 ? (paidAmount / revenueAmount) * 100 : 0,
+    collectionRate: dashboardRate(settled, billed, waived),
   }
 }
 

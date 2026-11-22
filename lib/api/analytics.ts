@@ -26,7 +26,7 @@ export type BranchSnapshot = BranchSnapshotBase & ({
     monthlyRevenue: number;
     dueAmount: number;
     paidAmount: number;
-    collectionRate: number;
+    collectionRate: number | null;
 } | {
     financialAccess: false;
     monthlyRevenue?: never;

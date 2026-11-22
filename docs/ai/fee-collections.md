@@ -87,7 +87,11 @@ Renewals, outstanding/overdue analytics, student fee summaries, fee displays and
 reminder source fingerprints use the remaining collectible balance. Collection
 reports sum actual collections by collection time, excluding voids, plus
 compatible legacy evidence. They never add a fee's full amount again on its
-final instalment. Original billed amount remains distinct. Existing as-of
+final instalment. Dashboard and Branch Analytics calculate the collection rate
+from fees due in the selected period, using their current settled amount divided
+by original bills less waivers. A fully waived or empty cohort has no rate.
+The separate collected-cash amount uses receipt or eligible legacy payment
+dates. Original billed amount remains distinct. Existing as-of
 outstanding analytics still project mutable current fee state; this feature does
 not rebuild a historical accounting system.
 

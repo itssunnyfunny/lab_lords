@@ -3,12 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   paymentAggregate: vi.fn(),
   paymentFindMany: vi.fn(),
+  paymentGroupBy: vi.fn(),
   paymentCount: vi.fn(),
   collectionAggregate: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: {
-  payment: { aggregate: mocks.paymentAggregate, findMany: mocks.paymentFindMany, count: mocks.paymentCount },
+  payment: { aggregate: mocks.paymentAggregate, findMany: mocks.paymentFindMany, groupBy: mocks.paymentGroupBy, count: mocks.paymentCount },
   feeCollection: { aggregate: mocks.collectionAggregate },
 } }));
 
@@ -78,6 +79,18 @@ beforeEach(() => {
     payments.filter(row => matches(row, where)));
   mocks.paymentCount.mockImplementation(async ({ where }: { where: PaymentWhere }) =>
     payments.filter(row => matches(row, where)).length);
+  mocks.paymentGroupBy.mockImplementation(async ({ where }: { where: PaymentWhere }) => {
+    const sums = new Map<string, { status: Status; ledgerBacked: boolean; _sum: { amount: number; waivedAmount: number; collectedAmount: number } }>();
+    for (const row of payments.filter(row => matches(row, where))) {
+      const key = [row.status, row.ledgerBacked].join("/");
+      const group = sums.get(key) ?? { status: row.status, ledgerBacked: row.ledgerBacked, _sum: { amount: 0, waivedAmount: 0, collectedAmount: 0 } };
+      group._sum.amount += row.amount;
+      group._sum.waivedAmount += row.waivedAmount;
+      group._sum.collectedAmount += row.collectedAmount;
+      sums.set(key, group);
+    }
+    return [...sums.values()];
+  });
   mocks.collectionAggregate.mockImplementation(async ({ where }: {
     where: { branchId: string; voidedAt: null; collectedAt: DateRange };
   }) => ({ _sum: { amount: collections
@@ -115,7 +128,7 @@ describe("billable revenue after ledger waivers", () => {
       revenueAmount: fixture.revenue,
       paidAmount: fixture.collected,
       dueAmount: fixture.due,
-      collectionRate: fixture.revenue ? fixture.collected / fixture.revenue * 100 : 0,
+      collectionRate: fixture.revenue ? Math.round(fixture.collected / fixture.revenue * 100) : null,
     });
     expect(payments[0].amount).toBe(1200);
   });
@@ -129,6 +142,17 @@ describe("billable revenue after ledger waivers", () => {
 
     expect(await getPaymentPeriodStats("branch", day(20), "all")).toMatchObject({
       revenueAmount: 300, paidAmount: 300, dueAmount: 0, collectionRate: 100,
+    });
+  });
+
+  it("keeps November cash for an October fee separate from November's cohort settlement rate", async () => {
+    payments.push(
+      payment({ id: "october", amount: 1000, collectedAmount: 1000, status: "PAID", dueDate: day(1, 9) }),
+      payment({ id: "november", amount: 500, dueDate: day(1, 10) }),
+    );
+    collections.push({ branchId: "branch", amount: 1000, collectedAt: day(2, 10), voidedAt: null });
+    expect(await getPaymentPeriodStats("branch", day(3, 10), "month")).toMatchObject({
+      paidAmount: 1000, revenueAmount: 500, dueAmount: 500, collectionRate: 0,
     });
   });
 });
