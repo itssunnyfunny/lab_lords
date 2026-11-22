@@ -228,6 +228,7 @@ export const management = {
     "This student has a clean financial record.": ["इस छात्र की कोई फीस बाकी नहीं है।", "Is student ki koi fee baaki nahi hai."],
     "No future billing cycles will be generated after deactivation.": ["निष्क्रिय करने के बाद आगे की फीस नहीं बनेगी।", "Deactivate karne ke baad future fees generate nahi hongi."],
     "No payment access": ["पेमेंट की अनुमति नहीं", "Payment access nahi"],
+    "Payment balance unavailable": ["बकाया राशि की जानकारी उपलब्ध नहीं है", "Bakaaya raashi ki jaankari uplabdh nahi hai"],
     "Loading students": ["छात्र लोड हो रहे हैं", "Students load ho rahe hain"],
     "Student roster": ["छात्र सूची", "Student roster"],
     "View students, their seats and fee details.": ["छात्रों, उनकी सीटों और फीस की जानकारी देखें।", "Students, unki seats aur fee details dekhein."],

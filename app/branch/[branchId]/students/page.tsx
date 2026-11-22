@@ -202,7 +202,7 @@ function StudentTabButton({
 
 interface InactivateDialogProps {
     student: Student | null;
-    duePayments: Payment[];
+    duePayments: Payment[] | null;
     canRecordFees: boolean;
     canWaiveFees: boolean;
     onConfirm: (resolution: DueResolution) => void;
@@ -220,8 +220,8 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
     });
     const [resolution, setResolution] = useState<DueResolution>("KEEP");
 
-    const totalDue = duePayments.reduce((sum, p) => sum + remainingFee(p), 0);
-    const hasDues = duePayments.length > 0;
+    const totalDue = duePayments?.reduce((sum, p) => sum + remainingFee(p), 0) ?? 0;
+    const hasDues = duePayments !== null && duePayments.length > 0;
 
     const resolutionOptions: { value: DueResolution; label: string; sublabel: string; icon: React.ElementType; color: string }[] = [
         {
@@ -317,6 +317,8 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
                             })}
                         </div>
                     </div>
+                ) : duePayments === null ? (
+                    <p className={cn("mb-5 p-4", formHelpTextClass)}>{t("Payment balance unavailable")}</p>
                 ) : (
                     <div className={cn("mb-5 p-4", formSuccessBannerClass)}>
                         <p className="text-[color:var(--ui-tone-success-text)] text-sm font-medium">{t("No outstanding payments")}</p>
@@ -400,6 +402,7 @@ function StudentsContent({
 
     const [allStudents, setAllStudents] = useState<StudentListItem[]>([]);
     const [allPayments, setAllPayments] = useState<Payment[]>([]);
+    const [loadedPaymentsBranch, setLoadedPaymentsBranch] = useState<string | null>(null);
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [multiShifts, setMultiShifts] = useState<MultiShiftSummary[]>([]);
     const [shiftOptionsLoaded, setShiftOptionsLoaded] = useState(false);
@@ -481,6 +484,7 @@ function StudentsContent({
             if (request !== auxiliaryRequest.current) return;
             setAuxiliaryError(null);
             setAllPayments(paymentsList);
+            setLoadedPaymentsBranch(canViewPayments ? branchId : null);
             setShifts(shiftsList);
             setMultiShifts(multiShiftList);
             setShiftOptionsLoaded(true);
@@ -1056,9 +1060,9 @@ function StudentsContent({
             <InactivateDialog
                 key={inactivateTarget?.id ?? "closed"}
                 student={inactivateTarget}
-                duePayments={inactivateTarget
-                    ? (allPayments.filter(p => p.studentId === inactivateTarget.id && p.status === "DUE"))
-                    : []
+                duePayments={inactivateTarget && canViewPayments && loadedPaymentsBranch === branchId && !auxiliaryError
+                    ? allPayments.filter(p => p.studentId === inactivateTarget.id && p.status === "DUE" && remainingFee(p) > 0)
+                    : null
                 }
                 canRecordFees={canRecordFees}
                 canWaiveFees={getBranchCapabilityDecision(access, "paymentsWaive").allowed}
