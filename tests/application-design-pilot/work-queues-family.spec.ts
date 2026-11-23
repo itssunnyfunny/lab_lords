@@ -4,6 +4,20 @@ import AxeBuilder from "@axe-core/playwright";
 
 const followUp = { id: "followup-local-1", studentId: "student-aarav", studentName: "Aarav Mehta", phone: "+919876543210", type: "MONTHLY", periodStart: "2026-09-01T00:00:00.000Z", note: "Agreed to call again", outcome: "PROMISED_PAYMENT", nextFollowUpAt: "2026-09-29T00:00:00.000Z", completedAt: null, updatedAt: "2026-09-23T09:00:00.000Z" };
 
+test("filters on days overdue after grace", async ({ page }) => {
+    const items = [
+        { studentName: "First overdue day", dueDate: "2026-05-10T12:00:00Z", daysOverdue: 1 },
+        { studentName: "Overdue for thirty days", dueDate: "2026-04-11T12:00:00Z", daysOverdue: 30 },
+    ].map((row, index) => ({ ...row, paymentId: `fee-${index}`, studentId: `student-${index}`, amount: 900, phone: null }));
+    await page.route("**/api/branches/pilot/payments/overdue*", route => route.fulfill({ json: { items, nextCursor: null, total: 2 } }));
+    await page.goto("/branch/pilot/overdue?mode=after&lang=en");
+    const results = page.locator(".ui-record-results");
+    await expect(results.getByText("1 day", { exact: true }).filter({ visible: true })).toBeVisible();
+    await page.getByRole("button", { name: /30\+ days overdue/ }).click();
+    await expect(results.getByText("First overdue day", { exact: true })).toHaveCount(0);
+    await expect(results.getByText("Overdue for thirty days", { exact: true }).filter({ visible: true })).toBeVisible();
+});
+
 test("real work-queue routes retain records, commands, and compact layouts", async ({ page }, info) => {
     const evidence = info.outputPath("work-queues");
     const errors: string[] = [];
