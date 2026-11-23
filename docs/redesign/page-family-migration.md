@@ -682,6 +682,12 @@ and preview the first monthly fee date in the existing dialog family. Both
 provide an on-demand enrollment history with the original joining date,
 recorded departures and the current period. The departure dialogs explain
 when to record an absence in Attendance and how already-due fees are handled.
+The full roster lists the type, due date and remaining amount of each fee
+reviewed for settlement. Changing another fee or receiving a partial payment
+requires staff to review the refreshed list and choose a resolution again.
+Background refreshes preserve the figures in an open confirmation. The
+Overdue queue uses the organization's grace setting for ages and its 30-day
+filter in each layout.
 The student route, roster interaction and calendar regressions passed all 47
 tests with `pnpm exec vitest run --config vitest.unit.safe.config.ts tests/unit/utils/studentRejoiningDate.test.ts tests/unit/api/branch-students.route.test.ts tests/unit/pages/student-deactivation.test.tsx`.
 Owner visual review and production release are separate.

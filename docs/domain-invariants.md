@@ -221,9 +221,10 @@ unit/API/integration coverage.
   dues in operating branches during temporary subscription restrictions.
   Removal-scheduled branches accrue before their effective closure. Generation
   stops at that instant even when archival runs late. Pending and archived
-  branches are excluded. The writer locks the branch while rechecking closure.
-  Renewal projections use the same window. A reopened branch resumes on its
-  new operating day without generating dues from the closed gap.
+  branches are excluded. The writer rechecks the current time after acquiring
+  the branch lock. Renewal projections use the same window. A reopened branch
+  resumes on the day access is restored. Promotion of an already-authorized
+  replacement preserves that date. Fees from the closed gap stay excluded.
   Existing debts and receipts retain their normal access rules. The job can write
   student fees and cannot grant SaaS access or initiate a provider charge.
   (`app/api/cron/payments/daily/route.ts`, `services/payment.service.ts`)
@@ -340,9 +341,12 @@ unit/API/integration coverage.
   `services/multiShift.service.ts`)
 - **Must preserve—enforced:** Inactive means the student left the branch.
   Attendance records absences. Departure closes the enrollment, ends active
-  seat allocations and records any eligible unrecorded accrual as due. Staff
-  can leave previously recorded fees due, record them as paid, or waive them
-  with the relevant settlement permission. Inactive students accrue no fees and cannot receive
+  seat allocations. When departure must record an earned fee, the actor also
+  needs `generate_payments`. A denied catch-up leaves the enrollment active.
+  Staff can keep previously recorded fees due, collect them, or waive them
+  with the relevant settlement permission. Collection and waiver compare
+  every open fee ID and remaining amount with the staff confirmation. A
+  change requires a fresh review before the departure can proceed. Inactive students accrue no fees and cannot receive
   a new allocation. Reactivation requires a confirmed actual rejoining day,
   starts a new schedule on the same student record and leaves seats available
   for separate assignment. The first new fee is due one calendar month after
@@ -546,7 +550,8 @@ unit/API/integration coverage.
 - **Must preserve—enforced:** Overdue is derived for open `DUE` balances after
   the due date plus the organization's current `paymentGraceDays`, measured in
   the organization calendar. Zero grace means overdue the next day. A change
-  reclassifies existing fees without changing ledger or delivery history.
+  reclassifies existing fees without changing ledger or delivery history. The
+  Overdue queue counts its first day after grace as one day overdue.
   Automatic past-due WhatsApp stages remain on their due-date offsets and skip
   fees still in grace. `WAIVED` payments are excluded from
   open debt. Historical non-ledger waived rows are excluded from revenue;
@@ -860,6 +865,8 @@ unit/API/integration coverage.
   `send_whatsapp` plus payment visibility and branch writability, binds a bounded
   idempotency key to a canonical request hash, revalidates eligibility, and
   atomically creates one grouped message with payment joins and reservations.
+  For several fees, the recipient sees the total pending and the oldest due
+  date, including when every fee is still within grace.
   It makes no Meta call. (`services/whatsappMessage.service.ts`)
 - **Must preserve—enforced:** `WhatsAppMessage` is the single durable outbox.
   Its dedupe/frequency keys, non-null provider message IDs, and non-null lease

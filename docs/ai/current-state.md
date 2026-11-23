@@ -1163,8 +1163,11 @@ Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.ser
 - Student create, import, update, status changes, fee-source links, billing start date, and paginated listing are implemented.
 - Student deactivation offers KEEP by default; paid and waived resolutions appear
   only when the viewer has their respective fee permissions. The server still
-  checks those actions and branch writability for each status command.
-- Leaving ends enrollment and seat assignments. Returning staff enter the
+  checks those actions and branch writability for each status command. Staff
+  review the balances again if a fee was added or its remaining amount
+  changed. Recording a missing earned fee on departure also requires permission
+  to generate fees.
+- Leaving ends enrollment and seat assignments. On a student's return, staff enter the
   actual rejoining day and see the first new fee date before confirming. Basic
   and full student views can open the enrollment history on the same record.
 - Seats can be created individually or generated from a numbering configuration.
@@ -1216,10 +1219,13 @@ Authoritative code: `services/student.service.ts`, `services/seat.service.ts`, `
   events for historical resolutions.
 - Marking paid records the method/reference, writes an audit entry, and removes obsolete AI message drafts for the student.
 - Current organization grace controls the overdue classification of open fees
-  in lists, dashboards, reports, analytics and past-due reminders.
+  in lists, dashboards, reports, analytics and past-due reminders. In the
+  Overdue queue, age starts at one on the first day after grace expires.
 - `/api/cron/payments/daily` requires `Authorization: Bearer <CRON_SECRET>`.
   It generates dues for active students in operating branches, including
-  temporarily read-only branches, and observes the effective closure deadline.
+  temporarily read-only branches, and checks the effective closure deadline
+  after acquiring the branch lock. A replacement subscription becoming current
+  preserves the day branch access was restored.
 - The branch payments page fences tab/month/deep-link reads and pagination by
   active query and request version, so obsolete responses cannot replace the
   current rows, counts, cursor, loading state, or error.
@@ -1298,7 +1304,8 @@ not evidence that any environment or provider account is ready.
 - Manual payment-reminder preview and commit accept payment identifiers rather
   than final delivery values. The server resolves tenant-owned payments,
   students, recipients, consent, approved binding, current amount/due date,
-  grouping, typed variables, schedule, and configured estimate. Commit binds an
+  grouping, typed variables, schedule, and configured estimate. A reminder
+  covering several fees identifies the total and the oldest due date. Commit binds an
   idempotency key to the request hash and atomically creates the manual request,
   grouped outbox messages, `WhatsAppMessagePayment` links, frequency keys, and
   budget reservations; it makes no provider call.

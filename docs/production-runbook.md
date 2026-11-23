@@ -493,8 +493,11 @@ backfill. Legacy students, original joining dates, imported billing cutoffs,
 saved grace days, fees and receipts retain their stored values.
 
 On an isolated Preview deployment, verify departure with Keep due, a rejoin
-date preview, and the first due after return. Also verify the overdue boundary
-with zero grace and the cron cutoff on a removal-scheduled branch. Before a
+date preview, and the first due after return. Change an open balance between
+preview and settlement and confirm the operator must review it again. Check a
+departure with an unrecorded earned fee using staff without fee-generation
+permission. Verify zero grace, the first day overdue, and a fee job that
+obtains its branch lock after effective closure. Before a
 production rollout, the owner should record these read-only checks while
 student and payment writes are held:
 
@@ -527,6 +530,27 @@ inspect the removal's effective time and the branch status before retrying a
 failed run. Closing a branch stops generation at the deadline, including
 catch-up runs after the deadline. Existing balances remain available under
 normal access. Razorpay charging follows its separate billing workflow.
+
+Before rollout, count current reopenings whose earlier grant may have been
+overwritten at replacement promotion:
+
+```sql
+SELECT count(DISTINCT b.id)
+FROM "Branch" b
+JOIN "OrganizationBillingChange" c
+  ON c."branchId" = b.id AND c."organizationId" = b."organizationId"
+WHERE c.type = 'BRANCH_REACTIVATION' AND c.status = 'APPLIED'
+  AND c."replacementSubscriptionId" IS NOT NULL
+  AND c."accessGrantedAt" < c."appliedAt"
+  AND c."accessRevokedAt" = c."appliedAt"
+  AND b."billingActivatedAt" = c."appliedAt";
+```
+
+Older promotions could also overwrite evidence of an intervening revocation.
+For matching branches, compare the grant, promotion and branch operating
+records before deciding whether any fee was earned during that interval.
+This release keeps the stored dates for those cases and creates no historical
+debt from an uncertain reopening.
 
 ### Allocation tenant relationship migration (2026-09-05)
 

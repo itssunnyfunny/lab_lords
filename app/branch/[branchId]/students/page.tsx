@@ -291,7 +291,7 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
                         <p className="text-[color:var(--ui-tone-warning-text)] text-sm font-medium mb-1">{t("{count} unpaid billing cycle(s) - {formatCurrency} total", { count: duePayments.length, formatCurrency: formatCurrency(totalDue) })}</p>
                         <ul className="my-2 max-h-32 space-y-1 overflow-y-auto text-sm">
                             {duePayments.map(payment => <li key={payment.id} className="flex justify-between gap-3">
-                                <span>{t("Due: {formatDate}", { formatDate: formatDate(payment.dueDate) })}</span>
+                                <span>{t(payment.type === "ADMISSION" ? "Admission Fee" : "Monthly Fee")} · {t("Due: {formatDate}", { formatDate: formatDate(payment.dueDate) })}</span>
                                 <span>{formatCurrency(remainingFee(payment))}</span>
                             </li>)}
                         </ul>
