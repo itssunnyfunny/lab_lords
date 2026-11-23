@@ -82,8 +82,12 @@ export async function eligibleMonthlyAccruals<T extends { branchId: string; stud
         ORDER BY "id" FOR UPDATE
     `);
     const windows = await monthlyAccrualWindows(tx, branches, asOf);
+    // The accrual horizon was captured before scanning students. A scheduled
+    // closure can take effect while the batch waits for locks and reads its window.
+    const checkedAt = new Date();
     return payments.filter(payment => {
         const window = windows.get(payment.branchId);
-        return window !== undefined && canAccrueMonthlyDue(window, new Date(payment.dueDate), date => feeDay(payment.studentId, date));
+        if (!window || (window.closesAt && checkedAt >= window.closesAt)) return false;
+        return canAccrueMonthlyDue(window, new Date(payment.dueDate), date => feeDay(payment.studentId, date));
     });
 }

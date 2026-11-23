@@ -50,6 +50,19 @@ function dues(studentId: string) {
     });
 }
 
+async function waitForBranchLock() {
+    await expect.poll(async () => {
+        const [blocked] = await testPrisma.$queryRaw<Array<{ waiting: boolean }>>`
+            SELECT EXISTS (
+                SELECT 1 FROM pg_stat_activity
+                WHERE datname = current_database() AND wait_event_type = 'Lock'
+                  AND query LIKE '%"Branch"%' AND query LIKE '%FOR UPDATE%'
+            ) AS waiting
+        `;
+        return blocked.waiting;
+    }, { timeout: 3000 }).toBe(true);
+}
+
 describe("system-owned monthly fee generation and branch closures", () => {
     it("generates only for active students in operating branches without granting staff writes or SaaS access", async () => {
         const owner = await createUser();
@@ -154,6 +167,34 @@ describe("system-owned monthly fee generation and branch closures", () => {
         expect((await dues(imported.id)).map(payment => payment.dueDate)).toEqual([date(4, 10), date(5, 10), date(6, 10), date(7, 10)]);
     });
 
+    it("skips a staged batch when the effective deadline passes while the branch is locked before archival", async () => {
+        const { branch, student, closure } = await scheduledBranchRemoval();
+        vi.setSystemTime(new Date(closure.getTime() - 1));
+        const locked = deferred();
+        const release = deferred();
+        const holder = testPrisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT "id" FROM "Branch" WHERE "id" = ${branch.id} FOR UPDATE`;
+            locked.resolve();
+            await release.promise;
+        }, { timeout: 15_000 });
+        let generated: ReturnType<typeof PaymentService.generateDuePaymentsForAllActiveStudents> | undefined;
+        try {
+            await Promise.race([locked.promise, holder]);
+            generated = PaymentService.generateDuePaymentsForAllActiveStudents();
+            void generated.catch(() => undefined);
+            await waitForBranchLock();
+            vi.setSystemTime(closure);
+        } finally {
+            release.resolve();
+            await Promise.allSettled([holder, ...(generated ? [generated] : [])]);
+        }
+        await expect(holder).resolves.toBeUndefined();
+        await expect(generated).resolves.toMatchObject({ generatedCount: 0 });
+        expect(await dues(student.id)).toEqual([]);
+        expect(await testPrisma.branch.findUniqueOrThrow({ where: { id: branch.id } }))
+            .toMatchObject({ billingStatus: "REMOVAL_SCHEDULED" });
+    });
+
     it("rechecks a staged batch when an archival transaction wins the branch row lock", async () => {
         const { student, closure } = await scheduledBranchRemoval();
         const archiveWritten = deferred();
@@ -175,16 +216,7 @@ describe("system-owned monthly fee generation and branch closures", () => {
             void generated.catch(() => undefined);
             // Wait for the generation transaction to reach the row lock while
             // the real archive write is uncommitted and its older state is visible.
-            await expect.poll(async () => {
-                const [blocked] = await testPrisma.$queryRaw<Array<{ waiting: boolean }>>`
-                    SELECT EXISTS (
-                        SELECT 1 FROM pg_stat_activity
-                        WHERE datname = current_database() AND wait_event_type = 'Lock'
-                          AND query LIKE '%"Branch"%' AND query LIKE '%FOR UPDATE%'
-                    ) AS waiting
-                `;
-                return blocked.waiting;
-            }, { timeout: 3000 }).toBe(true);
+            await waitForBranchLock();
         } finally {
             releaseArchive.resolve();
             await Promise.allSettled([archive, ...(generated ? [generated] : [])]);
