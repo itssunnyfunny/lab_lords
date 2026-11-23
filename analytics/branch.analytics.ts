@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { overdueCutoff } from "@/lib/utils/paymentStatus"
+import { PAYMENT_OVERDUE_POLICY_SELECT } from "@/services/paymentOverduePolicy"
 import { getPaymentStats, getOverduePayments } from "./payment.analytics"
 import { getSeatOccupancySnapshot } from "./seat.analytics"
 import {
@@ -86,20 +87,21 @@ export async function getBranchSnapshot(
   asOf?: AsOf
 ) {
   const date = resolveAsOf(asOf)
+  const branch = await prisma.branch.findUniqueOrThrow({
+    where: { id: branchId },
+    select: { name: true, organization: { select: PAYMENT_OVERDUE_POLICY_SELECT } },
+  })
+  const policy = branch.organization
   const roster = prisma.student.groupBy({ by: ["status"], where: { branchId }, _count: { _all: true } })
   const activeDebtors = prisma.student.count({ where: {
     branchId,
     status: "ACTIVE",
-    payments: { some: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: overdueCutoff(date) } } },
+    payments: { some: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: overdueCutoff(policy, date) } } },
   } })
-  const [branch, seats, payments, overdueList, [studentCounts, activeStudentsWithOverdueFees]] = await Promise.all([
-    prisma.branch.findUnique({
-      where: { id: branchId },
-      select: { name: true }
-    }),
+  const [seats, payments, overdueList, [studentCounts, activeStudentsWithOverdueFees]] = await Promise.all([
     getSeatOccupancySnapshot(branchId, date),
-    getPaymentStats(branchId, date),
-    getOverduePayments(branchId, date),
+    getPaymentStats(branchId, date, policy),
+    getOverduePayments(branchId, date, prisma, policy),
     // Both sides of the overdue-student percentage see the same roster.
     prisma.$transaction([roster, activeDebtors], { isolationLevel: "RepeatableRead" }),
   ])
@@ -108,7 +110,7 @@ export async function getBranchSnapshot(
 
   return {
     branchId,
-    branchName: branch?.name ?? "Unknown",
+    branchName: branch.name,
 
     seats: {
       // Shift-slot based occupancy (seat count x active shifts = totalShiftCapacity)

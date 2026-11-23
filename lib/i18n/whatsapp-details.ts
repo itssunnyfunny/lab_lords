@@ -3,6 +3,7 @@ export const whatsappDetails = {
     "7 days before due": ["फीस की तारीख से 7 दिन पहले", "Fee ki date se 7 din pehle"],
     "3 days before due": ["फीस की तारीख से 3 दिन पहले", "Fee ki date se 3 din pehle"],
     "1 day before due": ["फीस की तारीख से 1 दिन पहले", "Fee ki date se 1 din pehle"],
+    "Past-due stages are skipped if the fee is still within your organization’s grace period.": ["अगर फीस अभी संस्था की तय मोहलत में है, तो देर से बकाया वाले रिमाइंडर उस दिन नहीं भेजे जाते।", "Fee agar organization ki mohlat mein hai, to us din past-due reminder nahi bheja jata."],
     "1 day past due": ["फीस की तारीख से 1 दिन बाद", "Fee ki date se 1 din baad"],
     "3 days past due": ["फीस की तारीख से 3 दिन बाद", "Fee ki date se 3 din baad"],
     "7 days past due": ["फीस की तारीख से 7 दिन बाद", "Fee ki date se 7 din baad"],

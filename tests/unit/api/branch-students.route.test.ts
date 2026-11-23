@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   assertStudentInBranch: vi.fn(),
   updateStudentProfile: vi.fn(),
   updateStudentStatus: vi.fn(),
+  getEnrollmentHistory: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -19,6 +20,7 @@ vi.mock("@/services/student.service", () => ({
     assertStudentInBranch: mocks.assertStudentInBranch,
     updateStudentProfile: mocks.updateStudentProfile,
     updateStudentStatus: mocks.updateStudentStatus,
+    getEnrollmentHistory: mocks.getEnrollmentHistory,
   },
 }));
 
@@ -203,5 +205,53 @@ describe("PATCH /api/branches/[branchId]/students", () => {
       "INACTIVE",
       "KEEP"
     );
+  });
+});
+
+describe.each(["branch-scoped", "student-only"])("%s student reactivation route", scope => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.getSessionUser.mockResolvedValue({ id: "staff_1" });
+  });
+
+  const reactivate = async (rejoinedOn?: unknown) => {
+    const req = new NextRequest("http://test.local/students", {
+      method: "PATCH",
+      body: JSON.stringify({ id: "student_1", status: "ACTIVE", rejoinedOn }),
+    });
+    if (scope === "branch-scoped") {
+      const { PATCH } = await import("@/app/api/branches/[branchId]/students/route");
+      return PATCH(req, { params: Promise.resolve({ branchId: "branch_1" }) });
+    }
+    const { PATCH } = await import("@/app/api/students/[studentId]/status/route");
+    return PATCH(req, { params: Promise.resolve({ studentId: "student_1" }) });
+  };
+
+  it.each([undefined, null, "2026-02-30", "2026-2-01", "2099-01-01", "2026-02-01T00:00:00Z"])("rejects %s before a status mutation", async date => {
+    expect((await reactivate(date)).status).toBe(400);
+    expect(mocks.updateStudentStatus).not.toHaveBeenCalled();
+  });
+
+  it("passes a valid date to the authorized service and reports an active-date conflict", async () => {
+    mocks.updateStudentStatus.mockResolvedValueOnce({ id: "student_1", status: "ACTIVE" })
+      .mockRejectedValueOnce(new Error("This student is already active. Refresh the record before changing enrollment."));
+    expect((await reactivate("2025-01-31")).status).toBe(200);
+    expect(mocks.updateStudentStatus).toHaveBeenCalledWith("staff_1", "student_1", "ACTIVE", "KEEP", "2025-01-31");
+    if (scope === "branch-scoped") expect(mocks.assertStudentInBranch).toHaveBeenCalledWith("staff_1", "student_1", "branch_1");
+    expect((await reactivate("2025-02-01")).status).toBe(409);
+  });
+});
+
+describe("student enrollment history route", () => {
+  it("passes student and branch identity to its scoped read service", async () => {
+    vi.resetAllMocks();
+    mocks.getSessionUser.mockResolvedValue({ id: "staff_1" });
+    mocks.getEnrollmentHistory.mockResolvedValue({ originalJoinedAt: "2025-01-10T00:00:00.000Z", items: [], total: 0, nextCursor: null });
+    const { GET } = await import("@/app/api/branches/[branchId]/students/[studentId]/enrollments/route");
+    const response = await GET(new NextRequest("http://test.local/enrollments?limit=1"), {
+      params: Promise.resolve({ branchId: "branch_1", studentId: "student_1" }),
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.getEnrollmentHistory).toHaveBeenCalledWith("staff_1", "branch_1", "student_1", 1, null);
   });
 });

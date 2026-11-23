@@ -1,4 +1,5 @@
-import { addMonths, endOfMonth, isAfter, isBefore, startOfDay, startOfMonth } from "date-fns";
+import { addMonths, differenceInCalendarMonths, endOfMonth, isAfter, isBefore, startOfDay, startOfMonth } from "date-fns";
+import { studentRejoiningAnniversary, studentRejoiningToday } from "./studentRejoiningDate";
 
 export type StudentBillingCycle = {
     index: number;
@@ -24,17 +25,46 @@ export function studentBillingCycle(joinedAt: Date, index: number): StudentBilli
     };
 }
 
+type StudentFeeSchedule = {
+    joinedAt: Date;
+    rejoinedOn?: Date | null;
+    billingStartAt?: Date | null;
+};
+
+function cycleAt(schedule: StudentFeeSchedule, index: number): StudentBillingCycle {
+    if (!schedule.rejoinedOn) return studentBillingCycle(schedule.joinedAt, index);
+    const periodStart = studentRejoiningAnniversary(schedule.rejoinedOn, index);
+    const periodEnd = studentRejoiningAnniversary(schedule.rejoinedOn, index + 1);
+    return { index, periodStart, periodEnd, dueDate: periodEnd };
+}
+
+export function studentFeeDay(schedule: Pick<StudentFeeSchedule, "rejoinedOn">, date: Date) {
+    return schedule.rejoinedOn ? new Date(`${studentRejoiningToday(date)}T00:00:00Z`) : normalizeDate(date);
+}
+
+export function matchesStudentFeeCycle(schedule: StudentFeeSchedule, cycle: Omit<StudentBillingCycle, "index">) {
+    const anchor = schedule.rejoinedOn ?? schedule.joinedAt;
+    const index = schedule.rejoinedOn
+        ? (cycle.periodStart.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + cycle.periodStart.getUTCMonth() - anchor.getUTCMonth()
+        : differenceInCalendarMonths(cycle.periodStart, anchor);
+    if (index < 0 || (schedule.billingStartAt && cycle.periodStart < studentFeeDay(schedule, schedule.billingStartAt))) return false;
+    const expected = cycleAt(schedule, index);
+    return +cycle.periodStart === +expected.periodStart && +cycle.periodEnd === +expected.periodEnd && +cycle.dueDate === +expected.dueDate;
+}
+
 export function dueCyclesThrough(
     joinedAt: Date,
     asOf: Date,
-    billingStartAt?: Date | null
+    billingStartAt?: Date | null,
+    rejoinedOn?: Date | null,
 ): StudentBillingCycle[] {
-    const dueCutoff = normalizeDate(asOf);
-    const billingStart = billingStartAt ? normalizeDate(billingStartAt) : null;
+    const schedule = { joinedAt, billingStartAt, rejoinedOn };
+    const dueCutoff = studentFeeDay(schedule, asOf);
+    const billingStart = billingStartAt ? studentFeeDay(schedule, billingStartAt) : null;
     const cycles: StudentBillingCycle[] = [];
 
     for (let index = 0; index < 600; index++) {
-        const cycle = studentBillingCycle(joinedAt, index);
+        const cycle = cycleAt(schedule, index);
         if (isAfter(cycle.dueDate, dueCutoff)) break;
 
         if (!billingStart || !isBefore(cycle.periodStart, billingStart)) {
@@ -91,16 +121,18 @@ export function upcomingCyclesBetween(
     joinedAt: Date,
     from: Date,
     through: Date,
-    billingStartAt?: Date | null
+    billingStartAt?: Date | null,
+    rejoinedOn?: Date | null,
 ): StudentBillingCycle[] {
-    const start = normalizeDate(from);
-    const end = normalizeDate(through);
+    const schedule = { joinedAt, billingStartAt, rejoinedOn };
+    const start = studentFeeDay(schedule, from);
+    const end = studentFeeDay(schedule, through);
     if (isAfter(start, end)) return [];
 
-    const billingStart = billingStartAt ? normalizeDate(billingStartAt) : null;
+    const billingStart = billingStartAt ? studentFeeDay(schedule, billingStartAt) : null;
     const cycles: StudentBillingCycle[] = [];
     for (let index = 0; index < 600; index++) {
-        const cycle = studentBillingCycle(joinedAt, index);
+        const cycle = cycleAt(schedule, index);
         if (isAfter(cycle.dueDate, end)) break;
         if (isBefore(cycle.dueDate, start)) continue;
         if (billingStart && isBefore(cycle.periodStart, billingStart)) continue;

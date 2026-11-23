@@ -169,6 +169,7 @@ describe("WhatsApp planner pure planning", () => {
       now: NOW,
       horizonEnd: HORIZON_END,
       timeZone: "Asia/Kolkata",
+      paymentGraceDays: 0,
       language: "en_IN",
       branchName: "Central",
       tone: "polite",
@@ -217,6 +218,7 @@ describe("WhatsApp planner pure planning", () => {
       now: NOW,
       horizonEnd: HORIZON_END,
       timeZone: "Asia/Kolkata",
+      paymentGraceDays: 0,
       language: "en_IN",
       branchName: "Central",
       tone: "polite",
@@ -238,7 +240,7 @@ describe("WhatsApp planner pure planning", () => {
     expect(payments[0]!.amount).toBe(1_000);
   });
 
-  it("aggregates shared-phone DUE rows and gives past due priority over due today", () => {
+  it.each([0, 1])("prioritizes past-due reminders only after the grace period of %i days", paymentGraceDays => {
     const candidates = buildCollectionCandidates({
       recipients: [
         recipient({ id: "r_1", studentId: "student_1" }),
@@ -269,18 +271,19 @@ describe("WhatsApp planner pure planning", () => {
       now: NOW,
       horizonEnd: HORIZON_END,
       timeZone: "Asia/Kolkata",
+      paymentGraceDays,
       language: "en_IN",
       branchName: "Central",
       tone: "firm",
     });
 
     expect(candidates).toHaveLength(1);
-    expect(candidates[0]).toMatchObject({
-      stage: "PAST_DUE_PLUS_1",
-      managedTemplateKey: "MULTI_STUDENT_COLLECTION_SUMMARY",
-      studentIds: ["student_1", "student_2"],
-      paymentIds: ["due_today", "past_payment"],
-      values: { studentCount: "2", amount: "3,000" },
+    expect(candidates[0]).toMatchObject(paymentGraceDays === 0 ? {
+      stage: "PAST_DUE_PLUS_1", managedTemplateKey: "PAST_DUE_FIRM",
+      studentIds: ["student_1"], paymentIds: ["past_payment"], values: { amount: "1,000" },
+    } : {
+      stage: "FEE_DUE_TODAY", managedTemplateKey: "FEE_RENEWAL_POLITE",
+      studentIds: ["student_2"], paymentIds: ["due_today"], values: { amount: "2,000" },
     });
   });
 
@@ -293,6 +296,7 @@ describe("WhatsApp planner pure planning", () => {
       now: NOW,
       horizonEnd: HORIZON_END,
       timeZone: "Asia/Kolkata",
+      paymentGraceDays: 0,
       language: "en_IN",
       branchName: "Central",
       tone: "polite",
@@ -710,7 +714,7 @@ describe("automatic source verification", () => {
         id: "branch_1",
         name: "Central",
         organizationId: "org_1",
-        organization: { id: "org_1", timezone: "Asia/Kolkata" },
+        organization: { id: "org_1", timezone: "Asia/Kolkata", paymentGraceDays: 0 },
       },
       templateBinding: {
         id: "binding_1",
@@ -812,6 +816,7 @@ describe("automatic source verification", () => {
       now: NOW,
       horizonEnd: HORIZON_END,
       timeZone: "Asia/Kolkata",
+      paymentGraceDays: 0,
       language: "en_IN",
       branchName: "Central",
       tone: "polite",

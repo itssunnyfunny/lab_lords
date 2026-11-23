@@ -12,6 +12,11 @@ import { GET as getBranchSnapshot } from "@/app/api/analytics/branch/[branchId]/
 import { GET as getBranchTrends } from "@/app/api/analytics/branch/[branchId]/trends/route";
 import { NextRequest } from "next/server";
 import { AccessPolicy } from "@/services/accessPolicy.service";
+import { DashboardService } from "@/services/dashboard.service";
+import { OrganizationService } from "@/services/organization.service";
+import { PaymentService } from "@/services/payment.service";
+import { RenewalsService } from "@/services/renewals.service";
+import { renewalQuerySchema } from "@/lib/renewals";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import {
   createAllocation,
@@ -137,9 +142,71 @@ describe("Analytics corrections", () => {
   });
 
   describe("canonical due and overdue payment counts", () => {
+    it("reclassifies the same unpaid fee across payment surfaces when the owner changes grace", async () => {
+      async function tenant(paymentGraceDays?: number) {
+        const user = await createUser();
+        const org = await createOrg({ ownerId: user.id, paymentGraceDays });
+        const branch = await createBranch({ organizationId: org.id });
+        await createSaasSubscription({ organizationId: org.id, plan: "STANDARD" });
+        const student = await createStudent({ branchId: branch.id, monthlyFee: 0 });
+        const payment = await createPayment({
+          branchId: branch.id, studentId: student.id, amount: 900, status: "DUE",
+          dueDate: new Date("2026-05-10T18:29:59.999Z"),
+          periodStart: new Date("2026-04-10T12:00:00Z"), periodEnd: new Date("2026-05-10T12:00:00Z"),
+        });
+        return { user, org, branch, payment };
+      }
+      const renewalQuery = renewalQuerySchema.parse({ filter: "OVERDUE" });
+
+      async function assertClassification(fixture: Awaited<ReturnType<typeof tenant>>, instant: string, expected: boolean) {
+        const { user, branch, payment } = fixture;
+        const asOf = new Date(instant);
+        vi.setSystemTime(asOf);
+        const [list, stats, overdue, renewal, dashboard] = await Promise.all([
+          PaymentService.listPayments(user.id, branch.id, "DUE"),
+          getPaymentStats(branch.id, asOf),
+          getOverduePayments(branch.id, asOf),
+          RenewalsService.list(user.id, branch.id, renewalQuery, asOf),
+          DashboardService.overview(user.id, branch.id, undefined, asOf),
+        ]);
+        expect(list).toMatchObject([{ id: payment.id, isOverdue: expected, status: "DUE", amount: 900, dueDate: payment.dueDate }]);
+        expect(stats).toMatchObject({ overdueCount: expected ? 1 : 0, overdueAmount: expected ? 900 : 0 });
+        expect(overdue.payments.map(row => row.paymentId)).toEqual(expected ? [payment.id] : []);
+        expect(renewal.counts.OVERDUE).toBe(expected ? 1 : 0);
+        expect(renewal.counts.TODAY).toBe(instant === "2026-05-10T18:29:59.999Z" ? 1 : 0);
+        expect(renewal.items.map(row => row.paymentId)).toEqual(expected ? [payment.id] : []);
+        expect(dashboard.money).toMatchObject({ status: "success", data: { overdueStudents: expected ? 1 : 0, overdueAmount: expected ? 900 : 0 } });
+      }
+
+      try {
+        // Establish the simulated subscription evidence before either May due boundary.
+        vi.setSystemTime(new Date("2026-05-09T12:00:00Z"));
+        const [withGrace, defaultGrace] = await Promise.all([tenant(3), tenant()]);
+        expect(defaultGrace.org.paymentGraceDays).toBe(0);
+        await assertClassification(defaultGrace, "2026-05-10T18:29:59.999Z", false);
+        await assertClassification(defaultGrace, "2026-05-10T18:30:00Z", true);
+        await assertClassification(withGrace, "2026-05-10T18:30:00Z", false);
+        await assertClassification(withGrace, "2026-05-13T18:29:59.999Z", false);
+        await assertClassification(withGrace, "2026-05-13T18:30:00Z", true);
+
+        const asOf = "2026-05-11T12:00:00Z";
+        vi.setSystemTime(new Date(asOf));
+        await expect(OrganizationService.updateSettings(withGrace.org.id, defaultGrace.user.id, { paymentGraceDays: 0 }))
+          .rejects.toThrow();
+        await OrganizationService.updateSettings(withGrace.org.id, withGrace.user.id, { paymentGraceDays: 0 });
+        await assertClassification(withGrace, asOf, true);
+        expect(await testPrisma.payment.findUnique({ where: { id: withGrace.payment.id } })).toEqual(withGrace.payment);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("keeps analytics, overdue list, and AI payment snapshot on the same ledger", async () => {
       const asOf = new Date(2026, 4, 9, 12, 0);
-      const { branch } = await createTestWorld();
+      const { org, branch } = await createTestWorld();
+      await testPrisma.organization.update({ where: { id: org.id }, data: {
+        paymentGraceDays: 7, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      } });
       const students = await Promise.all([
         createStudent({ branchId: branch.id, name: "Overdue monthly" }),
         createStudent({ branchId: branch.id, name: "Grace monthly" }),
@@ -240,6 +307,9 @@ describe("Analytics corrections", () => {
     it("uses overdue counts, not due counts, in organization AI snapshots", async () => {
       const asOf = new Date(2026, 4, 9, 12, 0);
       const { org, branch } = await createTestWorld();
+      await testPrisma.organization.update({ where: { id: org.id }, data: {
+        paymentGraceDays: 7, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      } });
       const students = await Promise.all([
         createStudent({ branchId: branch.id, name: "Overdue" }),
         createStudent({ branchId: branch.id, name: "Due in grace" }),

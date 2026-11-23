@@ -34,6 +34,7 @@ describe("WhatsApp daily-report analytics", () => {
       id: "org_1",
       name: "Lab Lords",
       timezone: "Asia/Kolkata",
+      paymentGraceDays: 3,
     });
     mocks.branches.mockResolvedValue([{
       id: "branch_1",
@@ -112,7 +113,7 @@ describe("WhatsApp daily-report analytics", () => {
       }),
     }));
     expect(mocks.paymentAggregate).toHaveBeenNthCalledWith(3, expect.objectContaining({
-      where: expect.objectContaining({ status: "DUE", amount: { gt: 0 } }),
+      where: expect.objectContaining({ status: "DUE", amount: { gt: 0 }, dueDate: { lt: new Date("2026-08-19T18:30:00.000Z") } }),
     }));
     expect(mocks.studentCount).toHaveBeenNthCalledWith(1, {
       where: expect.objectContaining({

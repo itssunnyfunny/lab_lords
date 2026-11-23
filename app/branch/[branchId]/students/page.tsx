@@ -30,7 +30,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { EditStudentDialog } from "./EditStudentDialog";
 import { StudentRecordCard } from "./StudentRecordCard";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { StudentRejoiningField } from "@/components/students/StudentRejoiningField";
+import { StudentEnrollmentHistory } from "@/components/students/StudentEnrollmentHistory";
+import { validateStudentRejoiningDate } from "@/utils/studentRejoiningDate";
 import {
     formControlClass,
     formHelpTextClass,
@@ -241,7 +243,7 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
         {
             value: "KEEP",
             label: "Keep as Due",
-            sublabel: "Still expecting payment. Stays in overdue.",
+            sublabel: "The remaining balance stays collectible.",
             icon: Clock,
             color: "text-[color:var(--ui-tone-danger-text)]",
         },
@@ -310,7 +312,7 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
                                                 <Icon size={13} />
                                                 {t.owned(opt.label)}
                                             </div>
-                                            <div className={cn("mt-0.5 text-xs", formHelpTextClass)}>{opt.sublabel}</div>
+                                            <div className={cn("mt-0.5 text-xs", formHelpTextClass)}>{t.owned(opt.sublabel)}</div>
                                         </div>
                                     </label>
                                 );
@@ -328,9 +330,46 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
 
                 {/* Billing note */}
                 <p className={cn("mb-5 border-l-2 border-[color:var(--ui-form-section-divider)] pl-3 text-xs", formHelpTextClass)}>
-                    {t("No future billing cycles will be generated after deactivation.")}</p>
+                    {t("Inactive means the student has left the branch. Record daily absences in Attendance. Future monthly fees stop when the student leaves.")}{" "}
+                    {hasDues && <>{t("Payment choices apply to fees already on record.")}{" "}</>}
+                    {t("Other monthly fees already due will be added as unpaid when the student leaves.")}</p>
 
             </div>
+        </Dialog>
+    );
+}
+
+function RejoinStudentDialog({ student, loading, onClose, onConfirm }: {
+    student: Student;
+    loading: boolean;
+    onClose: () => void;
+    onConfirm: (rejoinedOn: string) => Promise<void>;
+}) {
+    const t = useTranslation();
+    const [date, setDate] = useState("");
+    const rejoinedOn = validateStudentRejoiningDate(date);
+
+    return (
+        <Dialog
+            open
+            onClose={onClose}
+            title={t("Reactivate Student")}
+            description={t("Confirm when {name} returned to start a new enrollment period.", { name: student.name })}
+            closeDisabled={loading}
+            className="max-w-md"
+            footer={
+                <>
+                    <Button variant="outline" onClick={onClose} disabled={loading} data-dialog-initial-focus>{t("Cancel")}</Button>
+                    <Button
+                        variant="cyan"
+                        disabled={loading || !rejoinedOn}
+                        isLoading={loading}
+                        onClick={() => { if (rejoinedOn) void onConfirm(rejoinedOn); }}
+                    >{t("Reactivate")}</Button>
+                </>
+            }
+        >
+            <StudentRejoiningField value={date} onChange={setDate} disabled={loading} />
         </Dialog>
     );
 }
@@ -445,6 +484,7 @@ function StudentsContent({
 
     // Activate confirm dialog
     const [activateTarget, setActivateTarget] = useState<Student | null>(null);
+    const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
     const [activateLoading, setActivateLoading] = useState(false);
     const [whatsAppTarget, setWhatsAppTarget] = useState<Student | null>(null);
     const [whatsAppBulkOpen, setWhatsAppBulkOpen] = useState(false);
@@ -714,6 +754,7 @@ function StudentsContent({
         <RowActions
             actions={[
                 { label: "Attendance & QR", icon: Clock, onClick: () => setAttendanceStudent(item) },
+                { label: "Enrollment history", icon: Clock, onClick: () => setHistoryStudent(item) },
                 ...(canViewPayments ? [{
                     label: "View Fees",
                     icon: Eye,
@@ -805,12 +846,12 @@ function StudentsContent({
         }
     };
 
-    // ── Activate Student (simple) ─────────────────────────────────
+    // ── Returning student ──────────────────────────────────────
     const handleActivateClick = (student: Student) => {
         setActivateTarget(student);
     };
 
-    const confirmActivate = async () => {
+    const confirmActivate = async (rejoinedOn: string) => {
         if (!activateTarget) return;
         if (!manageDecision.allowed) {
             toast.show({ title: "Student changes unavailable", description: manageDecision.reason, tone: "error" });
@@ -821,9 +862,12 @@ function StudentsContent({
             const res = await fetch(`/api/branches/${branchId}/students`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: activateTarget.id, status: "ACTIVE" }),
+                body: JSON.stringify({ id: activateTarget.id, status: "ACTIVE", rejoinedOn }),
             });
-            if (!res.ok) throw new Error();
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(typeof body?.error === "string" ? body.error : "Failed to update status.");
+            }
             setActivateTarget(null);
             await loadStudentPage();
             toast.show({ title: "Student reactivated", tone: "success" });
@@ -1071,16 +1115,23 @@ function StudentsContent({
                 loading={inactivateLoading}
             />
 
-            {/* Activate dialog */}
-            <ConfirmDialog
-                isOpen={!!activateTarget}
+            {activateTarget && <RejoinStudentDialog
+                key={activateTarget.id}
+                student={activateTarget}
                 onClose={() => setActivateTarget(null)}
                 onConfirm={confirmActivate}
-                title={t("Reactivate Student")}
-                description={`Are you sure you want to reactivate ${activateTarget?.name}? They will be able to be allocated a seat again.`}
-                confirmText="Reactivate"
                 loading={activateLoading}
-            />
+            />}
+
+            <Drawer
+                density="compact"
+                open={historyStudent !== null}
+                title={t("Enrollment history")}
+                description={historyStudent?.name}
+                onClose={() => setHistoryStudent(null)}
+            >
+                {historyStudent && <StudentEnrollmentHistory key={historyStudent.id} branchId={branchId} studentId={historyStudent.id} />}
+            </Drawer>
 
             {/* Fee drawer */}
             <Drawer density="compact" open={!!attendanceStudent} title={attendanceStudent?.name ?? "Attendance"} onClose={() => setAttendanceStudent(null)}>

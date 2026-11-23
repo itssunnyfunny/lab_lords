@@ -110,9 +110,12 @@ describe("Renewals and dues", () => {
         expect((await RenewalsService.list(staffUser.id, branch.id, query, today)).items[0].followUp?.author?.name).toBe(staffUser.name);
         await testPrisma.staffPermissionOverride.create({ data: { staffId: staff.id, action: "VIEW_PAYMENTS", allowed: false } });
         await expect(RenewalsService.list(staffUser.id, branch.id, query, today)).rejects.toThrow("Permission");
+        const debt = await createPayment({ branchId: branch.id, studentId: student.id,
+            periodStart: day("2026-07-10"), periodEnd: day("2026-08-10"), dueDate: day("2026-08-10") });
         await testPrisma.branch.update({ where: { id: branch.id }, data: { billingStatus: "ARCHIVED" } });
         await expect(RenewalsService.saveFollowUp(user.id, branch.id, input(student.id), today)).rejects.toThrow("archived");
-        expect((await RenewalsService.list(user.id, branch.id, query, today)).items).toHaveLength(1);
+        const archived = await RenewalsService.list(user.id, branch.id, query, today);
+        expect(archived.items.map(row => [row.paymentId, row.expected])).toEqual([[debt.id, false]]);
     });
     it("rejects forged cycles and resolved payment follow-ups", async () => {
         const { user, branch } = await createTestWorld();

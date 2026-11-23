@@ -9,7 +9,7 @@ afterEach(() => vi.useRealTimers());
 
 describe("free monthly fee periods", () => {
     it("keeps the outgoing rate on missing dues and honors both current and legacy cycle evidence", async () => {
-        const student = { id: "student", branchId: "branch", joinedAt: date("2026-01-10"),
+        const student = { id: "student", branchId: "branch", joinedAt: date("2026-01-10"), rejoinedOn: null,
             billingStartAt: date("2026-02-10"), monthlyFee: 900 };
         const payment = { findMany: vi.fn().mockResolvedValue([
             // Recorded typed March fee with a corrected due date.

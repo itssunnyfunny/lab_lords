@@ -216,12 +216,15 @@ unit/API/integration coverage.
   the role/action permission and a writable branch entitlement. `ARCHIVED`,
   `PENDING_ACTIVATION`, and `REMOVAL_SCHEDULED` branches reject those mutations.
   (`services/entitlement.service.ts`, entitlement integration tests)
-- **Known discrepancy—do not rely on:** The daily payment cron generates dues
-  for every active student without checking branch billing status or
-  organization writability. Whether system-owned operational-payment generation
-  should respect branch or organization writability is an unresolved product
-  decision. Current behavior is not accepted policy until a human-approved ADR
-  or an updated domain invariant resolves it.
+- **Must preserve—enforced:** System-owned monthly generation accrues student
+  dues in operating branches during temporary subscription restrictions.
+  Removal-scheduled branches accrue before their effective closure. Generation
+  stops at that instant even when archival runs late. Pending and archived
+  branches are excluded. The writer locks the branch while rechecking closure.
+  Renewal projections use the same window. A reopened branch resumes on its
+  new operating day without generating dues from the closed gap.
+  Existing debts and receipts retain their normal access rules. The job can write
+  student fees and cannot grant SaaS access or initiate a provider charge.
   (`app/api/cron/payments/daily/route.ts`, `services/payment.service.ts`)
 - **Must preserve—enforced:** Workspace Billing V2 base access fails closed:
   - an active owner trial grants its explicitly recorded BASIC, STANDARD or PRO
@@ -334,14 +337,19 @@ unit/API/integration coverage.
   rewrite existing payment rows.
   (`services/student.service.ts`, `services/shift.service.ts`,
   `services/multiShift.service.ts`)
-- **Must preserve—enforced:** An inactive student cannot receive a new
-  allocation or monthly fee generation. Inactivation ends active allocations
-  and may, only with the required payment permission, leave, pay, or waive all
-  currently due payments while recording the mutation audit. Reactivation does
-  not recreate prior allocations. (Student, allocation, and payment service
-  tests)
+- **Must preserve—enforced:** Inactive means the student left the branch.
+  Attendance records absences. Departure closes the enrollment, ends active
+  seat allocations and records any eligible unrecorded accrual as due. Staff
+  can leave previously recorded fees due, record them as paid, or waive them
+  with the relevant settlement permission. Inactive students accrue no fees and cannot receive
+  a new allocation. Reactivation requires a confirmed actual rejoining day,
+  starts a new schedule on the same student record and leaves seats available
+  for separate assignment. The first new fee is due one calendar month after
+  rejoining. Stored original enrollment dates, prior cutoffs, payments and
+  receipts remain historical evidence. Unknown legacy departure dates remain
+  unknown. Replaying the same rejoining day cannot move the schedule.
 - **Must preserve—enforced:** Monthly generation rechecks the student's
-  status, branch, fee and billing cutoff under the settlement lock before
+  status, branch, fee, enrollment anniversary and billing cutoff under the settlement lock before
   inserting a staged cycle. Free anniversaries generate no collectible fee.
   Before a positive manual or linked rate becomes zero, the rate edit and
   generation of any missing accrued monthly dues for active students commit
@@ -534,16 +542,16 @@ unit/API/integration coverage.
   their original transition facts were known.
   (`services/paymentResolutionEvent.service.ts`, payment, student, and import
   integration tests)
-- **Must preserve—enforced:** “Overdue” is derived rather than stored. Current
-  logic considers a payment overdue only while `DUE` and strictly more than
-  seven calendar days past its due date. `WAIVED` payments are excluded from
+- **Must preserve—enforced:** Overdue is derived for open `DUE` balances after
+  the due date plus the organization's current `paymentGraceDays`, measured in
+  the organization calendar. Zero grace means overdue the next day. A change
+  reclassifies existing fees without changing ledger or delivery history.
+  Automatic past-due WhatsApp stages remain on their due-date offsets and skip
+  fees still in grace. `WAIVED` payments are excluded from
   open debt. Historical non-ledger waived rows are excluded from revenue;
   ledger-backed fees retain collected revenue and subtract only waived rupees.
   (`lib/utils/paymentStatus.ts`, `analytics/payment.analytics.ts`, payment
   analytics integration tests)
-- **Known discrepancy—do not rely on:** `Organization.paymentGraceDays` is not
-  used by overdue calculations; the code currently hard-codes seven days. Do
-  not promise organization-configurable grace periods.
 
 ## SaaS subscriptions and provider events
 
@@ -1266,8 +1274,9 @@ unit/API/integration coverage.
 - **Known discrepancy—do not rely on:** Validation ceilings differ between
   forms, routes, and services. There is no single repository-wide maximum
   amount, seat count, or student count unless a specific path defines one.
-- **Known discrepancy—do not rely on:** Student anniversary generation uses
-  the runtime-local calendar. Its dates can differ from the organization's
+- **Known discrepancy—do not rely on:** Existing first-enrollment anniversary
+  generation retains its runtime-local calendar to preserve saved schedules.
+  New rejoining anniversaries use India calendar dates. Legacy dates can differ from the organization's
   local calendar at a timezone boundary. Financial chart ranges, daily buckets
   and labels use the organization's timezone (default `Asia/Kolkata`).
   (`prisma/schema.prisma`, `utils/studentBillingCycles.ts`)
@@ -1310,8 +1319,8 @@ unit/API/integration coverage.
   only after route/service authorization.
   (`app/api/`, `services/entitlement.service.ts`, analytics route tests)
 - **Must preserve—enforced:** Payment analytics use the payment semantics above:
-  due means `DUE` through end-of-day, overdue means strictly more than seven
-  days late, and waived balances are excluded from open debt and billable
+  due means `DUE` through end-of-day, overdue uses the organization's grace
+  setting, and waived balances are excluded from open debt and billable
   revenue while receipts collected before a waiver remain collected revenue.
 - **Must preserve—enforced:** A daily payment-trend point includes only fees
   due and receipts recorded through that plotted day's end. The monthly summary
@@ -1413,8 +1422,10 @@ Before changing any rule above:
 
 - **Must preserve—enforced:** Basic status changes reuse StudentService and the
   authorized branch status route with KEEP. Inactivation ends every active
-  allocation while preserving dues and payment evidence. Reactivation preserves
-  history and the existing fee-generation anchors; it does not restore seats.
+  allocation while preserving dues and payment evidence. Reactivation confirms
+  the actual rejoining day and previews the first due date. The new enrollment
+  has its own anniversary. The original joining date, prior periods and fee
+  history remain available.
 - **Service-layer contract—not DB-enforced:** A matching profile is not evidence
   that an uncertain admission request committed. The legacy admission endpoint
   has no operation-specific recovery receipt. Basic retains the request's original

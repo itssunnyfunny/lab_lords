@@ -3,6 +3,7 @@ import { StudentService } from "@/services/student.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import { createTestWorld, createStudent, createAllocation, createShift, createSeat, createStaff, createUser, createPayment } from "@/tests/factories";
 import type { DueResolution } from "@/types";
+import { studentRejoiningToday } from "@/utils/studentRejoiningDate";
 
 describe("StudentService Integration", () => {
   afterAll(async () => { await disconnectDatabase(); });
@@ -298,7 +299,7 @@ describe("StudentService Integration", () => {
 
       await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID");
 
-      const payment = await testPrisma.payment.findFirst({ where: { studentId: student.id } });
+      const payment = await testPrisma.payment.findUnique({ where: { id: createdPayment.id } });
       const auditLog = await testPrisma.auditLog.findFirst({ where: { paymentId: createdPayment.id } });
       const event = await testPrisma.paymentResolutionEvent.findFirst({
         where: { paymentId: createdPayment.id },
@@ -538,7 +539,7 @@ describe("StudentService Integration", () => {
     it("rejects a corrupt payment at the database boundary before student resolution", async () => {
       const { user, branch } = await createTestWorld();
       const { branch: foreignBranch } = await createTestWorld();
-      const student = await createStudent({ branchId: branch.id });
+      const student = await createStudent({ branchId: branch.id, joinedAt: new Date() });
       await expect(createPayment({
         branchId: foreignBranch.id,
         studentId: student.id,
@@ -602,7 +603,7 @@ describe("StudentService Integration", () => {
       await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE");
 
       // Then re-activate
-      await StudentService.updateStudentStatus(user.id, student.id, "ACTIVE");
+      await StudentService.updateStudentStatus(user.id, student.id, "ACTIVE", "KEEP", studentRejoiningToday());
 
       const refreshed = await testPrisma.student.findUnique({ where: { id: student.id } });
       expect(refreshed?.status).toBe("ACTIVE");

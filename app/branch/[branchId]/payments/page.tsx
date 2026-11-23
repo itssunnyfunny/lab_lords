@@ -30,7 +30,6 @@ import { CalendarDays, Check, ChevronLeft, ChevronRight, History, Ban, MoreHoriz
 import { useCallback, useEffect, useRef, useState, use } from "react";
 import { payments, type PaymentListItem } from "@/lib/api/payments";
 import { format, addMonths, subMonths } from "date-fns";
-import { isOverdue } from "@/lib/utils/paymentStatus";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
@@ -340,7 +339,7 @@ function PaymentsContent({
     const renderPaymentStatus = (item: PaymentRow) => <div className="ui-fee-state" aria-label={t("Fee status")}>
         <Badge variant={item.status === "PAID" ? "success" : item.status === "DUE" ? "warning" : "purple"}>{t.owned({ DUE: "Due", PAID: "Paid", WAIVED: "Waived" }[item.status])}</Badge>
         {item.collectedAmount > 0 && item.status === "DUE" && <Badge variant="warning">{t("Partially paid")}</Badge>}
-        {item.status === "DUE" && isOverdue(item.dueDate) && <Badge variant="danger">{t("OVERDUE")}</Badge>}
+        {item.isOverdue && <Badge variant="danger">{t("OVERDUE")}</Badge>}
     </div>;
 
     const renderFeeAmounts = (item: PaymentRow) => <div className="space-y-1">

@@ -68,6 +68,7 @@ vi.mock("@/lib/api/payments", () => ({ payments: { listAll: mocks.payments } }))
 vi.mock("@/lib/api/branches", () => ({ branches: { getShifts: async () => [], getMultiShifts: async () => [] } }));
 
 import StudentsPage from "@/app/branch/[branchId]/students/page";
+import { StudentRejoiningField } from "@/components/students/StudentRejoiningField";
 
 const student = { id: "student", name: "Asha", status: "ACTIVE", joinedAt: new Date(), monthlyFee: 1200, seatAllocations: [] };
 const due = { id: "due", studentId: student.id, amount: 1200, status: "DUE", ledgerBacked: true, collectedAmount: 400, waivedAmount: 0 };
@@ -112,6 +113,12 @@ function mount(initialAccess: BranchAccess) {
         hooks.current = dialogState; dialogState.cursor = 0;
         return nodes((element.type as (props: Record<string, unknown>) => ReactElement)(element.props));
     };
+    const rejoin = () => {
+        const element = render().find(node => node.key === student.id && "onConfirm" in node.props);
+        if (!element) return [];
+        hooks.current = dialogState; dialogState.cursor = 0;
+        return nodes((element.type as (props: Record<string, unknown>) => ReactElement)(element.props));
+    };
     render();
     return {
         open: () => {
@@ -120,6 +127,14 @@ function mount(initialAccess: BranchAccess) {
             const actions = actionView.props.actions as unknown as Array<{ label: string; onClick: () => void }>;
             actions.find(action => action.label === "Deactivate")!.onClick();
         },
+        openRejoin: () => {
+            const table = render().find(node => Array.isArray(node.props.data))!;
+            const actionView = (table.props.actions as unknown as (value: object) => Node)({ ...student, status: "INACTIVE" });
+            const actions = actionView.props.actions as unknown as Array<{ label: string; onClick: () => void }>;
+            actions.find(action => action.label === "Activate")!.onClick();
+        },
+        changeRejoiningDate: (date: string) => (rejoin().find(node => node.type === StudentRejoiningField)!.props.onChange as (date: string) => void)(date),
+        rejoinButton: () => rejoin().find(node => node.props.children === "Reactivate")!,
         cancel: () => { (dialog().find(node => node.props.children === "Cancel")!.props.onClick as () => void)(); dialog(); },
         shows: (text: string) => dialog().some(node => node.props.children === text),
         choices: () => dialog().filter(node => node.props.type === "radio").map(node => ({ value: node.props.value, checked: node.props.checked })),
@@ -205,5 +220,22 @@ describe("student deactivation payment choices", () => {
         mocks.fetch.mockResolvedValue(new Response("null", { status: 500 }));
         await page.confirm();
         expect(mocks.toast.show).toHaveBeenCalledWith(expect.objectContaining({ description: "Failed to update status." }));
+    });
+});
+
+describe("returning student confirmation", () => {
+    it("requires a date and submits the confirmed day on the roster's normal branch route", async () => {
+        const page = mount(access({}, true)); await flush(); page.openRejoin();
+        expect(page.rejoinButton().props.disabled).toBe(true);
+        page.changeRejoiningDate("2099-01-01");
+        expect(page.rejoinButton().props.disabled).toBe(true);
+        page.changeRejoiningDate("2025-01-31");
+        expect(page.rejoinButton().props.disabled).toBe(false);
+        (page.rejoinButton().props.onClick as () => void)();
+        expect(mocks.fetch).toHaveBeenCalledWith("/api/branches/branch/students", expect.objectContaining({ method: "PATCH" }));
+        expect(JSON.parse(mocks.fetch.mock.calls[0][1].body)).toEqual({
+            id: student.id, status: "ACTIVE", rejoinedOn: "2025-01-31",
+        });
+        await flush();
     });
 });

@@ -6,9 +6,11 @@ const mocks = vi.hoisted(() => ({
   paymentGroupBy: vi.fn(),
   paymentCount: vi.fn(),
   collectionAggregate: vi.fn(),
+  branchFind: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: {
+  branch: { findUniqueOrThrow: mocks.branchFind },
   payment: { aggregate: mocks.paymentAggregate, findMany: mocks.paymentFindMany, groupBy: mocks.paymentGroupBy, count: mocks.paymentCount },
   feeCollection: { aggregate: mocks.collectionAggregate },
 } }));
@@ -64,6 +66,7 @@ function matches(row: Payment, where: PaymentWhere): boolean {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.branchFind.mockResolvedValue({ organization: { paymentGraceDays: 7, timezone: "Asia/Kolkata" } });
   payments = [];
   collections = [];
   // These fixture reads honor the actual implementation's filters and requested

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   groupStudents: vi.fn(), countStudents: vi.fn(), stats: vi.fn(), overdue: vi.fn(), gemini: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: {
-  branch: { findUnique: async () => ({ name: "Fixture" }) },
+  branch: { findUniqueOrThrow: async () => ({ name: "Fixture", organization: { timezone: "UTC", paymentGraceDays: 7 } }) },
   student: { groupBy: mocks.groupStudents, count: mocks.countStudents },
   $transaction: (reads: Promise<unknown>[]) => Promise.all(reads),
 } }));
@@ -39,7 +39,7 @@ describe("branch health risk evidence", () => {
     expect(mocks.groupStudents).toHaveBeenCalledWith({ by: ["status"], where: { branchId: "branch" }, _count: { _all: true } });
     expect(mocks.countStudents).toHaveBeenCalledWith({ where: {
       branchId: "branch", status: "ACTIVE", payments: { some: {
-        branchId: "branch", status: "DUE", amount: { gt: 0 }, dueDate: { lt: new Date(2026, 10, 11) },
+        branchId: "branch", status: "DUE", amount: { gt: 0 }, dueDate: { lt: new Date("2026-11-11T00:00:00Z") },
       } },
     } });
     expect(snapshot.payments).toMatchObject({ overdueCount: 4, activeStudentsWithOverdueFees: 1 });

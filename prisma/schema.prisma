@@ -198,6 +198,7 @@ model OnboardingRequest {
 }
 
 model Student {
+  enrollmentHistory     StudentEnrollmentHistory[]
   allocationMoveCommands AllocationMoveCommand[]
   attendanceExpectation AttendanceExpectation?
   membershipTerms MembershipTerm[]
@@ -214,6 +215,7 @@ model Student {
   status                StudentStatus              @default(ACTIVE)
   enrollmentSource      StudentEnrollmentSource    @default(LEGACY)
   joinedAt              DateTime                   @default(now())
+  rejoinedOn            DateTime?                  @db.Date
   billingStartAt        DateTime?
   monthlyFee            Int                        @default(0)
   feeLinkedShiftId      String?
@@ -235,6 +237,18 @@ model Student {
   @@index([feeLinkedShiftId])
   @@index([feeLinkedMultiShiftId])
   importTargets ImportTargetReference[]
+}
+
+model StudentEnrollmentHistory {
+  id             String    @id @default(cuid())
+  studentId      String
+  branchId       String
+  startedAt      DateTime
+  endedAt        DateTime?
+  billingStartAt DateTime?
+  student        Student   @relation(fields: [studentId, branchId], references: [id, branchId], onDelete: Cascade)
+
+  @@index([studentId, branchId, endedAt])
 }
 
 model Seat {

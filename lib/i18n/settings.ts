@@ -138,7 +138,7 @@ export const settingsMessages = {
     "Currency": ["मुद्रा", "Currency"], "Week starts on": ["हफ्ता शुरू होता है", "Week shuru hota hai"],
     "Monday": ["सोमवार", "Monday"], "Sunday": ["रविवार", "Sunday"],
     "Payment grace days": ["फीस के लिए अतिरिक्त दिन", "Payment grace days"],
-    "Stored organization policy for payment follow-up windows.": ["फीस के फॉलो-अप के लिए संस्था की सेव की हुई नीति।", "Payment follow-up windows ke liye saved organization policy."],
+    "Extra days before an unpaid fee becomes overdue. Changes apply to existing unpaid fees. With 0 days, a fee becomes overdue the day after it is due.": ["फीस देर से मानी जाने से पहले की अतिरिक्त मोहलत। बदलाव मौजूदा बकाया फीस पर भी लागू होते हैं। 0 दिन पर, फीस उसकी देय तारीख के अगले दिन से देर से मानी जाती है।", "Unpaid fee overdue hone se pehle ke extra din. Badlav purani unpaid fees par bhi lagu hain. 0 din par fee due date ke agle din overdue hoti hai."],
     "Open a branch to manage branch-level settings.": ["ब्रांच की सेटिंग सँभालने के लिए ब्रांच खोलें।", "Branch-level settings ke liye branch kholein."],
     "Total branches": ["कुल ब्रांच", "Total branches"], "No branches yet.": ["अभी कोई ब्रांच नहीं है।", "Abhi koi branch nahi."],
     "Workspace subscription and Razorpay billing state.": ["वर्कस्पेस सदस्यता और Razorpay बिलिंग की स्थिति।", "Workspace subscription aur Razorpay billing state."],

@@ -1164,6 +1164,9 @@ Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.ser
 - Student deactivation offers KEEP by default; paid and waived resolutions appear
   only when the viewer has their respective fee permissions. The server still
   checks those actions and branch writability for each status command.
+- Leaving ends enrollment and seat assignments. Returning staff enter the
+  actual rejoining day and see the first new fee date before confirming. Basic
+  and full student views can open the enrollment history on the same record.
 - Seats can be created individually or generated from a numbering configuration.
 - Branches have primary shifts and composed multi-shifts.
 - Allocation capacity and picker maps omit retained MultiShifts with inactive,
@@ -1212,9 +1215,11 @@ Authoritative code: `services/student.service.ts`, `services/seat.service.ts`, `
   earlier event. The ledger begins with this migration and does not invent
   events for historical resolutions.
 - Marking paid records the method/reference, writes an audit entry, and removes obsolete AI message drafts for the student.
-- Overdue state is derived centrally using a hard-coded rule of strictly more
-  than seven calendar days; the stored `paymentGraceDays` setting is not read.
-- `/api/cron/payments/daily` generates due payments for active students and requires `Authorization: Bearer <CRON_SECRET>`.
+- Current organization grace controls the overdue classification of open fees
+  in lists, dashboards, reports, analytics and past-due reminders.
+- `/api/cron/payments/daily` requires `Authorization: Bearer <CRON_SECRET>`.
+  It generates dues for active students in operating branches, including
+  temporarily read-only branches, and observes the effective closure deadline.
 - The branch payments page fences tab/month/deep-link reads and pagination by
   active query and request version, so obsolete responses cannot replace the
   current rows, counts, cursor, loading state, or error.
@@ -1995,7 +2000,7 @@ most one requested page plus a cursor sentinel. Exact counts reflect name/phone
 search across all matching periods. Queries do not generate payments. Expected
 anniversary fees cover today and the next three/seven days; recorded earlier
 unpaid periods remain independently visible. Outstanding totals exclude future
-records and projections; overdue retains the existing greater-than-seven-day rule.
+records and projections. Overdue uses the organization's saved grace setting.
 
 `RenewalFollowUp` is a small latest-state record keyed by student/type/period,
 with a branch-scoped student foreign key and author reference. It follows an

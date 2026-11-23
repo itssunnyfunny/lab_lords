@@ -6,6 +6,8 @@ import { EntitlementService } from "@/services/entitlement.service";
 import { buildStaffPermissions } from "@/services/branchActionPolicy";
 import { attendanceTimezone } from "@/lib/attendance";
 import { dashboardDateOffset, dashboardDayStart, dashboardLocalTime, dashboardMonth, dashboardRate, dashboardToday } from "@/lib/dashboardMath";
+import { overdueCutoffForDay } from "@/lib/utils/paymentStatus";
+import { readBranchPaymentOverduePolicy } from "@/services/paymentOverduePolicy";
 import { dashboardExpectationSchema, dashboardFollowUpPatchSchema, dashboardFollowUpQuerySchema, dashboardNotificationSchema, dashboardListSchema,
     dashboardSettingsSchema, dashboardTaskPatchSchema, dashboardTaskQuerySchema, dashboardTaskSchema, dashboardTermSchema, dashboardTermChangeSchema,
     type DashboardActivity, type DashboardFollowUp, type DashboardNotification, type DashboardOverview, type DashboardSource,
@@ -48,9 +50,9 @@ function termSnapshot(row: { label: string; startDate: string; endDate: string; 
     return { label: row.label, startDate: row.startDate, endDate: row.endDate, status: row.status };
 }
 async function branchClock(branchId: string, tx: Tx = prisma, now = new Date()) {
-    const branch = await tx.branch.findUniqueOrThrow({ where: { id: branchId }, select: { organization: { select: { timezone: true } } } });
-    const timezone = attendanceTimezone(branch.organization.timezone);
-    return { timezone, today: dashboardToday(now, timezone) };
+    const { timezone: storedTimezone, paymentGraceDays } = await readBranchPaymentOverduePolicy(branchId, tx);
+    const timezone = attendanceTimezone(storedTimezone);
+    return { timezone, paymentGraceDays, today: dashboardToday(now, timezone) };
 }
 async function completeReads<const T extends readonly unknown[]>(reads: T): Promise<{ -readonly [P in keyof T]: Awaited<T[P]> }> {
     const results = await Promise.allSettled(reads);
@@ -122,10 +124,10 @@ export class DashboardService {
     static async basicOverview(actorId: string, branchId: string, now = new Date()) {
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.resolveBranch(actorId, branchId, tx);
-            const { timezone, today } = await branchClock(branchId, tx, now);
+            const clock = await branchClock(branchId, tx, now);
             const activeStudents = access.permissions.students ? await tx.student.count({ where: { branchId, status: "ACTIVE" } }) : null;
-            const money = access.permissions.view_payments ? await this.money(branchId, timezone, today, tx) : null;
-            return { branchId, today, activeStudents, money: money ? { collectedThisMonth: money.collectedThisMonth, pendingDues: money.pendingDues } : null };
+            const money = access.permissions.view_payments ? await this.money(branchId, clock, tx) : null;
+            return { branchId, today: clock.today, activeStudents, money: money ? { collectedThisMonth: money.collectedThisMonth, pendingDues: money.pendingDues } : null };
         }, { isolationLevel: "RepeatableRead" });
     }
 
@@ -133,11 +135,12 @@ export class DashboardService {
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.resolveBranch(actorId, branchId, tx);
             await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
-            const { timezone, today } = await branchClock(branchId, tx, now);
+            const clock = await branchClock(branchId, tx, now);
+            const { timezone, today } = clock;
             const selectedMonth = month ?? today.slice(0, 7);
             const profile = await EntitlementService.getOrganizationProfile(access.organizationId, tx);
             const chartLocked = !profile.entitlements.includes("ADVANCED_ANALYTICS");
-            const money = await source(tx, access.permissions.view_payments, () => this.money(branchId, timezone, today, tx));
+            const money = await source(tx, access.permissions.view_payments, () => this.money(branchId, clock, tx));
             const students = await source(tx, access.permissions.students, async () => {
                 const [active, recent] = await completeReads([
                     tx.student.count({ where: { branchId, status: "ACTIVE" } }),
@@ -157,9 +160,10 @@ export class DashboardService {
         }, { isolationLevel: "RepeatableRead", timeout: 30_000 });
     }
 
-    private static async money(branchId: string, timezone: string, today: string, client: Tx = prisma) {
+    private static async money(branchId: string, clock: Awaited<ReturnType<typeof branchClock>>, client: Tx = prisma) {
+        const { timezone, today } = clock;
         const month = dashboardMonth(today.slice(0, 7), timezone);
-        const overdueBefore = dashboardDayStart(dashboardDateOffset(today, -7), timezone);
+        const overdueBefore = overdueCutoffForDay(clock, today);
         const through = dashboardDayStart(dashboardDateOffset(today, 1), timezone);
         const [collections, legacy, pending, overdue, students] = await completeReads([
             client.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: { gte: month.start, lt: month.end } }, _sum: { amount: true } }),
@@ -524,14 +528,15 @@ export class DashboardService {
     static async notifications(actorId: string, branchId: string, now = new Date()) {
         const access = await AccessPolicy.resolveBranch(actorId, branchId);
         await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace");
-        const { today, timezone } = await branchClock(branchId, prisma, now);
+        const clock = await branchClock(branchId, prisma, now);
+        const { today, timezone } = clock;
         const candidates: Omit<DashboardNotification, "read" | "snoozedUntil" | "dismissed">[] = [];
         const href = `/branch/${encodeURIComponent(branchId)}`;
         const add = (kind: DashboardNotification["kind"], count: number, identity: unknown, destination: string) => {
             if (count > 0) candidates.push({ key: `${kind}:${createHash("sha256").update(JSON.stringify(identity)).digest("hex")}`, kind, count, href: `${href}/${destination}` });
         };
         if (access.permissions.view_payments) {
-            const [money, followUps] = await completeReads([this.money(branchId, timezone, today), this.followUpSummary(branchId, today)]);
+            const [money, followUps] = await completeReads([this.money(branchId, clock), this.followUpSummary(branchId, today)]);
             add("OVERDUE", money.overdueStudents, [money.overdueStudents, money.overdueAmount], "overdue");
             add("FOLLOW_UP", followUps.dueToday, [today, followUps.dueToday, followUps.items.map(r => [r.id, r.updatedAt])], "follow-ups?filter=DUE");
         }

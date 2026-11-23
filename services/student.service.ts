@@ -1,7 +1,10 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { runSerializableTransaction } from "@/lib/serializableTransaction";
 import { prisma } from "@/lib/prisma";
-import { billingStartAfterFreePeriods, preserveAccruedMonthlyFees } from "@/services/studentFeePeriod";
+import { billingStartAfterFreePeriods, missingMonthlyFees, preserveAccruedMonthlyFees } from "@/services/studentFeePeriod";
+import { eligibleMonthlyAccruals } from "@/services/branchFeeAccrual";
+import { studentFeeDay } from "@/utils/studentBillingCycles";
+import { INVALID_STUDENT_REJOINING_DATE, parseStudentRejoiningDate, studentRejoiningToday, validateStudentRejoiningDate } from "@/utils/studentRejoiningDate";
 import {
     isDueResolution,
     PaymentResolutionEventSource,
@@ -658,6 +661,46 @@ export class StudentService {
         }));
     }
 
+    static async getEnrollmentHistory(
+        userId: string, branchId: string, studentId: string, limit: number, cursor: DateIdCursor | null,
+    ) {
+        return prisma.$transaction(async tx => {
+            await AccessPolicy.authorizeRecord(userId, branchId, "students", "Student", tx);
+            const student = await tx.student.findUnique({
+                where: { id: studentId, branchId },
+                select: { joinedAt: true, rejoinedOn: true, billingStartAt: true, status: true },
+            });
+            if (!student) throw new Error("Student not found");
+
+            const scope = { studentId, branchId };
+            const [history, total] = await Promise.all([
+                tx.studentEnrollmentHistory.findMany({
+                    where: {
+                        ...scope,
+                        ...(cursor ? {
+                            OR: [
+                                { startedAt: { lt: cursor.sort } },
+                                { startedAt: cursor.sort, id: { lt: cursor.id } },
+                            ],
+                        } : {}),
+                    },
+                    orderBy: [{ startedAt: "desc" }, { id: "desc" }],
+                    select: { id: true, startedAt: true, endedAt: true, billingStartAt: true },
+                    take: limit + 1,
+                }),
+                tx.studentEnrollmentHistory.count({ where: scope }),
+            ]);
+
+            return {
+                originalJoinedAt: student.joinedAt,
+                current: student.status === StudentStatus.ACTIVE
+                    ? { startedAt: student.rejoinedOn ?? student.joinedAt, billingStartAt: student.billingStartAt }
+                    : null,
+                ...pageFromRows(history, limit, total, row => ({ sort: row.startedAt, id: row.id })),
+            };
+        }, { isolationLevel: "RepeatableRead" });
+    }
+
     /**
      * Updates student status.
      *
@@ -668,13 +711,14 @@ export class StudentService {
      *    - WAIVED → marks as WAIVED
      *    - KEEP (default) → leaves DUE payments untouched
      *
-     * When ACTIVATING: simply sets status = ACTIVE.
+     * When ACTIVATING: opens a new fee schedule on the confirmed rejoining day.
      */
     static async updateStudentStatus(
         userId: string,
         studentId: string,
         status: StudentStatus,
-        dueResolution: DueResolution = "KEEP"
+        dueResolution: DueResolution = "KEEP",
+        rejoinedOn?: string,
     ) {
         if (!isDueResolution(dueResolution)) {
             throw new Error("Invalid due resolution");
@@ -684,6 +728,9 @@ export class StudentService {
         const verifiedBranchId = verifiedStudent.branchId;
         await EntitlementService.assertBranchWritable(verifiedStudent.branchId);
         const now = new Date();
+        const rejoiningDate = status === StudentStatus.ACTIVE && validateStudentRejoiningDate(rejoinedOn, now)
+            ? parseStudentRejoiningDate(rejoinedOn) : null;
+        if (status === StudentStatus.ACTIVE && !rejoiningDate) throw new Error(INVALID_STUDENT_REJOINING_DATE);
 
         let paymentResolution: {
             status: PaymentStatus;
@@ -726,22 +773,50 @@ export class StudentService {
 
         return runSerializableTransaction(async (tx) => {
             await AccessPolicy.authorizeRecord(userId, verifiedBranchId, "students", "Student", tx, true);
-            const verifiedStudent = await tx.student.findUnique({ where: { id: studentId, branchId: verifiedBranchId }, include: { branch: true } });
+            const verifiedStudent = await tx.student.findUnique({ where: { id: studentId, branchId: verifiedBranchId } });
             if (!verifiedStudent) throw new Error("Student not found");
+            if (verifiedStudent.status === status) {
+                if (status === StudentStatus.ACTIVE && verifiedStudent.rejoinedOn?.getTime() !== rejoiningDate?.getTime()) {
+                    throw new Error("This student is already active. Refresh the record before changing enrollment.");
+                }
+                return verifiedStudent;
+            }
             if (paymentResolution) await AccessPolicy.authorizeAction(userId, verifiedBranchId,
                 paymentResolution.status === PaymentStatus.PAID ? "mark_payment_paid" : "waive_payments", tx);
-            // 1. Update student status
+
+            const enrollment = {
+                studentId,
+                branchId: verifiedBranchId,
+                startedAt: verifiedStudent.rejoinedOn ?? verifiedStudent.joinedAt,
+                billingStartAt: verifiedStudent.billingStartAt,
+            };
+            const lastDeparture = rejoiningDate ? await tx.studentEnrollmentHistory.findFirst({
+                where: { studentId, branchId: verifiedBranchId, endedAt: { not: null } },
+                orderBy: { endedAt: "desc" },
+                select: { endedAt: true },
+            }) : null;
+            if (rejoiningDate && (
+                rejoinedOn! < studentRejoiningToday(lastDeparture?.endedAt ?? verifiedStudent.joinedAt)
+                || (verifiedStudent.rejoinedOn && rejoiningDate <= verifiedStudent.rejoinedOn)
+            )) throw new Error("Choose a rejoining date on or after departure and after the previous rejoining date.");
+
+            // The status write serializes the transition against generation and another status change.
             const student = await tx.student.update({
-                where: { id: studentId, branchId: verifiedStudent.branchId },
-                data: { status },
+                where: { id: studentId, branchId: verifiedBranchId },
+                data: { status, ...(rejoiningDate ? { rejoinedOn: rejoiningDate, billingStartAt: null } : {}) },
             });
 
+            if (rejoiningDate && !lastDeparture) {
+                // An older inactive record has no reliable departure timestamp.
+                await tx.studentEnrollmentHistory.create({ data: enrollment });
+            }
             if (status === StudentStatus.INACTIVE) {
+                await tx.studentEnrollmentHistory.create({ data: { ...enrollment, endedAt: now } });
                 if (await whatsappDeliveryStateMayExist(tx)) {
                     await WhatsAppRecipientService.reconcileStudentInactivationInTransaction({
                         tx,
                         actorUserId: userId,
-                        branchId: verifiedStudent.branchId,
+                        branchId: verifiedBranchId,
                         studentId,
                         now,
                     });
@@ -750,6 +825,7 @@ export class StudentService {
                 // 2. End all active seat allocations
                 await tx.seatAllocation.updateMany({
                     where: {
+                        branchId: verifiedBranchId,
                         studentId,
                         endDate: null,
                     },
@@ -779,10 +855,18 @@ export class StudentService {
                             { source: PaymentResolutionEventSource.STUDENT_INACTIVATION });
                     }
                 }
+
+                // Materialize earned but unrecorded dues after settlement. The
+                // selected action covers the recorded balance shown to staff.
+                const accrued = await eligibleMonthlyAccruals(
+                    tx, await missingMonthlyFees(tx, [verifiedStudent], now, verifiedBranchId), now,
+                    (_studentId, date) => studentFeeDay(verifiedStudent, date),
+                );
+                if (accrued.length) await tx.payment.createMany({ data: accrued, skipDuplicates: true });
             }
 
             await tx.branch.update({
-                where: { id: verifiedStudent.branch.id },
+                where: { id: verifiedBranchId },
                 data: { lastDataChange: now },
             });
             return student;

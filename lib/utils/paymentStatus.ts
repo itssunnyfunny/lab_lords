@@ -1,27 +1,28 @@
-import { differenceInCalendarDays, endOfDay, startOfDay, subDays } from "date-fns";
+import { differenceInCalendarDays, endOfDay } from "date-fns";
+import { dashboardDateOffset, dashboardDayStart, dashboardToday } from "@/lib/dashboardMath";
 
-/**
- * A payment is considered OVERDUE only after a 7-day grace period past its dueDate.
- * This is a display/query-time concept; the DB status column stays "DUE".
- */
-export const OVERDUE_GRACE_DAYS = 7;
+export type PaymentOverduePolicy = Readonly<{ paymentGraceDays: number; timezone: string }>;
 
-export function dueAsOfCutoff(asOf: Date = new Date()): Date {
-    return endOfDay(asOf);
+export function dueAsOfCutoff(asOf: Date = new Date(), timezone?: string): Date {
+    if (!timezone) return endOfDay(asOf);
+    return new Date(dashboardDayStart(dashboardDateOffset(dashboardToday(asOf, timezone), 1), timezone).getTime() - 1);
 }
 
-export function daysPastDue(dueDate: Date | string, asOf: Date = new Date()): number {
-    return Math.max(
-        0,
-        differenceInCalendarDays(startOfDay(asOf), startOfDay(new Date(dueDate)))
-    );
+export function daysPastDue(dueDate: Date | string, asOf: Date = new Date(), timezone?: string): number {
+    if (!timezone) return Math.max(0, differenceInCalendarDays(asOf, new Date(dueDate)));
+    const days = (Date.parse(dashboardToday(asOf, timezone)) - Date.parse(dashboardToday(new Date(dueDate), timezone))) / 86_400_000;
+    return Math.max(0, days);
 }
 
-export function isOverdue(dueDate: Date | string, asOf: Date = new Date()): boolean {
-    return daysPastDue(dueDate, asOf) > OVERDUE_GRACE_DAYS;
+export function isOverdue(dueDate: Date | string, policy: PaymentOverduePolicy, asOf = new Date()): boolean {
+    return daysPastDue(dueDate, asOf, policy.timezone) > policy.paymentGraceDays;
 }
 
-/** Returns the cutoff date before which a DUE payment is considered overdue. */
-export function overdueCutoff(asOf: Date = new Date()): Date {
-    return startOfDay(subDays(asOf, OVERDUE_GRACE_DAYS));
+/** A DUE fee is overdue if its due date is strictly before this local day. */
+export function overdueCutoffForDay(policy: PaymentOverduePolicy, day: string): Date {
+    return dashboardDayStart(dashboardDateOffset(day, -policy.paymentGraceDays), policy.timezone);
+}
+
+export function overdueCutoff(policy: PaymentOverduePolicy, asOf = new Date()): Date {
+    return overdueCutoffForDay(policy, dashboardToday(asOf, policy.timezone));
 }

@@ -674,3 +674,14 @@ follow-up in the [PR verification record](ui-refinement-pr-readiness-2026-11-12.
 The accepted layout, server authorization, revision fences and explicit import
 confirmation remain intact. No schema, migration, dependency, saved environment
 or public marketing-copy change is needed.
+
+### Student enrollment actions — local, 2026-11-23
+
+Basic student details and the full Students roster require a rejoining date
+and preview the first monthly fee date in the existing dialog family. Both
+provide an on-demand enrollment history with the original joining date,
+recorded departures and the current period. The departure dialogs explain
+when to record an absence in Attendance and how already-due fees are handled.
+The student route, roster interaction and calendar regressions passed all 47
+tests with `pnpm exec vitest run --config vitest.unit.safe.config.ts tests/unit/utils/studentRejoiningDate.test.ts tests/unit/api/branch-students.route.test.ts tests/unit/pages/student-deactivation.test.tsx`.
+Owner visual review and production release are separate.

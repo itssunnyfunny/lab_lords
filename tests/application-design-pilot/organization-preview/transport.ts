@@ -1,6 +1,7 @@
 import { clearDraft } from "./navigation";
 import { apiClient } from "@/lib/api/core";
-import { renewalCategories, renewalKey, renewalOrderKey, renewalQuerySchema, type RenewalPage, type RenewalRow } from "@/lib/renewals";
+import { renewalCalendar, renewalCategories, renewalKey, renewalOrderKey, renewalQuerySchema, type RenewalPage, type RenewalRow } from "@/lib/renewals";
+import { overdueCutoff } from "@/lib/utils/paymentStatus";
 import { referenceDashboardFixture } from "../reference-fixture";
 import { ORG, ORG_NAME, NOW, names, prices, permittedBranches, resolveBranch, writable, type Branch, type Fixture } from "./model";
 import { identityKey, previewEnabled, readFixture, scopedMutation, updateBranch } from "./store";
@@ -20,11 +21,13 @@ export function accessFor(branch: Branch, state: Fixture) {
       scheduledChanges: [], branch: { id: branch.id, name: branch.name, billingStatus: "ACTIVE" }, viewer: { isOwner: owner, canManageBilling: owner } } };
 }
 const paged = (items: unknown[]) => ({ items, nextCursor: null, total: items.length });
+const fixturePaymentPolicy = { paymentGraceDays: 0, timezone: "Asia/Kolkata" };
 function allocations(branch: Branch) { return branch.students.filter(s => s.seat && s.shiftId).map(s => ({ id: branch.id + "-allocation-" + s.id, branchId: branch.id, studentId: s.id, seatId: branch.id + "-seat-" + s.seat, shiftId: s.shiftId, multiShiftId: null, startDate: NOW, endDate: null, student: s, seat: { id: branch.id + "-seat-" + s.seat, label: String(s.seat).padStart(2,"0") }, shift: { ...branch.shifts.find(sh => sh.id === s.shiftId), startTime: "08:00", endTime: "12:00" }, multiShift: null })); }
 function studentRows(branch: Branch) { return branch.students.map(s => ({ ...s, branchId: branch.id, status: "ACTIVE", joinedAt: NOW, createdAt: NOW, updatedAt: NOW, feeLinkedShiftId: null, feeLinkedMultiShiftId: null, seatAllocations: allocations(branch).filter(a => a.studentId === s.id) })); }
 function feeRows(branch: Branch) { return branch.students.map(s => {
   const collected = branch.receipts.filter(r => r.studentId === s.id).reduce((sum,r) => sum + r.amount, 0);
-  return { id: branch.id + "-fee-" + s.id, branchId: branch.id, studentId: s.id, type: "MONTHLY", amount: s.monthlyFee, collectedAmount: collected, waivedAmount: 0, ledgerBacked: true, status: collected >= s.monthlyFee ? "PAID" : "DUE", dueDate: "2026-10-28T00:00:00Z", periodStart: "2026-10-01T00:00:00Z", periodEnd: "2026-10-31T00:00:00Z", createdAt: NOW, student: s };
+  const dueDate = "2026-10-28T00:00:00Z";
+  return { id: branch.id + "-fee-" + s.id, branchId: branch.id, studentId: s.id, type: "MONTHLY", amount: s.monthlyFee, collectedAmount: collected, waivedAmount: 0, ledgerBacked: true, status: collected >= s.monthlyFee ? "PAID" : "DUE", isOverdue: collected < s.monthlyFee && new Date(dueDate) < overdueCutoff(fixturePaymentPolicy, new Date(NOW)), dueDate, periodStart: "2026-10-01T00:00:00Z", periodEnd: "2026-10-31T00:00:00Z", createdAt: NOW, student: s };
 }); }
 function renewalsFor(branch: Branch, params: URLSearchParams): RenewalPage {
   const query = renewalQuerySchema.parse(Object.fromEntries(params));
@@ -40,9 +43,9 @@ function renewalsFor(branch: Branch, params: URLSearchParams): RenewalPage {
         .map(row => ({ seat: row.seat.label, shift: row.shift.name ?? "" })),
     })).sort((a,b) => renewalOrderKey(a).localeCompare(renewalOrderKey(b)));
   const counts: RenewalPage["counts"] = { ALL: 0, TODAY: 0, UPCOMING: 0, OUTSTANDING: 0, OVERDUE: 0 };
-  const asOf = new Date(NOW);
-  for (const row of rows) for (const filter of renewalCategories(row, asOf, query.days)) counts[filter]++;
-  const filtered = rows.filter(row => renewalCategories(row, asOf, query.days).includes(query.filter));
+  const calendar = renewalCalendar(new Date(NOW), query.days, fixturePaymentPolicy);
+  for (const row of rows) for (const filter of renewalCategories(row, calendar)) counts[filter]++;
+  const filtered = rows.filter(row => renewalCategories(row, calendar).includes(query.filter));
   const offset = Number(query.cursor ?? 0);
   if (!Number.isSafeInteger(offset) || offset < 0) throw new Error("Invalid preview cursor");
   const items = filtered.slice(offset, offset + query.limit);

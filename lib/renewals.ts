@@ -1,6 +1,6 @@
-import { addDays, endOfDay, startOfDay } from "date-fns";
 import { z } from "zod";
-import { isOverdue } from "@/lib/utils/paymentStatus";
+import { dashboardDateOffset, dashboardDayStart, dashboardToday } from "@/lib/dashboardMath";
+import { overdueCutoffForDay, type PaymentOverduePolicy } from "@/lib/utils/paymentStatus";
 
 export const renewalFilters = ["ALL", "TODAY", "UPCOMING", "OUTSTANDING", "OVERDUE"] as const;
 export type RenewalFilter = typeof renewalFilters[number];
@@ -65,15 +65,28 @@ export type FollowUpInput = z.infer<typeof followUpSchema>;
 export function renewalKey(studentId: string, type: string, periodStart: Date | string) {
     return `${studentId}:${type}:${new Date(periodStart).toISOString()}`;
 }
-export function renewalCategories(row: Pick<RenewalRow, "dueDate" | "expected" | "amount">, asOf: Date, days: number): RenewalFilter[] {
+export function renewalCalendar(asOf: Date, days: number, policy: PaymentOverduePolicy) {
+    const localDay = dashboardToday(asOf, policy.timezone);
+    const start = (offset: number) => dashboardDayStart(dashboardDateOffset(localDay, offset), policy.timezone);
+    return {
+        today: start(0),
+        tomorrow: start(1),
+        through: new Date(start(days + 1).getTime() - 1),
+        overdueBefore: overdueCutoffForDay(policy, localDay),
+    };
+}
+
+export function renewalCategories(
+    row: Pick<RenewalRow, "dueDate" | "expected" | "amount">,
+    { today, tomorrow, through, overdueBefore }: ReturnType<typeof renewalCalendar>,
+): RenewalFilter[] {
     if (row.amount <= 0) return [];
     const due = new Date(row.dueDate);
-    const today = startOfDay(asOf);
     const result: RenewalFilter[] = ["ALL"];
-    if (due >= today && due <= endOfDay(today)) result.push("TODAY");
-    if (due >= addDays(today, 1) && due <= endOfDay(addDays(today, days))) result.push("UPCOMING");
-    if (!row.expected && due <= endOfDay(today)) result.push("OUTSTANDING");
-    if (!row.expected && isOverdue(due, today)) result.push("OVERDUE");
+    if (due >= today && due < tomorrow) result.push("TODAY");
+    if (due >= tomorrow && due <= through) result.push("UPCOMING");
+    if (!row.expected && due < tomorrow) result.push("OUTSTANDING");
+    if (!row.expected && due < overdueBefore) result.push("OVERDUE");
     return result;
 }
 export function renewalOrderKey(row: Pick<RenewalRow, "dueDate" | "key">) {

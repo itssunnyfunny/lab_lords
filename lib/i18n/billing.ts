@@ -155,7 +155,7 @@ export const billingMessages = {
     "Provider detail": ["प्रदाता की जानकारी", "Provider detail"], "Next step": ["अगला कदम", "Next step"],
     "If the provider response was unclear, check recent bank activity before retrying.": ["प्रदाता का जवाब स्पष्ट न हो तो फिर कोशिश करने से पहले बैंक की हाल की गतिविधि जाँचें।", "Provider response unclear ho toh retry se pehle recent bank activity check karein."],
     "Workspace is read-only": ["वर्कस्पेस में सिर्फ देख सकते हैं", "Workspace read-only hai"],
-    "Your data remains available and unchanged.": ["आपका डेटा बिना बदलाव के उपलब्ध है।", "Aapka data available aur unchanged hai."],
+    "You can still view your records.": ["आप अब भी अपने रिकॉर्ड देख सकते हैं।", "Aap ab bhi apne records dekh sakte hain."],
     "Restore access": ["सुविधा फिर चालू करें", "Access restore karein"],
     "Create new branch": ["नई ब्रांच बनाएँ", "Nayi branch banayein"],
     "Set up a new location under this organization.": ["इस संस्था में नई जगह की ब्रांच बनाएँ।", "Is organization mein nayi location setup karein."],

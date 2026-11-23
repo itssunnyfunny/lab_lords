@@ -18,7 +18,6 @@ import type { BranchAccess } from "@/types";
 import type { StudentListItem } from "@/lib/api/students";
 import type { FeeCollectionView } from "@/lib/feeCollections";
 import { remainingFee } from "@/lib/feeBalance";
-import { isOverdue } from "@/lib/utils/paymentStatus";
 import { activeAllocations, initials, loadBasicData, type BasicData } from "./data";
 import { basicRequest, useBasicOperation } from "./useBasicOperation";
 import { BasicStudentForm, type StudentInput } from "./BasicStudentForm";
@@ -26,6 +25,9 @@ import { BasicHistory, BasicPaymentForm, BasicReceipt, useBasicFormat } from "./
 import { BasicSeatMap } from "./BasicSeats";
 import { BasicSetup } from "./BasicSetup";
 import { BasicStudentStatus } from "./BasicStudentStatus";
+import { BasicDialog } from "./BasicDialog";
+import { StudentEnrollmentHistory } from "@/components/students/StudentEnrollmentHistory";
+import { parseStudentRejoiningDate, validateStudentRejoiningDate } from "@/utils/studentRejoiningDate";
 import { BasicAdmissionReview } from "./BasicAdmissionReview";
 import "@/styles/basic-product.css";
 import { useBasicNavigationGuard } from "./useBasicNavigationGuard";
@@ -37,7 +39,7 @@ const areas: { key: string; label: string; capability: BranchCapabilityKey; icon
     { key: "seats", label: "Seats", capability: "seatsView", icon: Armchair },
     { key: "fees", label: "Fees", capability: "paymentsView", icon: IndianRupee },
 ];
-type Modal = { kind: "student"; id?: string } | { kind: "status"; id: string; status: "ACTIVE" | "INACTIVE" } | { kind: "admission-review"; matches: StudentListItem[] } | { kind: "payment"; id: string } | { kind: "receipt"; receipt: FeeCollectionView } | null;
+type Modal = { kind: "student"; id?: string } | { kind: "status"; id: string; status: "ACTIVE" | "INACTIVE" } | { kind: "enrollments"; id: string } | { kind: "admission-review"; matches: StudentListItem[] } | { kind: "payment"; id: string } | { kind: "receipt"; receipt: FeeCollectionView } | null;
 export function BasicWorkspace({ access, blocked = false, onInteractionState, importContent }: { access: BranchAccess; blocked?: boolean; onInteractionState?: (state: { dirty: boolean; pending: boolean }) => void; importContent?: ReactNode }) {
     const t = useTranslation(), { money, date } = useBasicFormat(), { ownerKey } = useUserPreferences();
     const compactLayout = useMediaQuery("(max-width: 1023px)");
@@ -122,11 +124,15 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         if(chooseSeat && can("allocationsManage")) {setSelectedStudent(result.id);setSource("");setSeat("");go(root+"/seats");}
         else go(root+"/students/"+result.id);
     }
-    async function changeStatus() {
+    async function changeStatus(date?: string) {
         if(modal?.kind!=="status" || !can("studentsManage") || disabled) return;
+        const rejoinedOn = modal.status === "ACTIVE" ? validateStudentRejoiningDate(date) : null;
+        if (modal.status === "ACTIVE" && !rejoinedOn) return;
         setNotice("");
-        const result=await operation.run<StudentListItem>(operation.command("status","/branches/"+access.branchId+"/students","PATCH",{id:modal.id,status:modal.status,dueResolution:"KEEP"}));
-        if(result) { setModal(null);setNotice(t.owned(result.status==="INACTIVE" ? "Student marked inactive. Existing fees and history are unchanged." : "Student reactivated. Choose an available seat and shift.")); }
+        const result=await operation.run<StudentListItem>(operation.command("status","/branches/"+access.branchId+"/students","PATCH",{
+            id:modal.id,status:modal.status,dueResolution:"KEEP",...(rejoinedOn ? { rejoinedOn } : {}),
+        }));
+        if(result) { setModal(null);setNotice(t(result.status==="INACTIVE" ? "Student left. Enrollment ended." : "Student reactivated. Choose an available seat and shift.")); }
     }
     function finishAdmissionReview() {
         requestConfirmation("Close recovery without confirming this admission? Your draft stays saved. Review existing records before submitting it again.", () => {
@@ -181,7 +187,12 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
                 const matches=latest.students.filter(s=>expectedName.ok && s.name.toLocaleLowerCase()===expectedName.value.toLocaleLowerCase() && phoneMatches(s.phone));
                 setData(latest);setNotice("");setModal({kind:"admission-review",matches});return;
             }
-            if(command.kind==="status") found=latest.students.some(s=>s.id===body.id && s.status===body.status && (body.status!=="INACTIVE" || activeAllocations(s).length===0));
+            if (command.kind === "status") {
+                const expectedDate = parseStudentRejoiningDate(body.rejoinedOn);
+                found = latest.students.some(s => s.id === body.id && s.status === body.status && (s.status === "INACTIVE"
+                    ? activeAllocations(s).length === 0
+                    : !!expectedDate && !!s.rejoinedOn && new Date(s.rejoinedOn).getTime() === expectedDate.getTime()));
+            }
             if(command.kind==="edit") found=latest.students.some(s=>s.id===body.id && expectedName.ok && s.name===expectedName.value && (body.phone===undefined || phoneMatches(s.phone)) && (body.monthlyFee===undefined || s.monthlyFee===body.monthlyFee));
             if(command.kind==="assign") found=activeAllocations(latest.allocationStudents.find(s=>s.id===body.studentId)).some(a=>a.seatId===body.seatId && Array.isArray(body.shiftIds) && body.shiftIds.includes(a.shiftId));
             if(command.kind==="setup") {
@@ -247,6 +258,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
                         <div className="bp-student-heading"><span className="bp-avatar bp-avatar-large">{initials(currentStudent.name)}</span><div className="bp-student-heading-identity"><h1>{currentStudent.name}</h1><p className="bp-person-meta"><span className="bp-phone">{currentStudent.phone??t.owned("No mobile number")}</span><span>{t.owned(currentStudent.status)}</span></p></div><div className="bp-student-heading-actions"><button className="bp-button bp-button-quiet" disabled={disabled||!can("studentsManage")} onClick={()=>setModal({kind:"student",id:currentStudent.id})}>{t.owned("Edit details")}</button><button className="bp-button bp-button-secondary" disabled={disabled||!can("studentsManage")} onClick={()=>{setNotice("");setModal({kind:"status",id:currentStudent.id,status:currentStudent.status==="ACTIVE"?"INACTIVE":"ACTIVE"});}}>{t.owned(currentStudent.status==="ACTIVE"?"Mark inactive":"Reactivate student")}</button></div></div>
                         <div className="bp-detail-grid">{can("seatsView")&&<section className="bp-detail-card"><Armchair size={23}/><h2>{t("Seats")}</h2>{activeAllocations(currentStudent).map(a=><p key={a.id}>{a.seat.label} · {a.shift.name}{a.multiShift?" · "+a.multiShift.name:""}</p>)}{!activeAllocations(currentStudent).length&&<p>{t.owned(currentStudent.status==="ACTIVE"?"Choose a shift and an available seat.":"Reactivate this student before assigning a seat.")}</p>}<button className="bp-button bp-button-secondary" disabled={disabled||!can("allocationsManage")||currentStudent.status!=="ACTIVE"} onClick={()=>{chooseStudent(currentStudent.id);go(root+"/seats");}}>{t.owned("Choose or change a seat")}<ArrowRight size={17}/></button></section>}
                         {can("paymentsView")&&<section className="bp-detail-card"><IndianRupee size={23}/><h2>{money(balance(currentStudent.id))} {t("Due")}</h2><p>{t("Monthly fee")}: {money(currentStudent.monthlyFee)}</p><p>{t.owned("Monthly fees start one month after joining. Changes apply to future dues.")}</p><button className="bp-button bp-button-primary" disabled={disabled||!can("paymentsRecord")||!balance(currentStudent.id)} onClick={()=>setModal({kind:"payment",id:currentStudent.id})}>{t.owned("Record payment")}</button></section>}</div>
+                        <button className="bp-button bp-button-secondary" onClick={() => setModal({ kind: "enrollments", id: currentStudent.id })}>{t("Enrollment history")}</button>
                         {can("paymentsView")&&<><FeeDetails fees={studentFees(currentStudent.id)}/><BasicHistory key={currentStudent.id} branchId={access.branchId} studentId={currentStudent.id} revision={revision} onReceipt={receipt=>setModal({kind:"receipt",receipt})}/></>}
                     </>:<div className="bp-empty">{t.owned("Student not found")}</div>)}
                     {area==="seats"&&<><div className="bp-page-heading"><div><h1>{t.owned("A place to settle in")}</h1><p>{t.owned("Pick a shift, choose a seat, and make it theirs.")}</p></div></div>
@@ -274,7 +286,10 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         <nav className="bp-mobile-nav" aria-label={t.owned("Main navigation")}>{visibleAreas.map(({key,label,icon:Icon})=><Link key={key} href={root+(key?"/"+key:"")} aria-current={area===key?"page":undefined}><Icon size={20}/><span>{t.owned(label)}</span></Link>)}</nav>
         {modal?.kind==="student"&&data&&<BasicStudentForm key={modal.id??"new"} student={modalStudent} defaultFee={data.branch.defaultFee??0} admissionFee={data.branch.defaultAdmissionFee??0} pending={operation.pending} locked={!!operation.saved||!can("studentsManage")} error={operation.error} onSave={(input,next)=>void saveStudent(input,next)} onRecover={operation.saved?()=>void recover():undefined} onClose={close} scope={scope} onDirty={markDirty}/>}
         {modal?.kind==="payment"&&<BasicPaymentForm key={modal.id} name={paymentStudent?.name??feeStudents.find(s=>s.id===modal.id)?.name??t("Student")} fees={studentFees(modal.id)} pending={operation.pending} locked={!!operation.saved||!can("paymentsRecord")} error={operation.error} onRecord={(amount,method,ids)=>void recordPayment(amount,method,ids)} onRecover={operation.saved?()=>void recover():undefined} onClose={close} onDirty={markDirty}/>}
-        {modal?.kind==="status"&&data&&<BasicStudentStatus name={data.students.find(s=>s.id===modal.id)?.name??t("Student")} status={modal.status} pending={operation.pending} locked={!!operation.saved||!can("studentsManage")} error={operation.error} onConfirm={()=>void changeStatus()} onRecover={operation.saved?()=>void recover():undefined} onClose={close}/>}
+        {modal?.kind==="status"&&data&&<BasicStudentStatus key={modal.id} name={data.students.find(s=>s.id===modal.id)?.name??t("Student")} status={modal.status} pending={operation.pending} locked={!!operation.saved||!can("studentsManage")} error={operation.error} onConfirm={date=>void changeStatus(date)} onRecover={operation.saved?()=>void recover():undefined} onClose={close}/>}
+        {modal?.kind === "enrollments" && <BasicDialog title="Enrollment history" onClose={close}>
+            <StudentEnrollmentHistory key={modal.id} branchId={access.branchId} studentId={modal.id} />
+        </BasicDialog>}
         {modal?.kind==="admission-review"&&operation.saved?.kind==="student"&&<BasicAdmissionReview command={operation.saved} matches={modal.matches} onRecord={id=>go(root+"/students/"+id)} onFinish={finishAdmissionReview} onClose={()=>setModal(null)}/>}
         {modal?.kind==="receipt"&&<BasicReceipt branchId={access.branchId} receipt={modal.receipt} onClose={()=>setModal(null)}/>}
         <ConfirmDialog isOpen={!!confirmation && confirmation.scope === scope && confirmation.pathname === pathname}
@@ -287,5 +302,5 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
 }
 function FeeDetails({fees}:{fees:BasicData["payments"]}) {
     const t=useTranslation(),{money,feeDate:date}=useBasicFormat();
-    return <details className="bp-fee-details"><summary>{t.owned("Fee balances and waivers")}</summary>{fees.map(p=><div key={p.id}><strong>{p.student?.name} · {t.owned(p.type==="ADMISSION"?"Admission fee":"Monthly fee")}</strong><p>{t("Due date")}: {date(p.dueDate)}{p.periodStart&&p.periodEnd&&<> · {t("Fee period")}: {date(p.periodStart)} – {date(p.periodEnd)}</>}</p><div className="ui-fee-state"><span>{t.owned(p.status)}</span>{p.status==="DUE"&&p.collectedAmount>0&&<span>{t("Partially paid")}</span>}{p.status==="DUE"&&remainingFee(p)>0&&isOverdue(p.dueDate)&&<span>{t("Overdue")}</span>}</div><p>{t.owned("Billed")}: {money(p.amount)} · {t("Paid")}: {money(p.ledgerBacked?p.collectedAmount:p.status==="PAID"?p.amount:0)} · {t("Waived")}: {money(p.ledgerBacked?p.waivedAmount:p.status==="WAIVED"?p.amount:0)} · {t("Remaining due")}: {money(remainingFee(p))}</p></div>)}</details>;
+    return <details className="bp-fee-details"><summary>{t.owned("Fee balances and waivers")}</summary>{fees.map(p=><div key={p.id}><strong>{p.student?.name} · {t.owned(p.type==="ADMISSION"?"Admission fee":"Monthly fee")}</strong><p>{t("Due date")}: {date(p.dueDate)}{p.periodStart&&p.periodEnd&&<> · {t("Fee period")}: {date(p.periodStart)} – {date(p.periodEnd)}</>}</p><div className="ui-fee-state"><span>{t.owned(p.status)}</span>{p.status==="DUE"&&p.collectedAmount>0&&<span>{t("Partially paid")}</span>}{p.isOverdue&&<span>{t("Overdue")}</span>}</div><p>{t.owned("Billed")}: {money(p.amount)} · {t("Paid")}: {money(p.ledgerBacked?p.collectedAmount:p.status==="PAID"?p.amount:0)} · {t("Waived")}: {money(p.ledgerBacked?p.waivedAmount:p.status==="WAIVED"?p.amount:0)} · {t("Remaining due")}: {money(remainingFee(p))}</p></div>)}</details>;
 }

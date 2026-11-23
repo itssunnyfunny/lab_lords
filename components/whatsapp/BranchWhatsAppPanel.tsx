@@ -447,6 +447,7 @@ export function BranchWhatsAppSettingsEditor({
         <div>
           <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Automation stages")}</h3>
           <p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("Stages use trusted payment state and fixed approved Utility templates. They start prospectively after activation.")}</p>
+          <p className="mt-1 text-xs text-[color:var(--text-muted)]">{t("Past-due stages are skipped if the fee is still within your organization’s grace period.")}</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {WHATSAPP_AUTOMATION_STAGES.map(stage => (

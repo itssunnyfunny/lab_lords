@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    branch: { findUnique: mocks.branchFindUnique },
+    branch: { findUnique: mocks.branchFindUnique, findUniqueOrThrow: vi.fn().mockResolvedValue({ organization: { paymentGraceDays: 0, timezone: "UTC" } }) },
     student: {
       findMany: mocks.studentFindMany,
       count: mocks.studentCount,
@@ -111,7 +111,7 @@ describe("high-volume list service pagination", () => {
       { limit: 1, cursor: null }
     );
 
-    expect(page.items).toEqual([first]);
+    expect(page.items).toEqual([{ ...first, isOverdue: false }]);
     expect(page.total).toBe(2);
     expect(page.nextCursor).toEqual(expect.any(String));
     expect(mocks.paymentFindMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -121,7 +121,7 @@ describe("high-volume list service pagination", () => {
 
     mocks.paymentFindMany.mockResolvedValueOnce([first]);
     const all = await PaymentService.listPayments("user_1", "branch_1", "DUE");
-    expect(all).toEqual([first]);
+    expect(all).toEqual([{ ...first, isOverdue: false }]);
     expect(mocks.paymentFindMany).toHaveBeenLastCalledWith(expect.objectContaining({
       orderBy: [{ dueDate: "asc" }, { id: "asc" }],
     }));

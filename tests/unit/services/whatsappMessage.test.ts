@@ -33,6 +33,7 @@ describe("WhatsApp manual message request identity", () => {
       tone: "polite",
       branchName: "Sample Branch",
       timeZone: "Asia/Kolkata",
+      paymentGraceDays: 0,
       at: new Date("2026-08-23T06:00:00.000Z"),
     });
     const pastDue = deriveWhatsAppManualCollectionContent({
@@ -41,10 +42,15 @@ describe("WhatsApp manual message request identity", () => {
       tone: "polite",
       branchName: "Sample Branch",
       timeZone: "Asia/Kolkata",
+      paymentGraceDays: 0,
       at: new Date("2026-08-24T06:00:00.000Z"),
     });
     expect(due.managedTemplateKey).toBe("FEE_RENEWAL_POLITE");
     expect(pastDue.managedTemplateKey).toBe("PAST_DUE_POLITE");
+    expect(deriveWhatsAppManualCollectionContent({
+      payments: [payment], language: "en_IN", tone: "polite", branchName: "Sample Branch",
+      timeZone: "Asia/Kolkata", paymentGraceDays: 1, at: new Date("2026-08-24T06:00:00.000Z"),
+    }).managedTemplateKey).toBe("FEE_RENEWAL_POLITE");
   });
 
   it("fingerprints current server facts canonically and detects truth changes", () => {

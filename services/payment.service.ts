@@ -1,6 +1,9 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
+import { eligibleMonthlyAccruals } from "@/services/branchFeeAccrual";
 import { FeeCollectionService, lockFeeStudent } from "@/services/feeCollection.service";
 import { remainingFee } from "@/lib/feeBalance";
+import { overdueCutoff } from "@/lib/utils/paymentStatus";
+import { readBranchPaymentOverduePolicy } from "@/services/paymentOverduePolicy";
 import { prisma } from "@/lib/prisma";
 import { StaffService } from "@/services/staff.service";
 import {
@@ -15,6 +18,7 @@ import { Prisma } from "@/app/generated/prisma/client";
 import { runSerializableTransaction } from "@/lib/serializableTransaction";
 import { startOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { missingMonthlyFees, PAYMENT_INSERT_BATCH_SIZE, STUDENT_GENERATION_BATCH_SIZE } from "@/services/studentFeePeriod";
+import { matchesStudentFeeCycle, studentFeeDay } from "@/utils/studentBillingCycles";
 import { EntitlementService } from "@/services/entitlement.service";
 import {
     recordPaymentResolutionEvent,
@@ -43,7 +47,8 @@ const PAYMENT_LIST_INCLUDE = {
     },
 } satisfies Prisma.PaymentInclude;
 
-type PaymentListRecord = Prisma.PaymentGetPayload<{ include: typeof PAYMENT_LIST_INCLUDE }>;
+type StoredPaymentListRecord = Prisma.PaymentGetPayload<{ include: typeof PAYMENT_LIST_INCLUDE }>;
+type PaymentListRecord = StoredPaymentListRecord & { isOverdue: boolean };
 type PaymentListPagination = { cursor?: DateIdCursor | null; limit: number };
 type EnsureMonthlyPaymentInput = {
     studentId: string;
@@ -150,6 +155,7 @@ export class PaymentService {
         paymentsToCreate: Prisma.PaymentCreateManyInput[],
         changedBranchIds: Set<string>,
         studentsWithCreatedPayments: Set<string>,
+        asOfDate: Date,
         actor?: { userId: string; branchId: string }
     ) {
         if (paymentsToCreate.length === 0) {
@@ -161,8 +167,10 @@ export class PaymentService {
             const ids = [...new Set(paymentsToCreate.map(payment => payment.studentId))];
             // Settlement and fee edits update this same student row. A staged
             // cycle must still be eligible after we acquire the write lock.
-            const students = await tx.$queryRaw<Array<{ id: string; branchId: string; monthlyFee: number; billingStartAt: Date | null }>>(Prisma.sql`
-                SELECT "id", "branchId", "monthlyFee", "billingStartAt" FROM "Student"
+            const students = await tx.$queryRaw<Array<{
+                id: string; branchId: string; monthlyFee: number; joinedAt: Date; rejoinedOn: Date | null; billingStartAt: Date | null;
+            }>>(Prisma.sql`
+                SELECT "id", "branchId", "monthlyFee", "joinedAt", "rejoinedOn", "billingStartAt" FROM "Student"
                 WHERE "id" IN (${Prisma.join(ids)}) AND "status" = 'ACTIVE' AND "monthlyFee" > 0
                 ORDER BY "id" FOR UPDATE
             `);
@@ -170,12 +178,19 @@ export class PaymentService {
             const data = paymentsToCreate.flatMap(payment => {
                 const student = eligible.get(payment.studentId);
                 if (!student || student.branchId !== payment.branchId ||
-                    (student.billingStartAt && new Date(payment.periodStart) < startOfDay(student.billingStartAt))) return [];
+                    !matchesStudentFeeCycle(student, {
+                        periodStart: new Date(payment.periodStart),
+                        periodEnd: new Date(payment.periodEnd),
+                        dueDate: new Date(payment.dueDate),
+                    })) return [];
                 return [{ ...payment, amount: student.monthlyFee }];
             });
-            if (!data.length) return [];
+            const eligiblePayments = await eligibleMonthlyAccruals(
+                tx, data, asOfDate, (studentId, date) => studentFeeDay(eligible.get(studentId)!, date),
+            );
+            if (!eligiblePayments.length) return [];
             const created = await tx.payment.createManyAndReturn({
-                data, skipDuplicates: true, select: { branchId: true, studentId: true },
+                data: eligiblePayments, skipDuplicates: true, select: { branchId: true, studentId: true },
             });
             if (created.length) await tx.branch.updateMany({
                 where: { id: { in: [...new Set(created.map(row => row.branchId))] } },
@@ -198,7 +213,6 @@ export class PaymentService {
         actor?: { userId: string; branchId: string };
     }): Promise<PaymentGenerationSummary> {
         const { branchId, asOfDate = new Date() } = params;
-        const today = startOfDay(asOfDate);
         const changedBranchIds = new Set<string>();
         const studentsWithCreatedPayments = new Set<string>();
 
@@ -212,11 +226,13 @@ export class PaymentService {
                 where: {
                     ...(branchId ? { branchId } : {}),
                     status: StudentStatus.ACTIVE,
+                    branch: { billingStatus: { in: ["ACTIVE", "REMOVAL_SCHEDULED"] } },
                 },
                 select: {
                     id: true,
                     branchId: true,
                     joinedAt: true,
+                    rejoinedOn: true,
                     billingStartAt: true,
                     monthlyFee: true,
                 },
@@ -231,7 +247,7 @@ export class PaymentService {
 
             totalStudents += students.length;
             cursor = students[students.length - 1].id;
-            const missing = await missingMonthlyFees(prisma, students, today, branchId);
+            const missing = await missingMonthlyFees(prisma, students, asOfDate, branchId);
             for (const payment of missing) {
                 paymentsToCreate.push(payment);
 
@@ -240,6 +256,7 @@ export class PaymentService {
                         paymentsToCreate,
                         changedBranchIds,
                         studentsWithCreatedPayments,
+                        asOfDate,
                         params.actor
                     );
                     paymentsToCreate = [];
@@ -253,6 +270,7 @@ export class PaymentService {
                 paymentsToCreate,
                 changedBranchIds,
                 studentsWithCreatedPayments,
+                asOfDate,
                 params.actor
             );
         }
@@ -418,6 +436,11 @@ export class PaymentService {
         pagination?: PaymentListPagination
     ): Promise<PagedResult<PaymentListRecord> | PaymentListRecord[]> {
         await this.assertBranchAccess(userId, branchId, "view_payments");
+        const overdueBefore = overdueCutoff(await readBranchPaymentOverduePolicy(branchId));
+        const listRecord = (payment: StoredPaymentListRecord): PaymentListRecord => ({
+            ...payment,
+            isOverdue: payment.status === "DUE" && remainingFee(payment) > 0 && payment.dueDate < overdueBefore,
+        });
 
         // Default all-time view excludes WAIVED unless a status or monthly history view asks for it.
         let whereClause: Prisma.PaymentWhereInput = {
@@ -475,7 +498,7 @@ export class PaymentService {
         // and generation, but have no balance to collect or display as debt.
         whereClause = { AND: [whereClause, { OR: [{ status: { not: "DUE" } }, { amount: { gt: 0 } }] }] };
         if (!pagination) {
-            return prisma.payment.findMany({
+            const rows = await prisma.payment.findMany({
                 where: whereClause,
                 include: PAYMENT_LIST_INCLUDE,
                 orderBy: [
@@ -483,6 +506,7 @@ export class PaymentService {
                     { id: "asc" },
                 ],
             });
+            return rows.map(listRecord);
         }
 
         const cursorWhere: Prisma.PaymentWhereInput | undefined = pagination.cursor
@@ -512,10 +536,11 @@ export class PaymentService {
             prisma.payment.count({ where: whereClause }),
         ]);
 
-        return pageFromRows(rows, limit, total, payment => ({
+        const page = pageFromRows(rows, limit, total, payment => ({
             sort: payment.dueDate,
             id: payment.id,
         }));
+        return { ...page, items: page.items.map(listRecord) };
     }
 
     /**
