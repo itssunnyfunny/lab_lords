@@ -65,6 +65,7 @@ export class BranchSearchService {
         const take = limitPerGroup * 3;
 
         const shouldSearchRecords = normalizedQuery.length >= 2;
+        const seatText = { contains: normalizedQuery, mode: "insensitive" as const };
         const upperQuery = normalizedQuery.toUpperCase();
         const numericQuery = /^\d+$/.test(normalizedQuery) ? Number(normalizedQuery) : null;
         const paymentStatus = ["DUE", "PAID", "WAIVED"].includes(upperQuery)
@@ -101,6 +102,7 @@ export class BranchSearchService {
                 ? prisma.payment.findMany({
                     where: {
                         branchId,
+                        NOT: { status: "DUE", amount: 0 },
                         OR: [
                             { student: { name: { contains: normalizedQuery, mode: "insensitive" } } },
                             { student: { phone: { contains: normalizedQuery, mode: "insensitive" } } },
@@ -128,12 +130,12 @@ export class BranchSearchService {
                     where: {
                         branchId,
                         OR: [
-                            { label: { contains: normalizedQuery, mode: "insensitive" } },
+                            { label: seatText },
                             {
                                 seatAllocations: {
                                     some: {
                                         endDate: null,
-                                        student: { name: { contains: normalizedQuery, mode: "insensitive" } },
+                                        student: { branchId, name: seatText },
                                     },
                                 },
                             },
@@ -143,8 +145,12 @@ export class BranchSearchService {
                         id: true,
                         label: true,
                         seatAllocations: {
-                            where: { endDate: null },
+                            where: {
+                                endDate: null, student: { branchId },
+                                OR: [{ student: { name: seatText } }, { seat: { label: seatText } }],
+                            },
                             select: { student: { select: { name: true } } },
+                            orderBy: { id: "asc" },
                             take: 1,
                         },
                     },

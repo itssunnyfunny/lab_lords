@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { BranchService } from "@/services/branch.service";
 import { BillingService } from "@/services/billing.service";
 import { EntitlementService } from "@/services/entitlement.service";
-import { buildCommercialIntentSnapshot } from "@/services/billingCommercialEvidence.service";
+import { buildCommercialIntentSnapshot, buildUnboundCommercialIntentSnapshot } from "@/services/billingCommercialEvidence.service";
 import { BillingChangeInProgressError } from "@/lib/billingErrors";
 import { setRazorpayClientForTests, type RazorpayPayment, type RazorpayPlanCatalogApiClient, type RazorpaySubscription } from "@/lib/razorpay";
 import { createBranch, createOrg, createSaasSubscription, createUser } from "@/tests/factories";
@@ -525,6 +525,102 @@ describe("workspace branch billing lifecycle", () => {
     await expect(testPrisma.organizationBillingChange.count({
       where: { idempotencyKey: "remove-replay-safe" },
     })).resolves.toBe(1);
+  });
+
+  it("keeps a billable branch after two trial removal requests and the deadline", async () => {
+    const { owner, organization, first, trialEndsAt } = await trialOrganization();
+    const second = await createBranch({ organizationId: organization.id, name: "Second" });
+    const results = await Promise.allSettled([
+      BranchService.scheduleBillingRemoval(owner.id, first.id, "remove-first-in-trial"),
+      BranchService.scheduleBillingRemoval(owner.id, second.id, "remove-second-in-trial"),
+    ]);
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.find(result => result.status === "rejected")?.reason.message).toMatch(/final billable branch/);
+    await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    const statuses = await testPrisma.branch.findMany({ where: { organizationId: organization.id }, select: { billingStatus: true } });
+    expect(statuses.map(row => row.billingStatus).sort()).toEqual(["ACTIVE", "ARCHIVED"]);
+  });
+
+  it.each(["all branches scheduled", "oversized mandate", "oversized mandate masked by a queued addition"] as const)("holds pre-existing inconsistent removals at the deadline (%s)", async scenario => {
+    const { owner, organization, first, trialEndsAt } = await trialOrganization();
+    const second = await createBranch({ organizationId: organization.id });
+    const { change } = await BranchService.scheduleBillingRemoval(owner.id, second.id, "historical-trial-removal");
+    if (scenario === "all branches scheduled") {
+      await testPrisma.branch.update({ where: { id: first.id }, data: { billingStatus: "REMOVAL_SCHEDULED" } });
+      await testPrisma.organizationBillingChange.create({
+        data: { organizationId: organization.id, branchId: first.id, sequence: change.sequence + 1, idempotencyKey: "old-final-removal",
+          type: "BRANCH_REMOVAL", status: "SCHEDULED", operationStatus: "SCHEDULED", toQuantity: 0, effectiveAt: trialEndsAt },
+      });
+    } else {
+      const mandate = await createSaasSubscription({ organizationId: organization.id, status: "AUTHENTICATED" });
+      await testPrisma.organizationSubscription.update({ where: { id: mandate.id }, data: { quantity: 2 } });
+      if (scenario === "oversized mandate masked by a queued addition") {
+        vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "true");
+        vi.stubEnv("RAZORPAY_MODE", "TEST");
+        vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_branchfixture");
+        const added = await BranchService.createBranchForOrg({
+          organizationId: organization.id, userId: owner.id, name: "Third", contactPhone: "9876543210",
+          idempotencyKey: "add-after-oversized-mandate",
+        });
+        await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: added.billingChangeId } }))
+          .resolves.toMatchObject({ status: "QUEUED", toQuantity: 2 });
+      }
+    }
+    const result = await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    expect(result).toMatchObject({ archived: 0, errors: [{ organizationId: organization.id,
+      message: expect.stringMatching(scenario === "all branches scheduled" ? /no billable branch/ : /mandate quantity/) }] });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: second.id } })).resolves.toMatchObject({ billingStatus: "REMOVAL_SCHEDULED" });
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } })).resolves.toMatchObject({ status: "SCHEDULED" });
+  });
+
+  it("keeps an active trial branch addition queued when Billing receives an undo", async () => {
+    vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "true");
+    vi.stubEnv("RAZORPAY_MODE", "TEST");
+    vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_branchfixture");
+    const { owner, organization, trialEndsAt } = await trialOrganization();
+    const departing = await createBranch({ organizationId: organization.id });
+    await BranchService.scheduleBillingRemoval(owner.id, departing.id, "remove-before-adding");
+    await createSaasSubscription({ organizationId: organization.id, status: "AUTHENTICATED" });
+    const added = await BranchService.createBranchForOrg({
+      organizationId: organization.id, userId: owner.id, name: "Third", contactPhone: "9876543210", idempotencyKey: "add-active",
+    });
+    expect(added.billingStatus).toBe("ACTIVE");
+    await expect(BillingService.undoWorkspaceChange(owner.id, organization.id, added.billingChangeId))
+      .rejects.toThrow(/schedule its removal/i);
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: added.billingChangeId } }))
+      .resolves.toMatchObject({ status: "QUEUED" });
+    await expect(BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1))).resolves.toEqual({ archived: 1 });
+  });
+
+  it.each([2, null, 1])("checks an unbound first checkout's frozen quantity before trial archival (%s)", async authorizedQuantity => {
+    const { owner, organization, trialEndsAt } = await trialOrganization();
+    const departing = await createBranch({ organizationId: organization.id });
+    const { change } = await BranchService.scheduleBillingRemoval(owner.id, departing.id, "remove-before-lost-response");
+    const checkout = await testPrisma.organizationBillingChange.create({
+      data: {
+        organizationId: organization.id, type: "SUBSCRIPTION_AUTHORIZATION", sequence: change.sequence + 1,
+        idempotencyKey: "first-checkout-response-lost", provisioningIntentVersion: 1,
+        providerMutationAdmittedAt: new Date(), authorizedBillingModelVersion: "WORKSPACE_V2",
+        ...(authorizedQuantity === null ? {} : buildUnboundCommercialIntentSnapshot({
+          providerMode: "TEST", sourceRazorpayPlanId: null, razorpayPlanId: "plan_test_basic",
+          plan: "BASIC", quantity: authorizedQuantity, unitAmountSubunits: 19900, currency: "INR",
+          period: "monthly", interval: 1,
+        })),
+        status: "FAILED", operationStatus: "FAILED", failureCategory: "MANUAL_REVIEW_REQUIRED",
+      },
+    });
+
+    const result = await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    const matchesRemainingBranches = authorizedQuantity === 1;
+    expect(result).toEqual(matchesRemainingBranches ? { archived: 1 } : {
+      archived: 0, errors: [{ organizationId: organization.id, message: expect.stringContaining("unresolved first checkout") }],
+    });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: departing.id } }))
+      .resolves.toMatchObject({ billingStatus: matchesRemainingBranches ? "ARCHIVED" : "REMOVAL_SCHEDULED" });
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } }))
+      .resolves.toMatchObject({ status: matchesRemainingBranches ? "APPLIED" : "SCHEDULED" });
+    await expect(testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: checkout.id } }))
+      .resolves.toMatchObject({ authorizedQuantity, organizationSubscriptionId: null, resolvedAt: null });
   });
 
   it("rolls back branch removal state when its atomic change insert fails", async () => {

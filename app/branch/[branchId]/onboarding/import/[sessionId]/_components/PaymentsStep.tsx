@@ -10,6 +10,7 @@ import {
     paymentActionChangeOptions,
     paymentSkipOptions,
     splitImportValues,
+    unclearPaymentLabels,
 } from "@/importing/utils/import-wizard-view-model";
 import { pageInsetSurfaceClass, pageMutedTextClass } from "@/components/ui/pageSurface";
 import { pickerGroupLabelClass, pickerSectionLabelClass } from "@/components/ui/pickerSurface";
@@ -45,8 +46,15 @@ export function PaymentsStep({
     const t = useTranslation();
     const skipPayments = isPaymentSkipped(options);
     const showPaymentWords = options.paymentAction === "IMPORT_PAID_UNPAID";
-    const paymentWordDraftHasValues = [paymentDraft.paid, paymentDraft.unpaid, paymentDraft.waived]
-        .some(value => splitImportValues(value).length > 0);
+    const classified = {
+        paidValues: splitImportValues(paymentDraft.paid),
+        unpaidValues: splitImportValues(paymentDraft.unpaid),
+        waivedValues: splitImportValues(paymentDraft.waived),
+    };
+    const unclearValues = unclearPaymentLabels(
+        [...new Set([...(options.paymentMapping?.unclearValues ?? []), ...detectedPaymentValues])], classified,
+    );
+    const paymentWordDraftHasValues = Object.values(classified).some(values => values.length > 0) || unclearValues.length > 0;
     const needsPaymentDecision = detectedPaymentValues.length > 0 && !skipPayments && !options.paymentAction;
     const updatePaymentAction = (paymentAction: ImportOptions["paymentAction"] | "") => {
         onUpdateOptions(paymentActionChangeOptions(options, paymentAction));
@@ -164,10 +172,8 @@ export function PaymentsStep({
                                     aria-describedby={mutationsDisabled ? "import-session-mutation-blocker" : undefined}
                                     onClick={() => onUpdateOptions({
                                         paymentMapping: {
-                                            paidValues: splitImportValues(paymentDraft.paid),
-                                            unpaidValues: splitImportValues(paymentDraft.unpaid),
-                                            waivedValues: splitImportValues(paymentDraft.waived),
-                                            unclearValues: detectedPaymentValues,
+                                            ...classified,
+                                            unclearValues,
                                             confirmed: true,
                                             ...(paymentDraft.defaultMethod ? { defaultMethod: paymentDraft.defaultMethod as NonNullable<ImportOptions["paymentMapping"]>["defaultMethod"] } : {}),
                                         },

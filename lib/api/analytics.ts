@@ -2,6 +2,7 @@ import { apiClient } from "./core";
 
 interface BranchSnapshotBase {
     period?: AnalyticsPeriod;
+    timezone?: string;
     totalStudents: number;
     activeStudents: number;
     // Slot-based values: used shift slots out of total shift capacity.
@@ -26,7 +27,7 @@ export type BranchSnapshot = BranchSnapshotBase & ({
     monthlyRevenue: number;
     dueAmount: number;
     paidAmount: number;
-    collectionRate: number;
+    collectionRate: number | null;
 } | {
     financialAccess: false;
     monthlyRevenue?: never;

@@ -1,5 +1,5 @@
 import type { ImportColumnMapping, ImportPaymentMapping } from "@/importing/contracts/import-session.contract";
-import { classifyPaymentStatus, compactImportText } from "@/importing/utils/row-normalizer";
+import { classifyPaymentStatus, compactImportText, indexPaymentLegend } from "@/importing/utils/row-normalizer";
 
 function addUnique(target: string[], value: string) {
     if (!target.some(item => item.toLocaleLowerCase("en-IN") === value.toLocaleLowerCase("en-IN"))) {
@@ -49,6 +49,6 @@ export function inferConfirmedPaymentMapping(input: {
     }
 
     if (!seenStatusValue) return undefined;
-    next.confirmed = next.unclearValues.length === 0;
+    next.confirmed = next.unclearValues.length === 0 && !indexPaymentLegend(next).conflicting;
     return next.confirmed ? next : undefined;
 }

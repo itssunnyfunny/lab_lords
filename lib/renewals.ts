@@ -65,7 +65,8 @@ export type FollowUpInput = z.infer<typeof followUpSchema>;
 export function renewalKey(studentId: string, type: string, periodStart: Date | string) {
     return `${studentId}:${type}:${new Date(periodStart).toISOString()}`;
 }
-export function renewalCategories(row: Pick<RenewalRow, "dueDate" | "expected">, asOf: Date, days: number): RenewalFilter[] {
+export function renewalCategories(row: Pick<RenewalRow, "dueDate" | "expected" | "amount">, asOf: Date, days: number): RenewalFilter[] {
+    if (row.amount <= 0) return [];
     const due = new Date(row.dueDate);
     const today = startOfDay(asOf);
     const result: RenewalFilter[] = ["ALL"];

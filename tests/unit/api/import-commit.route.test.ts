@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ImportPaymentLegendConflictError, ImportPaymentReviewRequiredError } from "@/importing/utils/import-errors";
 
 const mocks = vi.hoisted(() => ({
     getSessionUser: vi.fn(),
@@ -95,6 +96,16 @@ describe("/api/branches/[branchId]/import-sessions/[sessionId]/commit", () => {
         await expect(response.json()).resolves.toEqual({ error: "Failed to start the import." });
         expect(mocks.getPlanForCommit).not.toHaveBeenCalled();
     });
+
+    it.each([new ImportPaymentLegendConflictError(), new ImportPaymentReviewRequiredError()])(
+        "returns the payment review action for $code before dispatch", async error => {
+            mocks.createOrGetRun.mockRejectedValueOnce(error);
+            const { POST } = await import("@/app/api/branches/[branchId]/import-sessions/[sessionId]/commit/route");
+            const response = await POST(commitRequest({ confirmed: true, planId: "plan_1" }, "confirm"), routeContext());
+            expect(response.status).toBe(409);
+            await expect(response.json()).resolves.toEqual({ code: error.code, error: error.message });
+            expect(mocks.tryStartRun).not.toHaveBeenCalled();
+        });
 
     it("requires Idempotency-Key before loading the plan", async () => {
         const { POST } = await import("@/app/api/branches/[branchId]/import-sessions/[sessionId]/commit/route");

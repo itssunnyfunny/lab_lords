@@ -2,10 +2,44 @@ import { describe, expect, it } from "vitest";
 import { draftFromImportRowWithFallback, normalizedFromImportDraft } from "@/importing/utils/manual-row-draft";
 import { currentMonthOutcome } from "@/importing/utils/current-month-import";
 import { guidedManualMetadata } from "@/importing/utils/guided-source-reconciliation";
-import type { ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
+import type { ImportMappingState, ImportNormalizedRow } from "@/importing/contracts/import-session.contract";
+import { paymentStatusForManualRow, recordEditedPaymentStatus } from "@/importing/utils/manual-payment-status";
 
 const student = { name: "Synthetic", joinedAt: "2026-01-01T00:00:00.000Z", monthlyFee: 1000 };
 describe("guided editor preserves payment provenance", () => {
+    const raw = { Result: " X " };
+    const mapping: ImportMappingState = {
+        columnMappings: [{ sourceColumn: "Result", targetField: "payment.status", confidence: 100 }],
+        entityTypesDetected: ["PAYMENT"],
+        importOptions: { paymentAction: "IMPORT_PAID_UNPAID", paymentMapping: {
+            confirmed: true, paidValues: ["X"], unpaidValues: [], waivedValues: [], unclearValues: [],
+        } },
+    };
+
+    it("retains the uploaded status word when the row editor changes only the shift", () => {
+        const row = { normalizedData: { student, payment: { status: "PAID", rawStatus: "X" } } as ImportNormalizedRow };
+        const draft = draftFromImportRowWithFallback(row, mapping.columnMappings, "RECORDED_ONLY");
+        const saved = normalizedFromImportDraft(row, { ...draft, shift: "Evening" }, undefined, "RECORDED_ONLY");
+        expect(saved.payment).toEqual({ status: "PAID", rawStatus: "X" });
+        expect(recordEditedPaymentStatus({}, row.normalizedData.payment?.status, saved.payment?.status)).toEqual({});
+    });
+
+    it("holds a legacy disagreement even when the new legend would mark the fee paid", () => {
+        const row: ImportNormalizedRow = { student, payment: { status: "DUE", rawStatus: "DUE", amount: 1000 } };
+        expect(paymentStatusForManualRow(raw, mapping, row, {})).toEqual({
+            student, payment: { status: "UNCLEAR", rawStatus: "X", amount: 1000 },
+        });
+        expect(paymentStatusForManualRow(raw, mapping, row, recordEditedPaymentStatus({}, "UNCLEAR", "DUE"))).toBe(row);
+        expect(paymentStatusForManualRow(raw, mapping, row, recordEditedPaymentStatus({}, "UNCLEAR", "WAIVED")).payment?.status).toBe("UNCLEAR");
+    });
+
+    it("honors a recorded Due decision and an intentional clear without inferring either from the raw label", () => {
+        const due: ImportNormalizedRow = { payment: { decision: "KEEP_DUE", status: "DUE" } };
+        expect(paymentStatusForManualRow(raw, mapping, due, {})).toBe(due);
+        const cleared: ImportNormalizedRow = {};
+        const metadata = guidedManualMetadata({}, due, cleared, false);
+        expect(paymentStatusForManualRow(raw, mapping, cleared, metadata)).toBe(cleared);
+    });
     it("fee corrections cannot manufacture a payment from the display default", () => {
         const row = { normalizedData: { student } };
         const draft = draftFromImportRowWithFallback(row, [], "RECORDED_ONLY");

@@ -60,6 +60,7 @@ describe("getOverduePaymentsPage", () => {
             where: {
                 branchId: "branch_1",
                 status: "DUE",
+                amount: { gt: 0 },
                 dueDate: { lt: new Date(2026, 7, 1) },
             },
         });
@@ -83,6 +84,7 @@ describe("getOverduePaymentsPage", () => {
             where: {
                 branchId: "branch_1",
                 status: "DUE",
+                amount: { gt: 0 },
                 dueDate: { lt: new Date(2026, 7, 1) },
                 OR: [
                     { dueDate: { gt: cursor.sort } },

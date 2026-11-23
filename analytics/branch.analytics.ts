@@ -1,6 +1,7 @@
 // analytics/branch.analytics.ts
 
 import { prisma } from "@/lib/prisma"
+import { overdueCutoff } from "@/lib/utils/paymentStatus"
 import { getPaymentStats, getOverduePayments } from "./payment.analytics"
 import { getSeatOccupancySnapshot } from "./seat.analytics"
 import {
@@ -85,15 +86,25 @@ export async function getBranchSnapshot(
   asOf?: AsOf
 ) {
   const date = resolveAsOf(asOf)
-
-  const [branch, health, overdueList] = await Promise.all([
+  const roster = prisma.student.groupBy({ by: ["status"], where: { branchId }, _count: { _all: true } })
+  const activeDebtors = prisma.student.count({ where: {
+    branchId,
+    status: "ACTIVE",
+    payments: { some: { branchId, status: "DUE", amount: { gt: 0 }, dueDate: { lt: overdueCutoff(date) } } },
+  } })
+  const [branch, seats, payments, overdueList, [studentCounts, activeStudentsWithOverdueFees]] = await Promise.all([
     prisma.branch.findUnique({
       where: { id: branchId },
       select: { name: true }
     }),
-    getBranchHealthSnapshot(branchId, date),
-    getOverduePayments(branchId, date)
+    getSeatOccupancySnapshot(branchId, date),
+    getPaymentStats(branchId, date),
+    getOverduePayments(branchId, date),
+    // Both sides of the overdue-student percentage see the same roster.
+    prisma.$transaction([roster, activeDebtors], { isolationLevel: "RepeatableRead" }),
   ])
+  const active = studentCounts.find(row => row.status === "ACTIVE")?._count._all ?? 0
+  const inactive = studentCounts.find(row => row.status === "INACTIVE")?._count._all ?? 0
 
   return {
     branchId,
@@ -101,12 +112,12 @@ export async function getBranchSnapshot(
 
     seats: {
       // Shift-slot based occupancy (seat count x active shifts = totalShiftCapacity)
-      total: health.seats.occupancySnapshot.totalShiftCapacity,
-      occupied: health.seats.occupancySnapshot.totalUsedSlots,
-      available: health.seats.occupancySnapshot.totalShiftCapacity - health.seats.occupancySnapshot.totalUsedSlots,
-      utilizationPercent: health.seats.occupancySnapshot.totalOccupancyPercent,
+      total: seats.totalShiftCapacity,
+      occupied: seats.totalUsedSlots,
+      available: seats.totalShiftCapacity - seats.totalUsedSlots,
+      utilizationPercent: seats.totalOccupancyPercent,
       // Per-shift breakdown for detailed LLM context
-      shiftBreakdown: health.seats.occupancySnapshot.shifts.map(s => ({
+      shiftBreakdown: seats.shifts.map(s => ({
         shiftName: s.shiftName,
         used: s.used,
         capacity: s.capacity,
@@ -115,15 +126,16 @@ export async function getBranchSnapshot(
     },
 
     students: {
-      total: health.students.status.active + health.students.status.inactive,
-      active: health.students.status.active,
-      inactive: health.students.status.inactive,
+      total: active + inactive,
+      active,
+      inactive,
     },
 
     payments: {
-      dueCount: health.payments.dueCount,
-      paidCount: health.payments.paidCount,
-      overdueCount: health.payments.overdueCount,
+      dueCount: payments.dueCount,
+      paidCount: payments.paidCount,
+      overdueCount: payments.overdueCount,
+      activeStudentsWithOverdueFees,
       overduePayments: overdueList.payments.map(p => ({
         studentId: p.studentId,
         amount: p.amount,

@@ -51,10 +51,11 @@ describe("interactive branch analytics payment boundary", () => {
   });
 
   it("preserves authorized owner financial aggregates", async () => {
-    mocks.authorizeCapability.mockResolvedValue({ permissions: { analytics: true, view_payments: true } });
+    mocks.authorizeCapability.mockResolvedValue({ timezone: "America/New_York", permissions: { analytics: true, view_payments: true } });
     const result = await AnalyticsAccessService.branchSnapshot("owner", "branch", "month");
     expect(result.finance).toEqual({ revenueAmount: 901, paidAmount: 800, dueAmount: 101, collectionRate: 89 });
-    expect(mocks.paymentPeriod).toHaveBeenCalledWith("branch", undefined, "month");
+    expect(result.timezone).toBe("America/New_York");
+    expect(mocks.paymentPeriod).toHaveBeenCalledWith("branch", undefined, "month", { timezone: "America/New_York" });
   });
 
   it("uses a financial capability for payment trends and never reads denied trends", async () => {
@@ -63,6 +64,13 @@ describe("interactive branch analytics payment boundary", () => {
       .rejects.toThrow("view_payments");
     expect(mocks.authorizeCapability).toHaveBeenCalledWith("staff", "branch", "analyticsFinanceView");
     expect(mocks.paymentTrend).not.toHaveBeenCalled();
+  });
+
+  it("maps date-only payment bounds to the organization's local midnight", async () => {
+    mocks.authorizeCapability.mockResolvedValue({ timezone: "America/New_York" });
+    await AnalyticsAccessService.paymentTrend("owner", "branch", "2026-11-01", "2026-11-02", "month");
+    expect(mocks.paymentTrend).toHaveBeenCalledWith("branch", new Date("2026-11-01T04:00:00Z"),
+      new Date("2026-11-02T05:00:00Z"), "DAY", "month", "America/New_York");
   });
 
   it("keeps nonfinancial health trends independent of payment reads", async () => {

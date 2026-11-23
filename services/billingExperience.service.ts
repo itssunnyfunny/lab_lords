@@ -1,7 +1,7 @@
 import { historicalBillingState } from "@/services/legacyCommercialCompatibility";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlan, isCheckoutBillingPlanId, type BillingPlanId } from "@/lib/billingPlans";
-import { deriveWorkspaceBillingState } from "@/lib/billingState";
+import { deriveWorkspaceBillingState, projectedBillableStatuses } from "@/lib/billingState";
 import type { BillingExperience, BillingExperienceOperation } from "@/types/billingExperience";
 import type { OrganizationBillingChange } from "@/app/generated/prisma/client";
 import { resolveRazorpayMode } from "@/lib/razorpay";
@@ -117,7 +117,7 @@ export class BillingExperienceService {
         },
         ownerTrialGrant: true,
         branches: {
-          where: { billingStatus: { not: "ARCHIVED" } },
+          where: { billingStatus: { in: projectedBillableStatuses } },
           select: { id: true },
         },
       },

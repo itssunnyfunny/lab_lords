@@ -269,11 +269,30 @@ unit/API/integration coverage.
 - **Must preserve—enforced:** Adding, scheduling removal of, and reactivating a
   billable branch are owner-only operations. The branch lifecycle update and
   durable billing-change intent are atomic and use stable idempotency. At least
-  one billable branch must remain.
+  one billable branch must remain after all scheduled removals. Under the
+  organization lock, the projected count includes `ACTIVE` and
+  `PENDING_ACTIVATION` branches. The first recurring checkout, its frozen
+  provider intent, and the owner's next-period quote use that same count.
+  Branch changes wait for resolution when the first checkout outcome is
+  uncertain, so recovery can adopt the original mandate at its frozen quantity.
+  All active trial tiers quote a zero plan fee today. The monthly total
+  displays the chosen plan's branch price times the projected count.
 - **Must preserve—enforced:** Scheduled removal does not delete the branch. It
   becomes read-only and is archived only at the effective boundary after the
   required provider confirmation. Historical data remains available according
-  to authorization.
+  to authorization. A trial removal recorded before the first mandate can be
+  undone locally before provisioning. Once a live mandate covers the remaining
+  branches, restoring an excluded branch requires a quantity change through
+  the provider-backed reactivation flow after archival. The hourly deadline
+  reports historical schedules that leave zero branches or conflict with the
+  current mandate quantity for operator review. When checking a pre-mandate
+  removal, it adds back later queued removals and subtracts later queued
+  additions and reactivations for that mandate. Those changes have updated
+  local branch statuses and still await their turn at the provider. Billing
+  undo restores the branch on a queued removal and archives a discarded
+  pending activation. An already-active trial addition uses scheduled removal.
+  Before a local subscription exists, an unresolved first checkout's frozen quantity
+  must also match the continuing branch count to allow archival.
   (`services/branch.service.ts`, branch-billing-lifecycle integration tests)
 - **Must preserve—enforced:** Each canonical onboarding command requires an
   authenticated-owner-scoped, bounded idempotency key and a stable versioned
@@ -321,6 +340,18 @@ unit/API/integration coverage.
   currently due payments while recording the mutation audit. Reactivation does
   not recreate prior allocations. (Student, allocation, and payment service
   tests)
+- **Must preserve—enforced:** Monthly generation rechecks the student's
+  status, branch, fee and billing cutoff under the settlement lock before
+  inserting a staged cycle. Free anniversaries generate no collectible fee.
+  Before a positive manual or linked rate becomes zero, the rate edit and
+  generation of any missing accrued monthly dues for active students commit
+  together at the outgoing rate. Creating such dues requires payment-generation
+  permission. Existing typed periods and legacy due-day rows count as covered.
+  Moving a student from a zero fee to a positive fee preserves completed free
+  periods, including when the price comes from a linked shift or multi-shift.
+  The next anniversary uses the new price. A historical zero-value due cannot
+  enter the payment or renewal worklist. A deactivation dialog may describe
+  the balance as clear only after an authorized, successful payment read.
 - **Known discrepancy—do not rely on:** Creating a student and an admission
   payment commits before the optional initial seat allocation, which is made in
   a separate operation. If allocation fails, the student and payment remain.
@@ -351,6 +382,11 @@ unit/API/integration coverage.
   requires every current active source allocation exactly once; all targets must
   be active in that branch. Affected bundle siblings are closed together by
   student, seat, and bundle identity. Validation failure rolls back all changes.
+  The deletion preview evaluates capacity and each student's overlapping
+  assignments after those releases. A bulk target must accommodate every
+  affected student. The preview reports how many allocations cannot fit across
+  all eligible targets, accounting for students competing for the same slots.
+  The writer rechecks the owner's assignments at confirmation.
 - **Service-layer contract—not DB-enforced:** Shift overlap and the minimum-one-
   active-shift rule are service checks, not schema constraints. Writes that
   bypass `ShiftService` can violate them.
@@ -1064,6 +1100,20 @@ unit/API/integration coverage.
   beta extraction; it does not promise visual-table reconstruction or OCR and
   every extracted row remains subject to review.
   (`importing/parsers/xlsx.parser.ts`, `importing/parsers/pdf.parser.ts`)
+- **Must preserve—enforced:** Native Excel calendar dates use the workbook's
+  date system and retain their calendar day across display formats. A confirmed
+  payment legend gives each normalized label a single meaning. Historical
+  conflicting labels are classified as unclear. Before the first commit of
+  a saved plan that imports payment statuses, the owner must resolve a
+  conflicting legend and review the recalculated revision. A whole-row
+  manual edit does not establish a payment decision. If its saved status
+  disagrees with the uploaded label under the confirmed legend, the payment
+  field requires review unless a recorded field-level choice supports it.
+  Unrelated corrections such as shift assignments survive this review.
+  First commit checks frozen evaluations for this disagreement. Already-started
+  runs recover through their existing mutation ledger.
+  (`importing/parsers/xlsx.parser.ts`, `importing/utils/row-normalizer.ts`,
+  `importing/services/import-run.service.ts`)
 - **Must preserve—enforced:** New V2 starts fail closed unless
   `IMPORT_V2_ENABLED=true`. Plan compilation fails closed unless
   `IMPORT_MAX_PLANNED_MUTATIONS` is a configured positive integer, and a plan
@@ -1216,10 +1266,10 @@ unit/API/integration coverage.
 - **Known discrepancy—do not rely on:** Validation ceilings differ between
   forms, routes, and services. There is no single repository-wide maximum
   amount, seat count, or student count unless a specific path defines one.
-- **Known discrepancy—do not rely on:** User and organization timezone fields
-  default to `Asia/Kolkata`, but billing-cycle and calendar-day calculations use
-  runtime-local date operations and do not consult the organization timezone.
-  Do not claim explicit per-organization timezone correctness.
+- **Known discrepancy—do not rely on:** Student anniversary generation uses
+  the runtime-local calendar. Its dates can differ from the organization's
+  local calendar at a timezone boundary. Financial chart ranges, daily buckets
+  and labels use the organization's timezone (default `Asia/Kolkata`).
   (`prisma/schema.prisma`, `utils/studentBillingCycles.ts`)
 
 ## Analytics

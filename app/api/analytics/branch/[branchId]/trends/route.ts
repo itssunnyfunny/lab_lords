@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/auth"
 import type { AnalyticsPeriod } from "@/analytics/payment.analytics"
 import { StaffService } from "@/services/staff.service"
-import { assertTrendRange, parseTrendDate } from "@/analytics/trends/range"
+import { assertTrendRange, parseTrendDate, TrendRangeError } from "@/analytics/trends/range"
 
 export async function GET(
     request: NextRequest,
@@ -40,7 +40,8 @@ export async function GET(
     try {
         from = parseTrendDate(fromParam)
         to = parseTrendDate(toParam)
-        assertTrendRange(from, to)
+        // Date-only payment bounds must be validated together in the organization's timezone.
+        if (type !== "payment") assertTrendRange(from, to)
     } catch {
         return NextResponse.json({ error: "Invalid date range; use real dates in order and at most 31 daily points" }, { status: 400 })
     }
@@ -73,7 +74,7 @@ export async function GET(
                 ])
                 break
             case "payment":
-                const paymentData = await AnalyticsAccessService.paymentTrend(user.id, branchId, from, to, period)
+                const paymentData = await AnalyticsAccessService.paymentTrend(user.id, branchId, fromParam, toParam, period)
                 result = paymentData.flatMap(item => [
                     {
                         date: item.asOf.toISOString(),
@@ -105,6 +106,9 @@ export async function GET(
 
         return NextResponse.json(result)
     } catch (error) {
+        if (error instanceof TrendRangeError) {
+            return NextResponse.json({ error: "Invalid date range; use real dates in order and at most 31 daily points" }, { status: 400 })
+        }
         if (error instanceof Error && error.message.includes("Branch not found")) {
             return NextResponse.json({ error: "Branch not found" }, { status: 404 })
         }

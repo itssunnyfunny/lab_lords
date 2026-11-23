@@ -15,7 +15,7 @@ import {
   parsePageLimit,
 } from "@/lib/cursorPagination"
 import type { Prisma } from "@/app/generated/prisma/client"
-import { endOfMonth, startOfMonth } from "date-fns"
+import { dashboardDateOffset, dashboardDayStart, dashboardMonth, dashboardRate, dashboardToday } from "@/lib/dashboardMath"
 
 type AsOf = Date | undefined
 export type AnalyticsPeriod = "month" | "all"
@@ -28,22 +28,19 @@ function resolvePeriod(period?: AnalyticsPeriod): AnalyticsPeriod {
   return period === "month" ? "month" : "all"
 }
 
-function dayEnd(date: Date): Date {
-  return dueAsOfCutoff(date)
-}
-
 export async function getOpenPaymentLedger(
   branchId: string,
-  asOf?: AsOf
+  asOf?: AsOf,
+  dueDateEnd?: Date
 ) {
   const date = resolveAsOf(asOf)
-  const dueDateEnd = dueAsOfCutoff(date)
 
   const rows = await prisma.payment.findMany({
     where: {
       branchId,
       status: "DUE",
-      dueDate: { lte: dueDateEnd },
+      amount: { gt: 0 },
+      dueDate: { lte: dueDateEnd ?? dueAsOfCutoff(date) },
     },
     select: {
       id: true,
@@ -107,58 +104,51 @@ export async function getPaymentPeriodStats(
   branchId: string,
   asOf?: AsOf,
   period?: AnalyticsPeriod,
-  options: { throughAsOfDay?: boolean } = {}
+  options: { throughAsOfDay?: boolean; timezone?: string } = {}
 ) {
   const date = resolveAsOf(asOf)
   const selectedPeriod = resolvePeriod(period)
-  const periodStart = selectedPeriod === "month" ? startOfMonth(date) : undefined
-  const periodEnd = selectedPeriod === "month" && !options.throughAsOfDay
-    ? endOfMonth(date) : dayEnd(date)
+  const timezone = options.timezone ?? "Asia/Kolkata"
+  const today = dashboardToday(date, timezone)
+  const nextDay = dashboardDayStart(dashboardDateOffset(today, 1), timezone)
+  const month = selectedPeriod === "month" ? dashboardMonth(today.slice(0, 7), timezone) : null
+  const range = { gte: month?.start, lt: month && !options.throughAsOfDay ? month.end : nextDay }
 
-  // ⚡ Bolt: Replaced memory-heavy findMany + reduce with database-level aggregate
-  // Impact: Reduces memory overhead from O(N) to O(1) and eliminates payload transfer for thousands of payment records.
-  const [revenueAgg, collectedAgg, openLedger] = await Promise.all([
-    prisma.payment.aggregate({
-      where: {
-        branchId,
-        OR: [{ status: { not: "WAIVED" } }, { ledgerBacked: true }],
-        dueDate: selectedPeriod === "month"
-          ? { gte: periodStart, lte: periodEnd }
-          : { lte: periodEnd },
-      },
-      _sum: { amount: true, waivedAmount: true },
+  const [fees, collectedAgg, actual, openLedger] = await Promise.all([
+    prisma.payment.groupBy({
+      by: ["ledgerBacked", "status"],
+      where: { branchId, dueDate: range },
+      _sum: { amount: true, waivedAmount: true, collectedAmount: true },
     }),
     prisma.payment.aggregate({
       where: {
         branchId,
         status: "PAID", ledgerBacked: false,
         resolutionEvents: { none: { source: "IMPORT_EXECUTION" } },
-        OR: selectedPeriod === "month"
-          ? [
-              { paidAt: { gte: periodStart, lte: periodEnd } },
-
-            ]
-          : [
-              { paidAt: { lte: periodEnd } },
-
-            ],
+        paidAt: range,
       },
       _sum: { amount: true },
     }),
-    getOpenPaymentLedger(branchId, date),
+    prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: range }, _sum: { amount: true } }),
+    getOpenPaymentLedger(branchId, date, new Date(nextDay.getTime() - 1)),
   ])
 
-  const revenueAmount = (revenueAgg._sum.amount ?? 0) - (revenueAgg._sum.waivedAmount ?? 0)
-  const actual = await prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: { gte: periodStart, lte: periodEnd } }, _sum: { amount: true } })
+  let billed = 0, waived = 0, settled = 0
+  for (const fee of fees) {
+    const amount = fee._sum.amount ?? 0
+    billed += amount
+    waived += fee.ledgerBacked ? fee._sum.waivedAmount ?? 0 : fee.status === "WAIVED" ? amount : 0
+    settled += fee.ledgerBacked ? fee._sum.collectedAmount ?? 0 : fee.status === "PAID" ? amount : 0
+  }
   const paidAmount = (collectedAgg._sum.amount ?? 0) + (actual._sum.amount ?? 0)
   const dueAmount = openLedger.dueAmount
 
   return {
     period: selectedPeriod,
-    revenueAmount,
+    revenueAmount: billed - waived,
     paidAmount,
     dueAmount,
-    collectionRate: revenueAmount > 0 ? (paidAmount / revenueAmount) * 100 : 0,
+    collectionRate: dashboardRate(settled, billed, waived),
   }
 }
 
@@ -271,6 +261,7 @@ export async function getOverduePaymentsPage(
   const baseWhere: Prisma.PaymentWhereInput = {
     branchId,
     status: "DUE",
+    amount: { gt: 0 },
     dueDate: { lt: overdueCutoff(date) },
   }
   const cursor = options.cursor ?? null

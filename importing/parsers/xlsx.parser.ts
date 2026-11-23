@@ -1,4 +1,5 @@
 import type { ParsedImportSource } from "@/importing/contracts/import-session.contract";
+import { posix } from "node:path";
 import { ImportParserError } from "@/importing/utils/import-errors";
 import {
     assertImportCell,
@@ -119,15 +120,77 @@ function sheetShape(XLSX: typeof import("xlsx"), sheet: import("xlsx").WorkSheet
     };
 }
 
+// SheetJS 0.18 converts an OOXML t="d" ISO value to a 1900-system number even
+// in a 1904-system workbook. Read that cell's original day before using a serial.
+function explicitCalendarDays(XLSX: typeof import("xlsx"), workbook: import("xlsx").WorkBook, sheetName: string) {
+    const days = new Map<string, string>();
+    const { files, Directory } = workbook as typeof workbook & {
+        files?: Record<string, { content?: Uint8Array }>;
+        Directory?: { workbooks?: string[] };
+    };
+    const workbookPath = Directory?.workbooks?.[0]?.replace(/^\//, "");
+    if (!files || !workbookPath) return days;
+    const readPart = (path: string) => {
+        const content = files[path]?.content;
+        return content ? Buffer.from(content.buffer, content.byteOffset, content.byteLength).toString("utf8") : "";
+    };
+    const attribute = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}\\s*=\\s*(["'])(.*?)\\1`))?.[2];
+    const metadata = workbook.Workbook?.Sheets?.find(sheet => sheet.name === sheetName) as { id?: string } | undefined;
+    const folder = posix.dirname(workbookPath);
+    const relationships = readPart(posix.join(folder, "_rels", posix.basename(workbookPath) + ".rels"));
+    const relationship = Array.from(relationships.matchAll(/<!--[\s\S]*?(?:-->|$)|<(?:[\w.-]+:)?Relationship\b([^<>]*)>/g))
+        .find(([, tag]) => tag && metadata?.id && attribute(tag, "Id") === metadata.id);
+    const target = relationship && attribute(relationship[1], "Target");
+    const part = target ? posix.resolve("/", folder, target.replaceAll("&amp;", "&")).slice(1)
+        : posix.join(folder, "worksheets", `sheet${workbook.SheetNames.indexOf(sheetName) + 1}.xml`);
+    const xml = readPart(part);
+    if (!/\st\s*=\s*["']d["']/.test(xml)) return days;
+    const tokens = /<!--[\s\S]*?(?:-->|$)|<(\/?)(?:[\w.-]+:)?(row|c)\b([^<>]*)>|<(?:[\w.-]+:)?v>\s*(\d{4}-\d{2}-\d{2})(?:T[^<]*)?\s*<\/(?:[\w.-]+:)?v>/g;
+    let row = 0;
+    let column = -1;
+    let address: string | undefined;
+    for (const [, closing, element, attributes, day] of xml.matchAll(tokens)) {
+        if (closing) {
+            address = undefined;
+        } else if (element === "row") {
+            row = Number(attribute(attributes, "r") ?? row + 1);
+            column = -1;
+        } else if (element === "c") {
+            // OOXML permits implicit coordinates after the prior row or cell.
+            const ref = attribute(attributes, "r");
+            column = ref ? XLSX.utils.decode_cell(ref).c : column + 1;
+            address = !attributes.endsWith("/") && attribute(attributes, "t") === "d"
+                ? ref ?? XLSX.utils.encode_cell({ r: row - 1, c: column }) : undefined;
+        } else if (address && day) {
+            days.set(address, day);
+        }
+    }
+    return days;
+}
+
 function rowValues(
     XLSX: typeof import("xlsx"),
     sheet: import("xlsx").WorkSheet,
     zeroBasedRow: number,
-    columnCount: number
+    columnCount: number,
+    date1904?: boolean,
+    explicitDays?: ReadonlyMap<string, string>
 ) {
     return Array.from({ length: columnCount }, (_, column) => {
         const address = XLSX.utils.encode_cell({ r: zeroBasedRow, c: column });
         const cell = sheet[address];
+        const nativeDay = explicitDays?.get(address);
+        // Data rows keep the Excel calendar day independently of regional display order.
+        // Headers and time-only formats (such as a shift's start time) keep their display text.
+        if (date1904 !== undefined && cell?.t === "n" && typeof cell.z === "string" && XLSX.SSF.is_date(cell.z)) {
+            const unquoted = cell.z.replace(/"[^"]*"|[\\_*]./g, "");
+            const fields = unquoted.replace(/\[[^\]]*\]/g, "");
+            const timeOnly = /[hs]/i.test(fields) || /\[(?:h+|m+|s+)\]/i.test(unquoted);
+            if (/[yd]/i.test(fields) || (/m/i.test(fields) && !timeOnly)) {
+                return nativeDay ?? stringifyCell(XLSX.SSF.format("yyyy-mm-dd", cell.v, { date1904 }), `Workbook cell ${address}`);
+            }
+        }
+        if (nativeDay && !XLSX.SSF.is_date(cell?.z ?? "General")) return nativeDay;
         return stringifyCell(cell ? XLSX.utils.format_cell(cell) : "", `Workbook cell ${address}`);
     });
 }
@@ -190,7 +253,7 @@ async function loadWorkbook(buffer: Buffer): Promise<LoadedWorkbook> {
 
     try {
         const XLSX = await import("xlsx");
-        const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+        const workbook = XLSX.read(buffer, { type: "buffer", cellNF: true, bookFiles: format === "XLSX" });
         if (workbook.SheetNames.length === 0) throw new ImportParserError("Workbook does not contain a sheet.");
         const measuredContentBytes = measureWorkbookContent(XLSX, workbook);
         const sheets = workbook.SheetNames.map((name, index) =>
@@ -248,9 +311,10 @@ export async function parseXlsx(
     const normalized = normalizeImportHeaders(rawHeaders);
     const positionalRows: Array<{ rowNumber: number; cells: string[] }> = [];
     const shape = sheetShape(XLSX, sheet);
+    const explicitDays = explicitCalendarDays(XLSX, workbook, sheetName);
     for (let zeroBasedRow = headerRow; zeroBasedRow < shape.populatedRowFlags.length; zeroBasedRow++) {
         if (!shape.populatedRowFlags[zeroBasedRow]) continue;
-        const cells = rowValues(XLSX, sheet, zeroBasedRow, sheetInspection.columnCount);
+        const cells = rowValues(XLSX, sheet, zeroBasedRow, sheetInspection.columnCount, workbook.Workbook?.WBProps?.date1904 === true, explicitDays);
         if (!cells.some(Boolean)) continue;
         assertImportDataRowCount(positionalRows.length + 1);
         positionalRows.push({ rowNumber: zeroBasedRow + 1, cells });

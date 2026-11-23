@@ -62,4 +62,12 @@ describe("buildChartSummary", () => {
         expect(html).toContain("Student status");
         expect(html).toContain("Data displayed in the Student snapshot chart");
     });
+
+    it("labels financial buckets in the organization timezone", () => {
+        const html = renderToStaticMarkup(createElement(MainChart, {
+            title: "Collected", timezone: "America/New_York",
+            data: [{ date: "2026-11-01T02:00:00.000Z", value: 100 }],
+        }));
+        expect(html).toContain("31 Oct 2026");
+    });
 });

@@ -41,7 +41,7 @@ export interface BranchAIResponse {
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const STUCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - force reset if stuck running
-const PAYMENT_OVERDUE_RULE_VERSION = "due-after-7-days-any-due-v2";
+const PAYMENT_OVERDUE_RULE_VERSION = "distinct-overdue-active-students-v3";
 
 function buildReportSnapshot(snapshot: Awaited<ReturnType<typeof readBranchSnapshotForAI>>): AIBranchReportSnapshot {
     return {

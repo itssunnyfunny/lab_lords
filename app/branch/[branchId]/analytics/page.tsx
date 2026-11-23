@@ -214,6 +214,7 @@ function AnalyticsContent({ branchId, access }: { branchId: string; access: Bran
 
                     <MainChart
                         data={chartData}
+                        timezone={["revenue", "collected", "due"].includes(displayedChart) ? snapshot?.timezone ?? "Asia/Kolkata" : undefined}
                         title={t(displayedChart === "students" ? "{label} Snapshot" : "{label} Trend", { label: t.owned(chartConfig.label) })}
                         variant={displayedChart === "students" ? "bar" : "area"}
                         color={chartConfig.color}

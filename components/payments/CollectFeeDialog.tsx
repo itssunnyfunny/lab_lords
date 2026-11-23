@@ -13,16 +13,25 @@ import {
 } from "@/components/ui/formSurface";
 import { feeCollections } from "@/lib/api/feeCollections";
 import { allocateCollection, remainingFee } from "@/lib/feeBalance";
-import { collectionInputSchema, type CollectionInput, type FeeCollectionView } from "@/lib/feeCollections";
+import type { CollectionInput, FeeCollectionView } from "@/lib/feeCollections";
+import { collectionDraftKey, restoreCollectionDraft } from "@/lib/feeCollectionDraft";
 import type { PaymentListItem } from "@/lib/api/payments";
 import { cn } from "@/lib/utils";
 import { FeeReceipt } from "./FeeReceipt";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { receiptPeriodDate } from "@/lib/feeReceiptDates";
 
-export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSaved, usePilotTheme = true }: {
+type CollectionDialogProps = {
     branchId: string; studentId: string; paymentId?: string; onClose: () => void; onSaved: () => void; usePilotTheme?: boolean;
-}) {
+};
+
+export function CollectFeeDialog(props: CollectionDialogProps) {
+    const { ownerKey } = useUserPreferences();
+    if (ownerKey === "signed-out") return null;
+    return <CollectionDialog key={collectionDraftKey(ownerKey, props.branchId, props.studentId)} {...props} account={ownerKey} />;
+}
+
+function CollectionDialog({ account, branchId, studentId, paymentId, onClose, onSaved, usePilotTheme = true }: CollectionDialogProps & { account: string }) {
     const t = useTranslation();
     const { interfaceLanguage } = useUserPreferences();
     const [dues, setDues] = useState<PaymentListItem[]>([]);
@@ -36,31 +45,41 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
     const [busy, setBusy] = useState(false);
     const [loading, setLoading] = useState(true);
     const [pending, setPending] = useState<CollectionInput | null>(null);
+    const [reviewRequired, setReviewRequired] = useState(false);
+    const [ready, setReady] = useState(false);
     const [receipt, setReceipt] = useState<FeeCollectionView | null>(null);
     const inFlight = useRef(false);
-    const storageKey = `fee-collection:${branchId}:${studentId}`;
+    const mounted = useRef(false);
+    const storageKey = collectionDraftKey(account, branchId, studentId);
+    useEffect(() => {
+        mounted.current = true;
+        return () => { mounted.current = false; };
+    }, []);
     useEffect(() => {
         let active = true;
         async function load() {
+            setLoading(true); setReady(false);
             try {
                 const response = await feeCollections.dues(branchId, studentId);
                 if (!active) return;
                 setDues(response.payments); setName(response.student.name);
                 const initial = response.payments.filter(p => paymentId ? p.id === paymentId : true).slice(0, 100);
                 setSelected(initial.map(p => p.id)); setAmount(String(initial.reduce((sum, p) => sum + remainingFee(p), 0)));
-                const stored = sessionStorage.getItem(storageKey);
-                if (stored) {
-                    const parsed = collectionInputSchema.safeParse(JSON.parse(stored));
-                    if (parsed.success && parsed.data.studentId === studentId) {
-                        setPending(parsed.data); setSelected(parsed.data.paymentIds); setAmount(String(parsed.data.amount));
-                        setMethod(parsed.data.method); setReference(parsed.data.reference); setNote(parsed.data.note);
-                    }
+                const restored = await restoreCollectionDraft(sessionStorage, account, branchId, studentId, feeCollections.recover, () => active);
+                if (!active) return;
+                if (restored.kind === "pending") {
+                    const request = restored.request;
+                    setPending(request); setSelected(request.paymentIds); setAmount(String(request.amount));
+                    setMethod(request.method); setReference(request.reference); setNote(request.note);
                 }
+                if (restored.kind === "receipt") setReceipt(restored.receipt);
+                setReviewRequired(restored.kind === "review");
+                setReady(true);
             } catch { if (active) setError("Unable to load dues. Close and reopen to retry."); }
             finally { if (active) setLoading(false); }
         }
         void load(); return () => { active = false; };
-    }, [branchId, studentId, paymentId, storageKey]);
+    }, [account, branchId, studentId, paymentId]);
     const selectedDues = dues.filter(p => selected.includes(p.id));
     const total = selectedDues.reduce((sum, p) => sum + remainingFee(p), 0);
     let preview: ReturnType<typeof allocateCollection<PaymentListItem>> = [];
@@ -69,17 +88,27 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
     const studentOutstanding = dues.reduce((sum, payment) => sum + remainingFee(payment), 0);
     const projectedStudentBalance = valid ? Math.max(studentOutstanding - Number(amount), 0) : studentOutstanding;
     async function confirm() {
-        if (inFlight.current || (!pending && !valid)) return;
+        if (inFlight.current || !ready || reviewRequired || (!pending && !valid)) return;
         inFlight.current = true; setBusy(true); setError(null);
         const request = pending ?? { studentId, paymentIds: selected, amount: Number(amount), method, reference, note, idempotencyKey: crypto.randomUUID() };
         try {
             // Save before dispatch. An uncertain response never creates a fresh key.
             sessionStorage.setItem(storageKey, JSON.stringify(request)); setPending(request);
             const response = await fetch(`/api/branches/${branchId}/collections`, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+                method: "POST", headers: { "Content-Type": "application/json", "X-Collection-Account": account }, body: JSON.stringify(request),
             });
             const body = await response.json();
+            if (!mounted.current) return;
             if (!response.ok) {
+                if (pending && [403, 404].includes(response.status)) {
+                    const recovered = await feeCollections.recover(branchId, request.idempotencyKey);
+                    if (!mounted.current) return;
+                    if (recovered?.snapshot.studentId === studentId) {
+                        setReceipt(recovered); setPending(null); sessionStorage.removeItem(storageKey);
+                        onSaved();
+                        return;
+                    }
+                }
                 // A permission change after an uncertain commit cannot prove that
                 // the earlier request failed. Retain its key until recovered.
                 if (response.status === 400 || (!pending && [403, 404].includes(response.status))) {
@@ -117,7 +146,7 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
                 ) : null}
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     <AppButton variant="quiet" density="compact" onClick={onClose} disabled={busy}>{t("Close")}</AppButton>
-                    <AppButton variant="primary" density="compact" onClick={() => void confirm()} isLoading={busy} disabled={loading || (!pending && !valid)}>
+                    <AppButton variant="primary" density="compact" onClick={() => void confirm()} isLoading={busy} disabled={!ready || reviewRequired || (!pending && !valid)}>
                         {pending ? t("Retry same collection") : t("Confirm collection")}
                     </AppButton>
                 </div>
@@ -141,7 +170,11 @@ export function CollectFeeDialog({ branchId, studentId, paymentId, onClose, onSa
                 </p>
             )}
 
-            <fieldset disabled={busy || !!pending || loading}>
+            {reviewRequired && <div className={cn("space-y-2 p-3", formWarningBannerClass)}>
+                <p role="status">{t("An earlier collection could not be confirmed for this account. Check the student's receipt history before recording money.")}</p>
+                <AppButton variant="quiet" density="compact" onClick={() => setReviewRequired(false)}>{t("I checked the receipt history")}</AppButton>
+            </div>}
+            <fieldset disabled={busy || !!pending || !ready || reviewRequired}>
                 <legend className={cn("mb-3 text-sm", formHelpTextClass)}>
                     {t("Select up to 100 existing dues · oldest selected fee receives money first")}
                 </legend>

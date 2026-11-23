@@ -1,6 +1,7 @@
 import { executeBillingProviderAction, confirmReconciledBillingProviderAction, isDefinitelyRejectedBillingProviderError } from "@/services/billingProviderAction.service";
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { projectedBillableStatuses } from "@/lib/billingState";
 import {
   getRazorpayClient,
   resolveRazorpayMode,
@@ -351,9 +352,7 @@ export class BillingMutationService {
         toQuantity = await tx.branch.count({
           where: {
             organizationId: input.organizationId,
-            billingStatus: input.type === "BRANCH_REMOVAL"
-              ? { in: ["ACTIVE", "PENDING_ACTIVATION"] }
-              : { not: "ARCHIVED" },
+            billingStatus: { in: projectedBillableStatuses },
           },
         });
       }

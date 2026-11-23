@@ -11,9 +11,10 @@ import {
     StudentStatus,
 } from "@/types";
 import type { StaffAction } from "@/types";
-import type { Prisma } from "@/app/generated/prisma/client";
+import { Prisma } from "@/app/generated/prisma/client";
+import { runSerializableTransaction } from "@/lib/serializableTransaction";
 import { startOfDay, startOfMonth, endOfMonth } from "date-fns";
-import { dueCyclesThrough } from "@/utils/studentBillingCycles";
+import { missingMonthlyFees, PAYMENT_INSERT_BATCH_SIZE, STUDENT_GENERATION_BATCH_SIZE } from "@/services/studentFeePeriod";
 import { EntitlementService } from "@/services/entitlement.service";
 import {
     recordPaymentResolutionEvent,
@@ -58,8 +59,6 @@ type EnsureMonthlyPaymentInput = {
     };
 };
 
-const STUDENT_GENERATION_BATCH_SIZE = 250;
-const PAYMENT_INSERT_BATCH_SIZE = 1000;
 const PAYMENT_ACTION_RESOLUTION = {
     source: PaymentResolutionEventSource.PAYMENT_ACTION,
 } satisfies PaymentResolutionContext;
@@ -150,19 +149,39 @@ export class PaymentService {
     private static async createPaymentBatch(
         paymentsToCreate: Prisma.PaymentCreateManyInput[],
         changedBranchIds: Set<string>,
-        studentsWithCreatedPayments: Set<string>
+        studentsWithCreatedPayments: Set<string>,
+        actor?: { userId: string; branchId: string }
     ) {
         if (paymentsToCreate.length === 0) {
             return 0;
         }
 
-        const createdPayments = await prisma.payment.createManyAndReturn({
-            data: paymentsToCreate,
-            skipDuplicates: true,
-            select: {
-                branchId: true,
-                studentId: true,
-            },
+        const createdPayments = await runSerializableTransaction(async tx => {
+            if (actor) await AccessPolicy.authorizeAction(actor.userId, actor.branchId, "generate_payments", tx, true);
+            const ids = [...new Set(paymentsToCreate.map(payment => payment.studentId))];
+            // Settlement and fee edits update this same student row. A staged
+            // cycle must still be eligible after we acquire the write lock.
+            const students = await tx.$queryRaw<Array<{ id: string; branchId: string; monthlyFee: number; billingStartAt: Date | null }>>(Prisma.sql`
+                SELECT "id", "branchId", "monthlyFee", "billingStartAt" FROM "Student"
+                WHERE "id" IN (${Prisma.join(ids)}) AND "status" = 'ACTIVE' AND "monthlyFee" > 0
+                ORDER BY "id" FOR UPDATE
+            `);
+            const eligible = new Map(students.map(student => [student.id, student]));
+            const data = paymentsToCreate.flatMap(payment => {
+                const student = eligible.get(payment.studentId);
+                if (!student || student.branchId !== payment.branchId ||
+                    (student.billingStartAt && new Date(payment.periodStart) < startOfDay(student.billingStartAt))) return [];
+                return [{ ...payment, amount: student.monthlyFee }];
+            });
+            if (!data.length) return [];
+            const created = await tx.payment.createManyAndReturn({
+                data, skipDuplicates: true, select: { branchId: true, studentId: true },
+            });
+            if (created.length) await tx.branch.updateMany({
+                where: { id: { in: [...new Set(created.map(row => row.branchId))] } },
+                data: { lastDataChange: new Date() },
+            });
+            return created;
         });
 
         for (const payment of createdPayments) {
@@ -173,13 +192,10 @@ export class PaymentService {
         return createdPayments.length;
     }
 
-    private static paymentDueDateKey(studentId: string, dueDate: Date | string) {
-        return `${studentId}:${startOfDay(new Date(dueDate)).toISOString()}`;
-    }
-
     private static async generateMissingDuePayments(params: {
         branchId?: string;
         asOfDate?: Date;
+        actor?: { userId: string; branchId: string };
     }): Promise<PaymentGenerationSummary> {
         const { branchId, asOfDate = new Date() } = params;
         const today = startOfDay(asOfDate);
@@ -215,80 +231,30 @@ export class PaymentService {
 
             totalStudents += students.length;
             cursor = students[students.length - 1].id;
-            const batchPaymentsToCreate: Prisma.PaymentCreateManyInput[] = [];
-
-            for (const student of students) {
-                for (const cycle of dueCyclesThrough(student.joinedAt, today, student.billingStartAt)) {
-                    batchPaymentsToCreate.push({
-                        branchId: student.branchId,
-                        studentId: student.id,
-                        amount: student.monthlyFee,
-                        status: PaymentStatus.DUE,
-                        type: PaymentType.MONTHLY,
-                        periodStart: cycle.periodStart,
-                        periodEnd: cycle.periodEnd,
-                        dueDate: cycle.dueDate,
-                    });
-                }
-            }
-
-            const existingMonthlyPayments = await prisma.payment.findMany({
-                where: {
-                    type: PaymentType.MONTHLY,
-                    studentId: { in: students.map(student => student.id) },
-                    dueDate: { lte: today },
-                },
-                select: {
-                    studentId: true,
-                    dueDate: true,
-                },
-            });
-            const existingDueDates = new Set(
-                existingMonthlyPayments.map(payment =>
-                    this.paymentDueDateKey(payment.studentId, payment.dueDate)
-                )
-            );
-
-            for (const payment of batchPaymentsToCreate) {
-                if (existingDueDates.has(this.paymentDueDateKey(payment.studentId, payment.dueDate))) {
-                    continue;
-                }
-
+            const missing = await missingMonthlyFees(prisma, students, today, branchId);
+            for (const payment of missing) {
                 paymentsToCreate.push(payment);
 
                 if (paymentsToCreate.length >= PAYMENT_INSERT_BATCH_SIZE) {
                     generatedCount += await this.createPaymentBatch(
                         paymentsToCreate,
                         changedBranchIds,
-                        studentsWithCreatedPayments
+                        studentsWithCreatedPayments,
+                        params.actor
                     );
                     paymentsToCreate = [];
                 }
             }
 
-            if (paymentsToCreate.length >= PAYMENT_INSERT_BATCH_SIZE) {
-                generatedCount += await this.createPaymentBatch(
-                    paymentsToCreate,
-                    changedBranchIds,
-                    studentsWithCreatedPayments
-                );
-                paymentsToCreate = [];
-            }
         }
 
         if (paymentsToCreate.length > 0) {
             generatedCount += await this.createPaymentBatch(
                 paymentsToCreate,
                 changedBranchIds,
-                studentsWithCreatedPayments
+                studentsWithCreatedPayments,
+                params.actor
             );
-        }
-
-        if (changedBranchIds.size > 0) {
-            await prisma.branch.updateMany({
-                where: { id: { in: Array.from(changedBranchIds) } },
-                data: { lastDataChange: new Date() },
-            });
         }
 
         return {
@@ -310,7 +276,7 @@ export class PaymentService {
     ) {
         await this.assertBranchAccess(userId, branchId, "generate_payments");
         await EntitlementService.assertBranchWritable(branchId);
-        return this.generateMissingDuePayments({ branchId, asOfDate });
+        return this.generateMissingDuePayments({ branchId, asOfDate, actor: { userId, branchId } });
     }
 
     /**
@@ -505,6 +471,9 @@ export class PaymentService {
             }
         }
 
+        // Pre-existing zero-price dues retain their cycle identity for imports
+        // and generation, but have no balance to collect or display as debt.
+        whereClause = { AND: [whereClause, { OR: [{ status: { not: "DUE" } }, { amount: { gt: 0 } }] }] };
         if (!pagination) {
             return prisma.payment.findMany({
                 where: whereClause,

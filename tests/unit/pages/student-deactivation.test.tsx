@@ -121,6 +121,7 @@ function mount(initialAccess: BranchAccess) {
             actions.find(action => action.label === "Deactivate")!.onClick();
         },
         cancel: () => { (dialog().find(node => node.props.children === "Cancel")!.props.onClick as () => void)(); dialog(); },
+        shows: (text: string) => dialog().some(node => node.props.children === text),
         choices: () => dialog().filter(node => node.props.type === "radio").map(node => ({ value: node.props.value, checked: node.props.checked })),
         choose: (value: string) => { (dialog().find(node => node.props.value === value)!.props.onChange as () => void)(); },
         confirm: () => (dialog().find(node => node.props.children === "Confirm deactivate")!.props.onClick as () => Promise<void>)(),
@@ -182,10 +183,18 @@ describe("student deactivation payment choices", () => {
         }));
     });
 
-    it.each(["hidden", "none"])("submits KEEP when payment rows are %s", async mode => {
+    it.each(["hidden", "unavailable", "none"])("describes the balance accurately and submits KEEP when payment rows are %s", async mode => {
         if (mode === "none") mocks.payments.mockResolvedValue([]);
-        const page = mount(access({ view_payments: mode !== "hidden" })); await flush(); page.open();
+        const page = mount(access({ view_payments: mode === "none" })); await flush(); page.open();
+        if (mode === "unavailable") {
+            mocks.payments.mockRejectedValue(new Error("Unavailable"));
+            page.setAccess(access({ view_payments: true }));
+            page.isOpen();
+            await flush();
+        }
         expect(page.choices()).toEqual([]);
+        expect(page.shows("Payment balance unavailable")).toBe(mode !== "none");
+        expect(page.shows("No outstanding payments")).toBe(mode === "none");
         await page.confirm();
         expect(JSON.parse(mocks.fetch.mock.calls[0][1].body).dueResolution).toBe("KEEP");
         if (mode === "hidden") expect(mocks.payments).not.toHaveBeenCalled();

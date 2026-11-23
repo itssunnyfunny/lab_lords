@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BillingService } from "@/services/billing.service";
+import { BillingMutationService } from "@/services/billingMutation.service";
 import { BillingReconciliationService } from "@/services/billingReconciliation.service";
 import { EntitlementService } from "@/services/entitlement.service";
 import { BranchService } from "@/services/branch.service";
@@ -517,6 +518,125 @@ describe("BillingService SaaS subscriptions", () => {
     expect(fakeRazorpay.createSubscription).toHaveBeenCalledWith(expect.objectContaining({
       start_at: expect.any(Number),
     }));
+  });
+
+  it("excludes a scheduled trial removal from the first mandate, checkout replay and renewal estimate", async () => {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2", selectedPostTrialPlan: "BASIC" });
+    const now = new Date();
+    const trialEndsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await testPrisma.ownerTrialGrant.create({
+      data: { ownerId: owner.id, organizationId: org.id, source: "ONBOARDING", status: "ACTIVE", claimedAt: now, trialStartedAt: now, trialEndsAt, consumedAt: now },
+    });
+    const retained = await createBranch({ organizationId: org.id });
+    const departing = await createBranch({ organizationId: org.id });
+    const { change } = await BranchService.scheduleBillingRemoval(owner.id, departing.id, "trial-remove-before-checkout");
+    const overview = await BillingService.listPlansForOrganization(owner.id, org.id);
+    expect(overview.experience).toMatchObject({ projectedQuantity: 1, projectedMonthlyTotal: 99 });
+    vi.mocked(provider.createSubscription).mockImplementationOnce(async input => {
+      const accepted = providerSubscriptionForCreate(input, "sub_retained_trial_branch");
+      vi.mocked(provider.listSubscriptions!).mockResolvedValueOnce({ entity: "collection", count: 1, items: [accepted] });
+      throw new RazorpayApiError("provider response was lost", { kind: "NETWORK" });
+    });
+    await expect(BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" })).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    await expect(BranchService.undoBillingRemoval(owner.id, departing.id)).rejects.toThrow(/Reconcile the first recurring checkout/);
+    const checkout = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" });
+    expect(checkout.summary).toMatchObject({ quantity: 1, estimatedMonthlyTotal: 99, planFeeDueToday: 0 });
+    expect(provider.createSubscription).toHaveBeenCalledWith(expect.objectContaining({
+      quantity: 1, start_at: Math.floor(trialEndsAt.getTime() / 1000),
+    }));
+    const replay = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" });
+    expect(replay.subscriptionId).toBe(checkout.subscriptionId);
+    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
+    await expect(testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentOrganizationId: org.id } }))
+      .resolves.toMatchObject({ quantity: 1 });
+    await expect(BranchService.undoBillingRemoval(owner.id, departing.id)).rejects.toThrow(/recurring mandate/);
+    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, change.id)).rejects.toThrow(/recurring mandate/);
+    await BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1));
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: retained.id } })).resolves.toMatchObject({ billingStatus: "ACTIVE" });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: departing.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+  });
+
+  async function createTrialWithTwoBranchMandate() {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const boundary = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+    const trialEndsAt = new Date(boundary * 1000);
+    await testPrisma.ownerTrialGrant.create({ data: {
+      ownerId: owner.id, organizationId: org.id, source: "ONBOARDING", status: "ACTIVE",
+      trialStartedAt: new Date(), trialEndsAt, consumedAt: new Date(),
+    } });
+    const a = await createBranch({ organizationId: org.id, name: "A" });
+    const b = await createBranch({ organizationId: org.id, name: "B" });
+    const c = await createBranch({ organizationId: org.id, name: "C" });
+    await BranchService.scheduleBillingRemoval(owner.id, c.id, "c-before-checkout");
+    const checkout = await BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" });
+    expect(checkout.summary.quantity).toBe(2);
+    const source = { id: checkout.subscriptionId, entity: "subscription" as const, plan_id: "plan_basic",
+      status: "authenticated", total_count: 120, quantity: 2, paid_count: 0, start_at: boundary, payment_method: "card", offer_id: null };
+    vi.mocked(provider.fetchSubscription).mockResolvedValue(source);
+    vi.mocked(provider.fetchPayment).mockResolvedValue({
+      id: "pay_trialauth", entity: "payment", amount: 500, currency: "INR", status: "authorized",
+      method: "card", captured: false, order_id: null, invoice_id: null, subscription_id: source.id,
+    });
+    await expect(BillingService.verifySubscriptionSuccess(owner.id, org.id, {
+      changeId: checkout.changeId, razorpay_subscription_id: source.id, razorpay_payment_id: "pay_trialauth",
+      razorpay_signature: hmacSha256Hex(`pay_trialauth|${source.id}`, "secret"),
+    })).resolves.toMatchObject({ verified: true });
+    return { owner, org, a, b, c, source, provider, trialEndsAt, boundary };
+  }
+
+  it("archives the pre-checkout trial removal before processing a later branch quantity change", async () => {
+    const { owner, org, a, b, c, source, provider, trialEndsAt, boundary } = await createTrialWithTwoBranchMandate();
+    const removal = await BranchService.scheduleBillingRemoval(owner.id, b.id, "b-after-checkout");
+    expect(removal.change).toMatchObject({ status: "QUEUED", toQuantity: 1 });
+    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
+
+    const deadline = new Date(trialEndsAt.getTime() + 1000);
+    await expect(BranchService.archiveDueBillingRemovals(deadline)).resolves.toEqual({ archived: 1 });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: c.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: a.id } })).resolves.toMatchObject({ billingStatus: "ACTIVE" });
+
+    // The provider has entered the first billing period; the next queue item can now
+    // open its own one-branch replacement checkout at the next eligible boundary.
+    vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...source, status: "active", paid_count: 1,
+      current_start: boundary, current_end: boundary + 30 * 24 * 60 * 60 });
+    vi.mocked(provider.createSubscription).mockImplementationOnce(async input =>
+      providerSubscriptionForCreate(input, "sub_onebranchreplacement"));
+    await expect(BillingMutationService.processNext(org.id, deadline)).resolves.toMatchObject({
+      id: removal.change.id, operationStatus: "CHECKOUT_OPEN", authorizedQuantity: 1,
+    });
+    expect(provider.createSubscription).toHaveBeenCalledTimes(2);
+    expect(provider.createSubscription).toHaveBeenLastCalledWith(expect.objectContaining({ quantity: 1 }));
+    await expect(BranchService.archiveDueBillingRemovals(deadline)).resolves.toEqual({ archived: 0 });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: b.id } })).resolves.toMatchObject({ billingStatus: "REMOVAL_SCHEDULED" });
+  });
+
+  it("undoes queued branch changes from Billing before archiving an earlier trial removal", async () => {
+    const { owner, org, b, c, provider, trialEndsAt } = await createTrialWithTwoBranchMandate();
+    const removal = await BranchService.scheduleBillingRemoval(owner.id, b.id, "undo-b-after-checkout");
+    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, removal.change.id)).resolves.toEqual({ undone: true });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: b.id } })).resolves.toMatchObject({ billingStatus: "ACTIVE" });
+    const added = await BranchService.createBranchForOrg({
+      organizationId: org.id, userId: owner.id, name: "D", contactPhone: "9876543210", idempotencyKey: "d-after-checkout",
+    });
+    expect(added.billingStatus).toBe("PENDING_ACTIVATION");
+    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, added.billingChangeId)).resolves.toEqual({ undone: true });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: added.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+
+    const reactivation = await BranchService.reactivateArchivedBranch(owner.id, added.id, "reactivate-d");
+    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, added.billingChangeId)).rejects.toThrow(/not found/i);
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: added.id } })).resolves.toMatchObject({ billingStatus: "PENDING_ACTIVATION" });
+    await expect(BillingService.undoWorkspaceChange(owner.id, org.id, reactivation.change.id)).resolves.toEqual({ undone: true });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: added.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+
+    await expect(BranchService.archiveDueBillingRemovals(new Date(trialEndsAt.getTime() + 1))).resolves.toEqual({ archived: 1 });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: c.id } })).resolves.toMatchObject({ billingStatus: "ARCHIVED" });
+    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
   });
 
   it("scopes an active owner trial to its bound organization", async () => {

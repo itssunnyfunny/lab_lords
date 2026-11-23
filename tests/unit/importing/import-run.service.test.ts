@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { importBusinessDate } from "@/importing/utils/current-month-import";
 
 const mocks = vi.hoisted(() => {
     const tx = {
         $queryRaw: vi.fn(),
         importSession: { findFirst: vi.fn(), update: vi.fn() },
         importPlan: { findFirst: vi.fn() },
+        importRowEvaluation: { findMany: vi.fn() },
         importRun: {
             findUnique: vi.fn(),
             findFirst: vi.fn(),
@@ -90,6 +92,27 @@ const snapshot = {
     ],
 };
 
+function mockReviewedPaymentPlan(plannedStatus: string) {
+    const session = { id: "session_1", branchId: "branch_1", engineVersion: 2, goal: "FULL", draftRevision: 3, activeEvaluationRevision: 3, archivedAt: null };
+    const plan = {
+        id: "plan_1", importSessionId: session.id, revision: 3, planVersion: "corrected-legend", canRun: true,
+        snapshot: { ...snapshot, goal: session.goal,
+            mapping: {
+                columnMappings: [{ sourceColumn: "Payment Status", targetField: "payment.status" }],
+                importOptions: { paymentAction: "IMPORT_PAID_UNPAID", paymentMapping: {
+                    confirmed: true, paidValues: [], unpaidValues: [], waivedValues: [], unclearValues: ["X"],
+                } },
+            },
+            items: [{ itemKey: "row:row_1:payment:2026-11-01", kind: "PAYMENT_CYCLE", rowId: "row_1", evaluationId: "evaluation_1",
+                payload: { amount: 900, bucket: "current", status: plannedStatus } }],
+        },
+    };
+    mocks.tx.importSession.findFirst.mockResolvedValue(session);
+    mocks.tx.importPlan.findFirst.mockResolvedValue(plan);
+    return { userId: "user_1", sessionId: session.id, branchId: session.branchId, kind: "COMMIT" as const,
+        importPlanId: plan.id, confirmedPlanVersion: plan.planVersion, targetRevision: session.draftRevision, idempotencyKey: "confirm" };
+}
+
 describe("ImportRunService", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -107,6 +130,7 @@ describe("ImportRunService", () => {
             archivedAt: null,
         });
         mocks.tx.importSession.update.mockResolvedValue({});
+        mocks.tx.importRowEvaluation.findMany.mockResolvedValue([]);
         mocks.tx.importRun.findUnique.mockResolvedValue(null);
         mocks.tx.importRun.findFirst.mockResolvedValue(null);
         mocks.tx.importPlan.findFirst.mockResolvedValue({
@@ -177,6 +201,97 @@ describe("ImportRunService", () => {
             idempotencyKey: "request-1",
         })).rejects.toMatchObject({ code: "IMPORT_IDEMPOTENCY_CONFLICT" });
         expect(mocks.tx.importRun.create).not.toHaveBeenCalled();
+    });
+
+    it("blocks a first commit of a conflicting same-day plan but replays and dispatches its already-started run", async () => {
+        const { ImportRunService } = await import("@/importing/services/import-run.service");
+        const legacySnapshot = {
+            ...snapshot, goal: "FULL",
+            currentMonthReview: { businessDate: importBusinessDate(), rows: [] },
+            mapping: { ...snapshot.mapping, importOptions: { paymentAction: "IMPORT_PAID_UNPAID", paymentMapping: {
+                confirmed: true, paidValues: ["X"], unpaidValues: [" x "], waivedValues: [], unclearValues: [],
+            } } },
+            items: [snapshot.items[0], { itemKey: "row:row_1:payment:2026-10-10", kind: "PAYMENT_CYCLE",
+                rowId: "row_1", evaluationId: "evaluation_1", payload: { status: "PAID", bucket: "current", amount: 900, method: "CASH" } }],
+        };
+        const plan = { id: "plan_1", importSessionId: "session_1", revision: 3, planVersion: "old-version", canRun: true, snapshot: legacySnapshot };
+        const session = { id: "session_1", branchId: "branch_1", engineVersion: 2, goal: "FULL", draftRevision: 3, activeEvaluationRevision: 3, archivedAt: null };
+        const request = { userId: "user_1", branchId: session.branchId, sessionId: session.id, kind: "COMMIT" as const,
+            importPlanId: plan.id, confirmedPlanVersion: plan.planVersion, targetRevision: 3, idempotencyKey: "confirm" };
+        mocks.tx.importSession.findFirst.mockResolvedValue(session);
+        mocks.tx.importPlan.findFirst.mockResolvedValue(plan);
+        await expect(ImportRunService.createOrGetRun(request)).rejects.toMatchObject({ code: "IMPORT_PAYMENT_LEGEND_CONFLICT" });
+        expect(mocks.tx.importRun.create).not.toHaveBeenCalled();
+        expect(mocks.tx.importRunItem.createMany).not.toHaveBeenCalled();
+        expect(mocks.tx.importSession.update).not.toHaveBeenCalled();
+
+        const recovered = { id: "earlier_run", branchId: session.branchId, kind: "COMMIT", status: "RETRYABLE_FAILURE",
+            idempotencyKey: request.idempotencyKey, requestHash: mocks.tx.importRun.findFirst.mock.calls[0][0].where.requestHash,
+            workflowRunId: null, session, plan };
+        mocks.tx.importRun.findUnique.mockResolvedValueOnce(recovered);
+        await expect(ImportRunService.createOrGetRun(request)).resolves.toEqual(recovered);
+        mocks.tx.importRun.findFirst.mockResolvedValueOnce(recovered);
+        await expect(ImportRunService.createOrGetRun({ ...request, idempotencyKey: "another-confirmation" })).resolves.toEqual(recovered);
+        mocks.tx.importRun.findFirst.mockResolvedValueOnce(recovered);
+        await expect(ImportRunService.getDispatchableRun(request.userId, session.branchId, recovered.id)).resolves.toEqual(recovered);
+        expect(mocks.tx.importRun.create).not.toHaveBeenCalled();
+        expect(mocks.tx.importRunItem.createMany).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { savedStatus: "PAID", plannedStatus: "PAID" },
+        { savedStatus: "UNCLEAR", plannedStatus: "DUE" },
+    ])("requires a fresh review of a legacy manual $savedStatus with an unclear source and a planned $plannedStatus", async ({ savedStatus, plannedStatus }) => {
+        const { ImportRunService } = await import("@/importing/services/import-run.service");
+        const request = mockReviewedPaymentPlan(plannedStatus);
+        mocks.tx.importRowEvaluation.findMany.mockResolvedValue([{
+            id: "evaluation_1", importRowId: "row_1", row: { rawData: { "Payment Status": "X" } },
+            mappedData: { __manualNormalizedData: true },
+            normalizedData: { allocation: { shiftName: "Evening" }, payment: { status: savedStatus, rawStatus: "PAID", amount: 900 } },
+        }]);
+        await expect(ImportRunService.createOrGetRun(request)).rejects.toMatchObject({ code: "IMPORT_PAYMENT_REVIEW_REQUIRED" });
+        expect(mocks.tx.importRowEvaluation.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: { in: ["evaluation_1"] }, branchId: request.branchId, revision: 3,
+                row: { importSessionId: request.sessionId, branchId: request.branchId } },
+        }));
+        expect(mocks.tx.importRun.create).not.toHaveBeenCalled();
+        expect(mocks.tx.importRunItem.createMany).not.toHaveBeenCalled();
+
+        const prior = { id: "started", requestHash: mocks.tx.importRun.findFirst.mock.calls[0][0].where.requestHash };
+        mocks.tx.importRun.findUnique.mockResolvedValueOnce(prior);
+        await expect(ImportRunService.createOrGetRun(request)).resolves.toEqual(prior);
+        expect(mocks.tx.importRowEvaluation.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("accepts a source discrepancy with an explicit matching payment decision in the reviewed evaluation", async () => {
+        const { ImportRunService } = await import("@/importing/services/import-run.service");
+        const request = mockReviewedPaymentPlan("DUE");
+        mocks.tx.importRowEvaluation.findMany.mockResolvedValue([{
+            id: "evaluation_1", importRowId: "row_1", row: { rawData: { "Payment Status": "X" } },
+            mappedData: { __manualNormalizedData: true }, normalizedData: { payment: { status: "DUE", decision: "KEEP_DUE" } },
+        }]);
+        await expect(ImportRunService.createOrGetRun(request)).resolves.toMatchObject({ id: "run_1" });
+    });
+
+    it.each([
+        ["GENERATE_DUE", "START_CURRENT_JOINED_CYCLE", "current"],
+        ["IMPORT_PAID_UNPAID", "FROM_JOINED_MARK_PAID", "current"],
+        ["IMPORT_PAID_UNPAID", "FROM_JOINED_MARK_DUE", "current"],
+        ["IMPORT_PAID_UNPAID", "FROM_JOINED_PAID_THROUGH_PREVIOUS", "historical"],
+    ])("allows %s with %s when the %s status is independent of the source label", async (paymentAction, paymentHistoryMode, bucket) => {
+        const { ImportRunService } = await import("@/importing/services/import-run.service");
+        const session = { id: "session_1", branchId: "branch_1", engineVersion: 2, goal: "FULL", draftRevision: 3, activeEvaluationRevision: 3 };
+        mocks.tx.importSession.findFirst.mockResolvedValue(session);
+        const source = { ...snapshot, goal: "FULL",
+            mapping: { ...snapshot.mapping, importOptions: { paymentAction, paymentHistoryMode,
+                paymentMapping: { confirmed: true, paidValues: ["X"], unpaidValues: ["X"], waivedValues: [] } } },
+            items: [{ itemKey: "row:row_1:payment:2026-10-10", kind: "PAYMENT_CYCLE", payload: { bucket } }],
+        };
+        mocks.tx.importPlan.findFirst.mockResolvedValue({ id: "plan_1", canRun: true, planVersion: "old-version", snapshot: source });
+        await expect(ImportRunService.createOrGetRun({
+            userId: "user_1", branchId: session.branchId, sessionId: session.id, kind: "COMMIT",
+            importPlanId: "plan_1", confirmedPlanVersion: "old-version", targetRevision: 3, idempotencyKey: "confirm",
+        })).resolves.toMatchObject({ id: "run_1" });
     });
 
     it("blocks commit start when the reviewed plan now exceeds the current mutation cap", async () => {

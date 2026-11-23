@@ -11,6 +11,12 @@ const today = new Date(2026, 10, 2, 12);
 const row = (date: string): ImportNormalizedRow => ({ student: { name: "Synthetic Student", monthlyFee: 1000, joinedAt: new Date(date + "T12:00:00").toISOString(), joinedAtSource: "UPLOADED" } });
 const options = guidedImportOptions();
 describe("guided current-month import policy", () => {
+    it("keeps a zero-fee anniversary out of both guided and historical debt plans", () => {
+        const student = { ...row("2026-01-01").student!, monthlyFee: 0 };
+        expect(currentMonthOutcome({ student }, today).state).toBe("NO_DUE");
+        expect(buildImportPaymentPlan({ student }, options, today).items).toEqual([]);
+        expect(buildImportPaymentPlan({ student }, { paymentAction: "GENERATE_DUE", paymentHistoryMode: "FROM_JOINED_MARK_DUE" }, today).items).toEqual([]);
+    });
     it.each([["2026-01-01", "CREATE_NOW", "2026-11-01"], ["2026-01-02", "CREATE_NOW", "2026-11-02"], ["2026-01-15", "GENERATE_LATER", "2026-11-15"], ["2026-11-01", "NO_DUE", "2026-12-01"]] as const)("%s retains its true anniversary", (date, state, due) => {
         const outcome = currentMonthOutcome(row(date), today);
         expect(outcome.state).toBe(state);

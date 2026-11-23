@@ -33,7 +33,6 @@ INSTRUCTIONS:
    - PriorityFocus: The single most important thing the owner should look at first. Keep it specific.
    - KeyFindings: 2-3 short bullet-style strings that highlight the clearest operating signals from the data.
    - Observation: A short, professional narrative sentence explaining the situation.
-   - RiskLevel: Derive from the specific risks provided (e.g. if PAYMENT_OVERDUE is HIGH, financialAnalysis.riskLevel is CRITICAL). If no specific risk, set to LOW.
 4. Use the actual counts and percentages from the input where they make the report clearer.
 
 OUTPUT FORMAT (JSON ONLY):
@@ -42,16 +41,13 @@ OUTPUT FORMAT (JSON ONLY):
   "priorityFocus": "string",
   "keyFindings": ["string", "string"],
   "financialAnalysis": {
-    "observation": "string",
-    "riskLevel": "LOW" | "MODERATE" | "CRITICAL"
+    "observation": "string"
   },
   "utilizationAnalysis": {
-    "observation": "string",
-    "riskLevel": "LOW" | "MODERATE" | "CRITICAL"
+    "observation": "string"
   },
   "studentActivityAnalysis": {
-    "observation": "string",
-    "riskLevel": "LOW" | "MODERATE" | "CRITICAL"
+    "observation": "string"
   }
 }
 

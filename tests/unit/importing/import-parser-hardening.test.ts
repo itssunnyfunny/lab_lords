@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseCsv } from "@/importing/parsers/csv.parser";
 import { detectPastedTableFormat, parsePastedTable } from "@/importing/parsers/pasted-table.parser";
 import { inspectXlsxWorkbook, parseXlsx } from "@/importing/parsers/xlsx.parser";
+import { parseImportDate } from "@/importing/utils/row-normalizer";
 import {
     MAX_IMPORT_CELL_BYTES,
     MAX_IMPORT_COLUMNS,
@@ -39,6 +40,76 @@ function zipDirectory(input: {
 }
 
 describe("import parser hardening", () => {
+    it.each(["xlsx", "biff8"] as const)("preserves native joining dates across date display formats in %s", async bookType => {
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.utils.book_new();
+        const sheet = XLSX.utils.aoa_to_sheet([
+            ["US date", "Indian date", "Shift start", "Text date", "Month label", "Duration"],
+            [new Date(2026, 10, 4), new Date(2026, 10, 4), 0.5, "04/11/2026", new Date(2026, 10, 4), 1.5],
+        ]);
+        sheet.A2.z = "m/d/yyyy";
+        sheet.B2.z = "dd/mm/yyyy";
+        sheet.C2.z = "hh:mm";
+        sheet.E2.z = 'mmm "months"';
+        sheet.F2.z = "[h]:mm";
+        XLSX.utils.book_append_sheet(workbook, sheet, "Students");
+        const { rows } = await parseXlsx(XLSX.write(workbook, { type: "buffer", bookType }));
+        expect(rows[0]).toEqual({ "US date": "2026-11-04", "Indian date": "2026-11-04", "Shift start": "12:00",
+            "Text date": "04/11/2026", "Month label": "2026-11-04", Duration: "36:00" });
+        expect(parseImportDate(rows[0]["US date"])).toBe("2026-11-04T00:00:00.000Z");
+    });
+
+    it.each([false, true])("preserves explicitly typed XLSX calendar dates alongside serials with date1904=%s", async date1904 => {
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.utils.book_new();
+        workbook.Workbook = { WBProps: { date1904 } };
+        const other = XLSX.utils.aoa_to_sheet([["Joined date"], [new Date(2026, 3, 11)]], { cellDates: true });
+        XLSX.utils.book_append_sheet(workbook, other, "Other");
+        const sheet = XLSX.utils.aoa_to_sheet([["Joined date", "Serial", "Unformatted"],
+            [new Date(2026, 10, 4), date1904 ? 44868 : 46330, new Date(2026, 10, 4)]], { cellDates: true });
+        sheet.A2.z = "m/d/yyyy";
+        sheet.B2.z = "dd/mm/yyyy";
+        sheet.C2.z = "General";
+        XLSX.utils.book_append_sheet(workbook, sheet, "Students");
+        const { rows } = await parseXlsx(XLSX.write(workbook, { cellDates: true, type: "buffer", bookType: "xlsx" }), { sheetName: "Students" });
+        expect(rows[0]).toEqual({ "Joined date": "2026-11-04", Serial: "2026-11-04", Unformatted: "2026-11-04" });
+    });
+
+    it("uses the workbook's 1904 date system", async () => {
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.utils.book_new();
+        workbook.Workbook = { WBProps: { date1904: true } };
+        const sheet = XLSX.utils.aoa_to_sheet([["Joined date"], [1]]);
+        sheet.A2.z = "m/d/yyyy";
+        XLSX.utils.book_append_sheet(workbook, sheet, "Students");
+        const { rows } = await parseXlsx(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
+        expect(rows[0]["Joined date"]).toBe("1904-01-02");
+    });
+
+    it("locates an explicitly typed date by worksheet position when coordinates are omitted", async () => {
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.utils.book_new();
+        workbook.Workbook = { WBProps: { date1904: true } };
+        const sheet = XLSX.utils.aoa_to_sheet([
+            ["Name", "Joining date"], ["Sample", new Date(2026, 10, 4)],
+        ], { cellDates: true });
+        XLSX.utils.book_append_sheet(workbook, sheet, "Students");
+        const archive = XLSX.CFB.read(XLSX.write(workbook, { cellDates: true, type: "buffer", bookType: "xlsx" }), { type: "buffer" });
+        const originalSheet = "/xl/worksheets/sheet1.xml";
+        const sheetXml = Buffer.from(XLSX.CFB.find(archive, originalSheet).content).toString("utf8")
+            .replace('<row r="2">', "<row>").replace(' r="B2"', "");
+        const renameSheet = (xml: string) => xml.replaceAll("worksheets/sheet1.xml", "worksheets/roster.xml");
+        for (const path of ["/xl/_rels/workbook.xml.rels", "/[Content_Types].xml"]) {
+            const xml = Buffer.from(XLSX.CFB.find(archive, path).content).toString("utf8");
+            XLSX.CFB.utils.cfb_add(archive, path, Buffer.from(renameSheet(xml)));
+        }
+        XLSX.CFB.utils.cfb_del(archive, originalSheet);
+        XLSX.CFB.utils.cfb_add(archive, "/xl/worksheets/roster.xml", Buffer.from(sheetXml));
+
+        const parsed = await parseXlsx(XLSX.CFB.write(archive, { type: "buffer", fileType: "zip" }));
+        expect(parsed.rows).toEqual([{ Name: "Sample", "Joining date": "2026-11-04" }]);
+    });
+
     it("preserves blank and duplicate headers with stable positional aliases", () => {
         const parsed = parseCsv("Name,,Name\nAsha,private-middle,Alias");
 

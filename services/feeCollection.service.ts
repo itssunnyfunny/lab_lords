@@ -42,7 +42,7 @@ export class FeeCollectionService {
         const requestHash = createHash("sha256").update(JSON.stringify({ ...data, paymentIds: [...data.paymentIds].sort() })).digest("hex");
         const previous = await tx.feeCollection.findUnique({ where: { branchId_idempotencyKey: { branchId, idempotencyKey: data.idempotencyKey } } });
         if (previous) {
-            if (previous.requestHash !== requestHash) throw new CollectionInputError("This retry key belongs to a different collection request");
+            if (previous.actorId !== actorId || previous.requestHash !== requestHash) throw new CollectionInputError("This retry key belongs to a different collection request");
             return previous;
         }
         const student = await tx.student.findFirst({ where: { id: data.studentId, branchId }, include: { branch: { include: { organization: true } } } });

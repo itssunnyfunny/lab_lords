@@ -398,6 +398,20 @@ describe("WhatsApp planner durability", () => {
       now: NOW,
       code: "RATE_UNAVAILABLE",
     });
+    expect(mocks.jobRunFinish).toHaveBeenCalledWith(expect.objectContaining({ status: "PARTIAL" }));
+  });
+
+  it("records a failed job when every claimed branch fails", async () => {
+    vi.spyOn(WhatsAppPlannerService, "claimNextBranch")
+      .mockResolvedValueOnce({ branchId: "branch_1", leaseToken: "lease_1" })
+      .mockResolvedValueOnce(null);
+    vi.spyOn(WhatsAppPlannerService, "planClaimedBranch").mockRejectedValueOnce(new Error("Unavailable"));
+    vi.spyOn(WhatsAppPlannerService, "failClaim").mockResolvedValue();
+    await WhatsAppPlannerService.run({ now: NOW, env: ENABLED_ENV });
+    expect(mocks.jobRunFinish).toHaveBeenCalledWith(expect.objectContaining({
+      status: "FAILED", safeErrorCode: "COLLECTION_PLANNER_FAILED",
+      counts: expect.objectContaining({ claimedBranches: 1, failedBranches: 1, completedBranches: 0 }),
+    }));
   });
 
   it("enforces the caller-independent branch batch ceiling", async () => {

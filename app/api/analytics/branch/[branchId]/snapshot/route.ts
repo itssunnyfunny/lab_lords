@@ -21,7 +21,7 @@ export async function GET(
         const periodParam = url.searchParams.get("period");
         const period: AnalyticsPeriod = periodParam === "month" ? "month" : "all";
 
-        const { health, finance } = await AnalyticsAccessService.branchSnapshot(user.id, branchId, period)
+        const { health, finance, timezone } = await AnalyticsAccessService.branchSnapshot(user.id, branchId, period)
 
         // Transform to match BranchSnapshot interface in lib/api/analytics.ts
         const totalSeats = health.seats.occupancySnapshot.totalShiftCapacity;
@@ -30,6 +30,7 @@ export async function GET(
 
         const snapshot = {
             period,
+            timezone,
             totalStudents,
             activeStudents: health.students.status.active,
             assignedSeats,

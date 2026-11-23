@@ -4,117 +4,60 @@ import { branchHealthPrompt } from "./prompts/branchHealth.prompt"
 import { callGemini } from "./llm/gemini.client"
 import { detectBranchRisks, calculateHealthScore } from "./riskDetection/branchRiskDetector"
 import { suggestActionsForBranch } from "./actionSuggestions/branchActionSuggester"
-import { AIActionSuggestion } from "./contracts/actionSuggestion.contract"
-
-type BranchNarrativePayload = Pick<
-  AIStructuredBranchReport,
-  | "executiveSummary"
-  | "priorityFocus"
-  | "keyFindings"
-  | "financialAnalysis"
-  | "utilizationAnalysis"
-  | "studentActivityAnalysis"
->
+import type { AIRisk, AIRiskType } from "./contracts/risk.contract"
 
 type AnalysisSection = AIStructuredBranchReport["financialAnalysis"]
+
+function categoryRisk(risks: AIRisk[], type: AIRiskType): AnalysisSection["riskLevel"] {
+  const severity = risks.find(risk => risk.type === type)?.severity
+  return severity === "HIGH" ? "CRITICAL" : severity === "MEDIUM" ? "MODERATE" : "LOW"
+}
 
 export async function generateBranchHealthReport(
   snapshot: AIBranchSnapshot,
 ): Promise<AIStructuredBranchReport> {
-  // 1. Deterministic Calculations (The "Hard" Logic)
   const risks = detectBranchRisks(snapshot)
   const healthScore = calculateHealthScore(snapshot, risks)
-  const suggestedActions = suggestActionsForBranch(risks)
-
-  // 2. AI Narrative Generation (The "Soft" Logic)
-  // We feed the DECISIONS to the AI, and ask it to explain them.
-  const prompt = branchHealthPrompt(snapshot, risks, healthScore)
-  const rawResponse = await callGemini(prompt)
-
-  if (!rawResponse) {
-    return getFallbackReport(snapshot, healthScore, suggestedActions)
-  }
-
-  try {
-    const cleanJson = rawResponse.replace(/```json/g, "").replace(/```/g, "").trim()
-    const narrativeData = JSON.parse(cleanJson) as Partial<BranchNarrativePayload>
-
-    return {
-      healthScore, // Trusted Code
-      executiveSummary: cleanText(narrativeData.executiveSummary) ?? buildExecutiveSummary(snapshot, healthScore),
-      priorityFocus: cleanText(narrativeData.priorityFocus) ?? buildPriorityFocus(snapshot, healthScore),
-      keyFindings: normalizeKeyFindings(narrativeData.keyFindings, snapshot),
-      financialAnalysis: normalizeAnalysis(
-        narrativeData.financialAnalysis,
-        buildFinancialObservation(snapshot),
-        snapshot.payments.overdueCount > 0 ? "MODERATE" : "LOW"
-      ),
-      utilizationAnalysis: normalizeAnalysis(
-        narrativeData.utilizationAnalysis,
-        buildUtilizationObservation(snapshot),
-        snapshot.seats.utilizationPercent < 50 ? "MODERATE" : "LOW"
-      ),
-      studentActivityAnalysis: normalizeAnalysis(
-        narrativeData.studentActivityAnalysis,
-        buildActivityObservation(snapshot),
-        snapshot.students.inactive > snapshot.students.active ? "CRITICAL" : "LOW"
-      ),
-      suggestedActions, // Trusted Code - Passing full AIActionSuggestion[]
-      generatedAt: new Date().toISOString()
-    }
-  } catch (error) {
-    console.error("Failed to parse Gemini JSON response", error)
-    return getFallbackReport(snapshot, healthScore, suggestedActions)
-  }
-}
-
-function getFallbackReport(
-  snapshot: AIBranchSnapshot,
-  healthScore: AIStructuredBranchReport['healthScore'] = 'MODERATE_RISK',
-  suggestedActions: AIActionSuggestion[] = []
-): AIStructuredBranchReport {
-  return {
+  const report: AIStructuredBranchReport = {
     healthScore,
     executiveSummary: buildExecutiveSummary(snapshot, healthScore),
     priorityFocus: buildPriorityFocus(snapshot, healthScore),
     keyFindings: normalizeKeyFindings(undefined, snapshot),
     financialAnalysis: {
       observation: buildFinancialObservation(snapshot),
-      riskLevel: snapshot.payments.overdueCount > 0 ? "MODERATE" : "LOW"
+      riskLevel: categoryRisk(risks, "PAYMENT_OVERDUE")
     },
     utilizationAnalysis: {
       observation: buildUtilizationObservation(snapshot),
-      riskLevel: snapshot.seats.utilizationPercent < 50 ? "MODERATE" : "LOW"
+      riskLevel: categoryRisk(risks, "LOW_SEAT_UTILIZATION")
     },
     studentActivityAnalysis: {
       observation: buildActivityObservation(snapshot),
-      riskLevel: snapshot.students.inactive > snapshot.students.active ? "CRITICAL" : "LOW"
+      riskLevel: categoryRisk(risks, "HIGH_INACTIVE_STUDENTS")
     },
-    suggestedActions: suggestedActions.length > 0 ? suggestedActions : [
-      { action: "REVIEW_SEAT_UTILIZATION", reason: "Check manual records" },
-      { action: "REENGAGE_INACTIVE_STUDENTS", reason: "Retry analysis later" }
-    ], // Return structured fallback
+    suggestedActions: suggestActionsForBranch(risks),
     generatedAt: new Date().toISOString()
   }
+
+  const raw = await callGemini(branchHealthPrompt(snapshot, risks, healthScore))
+  if (!raw) return report
+
+  try {
+    const narrative = JSON.parse(raw.replace(/```json/g, "").replace(/```/g, "").trim()) as Partial<AIStructuredBranchReport>
+    report.executiveSummary = cleanText(narrative.executiveSummary) ?? report.executiveSummary
+    report.priorityFocus = cleanText(narrative.priorityFocus) ?? report.priorityFocus
+    report.keyFindings = normalizeKeyFindings(narrative.keyFindings, snapshot)
+    for (const key of ["financialAnalysis", "utilizationAnalysis", "studentActivityAnalysis"] as const) {
+      report[key].observation = cleanText(narrative[key]?.observation) ?? report[key].observation
+    }
+  } catch {
+    // Malformed narrative leaves the deterministic report available.
+  }
+  return report
 }
 
 function cleanText(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined
-}
-
-function isRiskLevel(value: unknown): value is AnalysisSection["riskLevel"] {
-  return value === "LOW" || value === "MODERATE" || value === "CRITICAL"
-}
-
-function normalizeAnalysis(
-  section: Partial<AnalysisSection> | undefined,
-  fallbackObservation: string,
-  fallbackRiskLevel: AnalysisSection["riskLevel"]
-): AnalysisSection {
-  return {
-    observation: cleanText(section?.observation) ?? fallbackObservation,
-    riskLevel: isRiskLevel(section?.riskLevel) ? section.riskLevel : fallbackRiskLevel
-  }
 }
 
 function normalizeKeyFindings(

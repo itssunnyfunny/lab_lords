@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeEach, afterAll, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, beforeAll, vi } from "vitest";
+import { prisma } from "@/lib/prisma";
 import { PaymentService } from "@/services/payment.service";
 import { StudentService } from "@/services/student.service";
+import { ShiftService } from "@/services/shift.service";
+import { MultiShiftService } from "@/services/multiShift.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import {
   createTestWorld,
@@ -10,6 +13,8 @@ import {
   createUser,
   createOrg,
   createBranch,
+  createShift,
+  createSaasSubscription,
 } from "@/tests/factories";
 import { freezeTime, advanceMonths, restoreTime } from "@/tests/setup/time";
 import { addMonths, format } from "date-fns";
@@ -44,6 +49,138 @@ describe("PaymentService Integration", () => {
   // ─── generateDuePaymentsForBranch ─────────────────────────────────────────
 
   describe("generateDuePaymentsForBranch", () => {
+    it.each(["manual", "shift", "bundle"] as const)("preserves an accrued positive fee and skips only free anniversaries on %s rate changes", async source => {
+      const joinedAt = new Date(2026, 9, 10);
+      const novemberDue = new Date(2026, 10, 10);
+      freezeTime(new Date(2026, 10, 11));
+      try {
+        const { user, branch, shift } = await createTestWorld();
+        if (source === "shift") await ShiftService.updateShift(user.id, shift.id, { price: 900 });
+        let bundleId: string | undefined;
+        if (source === "bundle") {
+          const evening = await createShift({ branchId: branch.id, name: "Evening", startTime: "17:00", endTime: "21:00" });
+          const bundle = await MultiShiftService.createMultiShift(user.id, branch.id, {
+            name: "Nov bundle", price: 900, shiftIds: [shift.id, evening.id],
+          });
+          bundleId = bundle.id;
+        }
+        const student = await createStudent({ branchId: branch.id, joinedAt, monthlyFee: 900,
+          feeLinkedShiftId: source === "shift" ? shift.id : null, feeLinkedMultiShiftId: bundleId });
+        async function setRate(price: number) {
+          if (bundleId) await MultiShiftService.updateMultiShift(user.id, bundleId, { price });
+          else if (source === "shift") await ShiftService.updateShift(user.id, shift.id, { price });
+          else await StudentService.updateStudentProfile(user.id, student.id, { monthlyFee: price });
+        }
+        const generate = () => PaymentService.generateDuePaymentsForBranch(user.id, branch.id);
+        const rows = () => testPrisma.payment.findMany({ where: { studentId: student.id },
+          orderBy: { dueDate: "asc" }, select: { amount: true, status: true, periodStart: true, dueDate: true } });
+
+        // November's anniversary has accrued, but the scheduled generator has not run.
+        await setRate(0);
+        freezeTime(new Date(2026, 10, 12));
+        await setRate(900);
+        await generate();
+        const november = { amount: 900, status: "DUE", periodStart: joinedAt, dueDate: novemberDue };
+        expect(await rows()).toEqual([november]);
+
+        await setRate(0);
+        freezeTime(new Date(2026, 11, 10));
+        expect((await generate()).generatedCount).toBe(0);
+        freezeTime(new Date(2026, 11, 12));
+        await setRate(1050);
+        expect((await generate()).generatedCount).toBe(0);
+        freezeTime(new Date(2027, 0, 10));
+        expect((await generate()).generatedCount).toBe(1);
+        expect((await generate()).generatedCount).toBe(0);
+        expect(await rows()).toEqual([november, {
+          amount: 1050, status: "DUE", periodStart: new Date(2026, 11, 10), dueDate: new Date(2027, 0, 10),
+        }]);
+      } finally { freezeTime(); }
+    });
+
+    it("checks generation permission only for missing dues and respects a legacy payment on the same due day", async () => {
+      freezeTime(new Date(2026, 10, 11));
+      try {
+        const { branch } = await createTestWorld();
+        const staff = await createUser();
+        await createStaff({ userId: staff.id, branchId: branch.id, role: "STAFF" });
+        const student = await createStudent({ branchId: branch.id, joinedAt: new Date(2026, 9, 10), monthlyFee: 900 });
+        const makeFree = () => StudentService.updateStudentProfile(staff.id, student.id, { monthlyFee: 0 });
+        await expect(makeFree()).rejects.toThrow(/generate_payments/);
+        expect((await testPrisma.student.findUniqueOrThrow({ where: { id: student.id } })).monthlyFee).toBe(900);
+        expect(await testPrisma.payment.count({ where: { studentId: student.id } })).toBe(0);
+        const legacy = await createPayment({ branchId: branch.id, studentId: student.id, amount: 750, status: "WAIVED",
+          periodStart: new Date(2026, 9, 1), periodEnd: new Date(2026, 10, 10), dueDate: new Date(2026, 10, 10, 15) });
+        await expect(makeFree()).resolves.toMatchObject({ monthlyFee: 0 });
+        expect(await testPrisma.payment.findMany({ where: { studentId: student.id } })).toEqual([legacy]);
+      } finally { freezeTime(); }
+    });
+
+    it("allows Basic owners to set free manual and linked rates before any fee accrues", async () => {
+      const owner = await createUser();
+      const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+      await createSaasSubscription({ organizationId: org.id, plan: "BASIC" });
+      const branch = await createBranch({ organizationId: org.id });
+      const morning = await createShift({ branchId: branch.id, price: 900 });
+      const manual = await createStudent({ branchId: branch.id, monthlyFee: 900, joinedAt: new Date() });
+      const linked = await createStudent({ branchId: branch.id, monthlyFee: 900, joinedAt: new Date(), feeLinkedShiftId: morning.id });
+      await expect(StudentService.updateStudentProfile(owner.id, manual.id, { monthlyFee: 0 })).resolves.toMatchObject({ monthlyFee: 0 });
+      await ShiftService.updateShift(owner.id, morning.id, { price: 0 });
+      expect((await testPrisma.student.findUniqueOrThrow({ where: { id: linked.id } })).monthlyFee).toBe(0);
+      expect(await testPrisma.payment.count({ where: { branchId: branch.id } })).toBe(0);
+    });
+    it("does not recreate debt when deactivation settles dues after generation reads its candidates", async () => {
+      const joinedAt = new Date(2026, 0, 1);
+      const firstDue = addMonths(joinedAt, 1);
+      const { user, branch } = await createTestWorld();
+      const student = await createStudent({ branchId: branch.id, joinedAt, monthlyFee: 800 });
+      const existing = await createPayment({ branchId: branch.id, studentId: student.id, amount: 800,
+        periodStart: joinedAt, periodEnd: firstDue, dueDate: firstDue });
+      const findMany = prisma.payment.findMany.bind(prisma.payment);
+      const read = vi.spyOn(prisma.payment, "findMany").mockImplementationOnce(args => findMany(args).then(async rows => {
+        await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED");
+        return rows;
+      }) as ReturnType<typeof findMany>);
+      try {
+        const result = await PaymentService.generateDuePaymentsForBranch(user.id, branch.id, addMonths(joinedAt, 2));
+        expect(read).toHaveBeenCalled();
+        expect(result).toMatchObject({ totalStudents: 1, generatedCount: 0 });
+        expect(await testPrisma.student.findUniqueOrThrow({ where: { id: student.id } })).toMatchObject({ status: "INACTIVE" });
+        expect(await testPrisma.payment.findMany({ where: { studentId: student.id }, select: { id: true, status: true } }))
+          .toEqual([{ id: existing.id, status: "WAIVED" }]);
+      } finally {
+        read.mockRestore();
+      }
+    });
+
+    it("skips completed free anniversaries and bills only the new paid period after a fee change", async () => {
+      const joinedAt = new Date(2026, 0, 1);
+      const paidPeriod = addMonths(joinedAt, 2);
+      freezeTime(new Date(2026, 2, 15));
+      try {
+        const { user, branch } = await createTestWorld();
+        const student = await createStudent({ branchId: branch.id, joinedAt, monthlyFee: 0 });
+        const generate = (date: Date) => PaymentService.generateDuePaymentsForBranch(user.id, branch.id, date);
+        expect((await generate(new Date())).generatedCount).toBe(0);
+        expect(await testPrisma.payment.count({ where: { studentId: student.id } })).toBe(0);
+        const legacy = await createPayment({ branchId: branch.id, studentId: student.id, amount: 0, status: "DUE",
+          periodStart: joinedAt, periodEnd: addMonths(joinedAt, 1), dueDate: addMonths(joinedAt, 1) });
+        expect(await PaymentService.listPayments(user.id, branch.id)).toEqual([]);
+        expect(await PaymentService.listPayments(user.id, branch.id, "DUE", new Date(), { limit: 10 }))
+          .toMatchObject({ items: [], total: 0 });
+        await StudentService.updateStudentProfile(user.id, student.id, { monthlyFee: 950 });
+        expect((await generate(new Date())).generatedCount).toBe(0);
+        const nextDue = addMonths(paidPeriod, 1);
+        expect((await generate(nextDue)).generatedCount).toBe(1);
+        expect((await generate(nextDue)).generatedCount).toBe(0);
+        expect(await testPrisma.payment.findMany({ where: { studentId: student.id }, orderBy: { dueDate: "asc" } }))
+          .toMatchObject([{ id: legacy.id, amount: 0 }, { amount: 950, status: "DUE", periodStart: paidPeriod, dueDate: nextDue }]);
+        expect(await PaymentService.listPayments(user.id, branch.id, "DUE", nextDue)).toMatchObject([{ amount: 950 }]);
+      } finally {
+        freezeTime();
+      }
+    });
+
     it("generates 1 payment for a student joined 1 month ago (time advanced by 1 month)", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       const { user, branch } = await createTestWorld();

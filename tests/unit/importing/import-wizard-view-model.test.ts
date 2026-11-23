@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { classifyPaymentStatus } from "@/importing/utils/row-normalizer";
 import {
     aiAssistanceState,
     buildImportWizardSteps,
@@ -6,6 +7,8 @@ import {
     isImportPlanFresh,
     paymentActionChangeOptions,
     paymentSkipOptions,
+    paymentLegendForRowReview,
+    unclearPaymentLabels,
     splitImportValues,
     studentsOnlyImportOptions,
     studentOnlyNormalizedData,
@@ -20,6 +23,22 @@ import {
 } from "@/importing/utils/manual-row-draft";
 
 describe("import wizard view model", () => {
+    it("saves explicitly classified words without reassigning them to unclear", () => {
+        const classified = { paidValues: ["yes"], unpaidValues: [" X"], waivedValues: ["free"] };
+        expect(unclearPaymentLabels(["YES", "x ", "Free", "ask"], classified)).toEqual(["ask"]);
+    });
+
+    it("moves conflicting words to row review while keeping all other confirmed meanings", () => {
+        const mapping = { confirmed: true, paidValues: ["Paid", "X"], unpaidValues: ["Due", " x "],
+            waivedValues: ["Waived", "y"], unclearValues: ["Unknown", "Y"] };
+        const corrected = paymentLegendForRowReview(mapping);
+        expect(corrected).toEqual({ confirmed: true, paidValues: ["Paid"], unpaidValues: ["Due"],
+            waivedValues: ["Waived"], unclearValues: ["Unknown", "Y"] });
+        expect(classifyPaymentStatus("X", corrected!)).toBe("UNCLEAR");
+        expect(classifyPaymentStatus("y", corrected!)).toBe("UNCLEAR");
+        expect(paymentLegendForRowReview(corrected!)).toBeNull();
+        expect(paymentLegendForRowReview({ ...mapping, confirmed: false })).toBeNull();
+    });
     it("keeps import usable when AI falls back", () => {
         const state = aiAssistanceState({
             usedFallback: true,

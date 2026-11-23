@@ -71,7 +71,7 @@ describe("student deactivation resolution authorization", () => {
     it.each(["PAID", "WAIVED"] as const)("delegates an explicit authorized owner %s choice to the canonical writer", async resolution => {
         await StudentService.updateStudentStatus("owner", "student", StudentStatus.INACTIVE, resolution);
         expect(mocks.duePayments).toHaveBeenCalledExactlyOnceWith({
-            where: { studentId: "student", branchId: "branch", status: "DUE" },
+            where: { studentId: "student", branchId: "branch", status: "DUE", amount: { gt: 0 } },
         });
         const source = { source: PaymentResolutionEventSource.STUDENT_INACTIVATION };
         if (resolution === "PAID") {

@@ -29,10 +29,14 @@ and sharing does not establish message delivery.
 Every collection rechecks `paymentsRecord`, branch writability and same-branch
 student/payment ownership inside the transaction. All interactive fee writers
 lock the student before fee rows. An advisory transaction lock serializes each
-branch/idempotency key; a canonical request hash rejects changed input. Stable
-same-key retries return the existing collection, including a subsequently voided
-record. Browser session storage preserves an uncertain request across dialog
-close/reload until a definitive response. Financial writes, allocations, receipt
+branch/idempotency key. Replay checks the stored actor and canonical request
+hash. A matching retry returns the original receipt, including its void status.
+Browser session storage preserves an uncertain request for its account, branch
+and student across dialog close or reload. The full-workspace form sends its
+account as a precondition on submission. A draft saved before account scoping
+can recover an existing receipt through the actor-scoped read. When that read
+finds no receipt, the cashier must check receipt history before entering a new
+collection. Financial writes, allocations, receipt
 facts and audit evidence commit together. No PDF or provider call runs there.
 
 Full-payment compatibility callers use the same collection service and default
@@ -73,11 +77,32 @@ records have no automatic void action.
 
 ## Readers and reminders
 
+Monthly generation locks each candidate student before inserting dues and
+rechecks the current status, branch, cutoff and positive monthly fee. A free
+student's completed anniversaries stay free after a manual or linked price
+increase. Historical zero-value dues remain available as cycle evidence and
+are excluded from collection and follow-up queues.
+
+When a positive manual, shift-linked or bundle-linked rate becomes zero, the
+rate edit preserves any missing monthly dues already accrued by active students.
+It writes them at the outgoing rate in the same transaction as the edit. The
+saved billing cutoff, typed monthly period and legacy due-day identity all apply.
+An edit creating dues requires the existing payment-generation permission. If
+permission is missing, the transaction rolls back. Once the due periods are
+already recorded, student or shift editing permissions suffice for the change.
+Previously skipped accruals require independent evidence of their old rates and
+effective dates for historical correction.
+
 Renewals, outstanding/overdue analytics, student fee summaries, fee displays and
 reminder source fingerprints use the remaining collectible balance. Collection
 reports sum actual collections by collection time, excluding voids, plus
 compatible legacy evidence. They never add a fee's full amount again on its
-final instalment. Original billed amount remains distinct. Existing as-of
+final instalment. Dashboard and Branch Analytics calculate the collection rate
+from fees due in the selected period, using their current settled amount divided
+by original bills less waivers. A fully waived or empty cohort has no rate.
+The separate collected-cash amount uses receipt or eligible legacy payment
+dates. Financial charts use the organization's calendar for range boundaries,
+daily totals and labels. Original billed amount remains distinct. Existing as-of
 outstanding analytics still project mutable current fee state; this feature does
 not rebuild a historical accounting system.
 

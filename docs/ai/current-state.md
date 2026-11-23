@@ -1,5 +1,32 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Student fees, imports and branch operations — local, 2026-11-18
+
+Monthly generation checks eligibility under the settlement lock. Free cycles
+stay out of debt queues. The full workspace scopes unfinished collections to
+the signed-in cashier and preserves uncertainty when payment data is unavailable.
+Excel imports retain native calendar dates and reject conflicting payment
+legends. Capacity edits invalidate AI reports, and AI risk labels and actions
+use the branch's measured data. Shift deletion previews show each student's
+eligible targets after bundle release. Seat search can match a current occupant
+in any shift. User-selected date order applies to dates and timestamps.
+Returning to workspaces leaves the invitation available until acceptance,
+expiry or revocation. Collections planner runs with failures in every claimed
+branch record `FAILED`. Mixed outcomes record `PARTIAL`. The remaining fixes and their regression
+coverage are recorded in the [application logic audit](../audits/application-logic-2026-11-18.md).
+
+## Trial branch billing corrections — local, 2026-11-18
+
+Branch-removal scheduling, first checkout and the Billing overview use the
+projected count of active branches and branches pending activation. The
+provider-confirmed quantity continues to come from the subscription. Owners
+see the monthly total and a zero plan fee due today on Basic, Standard and Pro
+trial authorization. For a pre-mandate removal, the deadline worker compares
+the current mandate with the branch count before later queued provider changes.
+This lets the earlier removal archive and the next quantity change proceed.
+At the trial deadline, the archival worker reports older
+conflicting schedules for [operator review](../production-runbook.md#trial-branch-removal-review).
+
 ## Branch setup form correction — local, 2026-11-16
 
 Organization branch creation now uses compact shared panels and labeled form
@@ -1492,6 +1519,13 @@ They retain only source type, a server-computed normalized-header signature,
 normalized column mappings, goal, and entity types—never samples, row values,
 branch configuration, or import/payment/default/conflict options.
 
+At first commit a saved plan with a conflicting confirmed legend for a
+source-derived payment status requires corrected labels and a new review.
+For manually edited rows, revalidation compares the uploaded status word with
+the saved payment status. A shift edit preserves the owner's shift choice but
+cannot confirm a disputed payment. First commit also checks the frozen row
+evaluation for plans saved after an earlier legend correction.
+Replays and dispatch of an already-started run use its existing ledger.
 Exact remaining payment-cycle review is exposed from immutable plan items by a
 tenant-authorized, required-permission-checked API page of at most 100 cycles;
 the plan response retains only bounded per-student aggregates. Terminal or

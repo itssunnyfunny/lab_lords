@@ -4,6 +4,7 @@ import { StaffService } from "@/services/staff.service";
 import { Prisma } from "@/app/generated/prisma/client";
 import type { ImportRunStatus } from "@/app/generated/prisma/enums";
 import type { StaffAction } from "@/types";
+import type { ImportNormalizedRow } from "../contracts/import-session.contract";
 import { getImportMaxPlannedMutations } from "@/lib/importFeature";
 import {
     IMPORT_ENGINE_VERSION,
@@ -17,7 +18,11 @@ import {
     createImportMutationRequestHash,
     createImportRequestHash,
 } from "../utils/import-plan-compiler";
-import { ImportIdempotencyConflictError, ImportRevisionConflictError } from "../utils/import-errors";
+import { ImportIdempotencyConflictError, ImportPaymentLegendConflictError, ImportPaymentReviewRequiredError, ImportRevisionConflictError } from "../utils/import-errors";
+import { indexPaymentLegend } from "../utils/row-normalizer";
+import { paymentStatusForManualRow } from "../utils/manual-payment-status";
+import { hasManualNormalizedData } from "../pipeline/import-extraction.pipeline";
+import { usesImportedCurrentStatus } from "../utils/import-payment-plan";
 import { importStagingPurgeAfter } from "../utils/import-retention";
 import { isImportRunDispatchRequired } from "../utils/import-run-dispatch";
 import { syncImportSessionRunLifecycle } from "./import-run-lifecycle.service";
@@ -92,6 +97,35 @@ function parsePlanSnapshot(value: unknown): ImportPlanSnapshot {
         keys.add(item.itemKey);
     }
     return snapshot as ImportPlanSnapshot;
+}
+
+async function assertReviewedPaymentStatuses(tx: Prisma.TransactionClient, branchId: string, snapshot: ImportPlanSnapshot) {
+    const mapping = snapshot.mapping;
+    const options = mapping?.importOptions;
+    if (!options?.paymentMapping?.confirmed || !usesImportedCurrentStatus(options)) return;
+    const currentPayments = snapshot.items.filter(item => item.kind === "PAYMENT_CYCLE" && item.payload?.bucket !== "historical");
+    if (!currentPayments.length) return;
+    if (indexPaymentLegend(options.paymentMapping).conflicting) throw new ImportPaymentLegendConflictError();
+    if (!mapping.columnMappings.some(column => column.targetField === "payment.status")) return;
+
+    // A plan compiled before field-level revalidation can have a clean legend
+    // but a stale payment status retained by a shift-only edit.
+    const evaluations = await tx.importRowEvaluation.findMany({
+        where: {
+            branchId, revision: snapshot.targetRevision, row: { branchId, importSessionId: snapshot.sessionId },
+            id: { in: [...new Set(currentPayments.flatMap(item => item.evaluationId ? [item.evaluationId] : []))] },
+        },
+        select: { id: true, importRowId: true, normalizedData: true, mappedData: true, row: { select: { rawData: true } } },
+    });
+    const byId = new Map(evaluations.map(evaluation => [evaluation.id, evaluation]));
+    for (const item of currentPayments) {
+        const evaluation = item.evaluationId && byId.get(item.evaluationId);
+        if (!evaluation || evaluation.importRowId !== item.rowId) throw new ImportPaymentReviewRequiredError();
+        if (!hasManualNormalizedData(evaluation.mappedData)) continue;
+        const effective = paymentStatusForManualRow(evaluation.row.rawData as Record<string, string>, mapping,
+            (evaluation.normalizedData ?? {}) as ImportNormalizedRow, evaluation.mappedData);
+        if ((effective.payment?.status ?? "DUE") !== item.payload?.status) throw new ImportPaymentReviewRequiredError();
+    }
 }
 
 export class ImportRunService {
@@ -306,6 +340,7 @@ export class ImportRunService {
                     for (const permission of snapshot.requiredPermissions) {
                         await StaffService.authorize(input.userId, input.branchId, permission as StaffAction, tx);
                     }
+                    await assertReviewedPaymentStatuses(tx, input.branchId, snapshot);
                 } else if (input.importPlanId || input.confirmedPlanVersion) {
                     throw new Error("Analysis runs cannot be attached to an import plan");
                 }

@@ -1,6 +1,7 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
 
 import { prisma } from "@/lib/prisma";
+import { updateLinkedStudentFees } from "@/services/studentFeePeriod";
 import { StaffService } from "@/services/staff.service";
 import { CreateShiftDto } from "@/types";
 import type { StaffAction } from "@/types";
@@ -27,7 +28,7 @@ export type ResolutionPlan =
 
 export interface ShiftImpactAnalysis {
     studentsInShift: number;
-    allocations: { allocationId: string; studentId: string; studentName: string; seatLabel: string }[];
+    allocations: { allocationId: string; studentId: string; studentName: string; seatLabel: string; eligibleTargetShiftIds: string[] }[];
     otherShifts: { shiftId: string; name: string; totalSeats: number; activeAllocations: number; emptySeats: number }[];
     totalEmptyElsewhere: number;
     shiftsWithEnoughCapacity: string[];
@@ -42,6 +43,60 @@ function sourceReleaseWhere(source: { id: string; studentId: string; seatId: str
             studentId: a.studentId, seatId: a.seatId, multiShiftId: a.multiShiftId!,
         })),
     ] };
+}
+
+type ShiftTimes = Pick<Shift, "startTime" | "endTime">;
+
+function targetOccupancy(target: ShiftTimes, shifts: ReadonlyMap<string, ShiftTimes>,
+    active: { seatId: string; studentId: string; shiftId: string }[]) {
+    const start = parseNullableTime(target.startTime);
+    const end = parseNullableTime(target.endTime);
+    const seats = new Set<string>();
+    const students = new Set<string>();
+    for (const allocation of active) {
+        const other = shifts.get(allocation.shiftId);
+        if (timesOverlap(start, end, parseNullableTime(other?.startTime), parseNullableTime(other?.endTime))) {
+            seats.add(allocation.seatId);
+            students.add(allocation.studentId);
+        }
+    }
+    return { seats, students };
+}
+
+function countUnplaceableAllocations(
+    allocations: ShiftImpactAnalysis["allocations"], shifts: ShiftImpactAnalysis["otherShifts"],
+) {
+    const targets = new Map(shifts.map(s => [s.shiftId, { capacity: s.emptySeats, assigned: [] as number[] }]));
+
+    // A full target can still take this student if one of its provisional
+    // occupants has an alternate placement. These assignments are preview-only.
+    function place(index: number, visited: Set<string>): boolean {
+        const choices = allocations[index].eligibleTargetShiftIds;
+        for (const id of choices) {
+            const target = targets.get(id)!;
+            if (!visited.has(id) && target.assigned.length < target.capacity) {
+                target.assigned.push(index);
+                return true;
+            }
+        }
+        for (const id of choices) {
+            if (visited.has(id)) continue;
+            visited.add(id);
+            const target = targets.get(id)!;
+            const moved = target.assigned.findIndex(occupant => place(occupant, visited));
+            if (moved !== -1) {
+                target.assigned[moved] = index;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    let unplaced = 0;
+    for (let index = 0; index < allocations.length; index++) {
+        if (!place(index, new Set())) unplaced++;
+    }
+    return unplaced;
 }
 
 export class ShiftService {
@@ -124,7 +179,7 @@ export class ShiftService {
         // Always check overlap, even for null times (null = full day, overlaps everything)
         await this.checkTimeOverlap(branchId, startResult.value, endResult.value, undefined, tx);
 
-        return tx.shift.create({
+        const shift = await tx.shift.create({
             data: {
                 branchId,
                 name: nameResult.value,
@@ -134,6 +189,8 @@ export class ShiftService {
                 isReserved: data.isReserved ?? false,
             },
         });
+        await tx.branch.update({ where: { id: branchId }, data: { lastDataChange: new Date() } });
+        return shift;
     }
 
     static async updateShift(
@@ -192,15 +249,7 @@ export class ShiftService {
             });
 
             if (priceChanged) {
-                await tx.student.updateMany({
-                    where: {
-                        branchId: shift.branchId,
-                        feeLinkedShiftId: shiftId,
-                    },
-                    data: {
-                        monthlyFee: normalizedPrice,
-                    },
-                });
+                await updateLinkedStudentFees(tx, userId, { branchId: shift.branchId, feeLinkedShiftId: shiftId }, normalizedPrice);
             }
 
             await tx.branch.update({
@@ -217,47 +266,50 @@ export class ShiftService {
         const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
         if (!shift) throw new Error("Shift not found");
         await AccessPolicy.authorizeRecord(userId, shift.branchId, "manage_branch", "Shift", undefined, true);
+        if (shift.status !== "ACTIVE") throw new Error("Shift not found");
 
         const branchId = shift.branchId;
 
-        const activeShiftCount = await prisma.shift.count({
-            where: { branchId, status: "ACTIVE" },
+        const branchShifts = await prisma.shift.findMany({
+            where: { branchId },
+            select: { id: true, name: true, status: true, startTime: true, endTime: true },
         });
-        const isLastActiveShift = activeShiftCount <= 1;
+        const shifts = new Map(branchShifts.map(s => [s.id, s]));
+        const otherActiveShifts = branchShifts.filter(s => s.status === "ACTIVE" && s.id !== shiftId);
+        const isLastActiveShift = otherActiveShifts.length === 0;
 
         const rawAllocations = await prisma.seatAllocation.findMany({
             where: { shiftId, endDate: null },
             include: {
-                student: { select: { id: true, name: true } },
-                seat: { select: { label: true } },
+                student: { select: { id: true, name: true, status: true, branchId: true } },
+                seat: { select: { label: true, branchId: true } },
             },
         });
 
-        const allocations = rawAllocations.map(a => ({
-            allocationId: a.id,
-            studentId: a.student.id,
-            studentName: a.student.name,
-            seatLabel: a.seat.label,
-        }));
-
-        const studentsInShift = allocations.length;
-
-        const otherActiveShifts = await prisma.shift.findMany({
-            where: { branchId, status: "ACTIVE", id: { not: shiftId } },
-        });
+        if (rawAllocations.some(a => a.student.branchId !== branchId || a.seat.branchId !== branchId)) {
+            throw new Error("Source allocations require repair before this shift can be removed.");
+        }
         const remainingAllocations = await prisma.seatAllocation.findMany({
-            where: { branchId, endDate: null, NOT: sourceReleaseWhere(rawAllocations) },
-            include: { shift: { select: { startTime: true, endTime: true } } },
+            where: { seat: { branchId }, endDate: null, NOT: sourceReleaseWhere(rawAllocations) },
+            select: { seatId: true, studentId: true, shiftId: true },
         });
 
         const totalBranchSeats = await prisma.seat.count({ where: { branchId } });
-
+        const allocations = rawAllocations.map(a => ({
+            allocationId: a.id, studentId: a.student.id, studentName: a.student.name, seatLabel: a.seat.label,
+            eligibleTargetShiftIds: [] as string[],
+        }));
+        const studentsInShift = allocations.length;
+        const activeStudents = new Set(rawAllocations.filter(a => a.student.status === "ACTIVE").map(a => a.studentId));
         const otherShifts = otherActiveShifts.map(s => {
-            const activeAllocations = new Set(remainingAllocations.filter(a => timesOverlap(
-                parseNullableTime(s.startTime), parseNullableTime(s.endTime),
-                parseNullableTime(a.shift.startTime), parseNullableTime(a.shift.endTime)
-            )).map(a => a.seatId)).size;
+            const occupied = targetOccupancy(s, shifts, remainingAllocations);
+            const activeAllocations = occupied.seats.size;
             const emptySeats = Math.max(0, totalBranchSeats - activeAllocations);
+            for (const allocation of allocations) {
+                if (emptySeats > 0 && activeStudents.has(allocation.studentId) && !occupied.students.has(allocation.studentId)) {
+                    allocation.eligibleTargetShiftIds.push(s.id);
+                }
+            }
             return {
                 shiftId: s.id,
                 name: s.name,
@@ -268,10 +320,11 @@ export class ShiftService {
         });
 
         const totalEmptyElsewhere = otherShifts.reduce((sum, s) => sum + s.emptySeats, 0);
-        const willOverflowBy = Math.max(0, studentsInShift - totalEmptyElsewhere);
         const shiftsWithEnoughCapacity = otherShifts
-            .filter(s => s.emptySeats >= studentsInShift)
+            .filter(s => s.emptySeats >= studentsInShift && activeStudents.size === studentsInShift &&
+                allocations.every(a => a.eligibleTargetShiftIds.includes(s.shiftId)))
             .map(s => s.shiftId);
+        const willOverflowBy = shiftsWithEnoughCapacity.length ? 0 : countUnplaceableAllocations(allocations, otherShifts);
 
         return {
             studentsInShift,
@@ -361,18 +414,11 @@ export class ShiftService {
                 const old = sourceById.get(assignment.allocationId)!;
                 if (old.student.status !== "ACTIVE") throw new Error("Only ACTIVE students can be assigned a seat");
                 const target = shiftMap.get(assignment.targetShiftId)!;
-                const overlaps = (otherShiftId: string) => {
-                    const other = shiftMap.get(otherShiftId);
-                    return timesOverlap(
-                        parseNullableTime(target.startTime), parseNullableTime(target.endTime),
-                        parseNullableTime(other?.startTime), parseNullableTime(other?.endTime)
-                    );
-                };
-                if (active.some(a => a.studentId === old.studentId && overlaps(a.shiftId))) {
+                const occupied = targetOccupancy(target, shiftMap, active);
+                if (occupied.students.has(old.studentId)) {
                     throw new Error("Student is already allocated in the target or an overlapping shift.");
                 }
-                const occupied = new Set(active.filter(a => overlaps(a.shiftId)).map(a => a.seatId));
-                const seat = seats.find(s => !occupied.has(s.id));
+                const seat = seats.find(s => !occupied.seats.has(s.id));
                 if (!seat) throw new Error("Target shift does not have enough capacity: no available seat.");
                 const allocation = {
                     branchId, studentId: old.studentId, seatId: seat.id, shiftId: target.id, startDate: now,

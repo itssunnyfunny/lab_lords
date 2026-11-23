@@ -1,26 +1,22 @@
 import { assertTrendRange } from "./range"
+import { dashboardDateOffset, dashboardDayStart, dashboardToday } from "@/lib/dashboardMath"
 // analytics/trends/payment.trends.ts
 
 import { AnalyticsPeriod, getPaymentPeriodStats } from "../payment.analytics"
 
 type TrendInterval = "DAY"
 
-function addDays(date: Date, days: number) {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d
-}
-
 export async function getPaymentTrend(
   branchId: string,
   from: Date,
   to: Date,
   interval: TrendInterval = "DAY",
-  period: AnalyticsPeriod = "all"
+  period: AnalyticsPeriod = "all",
+  timezone = "Asia/Kolkata"
 ) {
   void interval
 
-  assertTrendRange(from, to)
+  assertTrendRange(from, to, timezone)
 
   const points: {
     asOf: Date
@@ -29,10 +25,11 @@ export async function getPaymentTrend(
     paidAmount: number
   }[] = []
 
-  let cursor = new Date(from)
-
-  while (cursor <= to) {
-    const snapshot = await getPaymentPeriodStats(branchId, cursor, period, { throughAsOfDay: true })
+  const firstDay = dashboardToday(from, timezone)
+  const lastDay = dashboardToday(to, timezone)
+  for (let day = firstDay; day <= lastDay; day = dashboardDateOffset(day, 1)) {
+    const cursor = dashboardDayStart(day, timezone)
+    const snapshot = await getPaymentPeriodStats(branchId, cursor, period, { throughAsOfDay: true, timezone })
 
     points.push({
       asOf: new Date(cursor),
@@ -41,7 +38,6 @@ export async function getPaymentTrend(
       paidAmount: snapshot.paidAmount,
     })
 
-    cursor = addDays(cursor, 1)
   }
 
   return points

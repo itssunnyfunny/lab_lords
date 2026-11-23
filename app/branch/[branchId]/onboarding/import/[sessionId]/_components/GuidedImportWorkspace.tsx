@@ -21,7 +21,7 @@ import { ArrowRight, CircleAlert, CheckCircle2, FileText } from "lucide-react";
 import type { ImportDetail, ImportRow, Plan, RowDraft, RowFilter, RowPreview, Run } from "./types";
 import { importFieldClass, navigateImportTabs } from "./shared";
 import { parseImportMoney } from "@/importing/utils/row-normalizer";
-import { isImportPlanFresh } from "@/importing/utils/import-wizard-view-model";
+import { isImportPlanFresh, paymentLegendForRowReview } from "@/importing/utils/import-wizard-view-model";
 
 import { GuidedSetupReview } from "./GuidedSetupReview";
 import { GuidedPaymentChoices } from "./GuidedPaymentChoices";
@@ -396,6 +396,7 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
     const preparation = detail.guidance?.preparation;
     const unavailable = !!detail.mapping?.analysis?.ai?.status && detail.mapping.analysis.ai.status !== "success";
     const cancelled = detail.latestRun?.kind === "ANALYSIS" && detail.latestRun.status === "CANCELLED";
+    const correctedLegend = paymentLegendForRowReview(detail.mapping?.importOptions?.paymentMapping);
     const changeFilter = (value: RowFilter) => { if (canNavigate()) { setIssueFilter(undefined); setEditorOpen(false); setSelectedId(null); setFilter(value); } };
     const seatingComplete = !!detail.guidance?.setup && detail.guidance.setup.counts.decision + detail.guidance.setup.counts.conflict === 0;
     const outcomeNotice = saveOutcome && <div role="status" className="space-y-2 rounded border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] p-3 text-sm">
@@ -424,6 +425,13 @@ export function GuidedImportWorkspace({ branchId, sessionId, importDecision }: P
             {stage === "help" && <AppButton className="ui-import-review-action" data-mobile-step-replacement={setupExperience || undefined} density="compact" icon={ArrowRight} disabled={disabled || !ready || dirty || columnsDirty || setupDirty} onClick={() => void buildPlan()}>{t("Review and save")} · {formatNumber(ready)}</AppButton>}
         </header>
         {error && !editorOpen && <div role="alert" className="rounded border border-[color:var(--ui-tone-danger-border)] bg-[color:var(--ui-tone-danger-bg)] p-3 text-sm"><LocalizedError error={error} /></div>}
+        {stage !== "result" && correctedLegend && <AppButton density="compact" disabled={disabled} onClick={async () => {
+            if (!canNavigate()) return;
+            const saved = await act(() => importSessions.updateMapping(branchId, sessionId, {
+                expectedRevision: detail.draftRevision, importOptions: { paymentMapping: correctedLegend },
+            }));
+            if (saved) goToSection("records");
+        }}>{t("Mark conflicting labels as unclear and review the students")}</AppButton>}
         {notice && <p role="status" className="rounded border border-[color:var(--ui-tone-success-border)] bg-[color:var(--ui-tone-success-bg)] p-3 text-sm">{notice}</p>}
         {!editorOpen && outcomeNotice}
         {!importDecision.allowed && <p id="import-session-mutation-blocker" role="alert">{t("Import access is currently unavailable.")}</p>}

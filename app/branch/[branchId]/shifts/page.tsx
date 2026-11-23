@@ -4,6 +4,7 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import type { ShiftImpactAnalysis } from "@/services/shift.service";
 import { Badge } from "@/components/ui/Badge";
 import { AppButton, AppPanel, AppSelect, Dialog, PageLoadingSkeleton, PageShell, useToast } from "@/components/ui";
 import { Button } from "@/components/ui/Button";
@@ -88,31 +89,6 @@ interface MultiShift {
         endTime: string | null;
         order: number;
     }[];
-}
-
-interface ShiftAllocation {
-    allocationId: string;
-    studentId: string;
-    studentName: string;
-    seatLabel: string;
-}
-
-interface OtherShift {
-    shiftId: string;
-    name: string;
-    totalSeats: number;
-    activeAllocations: number;
-    emptySeats: number;
-}
-
-interface ShiftImpactAnalysis {
-    studentsInShift: number;
-    allocations: ShiftAllocation[];
-    otherShifts: OtherShift[];
-    totalEmptyElsewhere: number;
-    shiftsWithEnoughCapacity: string[];
-    willOverflowBy: number;
-    isLastActiveShift: boolean;
 }
 
 // ─── Add/Edit Dialog ────────────────────────────────────────────────────────────
@@ -592,7 +568,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
 
     // ── Check manual assignment validity
     const manualValid = analysis
-        ? analysis.allocations.every(a => !!manualAssignments[a.allocationId])
+        ? analysis.allocations.every(a => a.eligibleTargetShiftIds.includes(manualAssignments[a.allocationId]))
         : false;
 
     // ── Per-target overflow detection for manual mode
@@ -710,11 +686,11 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                 onClick={() => setMode("END_ALL")}
                                 icon={<Ban size={15} className="text-[color:var(--ui-tone-danger-text)]" />}
                                 title={t("End All Allocations")}
-                                description={t("All students become unallocated. They remain in the system — only their seat assignment ends.")}
+                                description={t("End seat assignments for this shift and its affected bundles.")}
                                 variant="danger"
                             >
                                 {mode === "END_ALL" && (
-                                    <p className="mt-2 pl-1 text-xs text-[color:var(--ui-tone-danger-text)]">{t("{studentsInShift} student(s) will be unallocated. Related bundle allocations on their current seat will also end.", { studentsInShift: analysis.studentsInShift })}</p>
+                                    <p className="mt-2 pl-1 text-xs text-[color:var(--ui-tone-danger-text)]">{t("{studentsInShift} student(s) will lose their seat assignment in this shift.", { studentsInShift: analysis.studentsInShift })}</p>
                                 )}
                             </OptionCard>
 
@@ -781,7 +757,7 @@ function DeleteShiftDialog({ shift, branchId, existingShifts, onClose, onDeleted
                                                         options={analysis.otherShifts.map(s => ({
                                                             value: s.shiftId,
                                                             label: `${s.name} (${s.emptySeats} empty)`,
-                                                            disabled: s.emptySeats === 0,
+                                                            disabled: !alloc.eligibleTargetShiftIds.includes(s.shiftId),
                                                         }))}
                                                         containerClassName="w-full sm:min-w-[160px] sm:w-auto"
                                                         className={cn(

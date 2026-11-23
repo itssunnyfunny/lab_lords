@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { parseImportMappingMutation } from "@/importing/http/import-mapping-request";
+import { classifyPaymentStatus } from "@/importing/utils/row-normalizer";
 
 describe("import mapping request validation", () => {
+    it.each(["unpaidValues", "waivedValues", "unclearValues"])("rejects a paid label also listed in %s and holds retained ambiguous rows", otherList => {
+        const legend = { paidValues: ["X  Y", "received"], unpaidValues: [], waivedValues: [], unclearValues: [],
+            confirmed: true, [otherList]: [" x y "] };
+        expect(() => parseImportMappingMutation({ importOptions: { paymentMapping: legend } })).toThrow("only one meaning");
+        expect(classifyPaymentStatus("x y", legend)).toBe("UNCLEAR");
+        expect(classifyPaymentStatus("RECEIVED", legend)).toBe("PAID");
+    });
+
     it("accepts reviewed mappings and normalizes them as manual decisions", () => {
         expect(parseImportMappingMutation({
             columnMappings: [
