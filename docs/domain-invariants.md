@@ -76,8 +76,9 @@ and successful operations keep their original meanings and recovery evidence.
   returns 410 while supported snapshots remain available.
 
 These entries supersede descriptions of active draft generation and unrestricted
-additional-owner onboarding below. Read-only daily dues policy and historical
-analytics remain the documented boundaries; see [closeout evidence](audits/audit-closeout-2026-10-25.md).
+additional-owner onboarding below. For later decisions on read-only fee accrual,
+see the branch access rules below. Historical analytics limitations are recorded in
+the [closeout evidence](audits/audit-closeout-2026-10-25.md).
 
 This document records business behavior that must survive refactors. It is a
 bridge between the schema, services, routes, and tests; it is not a substitute

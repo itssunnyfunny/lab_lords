@@ -2053,10 +2053,10 @@ migration, environment, provider or production-data change is required.
 
 ## Basic PR #287 review corrections — 2026-10-29
 
-Basic student detail now exposes the existing KEEP inactivation and reactivation
-workflow through its own confirmation dialog. Inactivation ends current allocations;
-reactivation does not restore seats or reset the original fee anniversary. Existing
-balances, partial payments and receipts are retained by the same student service.
+This release added status confirmation to Basic student detail. The current
+workflow keeps the same balance and receipt history. It closes seat allocations
+on departure and uses the confirmed rejoining day for a new fee anniversary
+as described in Branch operations above.
 
 Uncertain Basic admissions no longer infer success from matching profile fields.
 The legacy POST has no durable admission receipt: matching students are review

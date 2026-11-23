@@ -11,7 +11,7 @@ is unchanged.
 | --- | --- | --- |
 | Collected this month | Nonvoid receipt collections by actual `collectedAt`, plus non-ledger PAID fees with a recorded `paidAt`, in the organization timezone's current month | `view_payments` |
 | Pending dues | Remaining original minus collected minus waived amounts on DUE fees through the local day; future fees excluded | `view_payments` |
-| Overdue collections | Remaining DUE balances before local midnight seven days before today; preserves the existing more-than-seven-days overdue rule | `view_payments` |
+| Overdue collections | Remaining DUE balances whose due day plus the organization's saved grace days is before today in the organization timezone | `view_payments` |
 | Active students | Complete branch count of ACTIVE students | `students` |
 | Follow-ups pending / due | Existing RenewalFollowUp records without `completedAt`; due means a scheduled date on or before the local day | `view_payments` |
 | Attendance | Unique students with explicit PRESENT marks or nonvoid visits on the local day; attendance is never inferred from seats | `students` |
