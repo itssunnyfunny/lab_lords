@@ -3,6 +3,7 @@ import { StudentService } from "@/services/student.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
 import { createTestWorld, createStudent, createAllocation, createShift, createSeat, createStaff, createUser, createPayment } from "@/tests/factories";
 import type { DueResolution } from "@/types";
+import { reviewFee } from "@/lib/feeBalance";
 import { studentRejoiningToday } from "@/utils/studentRejoiningDate";
 
 describe("StudentService Integration", () => {
@@ -297,7 +298,7 @@ describe("StudentService Integration", () => {
         },
       });
 
-      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID");
+      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID", { reviewedDues: [reviewFee(createdPayment)] });
 
       const payment = await testPrisma.payment.findUnique({ where: { id: createdPayment.id } });
       const auditLog = await testPrisma.auditLog.findFirst({ where: { paymentId: createdPayment.id } });
@@ -381,7 +382,7 @@ describe("StudentService Integration", () => {
         },
       });
 
-      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED");
+      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED", { reviewedDues: [reviewFee(createdPayment)] });
 
       const payment = await testPrisma.payment.findUnique({ where: { id: createdPayment.id } });
       const auditLog = await testPrisma.auditLog.findFirst({ where: { paymentId: createdPayment.id } });
@@ -443,7 +444,7 @@ describe("StudentService Integration", () => {
         }),
       ]);
 
-      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED");
+      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED", { reviewedDues: payments.map(reviewFee) });
 
       const events = await testPrisma.paymentResolutionEvent.findMany({
         where: { paymentId: { in: payments.map(payment => payment.id) } },
@@ -475,8 +476,9 @@ describe("StudentService Integration", () => {
         periodEnd: new Date("2026-04-30T23:59:59.999Z"),
       });
 
-      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID");
-      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID");
+      const confirmation = { reviewedDues: [reviewFee(payment)] };
+      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID", confirmation);
+      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID", confirmation);
 
       await expect(
         testPrisma.paymentResolutionEvent.count({ where: { paymentId: payment.id } })
@@ -510,7 +512,7 @@ describe("StudentService Integration", () => {
 
       try {
         await expect(
-          StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID")
+          StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID", { reviewedDues: [reviewFee(payment)] })
         ).rejects.toThrow();
       } finally {
         await testPrisma.$executeRawUnsafe(`
@@ -548,7 +550,7 @@ describe("StudentService Integration", () => {
         periodEnd: new Date("2026-06-30T23:59:59.999Z"),
       })).rejects.toMatchObject({ code: "P2003" });
 
-      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID");
+      await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "PAID", { reviewedDues: [] });
 
       await expect(
         testPrisma.payment.count({ where: { studentId: student.id } })
@@ -603,7 +605,7 @@ describe("StudentService Integration", () => {
       await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE");
 
       // Then re-activate
-      await StudentService.updateStudentStatus(user.id, student.id, "ACTIVE", "KEEP", studentRejoiningToday());
+      await StudentService.updateStudentStatus(user.id, student.id, "ACTIVE", "KEEP", { rejoinedOn: studentRejoiningToday() });
 
       const refreshed = await testPrisma.student.findUnique({ where: { id: student.id } });
       expect(refreshed?.status).toBe("ACTIVE");

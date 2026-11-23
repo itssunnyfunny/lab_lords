@@ -36,7 +36,7 @@ export async function missingMonthlyFees(
         && !dueDays.has(`${row.studentId}:${row.dueDate.getTime()}`));
 }
 
-/** The rate update holds the student write locks. Its old positive rate is still authoritative for accrued dues. */
+/** The rate edit or departure holds the student lock. The outgoing rate still applies to earned fees. */
 export async function preserveAccruedMonthlyFees(
     tx: Prisma.TransactionClient, actorId: string, branchId: string, students: BillingStudent[], asOf: Date,
 ) {

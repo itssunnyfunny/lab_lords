@@ -5,6 +5,13 @@ export function remainingFee(payment: FeeBalance): number {
     return Math.max(0, payment.amount - (payment.collectedAmount ?? 0) - (payment.waivedAmount ?? 0));
 }
 
+export type ReviewedFee = { id: string; remaining: number };
+export const DEPARTURE_BALANCE_CHANGED = "The unpaid fees changed. Review the current balance and confirm again.";
+
+export function reviewFee(payment: FeeBalance & { id: string }): ReviewedFee {
+    return { id: payment.id, remaining: remainingFee(payment) };
+}
+
 export function allocateCollection<T extends FeeBalance & { id: string; dueDate: Date | string }>(payments: T[], amount: number) {
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 2147483647) throw new Error("Enter a positive whole-rupee amount");
     if (amount > payments.reduce((sum, p) => sum + remainingFee(p), 0)) throw new Error("Amount exceeds the selected outstanding balance");

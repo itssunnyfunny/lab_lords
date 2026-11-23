@@ -35,7 +35,7 @@ beforeEach(() => {
     vi.resetAllMocks();
     mocks.branch.mockResolvedValue(branch); mocks.student.mockResolvedValue(student); staff();
     mocks.updateStudent.mockResolvedValue({ ...student, status: "INACTIVE" });
-    mocks.duePayments.mockResolvedValue([{ id: "due" }]);
+    mocks.duePayments.mockResolvedValue([{ id: "due", amount: 900 }]);
     mocks.transaction.mockImplementation(async operation => operation(tx));
 });
 
@@ -70,9 +70,10 @@ describe("student deactivation resolution authorization", () => {
     });
 
     it.each(["PAID", "WAIVED"] as const)("delegates an explicit authorized owner %s choice to the canonical writer", async resolution => {
-        await StudentService.updateStudentStatus("owner", "student", StudentStatus.INACTIVE, resolution);
+        await StudentService.updateStudentStatus("owner", "student", StudentStatus.INACTIVE, resolution, { reviewedDues: [{ id: "due", remaining: 900 }] });
         expect(mocks.duePayments).toHaveBeenCalledExactlyOnceWith({
             where: { studentId: "student", branchId: "branch", status: "DUE", amount: { gt: 0 } },
+            select: { id: true, amount: true, collectedAmount: true, waivedAmount: true },
         });
         const source = { source: PaymentResolutionEventSource.STUDENT_INACTIVATION };
         if (resolution === "PAID") {

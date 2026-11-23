@@ -45,7 +45,7 @@ describe("Student remediation saved state — real disposable PostgreSQL", () =>
         await allowWrites(world);
         const staffUser = await createUser();
         await createStaff({ userId: staffUser.id, branchId: world.branch.id, role: "STAFF" });
-        const student = await createStudent({ branchId: world.branch.id });
+        const student = await createStudent({ branchId: world.branch.id, monthlyFee: 0 });
         const allocation = await createAllocation({ seatId: world.seat.id, studentId: student.id, shiftId: world.shift.id });
         const payment = await duePayment(world.branch.id, student.id);
 

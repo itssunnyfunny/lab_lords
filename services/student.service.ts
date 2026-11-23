@@ -1,9 +1,8 @@
 import { AccessPolicy } from "@/services/accessPolicy.service";
 import { runSerializableTransaction } from "@/lib/serializableTransaction";
 import { prisma } from "@/lib/prisma";
-import { billingStartAfterFreePeriods, missingMonthlyFees, preserveAccruedMonthlyFees } from "@/services/studentFeePeriod";
-import { eligibleMonthlyAccruals } from "@/services/branchFeeAccrual";
-import { studentFeeDay } from "@/utils/studentBillingCycles";
+import { billingStartAfterFreePeriods, preserveAccruedMonthlyFees } from "@/services/studentFeePeriod";
+import { DEPARTURE_BALANCE_CHANGED, reviewFee, type ReviewedFee } from "@/lib/feeBalance";
 import { INVALID_STUDENT_REJOINING_DATE, parseStudentRejoiningDate, studentRejoiningToday, validateStudentRejoiningDate } from "@/utils/studentRejoiningDate";
 import {
     isDueResolution,
@@ -81,8 +80,28 @@ type StudentListFilters = {
     limit?: number;
 };
 
-function assertNever(value: never): never {
-    throw new Error(`Unexpected due resolution: ${String(value)}`);
+async function settleReviewedDepartureFees(
+    tx: Prisma.TransactionClient, userId: string, branchId: string, studentId: string,
+    resolution: "PAID" | "WAIVED", reviewedDues?: ReviewedFee[],
+) {
+    await AccessPolicy.authorizeCapability(userId, branchId, resolution === "PAID" ? "paymentsRecord" : "paymentsWaive", tx);
+    const open = await tx.payment.findMany({
+        where: { studentId, branchId, status: PaymentStatus.DUE, amount: { gt: 0 } },
+        select: { id: true, amount: true, collectedAmount: true, waivedAmount: true },
+    });
+    const current = open.map(reviewFee).filter(fee => fee.remaining > 0);
+    if (!Array.isArray(reviewedDues) || reviewedDues.length !== current.length) throw new Error(DEPARTURE_BALANCE_CHANGED);
+    const reviewed = new Map(reviewedDues.map(fee => [fee?.id, fee?.remaining]));
+    if (current.some(fee => reviewed.get(fee.id) !== fee.remaining)) throw new Error(DEPARTURE_BALANCE_CHANGED);
+
+    const source = { source: PaymentResolutionEventSource.STUDENT_INACTIVATION };
+    for (const fee of current) {
+        if (resolution === "PAID") {
+            await PaymentService.markPaymentAsPaidInTransaction(userId, fee.id, undefined, undefined, tx, source);
+        } else {
+            await PaymentService.markPaymentAsWaivedInTransaction(userId, fee.id, tx, source);
+        }
+    }
 }
 
 async function whatsappDeliveryStateMayExist(
@@ -706,10 +725,11 @@ export class StudentService {
      *
      * When INACTIVATING:
      * 1. Ends all active seat allocations (sets endDate = now)
-     * 2. Resolves DUE payments based on dueResolution:
+     * 2. Resolves the recorded DUE balances staff confirmed:
      *    - PAID  → marks as PAID with paidAt = now
      *    - WAIVED → marks as WAIVED
      *    - KEEP (default) → leaves DUE payments untouched
+     * 3. Records missing earned fees as DUE when the actor can generate them.
      *
      * When ACTIVATING: opens a new fee schedule on the confirmed rejoining day.
      */
@@ -718,7 +738,7 @@ export class StudentService {
         studentId: string,
         status: StudentStatus,
         dueResolution: DueResolution = "KEEP",
-        rejoinedOn?: string,
+        { rejoinedOn, reviewedDues }: { rejoinedOn?: string; reviewedDues?: ReviewedFee[] } = {},
     ) {
         if (!isDueResolution(dueResolution)) {
             throw new Error("Invalid due resolution");
@@ -732,43 +752,8 @@ export class StudentService {
             ? parseStudentRejoiningDate(rejoinedOn) : null;
         if (status === StudentStatus.ACTIVE && !rejoiningDate) throw new Error(INVALID_STUDENT_REJOINING_DATE);
 
-        let paymentResolution: {
-            status: PaymentStatus;
-            action: "PAYMENT_MARKED_PAID" | "PAYMENT_WAIVED";
-            data: {
-                status: PaymentStatus;
-                paidAt?: Date;
-            };
-        } | null = null;
-
-        if (status === StudentStatus.INACTIVE) {
-            switch (dueResolution) {
-                case "KEEP":
-                    break;
-                case "PAID":
-                    await StaffService.authorize(userId, verifiedStudent.branchId, "mark_payment_paid");
-                    paymentResolution = {
-                        status: PaymentStatus.PAID,
-                        action: "PAYMENT_MARKED_PAID",
-                        data: {
-                            status: PaymentStatus.PAID,
-                            paidAt: now,
-                        },
-                    };
-                    break;
-                case "WAIVED":
-                    await StaffService.authorize(userId, verifiedStudent.branchId, "waive_payments");
-                    paymentResolution = {
-                        status: PaymentStatus.WAIVED,
-                        action: "PAYMENT_WAIVED",
-                        data: {
-                            status: PaymentStatus.WAIVED,
-                        },
-                    };
-                    break;
-                default:
-                    assertNever(dueResolution);
-            }
+        if (status === StudentStatus.INACTIVE && dueResolution !== "KEEP") {
+            await StaffService.authorize(userId, verifiedBranchId, dueResolution === "PAID" ? "mark_payment_paid" : "waive_payments");
         }
 
         return runSerializableTransaction(async (tx) => {
@@ -781,8 +766,6 @@ export class StudentService {
                 }
                 return verifiedStudent;
             }
-            if (paymentResolution) await AccessPolicy.authorizeAction(userId, verifiedBranchId,
-                paymentResolution.status === PaymentStatus.PAID ? "mark_payment_paid" : "waive_payments", tx);
 
             const enrollment = {
                 studentId,
@@ -834,35 +817,13 @@ export class StudentService {
                     },
                 });
 
-                const paymentsToResolve = paymentResolution === null
-                    ? []
-                    : await tx.payment.findMany({
-                        where: {
-                            studentId,
-                            branchId: verifiedStudent.branchId,
-                            status: PaymentStatus.DUE,
-                            amount: { gt: 0 },
-                        },
-                    });
-
-                // Use the same locked fee writer as the Payments flow.
-                for (const payment of paymentsToResolve) {
-                    if (paymentResolution?.status === PaymentStatus.PAID) {
-                        await PaymentService.markPaymentAsPaidInTransaction(userId, payment.id, undefined, undefined, tx,
-                            { source: PaymentResolutionEventSource.STUDENT_INACTIVATION });
-                    } else if (paymentResolution?.status === PaymentStatus.WAIVED) {
-                        await PaymentService.markPaymentAsWaivedInTransaction(userId, payment.id, tx,
-                            { source: PaymentResolutionEventSource.STUDENT_INACTIVATION });
-                    }
+                if (dueResolution !== "KEEP") {
+                    await settleReviewedDepartureFees(tx, userId, verifiedBranchId, studentId, dueResolution, reviewedDues);
                 }
 
                 // Materialize earned but unrecorded dues after settlement. The
                 // selected action covers the recorded balance shown to staff.
-                const accrued = await eligibleMonthlyAccruals(
-                    tx, await missingMonthlyFees(tx, [verifiedStudent], now, verifiedBranchId), now,
-                    (_studentId, date) => studentFeeDay(verifiedStudent, date),
-                );
-                if (accrued.length) await tx.payment.createMany({ data: accrued, skipDuplicates: true });
+                await preserveAccruedMonthlyFees(tx, userId, verifiedBranchId, [verifiedStudent], now);
             }
 
             await tx.branch.update({

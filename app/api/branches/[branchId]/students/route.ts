@@ -3,6 +3,7 @@ import { StudentService } from "@/services/student.service";
 import { getSessionUser } from "@/lib/auth";
 import { StudentStatus } from "@/app/generated/prisma/enums";
 import { isDueResolution } from "@/types";
+import { DEPARTURE_BALANCE_CHANGED } from "@/lib/feeBalance";
 import { INVALID_STUDENT_REJOINING_DATE, STUDENT_ALREADY_ACTIVE, validateStudentRejoiningDate } from "@/utils/studentRejoiningDate";
 import {
     FORM_LIMITS,
@@ -220,15 +221,15 @@ export async function PATCH(
         if (body.status === StudentStatus.ACTIVE) {
             const rejoinedOn = validateStudentRejoiningDate(body.rejoinedOn);
             if (!rejoinedOn) return NextResponse.json({ error: INVALID_STUDENT_REJOINING_DATE }, { status: 400 });
-            return NextResponse.json(await StudentService.updateStudentStatus(user.id, body.id, StudentStatus.ACTIVE, dueResolution, rejoinedOn));
+            return NextResponse.json(await StudentService.updateStudentStatus(user.id, body.id, StudentStatus.ACTIVE, dueResolution, { rejoinedOn }));
         }
-        const student = await StudentService.updateStudentStatus(user.id, body.id, StudentStatus.INACTIVE, dueResolution);
+        const student = await StudentService.updateStudentStatus(user.id, body.id, StudentStatus.INACTIVE, dueResolution, { reviewedDues: body.reviewedDues });
         return NextResponse.json(student);
     } catch (error: unknown) {
         const message = getErrorMessage(error);
         if (message.includes("Unauthorized")) return NextResponse.json({ error: message }, { status: 403 });
         if (message.includes("not found")) return NextResponse.json({ error: message }, { status: 404 });
-        if (message === STUDENT_ALREADY_ACTIVE) return NextResponse.json({ error: message }, { status: 409 });
+        if (message === STUDENT_ALREADY_ACTIVE || message === DEPARTURE_BALANCE_CHANGED) return NextResponse.json({ error: message }, { status: 409 });
         return NextResponse.json({ error: message }, { status: 400 });
     }
 }

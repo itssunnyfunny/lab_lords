@@ -143,6 +143,20 @@ describe("PATCH /api/branches/[branchId]/students", () => {
     mocks.getSessionUser.mockResolvedValue({ id: "staff_1", email: "staff@test.com" });
   });
 
+  it("passes the reviewed balances to settlement and returns a conflict when they changed", async () => {
+    const { DEPARTURE_BALANCE_CHANGED } = await import("@/lib/feeBalance");
+    mocks.updateStudentStatus.mockRejectedValueOnce(new Error(DEPARTURE_BALANCE_CHANGED));
+    const { PATCH } = await import("@/app/api/branches/[branchId]/students/route");
+    const reviewedDues = [{ id: "fee", remaining: 900 }];
+    const request = new NextRequest("http://test.local/students", { method: "PATCH", body: JSON.stringify({
+      id: "student_1", status: "INACTIVE", dueResolution: "PAID", reviewedDues,
+    }) });
+    const response = await PATCH(request, { params: Promise.resolve({ branchId: "branch_1" }) });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: DEPARTURE_BALANCE_CHANGED });
+    expect(mocks.updateStudentStatus).toHaveBeenCalledWith("staff_1", "student_1", "INACTIVE", "PAID", { reviewedDues });
+  });
+
   it("returns 400 for an invalid dueResolution without invoking the service", async () => {
     const request = new NextRequest("http://test.local/api/branches/branch_1/students", {
       method: "PATCH",
@@ -203,7 +217,8 @@ describe("PATCH /api/branches/[branchId]/students", () => {
       "staff_1",
       "student_1",
       "INACTIVE",
-      "KEEP"
+      "KEEP",
+      { reviewedDues: undefined }
     );
   });
 });
@@ -236,7 +251,7 @@ describe.each(["branch-scoped", "student-only"])("%s student reactivation route"
     mocks.updateStudentStatus.mockResolvedValueOnce({ id: "student_1", status: "ACTIVE" })
       .mockRejectedValueOnce(new Error("This student is already active. Refresh the record before changing enrollment."));
     expect((await reactivate("2025-01-31")).status).toBe(200);
-    expect(mocks.updateStudentStatus).toHaveBeenCalledWith("staff_1", "student_1", "ACTIVE", "KEEP", "2025-01-31");
+    expect(mocks.updateStudentStatus).toHaveBeenCalledWith("staff_1", "student_1", "ACTIVE", "KEEP", { rejoinedOn: "2025-01-31" });
     if (scope === "branch-scoped") expect(mocks.assertStudentInBranch).toHaveBeenCalledWith("staff_1", "student_1", "branch_1");
     expect((await reactivate("2025-02-01")).status).toBe(409);
   });

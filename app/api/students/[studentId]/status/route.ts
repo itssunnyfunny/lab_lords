@@ -27,7 +27,7 @@ export async function PATCH(
         if (body.status === StudentStatus.ACTIVE) {
             const rejoinedOn = validateStudentRejoiningDate(body.rejoinedOn);
             if (!rejoinedOn) return NextResponse.json({ error: INVALID_STUDENT_REJOINING_DATE }, { status: 400 });
-            return NextResponse.json(await StudentService.updateStudentStatus(user.id, studentId, StudentStatus.ACTIVE, "KEEP", rejoinedOn));
+            return NextResponse.json(await StudentService.updateStudentStatus(user.id, studentId, StudentStatus.ACTIVE, "KEEP", { rejoinedOn }));
         }
         const student = await StudentService.updateStudentStatus(user.id, studentId, StudentStatus.INACTIVE);
 

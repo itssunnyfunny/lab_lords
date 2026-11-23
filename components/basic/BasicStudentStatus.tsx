@@ -18,7 +18,7 @@ export function BasicStudentStatus({ name, status, pending, locked, error, onCon
         {inactive ? <>
             <p>{t("Inactive means the student has left the branch. Record daily absences in Attendance. Future monthly fees stop when the student leaves.")}</p>
             <p className="bp-subtle">{t("Current seat allocations end. Unpaid fees remain collectible and receipts stay in the student record.")}</p>
-            <p className="bp-subtle">{t("Other monthly fees already due will be added as unpaid when the student leaves.")}</p>
+            <p className="bp-subtle">{t("If an earned fee is missing, someone with permission to generate fees must confirm the departure. That fee will be added as unpaid.")}</p>
         </> : <div className="space-y-3">
             <p>{t("Confirm the date the student returned to start a new enrollment period.")}</p>
             <StudentRejoiningField value={date} onChange={setDate} disabled={pending || locked} />
