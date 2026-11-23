@@ -70,7 +70,7 @@ export const workspaceMessages = {
     "Loaded overdue amount": ["लोड हुई बकाया रकम", "Load hui overdue rakam"],
     "Loaded critical": ["लोड हुए ज़रूरी मामले", "Load hue zaroori cases"],
     "Loaded missing phone": ["लोड हुए बिना फ़ोन वाले मामले", "Load hue bina phone wale cases"],
-    "Oldest due": ["सबसे पुरानी बकाया फीस", "Sabse purani due fee"],
+    "Longest overdue": ["सबसे अधिक दिन से अतिदेय", "Sabse zyada din se overdue"],
     "Collection Queue": ["फीस दर्ज करने की सूची", "Payment record karne ki list"],
     "Oldest dues load first. Filters and bulk selection apply to the rows currently loaded.": ["सबसे पुरानी बकाया फीस पहले लोड होती है। फ़िल्टर और सामूहिक चयन सिर्फ लोड हुई पंक्तियों पर लागू होते हैं।", "Sabse purani due fee pehle load hoti hai. Filters aur bulk selection sirf load hui rows par lagte hain."],
     "Reminder language": ["रिमाइंडर की भाषा", "Reminder ki language"],

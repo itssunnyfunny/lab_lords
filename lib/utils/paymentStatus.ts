@@ -14,8 +14,12 @@ export function daysPastDue(dueDate: Date | string, asOf: Date = new Date(), tim
     return Math.max(0, days);
 }
 
+export function daysBeyondGrace(daysPastDue: number, paymentGraceDays: number): number {
+    return Math.max(0, daysPastDue - paymentGraceDays);
+}
+
 export function isOverdue(dueDate: Date | string, policy: PaymentOverduePolicy, asOf = new Date()): boolean {
-    return daysPastDue(dueDate, asOf, policy.timezone) > policy.paymentGraceDays;
+    return daysBeyondGrace(daysPastDue(dueDate, asOf, policy.timezone), policy.paymentGraceDays) > 0;
 }
 
 /** A DUE fee is overdue if its due date is strictly before this local day. */

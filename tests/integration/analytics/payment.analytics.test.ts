@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { addMonths } from "date-fns";
 import {
+  getDueStudents,
   getOverduePayments,
   getPaymentPeriodStats,
   getPaymentSnapshot,
@@ -301,7 +302,26 @@ describe("Analytics corrections", () => {
 
       expect(snapshot.summary.totalDue).toBe(stats.dueAmount);
       expect(snapshot.summary.totalOverdue).toBe(stats.overdueCount);
-      expect(snapshot.overdueBuckets).toEqual([{ days: 38, count: 1 }, { days: 8, count: 1 }]);
+      expect(snapshot.overdueBuckets).toEqual([{ days: 31, count: 1 }, { days: 1, count: 1 }]);
+    });
+
+    it("ages the Overdue queue and analytics from the end of 30 days of grace", async () => {
+      const { org, branch } = await createTestWorld();
+      await testPrisma.organization.update({ where: { id: org.id }, data: { paymentGraceDays: 30, timezone: "Asia/Kolkata" } });
+      const student = await createStudent({ branchId: branch.id });
+      const fee = await createPayment({
+        branchId: branch.id, studentId: student.id, amount: 900, status: "DUE",
+        dueDate: new Date("2026-05-10T12:00:00Z"), periodStart: new Date("2026-04-10"), periodEnd: new Date("2026-05-10"),
+      });
+      for (const [day, daysOverdue] of [["2026-06-09", 0], ["2026-06-10", 1], ["2026-07-08", 29], ["2026-07-09", 30]] as const) {
+        const at = new Date(`${day}T01:00:00Z`);
+        const [due, queue, snapshot] = await Promise.all([
+          getDueStudents(branch.id, at), getOverduePayments(branch.id, at), getPaymentSnapshot(branch.id, at),
+        ]);
+        expect(due).toMatchObject([{ studentId: student.id, daysOverdue, isOverdue: daysOverdue > 0 }]);
+        expect(queue.payments.map(row => [row.paymentId, row.daysOverdue])).toEqual(daysOverdue ? [[fee.id, daysOverdue]] : []);
+        expect(snapshot.overdueBuckets).toEqual(daysOverdue ? [{ days: daysOverdue, count: 1 }] : []);
+      }
     });
 
     it("uses overdue counts, not due counts, in organization AI snapshots", async () => {

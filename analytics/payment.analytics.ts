@@ -3,6 +3,7 @@ import { remainingFee } from "@/lib/feeBalance";
 
 import { prisma } from "@/lib/prisma"
 import {
+  daysBeyondGrace,
   daysPastDue,
   dueAsOfCutoff,
   overdueCutoff,
@@ -66,10 +67,10 @@ export async function getOpenPaymentLedger(
 ) {
   const date = resolveAsOf(asOf)
   const policy = paymentPolicy ?? await readBranchPaymentOverduePolicy(branchId)
-  const overdueBefore = overdueCutoff(policy, date)
   const rows = await readOpenPaymentRows(branchId, dueDateEnd ?? dueAsOfCutoff(date, policy.timezone))
   const duePayments = rows.map((payment) => {
     const paymentDaysPastDue = daysPastDue(payment.dueDate, date, policy.timezone)
+    const daysOverdue = daysBeyondGrace(paymentDaysPastDue, policy.paymentGraceDays)
     const amount = remainingFee(payment)
 
     return {
@@ -81,8 +82,8 @@ export async function getOpenPaymentLedger(
       amount,
       type: payment.type,
       daysPastDue: paymentDaysPastDue,
-      daysOverdue: paymentDaysPastDue,
-      isOverdue: payment.dueDate < overdueBefore,
+      daysOverdue,
+      isOverdue: daysOverdue > 0,
     }
   })
   const overduePayments = duePayments.filter((payment) => payment.isOverdue)
@@ -220,7 +221,7 @@ export async function getDueStudents(
     studentId: payment.studentId,
     dueDate: payment.dueDate,
     amount: remainingFee(payment),
-    daysOverdue: payment.daysPastDue,
+    daysOverdue: payment.daysOverdue,
     isOverdue: payment.isOverdue,
   }))
 }
@@ -324,7 +325,7 @@ export async function getOverduePaymentsPage(
       phone: payment.student.phone,
       dueDate: payment.dueDate,
       amount: remainingFee(payment),
-      daysOverdue: daysPastDue(payment.dueDate, date, policy.timezone),
+      daysOverdue: daysBeyondGrace(daysPastDue(payment.dueDate, date, policy.timezone), policy.paymentGraceDays),
     })),
   }
 }

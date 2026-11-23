@@ -866,7 +866,9 @@ export function createSyntheticApiMiddleware() {
                     sendJson(response, 503, { error: "Synthetic overdue list failure" });
                     return;
                 }
-                sendJson(response, 200, paged(empty || calm ? [] : dashboardOverdue));
+                sendJson(response, 200, paged(empty || calm ? [] : dashboardOverdue.map(row => ({
+                    ...row, daysOverdue: Math.floor((Date.parse(NOW) - Date.parse(row.dueDate)) / 86_400_000),
+                }))));
                 return;
             }
 

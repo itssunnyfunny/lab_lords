@@ -162,10 +162,13 @@ export function maskWhatsAppPhone(phoneE164: string) {
 
 function collectionTemplateKey(input: {
   studentCount: number;
+  paymentCount: number;
   anyPastDue: boolean;
   tone: string;
 }): WhatsAppManagedTemplateKey {
   if (input.studentCount > 1) return "MULTI_STUDENT_COLLECTION_SUMMARY";
+  // This approved template names the total pending and the oldest fee date in both languages.
+  if (input.paymentCount > 1) return "PAST_DUE_POLITE";
   if (input.anyPastDue) return input.tone === "firm" ? "PAST_DUE_FIRM" : "PAST_DUE_POLITE";
   return input.tone === "friendly" ? "FEE_RENEWAL_FRIENDLY" : "FEE_RENEWAL_POLITE";
 }
@@ -220,17 +223,18 @@ export function deriveWhatsAppManualCollectionContent(input: {
   const anyPastDue = input.payments.some(payment => payment.dueDate < overdueBefore);
   const managedTemplateKey = collectionTemplateKey({
     studentCount: studentIds.length,
+    paymentCount: paymentIds.length,
     anyPastDue,
     tone: input.tone,
   });
-  const values: Record<string, string> = studentIds.length > 1
+  const values: Record<string, string> = managedTemplateKey === "MULTI_STUDENT_COLLECTION_SUMMARY"
     ? {
         studentCount: String(studentIds.length),
         amount: formatAmount(totalAmount, input.language),
         branchName: input.branchName,
         earliestDueDate: formatDate(earliestDueDate, input.language, input.timeZone),
       }
-    : anyPastDue
+    : managedTemplateKey === "PAST_DUE_POLITE" || managedTemplateKey === "PAST_DUE_FIRM"
       ? {
           studentName: input.payments[0]!.student.name,
           amount: formatAmount(totalAmount, input.language),
