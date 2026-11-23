@@ -383,7 +383,7 @@ describe("StudentService Integration", () => {
 
       await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED");
 
-      const payment = await testPrisma.payment.findFirst({ where: { studentId: student.id } });
+      const payment = await testPrisma.payment.findUnique({ where: { id: createdPayment.id } });
       const auditLog = await testPrisma.auditLog.findFirst({ where: { paymentId: createdPayment.id } });
       const event = await testPrisma.paymentResolutionEvent.findFirst({
         where: { paymentId: createdPayment.id },

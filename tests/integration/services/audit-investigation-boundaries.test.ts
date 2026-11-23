@@ -18,6 +18,12 @@ function date(month: number, day: number) {
     return new Date(2026, month - 1, day);
 }
 
+function deferred() {
+    let resolve!: () => void;
+    const promise = new Promise<void>(complete => { resolve = complete; });
+    return { promise, resolve };
+}
+
 async function scheduledBranchRemoval() {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(date(4, 1));
@@ -150,8 +156,8 @@ describe("system-owned monthly fee generation and branch closures", () => {
 
     it("rechecks a staged batch when an archival transaction wins the branch row lock", async () => {
         const { student, closure } = await scheduledBranchRemoval();
-        const archiveWritten = Promise.withResolvers<void>();
-        const releaseArchive = Promise.withResolvers<void>();
+        const archiveWritten = deferred();
+        const releaseArchive = deferred();
         const transaction = prisma.$transaction.bind(prisma);
         vi.spyOn(prisma, "$transaction").mockImplementationOnce(
             ((operation: (tx: Prisma.TransactionClient) => Promise<unknown>) => transaction(async tx => {
