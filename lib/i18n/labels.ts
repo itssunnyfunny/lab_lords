@@ -51,7 +51,7 @@ export const operationalLabels = {
     "Plan is blocked": ["योजना रुकी हुई है", "Plan blocked hai"],
     "Loaded overdue": ["लोड हुए बकाया पेमेंट", "Loaded overdue"],
     "Loaded follow-up rows": ["लोड हुई बातचीत की पंक्तियाँ", "Loaded follow-up rows"],
-    "30+ days overdue": ["30 से ज़्यादा दिन बकाया", "30 se zyada din overdue"],
+    "30+ days overdue": ["30 दिन या अधिक से अतिदेय", "30 din ya zyada se overdue"],
     "Loaded without phone": ["लोड हुए बिना फ़ोन वाले रिकॉर्ड", "Loaded bina phone wale records"],
     "Needs profile cleanup": ["प्रोफ़ाइल ठीक करनी है", "Profile theek karni hai"],
     "Escalate": ["आगे कार्रवाई करें", "Aage action lein"], "Reminder": ["रिमाइंडर", "Reminder"],

@@ -6,7 +6,7 @@ import { CollectFeeDialog } from "@/components/payments/CollectFeeDialog";
 import { CollectionHistory } from "@/components/payments/CollectionHistory";
 import { StudentAttendance } from "@/components/attendance/StudentAttendance";
 import type { BranchAccess } from "@/types";
-import { remainingFee } from "@/lib/feeBalance";
+import { remainingFee, reviewFee, type ReviewedFee } from "@/lib/feeBalance";
 
 import { DataTable } from "@/components/tables/DataTable";
 import { ViewToggle } from "@/components/tables/ViewToggle";
@@ -30,7 +30,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { EditStudentDialog } from "./EditStudentDialog";
 import { StudentRecordCard } from "./StudentRecordCard";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { StudentRejoiningField } from "@/components/students/StudentRejoiningField";
+import { StudentEnrollmentHistory } from "@/components/students/StudentEnrollmentHistory";
+import { validateStudentRejoiningDate } from "@/utils/studentRejoiningDate";
 import {
     formControlClass,
     formHelpTextClass,
@@ -200,19 +202,23 @@ function StudentTabButton({
 
 // ─── Inactivate Dialog ────────────────────────────────────────────────────────
 
+function outstandingStudentFees(rows: Payment[], studentId: string) {
+    return rows.filter(payment => payment.studentId === studentId && payment.status === "DUE" && remainingFee(payment) > 0);
+}
+
 interface InactivateDialogProps {
     student: Student | null;
     duePayments: Payment[] | null;
     canRecordFees: boolean;
     canWaiveFees: boolean;
-    onConfirm: (resolution: DueResolution) => void;
+    onConfirm: (resolution: DueResolution, reviewedDues?: ReviewedFee[]) => void;
     onCancel: () => void;
     loading: boolean;
 }
 
 function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, onConfirm, onCancel, loading }: InactivateDialogProps) {
     const t = useTranslation();
-    const { formatNumber } = useUserPreferences();
+    const { formatDate, formatNumber } = useUserPreferences();
     const formatCurrency = (amount: number) => formatNumber(amount, {
         style: "currency",
         currency: "INR",
@@ -241,7 +247,7 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
         {
             value: "KEEP",
             label: "Keep as Due",
-            sublabel: "Still expecting payment. Stays in overdue.",
+            sublabel: "The remaining balance stays collectible.",
             icon: Clock,
             color: "text-[color:var(--ui-tone-danger-text)]",
         },
@@ -267,7 +273,9 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
                         {t("Cancel")}</Button>
                     <Button
                         variant="danger"
-                        onClick={() => onConfirm(hasDues ? effectiveResolution : "KEEP")}
+                        onClick={() => hasDues && effectiveResolution !== "KEEP"
+                            ? onConfirm(effectiveResolution, duePayments.map(reviewFee))
+                            : onConfirm("KEEP")}
                         disabled={loading}
                         isLoading={loading}
                         icon={PowerOff}
@@ -281,6 +289,12 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
                 {hasDues ? (
                     <div className={cn("mb-5 p-4", formWarningBannerClass)}>
                         <p className="text-[color:var(--ui-tone-warning-text)] text-sm font-medium mb-1">{t("{count} unpaid billing cycle(s) - {formatCurrency} total", { count: duePayments.length, formatCurrency: formatCurrency(totalDue) })}</p>
+                        <ul className="my-2 max-h-32 space-y-1 overflow-y-auto text-sm">
+                            {duePayments.map(payment => <li key={payment.id} className="flex justify-between gap-3">
+                                <span>{t(payment.type === "ADMISSION" ? "Admission Fee" : "Monthly Fee")} · {t("Due: {formatDate}", { formatDate: formatDate(payment.dueDate) })}</span>
+                                <span>{formatCurrency(remainingFee(payment))}</span>
+                            </li>)}
+                        </ul>
                         <p className="text-[color:var(--ui-tone-warning-text)] text-xs">{t("How should these be resolved?")}</p>
 
                         <div className="mt-3 space-y-2">
@@ -310,7 +324,7 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
                                                 <Icon size={13} />
                                                 {t.owned(opt.label)}
                                             </div>
-                                            <div className={cn("mt-0.5 text-xs", formHelpTextClass)}>{opt.sublabel}</div>
+                                            <div className={cn("mt-0.5 text-xs", formHelpTextClass)}>{t.owned(opt.sublabel)}</div>
                                         </div>
                                     </label>
                                 );
@@ -328,9 +342,46 @@ function InactivateDialog({ student, duePayments, canRecordFees, canWaiveFees, o
 
                 {/* Billing note */}
                 <p className={cn("mb-5 border-l-2 border-[color:var(--ui-form-section-divider)] pl-3 text-xs", formHelpTextClass)}>
-                    {t("No future billing cycles will be generated after deactivation.")}</p>
+                    {t("Inactive means the student has left the branch. Record daily absences in Attendance. Future monthly fees stop when the student leaves.")}{" "}
+                    {hasDues && <>{t("Your choice applies to the balance shown above.")}{" "}</>}
+                    {t("If an earned fee is missing, someone with permission to generate fees must confirm the departure. That fee will be added as unpaid.")}</p>
 
             </div>
+        </Dialog>
+    );
+}
+
+function RejoinStudentDialog({ student, loading, onClose, onConfirm }: {
+    student: Student;
+    loading: boolean;
+    onClose: () => void;
+    onConfirm: (rejoinedOn: string) => Promise<void>;
+}) {
+    const t = useTranslation();
+    const [date, setDate] = useState("");
+    const rejoinedOn = validateStudentRejoiningDate(date);
+
+    return (
+        <Dialog
+            open
+            onClose={onClose}
+            title={t("Reactivate Student")}
+            description={t("Confirm when {name} returned to start a new enrollment period.", { name: student.name })}
+            closeDisabled={loading}
+            className="max-w-md"
+            footer={
+                <>
+                    <Button variant="outline" onClick={onClose} disabled={loading} data-dialog-initial-focus>{t("Cancel")}</Button>
+                    <Button
+                        variant="cyan"
+                        disabled={loading || !rejoinedOn}
+                        isLoading={loading}
+                        onClick={() => { if (rejoinedOn) void onConfirm(rejoinedOn); }}
+                    >{t("Reactivate")}</Button>
+                </>
+            }
+        >
+            <StudentRejoiningField value={date} onChange={setDate} disabled={loading} />
         </Dialog>
     );
 }
@@ -440,11 +491,14 @@ function StudentsContent({
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
     // Inactivate dialog
-    const [inactivateTarget, setInactivateTarget] = useState<Student | null>(null);
+    const [inactivateTarget, setInactivateTarget] = useState<{
+        student: Student; dues: Payment[] | null; revision: number;
+    } | null>(null);
     const [inactivateLoading, setInactivateLoading] = useState(false);
 
     // Activate confirm dialog
     const [activateTarget, setActivateTarget] = useState<Student | null>(null);
+    const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
     const [activateLoading, setActivateLoading] = useState(false);
     const [whatsAppTarget, setWhatsAppTarget] = useState<Student | null>(null);
     const [whatsAppBulkOpen, setWhatsAppBulkOpen] = useState(false);
@@ -481,15 +535,17 @@ function StudentsContent({
                 canViewAllocations ? branches.getShifts(branchId) : Promise.resolve([]),
                 canViewAllocations ? branches.getMultiShifts(branchId) : Promise.resolve([]),
             ]);
-            if (request !== auxiliaryRequest.current) return;
+            if (request !== auxiliaryRequest.current) return null;
             setAuxiliaryError(null);
             setAllPayments(paymentsList);
             setLoadedPaymentsBranch(canViewPayments ? branchId : null);
             setShifts(shiftsList);
             setMultiShifts(multiShiftList);
             setShiftOptionsLoaded(true);
+            return canViewPayments ? paymentsList : null;
         } catch {
             if (request === auxiliaryRequest.current) setAuxiliaryError("Failed to load students data.");
+            return null;
         }
     }, [branchId, canViewAllocations, canViewPayments]);
 
@@ -714,6 +770,7 @@ function StudentsContent({
         <RowActions
             actions={[
                 { label: "Attendance & QR", icon: Clock, onClick: () => setAttendanceStudent(item) },
+                { label: "Enrollment history", icon: Clock, onClick: () => setHistoryStudent(item) },
                 ...(canViewPayments ? [{
                     label: "View Fees",
                     icon: Eye,
@@ -733,7 +790,11 @@ function StudentsContent({
                         variant: "danger" as const,
                         disabled: !manageDecision.allowed,
                         description: manageDecision.allowed ? undefined : manageDecision.reason,
-                        onClick: () => setInactivateTarget(item),
+                        onClick: () => setInactivateTarget({
+                            student: item, revision: 0,
+                            dues: canViewPayments && loadedPaymentsBranch === branchId && !auxiliaryError
+                                ? outstandingStudentFees(allPayments, item.id) : null,
+                        }),
                     }
                     : {
                         label: "Activate",
@@ -769,7 +830,7 @@ function StudentsContent({
     );
 
     // ── Inactivate Student ────────────────────────────────────────────────────
-    const handleInactivateConfirm = async (resolution: DueResolution) => {
+    const handleInactivateConfirm = async (resolution: DueResolution, reviewedDues?: ReviewedFee[]) => {
         if (!inactivateTarget) return;
         if (!manageDecision.allowed) {
             toast.show({ title: "Student changes unavailable", description: manageDecision.reason, tone: "error" });
@@ -781,13 +842,20 @@ function StudentsContent({
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    id: inactivateTarget.id,
+                    id: inactivateTarget.student.id,
                     status: "INACTIVE",
                     dueResolution: resolution,
+                    reviewedDues,
                 }),
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
+                if (res.status === 409) {
+                    const rows = await loadAuxiliaryData();
+                    setInactivateTarget(current => current !== inactivateTarget ? current : {
+                        ...current, dues: rows && outstandingStudentFees(rows, current.student.id), revision: current.revision + 1,
+                    });
+                }
                 throw new Error(typeof body?.error === "string" ? body.error : "Failed to update status.");
             }
             setInactivateTarget(null);
@@ -805,12 +873,12 @@ function StudentsContent({
         }
     };
 
-    // ── Activate Student (simple) ─────────────────────────────────
+    // ── Returning student ──────────────────────────────────────
     const handleActivateClick = (student: Student) => {
         setActivateTarget(student);
     };
 
-    const confirmActivate = async () => {
+    const confirmActivate = async (rejoinedOn: string) => {
         if (!activateTarget) return;
         if (!manageDecision.allowed) {
             toast.show({ title: "Student changes unavailable", description: manageDecision.reason, tone: "error" });
@@ -821,9 +889,12 @@ function StudentsContent({
             const res = await fetch(`/api/branches/${branchId}/students`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: activateTarget.id, status: "ACTIVE" }),
+                body: JSON.stringify({ id: activateTarget.id, status: "ACTIVE", rejoinedOn }),
             });
-            if (!res.ok) throw new Error();
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(typeof body?.error === "string" ? body.error : "Failed to update status.");
+            }
             setActivateTarget(null);
             await loadStudentPage();
             toast.show({ title: "Student reactivated", tone: "success" });
@@ -1058,12 +1129,9 @@ function StudentsContent({
 
             {/* Inactivate dialog */}
             <InactivateDialog
-                key={inactivateTarget?.id ?? "closed"}
-                student={inactivateTarget}
-                duePayments={inactivateTarget && canViewPayments && loadedPaymentsBranch === branchId && !auxiliaryError
-                    ? allPayments.filter(p => p.studentId === inactivateTarget.id && p.status === "DUE" && remainingFee(p) > 0)
-                    : null
-                }
+                key={inactivateTarget ? `${inactivateTarget.student.id}:${inactivateTarget.revision}` : "closed"}
+                student={inactivateTarget?.student ?? null}
+                duePayments={canViewPayments ? inactivateTarget?.dues ?? null : null}
                 canRecordFees={canRecordFees}
                 canWaiveFees={getBranchCapabilityDecision(access, "paymentsWaive").allowed}
                 onConfirm={handleInactivateConfirm}
@@ -1071,16 +1139,23 @@ function StudentsContent({
                 loading={inactivateLoading}
             />
 
-            {/* Activate dialog */}
-            <ConfirmDialog
-                isOpen={!!activateTarget}
+            {activateTarget && <RejoinStudentDialog
+                key={activateTarget.id}
+                student={activateTarget}
                 onClose={() => setActivateTarget(null)}
                 onConfirm={confirmActivate}
-                title={t("Reactivate Student")}
-                description={`Are you sure you want to reactivate ${activateTarget?.name}? They will be able to be allocated a seat again.`}
-                confirmText="Reactivate"
                 loading={activateLoading}
-            />
+            />}
+
+            <Drawer
+                density="compact"
+                open={historyStudent !== null}
+                title={t("Enrollment history")}
+                description={historyStudent?.name}
+                onClose={() => setHistoryStudent(null)}
+            >
+                {historyStudent && <StudentEnrollmentHistory key={historyStudent.id} branchId={branchId} studentId={historyStudent.id} />}
+            </Drawer>
 
             {/* Fee drawer */}
             <Drawer density="compact" open={!!attendanceStudent} title={attendanceStudent?.name ?? "Attendance"} onClose={() => setAttendanceStudent(null)}>

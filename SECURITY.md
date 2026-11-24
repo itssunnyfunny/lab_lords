@@ -241,6 +241,16 @@ operator workstation or CI runner that can access credentials.
   entitlement only when explicitly documented as system-owned behaviour,
   tenant-scoped, idempotent, and incapable of granting SaaS access or initiating
   provider charges.
+  The daily student-fee job can accrue dues during temporary subscription
+  restrictions for operating branches. It rechecks current student and
+  branch state in the write transaction and stops at effective closure.
+  Interactive fee writes still require the relevant permission and writability.
+- Enrollment history uses the Students permission and a composite student
+  and branch scope. A departure retains its history and ends active
+  allocations in the same transaction. Catching up an earned fee on departure
+  requires `generate_payments`. Collecting or waiving existing dues checks
+  the settlement permission and compares the reviewed fee IDs and remaining
+  amounts with the current balances under the student settlement lock.
 - Raw analytics and data helpers that do not authorize callers may be used only
   after an authenticated, tenant-scoped authorization boundary.
 - Branch financial analytics require `analytics`, `view_payments`, and

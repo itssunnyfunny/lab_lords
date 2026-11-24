@@ -27,6 +27,12 @@ export type StudentListParams = {
     limit?: number;
 };
 
+type EnrollmentDates = { startedAt: string; billingStartAt: string | null };
+export type StudentEnrollmentHistoryPage = PagedResult<EnrollmentDates & { id: string; endedAt: string | null }> & {
+    originalJoinedAt: string;
+    current: EnrollmentDates | null;
+};
+
 export const students = {
     // List students for a branch
     list: async (
@@ -72,11 +78,15 @@ export const students = {
         return apiClient.post(`/branches/${branchId}/students`, data);
     },
 
+    getEnrollmentHistory: async (branchId: string, studentId: string, cursor?: string): Promise<StudentEnrollmentHistoryPage> => {
+        return apiClient.get(`/branches/${branchId}/students/${studentId}/enrollments`, { params: { cursor } });
+    },
+
     // Get a single student (if endpoint exists, otherwise we might rely on list)
     // Looking at routes, we have `students/[studentId]/status/route.ts` but maybe not get by ID yet.
 
     // Update student status
-    updateStatus: async (studentId: string, status: StudentStatus): Promise<Student> => {
-        return apiClient.patch(`/students/${studentId}/status`, { status });
+    updateStatus: async (studentId: string, change: { status: "INACTIVE" } | { status: "ACTIVE"; rejoinedOn: string }): Promise<Student> => {
+        return apiClient.patch(`/students/${studentId}/status`, change);
     }
 };

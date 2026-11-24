@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({
     prisma: {
+        branch: { findUniqueOrThrow: vi.fn().mockResolvedValue({ organization: { paymentGraceDays: 7, timezone: "UTC" } }) },
         payment: {
             findMany: mocks.findMany,
             count: mocks.count,

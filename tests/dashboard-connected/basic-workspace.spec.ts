@@ -205,18 +205,37 @@ for(const scenario of ["different admission fee","identical older record","commi
  });
 }
 
-test("Basic lifecycle confirmation ends all allocations and reactivates without altering fees",async({page})=>{
+test("Basic lifecycle ends enrollment and previews the first fee on rejoining",async({page})=>{
  await open(page);const name="Lifecycle Student "+Date.now();const admission=await page.request.post("/api/branches/"+f.branchId+"/students",{data:{name,phone:"9876543210",monthlyFee:1000,admissionFee:1000}});expect(admission.status()).toBe(201);const student=await admission.json();
  const {createSeat}=await import("../factories");const seat=await createSeat({branchId:f.branchId,label:"Lifecycle "+Date.now()});const bundle=await db.multiShift.create({data:{branchId:f.branchId,name:"Lifecycle bundle "+Date.now(),price:1500,components:{create:f.shiftIds.slice(0,2).map((shiftId:string)=>({shiftId}))}}});
  const {SeatAllocationService}=await import("../../services/seatAllocation.service");await SeatAllocationService.assignSeatToShifts(f.ownerId,seat.id,student.id,f.shiftIds.slice(0,2),bundle.id);
  const fee=await db.payment.findFirstOrThrow({where:{studentId:student.id}});const collected=await page.request.post("/api/branches/"+f.branchId+"/collections",{data:{studentId:student.id,paymentIds:[fee.id],amount:300,method:"CASH",idempotencyKey:crypto.randomUUID()}});expect(collected.status()).toBe(200);const receipt=await collected.json();
- await page.goto(root+"/students/"+student.id);await page.getByRole("button",{name:"Mark inactive",exact:true}).click();let dialog=page.getByRole("dialog",{name:"Mark student inactive"});await expect(dialog.getByRole("button",{name:"Cancel",exact:true})).toBeFocused();await expect(dialog).toContainText("Unpaid fees, partial payments and receipt history stay unchanged.");await shot(page,"status-inactive-desktop");await page.keyboard.press("Escape");await expect(dialog).toHaveCount(0);
+ await page.goto(root+"/students/"+student.id);await page.getByRole("button",{name:"Mark inactive",exact:true}).click();let dialog=page.getByRole("dialog",{name:"Mark student inactive"});await expect(dialog.getByRole("button",{name:"Cancel",exact:true})).toBeFocused();await expect(dialog).toContainText("Inactive means the student has left the branch.");await shot(page,"status-inactive-desktop");await page.keyboard.press("Escape");await expect(dialog).toHaveCount(0);
  const {translateOwnedText}=await import("../../lib/i18n");await page.setViewportSize({width:390,height:844});
  for(const language of ["en","hi","hinglish"] as const){await db.user.update({where:{id:f.ownerId},data:{interfaceLanguage:language}});await page.reload();await page.getByRole("button",{name:translateOwnedText(language,"Mark inactive"),exact:true}).click();dialog=page.getByRole("dialog",{name:translateOwnedText(language,"Mark student inactive"),exact:true});await expect(dialog).toBeVisible();expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);await shot(page,"status-inactive-mobile-"+language);await page.keyboard.press("Escape");}
  await db.user.update({where:{id:f.ownerId},data:{interfaceLanguage:"en"}});await page.reload();await page.getByRole("button",{name:"Mark inactive",exact:true}).click();await page.getByRole("dialog",{name:"Mark student inactive"}).getByRole("button",{name:"Mark inactive",exact:true}).click();await expect(page.getByRole("button",{name:"Reactivate student",exact:true})).toBeVisible();
  expect(await db.seatAllocation.count({where:{studentId:student.id,endDate:null}})).toBe(0);const history=await db.seatAllocation.findMany({where:{studentId:student.id}});expect(history).toHaveLength(2);expect(history.every(x=>x.multiShiftId===bundle.id)).toBe(true);
  expect(await db.payment.findUniqueOrThrow({where:{id:fee.id}})).toMatchObject({status:"DUE",amount:1000,collectedAmount:300});expect((await page.request.get("/api/branches/"+f.branchId+"/collections/"+receipt.id)).status()).toBe(200);await expect(page.getByRole("button",{name:"Choose or change a seat",exact:true})).toBeDisabled();
- await page.getByRole("button",{name:"Reactivate student",exact:true}).click();dialog=page.getByRole("dialog",{name:"Reactivate student",exact:true});await expect(dialog).toContainText("Previous seats are not restored.");await shot(page,"status-reactivate-mobile");await dialog.getByRole("button",{name:"Reactivate student",exact:true}).click();await expect(page.getByRole("button",{name:"Mark inactive",exact:true})).toBeVisible();await expect(page.getByRole("button",{name:"Choose or change a seat",exact:true})).toBeEnabled();expect(await db.seatAllocation.findMany({where:{studentId:student.id}})).toEqual(history);expect(await db.student.findUniqueOrThrow({where:{id:student.id}})).toMatchObject({status:"ACTIVE",joinedAt:new Date(student.joinedAt)});
+ await page.getByRole("button",{name:"Reactivate student",exact:true}).click();
+ dialog=page.getByRole("dialog",{name:"Reactivate student",exact:true});
+ const confirm=dialog.getByRole("button",{name:"Reactivate student",exact:true});
+ await expect(confirm).toBeDisabled();
+ const { firstStudentRejoiningDueDate, studentRejoiningToday }=await import("../../utils/studentRejoiningDate");
+ const { financialCalendarDate }=await import("../../lib/feeReceiptDates");
+ const rejoinedOn=studentRejoiningToday();
+ await dialog.getByLabel("Rejoining date").fill(rejoinedOn);
+ await expect(dialog).toContainText("First new monthly fee date is "+financialCalendarDate(firstStudentRejoiningDueDate(rejoinedOn)!)+".");
+ await shot(page,"status-reactivate-mobile");
+ await confirm.click();
+ await expect(page.getByRole("button",{name:"Mark inactive",exact:true})).toBeVisible();
+ await expect(page.getByRole("button",{name:"Choose or change a seat",exact:true})).toBeEnabled();
+ expect(await db.seatAllocation.findMany({where:{studentId:student.id}})).toEqual(history);
+ expect(await db.student.findUniqueOrThrow({where:{id:student.id}})).toMatchObject({status:"ACTIVE",joinedAt:new Date(student.joinedAt),rejoinedOn:new Date(rejoinedOn)});
+ await page.getByRole("button",{name:"Enrollment history",exact:true}).click();
+ const enrollments=page.getByRole("dialog",{name:"Enrollment history"});
+ await expect(enrollments).toContainText("Original joining date is");
+ await expect(enrollments).toContainText("Current enrollment started");
+ await expect(enrollments).toContainText("Student left");
 });
 
 test("Basic status failure stays honest and lost responses reconcile without replay",async({page})=>{

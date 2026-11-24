@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { addDays, format } from "date-fns";
-import { renewalCategories, renewalQuerySchema, followUpSchema } from "@/lib/renewals";
+import { renewalCalendar, renewalCategories, renewalQuerySchema, followUpSchema } from "@/lib/renewals";
 import { upcomingCyclesBetween } from "@/utils/studentBillingCycles";
 import { MANUAL_REMINDER_COPIED, paymentReminderDraft } from "@/lib/paymentReminderDraft";
 
 const day = (value: string) => new Date(`${value}T00:00:00`);
+const policy = { paymentGraceDays: 7, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
 describe("renewal dates and manual reminders", () => {
     it.each([
         ["2026-01-31", "2026-02-28", "2026-01-31"],
@@ -21,7 +22,7 @@ describe("renewal dates and manual reminders", () => {
         const asOf = day("2026-09-08");
         const categories = (offset: number, days: number, expected = true) => renewalCategories({
             dueDate: addDays(asOf, offset).toISOString(), expected, amount: 100,
-        }, asOf, days);
+        }, renewalCalendar(asOf, days, policy));
         expect(categories(0, 7)).toEqual(["ALL", "TODAY"]);
         expect(categories(0, 7, false)).toEqual(["ALL", "TODAY", "OUTSTANDING"]);
         expect(categories(1, 3)).toContain("UPCOMING");
@@ -33,7 +34,16 @@ describe("renewal dates and manual reminders", () => {
         expect(categories(-8, 7, false)).toContain("OVERDUE");
     });
     it.each([true, false])("excludes zero balances from every renewal category (projected=%s)", expected => {
-        expect(renewalCategories({ dueDate: day("2026-08-01").toISOString(), expected, amount: 0 }, day("2026-09-08"), 7)).toEqual([]);
+        const calendar = renewalCalendar(day("2026-09-08"), 7, policy);
+        expect(renewalCategories({ dueDate: day("2026-08-01").toISOString(), expected, amount: 0 }, calendar)).toEqual([]);
+    });
+    it("moves the same unpaid fee from today to overdue at the organization’s midnight", () => {
+        const fee = { dueDate: "2026-05-10T12:00:00Z", amount: 900, expected: false };
+        const policy = { paymentGraceDays: 0, timezone: "Asia/Kolkata" };
+        const before = renewalCalendar(new Date("2026-05-10T18:29:59.999Z"), 7, policy);
+        const after = renewalCalendar(new Date("2026-05-10T18:30:00Z"), 7, policy);
+        expect(renewalCategories(fee, before)).toEqual(["ALL", "TODAY", "OUTSTANDING"]);
+        expect(renewalCategories(fee, after)).toEqual(["ALL", "OUTSTANDING", "OVERDUE"]);
     });
     it("respects billingStartAt at the start of a cycle", () => {
         expect(upcomingCyclesBetween(day("2026-01-08"), day("2026-09-08"), day("2026-09-15"), day("2026-08-09"))).toEqual([]);

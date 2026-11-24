@@ -237,7 +237,7 @@ export const operations = {
     "Student name or phone": ["छात्र का नाम या फोन", "Student ka naam ya phone"],
     "Upcoming window": ["कितने दिन की फीस देखें", "Kitne din ki fees dekhein"],
     "Next 3 days": ["अगले 3 दिन", "Agle 3 din"], "Next 7 days": ["अगले 7 दिन", "Agle 7 din"],
-    "Oldest fee date first. Counts reflect your search; overdue means more than 7 days late. Each period appears separately.": ["सबसे पुरानी फीस पहले दिखेगी। गिनती आपकी खोज के हिसाब से है; 7 दिन से ज़्यादा देर वाली फीस अलग है। हर अवधि अलग दिखती है।", "Sabse purani fee pehle dikhegi. Counts search ke hisaab se hain; overdue ka matlab 7 din se zyada late. Har period alag dikhta hai."],
+    "Oldest fee date first. Counts reflect your search. An unpaid fee becomes overdue after the organization’s grace days have passed. Each period appears separately.": ["सबसे पुरानी फीस पहले दिखेगी। गिनती आपकी खोज के हिसाब से है। संस्था की तय मोहलत के बाद बकाया फीस देर से मानी जाती है। हर अवधि अलग दिखती है।", "Sabse purani fee pehle dikhegi. Ginti aapki search ke hisaab se hai. Organization ki di hui mohlat ke baad unpaid fee overdue hoti hai. Har period alag dikhta hai."],
     "Loading renewals & dues…": ["आने वाली और बकाया फीस लोड हो रही है…", "Aane wali aur pending fees load ho rahi hain…"],
     "No fees in this view": ["यहाँ कोई फीस नहीं मिली", "Yahan koi fee nahi mili"],
     "Try another filter or search.": ["दूसरा फ़िल्टर या खोज आज़माएँ।", "Doosra filter ya search try karein."],

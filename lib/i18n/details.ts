@@ -63,6 +63,7 @@ export const detailMessages = {
     "Draft selected ({count})": ["चुने हुए रिमाइंडर बनाएँ ({count})", "Selected reminders banayein ({count})"],
     "{missingPhoneCount} loaded overdue student(s) need a phone number before reminders can be sent cleanly.": ["लोड हुए {missingPhoneCount} बकाया वाले छात्रों के लिए रिमाइंडर भेजने से पहले फ़ोन नंबर चाहिए।", "Load hue {missingPhoneCount} overdue students ke liye reminder bhejne se pehle phone number chahiye."],
     "{days} days": ["{days} दिन", "{days} din"],
+    "{days} day(s)": ["{days} दिन", "{days} din"],
     "Showing {count} of {total} overdue payment(s)": ["{total} में से {count} बकाया पेमेंट दिख रहे हैं", "{total} mein se {count} overdue payments dikh rahe hain"],
     "Fee ₹{amount} · Collected ₹{collectedAmount} · Waived ₹{waivedAmount} · Remaining ₹{remainingFee}": ["फीस ₹{amount} · मिली ₹{collectedAmount} · माफ़ ₹{waivedAmount} · बाकी ₹{remainingFee}", "Fee ₹{amount} · Mili ₹{collectedAmount} · Maaf ₹{waivedAmount} · Baaki ₹{remainingFee}"],
     "Showing {count} of {value} {toLowerCase} payments": ["{value} में से {count} {toLowerCase} पेमेंट दिख रहे हैं", "{value} mein se {count} {toLowerCase} payments dikh rahe hain"],

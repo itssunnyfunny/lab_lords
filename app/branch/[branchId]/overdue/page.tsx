@@ -44,21 +44,12 @@ import {
     getOverduePaymentHref,
     getOverdueStudentHref,
     updateQueueSelection,
-    type OverdueQueuePayment,
 } from "@/lib/overdueQueue";
 import { cn } from "@/lib/utils";
 import type { CapabilityDecision } from "@/types";
-import { payments as paymentApi } from "@/lib/api/payments";
+import { payments as paymentApi, type OverduePaymentRecord as OverduePayment } from "@/lib/api/payments";
 import { ApprovedPaymentReminderReview } from "@/components/whatsapp/ApprovedPaymentReminderReview";
 import { paymentReminderDraft } from "@/lib/paymentReminderDraft";
-
-interface OverduePayment extends OverdueQueuePayment {
-    studentName: string;
-    phone: string | null;
-    dueDate: string;
-    amount: number;
-    daysOverdue?: number;
-}
 
 interface DraftMessage {
     paymentId: string;
@@ -75,15 +66,6 @@ const filters: { value: QueueFilter; label: string; description: string }[] = [
     { value: "CRITICAL", label: "30+ days overdue", description: "30+ days overdue" },
     { value: "NO_PHONE", label: "Missing phone number", description: "Add a phone number" },
 ];
-
-function daysSinceDue(payment: OverduePayment) {
-    if (typeof payment.daysOverdue === "number") return Math.max(0, payment.daysOverdue);
-    const due = new Date(payment.dueDate);
-    const today = new Date();
-    due.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-    return Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86_400_000));
-}
 
 function severityFor(days: number): { label: string; variant: "warning" | "danger" | "purple"; helper: string } {
     if (days >= 30) return { label: "Critical", variant: "danger", helper: "Needs owner follow-up" };
@@ -210,7 +192,7 @@ function OverdueContent({
 
     const sortedPayments = useMemo(() => {
         return [...payments].sort((a, b) => {
-            const dayDiff = daysSinceDue(b) - daysSinceDue(a);
+            const dayDiff = b.daysOverdue - a.daysOverdue;
             if (dayDiff !== 0) return dayDiff;
             return b.amount - a.amount;
         });
@@ -218,7 +200,7 @@ function OverdueContent({
 
     const visiblePayments = useMemo(() => {
         return sortedPayments.filter((payment) => {
-            if (filter === "CRITICAL") return daysSinceDue(payment) >= 30;
+            if (filter === "CRITICAL") return payment.daysOverdue >= 30;
             if (filter === "NO_PHONE") return !payment.phone;
             return true;
         });
@@ -242,9 +224,9 @@ function OverdueContent({
 
     const totals = useMemo(() => {
         const totalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
-        const critical = payments.filter(payment => daysSinceDue(payment) >= 30);
+        const critical = payments.filter(payment => payment.daysOverdue >= 30);
         const missingPhone = payments.filter(payment => !payment.phone);
-        const oldestDays = payments.reduce((max, payment) => Math.max(max, daysSinceDue(payment)), 0);
+        const oldestDays = payments.reduce((max, payment) => Math.max(max, payment.daysOverdue), 0);
 
         return {
             totalAmount,
@@ -349,7 +331,7 @@ function OverdueContent({
                             <MetricCard label={t("Overdue balance shown")} value={formatMoney(totals.totalAmount)} detail={t("{shown} of {total} open fees shown", {shown:payments.length,total})} tone="danger" />
                             <MetricCard label={t("30+ days overdue")} value={formatNumber(totals.criticalCount)} tone="danger" />
                             <MetricCard label={t("Missing phone number")} value={formatNumber(totals.missingPhoneCount)} tone={totals.missingPhoneCount > 0 ? "warning" : "success"} />
-                            <MetricCard label={t("Oldest due")} value={`${formatNumber(totals.oldestDays)}d`} tone={totals.oldestDays >= 30 ? "danger" : "warning"} />
+                            <MetricCard label={t("Longest overdue")} value={t("{days} day(s)", { days: formatNumber(totals.oldestDays) })} tone={totals.oldestDays >= 30 ? "danger" : "warning"} />
                         </section>
 
                         <RecordListSurface label={t("Collection Queue")} busy={refreshing || loadingMore} toolbar={<div className="w-full space-y-3">
@@ -442,9 +424,9 @@ function OverdueContent({
                                     data={visiblePayments.map(payment => ({ ...payment, id: payment.paymentId }))}
                                     columns={[
                                         { header: "Select payment", accessor: payment => <input type="checkbox" checked={selectedIds.has(payment.paymentId)} onChange={event => togglePayment(payment.paymentId, event.target.checked)} aria-label={`Select ${payment.studentName}'s overdue payment`} className="h-5 w-5 rounded border-[color:var(--ui-form-input-border)] accent-[color:var(--ui-focus-ring)]" />, className: "w-14" },
-                                        { header: "Student", accessor: payment => <><Link href={getOverdueStudentHref(branchId, payment.studentId)} className="font-semibold text-[color:var(--text-primary)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]">{payment.studentName}</Link><p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{severityFor(daysSinceDue(payment)).helper}</p></>, rowHeader: true },
+                                        { header: "Student", accessor: payment => <><Link href={getOverdueStudentHref(branchId, payment.studentId)} className="font-semibold text-[color:var(--text-primary)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]">{payment.studentName}</Link><p className={cn("mt-1 text-xs", pageSubtleTextClass)}>{severityFor(payment.daysOverdue).helper}</p></>, rowHeader: true },
                                         { header: "Contact", accessor: payment => payment.phone ? <span className={cn("inline-flex items-center gap-1.5", pageMutedTextClass)}><Phone size={13} aria-hidden="true" />{payment.phone}</span> : <Badge variant="warning">{t("No phone")}</Badge> },
-                                        { header: "Age", accessor: payment => <Badge variant={severityFor(daysSinceDue(payment)).variant}>{t("{days} days", { days: daysSinceDue(payment) })}</Badge> },
+                                        { header: "Age", accessor: payment => <Badge variant={severityFor(payment.daysOverdue).variant}>{t("{days} day(s)", { days: formatNumber(payment.daysOverdue) })}</Badge> },
                                         { header: "Due date", accessor: payment => formatDate(payment.dueDate) },
                                         { header: "Remaining due", className: "text-right whitespace-nowrap tabular-nums", accessor: payment => <strong className="tabular-nums">{formatMoney(payment.amount)}</strong> },
                                     ]}
@@ -597,7 +579,7 @@ function OverduePaymentCard({
         currency: "INR",
         maximumFractionDigits: 0,
     });
-    const days = daysSinceDue(payment);
+    const days = payment.daysOverdue;
     const severity = severityFor(days);
 
     return (
@@ -609,7 +591,7 @@ function OverduePaymentCard({
                 </label>
                 <div className="min-w-0 flex-1"><Link href={getOverdueStudentHref(branchId, payment.studentId)} className="ui-record-card-name underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ui-focus-ring)]">{payment.studentName}</Link>
                     <p className="ui-record-card-meta">{severity.helper}</p></div>
-                <Badge variant={severity.variant}>{t("{days} days", { days })}</Badge>
+                <Badge variant={severity.variant}>{t("{days} day(s)", { days: formatNumber(days) })}</Badge>
             </div>
             <div className={cn("ui-record-card-context", payment.phone ? pageMutedTextClass : formHelpTextClass)}><Phone size={14} aria-hidden="true" /><span className="ui-phone">{payment.phone || t("Phone number missing")}</span></div>
             <div className="ui-record-card-summary">

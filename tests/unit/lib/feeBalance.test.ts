@@ -9,7 +9,7 @@ describe("Collection allocation and reminders", () => {
     });
     it("renders the actual remaining amount in manual reminders", () => {
         const result = deriveWhatsAppManualCollectionContent({ payments: [{ id: "fee", amount: 1200, collectedAmount: 700,
-            dueDate: new Date("2026-01-01"), student: { id: "student", name: "Student" } }], language: "en_IN", tone: "polite", branchName: "Library", timeZone: "Asia/Kolkata", at: new Date("2026-01-10") });
+            dueDate: new Date("2026-01-01"), student: { id: "student", name: "Student" } }], language: "en_IN", tone: "polite", branchName: "Library", timeZone: "Asia/Kolkata", paymentGraceDays: 0, at: new Date("2026-01-10") });
         expect(JSON.stringify(result)).toContain("500"); expect(JSON.stringify(result)).not.toContain("1,200");
     });
 });

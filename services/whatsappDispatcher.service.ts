@@ -1033,6 +1033,7 @@ async function prepareSubmission(input: {
             tone: settings.defaultTone,
             branchName: message.branch.name,
             timeZone: message.branch.organization.timezone,
+            paymentGraceDays: message.branch.organization.paymentGraceDays,
             at: validationNow,
           });
         } catch {

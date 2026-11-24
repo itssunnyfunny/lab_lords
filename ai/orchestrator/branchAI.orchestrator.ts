@@ -7,7 +7,8 @@ import { generateBranchHealthReport } from "../branchHealthReport"
 import { AIBranchReportSnapshot, AIStructuredBranchReport } from "../contracts/structuredReport.contract"
 import { prisma } from "@/lib/prisma"
 import type { Prisma } from "@/app/generated/prisma/client"
-import { startOfDay } from "date-fns"
+import { dashboardToday } from "@/lib/dashboardMath"
+import { PAYMENT_OVERDUE_POLICY_SELECT } from "@/services/paymentOverduePolicy"
 
 
 export interface BranchAIResponse {
@@ -41,7 +42,7 @@ export interface BranchAIResponse {
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const STUCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - force reset if stuck running
-const PAYMENT_OVERDUE_RULE_VERSION = "distinct-overdue-active-students-v3";
+const PAYMENT_OVERDUE_RULE_VERSION = "organization-grace-v4";
 
 function buildReportSnapshot(snapshot: Awaited<ReturnType<typeof readBranchSnapshotForAI>>): AIBranchReportSnapshot {
     return {
@@ -82,11 +83,14 @@ export async function runBranchAI(
     // 0️⃣ Check Caching & Rate Limiting & Concurrency
     const branch = await prisma.branch.findUnique({
         where: { id: branchId },
-        select: { lastDataChange: true, name: true, aiLastCalledAt: true, aiStatus: true, aiEnabled: true }
+        select: { lastDataChange: true, name: true, aiLastCalledAt: true, aiStatus: true, aiEnabled: true,
+            organization: { select: PAYMENT_OVERDUE_POLICY_SELECT } }
     });
 
     if (!branch) throw new Error("Branch not found");
     if (!branch.aiEnabled) throw new Error("AI is disabled for this branch");
+    const { paymentGraceDays, timezone } = branch.organization;
+    const paymentOverdueRuleVersion = `${PAYMENT_OVERDUE_RULE_VERSION}:${paymentGraceDays}:${timezone}`;
 
     const lastReport = await prisma.branchAIReport.findFirst({
         where: { branchId },
@@ -94,7 +98,7 @@ export async function runBranchAI(
     });
     const lastReportData = lastReport?.data as { meta?: { paymentOverdueRuleVersion?: string } } | undefined;
     const lastReportUsesCurrentPaymentRule =
-        lastReportData?.meta?.paymentOverdueRuleVersion === PAYMENT_OVERDUE_RULE_VERSION;
+        lastReportData?.meta?.paymentOverdueRuleVersion === paymentOverdueRuleVersion;
 
     const lastCalledAt = branch.aiLastCalledAt ? branch.aiLastCalledAt.getTime() : 0;
     const timeSinceLastCall = now.getTime() - lastCalledAt;
@@ -103,7 +107,7 @@ export async function runBranchAI(
     const isRateLimited = timeSinceLastCall < CACHE_TTL_MS;
     const hasDataChanged = branch.lastDataChange.getTime() > lastCalledAt;
     const lastReportIsFromToday = lastReport
-        ? startOfDay(lastReport.createdAt).getTime() === startOfDay(now).getTime()
+        ? dashboardToday(lastReport.createdAt, timezone) === dashboardToday(now, timezone)
         : false;
 
     const lease = await prisma.branchGenerationLease.findUnique({
@@ -184,7 +188,7 @@ export async function runBranchAI(
                 branchId,
                 branchName: snapshot.branchName,
                 generatedAt: new Date().toISOString(),
-                paymentOverdueRuleVersion: PAYMENT_OVERDUE_RULE_VERSION,
+                paymentOverdueRuleVersion,
             },
 
             ...responseExtras,

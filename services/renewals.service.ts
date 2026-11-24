@@ -1,11 +1,13 @@
 import { remainingFee } from "@/lib/feeBalance";
-import { addDays, endOfDay, parseISO, startOfDay } from "date-fns";
+import { addDays, parseISO } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { AccessPolicy } from "@/services/accessPolicy.service";
-import { upcomingCyclesBetween } from "@/utils/studentBillingCycles";
+import { canAccrueMonthlyDue, readMonthlyAccrualWindow } from "@/services/branchFeeAccrual";
+import { readBranchPaymentOverduePolicy } from "@/services/paymentOverduePolicy";
+import { studentFeeDay, upcomingCyclesBetween } from "@/utils/studentBillingCycles";
 import {
-    followUpSchema, renewalCategories, renewalKey, renewalOrderKey, renewalQuerySchema,
+    followUpSchema, renewalCalendar, renewalCategories, renewalKey, renewalOrderKey, renewalQuerySchema,
     type FollowUpInput, type RenewalPage, type RenewalQuery, type RenewalRow,
     type RenewalFollowUp,
 } from "@/lib/renewals";
@@ -36,8 +38,9 @@ export class RenewalsService {
         return prisma.$transaction(async tx => {
             const access = await AccessPolicy.authorizeAction(actorId, branchId, "view_payments", tx);
             await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
-            const today = startOfDay(asOf);
-            const through = endOfDay(addDays(today, query.days));
+            const accrual = await readMonthlyAccrualWindow(tx, branchId, access.organizationId, asOf);
+            const calendar = renewalCalendar(asOf, query.days, await readBranchPaymentOverduePolicy(branchId, tx));
+            const { today, through } = calendar;
             const search: Prisma.StudentWhereInput = query.search ? { OR: [
                 { name: { contains: query.search, mode: "insensitive" } },
                 { phone: { contains: query.search } },
@@ -48,7 +51,7 @@ export class RenewalsService {
             };
             // Stream bounded batches, keeping only one output page in memory.
             const offer = (row: RenewalRow) => {
-                const categories = renewalCategories(row, today, query.days);
+                const categories = renewalCategories(row, calendar);
                 for (const category of categories) result.counts[category]++;
                 if (categories.includes("OUTSTANDING")) result.outstandingAmount += row.amount;
                 if (row.expected) result.expectedAmount += row.amount;
@@ -78,16 +81,18 @@ export class RenewalsService {
                 paymentCursor = payments[payments.length - 1].id;
             }
             let studentCursor: string | undefined;
-            while (true) {
+            while (accrual) {
                 const students = await tx.student.findMany({
                     where: { branchId, status: "ACTIVE", monthlyFee: { gt: 0 }, ...search },
-                    select: { ...studentSelect, joinedAt: true, billingStartAt: true, monthlyFee: true },
+                    select: { ...studentSelect, joinedAt: true, rejoinedOn: true, billingStartAt: true, monthlyFee: true },
                     orderBy: { id: "asc" }, take: BATCH,
                     ...(studentCursor ? { cursor: { id: studentCursor }, skip: 1 } : {}),
                 });
                 const projections = students.flatMap(student => upcomingCyclesBetween(
-                    student.joinedAt, today, through, student.billingStartAt
-                ).map(cycle => ({ student, cycle })));
+                    student.joinedAt, today, through, student.billingStartAt, student.rejoinedOn
+                ).filter(cycle => cycle.dueDate >= today && cycle.dueDate <= through
+                    && canAccrueMonthlyDue(accrual, cycle.dueDate, date => studentFeeDay(student, date)))
+                    .map(cycle => ({ student, cycle })));
                 // At most one anniversary per student in this <=7-day window.
                 // Match BOTH typed identity and the legacy due-date guard used by generation.
                 const existing = projections.length ? await tx.payment.groupBy({
@@ -146,10 +151,10 @@ export class RenewalsService {
     static async saveFollowUp(actorId: string, branchId: string, input: FollowUpInput, asOf = new Date()) {
         const data = followUpSchema.parse(input);
         return prisma.$transaction(async tx => {
-            await AccessPolicy.authorizeCapability(actorId, branchId, "paymentsRecord", tx);
+            const access = await AccessPolicy.authorizeCapability(actorId, branchId, "paymentsRecord", tx);
             await AccessPolicy.authorizeCapability(actorId, branchId, "fullWorkspace", tx);
             const student = await tx.student.findFirst({ where: { id: data.studentId, branchId },
-                select: { id: true, status: true, joinedAt: true, billingStartAt: true, monthlyFee: true } });
+                select: { id: true, status: true, joinedAt: true, rejoinedOn: true, billingStartAt: true, monthlyFee: true } });
             if (!student) throw new Error("Student not found");
             const periodStart = new Date(data.periodStart);
             const payment = await tx.payment.findFirst({ where: {
@@ -158,9 +163,12 @@ export class RenewalsService {
             if (payment && payment.status !== "DUE") throw new RenewalInputError("This payment is already resolved. Refresh the queue.");
             if (payment?.amount === 0) throw new RenewalInputError("This fee has no outstanding balance.");
             if (!payment) {
-                const cycle = data.type === "MONTHLY" && student.status === "ACTIVE" && student.monthlyFee > 0
-                    ? upcomingCyclesBetween(student.joinedAt, startOfDay(asOf), endOfDay(addDays(asOf, 7)), student.billingStartAt)
-                        .find(c => c.periodStart.getTime() === periodStart.getTime()) : undefined;
+                const { today, through } = renewalCalendar(asOf, 7, await readBranchPaymentOverduePolicy(branchId, tx));
+                const accrual = await readMonthlyAccrualWindow(tx, branchId, access.organizationId, asOf);
+                const cycle = accrual && data.type === "MONTHLY" && student.status === "ACTIVE" && student.monthlyFee > 0
+                    ? upcomingCyclesBetween(student.joinedAt, today, through, student.billingStartAt, student.rejoinedOn)
+                        .find(c => c.dueDate >= today && c.dueDate <= through && c.periodStart.getTime() === periodStart.getTime()
+                            && canAccrueMonthlyDue(accrual, c.dueDate, date => studentFeeDay(student, date))) : undefined;
                 const coveringPayment = cycle ? await tx.payment.findFirst({ where: {
                     branchId, studentId: student.id, type: "MONTHLY",
                     dueDate: { gte: cycle.dueDate, lt: addDays(cycle.dueDate, 1) },

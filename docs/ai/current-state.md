@@ -1163,7 +1163,13 @@ Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.ser
 - Student create, import, update, status changes, fee-source links, billing start date, and paginated listing are implemented.
 - Student deactivation offers KEEP by default; paid and waived resolutions appear
   only when the viewer has their respective fee permissions. The server still
-  checks those actions and branch writability for each status command.
+  checks those actions and branch writability for each status command. Staff
+  review the balances again if a fee was added or its remaining amount
+  changed. Recording a missing earned fee on departure also requires permission
+  to generate fees.
+- Leaving ends enrollment and seat assignments. On a student's return, staff enter the
+  actual rejoining day and see the first new fee date before confirming. Basic
+  and full student views can open the enrollment history on the same record.
 - Seats can be created individually or generated from a numbering configuration.
 - Branches have primary shifts and composed multi-shifts.
 - Allocation capacity and picker maps omit retained MultiShifts with inactive,
@@ -1212,9 +1218,14 @@ Authoritative code: `services/student.service.ts`, `services/seat.service.ts`, `
   earlier event. The ledger begins with this migration and does not invent
   events for historical resolutions.
 - Marking paid records the method/reference, writes an audit entry, and removes obsolete AI message drafts for the student.
-- Overdue state is derived centrally using a hard-coded rule of strictly more
-  than seven calendar days; the stored `paymentGraceDays` setting is not read.
-- `/api/cron/payments/daily` generates due payments for active students and requires `Authorization: Bearer <CRON_SECRET>`.
+- Current organization grace controls the overdue classification of open fees
+  in lists, dashboards, reports, analytics and past-due reminders. In the
+  Overdue queue, age starts at one on the first day after grace expires.
+- `/api/cron/payments/daily` requires `Authorization: Bearer <CRON_SECRET>`.
+  It generates dues for active students in operating branches, including
+  temporarily read-only branches, and checks the effective closure deadline
+  after acquiring the branch lock. A replacement subscription becoming current
+  preserves the day branch access was restored.
 - The branch payments page fences tab/month/deep-link reads and pagination by
   active query and request version, so obsolete responses cannot replace the
   current rows, counts, cursor, loading state, or error.
@@ -1293,7 +1304,8 @@ not evidence that any environment or provider account is ready.
 - Manual payment-reminder preview and commit accept payment identifiers rather
   than final delivery values. The server resolves tenant-owned payments,
   students, recipients, consent, approved binding, current amount/due date,
-  grouping, typed variables, schedule, and configured estimate. Commit binds an
+  grouping, typed variables, schedule, and configured estimate. A reminder
+  covering several fees identifies the total and the oldest due date. Commit binds an
   idempotency key to the request hash and atomically creates the manual request,
   grouped outbox messages, `WhatsAppMessagePayment` links, frequency keys, and
   budget reservations; it makes no provider call.
@@ -1995,7 +2007,7 @@ most one requested page plus a cursor sentinel. Exact counts reflect name/phone
 search across all matching periods. Queries do not generate payments. Expected
 anniversary fees cover today and the next three/seven days; recorded earlier
 unpaid periods remain independently visible. Outstanding totals exclude future
-records and projections; overdue retains the existing greater-than-seven-day rule.
+records and projections. Overdue uses the organization's saved grace setting.
 
 `RenewalFollowUp` is a small latest-state record keyed by student/type/period,
 with a branch-scoped student foreign key and author reference. It follows an
@@ -2048,10 +2060,10 @@ migration, environment, provider or production-data change is required.
 
 ## Basic PR #287 review corrections — 2026-10-29
 
-Basic student detail now exposes the existing KEEP inactivation and reactivation
-workflow through its own confirmation dialog. Inactivation ends current allocations;
-reactivation does not restore seats or reset the original fee anniversary. Existing
-balances, partial payments and receipts are retained by the same student service.
+This release added status confirmation to Basic student detail. The current
+workflow keeps the same balance and receipt history. It closes seat allocations
+on departure and uses the confirmed rejoining day for a new fee anniversary
+as described in Branch operations above.
 
 Uncertain Basic admissions no longer infer success from matching profile fields.
 The legacy POST has no durable admission receipt: matching students are review

@@ -12,7 +12,7 @@ import {
   whatsappLocalDateKey,
   whatsappLocalDateTimeToUtc,
 } from "@/lib/whatsappSchedule";
-import { OVERDUE_GRACE_DAYS } from "@/lib/utils/paymentStatus";
+import { overdueCutoffForDay } from "@/lib/utils/paymentStatus";
 
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -196,7 +196,7 @@ export async function getWhatsAppDailyReportMetrics(
   const localDate = parseLocalDate(input.localReportDate);
   const organization = await tx.organization.findUnique({
     where: { id: input.organizationId },
-    select: { id: true, name: true, timezone: true },
+    select: { id: true, name: true, timezone: true, paymentGraceDays: true },
   });
   if (!organization) throw new Error("REPORT_SCOPE_NOT_FOUND");
   if (whatsappLocalDateKey(input.scheduledCutoffAt, organization.timezone) !== input.localReportDate) {
@@ -232,10 +232,7 @@ export async function getWhatsAppDailyReportMetrics(
   const branchWhere = { branchId: { in: branchIds } } as const;
   const dayStart = localDayStart(localDate, organization.timezone);
   const dayEnd = localDayEnd(localDate, organization.timezone);
-  const overdueBefore = localDayStart(
-    addWhatsAppLocalDays(localDate, -OVERDUE_GRACE_DAYS),
-    organization.timezone
-  );
+  const overdueBefore = overdueCutoffForDay(organization, input.localReportDate);
   const messageWhere = messageScopeWhere(input);
 
   // Payment outcomes are reconstructed through the same transaction-snapshot

@@ -9,9 +9,10 @@ import {
 import {
   getManagedWhatsAppTemplate,
   hashWhatsAppTemplateComponents,
+  prepareManagedWhatsAppTemplate,
 } from "@/lib/whatsappManagedTemplates";
 import { WhatsAppDispatcherService } from "@/services/whatsappDispatcher.service";
-import { WhatsAppMessageService } from "@/services/whatsappMessage.service";
+import { createWhatsAppManualSourceFingerprint, WhatsAppMessageService } from "@/services/whatsappMessage.service";
 import { WhatsAppMaintenanceService } from "@/services/whatsappMaintenance.service";
 import { WhatsAppWebhookService } from "@/services/whatsappWebhook.service";
 import {
@@ -44,7 +45,7 @@ const DELIVERY_ENV = Object.freeze({
   WHATSAPP_RATE_CARD_EXPIRES_AT: "2027-01-01T00:00:00.000Z",
 } as const);
 
-type ManagedKey = "MULTI_STUDENT_COLLECTION_SUMMARY";
+type ManagedKey = "MULTI_STUDENT_COLLECTION_SUMMARY" | "PAST_DUE_POLITE" | "FEE_RENEWAL_POLITE";
 
 async function installManagedBinding(senderId: string, managedKey: ManagedKey) {
   const definition = getManagedWhatsAppTemplate(managedKey, "en_IN");
@@ -306,6 +307,60 @@ afterAll(async () => {
 });
 
 describe("WhatsApp durable delivery integration", () => {
+  it.each(["current", "legacy"] as const)("rechecks the approved wording for two fees in grace from a %s queue", async version => {
+    const world = await createDeliveryWorld();
+    const student = world.students[0];
+    const [earlier, later] = await Promise.all([
+      testPrisma.payment.update({ where: { id: world.payments[0].id }, data: { amount: 900, dueDate: new Date("2026-08-10") } }),
+      testPrisma.payment.update({ where: { id: world.payments[1].id }, data: { amount: 900, studentId: student.id, dueDate: new Date("2026-08-20") } }),
+    ]);
+    await testPrisma.organization.update({ where: { id: world.organization.id }, data: { paymentGraceDays: 30 } });
+    await installManagedBinding(world.sender.id, "PAST_DUE_POLITE");
+    const input = { actorUserId: world.owner.id, branchId: world.branch.id, paymentIds: [later.id, earlier.id], now: NOW, env: DELIVERY_ENV };
+    const preview = await WhatsAppMessageService.previewPaymentReminders(input);
+    expect(preview.groups).toMatchObject([{
+      paymentCount: 2, studentCount: 1, managedTemplateKey: "PAST_DUE_POLITE",
+      renderedPreview: expect.stringContaining("fee payments totalling ₹1,800 are pending at Central Branch. The oldest due date is 10 Aug 2026"),
+    }]);
+    const { request } = await WhatsAppMessageService.queuePaymentReminders({ ...input, idempotencyKey: "two-fees-in-grace" });
+
+    if (version === "legacy") {
+      // Reproduce the valid binding, variables and fingerprint that an older release queued.
+      const legacy = await installManagedBinding(world.sender.id, "FEE_RENEWAL_POLITE");
+      const variables = { studentName: student.name, amount: "1,800", branchName: world.branch.name, dueDate: "10 Aug 2026" };
+      const recipient = await testPrisma.whatsAppStudentRecipient.findFirstOrThrow({ where: { studentId: student.id, senderId: world.sender.id } });
+      const sourceFingerprint = createWhatsAppManualSourceFingerprint({
+        branchId: world.branch.id, branchName: world.branch.name, senderId: world.sender.id, recipientIds: [recipient.id],
+        paymentFacts: [earlier, later].map(fee => ({
+          id: fee.id, status: fee.status, amount: fee.amount, dueDate: fee.dueDate, studentId: student.id, studentName: student.name,
+        })),
+        templateBindingId: legacy.binding.id, catalogHash: legacy.definition.catalogHash, settingsRevision: 1,
+        managedTemplateKey: legacy.definition.managedKey, templateVariables: variables,
+      });
+      await testPrisma.whatsAppMessage.updateMany({ where: { manualSendRequestId: request.id }, data: {
+        managedTemplateKey: legacy.definition.managedKey, catalogHash: legacy.definition.catalogHash,
+        templateId: legacy.template.id, templateBindingId: legacy.binding.id, templateVersion: legacy.template.version,
+        templateVariables: variables, renderedPreview: prepareManagedWhatsAppTemplate(legacy.definition, variables).renderedPreview,
+        sourceFingerprint,
+      } });
+    }
+
+    const { provider, sendApprovedUtilityTemplate } = fakeProvider();
+    const result = await WhatsAppDispatcherService.run({ now: NOW, limit: 10, env: DELIVERY_ENV, provider });
+    if (version === "current") {
+      expect(result.messagesAccepted).toBe(1);
+      expect(sendApprovedUtilityTemplate).toHaveBeenCalledWith(expect.objectContaining({
+        definition: expect.objectContaining({ managedKey: "PAST_DUE_POLITE" }),
+        values: { studentName: student.name, amount: "1,800", branchName: world.branch.name, oldestDueDate: "10 Aug 2026" },
+      }));
+    } else {
+      expect(result.messagesSuppressed).toBe(1);
+      expect(sendApprovedUtilityTemplate).not.toHaveBeenCalled();
+      await expect(testPrisma.whatsAppMessage.findFirstOrThrow({ where: { manualSendRequestId: request.id } }))
+        .resolves.toMatchObject({ failureCode: "SOURCE_CHANGED", budgetState: "RELEASED" });
+    }
+  });
+
   it("previews and queues one reserved shared-phone row, replays idempotently, and hides foreign payment identity", async () => {
     const world = await createDeliveryWorld();
     const paymentIds = world.payments.map(payment => payment.id);

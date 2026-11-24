@@ -3,11 +3,13 @@ import { remainingFee } from "@/lib/feeBalance";
 
 import { prisma } from "@/lib/prisma"
 import {
+  daysBeyondGrace,
   daysPastDue,
   dueAsOfCutoff,
-  isOverdue,
   overdueCutoff,
+  type PaymentOverduePolicy,
 } from "@/lib/utils/paymentStatus"
+import { readBranchPaymentOverduePolicy } from "@/services/paymentOverduePolicy"
 import {
   type DateIdCursor,
   pageFromRows,
@@ -28,19 +30,13 @@ function resolvePeriod(period?: AnalyticsPeriod): AnalyticsPeriod {
   return period === "month" ? "month" : "all"
 }
 
-export async function getOpenPaymentLedger(
-  branchId: string,
-  asOf?: AsOf,
-  dueDateEnd?: Date
-) {
-  const date = resolveAsOf(asOf)
-
-  const rows = await prisma.payment.findMany({
+function readOpenPaymentRows(branchId: string, dueDateEnd: Date) {
+  return prisma.payment.findMany({
     where: {
       branchId,
       status: "DUE",
       amount: { gt: 0 },
-      dueDate: { lte: dueDateEnd ?? dueAsOfCutoff(date) },
+      dueDate: { lte: dueDateEnd },
     },
     select: {
       id: true,
@@ -61,10 +57,21 @@ export async function getOpenPaymentLedger(
       { id: "asc" },
     ],
   })
+}
 
+export async function getOpenPaymentLedger(
+  branchId: string,
+  asOf?: AsOf,
+  dueDateEnd?: Date,
+  paymentPolicy?: PaymentOverduePolicy,
+) {
+  const date = resolveAsOf(asOf)
+  const policy = paymentPolicy ?? await readBranchPaymentOverduePolicy(branchId)
+  const rows = await readOpenPaymentRows(branchId, dueDateEnd ?? dueAsOfCutoff(date, policy.timezone))
   const duePayments = rows.map((payment) => {
-    const paymentDaysPastDue = daysPastDue(payment.dueDate, date)
-    const paymentIsOverdue = isOverdue(payment.dueDate, date)
+    const paymentDaysPastDue = daysPastDue(payment.dueDate, date, policy.timezone)
+    const daysOverdue = daysBeyondGrace(paymentDaysPastDue, policy.paymentGraceDays)
+    const amount = remainingFee(payment)
 
     return {
       paymentId: payment.id,
@@ -72,11 +79,11 @@ export async function getOpenPaymentLedger(
       studentName: payment.student.name,
       phone: payment.student.phone,
       dueDate: payment.dueDate,
-      amount: remainingFee(payment),
+      amount,
       type: payment.type,
       daysPastDue: paymentDaysPastDue,
-      daysOverdue: paymentDaysPastDue,
-      isOverdue: paymentIsOverdue,
+      daysOverdue,
+      isOverdue: daysOverdue > 0,
     }
   })
   const overduePayments = duePayments.filter((payment) => payment.isOverdue)
@@ -114,7 +121,7 @@ export async function getPaymentPeriodStats(
   const month = selectedPeriod === "month" ? dashboardMonth(today.slice(0, 7), timezone) : null
   const range = { gte: month?.start, lt: month && !options.throughAsOfDay ? month.end : nextDay }
 
-  const [fees, collectedAgg, actual, openLedger] = await Promise.all([
+  const [fees, collectedAgg, actual, openRows] = await Promise.all([
     prisma.payment.groupBy({
       by: ["ledgerBacked", "status"],
       where: { branchId, dueDate: range },
@@ -130,7 +137,7 @@ export async function getPaymentPeriodStats(
       _sum: { amount: true },
     }),
     prisma.feeCollection.aggregate({ where: { branchId, voidedAt: null, collectedAt: range }, _sum: { amount: true } }),
-    getOpenPaymentLedger(branchId, date, new Date(nextDay.getTime() - 1)),
+    readOpenPaymentRows(branchId, new Date(nextDay.getTime() - 1)),
   ])
 
   let billed = 0, waived = 0, settled = 0
@@ -141,7 +148,7 @@ export async function getPaymentPeriodStats(
     settled += fee.ledgerBacked ? fee._sum.collectedAmount ?? 0 : fee.status === "PAID" ? amount : 0
   }
   const paidAmount = (collectedAgg._sum.amount ?? 0) + (actual._sum.amount ?? 0)
-  const dueAmount = openLedger.dueAmount
+  const dueAmount = openRows.reduce((total, payment) => total + remainingFee(payment), 0)
 
   return {
     period: selectedPeriod,
@@ -157,15 +164,17 @@ export async function getPaymentPeriodStats(
  */
 export async function getPaymentStats(
   branchId: string,
-  asOf?: AsOf
+  asOf?: AsOf,
+  paymentPolicy?: PaymentOverduePolicy,
 ) {
   const date = resolveAsOf(asOf)
-  const dateEnd = dueAsOfCutoff(date)
+  const policy = paymentPolicy ?? await readBranchPaymentOverduePolicy(branchId)
+  const dateEnd = dueAsOfCutoff(date, policy.timezone)
 
   // ⚡ Bolt: Replaced memory-heavy findMany + reduce with database-level aggregate and count
   // Impact: Reduces memory overhead from O(N) to O(1) and eliminates payload transfer for thousands of payment records.
   const [openLedger, paidAgg] = await Promise.all([
-    getOpenPaymentLedger(branchId, date),
+    getOpenPaymentLedger(branchId, date, dateEnd, policy),
     prisma.payment.aggregate({
       where: {
         branchId,
@@ -212,7 +221,7 @@ export async function getDueStudents(
     studentId: payment.studentId,
     dueDate: payment.dueDate,
     amount: remainingFee(payment),
-    daysOverdue: payment.daysPastDue,
+    daysOverdue: payment.daysOverdue,
     isOverdue: payment.isOverdue,
   }))
 }
@@ -223,9 +232,10 @@ export async function getDueStudents(
 export async function getOverduePayments(
   branchId: string,
   asOf?: AsOf,
-  client: Pick<Prisma.TransactionClient, "payment"> = prisma
+  client: PaymentAnalyticsClient = prisma,
+  policy?: PaymentOverduePolicy,
 ) {
-  const page = await getOverduePaymentsPage(branchId, { asOf, all: true }, client)
+  const page = await getOverduePaymentsPage(branchId, { asOf, all: true }, client, policy)
 
   return {
     count: page.total,
@@ -239,6 +249,7 @@ export type OverduePaymentPageOptions = {
   limit?: number
   all?: boolean
 }
+type PaymentAnalyticsClient = Pick<Prisma.TransactionClient, "payment" | "branch">
 
 /**
  * Stable, bounded overdue queue for browser/API consumers.
@@ -248,13 +259,15 @@ export type OverduePaymentPageOptions = {
 export async function getOverduePaymentsPage(
   branchId: string,
   options: OverduePaymentPageOptions = {},
-  client: Pick<Prisma.TransactionClient, "payment"> = prisma
+  client: PaymentAnalyticsClient = prisma,
+  paymentPolicy?: PaymentOverduePolicy,
 ) {
   if (options.all && options.cursor) {
     throw new PaginationInputError("all cannot be combined with cursor")
   }
 
   const date = resolveAsOf(options.asOf)
+  const policy = paymentPolicy ?? await readBranchPaymentOverduePolicy(branchId, client)
   const limit = parsePageLimit(
     options.limit == null ? undefined : String(options.limit)
   )
@@ -262,7 +275,7 @@ export async function getOverduePaymentsPage(
     branchId,
     status: "DUE",
     amount: { gt: 0 },
-    dueDate: { lt: overdueCutoff(date) },
+    dueDate: { lt: overdueCutoff(policy, date) },
   }
   const cursor = options.cursor ?? null
   const where: Prisma.PaymentWhereInput = cursor
@@ -312,7 +325,7 @@ export async function getOverduePaymentsPage(
       phone: payment.student.phone,
       dueDate: payment.dueDate,
       amount: remainingFee(payment),
-      daysOverdue: daysPastDue(payment.dueDate, date),
+      daysOverdue: daysBeyondGrace(daysPastDue(payment.dueDate, date, policy.timezone), policy.paymentGraceDays),
     })),
   }
 }
@@ -325,9 +338,10 @@ export async function getPaymentSnapshot(
   asOf?: AsOf
 ) {
   const date = resolveAsOf(asOf)
+  const policy = await readBranchPaymentOverduePolicy(branchId)
   const [stats, ledger] = await Promise.all([
-    getPaymentStats(branchId, date),
-    getOpenPaymentLedger(branchId, date)
+    getPaymentStats(branchId, date, policy),
+    getOpenPaymentLedger(branchId, date, undefined, policy)
   ])
 
   const buckets = new Map<number, number>()

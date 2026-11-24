@@ -23,7 +23,7 @@ describe("dashboard scoped service boundary", () => {
         mocks.resolve.mockResolvedValue(access()); mocks.authorize.mockResolvedValue(access()); mocks.capability.mockResolvedValue(access());
         mocks.profile.mockResolvedValue({ entitlements: [] });
         mocks.db.$transaction.mockImplementation((fn: (tx: typeof mocks.db) => unknown) => fn(mocks.db));
-        mocks.db.branch.findUniqueOrThrow.mockResolvedValue({ organization: { timezone: "Asia/Kolkata" } });
+        mocks.db.branch.findUniqueOrThrow.mockResolvedValue({ organization: { timezone: "Asia/Kolkata", paymentGraceDays: 0 } });
         mocks.db.dashboardEvent.findMany.mockResolvedValue([]);
         mocks.capacity.mockResolvedValue([]);
     });

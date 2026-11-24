@@ -102,6 +102,20 @@
     "nullable": true
   },
   {
+    "model": "StudentEnrollmentHistory",
+    "field": "student",
+    "parent": "Student",
+    "fields": [
+      "studentId",
+      "branchId"
+    ],
+    "references": [
+      "id",
+      "branchId"
+    ],
+    "nullable": false
+  },
+  {
     "model": "Seat",
     "field": "branch",
     "parent": "Branch",

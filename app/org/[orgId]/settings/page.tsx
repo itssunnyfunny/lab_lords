@@ -484,7 +484,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                                     ]}
                                 />
                             </SettingsField>
-                            <SettingsField label={t("Payment grace days")} description={t("Stored organization policy for payment follow-up windows.")} error={paymentGraceDaysError} errorId="org-payment-grace-days-error">
+                            <SettingsField label={t("Payment grace days")} description={t("Extra days before an unpaid fee becomes overdue. Changes apply to existing unpaid fees. With 0 days, a fee becomes overdue the day after it is due.")} error={paymentGraceDaysError} errorId="org-payment-grace-days-error">
                                 <SettingsInput type="number" min={0} max={60} value={form.paymentGraceDays} onChange={e => updateForm("paymentGraceDays", Number(e.target.value))} onBlur={() => markTouched("paymentGraceDays")} error={paymentGraceDaysError} errorId="org-payment-grace-days-error" />
                             </SettingsField>
                         </>

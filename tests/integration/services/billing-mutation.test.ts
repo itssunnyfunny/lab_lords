@@ -6,6 +6,7 @@ import { BillingMutationService } from "@/services/billingMutation.service";
 import { BillingReconciliationService } from "@/services/billingReconciliation.service";
 import { BillingExperienceService } from "@/services/billingExperience.service";
 import { BranchService } from "@/services/branch.service";
+import { PaymentService } from "@/services/payment.service";
 import { BillingReplacementService } from "@/services/billingReplacement.service";
 import { BillingDeadlineService, recoverExpiredBillingMutationLease } from "@/services/billingDeadline.service";
 import { BillingService } from "@/services/billing.service";
@@ -22,7 +23,7 @@ import {
   BillingChangeInProgressError,
   BillingManualReviewRequiredError,
 } from "@/lib/billingErrors";
-import { createBranch, createOrg, createUser } from "@/tests/factories";
+import { createBranch, createOrg, createStudent, createUser } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma } from "@/tests/setup/db";
 
 function fakeRazorpay(options: {
@@ -195,6 +196,7 @@ describe("serialized workspace billing mutations", () => {
     setRazorpayClientForTests(null);
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
   afterAll(async () => { await disconnectDatabase(); });
 
@@ -460,6 +462,79 @@ describe("serialized workspace billing mutations", () => {
     if (!change.replacementSubscription) throw new Error("Replacement candidate was not provisioned");
     return { ...context, branch, change, candidate: change.replacementSubscription, razorpay };
   }
+
+  it.each([
+    { revoke: false, scenario: "uninterrupted access" },
+    { revoke: true, scenario: "access revoked before the anniversary" },
+  ])("preserves the operating dates of a reopened branch on replacement promotion with $scenario", async ({ revoke }) => {
+    vi.stubEnv("RAZORPAY_BILLING_WRITES_ENABLED", "true");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    // This source's next cycle starts November 21. Access is granted earlier.
+    vi.setSystemTime(new Date("2026-10-22T12:01:00Z"));
+    setRazorpayClientForTests(fakeRazorpay({ providerQuantity: 1 }));
+    const reopened = new Date(2026, 10, 10);
+    vi.setSystemTime(reopened);
+    const { owner, organization, subscription } = await setup();
+    await testPrisma.ownerTrialGrant.create({ data: {
+      ownerId: owner.id, organizationId: organization.id, source: "ONBOARDING", status: "ACTIVE",
+      trialStartedAt: reopened, trialEndsAt: new Date(2026, 10, 21), consumedAt: reopened,
+    } });
+    const archivedAt = new Date(2026, 8, 10);
+    const branch = await testPrisma.branch.create({ data: {
+      organizationId: organization.id, name: "Returning branch", billingStatus: "ARCHIVED", billingArchivedAt: archivedAt,
+    } });
+    await testPrisma.organizationBillingChange.create({ data: {
+      organizationId: organization.id, branchId: branch.id, sequence: 0, idempotencyKey: "previous-closure",
+      type: "BRANCH_REMOVAL", status: "APPLIED", operationStatus: "APPLIED", effectiveAt: archivedAt, appliedAt: archivedAt,
+    } });
+    const student = await createStudent({ branchId: branch.id, joinedAt: new Date(2026, 7, 20), monthlyFee: 900 });
+
+    const { change } = await BranchService.reactivateArchivedBranch(owner.id, branch.id, "reopen-for-november");
+    expect(change).toMatchObject({ type: "BRANCH_REACTIVATION", status: "AWAITING_PAYMENT" });
+    const candidate = await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { pendingReplacementOrganizationId: organization.id } });
+    await testPrisma.organizationSubscription.update({ where: { id: candidate.id }, data: {
+      status: "AUTHENTICATED", providerPaymentMethod: "CARD", confirmedCommercialIntentChangeId: change.id,
+    } });
+    await expect(BillingReplacementService.syncAuthorizedAccess(change.id, reopened)).resolves.toMatchObject({ action: "GRANT" });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: branch.id } }))
+      .resolves.toMatchObject({ billingStatus: "ACTIVE", billingActivatedAt: reopened });
+
+    const revokedAt = new Date(2026, 10, 15);
+    if (revoke) {
+      await testPrisma.organizationSubscription.update({ where: { id: candidate.id }, data: { status: "PAUSED" } });
+      await expect(BillingReplacementService.syncAuthorizedAccess(change.id, revokedAt)).resolves.toMatchObject({ action: "REVOKE" });
+      await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: branch.id } }))
+        .resolves.toMatchObject({ billingStatus: "ARCHIVED", billingArchivedAt: revokedAt });
+    }
+    const cutover = new Date("2026-11-21T12:00:00Z");
+    expect(change.effectiveAt).toEqual(cutover);
+    vi.setSystemTime(cutover);
+    const periodEnd = new Date("2026-12-21T12:00:00Z");
+    // Supply the exact reconciled invoice and provider state consumed by the real promotion.
+    const paidSubunits = candidate.amountSubunits * candidate.quantity;
+    const invoice = await testPrisma.organizationSubscriptionInvoice.create({ data: {
+      organizationId: organization.id, organizationSubscriptionId: candidate.id, status: "paid",
+      razorpayInvoiceId: "inv_reopened", razorpayPaymentId: "pay_reopened", providerMode: candidate.providerMode,
+      razorpaySubscriptionId: candidate.razorpaySubscriptionId, razorpayPlanId: candidate.razorpayPlanId,
+      amountSubunits: paidSubunits, amountPaidSubunits: paidSubunits, providerQuantity: candidate.quantity,
+      paymentAmountSubunits: paidSubunits, paymentCurrency: candidate.currency, evidenceConfirmedAt: cutover,
+      commercialEvidenceVersion: 1, commercialIntentChangeId: change.id, paymentStatus: "captured", paymentCaptured: true,
+      periodStart: cutover, periodEnd,
+    } });
+    await testPrisma.organizationSubscription.update({ where: { id: subscription.id }, data: { status: "EXPIRED" } });
+    await testPrisma.organizationSubscription.update({ where: { id: candidate.id }, data: {
+      status: "ACTIVE", currentStart: cutover, currentEnd: periodEnd, paidThrough: periodEnd,
+      lastConfirmedInvoiceId: invoice.razorpayInvoiceId, lastConfirmedPaymentId: invoice.razorpayPaymentId,
+    } });
+    await expect(BillingReplacementService.promoteIfReady(change.id, cutover))
+      .resolves.toMatchObject({ promoted: true, change: { accessRevokedAt: revoke ? revokedAt : cutover } });
+    await expect(testPrisma.branch.findUniqueOrThrow({ where: { id: branch.id } }))
+      .resolves.toMatchObject({ billingStatus: "ACTIVE", billingActivatedAt: revoke ? cutover : reopened });
+    await expect(PaymentService.generateDuePaymentsForAllActiveStudents()).resolves.toMatchObject({ generatedCount: revoke ? 0 : 1 });
+    await expect(PaymentService.generateDuePaymentsForAllActiveStudents()).resolves.toMatchObject({ generatedCount: 0 });
+    expect(await testPrisma.payment.findMany({ where: { studentId: student.id }, select: { dueDate: true, amount: true } }))
+      .toEqual(revoke ? [] : [{ dueDate: new Date(2026, 10, 20), amount: 900 }]);
+  });
 
   async function queuedReplacement(key: string) {
     vi.stubEnv("RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED", "true");

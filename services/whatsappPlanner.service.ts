@@ -1,4 +1,5 @@
 import { remainingFee } from "@/lib/feeBalance";
+import { overdueCutoffForDay } from "@/lib/utils/paymentStatus";
 import { collectionAcknowledgementIsCurrent } from "@/services/collectionAcknowledgement.service";
 import { createHash, randomUUID } from "node:crypto";
 
@@ -670,6 +671,7 @@ function queryRecipients(input: {
           status: true,
           enrollmentSource: true,
           joinedAt: true,
+          rejoinedOn: true,
           billingStartAt: true,
           monthlyFee: true,
           createdAt: true,
@@ -856,6 +858,7 @@ export function buildCollectionCandidates(input: {
   now: Date;
   horizonEnd: Date;
   timeZone: string;
+  paymentGraceDays: number;
   language: WhatsAppManagedTemplateLanguage;
   branchName: string;
   tone: string;
@@ -875,21 +878,20 @@ export function buildCollectionCandidates(input: {
 
   for (const slot of input.slots) {
     const slotKey = localDatePartsKey(slot.localDate);
+    const overdueBefore = overdueCutoffForDay({ paymentGraceDays: input.paymentGraceDays, timezone: input.timeZone }, slotKey);
     for (const [phoneE164, recipients] of byPhone) {
       const choices: Array<CollectionChoice<PlannerCandidate>> = [];
       const recipientStudentIds = new Set(recipients.map(row => row.student.id));
       const phonePayments = payments.filter(payment => recipientStudentIds.has(payment.studentId));
 
       for (const [stage, offset, priority] of PAST_DUE_STAGES) {
-        if (!input.enabledStages.has(stage)) continue;
+        if (!input.enabledStages.has(stage) || offset <= input.paymentGraceDays) continue;
         const triggerKey = localDatePartsKey(addWhatsAppLocalDays(slot.localDate, -offset));
         const triggers = phonePayments.filter(payment =>
           whatsappLocalDateKey(payment.dueDate, input.timeZone) === triggerKey
         );
         if (triggers.length === 0) continue;
-        const unresolved = phonePayments.filter(payment =>
-          whatsappLocalDateKey(payment.dueDate, input.timeZone) <= slotKey
-        );
+        const unresolved = phonePayments.filter(payment => payment.dueDate < overdueBefore);
         if (unresolved.length === 0) continue;
         const studentIds = [...new Set(unresolved.map(row => row.studentId))].sort();
         const totalAmount = unresolved.reduce((sum, row) => sum + row.amount, 0);
@@ -1030,7 +1032,8 @@ export function buildCollectionCandidates(input: {
               student.joinedAt,
               addHours(input.now, -24),
               addHours(input.horizonEnd, 7 * 24),
-              student.billingStartAt
+              student.billingStartAt,
+              student.rejoinedOn
             ).filter(cycle => whatsappLocalDateKey(cycle.dueDate, input.timeZone) === targetDueKey)
               .map(cycle => ({ recipient, student, cycle }));
           });
@@ -1644,7 +1647,7 @@ export async function deriveWhatsAppAutomaticCollectionMessageRefresh(input: {
   const message = await input.tx.whatsAppMessage.findUnique({
     where: { id: input.messageId },
     include: {
-      branch: { include: { organization: { select: { id: true, timezone: true } } } },
+      branch: { include: { organization: { select: { id: true, timezone: true, paymentGraceDays: true } } } },
       sender: true,
     },
   });
@@ -1771,6 +1774,7 @@ export async function deriveWhatsAppAutomaticCollectionMessageRefresh(input: {
     now: input.now,
     horizonEnd,
     timeZone,
+    paymentGraceDays: message.branch.organization.paymentGraceDays,
     language,
     branchName: message.branch.name,
     tone: settings.defaultTone,
@@ -1865,7 +1869,7 @@ export async function verifyAutomaticMessageSource(input: {
   const message = await input.tx.whatsAppMessage.findUnique({
     where: { id: input.messageId },
     include: {
-      branch: { include: { organization: { select: { id: true, timezone: true } } } },
+      branch: { include: { organization: { select: { id: true, timezone: true, paymentGraceDays: true } } } },
       templateBinding: { include: { template: true } },
       paymentResolutionEvent: { include: { payment: { include: { student: true } } } },
       paymentSources: { include: { payment: true } },
@@ -2009,6 +2013,7 @@ export async function verifyAutomaticMessageSource(input: {
       now: input.now,
       horizonEnd: addHours(input.now, WHATSAPP_PLANNER_HORIZON_HOURS),
       timeZone: message.branch.organization.timezone,
+      paymentGraceDays: message.branch.organization.paymentGraceDays,
       language,
       branchName: message.branch.name,
       tone: settings.defaultTone,
@@ -2364,7 +2369,7 @@ export class WhatsAppPlannerService {
         where: { branchId: input.claim.branchId },
         include: {
           branch: {
-            include: { organization: { select: { id: true, timezone: true } } },
+            include: { organization: { select: { id: true, timezone: true, paymentGraceDays: true } } },
           },
           sender: true,
         },
@@ -2564,6 +2569,7 @@ export class WhatsAppPlannerService {
         now: input.now,
         horizonEnd,
         timeZone: settings.branch.organization.timezone,
+        paymentGraceDays: settings.branch.organization.paymentGraceDays,
         language,
         branchName: settings.branch.name,
         tone: settings.defaultTone,

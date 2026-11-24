@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterAll, beforeAll, vi } from "vites
 import { prisma } from "@/lib/prisma";
 import { PaymentService } from "@/services/payment.service";
 import { StudentService } from "@/services/student.service";
+import { reviewFee } from "@/lib/feeBalance";
 import { ShiftService } from "@/services/shift.service";
 import { MultiShiftService } from "@/services/multiShift.service";
 import { resetDatabase, disconnectDatabase, testPrisma } from "@/tests/setup/db";
@@ -138,7 +139,7 @@ describe("PaymentService Integration", () => {
         periodStart: joinedAt, periodEnd: firstDue, dueDate: firstDue });
       const findMany = prisma.payment.findMany.bind(prisma.payment);
       const read = vi.spyOn(prisma.payment, "findMany").mockImplementationOnce(args => findMany(args).then(async rows => {
-        await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED");
+        await StudentService.updateStudentStatus(user.id, student.id, "INACTIVE", "WAIVED", { reviewedDues: [reviewFee(existing)] });
         return rows;
       }) as ReturnType<typeof findMany>);
       try {

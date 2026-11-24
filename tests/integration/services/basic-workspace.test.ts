@@ -1,5 +1,4 @@
-import { dueCyclesThrough } from "@/utils/studentBillingCycles";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { createTestWorld, createBranch, createSeat, createSaasSubscription, createStudent, createPayment, createShift, createUser, createStaff } from "@/tests/factories";
 import { resetDatabase, disconnectDatabase, testPrisma as db } from "@/tests/setup/db";
@@ -15,10 +14,10 @@ import { FeeCollectionService } from "@/services/feeCollection.service";
 import { DashboardService } from "@/services/dashboard.service";
 import { workspacePresentation } from "@/lib/workspacePresentation";
 import { StaffRole } from "@/types";
-async function world(plan:"BASIC"|"STANDARD"|"PRO"="BASIC") {
+async function world(plan:"BASIC"|"STANDARD"|"PRO"="BASIC", paidThrough?: Date) {
     const f=await createTestWorld();
     await db.organization.update({where:{id:f.org.id},data:{billingModelVersion:"WORKSPACE_V2"}});
-    const subscription=await createSaasSubscription({organizationId:f.org.id,plan});
+    const subscription=await createSaasSubscription({organizationId:f.org.id,plan,paidThrough});
     return {...f,subscription};
 }
 async function snapshot(f:Awaited<ReturnType<typeof world>>) {
@@ -86,11 +85,12 @@ import { NextRequest } from "next/server";
 const session=vi.hoisted(()=>({user:null as {id:string}|null}));
 vi.mock("@/lib/auth",()=>({getSessionUser:async()=>session.user}));
 import { PATCH as studentRoute } from "@/app/api/branches/[branchId]/students/route";
+import { GET as enrollmentRoute } from "@/app/api/branches/[branchId]/students/[studentId]/enrollments/route";
 import { GET as dashboardRoute } from "@/app/api/branches/[branchId]/dashboard/route";
 import { GET as reportRoute } from "@/app/api/branches/[branchId]/reports/route";
 
 describe("Basic's deliberately narrow server boundary",()=>{
- beforeEach(resetDatabase);afterAll(disconnectDatabase);
+ beforeEach(resetDatabase);afterEach(() => vi.useRealTimers());afterAll(disconnectDatabase);
  it.each(["BASIC","STANDARD","PRO"] as const)("checks %s feature APIs independently of navigation",async plan=>{
   const f=await world(plan); session.user={id:f.user.id};
   const response=await dashboardRoute(new NextRequest("http://local/api/branches/"+f.branch.id+"/dashboard"),{params:Promise.resolve({branchId:f.branch.id})});
@@ -173,8 +173,11 @@ describe("Basic's deliberately narrow server boundary",()=>{
   expect(moved.allocations).toHaveLength(2);expect(moved.allocations.every(row=>row.multiShiftId===bundle.id&&row.seatId===destination.id)).toBe(true);
   expect(await db.seatAllocation.count({where:{studentId:winner.studentId,endDate:{not:null}}})).toBe(1);
  });
- it("Basic inactivation keeps ledger evidence, ends a multi-shift bundle, and reactivation keeps anniversary rules",async()=>{
-  const f=await world();const student=await createStudent({branchId:f.branch.id,monthlyFee:1000,joinedAt:new Date("2026-01-15T12:00:00Z")});
+ it("Basic departure preserves ledger evidence and rejoining starts a new anniversary on the same record",async()=>{
+  vi.useFakeTimers({ toFake: ["Date"] });
+  const departure = new Date("2026-04-20T12:00:00Z");
+  vi.setSystemTime(departure);
+  const f=await world("BASIC", new Date("2026-08-20T12:00:00Z"));const student=await createStudent({branchId:f.branch.id,monthlyFee:1000,joinedAt:new Date("2026-01-15T12:00:00Z")});
   const evening=await createShift({branchId:f.branch.id,name:"Evening",startTime:"18:00",endTime:"23:00"});
   const bundle=await db.multiShift.create({data:{branchId:f.branch.id,name:"Lifecycle bundle",price:1500,components:{create:[{shiftId:f.shift.id},{shiftId:evening.id}]}}});
   await SeatAllocationService.assignSeatToShifts(f.user.id,f.seat.id,student.id,[f.shift.id,evening.id],bundle.id);
@@ -183,16 +186,34 @@ describe("Basic's deliberately narrow server boundary",()=>{
   const receipt=await FeeCollectionService.collect(f.user.id,f.branch.id,{studentId:student.id,paymentIds:[fee.id],amount:300,method:"CASH",reference:"",note:"",idempotencyKey:randomUUID()});
   const beforeFees=await db.payment.findMany({where:{studentId:student.id},orderBy:{id:"asc"}});
   const beforeAllocations=await db.seatAllocation.findMany({where:{studentId:student.id},orderBy:{id:"asc"}});
-  session.user={id:f.user.id};const change=async(status:"ACTIVE"|"INACTIVE")=>studentRoute(new NextRequest("http://local/students",{method:"PATCH",body:JSON.stringify({id:student.id,status,dueResolution:"KEEP"})}),{params:Promise.resolve({branchId:f.branch.id})});
+  session.user={id:f.user.id};const change=async(status:"ACTIVE"|"INACTIVE",rejoinedOn?: string)=>studentRoute(new NextRequest("http://local/students",{method:"PATCH",body:JSON.stringify({id:student.id,status,dueResolution:"KEEP",rejoinedOn})}),{params:Promise.resolve({branchId:f.branch.id})});
   expect((await change("INACTIVE")).status).toBe(200);
   expect(await db.payment.findMany({where:{studentId:student.id},orderBy:{id:"asc"}})).toEqual(beforeFees);
   expect(await FeeCollectionService.get(f.user.id,f.branch.id,receipt.id)).toEqual(receipt);
   const ended=await db.seatAllocation.findMany({where:{studentId:student.id},orderBy:{id:"asc"}});expect(ended).toHaveLength(2);expect(ended.every(a=>a.endDate!==null&&a.multiShiftId===bundle.id)).toBe(true);expect(ended.map(a=>a.id)).toEqual(beforeAllocations.map(a=>a.id));
+  vi.setSystemTime(new Date("2026-06-20T12:00:00Z"));
   await PaymentService.generateDuePaymentsForBranch(f.user.id,f.branch.id,new Date("2026-06-20T12:00:00Z"));expect(await db.payment.count({where:{studentId:student.id}})).toBe(3);
-  expect((await change("ACTIVE")).status).toBe(200);expect(await db.student.findUniqueOrThrow({where:{id:student.id}})).toMatchObject({status:"ACTIVE",joinedAt:student.joinedAt,billingStartAt:student.billingStartAt});
+  expect((await change("ACTIVE")).status).toBe(400);
+  expect((await change("ACTIVE","2026-05-16")).status).toBe(200);expect(await db.student.findUniqueOrThrow({where:{id:student.id}})).toMatchObject({
+   status:"ACTIVE",joinedAt:student.joinedAt,rejoinedOn:new Date("2026-05-16T00:00:00Z"),
+  });
+  const getEnrollments = (branchId: string, studentId = student.id) => enrollmentRoute(
+   new NextRequest("http://local/enrollments?limit=1"), { params: Promise.resolve({ branchId, studentId }) },
+  );
+  const enrollments=await getEnrollments(f.branch.id);expect(enrollments.status).toBe(200);
+  expect(await enrollments.json()).toMatchObject({
+   originalJoinedAt:student.joinedAt.toISOString(),current:{startedAt:"2026-05-16T00:00:00.000Z"},
+   items:[{startedAt:student.joinedAt.toISOString(),endedAt:departure.toISOString()}],nextCursor:null,total:1,
+  });
+  const otherBranch=await createBranch({organizationId:f.org.id});
+  const foreign=await getEnrollments(otherBranch.id), missing=await getEnrollments(otherBranch.id,"missing");
+  expect(foreign.status).toBe(404);expect(missing.status).toBe(404);expect(await foreign.json()).toEqual(await missing.json());
   expect(await db.seatAllocation.findMany({where:{studentId:student.id},orderBy:{id:"asc"}})).toEqual(ended);
   await PaymentService.generateDuePaymentsForBranch(f.user.id,f.branch.id,new Date("2026-06-20T12:00:00Z"));
-  const afterFees=await db.payment.findMany({where:{studentId:student.id}});expect(afterFees).toHaveLength(5);expect(afterFees.map(p=>p.dueDate.toISOString()).sort()).toEqual(dueCyclesThrough(student.joinedAt,new Date("2026-06-20T12:00:00Z"),student.billingStartAt).map(cycle=>cycle.dueDate.toISOString()).sort());expect(afterFees.find(p=>p.id===fee.id)).toMatchObject({collectedAmount:300,status:"DUE",amount:1000});
+  const afterFees=await db.payment.findMany({where:{studentId:student.id}});
+  expect(afterFees).toHaveLength(4);
+  expect(afterFees.filter(p=>!beforeFees.some(before=>before.id===p.id))).toMatchObject([{dueDate:new Date("2026-06-16T00:00:00Z"),status:"DUE"}]);
+  expect(afterFees.find(p=>p.id===fee.id)).toMatchObject({collectedAmount:300,status:"DUE",amount:1000});
   expect(await FeeCollectionService.get(f.user.id,f.branch.id,receipt.id)).toEqual(receipt);expect(await db.feeCollection.count({where:{studentId:student.id}})).toBe(1);
  });
  it.each(["anonymous","stranger","denied staff","foreign branch","read only","archived"] as const)("Basic status rejects %s without changing the student or allocations",async scenario=>{

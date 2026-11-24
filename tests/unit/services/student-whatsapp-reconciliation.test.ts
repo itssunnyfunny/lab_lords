@@ -64,6 +64,7 @@ const branch = {
 };
 
 const tx = {
+  studentEnrollmentHistory: { create: vi.fn() },
   $queryRaw: mocks.schemaProbe,
   branch: {
     findUnique: mocks.txBranchFindUnique,
@@ -100,6 +101,7 @@ beforeEach(() => {
     name: "Asha",
     phone: "+91 98765 43210",
     status: "ACTIVE",
+    joinedAt: new Date(),
     monthlyFee: 1000,
     branch,
   });

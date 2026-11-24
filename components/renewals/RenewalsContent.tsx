@@ -114,7 +114,7 @@ export function RenewalsContent({ branchId, access }: { branchId: string; access
                 <AppSelect label={t("Upcoming window")} value={String(days)} onValueChange={value => setDays(value === "3" ? 3 : 7)}
                     options={[{ value: "3", label: t("Next 3 days") }, { value: "7", label: t("Next 7 days") }]} />
                 </div>
-                <details className="ui-context-help"><summary>{t.owned("How this list is ordered")}</summary><p>{t("Oldest fee date first. Counts reflect your search; overdue means more than 7 days late. Each period appears separately.")}</p></details>
+                <details className="ui-context-help"><summary>{t.owned("How this list is ordered")}</summary><p>{t("Oldest fee date first. Counts reflect your search. An unpaid fee becomes overdue after the organization’s grace days have passed. Each period appears separately.")}</p></details>
             </div>} footer={page && !loading && !error && <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm">{t("Showing {shown} of {total} periods", { shown: page.items.length, total: page.counts[filter] })}</p>
                 <div className="flex gap-2"><AppButton density="compact" variant="secondary" onClick={() => void load()}>{t("First page")}</AppButton>

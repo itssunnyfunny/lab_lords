@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getManagedWhatsAppTemplate, prepareManagedWhatsAppTemplate } from "@/lib/whatsappManagedTemplates";
 
 import {
   createWhatsAppManualSourceFingerprint,
@@ -33,6 +34,7 @@ describe("WhatsApp manual message request identity", () => {
       tone: "polite",
       branchName: "Sample Branch",
       timeZone: "Asia/Kolkata",
+      paymentGraceDays: 0,
       at: new Date("2026-08-23T06:00:00.000Z"),
     });
     const pastDue = deriveWhatsAppManualCollectionContent({
@@ -41,10 +43,36 @@ describe("WhatsApp manual message request identity", () => {
       tone: "polite",
       branchName: "Sample Branch",
       timeZone: "Asia/Kolkata",
+      paymentGraceDays: 0,
       at: new Date("2026-08-24T06:00:00.000Z"),
     });
     expect(due.managedTemplateKey).toBe("FEE_RENEWAL_POLITE");
     expect(pastDue.managedTemplateKey).toBe("PAST_DUE_POLITE");
+    expect(deriveWhatsAppManualCollectionContent({
+      payments: [payment], language: "en_IN", tone: "polite", branchName: "Sample Branch",
+      timeZone: "Asia/Kolkata", paymentGraceDays: 1, at: new Date("2026-08-24T06:00:00.000Z"),
+    }).managedTemplateKey).toBe("FEE_RENEWAL_POLITE");
+  });
+
+  it.each(["en_IN", "hi"] as const)("renders a total and the oldest fee date for one student's separate fees in %s", language => {
+    const student = { id: "student_1", name: "Asha" };
+    const payments = [
+      { id: "later", amount: 1200, collectedAmount: 300, dueDate: new Date("2026-05-20T04:00:00Z"), student },
+      { id: "earlier", amount: 900, dueDate: new Date("2026-05-10T04:00:00Z"), student },
+    ];
+    for (const tone of ["friendly", "polite", "firm"]) {
+      const result = deriveWhatsAppManualCollectionContent({
+        payments, language, tone, branchName: "Library", timeZone: "Asia/Kolkata",
+        paymentGraceDays: 30, at: new Date("2026-05-21T06:00:00Z"),
+      });
+      expect(result.anyPastDue).toBe(false);
+      const definition = getManagedWhatsAppTemplate(result.managedTemplateKey, language);
+      const { orderedValues, renderedPreview } = prepareManagedWhatsAppTemplate(definition, result.values);
+      const oldest = language === "en_IN" ? "10 May 2026" : "10 मई 2026";
+      expect(orderedValues).toEqual(["Asha", "1,800", "Library", oldest]);
+      expect(renderedPreview).toContain(language === "en_IN" ? "totalling ₹1,800" : "कुल ₹1,800");
+      expect(renderedPreview).toContain(language === "en_IN" ? `The oldest due date is ${oldest}` : `सबसे पुरानी देय तिथि ${oldest}`);
+    }
   });
 
   it("fingerprints current server facts canonically and detects truth changes", () => {

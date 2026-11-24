@@ -25,6 +25,7 @@ const branch = { id: "branch", name: "Main", organizationId: "org", organization
 const student = { id: "student", branchId: "branch", branch, name: "Asha", status: "ACTIVE" };
 const tx = {
     student: { update: mocks.updateStudent, findUnique: mocks.student }, seatAllocation: { updateMany: mocks.endAllocations },
+    studentEnrollmentHistory: { create: vi.fn() },
     payment: { findMany: mocks.duePayments }, branch: { update: mocks.touchBranch, findUnique: mocks.branch }, staff: { findUnique: mocks.staff },
 };
 function staff(overrides: { action: StaffPermissionAction; allowed: boolean }[] = []) {
@@ -34,7 +35,7 @@ beforeEach(() => {
     vi.resetAllMocks();
     mocks.branch.mockResolvedValue(branch); mocks.student.mockResolvedValue(student); staff();
     mocks.updateStudent.mockResolvedValue({ ...student, status: "INACTIVE" });
-    mocks.duePayments.mockResolvedValue([{ id: "due" }]);
+    mocks.duePayments.mockResolvedValue([{ id: "due", amount: 900 }]);
     mocks.transaction.mockImplementation(async operation => operation(tx));
 });
 
@@ -49,7 +50,7 @@ describe("student deactivation resolution authorization", () => {
         expect(result.status).toBe("INACTIVE");
         expect(mocks.updateStudent).toHaveBeenCalledExactlyOnceWith({ where: { id: "student", branchId: "branch" }, data: { status: "INACTIVE" } });
         expect(mocks.endAllocations).toHaveBeenCalledExactlyOnceWith({
-            where: { studentId: "student", endDate: null }, data: { endDate: expect.any(Date) },
+            where: { branchId: "branch", studentId: "student", endDate: null }, data: { endDate: expect.any(Date) },
         });
         expect(mocks.duePayments).not.toHaveBeenCalled();
         expect(mocks.collect).not.toHaveBeenCalled(); expect(mocks.waive).not.toHaveBeenCalled();
@@ -69,9 +70,10 @@ describe("student deactivation resolution authorization", () => {
     });
 
     it.each(["PAID", "WAIVED"] as const)("delegates an explicit authorized owner %s choice to the canonical writer", async resolution => {
-        await StudentService.updateStudentStatus("owner", "student", StudentStatus.INACTIVE, resolution);
+        await StudentService.updateStudentStatus("owner", "student", StudentStatus.INACTIVE, resolution, { reviewedDues: [{ id: "due", remaining: 900 }] });
         expect(mocks.duePayments).toHaveBeenCalledExactlyOnceWith({
             where: { studentId: "student", branchId: "branch", status: "DUE", amount: { gt: 0 } },
+            select: { id: true, amount: true, collectedAmount: true, waivedAmount: true },
         });
         const source = { source: PaymentResolutionEventSource.STUDENT_INACTIVATION };
         if (resolution === "PAID") {

@@ -2126,9 +2126,12 @@ export class BillingReplacementService {
       });
       if (change.branchId
         && ["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE", "BRANCH_REACTIVATION"].includes(change.type)) {
+        // An uninterrupted authorization already opened the branch. Promotion
+        // changes the subscription slot without starting a new operating period.
+        const activatedAt = change.accessGrantedAt && !change.accessRevokedAt ? change.accessGrantedAt : now;
         await tx.branch.update({
           where: { id: change.branchId },
-          data: { billingStatus: "ACTIVE", billingActivatedAt: now, billingArchivedAt: null },
+          data: { billingStatus: "ACTIVE", billingActivatedAt: activatedAt, billingArchivedAt: null },
         });
       }
       if (change.branchId && change.type === "BRANCH_REMOVAL") {
@@ -2145,7 +2148,7 @@ export class BillingReplacementService {
           providerConfirmedAt: now,
           appliedAt: now,
           resolvedAt: now,
-          accessRevokedAt: change.accessGrantedAt ? now : undefined,
+          accessRevokedAt: change.accessGrantedAt && !change.accessRevokedAt ? now : undefined,
           lastError: null,
         },
       });

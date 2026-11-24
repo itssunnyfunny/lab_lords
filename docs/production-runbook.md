@@ -484,6 +484,74 @@ and release sequence. Follow the
 [Workspace billing V2 rollout](./workspace-billing-rollout.md) rather than
 reconstructing that order here.
 
+### Student enrollment and fee policy rollout
+
+Apply `20261123120000_student_enrollment_history` before releasing the new
+application. It adds a nullable rejoining date and an empty enrollment history
+table with a composite student and branch foreign key. The migration has no
+backfill. Legacy students, original joining dates, imported billing cutoffs,
+saved grace days, fees and receipts retain their stored values.
+
+On an isolated Preview deployment, verify departure with Keep due, a rejoin
+date preview, and the first due after return. Change an open balance between
+preview and settlement and confirm the operator must review it again. Check a
+departure with an unrecorded earned fee using staff without fee-generation
+permission. Verify zero grace, the first day overdue, and a fee job that
+obtains its branch lock after effective closure. Before a
+production rollout, the owner should record these read-only checks while
+student and payment writes are held:
+
+```sql
+SELECT count(*), count("billingStartAt") FROM "Student";
+SELECT count(*), COALESCE(sum("amount"), 0) FROM "Payment";
+SELECT count(*) FROM "FeeCollection";
+SELECT "paymentGraceDays", count(*) FROM "Organization" GROUP BY 1 ORDER BY 1;
+```
+
+Immediately after applying the migration, repeat those queries and require
+matching results. The following counts must both be zero before new code
+processes its first status change:
+
+```sql
+SELECT count(*) FROM "Student" WHERE "rejoinedOn" IS NOT NULL;
+SELECT count(*) FROM "StudentEnrollmentHistory";
+```
+
+Before the first enrollment write, the old version can run on the expanded
+schema. Once a return has saved a new anniversary, hold automatic payment
+generation, student status and fee edits, and fee projections during rollback.
+Restore a version that honors the new enrollment schedule before resuming.
+An older writer would use the original joining date and could create fees for
+inactive gaps. Retain the added data and financial evidence during recovery. Do not
+drop the columns or rewrite receipts as part of rollback.
+
+Scheduled generation applies only to student dues. If archival runs late,
+inspect the removal's effective time and the branch status before retrying a
+failed run. Closing a branch stops generation at the deadline, including
+catch-up runs after the deadline. Existing balances remain available under
+normal access. Razorpay charging follows its separate billing workflow.
+
+Before rollout, count current reopenings whose earlier grant may have been
+overwritten at replacement promotion:
+
+```sql
+SELECT count(DISTINCT b.id)
+FROM "Branch" b
+JOIN "OrganizationBillingChange" c
+  ON c."branchId" = b.id AND c."organizationId" = b."organizationId"
+WHERE c.type = 'BRANCH_REACTIVATION' AND c.status = 'APPLIED'
+  AND c."replacementSubscriptionId" IS NOT NULL
+  AND c."accessGrantedAt" < c."appliedAt"
+  AND c."accessRevokedAt" = c."appliedAt"
+  AND b."billingActivatedAt" = c."appliedAt";
+```
+
+Older promotions could also overwrite evidence of an intervening revocation.
+For matching branches, compare the grant, promotion and branch operating
+records before deciding whether any fee was earned during that interval.
+This release keeps the stored dates for those cases and creates no historical
+debt from an uncertain reopening.
+
 ### Allocation tenant relationship migration (2026-09-05)
 
 `20260905090000_scope_allocation_relationships` adds required

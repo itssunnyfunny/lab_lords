@@ -123,6 +123,7 @@ export async function resetDatabase() {
       "Staff",
       "MultiShiftComponent",
       "MultiShift",
+      "StudentEnrollmentHistory",
       "Student",
       "Seat",
       "Shift",

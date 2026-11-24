@@ -1,5 +1,12 @@
 # Public wording and feature claims
 
+## Student enrollment and fee policy update
+
+Home, Features, Pricing and FAQ were checked against the change. The existing
+Features claim that student status preserves history still applies. Rejoining
+dates, overdue grace and scheduled accrual are operator settings and workflows
+within the existing fee feature. Public plan and pricing wording needs no update.
+
 ## Branch setup form correction — local, 2026-11-16
 
 **No marketing change needed.** Home, Features, Pricing and FAQ retain their
@@ -358,3 +365,8 @@ composition, displayed financial dates and operational wording. It adds no
 feature, changes no plan/price/eligibility and makes no delivery or payment
 availability promise. Billing still reflects the supplied method availability
 and explicitly identifies test payments; queued reminders are not called sent.
+
+**23 November 2026 — Student enrollment and fee rules.**
+Home, Features, Pricing and FAQ describe student records, fees and attendance
+at the existing plan boundaries. Their wording covers the updated enrollment
+and student billing flows without a public copy change.

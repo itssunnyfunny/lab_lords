@@ -1,4 +1,5 @@
 import { remainingFee } from "@/lib/feeBalance";
+import { overdueCutoff } from "@/lib/utils/paymentStatus";
 import { createHash } from "node:crypto";
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -31,7 +32,6 @@ import {
   getWhatsAppLocalDateParts,
   manualWhatsAppAvailableAt,
   whatsappBudgetMonth,
-  whatsappLocalDateKey,
 } from "@/lib/whatsappSchedule";
 import { EntitlementService } from "@/services/entitlement.service";
 import { StaffService } from "@/services/staff.service";
@@ -162,10 +162,13 @@ export function maskWhatsAppPhone(phoneE164: string) {
 
 function collectionTemplateKey(input: {
   studentCount: number;
+  paymentCount: number;
   anyPastDue: boolean;
   tone: string;
 }): WhatsAppManagedTemplateKey {
   if (input.studentCount > 1) return "MULTI_STUDENT_COLLECTION_SUMMARY";
+  // This approved template names the total pending and the oldest fee date in both languages.
+  if (input.paymentCount > 1) return "PAST_DUE_POLITE";
   if (input.anyPastDue) return input.tone === "firm" ? "PAST_DUE_FIRM" : "PAST_DUE_POLITE";
   return input.tone === "friendly" ? "FEE_RENEWAL_FRIENDLY" : "FEE_RENEWAL_POLITE";
 }
@@ -204,6 +207,7 @@ export function deriveWhatsAppManualCollectionContent(input: {
   tone: string;
   branchName: string;
   timeZone: string;
+  paymentGraceDays: number;
   at: Date;
 }) {
   if (input.payments.length < 1) throw new WhatsAppValidationError();
@@ -215,23 +219,22 @@ export function deriveWhatsAppManualCollectionContent(input: {
   }
   const earliestDueDate = [...input.payments]
     .sort((left, right) => left.dueDate.getTime() - right.dueDate.getTime())[0]!.dueDate;
-  const todayKey = whatsappLocalDateKey(input.at, input.timeZone);
-  const anyPastDue = input.payments.some(payment =>
-    whatsappLocalDateKey(payment.dueDate, input.timeZone) < todayKey
-  );
+  const overdueBefore = overdueCutoff({ paymentGraceDays: input.paymentGraceDays, timezone: input.timeZone }, input.at);
+  const anyPastDue = input.payments.some(payment => payment.dueDate < overdueBefore);
   const managedTemplateKey = collectionTemplateKey({
     studentCount: studentIds.length,
+    paymentCount: paymentIds.length,
     anyPastDue,
     tone: input.tone,
   });
-  const values: Record<string, string> = studentIds.length > 1
+  const values: Record<string, string> = managedTemplateKey === "MULTI_STUDENT_COLLECTION_SUMMARY"
     ? {
         studentCount: String(studentIds.length),
         amount: formatAmount(totalAmount, input.language),
         branchName: input.branchName,
         earliestDueDate: formatDate(earliestDueDate, input.language, input.timeZone),
       }
-    : anyPastDue
+    : managedTemplateKey === "PAST_DUE_POLITE" || managedTemplateKey === "PAST_DUE_FIRM"
       ? {
           studentName: input.payments[0]!.student.name,
           amount: formatAmount(totalAmount, input.language),
@@ -320,7 +323,7 @@ export async function deriveWhatsAppManualCollectionMessageRefresh(input: {
   const message = await input.tx.whatsAppMessage.findUnique({
     where: { id: input.messageId },
     include: {
-      branch: { include: { organization: { select: { id: true, timezone: true } } } },
+      branch: { include: { organization: { select: { id: true, timezone: true, paymentGraceDays: true } } } },
       paymentSources: { include: { payment: { include: { student: true } } } },
     },
   });
@@ -423,6 +426,7 @@ export async function deriveWhatsAppManualCollectionMessageRefresh(input: {
       tone: settings.defaultTone,
       branchName: message.branch.name,
       timeZone: message.branch.organization.timezone,
+      paymentGraceDays: message.branch.organization.paymentGraceDays,
       at: effectiveAt,
     });
   } catch {
@@ -514,7 +518,7 @@ async function buildManualPaymentPreview(input: {
           id: true,
           organizationId: true,
           name: true,
-          organization: { select: { timezone: true } },
+          organization: { select: { timezone: true, paymentGraceDays: true } },
         },
       },
       sender: { select: { id: true, organizationId: true, status: true } },
@@ -664,6 +668,7 @@ async function buildManualPaymentPreview(input: {
       tone: settings.defaultTone,
       branchName: settings.branch.name,
       timeZone,
+      paymentGraceDays: settings.branch.organization.paymentGraceDays,
       // Content and its fingerprint must describe the facts at the actual
       // scheduled execution time. A request queued after the daily cutoff can
       // otherwise cross a local-date boundary and be suppressed immediately

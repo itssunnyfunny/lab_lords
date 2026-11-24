@@ -3,6 +3,7 @@ import type { Payment } from "@/app/generated/prisma/browser";
 import type { PagedResult } from "@/types/ui";
 
 export type PaymentListItem = Payment & {
+    isOverdue?: boolean;
     student?: {
         id?: string;
         name?: string | null;
