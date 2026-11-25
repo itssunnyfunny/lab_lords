@@ -51,21 +51,21 @@ async function assertNoOverflow(page: Page) {
 }
 
 const languages = [
-  { code: "en", lang: "en-IN", title: "Billing and plans", billedPlan: "Billed plan", methodsTitle: "Card checkout is currently active",
+  { code: "en", lang: "en-IN", title: "Billing and plans", billedPlan: "Billed plan", methodsTitle: "Pay by card",
     renewalAction: "Change to Basic at renewal",
     basicDescription: "Simple student, seat and fee management. One plan for your organization, billed per active branch.",
     standardDescription: "For growing teams that need staff controls, analytics, and AI assistance.",
     studentRecords: "Student records", spreadsheetImport: "Spreadsheet import", standardOnly: " — Standard or Pro",
     premiumCapabilities: ["Staff invitations, roles and permission controls", "Branch and cross-branch advanced analytics", "AI reports"],
   },
-  { code: "hi", lang: "hi-IN", title: "बिलिंग और प्लान", billedPlan: "बिलिंग वाला प्लान", methodsTitle: "अभी कार्ड से पेमेंट चालू है",
+  { code: "hi", lang: "hi-IN", title: "बिलिंग और प्लान", billedPlan: "बिलिंग वाला प्लान", methodsTitle: "कार्ड से भुगतान करें",
     renewalAction: "रिन्यूअल पर Basic में बदलें",
     basicDescription: "विद्यार्थी, सीट और फीस का सरल प्रबंधन। संगठन का एक प्लान, प्रति सक्रिय शाखा बिलिंग।",
     standardDescription: "बढ़ती टीमों के लिए स्टाफ नियंत्रण, विस्तृत आँकड़े और AI की मदद।",
     studentRecords: "विद्यार्थी रिकॉर्ड", spreadsheetImport: "स्प्रेडशीट से आयात", standardOnly: " — Standard या Pro",
     premiumCapabilities: ["स्टाफ को निमंत्रण, भूमिकाएँ और अनुमति नियंत्रण", "एक या कई ब्रांच के विस्तृत आँकड़े", "AI रिपोर्ट"],
   },
-  { code: "hinglish", lang: "hi-Latn-IN", title: "Billing aur plans", billedPlan: "Billing wala plan", methodsTitle: "Abhi card checkout active hai",
+  { code: "hinglish", lang: "hi-Latn-IN", title: "Billing aur plans", billedPlan: "Billing wala plan", methodsTitle: "Card se payment karein",
     renewalAction: "Renewal par Basic mein badlein",
     basicDescription: "Student, seat aur fees ka simple management. Organization ka ek plan, har active branch ki billing.",
     standardDescription: "Badhti teams ke liye staff controls, analytics aur AI ki madad.",
@@ -86,14 +86,21 @@ for (const language of languages) {
     await expect(page.getByRole("heading", { name: language.methodsTitle, exact: true })).toBeVisible();
     if (language.code !== "en") {
       await expect(page.getByText("Billed plan", { exact: true })).toHaveCount(0);
-      await expect(page.getByRole("heading", { name: "Card checkout is currently active", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: languages[0].methodsTitle, exact: true })).toHaveCount(0);
     }
-    for (const section of ["billing", "plans", "subscription", "invoices", "history"]) {
+    for (const section of ["billing", "plans", "subscription", "branches", "invoices", "history"]) {
       await expect(page.locator(`#${section}`)).toBeAttached();
     }
-    const sectionNavigation = page.locator("nav").filter({ has: page.locator('button[aria-current="location"]') });
-    await expect(sectionNavigation.getByRole("button")).toHaveCount(5);
-    await sectionNavigation.getByRole("button").nth(1).click();
+    if (info.project.use.isMobile) {
+      await page.locator(".ui-settings-mobile-navigation").getByRole("combobox").click();
+      const options = page.getByRole("listbox").getByRole("option");
+      await expect(options).toHaveCount(6);
+      await options.nth(1).click();
+    } else {
+      const sectionNavigation = page.locator("nav").filter({ has: page.locator('button[aria-current="location"]') });
+      await expect(sectionNavigation.getByRole("button")).toHaveCount(6);
+      await sectionNavigation.getByRole("button").nth(1).click();
+    }
     await expect(page.locator("#billing-plans-title")).toBeInViewport();
     const plans = page.locator("#plans");
     await expect(plans.getByRole("heading", { name: "Basic", exact: true })).toBeVisible();
@@ -127,15 +134,15 @@ test("owner navigation and legacy billing links reach the dedicated page", async
   await installBillingFixture(page);
   await page.goto("/org/org-pilot/settings?mode=after&lang=en");
   await expect(page.getByRole("heading", { name: "Organization Settings", exact: true })).toBeVisible();
-  const billingLink = page.getByRole("link", { name: "Manage billing", exact: true });
-  await expect(billingLink).toHaveAttribute("href", "/org/org-pilot/billing");
+  const billingLink = page.getByRole("link", { name: "Manage branch billing", exact: true });
+  await expect(billingLink).toHaveAttribute("href", "/account/billing?organizationId=org-pilot&branchId=pilot&returnTo=%2Forg%2Forg-pilot%2Fsettings");
   await billingLink.click();
   await expect(page.getByRole("heading", { name: "Billing and plans", exact: true })).toBeVisible();
   await page.goto("/org/org-pilot/settings?mode=after&lang=en#billing");
-  await expect(page).toHaveURL(/\/org\/org-pilot\/billing\?mode=after&lang=en#billing$/);
+  await expect(page).toHaveURL(/\/account\/billing\?mode=after&lang=en&organizationId=org-pilot#billing$/);
   await expect(page.getByRole("heading", { name: "Billing and plans", exact: true })).toBeVisible();
   await page.goto("/org/org-pilot/settings?mode=after&lang=en&billingPlan=BASIC&returnTo=%2Fbranch%2Fpilot#billing");
-  await expect(page).toHaveURL(/\/org\/org-pilot\/billing\?.*billingPlan=BASIC.*returnTo=%2Fbranch%2Fpilot#billing$/);
+  await expect(page).toHaveURL(/\/account\/billing\?.*billingPlan=BASIC.*returnTo=%2Fbranch%2Fpilot&organizationId=org-pilot#billing$/);
   await expect(page.getByRole("dialog", { name: "Authorize a replacement mandate for Basic", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await assertNoOverflow(page);
@@ -312,7 +319,7 @@ test("revoking a recorded replacement grant removes the complimentary access not
   await page.goto("/org/org-pilot/billing?mode=after&lang=en");
   const notice = page.getByText("Complimentary upgrade access is active while billing remains on the current subscription.", { exact: true });
   await expect(notice).toBeVisible();
-  const summary = page.getByRole("region", { name: "Current subscription", exact: true });
+  const summary = page.locator("#billing").getByRole("region", { name: "Current subscription", exact: true });
   await expect(summary.locator("dl > div").filter({ has: page.locator("dt", { hasText: /^Billed plan$/ }) })).toContainText("Basic");
   await expect(summary.locator("dl > div").filter({ has: page.locator("dt", { hasText: /^Current access$/ }) })).toContainText("Standard");
   await expect(summary).toContainText("₹99/month");
@@ -321,7 +328,8 @@ test("revoking a recorded replacement grant removes the complimentary access not
   Object.assign(fixture.billingOverview.entitlements, { effectivePlan: "BASIC" });
   Object.assign(fixture.billingOverview.experience, { effectivePlan: "BASIC" });
   await page.reload();
-  await expect(page.getByRole("region", { name: "Pending subscription replacement" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Scheduled subscription change" })).toBeVisible();
+  await expect(summary.locator("dl > div").filter({ has: page.locator("dt", { hasText: /^Current access$/ }) })).toContainText("Basic");
   await expect(notice).toHaveCount(0);
 });
 
