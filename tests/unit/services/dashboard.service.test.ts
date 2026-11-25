@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => {
 });
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
 vi.mock("@/services/accessPolicy.service", () => ({ AccessPolicy: { resolveBranch: mocks.resolve, authorizeAction: mocks.authorize, authorizeCapability: mocks.capability } }));
-vi.mock("@/services/entitlement.service", () => ({ EntitlementService: { getOrganizationProfile: mocks.profile } }));
+vi.mock("@/services/entitlement.service", () => ({ EntitlementService: { getBranchProfile: mocks.profile } }));
 vi.mock("@/services/seat.service", () => ({ SeatService: { getShiftsCapacity: mocks.capacity } }));
 import { DashboardService, DashboardNotFoundError } from "@/services/dashboard.service";
 const permissions = { view_payments: false, students: false, seat_allocation: false, analytics: false, manage_branch: false };

@@ -37,6 +37,22 @@ describe("BranchSearchService capability filtering", () => {
     });
   });
 
+  it("keeps core fee search available on Basic without suggesting premium fee screens", async () => {
+    const { BranchSearchService } = await import("@/services/branchSearch.service");
+    mocks.getBranchAccess.mockResolvedValue({
+      branchId:"branch_1", branchName:"Main", organizationId:"org_1", branchStatus:"ACTIVE",
+      isOwner:true, role:"OWNER", effectivePlan:"BASIC", entitlements:[], permissions:permissions(),
+    });
+    mocks.getBillingExperience.mockResolvedValue({effectivePlan:"BASIC", accessMode:"FULL"});
+    for (const query of ["follow", "renewals", "payments"]) {
+      const groups = await BranchSearchService.search("owner", "branch_1", query, {types:["actions"]});
+      const actions = groups.flatMap(group => group.results.map(result => result.id));
+      expect(actions).not.toContain("action:follow-ups");
+      expect(actions).not.toContain("action:renewals");
+      if (query === "payments") expect(actions).toContain("action:payments");
+    }
+  });
+
   it("does not suggest mutation actions in a read-only workspace", async () => {
     mocks.getBillingExperience.mockResolvedValue({
       accessMode: "READ_ONLY",

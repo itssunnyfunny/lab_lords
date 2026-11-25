@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: {
     student: mocks.student, attendanceExpectation: mocks.expectation, membershipTerm: mocks.term,
 } }));
 
-vi.mock("@/services/entitlement.service", () => ({ EntitlementService: { getOrganizationProfile: mocks.profile } }));
+vi.mock("@/services/entitlement.service", () => ({ EntitlementService: { getBranchProfile: mocks.profile } }));
 
 import { DashboardService } from "@/services/dashboard.service";
 

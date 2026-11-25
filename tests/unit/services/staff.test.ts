@@ -41,7 +41,7 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/services/entitlement.service", () => ({
   EntitlementService: {
-    getOrganizationProfile: vi.fn().mockResolvedValue({
+    getBranchProfile: vi.fn().mockResolvedValue({
       effectivePlan: "PRO",
       entitlements: [
         "STAFF_MANAGEMENT",
@@ -50,7 +50,6 @@ vi.mock("@/services/entitlement.service", () => ({
         "WHATSAPP_AUTOMATION",
       ],
     }),
-    assertOrganizationEntitlement: vi.fn().mockResolvedValue(true),
     assertBranchEntitlement: vi.fn().mockResolvedValue(true),
   },
 }));
