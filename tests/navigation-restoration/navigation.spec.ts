@@ -100,6 +100,9 @@ test("attendance gaps page beyond the old eight-row preview for a students-only 
 
 test("WhatsApp initial failures stay visible and retry without enabling rollout gates", async ({ page }) => {
     await installSettingsRouteFixture(page);
+    const directory = await (await page.request.get("/api/workspaces")).json();
+    directory.organizations[0].independentBilling = true;
+    await page.route("**/api/workspaces", route => route.fulfill({ json: directory }));
     let fail = true; let requests = 0;
     await page.route(/\/api\/(?:organizations\/org-pilot|branches\/pilot)\/whatsapp(?:\/.*)?$/, route => {
         requests++;
