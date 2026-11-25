@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BillingService } from "@/services/billing.service";
+import { billingRecordScope } from "@/services/billingAgreementScope.service";
 
 const mocks = vi.hoisted(() => ({
   organizationFindMany: vi.fn(),
+  agreementFindMany: vi.fn(),
   billingChangeFindMany: vi.fn(),
   billingChangeUpdateMany: vi.fn(),
   subscriptionFindMany: vi.fn(),
@@ -22,6 +25,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     organization: { findMany: mocks.organizationFindMany },
+    branchBillingAgreement: { findMany: mocks.agreementFindMany },
     organizationBillingChange: {
       findMany: mocks.billingChangeFindMany,
       updateMany: mocks.billingChangeUpdateMany,
@@ -124,6 +128,7 @@ describe("replacement billing deadlines", () => {
     vi.clearAllMocks();
     mocks.expireTrials.mockResolvedValue({ count: 0 });
     mocks.organizationFindMany.mockResolvedValue([]);
+    mocks.agreementFindMany.mockResolvedValue([]);
     mocks.subscriptionFindMany.mockResolvedValue([]);
     mocks.archiveBranches.mockResolvedValue({ archived: 0 });
     mocks.billingChangeFindMany.mockResolvedValue([]);
@@ -145,6 +150,30 @@ describe("replacement billing deadlines", () => {
       failureCategory: { in: ["PROVIDER_REJECTED", "PRE_PROVIDER_FAILURE"] },
     });
     expect(mocks.retryMutation).not.toHaveBeenCalled();
+  });
+
+  it("keeps an unbound branch checkout under recovery after its deadline and reports the exact agreement", async () => {
+    const organizationId = "org_one";
+    const branchId = "branch_pending";
+    mocks.agreementFindMany.mockResolvedValueOnce([{ branchId, organizationId, billingMutationLeaseUntil: null, billingMutationLeaseToken: null }]);
+    mocks.billingChangeFindMany.mockImplementation(async args =>
+      args.where?.type === "SUBSCRIPTION_AUTHORIZATION" && args.where.agreementBranchId === branchId
+        ? [{ id: "original", organizationId, createdByUserId: "owner", provisioningIntentVersion: 1, organizationSubscription: null }]
+        : []);
+    const reconcile = vi.spyOn(BillingService, "reconcileMutation").mockImplementationOnce(async () => {
+      expect(billingRecordScope()).toEqual({ agreementBranchId: branchId });
+      throw new Error("Provider read unavailable");
+    });
+    try {
+      const summary = await BillingDeadlineService.run(now);
+      expect(reconcile).toHaveBeenCalledExactlyOnceWith("owner", organizationId, "original");
+      expect(summary.errors).toEqual([{ organizationId, branchId, message: "The original branch checkout still needs reconciliation." }]);
+      expect(summary.timedOutCheckouts).toBe(0);
+      expect(mocks.billingChangeUpdateMany).not.toHaveBeenCalled();
+      expect(mocks.retryMutation).not.toHaveBeenCalled();
+    } finally {
+      reconcile.mockRestore();
+    }
   });
 
   it("paginates every pending replacement candidate with a stable cursor", async () => {
