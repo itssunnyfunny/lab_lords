@@ -1,6 +1,6 @@
 import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { translateOwnedText } from "../../lib/i18n";
 import { buildTopSearchResults } from "../../lib/topSearch";
 import { publicBillingPlans } from "../../lib/billingPlans";
@@ -343,14 +343,14 @@ test("independent branch settings keep unsaved edits through a failed access ref
     await expect(name).toHaveValue("Unsaved branch name");
 });
 
-test("independent branch Pro to Standard removes WhatsApp requests while preserving the full settings workspace", async ({ page }) => {
-    await installSettingsRouteFixture(page);
+async function openBranchSettingsAtWhatsApp(page: Page) {
+    const fixture = await installSettingsRouteFixture(page);
     const base = await (await page.request.get("/api/branches/pilot/access")).json();
-    let plan: "PRO" | "STANDARD" = "PRO";
+    let plan: "PRO" | "STANDARD" | "BASIC" = "PRO";
     let mayView = true;
     let assignments = 0;
     await page.route("**/api/branches/pilot/access", route => {
-        const entitlements = ["ADVANCED_ANALYTICS", "AI_ACCESS", "STAFF_MANAGEMENT", ...(plan === "PRO" ? ["WHATSAPP_AUTOMATION"] : [])];
+        const entitlements = plan === "BASIC" ? [] : ["ADVANCED_ANALYTICS", "AI_ACCESS", "STAFF_MANAGEMENT", ...(plan === "PRO" ? ["WHATSAPP_AUTOMATION"] : [])];
         return route.fulfill({ json: { ...base, branchId: "pilot", branchName: "East", isOwner: mayView,
             effectivePlan: plan, entitlements, canWrite: true, branchStatus: "ACTIVE", permissions: { ...base.permissions, view_whatsapp: mayView },
             billingExperience: { ...base.billingExperience, independentBilling: true, effectivePlan: plan, entitlements,
@@ -364,19 +364,92 @@ test("independent branch Pro to Standard removes WhatsApp requests while preserv
     await page.goto("/branch/pilot/settings?mode=after&lang=en#whatsapp");
     await expect(page.getByText("East · WhatsApp integration is unavailable for this branch.")).toBeVisible();
     expect(assignments).toBeGreaterThan(0);
-    plan = "STANDARD";
-    const confirmedRequests = assignments;
-    await page.evaluate(() => window.dispatchEvent(new Event("billing-access-changed")));
-    await expect(page.getByText("East needs the Pro plan for this feature.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Manage branch plan" })).toHaveAttribute("href", /branchId=pilot/);
+    return {
+        commands: fixture.commands,
+        assignments: () => assignments,
+        async refresh(nextPlan: typeof plan, viewWhatsApp = true) {
+            plan = nextPlan;
+            mayView = viewWhatsApp;
+            await page.evaluate(() => window.dispatchEvent(new Event("billing-access-changed")));
+        },
+        async editName(value: string) {
+            await page.getByRole("button", { name: "Edit settings", exact: true }).click();
+            const name = page.getByRole("textbox", { name: "Library / centre name", exact: true });
+            await name.fill(value);
+            return name;
+        },
+    };
+}
+
+test("independent branch Pro to Standard preserves a core settings edit on the WhatsApp deep link", async ({ page }) => {
+    const settings = await openBranchSettingsAtWhatsApp(page);
+    const name = await settings.editName("Edited on Pro");
+    const confirmedRequests = settings.assignments();
+    await settings.refresh("STANDARD");
+    const restriction = page.locator("#whatsapp");
+    await expect(restriction).toContainText("East needs the Pro plan for this feature.");
+    await expect(restriction.getByRole("link", { name: "Manage branch plan" })).toHaveAttribute("href", /branchId=pilot/);
+    await expect(page).toHaveURL(/#whatsapp$/);
+    await expect(name).toHaveValue("Edited on Pro");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText("Settings saved.", { exact: true })).toBeVisible();
+    expect(settings.commands.filter(command => command.path === "/api/branches/pilot")).toMatchObject([{ body: { name: "Edited on Pro" } }]);
     await page.goto("/branch/pilot/settings?mode=after&lang=en");
     await expect(page.getByRole("heading", { name: "Branch Settings" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "WhatsApp", exact: true })).toHaveCount(0);
-    expect(assignments).toBe(confirmedRequests);
-    mayView = false;
+    expect(settings.assignments()).toBe(confirmedRequests);
+    await settings.refresh("STANDARD", false);
     await page.goto("/branch/pilot/settings?mode=after&lang=en#whatsapp");
     await page.evaluate(() => window.dispatchEvent(new Event("billing-access-changed")));
-    await expect(page.getByText("Your role does not include this action.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Manage branch plan" })).toHaveCount(0);
-    expect(assignments).toBe(confirmedRequests);
+    await expect(restriction).toContainText("Your role does not include this action.");
+    await expect(restriction.getByRole("link", { name: "Manage branch plan" })).toHaveCount(0);
+    expect(settings.assignments()).toBe(confirmedRequests);
+});
+
+test("independent branch Pro to Basic guards a settings draft on the WhatsApp deep link", async ({ page }) => {
+    const settings = await openBranchSettingsAtWhatsApp(page);
+    const name = await settings.editName("Unsaved on Pro");
+    await settings.refresh("BASIC");
+    const dialog = page.getByRole("dialog", { name: "Workspace access changed" });
+    await expect(dialog).toBeVisible();
+    await expect(page.locator("[data-basic-workspace]")).toHaveCount(0);
+    await settings.refresh("PRO");
+    await expect(dialog).toHaveCount(0);
+    await expect(name).toHaveValue("Unsaved on Pro");
+    await settings.refresh("BASIC");
+    await dialog.getByRole("button", { name: "Continue to the updated workspace" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Continue to the updated workspace" }).click();
+    await expect(page.locator("[data-basic-workspace] #whatsapp")).toContainText("East needs the Pro plan for this feature.");
+    expect(settings.commands).toHaveLength(0);
+});
+
+test("independent branch settings tracks a pending save across WhatsApp access and workspace changes", async ({ page }) => {
+    const settings = await openBranchSettingsAtWhatsApp(page);
+    await settings.editName("Saved across downgrade");
+    let writes = 0;
+    let finishSave!: () => void;
+    const pending = new Promise<void>(resolve => { finishSave = resolve; });
+    await page.route("**/api/branches/pilot", async route => {
+        if (route.request().method() === "PATCH") {
+            writes++;
+            await pending;
+        }
+        await route.fallback();
+    });
+    try {
+        await page.getByRole("button", { name: "Save changes" }).click();
+        await expect.poll(() => writes).toBe(1);
+        await settings.refresh("STANDARD");
+        await expect(page.locator("#whatsapp")).toContainText("East needs the Pro plan for this feature.");
+        await expect(page.getByRole("button", { name: "Saving" })).toBeDisabled();
+        await settings.refresh("BASIC");
+        const transition = page.getByRole("dialog", { name: "Workspace access changed" });
+        await expect(transition.getByRole("button", { name: "Continue to the updated workspace" })).toBeDisabled();
+        await expect(page.locator("[data-basic-workspace]")).toHaveCount(0);
+    } finally {
+        finishSave();
+    }
+    await expect(page.locator("[data-basic-workspace] #whatsapp")).toContainText("East needs the Pro plan for this feature.");
+    expect(writes).toBe(1);
+    expect(settings.commands.filter(command => command.path === "/api/branches/pilot")).toMatchObject([{ body: { name: "Saved across downgrade" } }]);
 });

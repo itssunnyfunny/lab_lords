@@ -697,3 +697,15 @@ filter in each layout.
 The student route, roster interaction and calendar regressions passed all 47
 tests with `pnpm exec vitest run --config vitest.unit.safe.config.ts tests/unit/utils/studentRejoiningDate.test.ts tests/unit/api/branch-students.route.test.ts tests/unit/pages/student-deactivation.test.tsx`.
 Owner visual review and production release are separate.
+
+### Branch settings during a plan change — local, 2026-11-25
+
+On a WhatsApp settings deep link, a Pro-to-Standard change keeps the branch
+name edit available to save and shows the plan restriction in the WhatsApp
+section. A Pro-to-Basic change waits for the existing draft confirmation or a
+pending save. The [navigation browser scenarios](../../tests/navigation-restoration/navigation.spec.ts)
+passed at 1440 px and 390 px using synthetic access and settings responses.
+The pending-save scenario recorded one branch update across both plan changes.
+Home, Features, Pricing and FAQ need no wording changes because the plan
+entitlements and availability claims still apply. Owner review and release
+remain pending.
