@@ -1,3 +1,4 @@
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { billingHttpStatus } from "@/lib/billingHttp";
@@ -17,12 +18,12 @@ export async function POST(
       return NextResponse.json({ error: "Idempotency-Key is required" }, { status: 400 });
     }
     const body = await request.json().catch(() => ({}));
-    return NextResponse.json(await BillingService.createPaymentMethodReplacement(
+    return NextResponse.json(await withOwnerBillingScope(user.id, orgId, new URL(request.url).searchParams.get("branchId"), async () => BillingService.createPaymentMethodReplacement(
       user.id,
       orgId,
       idempotencyKey,
       body.returnPath
-    ));
+    )));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to change payment method";
     return NextResponse.json(

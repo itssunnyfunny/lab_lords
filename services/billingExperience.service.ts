@@ -1,12 +1,16 @@
+import { trialForBillingWorkspace } from "./billingAgreementScope.service";
 import { historicalBillingState } from "@/services/legacyCommercialCompatibility";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlan, isCheckoutBillingPlanId, type BillingPlanId } from "@/lib/billingPlans";
 import { deriveWorkspaceBillingState, projectedBillableStatuses } from "@/lib/billingState";
 import type { BillingExperience, BillingExperienceOperation } from "@/types/billingExperience";
 import type { OrganizationBillingChange } from "@/app/generated/prisma/client";
+import { BillingResourceNotFoundError } from "@/lib/billingErrors";
+import { EntitlementService } from "./entitlement.service";
 import { resolveRazorpayMode } from "@/lib/razorpay";
 import { deriveAuthorizedReplacementOverride } from "@/services/billingReplacement.service";
 import { isSupportedRecurringPaymentMethod } from "@/services/billingReplacementPolicy";
+import { getSafeReplacementCycleBoundary, REPLACEMENT_SAFE_CYCLE_LEAD_MS } from "./billingReplacementPolicy";
 import {
   BILLING_PAID_EVIDENCE_INCLUDE,
   resolveTrustedPaidThrough,
@@ -123,12 +127,25 @@ export class BillingExperienceService {
       },
     });
     if (!organization) throw new Error("Organization not found");
-    const providerMode = organization.subscription ? resolveRazorpayMode() : null;
-    const subscription = organization.subscription?.providerMode === providerMode
-      ? organization.subscription
+    const independent = organization.billingModelVersion === "BRANCH_V3";
+    if (independent && !branchId) throw new BillingResourceNotFoundError("Branch not found");
+    const agreement = independent && branchId ? await prisma.branchBillingAgreement.findFirst({
+      where: { branchId, organizationId },
+      include: {
+        subscription: { include: BILLING_PAID_EVIDENCE_INCLUDE },
+        pendingSubscriptionReplacement: { include: { replacementBillingChange: true } },
+      },
+    }) : null;
+    if (independent && !agreement) throw new BillingResourceNotFoundError("Branch not found");
+    const owner = agreement ?? organization;
+    const providerMode = owner.subscription || owner.pendingSubscriptionReplacement ? resolveRazorpayMode() : null;
+    const subscription = owner.subscription?.providerMode === providerMode
+      && (!independent || owner.subscription.agreementBranchId === branchId)
+      ? owner.subscription
       : null;
-    const pendingReplacement = organization.pendingSubscriptionReplacement?.providerMode === providerMode
-      ? organization.pendingSubscriptionReplacement
+    const pendingReplacement = owner.pendingSubscriptionReplacement?.providerMode === providerMode
+      && (!independent || owner.pendingSubscriptionReplacement.agreementBranchId === branchId)
+      ? owner.pendingSubscriptionReplacement
       : null;
     const replacementChange = pendingReplacement?.replacementBillingChange;
     const replacementOverride = subscription && pendingReplacement && replacementChange
@@ -161,7 +178,7 @@ export class BillingExperienceService {
     const isOwner = organization.ownerId === userId;
     if (!isOwner) {
       const membership = await prisma.staff.findFirst({
-        where: { userId, branch: { organizationId } },
+        where: { userId, branch: { organizationId, ...(branchId ? { id: branchId } : {}) } },
         select: { id: true },
       });
       if (!membership) throw new Error("Unauthorized");
@@ -179,6 +196,7 @@ export class BillingExperienceService {
       prisma.organizationBillingChange.findFirst({
         where: {
           organizationId,
+          agreementBranchId: agreement?.branchId ?? null,
           ...(providerMode ? {
             OR: [
               { organizationSubscriptionId: null },
@@ -191,6 +209,7 @@ export class BillingExperienceService {
       prisma.organizationBillingChange.findMany({
         where: {
           organizationId,
+          agreementBranchId: agreement?.branchId ?? null,
           operationStatus: "SCHEDULED",
           ...(providerMode ? {
             OR: [
@@ -203,14 +222,15 @@ export class BillingExperienceService {
       }),
     ]);
 
-    const trialActive = organization.ownerTrialGrant?.status === "ACTIVE"
-      && organization.ownerTrialGrant.trialEndsAt != null
-      && organization.ownerTrialGrant.trialEndsAt > now;
-    const state = organization.billingModelVersion === "WORKSPACE_V2"
+    const trial = trialForBillingWorkspace(organization);
+    const trialActive = trial?.status === "ACTIVE"
+      && trial.trialEndsAt != null
+      && trial.trialEndsAt > now;
+    const state = independent || organization.billingModelVersion === "WORKSPACE_V2"
       ? deriveWorkspaceBillingState({
           now,
-          trial: organization.ownerTrialGrant
-            ? { status: organization.ownerTrialGrant.status, endsAt: organization.ownerTrialGrant.trialEndsAt, plan: organization.ownerTrialGrant.trialPlan }
+          trial: trial
+            ? { status: trial.status, endsAt: trial.trialEndsAt, plan: trial.trialPlan }
             : null,
           subscription: subscription
             ? { status: subscription.status, plan: subscription.plan, paidThrough: trustedPaidThrough }
@@ -219,22 +239,35 @@ export class BillingExperienceService {
         })
       : historicalBillingState(subscription?.plan ?? null, trustedPaidThrough);
 
-    const effectivePlan = trialActive && state.source === "TRIAL" && state.effectivePlan === "STANDARD"
+    const profile = agreement ? await EntitlementService.getBranchProfile(agreement.branchId) : null;
+    const lifecycleBlocked = Boolean(profile && profile.billingStatus !== "ACTIVE");
+    const accessSource = lifecycleBlocked ? "NONE" : profile?.legacyCoverageProvidesAccess ? "PAID" : state.source;
+    const trialProvidesAccess = trialActive && accessSource === "TRIAL"
+      && (!independent || profile?.effectivePlan === trial?.trialPlan);
+    const effectivePlan = profile && (profile.fallbackAccess || lifecycleBlocked) ? "NONE" : trialProvidesAccess && (profile?.effectivePlan ?? state.effectivePlan) === "STANDARD"
       ? "STANDARD_TRIAL" as const
       : state.source === "NONE" && organization.billingModelVersion === "WORKSPACE_V2"
         ? "NONE" as const
-        : experiencePlan(state.effectivePlan);
+        : experiencePlan(profile?.effectivePlan ?? state.effectivePlan);
     const entitlementPlan = effectivePlan === "STANDARD_TRIAL" ? "STANDARD"
       : isCheckoutBillingPlanId(effectivePlan) ? effectivePlan : "BASIC";
-    const entitlements = getBillingPlan(entitlementPlan)?.entitlements ?? [];
+    const entitlements = profile?.entitlements ?? getBillingPlan(entitlementPlan)?.entitlements ?? [];
     const providerPostTrialPlan = selectedPlan(subscription);
-    const postTrialPlan = providerPostTrialPlan
+    const postTrialPlan = independent ? agreement!.selectedPlan : providerPostTrialPlan
       ?? (isCheckoutBillingPlanId(organization.selectedPostTrialPlan) ? organization.selectedPostTrialPlan : null);
     const projectedPlanId = postTrialPlan;
     const projectedUnitAmount = projectedPlanId ? getBillingPlan(projectedPlanId)?.amount ?? 0 : 0;
     const currentUnitAmount = subscription?.amount ?? 0;
+    const boundary = subscription?.currentEnd ?? trustedPaidThrough;
+    let planChangeEffectiveAt: Date | null = null;
+    if (subscription && !subscription.billingOfferId && subscription.period === "monthly" && subscription.interval > 0) {
+      if (boundary) planChangeEffectiveAt = getSafeReplacementCycleBoundary({ now, currentCycleEnd: boundary, intervalMonths: subscription.interval });
+      else if (subscription.providerStartAt && subscription.providerStartAt.getTime() >= now.getTime() + REPLACEMENT_SAFE_CYCLE_LEAD_MS) {
+        planChangeEffectiveAt = subscription.providerStartAt;
+      }
+    }
     const confirmedQuantity = subscription?.quantity ?? 0;
-    const projectedQuantity = organization.branches.length;
+    const projectedQuantity = independent ? Number(branch?.billingStatus !== "ARCHIVED" && branch?.billingStatus !== "REMOVAL_SCHEDULED") : organization.branches.length;
     const activeOperation = latestOperation
       && ACTIVE_OPERATION_STATUSES.includes(latestOperation.operationStatus as typeof ACTIVE_OPERATION_STATUSES[number])
       ? latestOperation
@@ -245,8 +278,8 @@ export class BillingExperienceService {
         ? "AUTHORIZED" as const
         : "NOT_AUTHORIZED" as const;
     const presentation = customerPresentation({
-      trialActive,
-      trialPlan: organization.ownerTrialGrant?.trialPlan,
+      trialActive: independent ? trialProvidesAccess : trialActive,
+      trialPlan: trial?.trialPlan,
       effectivePlan,
       providerStatus: subscription?.status ?? null,
       operationStatus: latestOperation?.operationStatus ?? null,
@@ -275,19 +308,33 @@ export class BillingExperienceService {
                   : "CHOOSE_PLAN" as const
                 : "NONE" as const;
 
+    const recurring = subscription && providerPostTrialPlan && !subscription.cancelAtCycleEnd
+      && !["HALTED", "PAUSED"].includes(subscription.status) ? subscription : null;
+    const nextChargeAt = independent
+      ? recurring?.chargeAt?.toISOString() ?? null
+      : authorizationStatus === "AUTHORIZED" ? subscription?.chargeAt?.toISOString() ?? null : null;
     const result: BillingExperience = {
+      ...(independent ? {
+        independentBilling: true,
+        planChangeEffectiveAt: planChangeEffectiveAt?.toISOString() ?? null,
+        legacyCoverageEndsAt: profile?.legacyCoverageEndsAt?.toISOString() ?? null,
+        monthlyCommitmentSubunits: recurring?.billingOfferId || pendingReplacement ? null : recurring?.amountSubunits ?? 0,
+        nextChargeAmountSubunits: nextChargeAt && !recurring?.billingOfferId && !pendingReplacement ? recurring?.amountSubunits ?? null : null,
+      } : {}),
       organizationId,
-      accessMode: state.accessMode,
-      billingAccessSource: state.source,
+      accessMode: profile?.accessMode ?? state.accessMode,
+      billingAccessSource: accessSource,
+      accessGrantEndsAt: lifecycleBlocked ? null : profile?.legacyCoverageProvidesAccess ? profile.legacyCoverageEndsAt?.toISOString() ?? null
+        : authorizedReplacement?.graceEndsAt?.toISOString() ?? null,
       effectivePlan,
       selectedPostTrialPlan: postTrialPlan,
       providerStatus: subscription?.status ?? null,
       customerState: presentation.state,
-      customerMessage: presentation.message,
-      trialEndsAt: organization.ownerTrialGrant?.trialEndsAt?.toISOString() ?? null,
-      trialPlan: organization.ownerTrialGrant?.trialPlan ?? null,
-      trialDaysRemaining: trialActive && organization.ownerTrialGrant?.trialEndsAt
-        ? Math.max(1, Math.ceil((organization.ownerTrialGrant.trialEndsAt.getTime() - now.getTime()) / DAY_MS))
+      customerMessage: independent && branch?.billingStatus !== "ACTIVE" ? profile!.accessReason : presentation.message,
+      trialEndsAt: trial?.trialEndsAt?.toISOString() ?? null,
+      trialPlan: trial?.trialPlan ?? null,
+      trialDaysRemaining: trialActive && trial?.trialEndsAt
+        ? Math.max(1, Math.ceil((trial.trialEndsAt.getTime() - now.getTime()) / DAY_MS))
         : null,
       paidThrough: trustedPaidThrough?.toISOString() ?? null,
       confirmedQuantity,
@@ -297,12 +344,10 @@ export class BillingExperienceService {
       projectedUnitAmount,
       projectedMonthlyTotal: projectedUnitAmount * projectedQuantity,
       authorizationStatus,
-      planFeeDueToday: trialActive || (trustedPaidThrough?.getTime() ?? 0) > now.getTime()
+      planFeeDueToday: trialActive || profile?.legacyCoverageEndsAt || (trustedPaidThrough?.getTime() ?? 0) > now.getTime()
         ? 0
         : projectedUnitAmount * projectedQuantity,
-      nextChargeAt: authorizationStatus === "AUTHORIZED"
-        ? subscription?.chargeAt?.toISOString() ?? null
-        : null,
+      nextChargeAt,
       paymentAction,
       entitlements: [...entitlements],
       latestOperation: latestOperation ? serializeOperation(latestOperation) : null,

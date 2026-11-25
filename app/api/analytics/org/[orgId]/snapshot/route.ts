@@ -1,6 +1,6 @@
 import { AnalyticsAccessService } from "@/services/analyticsAccess.service"
 import { getSessionUser } from "@/lib/auth"
-import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors"
+import { AnalyticsScopeChangedError, OrganizationAccessNotFoundError } from "@/lib/organizationErrors"
 import { SubscriptionEntitlementError } from "@/services/entitlement.service"
 import { NextResponse } from "next/server"
 
@@ -23,6 +23,9 @@ export async function GET(
         }
         if (error instanceof SubscriptionEntitlementError) {
             return NextResponse.json({ error: error.message, code: error.code }, { status: 403 })
+        }
+        if (error instanceof AnalyticsScopeChangedError) {
+            return NextResponse.json({ error: error.message, code: "ANALYTICS_SCOPE_CHANGED" }, { status: 409 })
         }
         console.error("Error fetching organization snapshot:", error)
         return NextResponse.json(

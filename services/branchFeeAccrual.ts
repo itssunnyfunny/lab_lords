@@ -18,7 +18,8 @@ async function monthlyAccrualWindows(tx: Prisma.TransactionClient, branches: Bra
                 type: "BRANCH_REMOVAL",
                 OR: scheduled.map(branch => ({ branchId: branch.id, organizationId: branch.organizationId })),
             },
-            orderBy: { sequence: "desc" },
+            // A conversion starts a new agreement sequence for the same branch.
+            orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
             distinct: ["branchId"],
             select: { branchId: true, effectiveAt: true, status: true },
         });

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Check, Minus } from "lucide-react";
 import { PlanCTA } from "@/components/landing/MarketingActions";
 import { publicBillingPlans, type BillingPlan } from "@/lib/billingPlans";
+import { independentBillingForNewWorkspaces } from "@/lib/billingFeature";
+import { publicBranchBillingCopy } from "@/lib/publicBranchBillingCopy";
 
 function formatPrice(plan: Pick<BillingPlan, "amount" | "currency" | "custom">) {
   if (plan.amount == null || plan.custom) return "Custom";
@@ -15,7 +17,8 @@ function formatPrice(plan: Pick<BillingPlan, "amount" | "currency" | "custom">) 
 
 export async function LandingPricing({ showIntroduction = true, showComparisonLink = true, summary = false }: { showIntroduction?: boolean; showComparisonLink?: boolean; summary?: boolean }) {
   const { t, href: localHref } = await publicStrings();
-  const plans = publicBillingPlans();
+  const independent = independentBillingForNewWorkspaces();
+  const plans = publicBillingPlans(independent);
 
   return (
     <section id="pricing" className="marketing-section">
@@ -24,7 +27,7 @@ export async function LandingPricing({ showIntroduction = true, showComparisonLi
           <div className="mb-10 max-w-3xl">
             <p className="marketing-eyebrow">{t("Simple monthly pricing")}</p>
             <h2 className="marketing-title mt-3">{t("Choose what your library needs.")}</h2>
-            <p className="marketing-lead mt-4">{t("Three plans. Clear monthly pricing for each billable branch.")}</p>
+            <p className="marketing-lead mt-4">{t(independent ? publicBranchBillingCopy.intro : "Three plans. Clear monthly pricing for each billable branch.")}</p>
             <p className="marketing-plan-note mt-3">{t("Eligible new owners can try Basic, Standard or Pro for 30 days. No card needed.")}</p>
           </div>
         )}

@@ -22,6 +22,7 @@ export const INITIAL_PROVISIONING_LOCAL_FINALIZATION_CODE = "SUBSCRIPTION_CREATE
 export const INITIAL_PROVISIONING_MODE_MISMATCH_CODE = "SUBSCRIPTION_CREATE_MODE_MISMATCH";
 
 export type InitialProvisioningTuple = {
+  agreementBranchId?: string | null;
   changeId: string;
   organizationId: string;
   providerMode: RazorpayMode;
@@ -59,6 +60,7 @@ export function initialProvisioningNotes(intent: InitialProvisioningTuple) {
     app: "lab_lords",
     billing_type: "saas_subscription",
     organization_id: intent.organizationId,
+    ...(intent.agreementBranchId ? { branch_agreement_id: intent.agreementBranchId } : {}),
     provider_mode: intent.providerMode,
     billing_change_id: intent.changeId,
     billing_model_version: intent.billingModelVersion,

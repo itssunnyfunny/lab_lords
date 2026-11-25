@@ -1,5 +1,11 @@
 # Application page-family migration
 
+## Independent branch navigation and Billing — local, 25 November 2026
+
+Account Billing uses the branch directory and existing plan confirmation and operation panels. Switching to Basic uses the existing simple shell. Standard and Pro retain the full shell and refresh individual capabilities. The local desktop and phone navigation fixture covers delayed access responses, incompatible routes, mixed branch totals and revoked membership. Owner design review, real mandate approval and release are separate milestones.
+
+[Desktop and mobile evidence and commands](../evidence/branch-plans-browser-2026-11-25.md)
+
 ## Branch and seat setup forms — local, 2026-11-16
 
 Families H/G/C: organization Add Branch retained a narrow unsectioned form and
@@ -691,3 +697,15 @@ filter in each layout.
 The student route, roster interaction and calendar regressions passed all 47
 tests with `pnpm exec vitest run --config vitest.unit.safe.config.ts tests/unit/utils/studentRejoiningDate.test.ts tests/unit/api/branch-students.route.test.ts tests/unit/pages/student-deactivation.test.tsx`.
 Owner visual review and production release are separate.
+
+### Branch settings during a plan change — local, 2026-11-25
+
+On a WhatsApp settings deep link, a Pro-to-Standard change keeps the branch
+name edit available to save and shows the plan restriction in the WhatsApp
+section. A Pro-to-Basic change waits for the existing draft confirmation or a
+pending save. The [navigation browser scenarios](../../tests/navigation-restoration/navigation.spec.ts)
+passed at 1440 px and 390 px using synthetic access and settings responses.
+The pending-save scenario recorded one branch update across both plan changes.
+Home, Features, Pricing and FAQ need no wording changes because the plan
+entitlements and availability claims still apply. Owner review and release
+remain pending.

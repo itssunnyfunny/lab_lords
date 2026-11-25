@@ -30,7 +30,9 @@ import {
 } from "@/lib/formValidation";
 import { generateSeatLabelsForSeatCount, type SeatNumberingConfig } from "@/lib/seatNumbering";
 import { cn } from "@/lib/utils";
-import { billing } from "@/lib/api/billing";
+import { accountBillingHref, accountBillingProcessingDestination } from "@/lib/accountNavigation";
+import { BILLING_PLAN_IDS, billingPlanName, getActiveBillingPlan, type BillingPlanId } from "@/lib/billingPlans";
+import { billing as organizationBilling, billingForBranch } from "@/lib/api/billing";
 import {
     resolveBranchBillingAction,
     type BranchCreationResponse,
@@ -63,6 +65,8 @@ interface CreateBranchDialogProps {
     onClose: () => void;
     /** The org this branch belongs to */
     organizationId: string;
+    independentBilling?: boolean;
+    trialEndsAt?: string | null;
     /** Called with the newly created branch after success */
     onSuccess: (branch: { id: string; name: string }) => void;
 }
@@ -79,6 +83,8 @@ export function CreateBranchDialog({
     isOpen,
     onClose,
     organizationId,
+    independentBilling = false,
+    trialEndsAt,
     onSuccess,
 }: CreateBranchDialogProps) {
     const t = useTranslation();
@@ -91,6 +97,7 @@ export function CreateBranchDialog({
         seatNumbering: createSimpleSeatNumbering(),
         defaultFee: "",
     });
+    const [futurePlan, setFuturePlan] = useState<BillingPlanId>("STANDARD");
     const [shifts, setShifts] = useState<ShiftDraft[]>(DEFAULT_SHIFTS);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -238,6 +245,7 @@ export function CreateBranchDialog({
                 },
                 body: JSON.stringify({
                     organizationId,
+                    ...(independentBilling ? { futurePlan } : {}),
                     name: nameResult.value,
                     contactPhone: contactPhoneResult.value,
                     city: cityResult.value,
@@ -254,6 +262,8 @@ export function CreateBranchDialog({
             }
 
             const branch = await res.json() as BranchCreationResponse;
+            const billing = independentBilling ? billingForBranch(branch.id) : organizationBilling;
+            const processing = (url: string) => accountBillingProcessingDestination(url, accountBillingHref(organizationId, branch.id, `/branch/${branch.id}`));
             const billingAction = resolveBranchBillingAction(branch);
             if (billingAction === "CHECKOUT_REQUIRED") {
                 if (branch.checkout && isRazorpayCheckoutPayload(branch.checkout) && (checkoutScriptReady || isRazorpayCheckoutReady())) {
@@ -275,18 +285,21 @@ export function CreateBranchDialog({
                                 result.failure
                             );
                         },
-                        navigate: processingUrl => router.push(processingUrl),
+                        navigate: processingUrl => router.push(processing(processingUrl)),
                     });
                 } else if (branch.processingUrl) {
-                    router.push(branch.processingUrl);
+                    router.push(processing(branch.processingUrl));
                 } else {
                     throw new Error("The branch was created, but payment-method authorization could not be opened. Retry activation from the branch page.");
                 }
             } else if (billingAction === "PROCESSING" && branch.processingUrl) {
-                router.push(branch.processingUrl);
+                router.push(processing(branch.processingUrl));
+            } else if (independentBilling && branch.billingStatus === "PENDING_ACTIVATION") {
+                router.push(accountBillingHref(organizationId, branch.id, `/branch/${branch.id}`));
             }
             // Reset form
             setFormData({ name: "", contactPhone: "", city: "", seatCount: "", seatNumbering: createSimpleSeatNumbering(), defaultFee: "" });
+            setFuturePlan("STANDARD");
             setShifts(DEFAULT_SHIFTS);
             submitIdempotencyKeyRef.current = null;
             resetFieldErrors();
@@ -301,6 +314,7 @@ export function CreateBranchDialog({
     const handleClose = () => {
         if (loading) return;
         setFormData({ name: "", contactPhone: "", city: "", seatCount: "", seatNumbering: createSimpleSeatNumbering(), defaultFee: "" });
+        setFuturePlan("STANDARD");
         setShifts(DEFAULT_SHIFTS);
         setError(null);
         submitIdempotencyKeyRef.current = null;
@@ -352,6 +366,14 @@ export function CreateBranchDialog({
                         if (!loading) void handleSubmit();
                     }}
                 >
+                    {independentBilling && <AppPanel density="compact" title={t.owned("Branch subscription")}>
+                        <FormField label={t.owned("Future paid plan")}>
+                            <select className={controlClassName} value={futurePlan} disabled={loading} onChange={event => setFuturePlan(event.target.value as BillingPlanId)}>
+                                {BILLING_PLAN_IDS.map(id => <option key={id} value={id}>{billingPlanName(id)} · ₹{getActiveBillingPlan(id).amount}/{t.owned("month")}</option>)}
+                            </select>
+                        </FormField>
+                        <p className="mt-2 text-sm">{trialEndsAt ? t.owned("This branch shares the remaining owner trial through {date}.", { date: new Date(trialEndsAt).toLocaleDateString("en-IN") }) : t.owned("Activate this branch in Account billing. Paid access starts after payment is confirmed.")}</p>
+                    </AppPanel>}
                     <AppPanel density="compact" title={t("Branch details")} contentClassName="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <FormField label={t("Branch Name")} required error={nameError} className="min-w-0 sm:col-span-2">
                             <input

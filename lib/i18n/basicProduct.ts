@@ -1,4 +1,6 @@
 export const basicProductMessages = {
+"Manage this branch plan in Account Billing":["इस ब्रांच का प्लान अकाउंट बिलिंग में प्रबंधित करें","Is branch ka plan Account Billing mein manage karein"],
+"Simple student, seat and fee management.":["छात्र, सीट और फीस का सरल प्रबंधन।","Students, seats aur fees ka aasaan management."],
 "Mark student inactive":["विद्यार्थी को निष्क्रिय करें","Student ko inactive karein"],
 "Mark inactive":["निष्क्रिय करें","Inactive karein"],
 "Reactivate student":["विद्यार्थी को फिर सक्रिय करें","Student ko phir active karein"],

@@ -43,6 +43,10 @@ export function translateOwnedText(language: InterfaceLanguage, text: string, pa
     if (attendance) return translate(language, "{count} selected student(s) marked {status}", { count: attendance[1], status: translateOwnedText(language, attendance[2] === "not marked" ? "Not marked" : attendance[2] === "present" ? "Present" : "Absent") });
     const queued = /^(\d+) messages? queued\. Delivery remains subject to send-time revalidation\.$/.exec(text);
     if (queued) return translate(language, "{count} message(s) queued. Delivery remains subject to send-time revalidation.", { count: queued[1] });
+    const branchPlan = /^(.+) needs the (Standard|Pro) plan for this feature\.$/.exec(text);
+    if (branchPlan) return translate(language, "{branch} needs the {plan} plan for this feature.", {branch: branchPlan[1], plan: branchPlan[2]});
+    const ownerPlan = /^The owner needs to enable the (Standard|Pro) plan for (.+)\.$/.exec(text);
+    if (ownerPlan) return translate(language, "The owner needs to enable the {plan} plan for {branch}.", {branch: ownerPlan[2], plan: ownerPlan[1]});
     const permission = /^Requires (.+) access\. Ask the branch owner to update your staff permissions\.$/.exec(text);
     if (permission && !text.includes("{permissions}")) {
         const labels = permission[1].split(/, or | or |, /);

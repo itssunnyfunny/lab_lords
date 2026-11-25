@@ -955,3 +955,9 @@ old analysis/Workflow workers before installing migration 47 and compatible code
 ### Catalogue v2 entitlement and migration boundary (2026-10-23)
 
 BASIC/ STANDARD/ PRO are distinct identities. STANDARD and PRO grant staff, advanced analytics and AI; only PRO grants WhatsApp automation. Every existing user/API/background gate remains authoritative; queued WhatsApp dispatch rechecks current entitlement. Normal trials are STANDARD, not implicit PRO. Catalogue v2 provider keys are mode-scoped and must not reuse old PRO evidence merely because amounts match. The guarded empty-ledger migration and populated-ledger release hold are documented in [the cutover runbook](docs/billing/three-plan-cutover.md).
+
+## Independent agreement isolation — local implementation, 25 November 2026
+
+In BRANCH_V3 an owner billing command binds the authenticated owner, organization and selected branch agreement before it can admit, retry or reconcile provider work. Compare the agreement on the mandate, replacement, frozen commercial intent, action, invoice and history. A same-organization sibling is outside the command's authority. Preserve mode, signatures, durable admission and exact settlement checks. Individual branch charges never authorize an aggregate entitlement.
+
+Use current branch capability and lifecycle at final send admission. A downgrade may suppress only work that remains safely unsubmitted. Preserve uncertain and accepted sends for real-outcome reconciliation. Directory and report access remain subject to exact membership or ownership. See [independent branch rollout and recovery](docs/billing/independent-branch-rollout.md).

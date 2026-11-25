@@ -1,3 +1,4 @@
+import { billingRecordScope } from "@/services/billingAgreementScope.service";
 import type { Prisma } from "@/app/generated/prisma/client";
 
 export async function recordBillingMutationAudit(
@@ -32,8 +33,9 @@ export async function recordBillingMutationAudit(
   ].join(":");
 
   await tx.organizationBillingChangeAudit.upsert({
-    where: { dedupeKey },
+    where: { ...billingRecordScope(), dedupeKey },
     create: {
+      ...billingRecordScope(),
       organizationId: input.organizationId,
       changeId: input.changeId,
       dedupeKey,
@@ -48,14 +50,16 @@ export async function recordBillingMutationAudit(
   if (!input.organizationSubscriptionId || input.recordSubscriptionHistory === false) return;
   const subscription = await tx.organizationSubscription.findFirst({
     where: {
+      ...billingRecordScope(),
       id: input.organizationSubscriptionId,
       organizationId: input.organizationId,
     },
   });
   if (!subscription) return;
   await tx.organizationSubscriptionHistory.upsert({
-    where: { dedupeKey },
+    where: { ...billingRecordScope(), dedupeKey },
     create: {
+      ...billingRecordScope(),
       organizationId: input.organizationId,
       organizationSubscriptionId: subscription.id,
       razorpaySubscriptionId: subscription.razorpaySubscriptionId,

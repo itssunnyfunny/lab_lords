@@ -1,3 +1,4 @@
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { BillingService } from "@/services/billing.service";
@@ -10,12 +11,12 @@ export async function POST(request: Request, context: Context) {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { orgId, changeId } = await context.params;
-    return NextResponse.json(await BillingService.recordCheckoutEvent(
+    return NextResponse.json(await withOwnerBillingScope(user.id, orgId, new URL(request.url).searchParams.get("branchId"), async () => BillingService.recordCheckoutEvent(
       user.id,
       orgId,
       changeId,
       await request.json()
-    ));
+    )));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to record checkout status";
     return NextResponse.json({ error: message }, { status: billingHttpStatus(error) });

@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({ prisma: {
   organizationBillingChange: { findUnique: mocks.findChange },
   $transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback({
-    $queryRaw: vi.fn(),
+    $queryRaw: vi.fn(async () => [{ id: "org_test" }]),
     organization: { findFirst: mocks.findOwner },
     organizationBillingChange: { updateMany: mocks.updateChange },
   }),

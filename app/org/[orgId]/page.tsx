@@ -2,6 +2,7 @@
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
+import { branchAccessLabel, branchPlanLabel } from "@/lib/branchBillingLabels";
 import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
 import { CreateBranchDialog } from "@/components/branch/CreateBranchDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -72,7 +73,10 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
     const { orgId } = use(params);
     const billingContext = useBillingExperience();
     const accessReady = !billingContext || !billingContext.loading;
-    const analyticsAllowed = !billingContext || !!billingContext.experience?.entitlements.includes("ADVANCED_ANALYTICS");
+    const independent = !!billingContext?.organization?.independentBilling;
+    const eligible = independent ? billingContext?.organization?.branches.filter(branch => branch.entitlements.includes("ADVANCED_ANALYTICS")).map(branch => branch.id).sort().join(",") : undefined;
+    const legacyAnalytics = !billingContext || !!billingContext.experience?.entitlements.includes("ADVANCED_ANALYTICS");
+    const analyticsAllowed = independent ? Boolean(eligible) : legacyAnalytics;
     const { formatDateTime, formatNumber } = useUserPreferences();
     const [branchList, setBranchList] = useState<BranchWithCounts[]>([]);
     const [snapshotState, setSnapshotState] = useState<ResourceState<OrganizationAnalyticsSnapshot>>({ status: "loading" });
@@ -97,11 +101,11 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
         const version = ++requestVersion.current;
         setLoading(!hasLoadedRef.current);
         setError(null);
-        setSnapshotState(current => startResourceRefresh(current));
+        setSnapshotState(current => independent ? { status: "loading" } : startResourceRefresh(current));
 
         const [branchesResult, snapshotResult] = await Promise.allSettled([
             organizations.getBranches(orgId),
-            analyticsAllowed ? analytics.getOrganizationSnapshot(orgId) : Promise.resolve(null),
+            (independent ? !!eligible : legacyAnalytics) ? analytics.getOrganizationSnapshot(orgId) : Promise.resolve(null),
         ]);
 
         if (version !== requestVersion.current) return;
@@ -130,7 +134,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
 
         hasLoadedRef.current = true;
         setLoading(false);
-    }, [orgId, accessReady, analyticsAllowed]);
+    }, [orgId, accessReady, analyticsAllowed, independent, eligible, legacyAnalytics]);
 
     useEffect(() => {
         void loadDashboard();
@@ -244,6 +248,9 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 </div>
             </header>
 
+            {!!snapshot?.organization.excludedBranches?.length && <p className="ui-record-description">
+                {t.owned("Analytics covers eligible branches only.")} {t.owned("Excluded branches")} · {snapshot.organization.excludedBranches.map(branch => branch.name).join(", ")}
+            </p>}
             {analyticsAllowed && (snapshotState.status === "stale" ? (
                 <div className={cn(formWarningBannerClass, "flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between")} role="status">
                     <span>{t("{reason} Showing analytics from {formatDateTime}.", { reason: snapshotState.reason, formatDateTime: formatDateTime(snapshotState.updatedAt) })}</span>
@@ -318,6 +325,7 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="break-words text-lg font-semibold text-[color:var(--text-primary)]">{branch.name}</p>
+                                                    {branch.billing && <p className="text-xs">{t.owned(branchPlanLabel(branch.billing.effectivePlan))} · {t.owned(branchAccessLabel(branch.billing.billingStatus === "ACTIVE" ? branch.billing.customerState : branch.billing.billingStatus))}</p>}
                                                     <p className={cn(pageSubtleTextClass, "mt-1 flex items-center gap-1.5 text-xs")}>
                                                         <MapPin size={12} />
                                                         {branch.city || t("City not set")}
@@ -513,6 +521,8 @@ export default function OrgDashboardPage({ params }: { params: Promise<{ orgId: 
                 isOpen={createDialogOpen}
                 onClose={() => setCreateDialogOpen(false)}
                 organizationId={orgId}
+                independentBilling={independent}
+                trialEndsAt={billingContext?.organization?.branches.find(branch => branch.billing?.customerState === "TRIAL_ACTIVE")?.billing?.trialEndsAt}
                 onSuccess={handleBranchCreated}
             />
         </PageShell>

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
     enabled: vi.fn(), orgFind: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
-vi.mock("@/lib/billingFeature", () => ({ isWorkspaceBillingEnabled: mocks.enabled }));
+vi.mock("@/lib/billingFeature", () => ({ isWorkspaceBillingEnabled: mocks.enabled, independentBillingForNewWorkspaces: () => false }));
 vi.mock("@/services/ownerTrial.service", () => ({ OwnerTrialService: { startOnboardingTrial: mocks.trial } }));
 
 const key = "11111111-1111-4111-8111-111111111111";

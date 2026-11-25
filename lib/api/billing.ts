@@ -1,4 +1,5 @@
 import { apiClient } from "./core";
+import { billingIntentHeader, branchBillingIntentActions, type BranchBillingIntentReceipt } from "@/lib/branchBillingIntents";
 import type {
   BillingEntitlement,
   PublicBillingCapability,
@@ -108,7 +109,7 @@ export type BillingOverview = {
   pendingReplacement: OrganizationSubscriptionDto | null;
   history: OrganizationSubscriptionHistoryDto[];
   entitlements: OrganizationEntitlementProfileDto;
-  billingModelVersion: "LEGACY" | "WORKSPACE_V2";
+  billingModelVersion: "LEGACY" | "WORKSPACE_V2" | "BRANCH_V3";
   trial: {
     status: string;
     source: string;
@@ -145,6 +146,7 @@ export type BillingOverview = {
     accessRevokedAt?: string | null;
     accessGraceEndsAt?: string | null;
   }>;
+  resolvedIntentKeys?: string[];
 };
 
 export type BillingInvoiceDto = BillingOverview["invoices"][number] & {
@@ -155,6 +157,7 @@ export type BillingInvoiceDto = BillingOverview["invoices"][number] & {
 export type BillingInvoicePage = { items: BillingInvoiceDto[]; nextCursor: string | null };
 
 export type BillingOperationDto = {
+  clientIntent?: BranchBillingIntentReceipt;
   id: string;
   organizationId: string;
   type: string;
@@ -232,6 +235,7 @@ export type BillingVerificationResult = {
 };
 
 export type BillingCancellationResult = {
+  clientIntent?: BranchBillingIntentReceipt;
   cancelled: boolean;
   scheduled: boolean;
   subscription: OrganizationSubscriptionDto;
@@ -273,98 +277,150 @@ export type BillingOperationResponse = {
 
 export type BillingRetryResult = BillingCheckoutPayload | BillingRecoveryPayload | BillingOperationResponse;
 
-export const billing = {
-  getOverview(orgId: string): Promise<BillingOverview> {
-    return apiClient.get(`/organizations/${orgId}/billing`);
-  },
-
-  getInvoices(orgId: string, cursor?: string): Promise<BillingInvoicePage> {
-    const query = cursor ? `?${new URLSearchParams({ cursor }).toString()}` : "";
-    return apiClient.get(`/organizations/${encodeURIComponent(orgId)}/billing/invoices${query}`);
-  },
-
-  createSubscription(orgId: string, plan: CheckoutBillingPlanId, returnPath?: string): Promise<BillingCheckoutPayload> {
-    return apiClient.post(`/organizations/${orgId}/billing/subscription`, { plan, returnPath });
-  },
-
-  verifySubscription(
-    orgId: string,
-    payload: {
-      razorpay_subscription_id: string;
-      razorpay_payment_id: string;
-      razorpay_signature: string;
-      changeId: string;
-    }
-  ): Promise<BillingVerificationResult> {
-    return apiClient.post(`/organizations/${orgId}/billing/subscription/verify`, payload);
-  },
-
-  cancelSubscription(orgId: string): Promise<BillingCancellationResult> {
-    return apiClient.post(`/organizations/${orgId}/billing/subscription/cancel`, null, {
-      headers: { "Idempotency-Key": crypto.randomUUID() },
-    });
-  },
-
-  undoCancellation(orgId: string): Promise<{ undone: true }> {
-    return apiClient.delete(`/organizations/${orgId}/billing/subscription/cancel`);
-  },
-
-  claimTrial(orgId: string) {
-    return apiClient.post(`/organizations/${orgId}/billing/trial/claim`);
-  },
-
-  changePlan(
-    orgId: string,
-    plan: CheckoutBillingPlanId,
-    returnPath?: string
-  ): Promise<BillingPlanChangeResult> {
-    return apiClient.patch(`/organizations/${orgId}/billing/subscription`, { plan, returnPath }, {
-      headers: { "Idempotency-Key": crypto.randomUUID() },
-    });
-  },
-
-  changePaymentMethod(orgId: string, returnPath?: string): Promise<BillingPlanChangeResult> {
-    return apiClient.post(`/organizations/${orgId}/billing/subscription/payment-method`, { returnPath }, {
-      headers: { "Idempotency-Key": crypto.randomUUID() },
-    });
-  },
-
-  undoChange(orgId: string, changeId: string) {
-    return apiClient.delete(`/organizations/${orgId}/billing/mutations/${changeId}`);
-  },
-
-  getOperation(orgId: string, changeId: string): Promise<BillingOperationResponse & { processingUrl: string }> {
-    return apiClient.get(`/organizations/${orgId}/billing/mutations/${changeId}`);
-  },
-
-  reconcileOperation(orgId: string, changeId: string, paymentId?: string) {
-    return apiClient.post(`/organizations/${orgId}/billing/mutations/${changeId}`, { paymentId });
-  },
-
-  retryOperation(orgId: string, changeId: string): Promise<BillingRetryResult> {
-    return apiClient.post(`/organizations/${orgId}/billing/mutations/${changeId}/retry`);
-  },
-
-  recordCheckoutEvent(
-    orgId: string,
-    changeId: string,
-    event: "ABANDONED" | "DECLINED" | "FAILED" | "AWAITING_PROVIDER_CONFIRMATION",
-    details?: {
-      failureCategory?: string;
-      failureCode?: string;
-      reason?: string;
-      source?: string;
-      step?: string;
-      paymentId?: string;
-    }
-  ) {
-    return apiClient.post(`/organizations/${orgId}/billing/mutations/${changeId}/checkout-event`, { event, ...details });
-  },
-
-  createRecovery(
-    orgId: string,
-    returnPath?: string
-  ): Promise<BillingRecoveryPayload | BillingCheckoutPayload> {
-    return apiClient.post(`/organizations/${orgId}/billing/subscription/recovery`, { returnPath });
-  },
+type BillingIntentResult = {
+  operation?: BillingOperationDto | null;
+  clientIntent?: BranchBillingIntentReceipt;
 };
+
+type BillingUndoResult = { undone: true; clientIntent?: BranchBillingIntentReceipt };
+
+export function billingRequestPath(path: string, branchId?: string) {
+  if (!branchId) return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return path + separator + new URLSearchParams({ branchId }).toString();
+}
+
+export function billingForBranch(branchId?: string) {
+  const scope = (path: string) => billingRequestPath(path, branchId);
+  const storageKey = (orgId: string, action: string) => `branch-billing-intent:${orgId}:${branchId}:${action}`;
+
+  function retireIntents(orgId: string, keys: string[]) {
+    if (!branchId || !keys.length) return;
+    for (const action of branchBillingIntentActions) {
+      const slot = storageKey(orgId, action);
+      const current = sessionStorage.getItem(slot);
+      if (current && keys.includes(current)) sessionStorage.removeItem(slot);
+    }
+  }
+
+  async function observeIntent<T extends BillingIntentResult>(orgId: string, request: Promise<T>) {
+    const result = await request;
+    const receipt = result.clientIntent ?? result.operation?.clientIntent;
+    if (receipt?.resolved) retireIntents(orgId, [receipt.key]);
+    return result;
+  }
+
+  async function submitIntent<T extends BillingIntentResult>(orgId: string, intent: string, submit: (key: string) => Promise<T>) {
+    if (!branchId) return submit(crypto.randomUUID());
+    const slot = storageKey(orgId, intent);
+    const key = sessionStorage.getItem(slot) ?? crypto.randomUUID();
+    sessionStorage.setItem(slot, key);
+    const result = await observeIntent(orgId, submit(key));
+    // A confirmed no-op or initial checkout does not enqueue a change under this key.
+    if (!result.clientIntent && !result.operation?.clientIntent) retireIntents(orgId, [key]);
+    return result;
+  }
+  return {
+    async getOverview(orgId: string): Promise<BillingOverview> {
+      const url = scope(`/organizations/${orgId}/billing`);
+      if (!branchId) return apiClient.get(url);
+      const pending = branchBillingIntentActions.map(action => sessionStorage.getItem(storageKey(orgId, action))).filter((key): key is string => key !== null);
+      if (!pending.length) return apiClient.get(url);
+      const result = await apiClient.get<unknown, BillingOverview>(url, { headers: { [billingIntentHeader]: pending.join(",") } });
+      retireIntents(orgId, result.resolvedIntentKeys ?? []);
+      return result;
+    },
+
+    getInvoices(orgId: string, cursor?: string): Promise<BillingInvoicePage> {
+      const query = cursor ? `?${new URLSearchParams({ cursor }).toString()}` : "";
+      return apiClient.get(scope(`/organizations/${encodeURIComponent(orgId)}/billing/invoices${query}`));
+    },
+
+    createSubscription(orgId: string, plan: CheckoutBillingPlanId, returnPath?: string): Promise<BillingCheckoutPayload> {
+      return apiClient.post(scope(`/organizations/${orgId}/billing/subscription`), { plan, returnPath });
+    },
+
+    verifySubscription(
+      orgId: string,
+      payload: {
+        razorpay_subscription_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+        changeId: string;
+      }
+    ): Promise<BillingVerificationResult> {
+      return observeIntent<BillingVerificationResult>(orgId, apiClient.post(scope(`/organizations/${orgId}/billing/subscription/verify`), payload));
+    },
+
+    cancelSubscription(orgId: string): Promise<BillingCancellationResult> {
+      return submitIntent(orgId, "cancel", key => apiClient.post(scope(`/organizations/${orgId}/billing/subscription/cancel`), null, {
+        headers: { "Idempotency-Key": key },
+      }));
+    },
+
+    undoCancellation(orgId: string): Promise<BillingUndoResult> {
+      return observeIntent<BillingUndoResult>(orgId, apiClient.delete(scope(`/organizations/${orgId}/billing/subscription/cancel`)));
+    },
+
+    claimTrial(orgId: string) {
+      return apiClient.post(scope(`/organizations/${orgId}/billing/trial/claim`));
+    },
+
+    changePlan(
+      orgId: string,
+      plan: CheckoutBillingPlanId,
+      returnPath?: string
+    ): Promise<BillingPlanChangeResult> {
+      return submitIntent(orgId, "plan-" + plan, key => apiClient.patch(scope(`/organizations/${orgId}/billing/subscription`), { plan, returnPath }, {
+        headers: { "Idempotency-Key": key },
+      }));
+    },
+
+    changePaymentMethod(orgId: string, returnPath?: string): Promise<BillingPlanChangeResult> {
+      return submitIntent(orgId, "payment-method", key => apiClient.post(scope(`/organizations/${orgId}/billing/subscription/payment-method`), { returnPath }, {
+        headers: { "Idempotency-Key": key },
+      }));
+    },
+
+    undoChange(orgId: string, changeId: string) {
+      return observeIntent<BillingUndoResult>(orgId, apiClient.delete(scope(`/organizations/${orgId}/billing/mutations/${changeId}`)));
+    },
+
+    getOperation(orgId: string, changeId: string): Promise<BillingOperationResponse & { processingUrl: string }> {
+      return observeIntent<BillingOperationResponse & { processingUrl: string }>(orgId, apiClient.get(scope(`/organizations/${orgId}/billing/mutations/${changeId}`)));
+    },
+
+    reconcileOperation(orgId: string, changeId: string, paymentId?: string) {
+      return observeIntent<BillingIntentResult>(orgId, apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}`), { paymentId }));
+    },
+
+    retryOperation(orgId: string, changeId: string): Promise<BillingRetryResult> {
+      return observeIntent<BillingRetryResult>(orgId, apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}/retry`)));
+    },
+
+    recordCheckoutEvent(
+      orgId: string,
+      changeId: string,
+      event: "ABANDONED" | "DECLINED" | "FAILED" | "AWAITING_PROVIDER_CONFIRMATION",
+      details?: {
+        failureCategory?: string;
+        failureCode?: string;
+        reason?: string;
+        source?: string;
+        step?: string;
+        paymentId?: string;
+      }
+    ) {
+      return observeIntent<BillingIntentResult>(orgId, apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}/checkout-event`), { event, ...details }));
+    },
+
+    createRecovery(
+      orgId: string,
+      returnPath?: string
+    ): Promise<BillingRecoveryPayload | BillingCheckoutPayload> {
+      return apiClient.post(scope(`/organizations/${orgId}/billing/subscription/recovery`), { returnPath });
+    },
+  };
+}
+
+export const billing = billingForBranch();

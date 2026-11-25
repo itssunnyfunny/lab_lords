@@ -23,6 +23,9 @@ vi.mock("@/analytics/trends/payment.trends", () => ({ getPaymentTrend: mocks.pay
 vi.mock("@/analytics/trends/seat.trends", () => ({ getSeatUtilizationTrend: vi.fn() }));
 
 import { AnalyticsAccessService } from "@/services/analyticsAccess.service";
+import { getOrganizationHealthSnapshot } from "@/analytics/org.analytics";
+import { EntitlementService } from "@/services/entitlement.service";
+import { AnalyticsScopeChangedError } from "@/lib/organizationErrors";
 
 describe("interactive branch analytics payment boundary", () => {
   beforeEach(() => {
@@ -78,5 +81,19 @@ describe("interactive branch analytics payment boundary", () => {
     expect(mocks.authorizeCapability).toHaveBeenCalledWith("staff", "branch", "analyticsView");
     expect(mocks.operationalTrend).toHaveBeenCalledOnce();
     expect(mocks.fullHealthTrend).not.toHaveBeenCalled();
+  });
+
+  it("discards a partially loaded organization snapshot when another branch gains access", async () => {
+    const first = {id: "first", name: "First"};
+    const second = {id: "second", name: "Second"};
+    const firstRead = vi.spyOn(EntitlementService, "getOrganizationFeatureScope")
+      .mockResolvedValue({entitled:true, canWrite:true, branches:{included:[first], excluded:[second]}});
+    const current = vi.spyOn(EntitlementService, "getEligibleBranchScope")
+      .mockResolvedValue({included:[first, second], excluded:[]});
+    try {
+      await expect(getOrganizationHealthSnapshot("org")).rejects.toBeInstanceOf(AnalyticsScopeChangedError);
+      expect(mocks.fullHealth).toHaveBeenCalledOnce();
+      expect(current).toHaveBeenCalledWith("org", "ADVANCED_ANALYTICS");
+    } finally { current.mockRestore(); firstRead.mockRestore(); }
   });
 });

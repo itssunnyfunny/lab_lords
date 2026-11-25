@@ -7,7 +7,7 @@ import { accountBillingOperationReturn, accountBillingProcessingDestination } fr
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle2, Clock3, Loader2, RotateCcw } from "lucide-react";
-import { billing, type BillingOperationDto } from "@/lib/api/billing";
+import { billing as organizationBilling, billingForBranch, type BillingOperationDto } from "@/lib/api/billing";
 import {
   getRazorpayCheckoutPayload,
   isRazorpayCheckoutReady,
@@ -97,16 +97,22 @@ export function getBillingProcessingCopy(operation: BillingOperationDto | null, 
   return { title: "Verifying with Razorpay", body: "Keep this page open while we confirm the subscription, payment, and paid period." };
 }
 
-export default function BillingProcessingContent({ orgId, changeId }: { orgId: string; changeId: string }) {
+export default function BillingProcessingContent({ orgId, changeId, branchId, returnTo }: { orgId: string; changeId: string; branchId?: string; returnTo?: string }) {
     const t = useTranslation();
   const router = useRouter();
+  const billing = useMemo(() => branchId ? billingForBranch(branchId) : organizationBilling, [branchId]);
   const [operation, setOperation] = useState<BillingOperationDto | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState("");
   const [pollGeneration, setPollGeneration] = useState(0);
   const [checkoutReady, setCheckoutReady] = useState(() => isRazorpayCheckoutReady());
-  const operationKey = `${orgId}:${changeId}`;
+  const operationKey = `${orgId}:${branchId ?? ""}:${changeId}`;
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const operationRef = useRef<{ key: string; value: BillingOperationDto | null }>({
     key: operationKey,
     value: null,
@@ -129,7 +135,7 @@ export default function BillingProcessingContent({ orgId, changeId }: { orgId: s
       operationKey,
       () => billing.reconcileOperation(orgId, changeId)
     );
-  }, [changeId, operationKey, orgId]);
+  }, [billing, changeId, operationKey, orgId]);
 
   useEffect(() => {
     let stopped = false;
@@ -197,12 +203,15 @@ export default function BillingProcessingContent({ orgId, changeId }: { orgId: s
       stopped = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [applyOperation, changeId, orgId, pollGeneration, reconcileIfDue]);
+  }, [applyOperation, billing, changeId, orgId, pollGeneration, reconcileIfDue]);
 
   const content = useMemo(() => getBillingProcessingCopy(operation, timedOut), [operation, timedOut]);
   const successful = operation?.operationStatus === "APPLIED" || operation?.operationStatus === "SCHEDULED";
+  useEffect(() => {
+    if (successful) window.dispatchEvent(new Event("billing-access-changed"));
+  }, [successful]);
   const failed = operation && ["DECLINED", "ABANDONED", "FAILED"].includes(operation.operationStatus);
-  const returnPath = accountBillingOperationReturn(orgId, operation?.returnPath);
+  const returnPath = accountBillingOperationReturn(orgId, operation?.returnPath, branchId, returnTo);
 
   const retry = async () => {
     if (operation?.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady) {
@@ -213,6 +222,7 @@ export default function BillingProcessingContent({ orgId, changeId }: { orgId: s
     setError("");
     try {
       const result = await billing.retryOperation(orgId, changeId);
+      if (!mounted.current) return;
       const checkout = getRazorpayCheckoutPayload(result);
       if (checkout) {
         if (!checkoutReady || !isRazorpayCheckoutReady()) {
@@ -238,6 +248,7 @@ export default function BillingProcessingContent({ orgId, changeId }: { orgId: s
             );
           },
           navigate: (processingUrl) => {
+            if (!mounted.current) return;
             router.replace(accountBillingProcessingDestination(processingUrl, returnPath));
             setTimedOut(false);
             setPollGeneration((current) => current + 1);

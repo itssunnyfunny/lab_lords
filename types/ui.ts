@@ -30,7 +30,23 @@ export type PagedResult<T> = {
     total: number;
 };
 
+export type DirectoryBranchBilling = {
+    independent: boolean;
+    effectivePlan: string;
+    accessMode: string;
+    customerState: string;
+    billingStatus: string;
+    paidThrough?: string | null;
+    trialEndsAt?: string | null;
+    nextChargeAt?: string | null;
+    nextChargeAmount?: number | null;
+    monthlyCommitment?: number | null;
+    pendingPlan?: string | null;
+    effectiveAt?: string | null;
+};
+
 export type WorkspaceDirectoryBranch = {
+    billing?: DirectoryBranchBilling;
     id: string;
     name: string;
     organizationId: string;
@@ -42,6 +58,7 @@ export type WorkspaceDirectoryBranch = {
 };
 
 export type WorkspaceDirectoryOrganization = {
+    independentBilling?: boolean;
     id: string;
     name: string;
     role: "OWNER";

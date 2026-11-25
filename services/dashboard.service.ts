@@ -138,7 +138,7 @@ export class DashboardService {
             const clock = await branchClock(branchId, tx, now);
             const { timezone, today } = clock;
             const selectedMonth = month ?? today.slice(0, 7);
-            const profile = await EntitlementService.getOrganizationProfile(access.organizationId, tx);
+            const profile = await EntitlementService.getBranchProfile(branchId, tx);
             const chartLocked = !profile.entitlements.includes("ADVANCED_ANALYTICS");
             const money = await source(tx, access.permissions.view_payments, () => this.money(branchId, clock, tx));
             const students = await source(tx, access.permissions.students, async () => {
@@ -570,7 +570,7 @@ export class DashboardService {
             add("SHIFT_NEAR_FULL", near.length, near.map(shift => [shift.shiftId, shift.used]), "shifts");
         }
         if (access.permissions.manage_branch && access.permissions.staff_management) {
-            const profile = await EntitlementService.getOrganizationProfile(access.organizationId);
+            const profile = await EntitlementService.getBranchProfile(branchId);
             if (profile.entitlements.includes("STAFF_MANAGEMENT")) {
                 const where = { branchId, acceptedAt: null, expiresAt: { gt: now } };
                 const [count, sample] = await completeReads([prisma.staffInvite.count({ where }), prisma.staffInvite.findMany({ where, select: { id: true, expiresAt: true }, orderBy: { id: "asc" }, take: 100 })]);

@@ -42,6 +42,7 @@ describe("dedicated billing plan selection", () => {
         const access = { ...experience, projectedQuantity: 2 };
         expect(getPlanConfirmationQuote(standard, access, false).planFeeDueToday).toBe(598);
         expect(getPlanConfirmationQuote(standard, access, true).planFeeDueToday).toBe(0);
+        expect(getPlanConfirmationQuote(standard, { ...access, independentBilling: true, legacyCoverageEndsAt: "2027-01-22T00:00:00Z" }, false).planFeeDueToday).toBe(0);
     });
 
     it("requires payment recovery before another plan change and re-enables an upgrade after recovered evidence", () => {

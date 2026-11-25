@@ -43,7 +43,7 @@ export async function createOrg(overrides: {
   id?: string;
   businessType?: string | null;
   paymentGraceDays?: number;
-  billingModelVersion?: "LEGACY" | "WORKSPACE_V2";
+  billingModelVersion?: "LEGACY" | "WORKSPACE_V2" | "BRANCH_V3";
   selectedPostTrialPlan?: "BASIC" | "PRO" | null;
 } & Record<string, unknown>) {
   return testPrisma.organization.create({
@@ -63,6 +63,7 @@ export async function createOrg(overrides: {
 
 export async function createBranch(overrides: {
   organizationId: string;
+  billingStatus?: "ACTIVE" | "PENDING_ACTIVATION" | "REMOVAL_SCHEDULED" | "ARCHIVED";
   name?: string;
   defaultFee?: number;
   defaultAdmissionFee?: number;
@@ -73,6 +74,7 @@ export async function createBranch(overrides: {
       id: overrides.id ?? uid(),
       organizationId: overrides.organizationId,
       name: overrides.name ?? "Test Branch",
+      billingStatus: overrides.billingStatus,
       defaultFee: overrides.defaultFee ?? 1000,
       defaultAdmissionFee: overrides.defaultAdmissionFee ?? 0,
     },
@@ -219,7 +221,9 @@ export async function createStaff(overrides: {
 }
 
 export async function createSaasSubscription(overrides: {
+  agreementBranchId?: string;
   organizationId: string;
+  quantity?: number;
   plan?: "BASIC" | "STANDARD" | "PRO";
   status?: "AUTHENTICATED" | "ACTIVE" | "PENDING" | "PAUSED" | "HALTED" | "EXPIRED";
   confirmedPaidPeriod?: boolean;
@@ -228,6 +232,8 @@ export async function createSaasSubscription(overrides: {
   const plan = overrides.plan ?? "PRO";
   const status = overrides.status ?? "ACTIVE";
   const amount = plan === "BASIC" ? 99 : plan === "STANDARD" ? 299 : 499;
+  const quantity = overrides.quantity ?? 1;
+  const invoiceAmount = amount * 100 * quantity;
   const now = new Date();
   const periodStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const defaultPeriodEnd = status === "EXPIRED"
@@ -243,10 +249,13 @@ export async function createSaasSubscription(overrides: {
     data: {
       id: uid(),
       organizationId: overrides.organizationId,
-      currentOrganizationId: overrides.organizationId,
+      agreementBranchId: overrides.agreementBranchId,
+      currentAgreementBranchId: overrides.agreementBranchId,
+      currentOrganizationId: overrides.agreementBranchId ? null : overrides.organizationId,
       providerMode: "TEST",
       plan,
       amount,
+      quantity,
       amountSubunits: amount * 100,
       currency: "INR",
       period: "monthly",
@@ -264,15 +273,14 @@ export async function createSaasSubscription(overrides: {
 
   if (!confirmedPaidPeriod || !paidThrough) return subscription;
 
-  const organization = await testPrisma.organization.findUniqueOrThrow({
+  const coordinator = overrides.agreementBranchId ? await testPrisma.branchBillingAgreement.update({
+    where: { branchId: overrides.agreementBranchId, organizationId: overrides.organizationId },
+    data: { billingMutationSequence: { increment: 1 } },
+  }) : await testPrisma.organization.update({
     where: { id: overrides.organizationId },
-    select: { billingMutationSequence: true },
+    data: { billingMutationSequence: { increment: 1 } },
   });
-  const sequence = organization.billingMutationSequence + 1;
-  await testPrisma.organization.update({
-    where: { id: overrides.organizationId },
-    data: { billingMutationSequence: sequence },
-  });
+  const sequence = coordinator.billingMutationSequence;
   const paymentId = `pay_${uid()}`;
   const invoiceId = `inv_${uid()}`;
   const capturedAt = new Date(periodStart.getTime() - 60 * 60 * 1000);
@@ -282,14 +290,16 @@ export async function createSaasSubscription(overrides: {
       organizationId: overrides.organizationId,
       organizationSubscriptionId: subscription.id,
       sequence,
+      agreementBranchId: overrides.agreementBranchId,
+      branchId: overrides.agreementBranchId,
       idempotencyKey: `test-confirmed-settlement:${subscription.id}`,
       type: "LEGACY_TRANSITION",
       status: "APPLIED",
       operationStatus: "APPLIED",
       fromPlan: plan,
       toPlan: plan,
-      fromQuantity: 1,
-      toQuantity: 1,
+      fromQuantity: quantity,
+      toQuantity: quantity,
       commercialIntentVersion: 1,
       commercialIntentCapturedAt: capturedAt,
       authorizedProviderMode: "TEST",
@@ -298,11 +308,11 @@ export async function createSaasSubscription(overrides: {
       authorizedSourceRazorpayPlanId: razorpayPlanId,
       authorizedRazorpayPlanId: razorpayPlanId,
       authorizedPlan: plan,
-      authorizedQuantity: 1,
+      authorizedQuantity: quantity,
       authorizedRazorpayOfferId: null,
       authorizedUnitAmountSubunits: amount * 100,
-      authorizedGrossAmountSubunits: amount * 100,
-      authorizedExpectedAmountSubunits: amount * 100,
+      authorizedGrossAmountSubunits: invoiceAmount,
+      authorizedExpectedAmountSubunits: invoiceAmount,
       authorizedOfferValidThroughPaidCount: null,
       authorizedCurrency: "INR",
       authorizedPeriod: "monthly",
@@ -316,13 +326,14 @@ export async function createSaasSubscription(overrides: {
   });
   await testPrisma.organizationSubscriptionInvoice.create({
     data: {
+      agreementBranchId: overrides.agreementBranchId,
       organizationId: overrides.organizationId,
       organizationSubscriptionId: subscription.id,
       razorpayInvoiceId: invoiceId,
       razorpayPaymentId: paymentId,
       status: "paid",
-      amountSubunits: amount * 100,
-      amountPaidSubunits: amount * 100,
+      amountSubunits: invoiceAmount,
+      amountPaidSubunits: invoiceAmount,
       amountDueSubunits: 0,
       currency: "INR",
       paymentMethod: "CARD",
@@ -331,9 +342,9 @@ export async function createSaasSubscription(overrides: {
       providerMode: "TEST",
       razorpaySubscriptionId,
       razorpayPlanId,
-      providerQuantity: 1,
+      providerQuantity: quantity,
       razorpayOfferId: null,
-      paymentAmountSubunits: amount * 100,
+      paymentAmountSubunits: invoiceAmount,
       paymentCurrency: "INR",
       paymentStatus: "captured",
       paymentCaptured: true,

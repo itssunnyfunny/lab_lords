@@ -8,7 +8,7 @@ vi.mock("@/lib/prisma", () => ({prisma:{
   staff:{findUnique:mocks.staff},
 }}));
 vi.mock("@/services/entitlement.service", () => ({EntitlementService:{
-  assertOrganizationEntitlement:mocks.entitlement,assertBranchWritable:mocks.writable,
+  assertBranchEntitlement:mocks.entitlement,assertBranchWritable:mocks.writable,
 }}));
 vi.mock("@/ai/orchestrator/branchAI.orchestrator", () => ({runBranchAI:mocks.report}));
 const params = () => ({params:Promise.resolve({branchId:"branch_1"})});

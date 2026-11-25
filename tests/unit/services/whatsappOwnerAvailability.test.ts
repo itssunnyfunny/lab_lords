@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   assertOwner: vi.fn(),
-  getOrganizationProfile: vi.fn(),
+  getOrganizationFeatureScope: vi.fn(),
   sendersFindMany: vi.fn(),
   operationsUiEnabled: vi.fn(),
   onboardingWritesEnabled: vi.fn(),
@@ -27,7 +27,7 @@ vi.mock("@/lib/whatsappFeature", () => ({
 }));
 vi.mock("@/services/staff.service", () => ({ StaffService: {} }));
 vi.mock("@/services/entitlement.service", () => ({ EntitlementService: {
-  getOrganizationProfile: mocks.getOrganizationProfile,
+  getOrganizationFeatureScope: mocks.getOrganizationFeatureScope,
 } }));
 vi.mock("@/services/whatsappAuthorization.service", () => ({ WhatsAppAuthorizationService: {
   assertOwner: mocks.assertOwner,
@@ -41,8 +41,8 @@ import { WhatsAppSenderService } from "@/services/whatsappSender.service";
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.assertOwner.mockResolvedValue({ id: "org_1" });
-  mocks.getOrganizationProfile.mockResolvedValue({
-    entitlements: ["WHATSAPP_AUTOMATION"], canWrite: true,
+  mocks.getOrganizationFeatureScope.mockResolvedValue({
+    entitled: true, canWrite: true,
   });
   mocks.sendersFindMany.mockResolvedValue([]);
   mocks.operationsUiEnabled.mockReturnValue(true);
@@ -72,8 +72,8 @@ describe("owner WhatsApp availability projection", () => {
 
   it("allows an entitled read-only owner to view operations while withholding mutation controls", async () => {
     mocks.onboardingWritesEnabled.mockReturnValue(true);
-    mocks.getOrganizationProfile.mockResolvedValue({
-      entitlements: ["WHATSAPP_AUTOMATION"], canWrite: false,
+    mocks.getOrganizationFeatureScope.mockResolvedValue({
+      entitled: true, canWrite: false,
     });
     expect(await WhatsAppSenderService.listForOwner("owner_1", "org_1")).toMatchObject({
       operationsUiEnabled: true, canManage: false, canManageOperations: false,
@@ -89,7 +89,7 @@ describe("owner WhatsApp availability projection", () => {
   });
 
   it("withholds operational availability and management from an unentitled owner", async () => {
-    mocks.getOrganizationProfile.mockResolvedValue({ entitlements: [], canWrite: true });
+    mocks.getOrganizationFeatureScope.mockResolvedValue({ entitled: false, canWrite: true });
     expect(await WhatsAppSenderService.listForOwner("owner_1", "org_1")).toMatchObject({
       operationsUiEnabled: false, canManage: false, canManageOperations: false, senders: [],
     });
@@ -99,7 +99,7 @@ describe("owner WhatsApp availability projection", () => {
   it("checks ownership before exposing entitlement or sender availability", async () => {
     mocks.assertOwner.mockRejectedValue(new Error("Not found"));
     await expect(WhatsAppSenderService.listForOwner("foreign_user", "org_1")).rejects.toThrow("Not found");
-    expect(mocks.getOrganizationProfile).not.toHaveBeenCalled();
+    expect(mocks.getOrganizationFeatureScope).not.toHaveBeenCalled();
     expect(mocks.sendersFindMany).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,5 @@
 export const billingMessages = {
+    "Cancellation has not been confirmed. Check your billing status before trying again.": ["रद्द करने की पुष्टि नहीं हुई है। फिर से कोशिश करने से पहले बिलिंग की स्थिति देखें।", "Cancellation ki pushti nahi hui hai. Dobara koshish karne se pehle billing status dekhein."],
     "Choose Basic, Standard or Pro as the post-trial plan.": ["ट्रायल के बाद के लिए Basic, Standard या Pro चुनें।", "Trial ke baad ke liye Basic, Standard ya Pro chunein."],
     "Choose Basic, Standard or Pro for after the trial. All choices receive 30 days of Standard access.": ["ट्रायल के बाद के लिए Basic, Standard या Pro चुनें। हर विकल्प में 30 दिन का Standard एक्सेस मिलता है।", "Trial ke baad ke liye Basic, Standard ya Pro chunein. Har choice mein 30 din ka Standard access milta hai."],
     "Choose Basic, Standard or Pro as your post-trial plan.": ["ट्रायल के बाद के लिए Basic, Standard या Pro चुनें।", "Trial ke baad ke liye Basic, Standard ya Pro chunein."],

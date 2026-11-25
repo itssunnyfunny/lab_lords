@@ -15,6 +15,7 @@ export function BranchAccessProvider({ branchId, children }: { branchId: string;
     const [accessDenied, setAccessDenied] = useState(false);
     const [loading, setLoading] = useState(true);
     const sequence = useRef(0);
+    const previousDirectoryState = useRef<string | undefined>(undefined);
     const refresh = useCallback(async () => {
         const version = ++sequence.current;
         let denied = false;
@@ -60,8 +61,20 @@ export function BranchAccessProvider({ branchId, children }: { branchId: string;
         };
     }, [refresh]);
     useEffect(() => {
+        if (!access && !accessDenied) return;
+        const current = JSON.stringify(access && [
+            access.branchName, access.role, access.permissions, access.entitlements,
+            access.effectivePlan, access.branchStatus, access.canWrite,
+            access.billingExperience?.customerState, access.billingExperience?.accessMode,
+        ]);
+        if (previousDirectoryState.current !== undefined && previousDirectoryState.current !== current) {
+            window.dispatchEvent(new Event("workspace-directory-changed"));
+        }
+        previousDirectoryState.current = current;
+    }, [access, accessDenied]);
+    useEffect(() => {
         const experience = access?.billingExperience ? toClientBillingExperience(access.billingExperience) : null;
-        const dates = [experience?.trialEndsAt, experience?.paidThrough, ...(experience?.scheduledChanges ?? []).map(change => change.effectiveAt)];
+        const dates = [experience?.trialEndsAt, experience?.paidThrough, experience?.accessGrantEndsAt, ...(experience?.scheduledChanges ?? []).map(change => change.effectiveAt)];
         const next = dates.filter(Boolean).map(value => Date.parse(value!)).filter(time => time > Date.now()).sort((a,b) => a-b)[0];
         if (!next) return;
         const timer = window.setTimeout(() => { void refresh(); }, Math.min(next - Date.now() + 100, 2_147_000_000));

@@ -1,7 +1,7 @@
 import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { WhatsAppResourceNotFoundError } from "@/lib/whatsappHttp";
-import { EntitlementService } from "@/services/entitlement.service";
+import { EntitlementService, BillingReadOnlyError, SubscriptionEntitlementError } from "@/services/entitlement.service";
 
 type PrismaClient = Prisma.TransactionClient | typeof prisma;
 
@@ -25,12 +25,13 @@ export class WhatsAppAuthorizationService {
     client: PrismaClient = prisma
   ) {
     const organization = await this.assertOwner(actorUserId, organizationId, client);
-    await EntitlementService.assertOrganizationEntitlement(
+    const scope = await EntitlementService.getOrganizationFeatureScope(
       organizationId,
       "WHATSAPP_AUTOMATION",
       client
     );
-    return organization;
+    if (!scope.entitled) throw new SubscriptionEntitlementError("WhatsApp requires the Pro plan.");
+    return { ...organization, ...scope };
   }
 
   static async assertOwnerCanWrite(
@@ -39,7 +40,7 @@ export class WhatsAppAuthorizationService {
     client: PrismaClient = prisma
   ) {
     const organization = await this.assertOwnerEntitled(actorUserId, organizationId, client);
-    await EntitlementService.assertOrganizationWritable(organizationId, client);
+    if (!organization.canWrite) throw new BillingReadOnlyError("WhatsApp changes require a writable Pro branch.");
     return organization;
   }
 }

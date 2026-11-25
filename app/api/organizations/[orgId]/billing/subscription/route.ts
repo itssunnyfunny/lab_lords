@@ -1,3 +1,4 @@
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { BillingService } from "@/services/billing.service";
@@ -16,7 +17,7 @@ export async function POST(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { orgId } = await context.params;
-    const checkout = await BillingService.createSubscriptionCheckout(user.id, orgId, await req.json());
+    const checkout = await withOwnerBillingScope(user.id, orgId, new URL(req.url).searchParams.get("branchId"), async () => BillingService.createSubscriptionCheckout(user.id, orgId, await req.json()));
 
     return NextResponse.json(checkout);
   } catch (error) {
@@ -49,7 +50,7 @@ export async function PATCH(
     if (!idempotencyKey) return NextResponse.json({ error: "Idempotency-Key is required" }, { status: 400 });
     const body = await req.json();
     return NextResponse.json(
-      await BillingService.changeWorkspacePlan(user.id, orgId, body.plan, idempotencyKey, body.returnPath),
+      await withOwnerBillingScope(user.id, orgId, new URL(req.url).searchParams.get("branchId"), async () => BillingService.changeWorkspacePlan(user.id, orgId, body.plan, idempotencyKey, body.returnPath)),
       { status: 202 }
     );
   } catch (error) {

@@ -2406,12 +2406,14 @@ export class WhatsAppPlannerService {
           cancelPending: false,
         });
       }
+      let activationAt = settings.automationEnabledAt;
       try {
-        await EntitlementService.assertBranchEntitlement(
+        const profile = await EntitlementService.assertBranchEntitlement(
           input.claim.branchId,
           "WHATSAPP_AUTOMATION",
           tx
         );
+        if (profile.whatsAppEligibleSince && profile.whatsAppEligibleSince > activationAt) activationAt = profile.whatsAppEligibleSince;
         await EntitlementService.assertBranchWritable(input.claim.branchId, tx);
       } catch {
         return disqualifyBranch({
@@ -2553,7 +2555,7 @@ export class WhatsAppPlannerService {
         recipients,
         enabledStages,
         existingStudentIds: new Set(existingWelcomeRows.flatMap(row => row.studentId ? [row.studentId] : [])),
-        activationAt: settings.automationEnabledAt,
+        activationAt,
         now: input.now,
         horizonEnd,
         sendTimeLocal: settings.sendTimeLocal,
@@ -2580,7 +2582,7 @@ export class WhatsAppPlannerService {
         organizationId: settings.organizationId,
         branchId: input.claim.branchId,
         senderId: settings.sender.id,
-        activationAt: settings.automationEnabledAt,
+        activationAt,
         now: input.now,
         horizonEnd,
         sendTimeLocal: settings.sendTimeLocal,

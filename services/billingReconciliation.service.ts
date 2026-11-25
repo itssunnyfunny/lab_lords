@@ -1,3 +1,4 @@
+import { billingTransaction, billingRecordScope, currentSlot, isPendingSlot, isRetiredAggregateReceipt, lockBillingCoordinator, billingCoordinator } from "@/services/billingAgreementScope.service";
 import {
   BillingManualReviewRequiredError,
   BillingResourceNotFoundError,
@@ -157,6 +158,7 @@ async function resolveCommercialIntent(
   if (explicitChangeId) {
     return prisma.organizationBillingChange.findFirst({
       where: {
+        ...billingRecordScope(),
         id: explicitChangeId,
         organizationId: local.organizationId,
         OR: [
@@ -168,12 +170,13 @@ async function resolveCommercialIntent(
   }
 
   const replacement = await prisma.organizationBillingChange.findUnique({
-    where: { replacementSubscriptionId: local.id },
+    where: { ...billingRecordScope(), replacementSubscriptionId: local.id },
   });
   if (replacement) return replacement;
 
   const authorization = await prisma.organizationBillingChange.findFirst({
     where: {
+      ...billingRecordScope(),
       organizationId: local.organizationId,
       organizationSubscriptionId: local.id,
       type: "SUBSCRIPTION_AUTHORIZATION",
@@ -185,6 +188,7 @@ async function resolveCommercialIntent(
 
   const activeChange = await prisma.organizationBillingChange.findFirst({
     where: {
+      ...billingRecordScope(),
       organizationId: local.organizationId,
       organizationSubscriptionId: local.id,
       replacementSubscriptionId: null,
@@ -201,6 +205,7 @@ async function resolveCommercialIntent(
 
   const legacyTransition = await prisma.organizationBillingChange.findFirst({
     where: {
+      ...billingRecordScope(),
       organizationId: local.organizationId,
       organizationSubscriptionId: local.id,
       replacementSubscriptionId: null,
@@ -213,9 +218,24 @@ async function resolveCommercialIntent(
   });
   if (legacyTransition) return legacyTransition;
 
-  if (!local.confirmedCommercialIntentChangeId) return null;
+  if (!local.confirmedCommercialIntentChangeId) {
+    if (!local.agreementBranchId) return null;
+    // Closing an unpaid browser checkout does not erase the provider CREATE
+    // or its immutable price and branch binding. Its late provider observation
+    // still requires that exact intent, including a delayed terminal status.
+    return prisma.organizationBillingChange.findFirst({
+      where: {
+        ...billingRecordScope(), organizationId: local.organizationId, organizationSubscriptionId: local.id,
+        type: "SUBSCRIPTION_AUTHORIZATION", provisioningIntentVersion: 1, commercialIntentVersion: 1,
+        authorizedProviderMode: local.providerMode, authorizedRazorpaySubscriptionId: local.razorpaySubscriptionId,
+        authorizedQuantity: 1,
+      },
+      orderBy: { sequence: "asc" },
+    });
+  }
   return prisma.organizationBillingChange.findFirst({
     where: {
+      ...billingRecordScope(),
       id: local.confirmedCommercialIntentChangeId,
       organizationId: local.organizationId,
     },
@@ -240,10 +260,10 @@ async function revokeInvalidReplacementAccess(
     || !intent.accessGrantedAt
     || intent.accessRevokedAt) return;
   await tx.organizationBillingChange.updateMany({
-    where: { id: intent.id, accessRevokedAt: null },
+    where: { ...billingRecordScope(), id: intent.id, accessRevokedAt: null },
     data: { accessRevokedAt: now },
   });
-  if (!intent.branchId) return;
+  if (!intent.branchId || isRetiredAggregateReceipt(intent.organizationId)) return;
   if (["TRIAL_SUBSCRIPTION_UPDATE", "QUANTITY_INCREASE"].includes(intent.type)) {
     await tx.branch.updateMany({
       where: { id: intent.branchId, billingStatus: "ACTIVE" },
@@ -266,12 +286,10 @@ async function quarantineCommercialMismatch(input: {
   options: ReconciliationOptions;
 }): Promise<never> {
   const message = commercialEvidenceMessage(input.code);
-  const review = await prisma.$transaction(async tx => {
-    await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT "id" FROM "Organization" WHERE "id" = ${input.local.organizationId} FOR UPDATE
-    `;
+  const review = await billingTransaction(async tx => {
+    await lockBillingCoordinator(tx, input.local.organizationId);
     const currentLocal = await tx.organizationSubscription.findUnique({
-      where: { id: input.local.id },
+      where: { ...billingRecordScope(), id: input.local.id },
     });
     if (!currentLocal
       || currentLocal.organizationId !== input.local.organizationId
@@ -280,7 +298,7 @@ async function quarantineCommercialMismatch(input: {
     }
 
     const intent = input.intent
-      ? await tx.organizationBillingChange.findUnique({ where: { id: input.intent.id } })
+      ? await tx.organizationBillingChange.findUnique({ where: { ...billingRecordScope(), id: input.intent.id } })
       : null;
     const historicalIntent = Boolean(
       intent
@@ -293,7 +311,7 @@ async function quarantineCommercialMismatch(input: {
       const exactCallbackAttempt = input.options.expectedAttemptCount != null
         && input.options.expectedVerificationStartedAt != null;
       const persisted = await tx.organizationBillingChange.updateMany({
-        where: exactCallbackAttempt
+        where: { ...exactCallbackAttempt
           ? {
               id: intent.id,
               operationStatus: "VERIFYING",
@@ -306,7 +324,7 @@ async function quarantineCommercialMismatch(input: {
               operationStatus: intent.operationStatus,
               updatedAt: intent.updatedAt,
               NOT: { status: { in: ["UNDONE", "SUPERSEDED"] } },
-            },
+            }, ...billingRecordScope() },
         data: {
           status: "FAILED",
           operationStatus: "FAILED",
@@ -318,7 +336,7 @@ async function quarantineCommercialMismatch(input: {
         },
       });
       if (persisted.count !== 1) {
-        const latest = await tx.organizationBillingChange.findUnique({ where: { id: intent.id } });
+        const latest = await tx.organizationBillingChange.findUnique({ where: { ...billingRecordScope(), id: intent.id } });
         if (latest?.failureCategory === "MANUAL_REVIEW_REQUIRED") return latest;
         throw new StaleCommercialReconciliationError();
       }
@@ -333,7 +351,7 @@ async function quarantineCommercialMismatch(input: {
           : "MANUAL_REVIEW_REQUIRED",
         failureCode: input.code,
       });
-      return tx.organizationBillingChange.findUniqueOrThrow({ where: { id: intent.id } });
+      return tx.organizationBillingChange.findUniqueOrThrow({ where: { ...billingRecordScope(), id: intent.id } });
     }
 
     const sourceIntentId = intent?.id ?? "missing";
@@ -344,11 +362,11 @@ async function quarantineCommercialMismatch(input: {
       sourceIntentId,
     ].join(":");
     const existing = await tx.organizationBillingChange.findUnique({
-      where: { idempotencyKey },
+      where: { ...billingRecordScope(), idempotencyKey },
     });
     if (existing) {
       const retained = await tx.organizationBillingChange.update({
-        where: { id: existing.id },
+        where: { ...billingRecordScope(), id: existing.id },
         data: {
           status: "FAILED",
           operationStatus: "FAILED",
@@ -374,12 +392,12 @@ async function quarantineCommercialMismatch(input: {
     // The organization row is locked above, so advance from both durable
     // sources instead of assuming the counter is already caught up.
     const [organization, existingSequence] = await Promise.all([
-      tx.organization.findUniqueOrThrow({
+      billingCoordinator(tx).findUniqueOrThrow({
         where: { id: currentLocal.organizationId },
         select: { billingMutationSequence: true },
       }),
       tx.organizationBillingChange.aggregate({
-        where: { organizationId: currentLocal.organizationId },
+        where: { ...billingRecordScope(), organizationId: currentLocal.organizationId },
         _max: { sequence: true },
       }),
     ]);
@@ -387,13 +405,14 @@ async function quarantineCommercialMismatch(input: {
       organization.billingMutationSequence,
       existingSequence._max.sequence ?? 0
     ) + 1;
-    await tx.organization.update({
+    await billingCoordinator(tx).update({
       where: { id: currentLocal.organizationId },
       data: { billingMutationSequence: nextSequence },
     });
     const snapshot = commercialSnapshotOrNull(intent);
     const created = await tx.organizationBillingChange.create({
       data: {
+        ...billingRecordScope(),
         organizationId: currentLocal.organizationId,
         organizationSubscriptionId: currentLocal.id,
         sequence: nextSequence,
@@ -471,7 +490,7 @@ export class BillingReconciliationService {
     options: ReconciliationOptions = {}
   ) {
     const local = await prisma.organizationSubscription.findUnique({
-      where: { currentOrganizationId: organizationId },
+      where: { ...billingRecordScope(), ...currentSlot(organizationId) },
     });
     if (!local) throw new BillingResourceNotFoundError("Subscription not found");
     return this.reconcileProviderSubscription(local.razorpaySubscriptionId, options);
@@ -484,7 +503,7 @@ export class BillingReconciliationService {
   ): Promise<BillingReconciliationResult> {
     const now = options.now ?? new Date();
     const initialLocal = await prisma.organizationSubscription.findUnique({
-      where: { razorpaySubscriptionId },
+      where: { ...billingRecordScope(), razorpaySubscriptionId },
     });
     if (!initialLocal) throw new BillingResourceNotFoundError("Subscription not found");
     let localBeforeFetch = initialLocal;
@@ -496,12 +515,13 @@ export class BillingReconciliationService {
     }
     const [intent, organizationSnapshot, sourceReplacement] = await Promise.all([
       resolveCommercialIntent(localBeforeFetch, now, options.commercialIntentChangeId),
-      prisma.organization.findUnique({
+      billingCoordinator(prisma).findUnique({
         where: { id: localBeforeFetch.organizationId },
         select: { billingMutationSequence: true },
       }),
       prisma.organizationBillingChange.findFirst({
         where: {
+          ...billingRecordScope(),
           organizationId: localBeforeFetch.organizationId,
           organizationSubscriptionId: localBeforeFetch.id,
           replacementSubscriptionId: { not: null },
@@ -519,6 +539,14 @@ export class BillingReconciliationService {
       razorpay.fetchSubscriptionInvoices(razorpaySubscriptionId),
       options.paymentId ? razorpay.fetchPayment(options.paymentId) : Promise.resolve(null),
     ]);
+    const retiredReceipt = isRetiredAggregateReceipt(localBeforeFetch.organizationId);
+    if (retiredReceipt && (!["CANCELLED", "COMPLETED", "EXPIRED"].includes(localBeforeFetch.status)
+      || !["cancelled", "completed", "expired"].includes(providerSubscription.status))) {
+      // A converted mandate is retained for history. Unexpected renewal needs
+      // operator review and must not reactivate the old subscription or branch.
+      return quarantineCommercialMismatch({ local: localBeforeFetch, intent: null,
+        code: "RETIRED_AGGREGATE_STATE_MISMATCH", now, options });
+    }
     if (!hasProviderInvoiceCollectionShape(invoices)) {
       return quarantineCommercialMismatch({
         local: localBeforeFetch,
@@ -568,16 +596,18 @@ export class BillingReconciliationService {
     }
     const negativeLifecycle = ["pending", "paused", "halted", "cancelled", "completed", "expired"]
       .includes(providerSubscription.status.toLowerCase());
-    if (localBeforeFetch.pendingReplacementOrganizationId && negativeLifecycle) {
-      const stored = await prisma.$transaction(async tx => {
-        await tx.$queryRaw`SELECT "id" FROM "Organization" WHERE "id" = ${localBeforeFetch.organizationId} FOR UPDATE`;
-        const organization = await tx.organization.findUniqueOrThrow({ where: { id: localBeforeFetch.organizationId } });
-        const local = await tx.organizationSubscription.findUniqueOrThrow({ where: { id: localBeforeFetch.id } });
-        const lockedIntent = intent ? await tx.organizationBillingChange.findUnique({ where: { id: intent.id } }) : null;
+    const branchCurrent = localBeforeFetch.agreementBranchId != null
+      && localBeforeFetch.currentAgreementBranchId === localBeforeFetch.agreementBranchId;
+    if ((branchCurrent || isPendingSlot(localBeforeFetch, localBeforeFetch.organizationId)) && negativeLifecycle) {
+      const stored = await billingTransaction(async tx => {
+        await lockBillingCoordinator(tx, localBeforeFetch.organizationId);
+        const organization = await billingCoordinator(tx).findUniqueOrThrow({ where: { id: localBeforeFetch.organizationId } });
+        const local = await tx.organizationSubscription.findUniqueOrThrow({ where: { ...billingRecordScope(), id: localBeforeFetch.id } });
+        const lockedIntent = intent ? await tx.organizationBillingChange.findUnique({ where: { ...billingRecordScope(), id: intent.id } }) : null;
         if (organization.billingMutationSequence !== organizationSnapshot.billingMutationSequence
           || local.updatedAt.getTime() !== localBeforeFetch.updatedAt.getTime()
           || lockedIntent?.updatedAt.getTime() !== intent?.updatedAt.getTime()) return null;
-        return tx.organizationSubscription.update({ where: { id: local.id }, data: {
+        return tx.organizationSubscription.update({ where: { ...billingRecordScope(), id: local.id }, data: {
           status: providerSubscription.status.toUpperCase() as SaasSubscriptionStatus,
           lastReconciledAt: now,
         } });
@@ -675,20 +705,18 @@ export class BillingReconciliationService {
       if (scheduledReplacement
         && scheduledAt
         && scheduledAt.getTime() === scheduledReplacement.effectiveAt!.getTime()) {
-        const recovered = await prisma.$transaction(async tx => {
-          await tx.$queryRaw<Array<{ id: string }>>`
-            SELECT "id" FROM "Organization" WHERE "id" = ${localBeforeFetch.organizationId} FOR UPDATE
-          `;
+        const recovered = await billingTransaction(async tx => {
+          await lockBillingCoordinator(tx, localBeforeFetch.organizationId);
           const [organization, local, lockedIntent, lockedReplacement] = await Promise.all([
-            tx.organization.findUniqueOrThrow({
+            billingCoordinator(tx).findUniqueOrThrow({
               where: { id: localBeforeFetch.organizationId },
               select: { billingMutationSequence: true },
             }),
-            tx.organizationSubscription.findUniqueOrThrow({ where: { id: localBeforeFetch.id } }),
+            tx.organizationSubscription.findUniqueOrThrow({ where: { ...billingRecordScope(), id: localBeforeFetch.id } }),
             intent
-              ? tx.organizationBillingChange.findUnique({ where: { id: intent.id } })
+              ? tx.organizationBillingChange.findUnique({ where: { ...billingRecordScope(), id: intent.id } })
               : Promise.resolve(null),
-            tx.organizationBillingChange.findUnique({ where: { id: scheduledReplacement.id } }),
+            tx.organizationBillingChange.findUnique({ where: { ...billingRecordScope(), id: scheduledReplacement.id } }),
           ]);
           if (organization.billingMutationSequence !== organizationSnapshot.billingMutationSequence
             || local.updatedAt.getTime() !== localBeforeFetch.updatedAt.getTime()
@@ -699,7 +727,7 @@ export class BillingReconciliationService {
             return { stale: true as const };
           }
           const stored = await tx.organizationSubscription.update({
-            where: { id: local.id },
+            where: { ...billingRecordScope(), id: local.id },
             data: {
               cancelAtCycleEnd: true,
               cancellationRequestedAt: local.cancellationRequestedAt ?? now,
@@ -709,6 +737,7 @@ export class BillingReconciliationService {
           });
           const confirmed = await tx.organizationBillingChange.updateMany({
             where: {
+              ...billingRecordScope(),
               id: lockedReplacement.id,
               status: "SCHEDULED",
               operationStatus: lockedReplacement.operationStatus,
@@ -759,19 +788,17 @@ export class BillingReconciliationService {
 
     if (evidence.kind === "AUTHORIZATION_ONLY") {
       try {
-        const authorization = await prisma.$transaction(async tx => {
-          await tx.$queryRaw<Array<{ id: string }>>`
-            SELECT "id" FROM "Organization" WHERE "id" = ${localBeforeFetch.organizationId} FOR UPDATE
-          `;
-          const organization = await tx.organization.findUniqueOrThrow({
+        const authorization = await billingTransaction(async tx => {
+          await lockBillingCoordinator(tx, localBeforeFetch.organizationId);
+          const organization = await billingCoordinator(tx).findUniqueOrThrow({
             where: { id: localBeforeFetch.organizationId },
             select: { billingMutationSequence: true },
           });
           const local = await tx.organizationSubscription.findUniqueOrThrow({
-            where: { id: localBeforeFetch.id },
+            where: { ...billingRecordScope(), id: localBeforeFetch.id },
           });
           const lockedIntent = intent
-            ? await tx.organizationBillingChange.findUnique({ where: { id: intent.id } })
+            ? await tx.organizationBillingChange.findUnique({ where: { ...billingRecordScope(), id: intent.id } })
             : null;
           if (organization.billingMutationSequence !== organizationSnapshot.billingMutationSequence
             || local.updatedAt.getTime() !== localBeforeFetch.updatedAt.getTime()
@@ -810,7 +837,7 @@ export class BillingReconciliationService {
             providerStatus = "AUTHENTICATED";
           }
           const stored = await tx.organizationSubscription.update({
-            where: { id: local.id },
+            where: { ...billingRecordScope(), id: local.id },
             data: {
               status: providerStatus,
               authPaymentId: payment.id,
@@ -873,21 +900,22 @@ export class BillingReconciliationService {
       });
     }
     const settlement = evidence;
+    // Fetching a paid invoice can straddle the settlement second. Keep the
+    // confirmation pointer at the observation time, after provider reads.
+    const evidenceObservedAt = new Date(Math.max(now.getTime(), Date.now()));
 
     try {
-      const reconciliation = await prisma.$transaction(async tx => {
-        await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT "id" FROM "Organization" WHERE "id" = ${localBeforeFetch.organizationId} FOR UPDATE
-        `;
-        const organization = await tx.organization.findUniqueOrThrow({
+      const reconciliation = await billingTransaction(async tx => {
+        await lockBillingCoordinator(tx, localBeforeFetch.organizationId);
+        const organization = await billingCoordinator(tx).findUniqueOrThrow({
           where: { id: localBeforeFetch.organizationId },
           select: { billingMutationSequence: true },
         });
         const local = await tx.organizationSubscription.findUniqueOrThrow({
-          where: { id: localBeforeFetch.id },
+          where: { ...billingRecordScope(), id: localBeforeFetch.id },
         });
         const lockedIntent = await tx.organizationBillingChange.findUnique({
-          where: { id: intent.id },
+          where: { ...billingRecordScope(), id: intent.id },
         });
         if (organization.billingMutationSequence !== organizationSnapshot.billingMutationSequence
           || local.updatedAt.getTime() !== localBeforeFetch.updatedAt.getTime()
@@ -911,7 +939,7 @@ export class BillingReconciliationService {
         }
 
         const existingEvidence = await tx.organizationSubscriptionInvoice.findUnique({
-          where: { razorpayInvoiceId: selectedInvoice.id },
+          where: { ...billingRecordScope(), razorpayInvoiceId: selectedInvoice.id },
         });
         if (existingEvidence?.commercialEvidenceVersion != null
           && !evidenceMatchesStoredInvoice({
@@ -934,8 +962,9 @@ export class BillingReconciliationService {
         for (const invoice of invoices.items) {
           const exactInvoice = invoice.id === selectedInvoice.id;
           await tx.organizationSubscriptionInvoice.upsert({
-            where: { razorpayInvoiceId: invoice.id },
+            where: { ...billingRecordScope(), razorpayInvoiceId: invoice.id },
             create: {
+              ...billingRecordScope(),
               organizationId: local.organizationId,
               organizationSubscriptionId: local.id,
               razorpayInvoiceId: invoice.id,
@@ -963,7 +992,7 @@ export class BillingReconciliationService {
                     paymentCurrency: payment.currency.toUpperCase(),
                     paymentStatus: payment.status.toLowerCase(),
                     paymentCaptured: payment.captured === true,
-                    evidenceConfirmedAt: now,
+                    evidenceConfirmedAt: evidenceObservedAt,
                     evidenceFailureCode: null,
                   }
                 : {}),
@@ -990,7 +1019,7 @@ export class BillingReconciliationService {
                     paymentCurrency: payment.currency.toUpperCase(),
                     paymentStatus: payment.status.toLowerCase(),
                     paymentCaptured: payment.captured === true,
-                    evidenceConfirmedAt: existingEvidence?.evidenceConfirmedAt ?? now,
+                    evidenceConfirmedAt: existingEvidence?.evidenceConfirmedAt ?? evidenceObservedAt,
                     evidenceFailureCode: null,
                   }
                 : {}),
@@ -1005,7 +1034,7 @@ export class BillingReconciliationService {
           ? settlement.periodEnd
           : local.paidThrough;
         const stored = await tx.organizationSubscription.update({
-          where: { id: local.id },
+          where: { ...billingRecordScope(), id: local.id },
           data: {
             plan: frozen.authorizedPlan,
             amount: fromRazorpaySubunits(
@@ -1031,14 +1060,15 @@ export class BillingReconciliationService {
             paidThrough,
             lastConfirmedInvoiceId: selectedInvoice.id,
             lastConfirmedPaymentId: payment.id,
-            lastPaymentConfirmedAt: now,
+            lastPaymentConfirmedAt: evidenceObservedAt,
             lastReconciledAt: now,
           },
         });
 
         await tx.organizationSubscriptionHistory.upsert({
-          where: { dedupeKey: `paid:${local.razorpaySubscriptionId}:${selectedInvoice.id}` },
+          where: { ...billingRecordScope(), dedupeKey: `paid:${local.razorpaySubscriptionId}:${selectedInvoice.id}` },
           create: {
+            ...billingRecordScope(),
             organizationId: local.organizationId,
             organizationSubscriptionId: local.id,
             razorpaySubscriptionId: local.razorpaySubscriptionId,
@@ -1079,6 +1109,7 @@ export class BillingReconciliationService {
             || lockedIntent.failureCode?.startsWith("SOURCE_CANCELLATION_");
           const recorded = await tx.organizationBillingChange.updateMany({
             where: {
+              ...billingRecordScope(),
               id: lockedIntent.id,
               status: lockedIntent.status,
               operationStatus: lockedIntent.operationStatus,
@@ -1101,7 +1132,7 @@ export class BillingReconciliationService {
         } else if (lockedIntent.status !== "APPLIED"
           || lockedIntent.type === "COMMERCIAL_RECONCILIATION") {
           const applied = await tx.organizationBillingChange.updateMany({
-            where: options.expectedAttemptCount != null
+            where: { ...options.expectedAttemptCount != null
               && options.expectedVerificationStartedAt != null
               ? {
                   id: lockedIntent.id,
@@ -1114,7 +1145,7 @@ export class BillingReconciliationService {
                   status: lockedIntent.status,
                   operationStatus: lockedIntent.operationStatus,
                   updatedAt: lockedIntent.updatedAt,
-                },
+                }, ...billingRecordScope() },
             data: {
               status: "APPLIED",
               operationStatus: "APPLIED",
@@ -1139,19 +1170,27 @@ export class BillingReconciliationService {
               outcome: "PROVIDER_STATE_ADOPTED",
             });
           }
-          if (lockedIntent.branchId
+          if (!retiredReceipt && lockedIntent.branchId
             && ["QUANTITY_INCREASE", "BRANCH_REACTIVATION"].includes(lockedIntent.type)) {
             await tx.branch.update({
               where: { id: lockedIntent.branchId },
               data: { billingStatus: "ACTIVE", billingActivatedAt: now, billingArchivedAt: null },
             });
           }
-          if (lockedIntent.branchId && lockedIntent.type === "BRANCH_REMOVAL") {
+          if (!retiredReceipt && lockedIntent.branchId && lockedIntent.type === "BRANCH_REMOVAL") {
             await tx.branch.update({
               where: { id: lockedIntent.branchId },
               data: { billingStatus: "ARCHIVED", billingArchivedAt: now },
             });
           }
+        }
+
+        if (!replacement && stored.agreementBranchId && stored.currentAgreementBranchId === stored.agreementBranchId
+          && stored.status === "ACTIVE" && settlement.periodEnd > now) {
+          await tx.branch.updateMany({
+            where: { id: stored.agreementBranchId, organizationId: stored.organizationId, billingStatus: "PENDING_ACTIVATION" },
+            data: { billingStatus: "ACTIVE", billingActivatedAt: now, billingArchivedAt: null },
+          });
         }
 
         // Exact settlement proves an in-place update reached its frozen target.

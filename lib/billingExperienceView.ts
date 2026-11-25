@@ -17,6 +17,9 @@ export function toBranchAccessBillingExperience(
   if (isOwner) return experience;
 
   const projected: BranchBillingExperience = {
+    ...(experience.accessGrantEndsAt || (experience.independentBilling && experience.paidThrough)
+      ? { accessGrantEndsAt: experience.accessGrantEndsAt ?? experience.paidThrough } : {}),
+    ...(experience.independentBilling ? { independentBilling: true } : {}),
     organizationId: experience.organizationId,
     accessMode: experience.accessMode,
     effectivePlan: experience.effectivePlan,

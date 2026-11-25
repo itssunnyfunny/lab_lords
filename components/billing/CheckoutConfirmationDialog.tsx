@@ -9,13 +9,17 @@ type CheckoutConfirmationDialogProps = {
   loading: boolean;
   purpose?: "PLAN" | "RECOVERY" | "REPLACEMENT";
   planName: string;
+  branchName?: string;
+  currentPlanName?: string;
   downgradeNotice?: string | null;
+  addedFeatures?: string[];
   unitAmount: number;
   quantity: number;
-  monthlyTotal: number;
+  monthlyTotal: number | null;
   trialActive: boolean;
   changeTiming: "AUTHORIZATION" | "FUTURE_TRIAL" | "IMMEDIATE_PRORATION" | "NEXT_CYCLE";
   trialEndsAt: string | null;
+  existingCoverageEndsAt?: string | null;
   providerChargeAt: string | null;
   effectiveAt: string | null;
   planFeeDueToday: number;
@@ -30,7 +34,8 @@ type CheckoutConfirmationDialogProps = {
 const formatInr = (amount: number) => new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
 }).format(amount);
 
 const formatDate = (value: string) => new Intl.DateTimeFormat("en-IN", {
@@ -58,13 +63,17 @@ export function CheckoutConfirmationDialog({
   loading,
   purpose = "PLAN",
   planName,
+  branchName,
+  currentPlanName,
   downgradeNotice,
+  addedFeatures,
   unitAmount,
   quantity,
   monthlyTotal,
   trialActive,
   changeTiming,
   trialEndsAt,
+  existingCoverageEndsAt,
   providerChargeAt,
   effectiveAt,
   planFeeDueToday,
@@ -93,6 +102,8 @@ export function CheckoutConfirmationDialog({
         : t("{plan} will take effect at the next provider-confirmed billing cycle. Your current plan remains active until then.", { plan: planName })
       : changeTiming === "IMMEDIATE_PRORATION"
         ? "Razorpay will calculate and charge the prorated difference before Lab Lords applies the upgrade."
+        : existingCoverageEndsAt
+          ? t.owned("Existing paid coverage continues through {date}. Razorpay will confirm the first charge for this branch after its covered period.", { date: formatDate(existingCoverageEndsAt) })
         : trialActive && trialEndsAt
           ? t("If payment mandate authorization succeeds, Razorpay will schedule the first plan charge for {date}.", { date: formatDate(trialEndsAt) })
           : "Razorpay will show the immediate subscription charge before you authorize it.";
@@ -144,6 +155,10 @@ export function CheckoutConfirmationDialog({
         </>
       )}
     >
+        {branchName && <section className="mb-4 space-y-1" aria-label={t.owned("Selected branch")}>
+          <h3 className="font-semibold">{branchName}</h3>
+          <p className="text-sm">{currentPlanName ? <>{currentPlanName} → </> : null}{planName}</p>
+        </section>}
         {opensCheckout ? (
           <section
             className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-badge-cyan-border)] bg-[color:var(--ui-badge-cyan-bg)] p-4"
@@ -192,12 +207,12 @@ export function CheckoutConfirmationDialog({
               <dt className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">
                 {purpose === "RECOVERY" ? t("Current monthly total") : trialActive ? t("After trial") : t("Monthly total")}
               </dt>
-              <dd className="mt-1 text-lg font-semibold text-[color:var(--ui-text)]">{t("{formatInr}/month", { formatInr: formatInr(monthlyTotal) })}</dd>
+              <dd className="mt-1 text-lg font-semibold text-[color:var(--ui-text)]">{monthlyTotal == null ? t.owned("Awaiting confirmation") : t("{formatInr}/month", { formatInr: formatInr(monthlyTotal) })}</dd>
             </div>
-            <div className="sm:col-span-2">
+            {monthlyTotal != null && <div className="sm:col-span-2">
               <dt className="text-xs font-medium uppercase tracking-wide text-[color:var(--ui-text-muted)]">{t("Branch calculation")}</dt>
               <dd className="mt-1 text-sm text-[color:var(--ui-text)]">{t("{count} branch(s) × {amount} per branch", { count: quantity, amount: formatInr(unitAmount) })}</dd>
-            </div>
+            </div>}
           </dl>
         </section>
 
@@ -207,6 +222,10 @@ export function CheckoutConfirmationDialog({
             <p className="mt-2 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{t("This subscription change requires a new recurring payment authorization in Razorpay.")}</p>
           ) : null}
           <p className="mt-2 text-sm leading-6 text-[color:var(--ui-dialog-description)]">{t.owned(firstPlanCharge)}</p>
+          {addedFeatures && addedFeatures.length > 0 && <p className="mt-2 text-sm">{t.owned("Features gained")} · {addedFeatures.map(label => t.owned(label)).join(", ")}</p>}
+          {branchName && purpose !== "RECOVERY" && <p className="mt-2 text-sm">{t.owned("Students, fees, receipts, existing staff permissions and saved settings stay with this branch.")}</p>}
+          {purpose === "REPLACEMENT" && <p className="mt-2 text-sm">{t.owned("You can undo a pending replacement before its cutoff in Account billing.")}</p>}
+          {effectiveAt && purpose === "REPLACEMENT" && <p className="mt-2 text-sm">{t.owned("Planned billing change")} · {formatDate(effectiveAt)}</p>}
           {downgradeNotice && <p className="mt-3 rounded-lg border border-[color:var(--ui-panel-border)] p-3 text-sm leading-6">{t.owned(downgradeNotice)}</p>}
           {opensCheckout ? (
             <>

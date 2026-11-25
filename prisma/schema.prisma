@@ -113,7 +113,29 @@ model Organization {
   onboardingRequests OnboardingRequest[]
 }
 
+model BranchBillingAgreement {
+  legacyCoverageSubscriptionId String?
+  legacyCoverageEndsAt DateTime?
+  legacyCoverageSubscription OrganizationSubscription? @relation("AggregateCoverage", fields: [legacyCoverageSubscriptionId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  whatsAppEligibleSince DateTime?
+  branchId String @id
+  organizationId String
+  selectedPlan SaasPlan
+  billingMutationSequence Int @default(0)
+  billingMutationLeaseToken String?
+  billingMutationLeaseUntil DateTime?
+  createdAt DateTime @default(now())
+  branch Branch @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  subscription OrganizationSubscription? @relation("BranchCurrentSubscription")
+  pendingSubscriptionReplacement OrganizationSubscription? @relation("BranchPendingSubscription")
+  subscriptions OrganizationSubscription[] @relation("BranchSubscriptionOwner")
+  changes OrganizationBillingChange[]
+  @@unique([branchId, organizationId])
+  @@index([organizationId])
+}
+
 model Branch {
+  billingAgreement BranchBillingAgreement?
   allocationMoveCommands AllocationMoveCommand[]
   membershipTermRevisions MembershipTermRevision[]
   dashboardSettings DashboardSettings?
@@ -2187,6 +2209,7 @@ enum SaasSubscriptionHistorySource {
 enum BillingModelVersion {
   LEGACY
   WORKSPACE_V2
+  BRANCH_V3
 }
 
 enum OwnerTrialSource {
@@ -2400,6 +2423,14 @@ model OrganizationOfferGrant {
 }
 
 model OrganizationSubscription {
+  convertedAgreements BranchBillingAgreement[] @relation("AggregateCoverage")
+  currentAgreementBranchId String? @unique
+  pendingAgreementBranchId String? @unique
+  agreement BranchBillingAgreement? @relation("BranchSubscriptionOwner", fields: [agreementBranchId, organizationId], references: [branchId, organizationId], onDelete: Restrict)
+  currentForAgreement BranchBillingAgreement? @relation("BranchCurrentSubscription", fields: [currentAgreementBranchId], references: [branchId], onDelete: Restrict)
+  pendingForAgreement BranchBillingAgreement? @relation("BranchPendingSubscription", fields: [pendingAgreementBranchId], references: [branchId], onDelete: Restrict)
+  agreementBranchId String?
+  @@index([agreementBranchId])
   id                                String                            @id @default(cuid())
   organizationId                    String
   currentOrganizationId             String?                           @unique
@@ -2465,6 +2496,9 @@ model OrganizationSubscription {
 }
 
 model OrganizationBillingChange {
+  agreement BranchBillingAgreement? @relation(fields: [agreementBranchId, organizationId], references: [branchId, organizationId], onDelete: Restrict)
+  agreementBranchId String?
+  @@index([agreementBranchId])
   id                                     String                            @id @default(cuid())
   organizationId                         String
   organizationSubscriptionId             String?
@@ -2537,7 +2571,7 @@ model OrganizationBillingChange {
   auditEvents                            OrganizationBillingChangeAudit[]
   branch Branch? @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: SetNull, map: "TI_OrganizationBillingChange_branch_organizationId")
 
-  @@unique([organizationId, sequence])
+  @@unique([agreementBranchId, sequence])
   @@index([organizationId, status, sequence])
   @@index([organizationId, operationStatus, sequence])
   @@index([organizationId, commercialIntentVersion, sequence], map: "BillingChange_commercial_intent_idx")
@@ -2551,6 +2585,8 @@ model OrganizationBillingChange {
 }
 
 model OrganizationBillingChangeAudit {
+  agreementBranchId String?
+  @@index([agreementBranchId])
   id                     String                    @id @default(cuid())
   organizationId         String
   changeId               String
@@ -2568,6 +2604,8 @@ model OrganizationBillingChangeAudit {
 }
 
 model OrganizationSubscriptionInvoice {
+  agreementBranchId String?
+  @@index([agreementBranchId])
   id                         String                     @id @default(cuid())
   organizationId             String
   organizationSubscriptionId String?
@@ -2609,6 +2647,8 @@ model OrganizationSubscriptionInvoice {
 }
 
 model OrganizationSubscriptionHistory {
+  agreementBranchId String?
+  @@index([agreementBranchId])
   id                         String                        @id @default(cuid())
   organizationId             String
   organizationSubscriptionId String?
@@ -2636,6 +2676,8 @@ model OrganizationSubscriptionHistory {
 }
 
 model RazorpayWebhookEvent {
+  agreementBranchId String?
+  @@index([agreementBranchId])
   id                         String                    @id @default(cuid())
   eventId                    String                    @unique
   event                      String
@@ -2781,6 +2823,8 @@ model ImportTargetReference {
 
 /// One durable admission per distinct SaaS provider action, independent of local finalization.
 model BillingProviderAction {
+  agreementBranchId String?
+  @@index([agreementBranchId])
   id String @id @default(cuid())
   organizationId String
   changeId String?

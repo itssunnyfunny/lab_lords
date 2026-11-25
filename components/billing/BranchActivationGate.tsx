@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Archive, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
-import { billing as billingApi, type BillingCheckoutPayload } from "@/lib/api/billing";
+import { billingForBranch, billing as organizationBillingApi, type BillingCheckoutPayload } from "@/lib/api/billing";
 import {
   branches,
   resolveBranchBillingAction,
@@ -36,6 +36,7 @@ export function BranchActivationGate({ children }: { children: ReactNode }) {
   if (billingContext?.loading && !branch) return <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   if (!branch || branch.billingStatus === "ACTIVE" || branch.billingStatus === "REMOVAL_SCHEDULED") return <>{children}</>;
 
+  const independent = billingContext?.experience?.independentBilling;
   const owner = billingContext?.experience?.viewer.isOwner;
   const organizationId = billingContext?.experience?.organizationId;
   const pending = branch.billingStatus === "PENDING_ACTIVATION";
@@ -45,6 +46,7 @@ export function BranchActivationGate({ children }: { children: ReactNode }) {
     if (!checkoutScriptReady && !isRazorpayCheckoutReady()) {
       throw new Error("Razorpay Checkout is still loading. Please try again in a moment.");
     }
+    const billingApi = independent ? billingForBranch(branch.id) : organizationBillingApi;
     openRazorpayCheckout({
       payload: checkout,
       mode: "AUTHORIZATION",
@@ -115,12 +117,12 @@ export function BranchActivationGate({ children }: { children: ReactNode }) {
       <Archive className="h-10 w-10 text-amber-500" />
       <div>
         <h1 className="text-xl font-bold text-[color:var(--ui-text)]">{pending ? t("Branch activation is pending") : t("This branch is archived")}</h1>
-        <p className="mt-2 text-sm text-[color:var(--ui-text-muted)]">{pending ? t("Operational changes stay blocked until Razorpay confirms the branch quantity update.") : t("Existing data remains readable. Reactivation requires a provider-confirmed quantity increase.")}</p>
+        <p className="mt-2 text-sm text-[color:var(--ui-text-muted)]">{independent ? t.owned(pending ? "Confirm this branch subscription in Account billing to activate it." : "Open Account billing to review reactivation for this branch.") : pending ? t("Operational changes stay blocked until Razorpay confirms the branch quantity update.") : t("Existing data remains readable. Reactivation requires a provider-confirmed quantity increase.")}</p>
       </div>
       {error && <p className="text-sm text-red-500" role="alert"><LocalizedError error={error} /></p>}
       {owner && (
         <div className="flex flex-wrap justify-center gap-2">
-          {pending ? (
+          {independent ? null : pending ? (
             <>
               <AppButton isLoading={working === "retry"} onClick={() => perform("retry")}>{t("Retry activation")}</AppButton>
               <AppButton variant="danger" isLoading={working === "discard"} onClick={() => perform("discard")}>{t("Discard pending branch")}</AppButton>
@@ -128,7 +130,7 @@ export function BranchActivationGate({ children }: { children: ReactNode }) {
           ) : (
             <AppButton isLoading={working === "reactivate"} onClick={() => perform("reactivate")}>{t("Reactivate branch")}</AppButton>
           )}
-          <Link className="inline-flex items-center px-2 font-semibold text-[color:var(--ui-accent)] hover:underline" href={accountBillingHref(organizationId!, branch.id, `/branch/${branch.id}`)}>{t("Open organization billing")}</Link>
+          <Link className="inline-flex items-center px-2 font-semibold text-[color:var(--ui-accent)] hover:underline" href={accountBillingHref(organizationId!, branch.id, `/branch/${branch.id}`)}>{t.owned(independent ? "Manage branch plan" : "Open organization billing")}</Link>
         </div>
       )}
     </div>

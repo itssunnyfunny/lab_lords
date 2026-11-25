@@ -97,24 +97,13 @@ export function getBranchCapabilityDecision(
         };
     }
 
-    if (requirement.fullWorkspace && !["STANDARD", "STANDARD_TRIAL", "PRO"].includes(access.billingExperience?.effectivePlan ?? access.effectivePlan)) {
-        return { allowed: false, blocker: "entitlement", reason: "This feature requires the Standard plan.", recoveryHref: billingRecoveryHref(access) };
-    }
-
-    if (requirement.entitlement && !access.entitlements.includes(requirement.entitlement)) {
-        const requiredPlan = requirement.entitlement === "WHATSAPP_AUTOMATION" ? "Pro" : "Standard";
-        return {
-            allowed: false,
-            blocker: "entitlement",
-            reason: access.isOwner
-                ? `This feature requires the ${requiredPlan} plan.`
-                : `The organization owner needs to enable the ${requiredPlan} plan.`,
-            recoveryHref: billingRecoveryHref(access),
-        };
-    }
-
-    if (requirement.mutation) {
-        const branchStatus = access.billingExperience?.branch?.billingStatus;
+    const fullWorkspace = ["STANDARD", "STANDARD_TRIAL", "PRO"].includes(
+        access.branchStatus ? access.effectivePlan : access.billingExperience?.effectivePlan ?? access.effectivePlan
+    );
+    const needsUpgrade = (requirement.fullWorkspace && !fullWorkspace)
+        || (requirement.entitlement && !access.entitlements.includes(requirement.entitlement));
+    if (requirement.mutation || (access.canWrite === false && needsUpgrade)) {
+        const branchStatus = access.branchStatus ?? access.billingExperience?.branch?.billingStatus;
         if (branchStatus && !ALLOWED_BRANCH_STATES.has(branchStatus)) {
             return {
                 allowed: false,
@@ -128,14 +117,30 @@ export function getBranchCapabilityDecision(
             };
         }
 
-        if (access.billingExperience?.accessMode === "READ_ONLY") {
+        if (access.canWrite === false || access.billingExperience?.accessMode === "READ_ONLY") {
             return {
                 allowed: false,
                 blocker: "read_only",
-                reason: access.billingExperience.customerMessage || "This workspace is read-only.",
+                reason: access.billingExperience?.customerMessage || access.accessReason || "This workspace is read-only.",
                 recoveryHref: billingRecoveryHref(access),
             };
         }
+    }
+
+    if (requirement.fullWorkspace && !fullWorkspace) {
+        return { allowed: false, blocker: "entitlement", reason: `${access.branchName} needs the Standard plan for this feature.`, recoveryHref: billingRecoveryHref(access) };
+    }
+
+    if (requirement.entitlement && !access.entitlements.includes(requirement.entitlement)) {
+        const requiredPlan = requirement.entitlement === "WHATSAPP_AUTOMATION" ? "Pro" : "Standard";
+        return {
+            allowed: false,
+            blocker: "entitlement",
+            reason: access.isOwner
+                ? `${access.branchName} needs the ${requiredPlan} plan for this feature.`
+                : `The owner needs to enable the ${requiredPlan} plan for ${access.branchName}.`,
+            recoveryHref: billingRecoveryHref(access),
+        };
     }
 
     return { allowed: true, blocker: null, reason: null, recoveryHref: null };

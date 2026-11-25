@@ -12,6 +12,8 @@ export async function readOrgSnapshotForAI(
     return {
         orgId: snapshot.orgId,
         orgName: snapshot.orgName,
+        includedBranches: snapshot.includedBranches,
+        excludedBranches: snapshot.excludedBranches,
         branches: snapshot.branches,
         totals: snapshot.totals,
         asOf: snapshot.asOf,

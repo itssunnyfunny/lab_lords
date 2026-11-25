@@ -17,3 +17,7 @@ export class OrganizationValidationError extends Error {
     this.name = "OrganizationValidationError";
   }
 }
+
+export class AnalyticsScopeChangedError extends Error {
+  constructor() { super("Branch access changed while loading this report. Refresh to see the current branches.") }
+}

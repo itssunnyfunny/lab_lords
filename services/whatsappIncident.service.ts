@@ -238,11 +238,11 @@ export class WhatsAppIncidentService {
     organizationId: string;
     limit?: number;
   }) {
-    await WhatsAppAuthorizationService.assertOwnerEntitled(
+    const access = await WhatsAppAuthorizationService.assertOwnerEntitled(
       input.actorUserId,
       input.organizationId
     );
-    return this.listSafe({ organizationId: input.organizationId, limit: input.limit });
+    return this.listSafe({ organizationId: input.organizationId, eligibleIds: access.branches?.included.map(branch => branch.id), limit: input.limit });
   }
 
   static async listBranch(input: {
@@ -260,6 +260,7 @@ export class WhatsAppIncidentService {
   }
 
   private static async listSafe(input: {
+    eligibleIds?: string[];
     organizationId?: string;
     branchId?: string;
     limit?: number;
@@ -272,6 +273,7 @@ export class WhatsAppIncidentService {
       where: {
         ...(input.organizationId ? { organizationId: input.organizationId } : {}),
         ...(input.branchId ? { branchId: input.branchId } : {}),
+        ...(input.eligibleIds && { OR: [{ branchId: null }, { branchId: { in: input.eligibleIds } }] }),
       },
       orderBy: [{ status: "asc" }, { severity: "desc" }, { lastSeenAt: "desc" }],
       take: limit,
@@ -298,6 +300,7 @@ export class WhatsAppIncidentService {
         status: "UNKNOWN",
         ...(input.organizationId ? { organizationId: input.organizationId } : {}),
         ...(input.branchId ? { branchId: input.branchId } : {}),
+        ...(input.eligibleIds && { OR: [{ branchId: null }, { branchId: { in: input.eligibleIds } }] }),
       },
       orderBy: [{ submissionStartedAt: "asc" }, { id: "asc" }],
       take: limit,
@@ -376,6 +379,10 @@ export class WhatsAppIncidentService {
         },
       });
       if (!incident) throw new WhatsAppResourceNotFoundError();
+      if (input.organizationId && incident.branchId) {
+        await EntitlementService.assertBranchEntitlement(incident.branchId, "WHATSAPP_AUTOMATION", tx);
+        await EntitlementService.assertBranchWritable(incident.branchId, tx);
+      }
       const now = new Date();
       const acknowledged = incident.status === "ACKNOWLEDGED"
         ? incident

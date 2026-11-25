@@ -385,3 +385,14 @@ labels cannot overlap. The static organization name wraps at its existing font
 size while the native branch select retains its 44px touch target. This is scoped
 to reference-topbar workspace controls; Account and Basic keep their own headers.
 The fresh audit covers four page families in three languages at 320px and 390px.
+
+## Independently billed branches
+
+The branch access provider supplies the effective plan, lifecycle and permissions
+to the shared workspace shell. Basic uses the simple workspace. Standard and Pro
+use the full workspace and independently check each feature, including WhatsApp.
+The import workspace follows the active branch in all three plans. The switcher
+uses the authorized directory and resolves the destination before restoring a
+page or form. Account Billing keeps the selected organization and branch in the
+URL and labels its prices, operations and invoices with that scope.
+See [local verification and rollout](../billing/independent-branch-rollout.md).

@@ -12,6 +12,34 @@
     "nullable": false
   },
   {
+    "model": "BranchBillingAgreement",
+    "field": "legacyCoverageSubscription",
+    "parent": "OrganizationSubscription",
+    "fields": [
+      "legacyCoverageSubscriptionId",
+      "organizationId"
+    ],
+    "references": [
+      "id",
+      "organizationId"
+    ],
+    "nullable": true
+  },
+  {
+    "model": "BranchBillingAgreement",
+    "field": "branch",
+    "parent": "Branch",
+    "fields": [
+      "branchId",
+      "organizationId"
+    ],
+    "references": [
+      "id",
+      "organizationId"
+    ],
+    "nullable": false
+  },
+  {
     "model": "Branch",
     "field": "organization",
     "parent": "Organization",
@@ -2191,6 +2219,44 @@
   },
   {
     "model": "OrganizationSubscription",
+    "field": "agreement",
+    "parent": "BranchBillingAgreement",
+    "fields": [
+      "agreementBranchId",
+      "organizationId"
+    ],
+    "references": [
+      "branchId",
+      "organizationId"
+    ],
+    "nullable": true
+  },
+  {
+    "model": "OrganizationSubscription",
+    "field": "currentForAgreement",
+    "parent": "BranchBillingAgreement",
+    "fields": [
+      "currentAgreementBranchId"
+    ],
+    "references": [
+      "branchId"
+    ],
+    "nullable": true
+  },
+  {
+    "model": "OrganizationSubscription",
+    "field": "pendingForAgreement",
+    "parent": "BranchBillingAgreement",
+    "fields": [
+      "pendingAgreementBranchId"
+    ],
+    "references": [
+      "branchId"
+    ],
+    "nullable": true
+  },
+  {
+    "model": "OrganizationSubscription",
     "field": "organization",
     "parent": "Organization",
     "fields": [
@@ -2261,6 +2327,20 @@
     ],
     "references": [
       "id",
+      "organizationId"
+    ],
+    "nullable": true
+  },
+  {
+    "model": "OrganizationBillingChange",
+    "field": "agreement",
+    "parent": "BranchBillingAgreement",
+    "fields": [
+      "agreementBranchId",
+      "organizationId"
+    ],
+    "references": [
+      "branchId",
       "organizationId"
     ],
     "nullable": true

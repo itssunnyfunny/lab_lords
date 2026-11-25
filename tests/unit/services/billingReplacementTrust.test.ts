@@ -93,11 +93,6 @@ vi.mock("@/services/billingReplacement.service", () => ({
   isCandidateCancellationRetrySafeCode: () => false,
 }));
 
-vi.mock("@/services/billingReplacementPolicy", async importOriginal => ({
-  ...await importOriginal<typeof import("@/services/billingReplacementPolicy")>(),
-  isReplacementMutationEligible: () => true,
-}));
-
 vi.mock("@/services/billingPaymentMethod.service", () => ({
   isSupportedProviderPaymentMethod: (method: string) => ["CARD", "UPI", "EMANDATE"].includes(method),
   normalizeProviderPaymentMethod: (method: string | null | undefined) => {
@@ -260,7 +255,7 @@ describe("replacement billing trust and race contracts", () => {
       );
 
       expect(mocks.billingChangeUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: change.id, operationStatus: "CHECKOUT_OPEN" },
+        where: { agreementBranchId: null, id: change.id, operationStatus: "CHECKOUT_OPEN" },
         data: expect.objectContaining({
           status: "AWAITING_PAYMENT",
           operationStatus: "AWAITING_PROVIDER_CONFIRMATION",
@@ -352,6 +347,7 @@ describe("replacement billing trust and race contracts", () => {
       .data.verificationStartedAt;
     expect(mocks.billingChangeUpdateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
       where: {
+        agreementBranchId: null,
         id: change.id,
         operationStatus: "VERIFYING",
         attemptCount: 0,
@@ -424,7 +420,7 @@ describe("replacement billing trust and race contracts", () => {
       operationStatus: "PROCESSING",
     });
     mocks.enqueueMutation.mockResolvedValue(processing);
-    mocks.billingChangeFindUnique.mockResolvedValue(processing);
+    mocks.billingChangeFindUniqueOrThrow.mockResolvedValue(processing);
 
     const result = await BillingService.changeWorkspacePlan(
       "owner_1",
@@ -441,6 +437,31 @@ describe("replacement billing trust and race contracts", () => {
     expect(mocks.processNextMutation).toHaveBeenCalledWith("org_1");
   });
 
+  it.each(["plan", "replacement plan", "payment method"])("returns the requested %s operation when the worker processed an earlier item", async action => {
+    if (action === "plan") mocks.getOrganizationForOwnerAccess.mockResolvedValue({
+      ...organization(), subscription: sourceSubscription({ providerPaymentMethod: null }),
+    });
+    const key = crypto.randomUUID();
+    const queued = replacementChange({
+      agreementBranchId: "branch", idempotencyKey: key, status: "QUEUED", operationStatus: "AWAITING_PROVIDER_CONFIRMATION",
+      replacementSubscription: null, replacementSubscriptionId: null,
+    });
+    mocks.enqueueMutation.mockResolvedValue(queued);
+    mocks.processNextMutation.mockResolvedValue(replacementChange({ id: "older" }));
+    mocks.billingChangeFindUniqueOrThrow.mockResolvedValue(queued);
+    const result = action === "payment method"
+      ? await BillingService.createPaymentMethodReplacement("owner_1", "org_1", key)
+      : await BillingService.changeWorkspacePlan("owner_1", "org_1", "PRO", key);
+    expect(mocks.billingChangeFindUniqueOrThrow).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: queued.id, organizationId: "org_1" }),
+    }));
+    expect(result).toMatchObject({
+      operation: { id: queued.id, queueStatus: "QUEUED", clientIntent: { key, resolved: false } },
+      processingUrl: "/org/org_1/billing/processing/change_1",
+    });
+    expect(result).not.toHaveProperty("keyId");
+  });
+
   it("returns an exact cancellation-pending replacement as processing and never reopens checkout", async () => {
     const cancellationPending = replacementChange({
       status: "FAILED",
@@ -450,7 +471,7 @@ describe("replacement billing trust and race contracts", () => {
       lastError: "Razorpay candidate cancellation is still being confirmed",
     });
     mocks.enqueueMutation.mockResolvedValue(cancellationPending);
-    mocks.billingChangeFindUnique.mockResolvedValue(cancellationPending);
+    mocks.billingChangeFindUniqueOrThrow.mockResolvedValue(cancellationPending);
 
     const result = await BillingService.changeWorkspacePlan(
       "owner_1",

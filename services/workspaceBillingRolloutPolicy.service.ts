@@ -39,6 +39,9 @@ export async function applyWorkspaceBillingPromotion(
     },
   });
   if (!organization) throw new Error(`Organization ${organizationId} was not found`);
+  if (organization.billingModelVersion === "BRANCH_V3") {
+    throw new Error("An independent agreement cannot be promoted to aggregate workspace billing");
+  }
   if (organization.billingModelVersion === "WORKSPACE_V2") {
     return { organizationId, unchanged: true, transitionId: null };
   }

@@ -1,5 +1,5 @@
 import { renderPublic } from "../helpers/public-render";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import About from "@/app/about/page";
 import Faq from "@/app/faq/page";
 import Setup from "@/app/how-it-works/page";
@@ -15,15 +15,56 @@ import robots from "@/app/robots";
 import { faqGroups, getPublicFaqs, publicFaqs } from "@/lib/publicFaqs";
 import { publicBillingPlans } from "@/lib/billingPlans";
 import { publicMetadata } from "@/lib/publicMetadata";
+import { publicBranchBillingCopy } from "@/lib/publicBranchBillingCopy";
+import { publicCatalog } from "@/lib/public-i18n/catalog";
+import { messagesFor, publicTranslator } from "@/lib/public-i18n/translate";
+import { publicLocales, type PublicLocale } from "@/lib/public-i18n/routes";
 
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ isLoaded: true, isSignedIn: false }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/faq", useSearchParams: () => new URLSearchParams() }));
 vi.mock("next/font/google", () => ({ Playfair_Display: () => ({ variable: "public-display-font" }) }));
 
 
-vi.mock("@/lib/public-i18n/server", () => ({ publicStrings: async () => ({ locale: "en", t: (value: string, params?: Record<string, string | number>) => params ? value.replace(/\{(\w+)\}/g, (match, key) => String(params[key] ?? match)) : value, href: (path: string) => path, uiMessages: {} }) }));
+const language = vi.hoisted(() => ({ current: "en" as PublicLocale }));
+vi.mock("@/lib/public-i18n/server", () => ({ publicStrings: async () => ({
+  locale: language.current, t: publicTranslator(messagesFor(publicCatalog, language.current)),
+  href: (path: string) => path, uiMessages: {},
+}) }));
+afterEach(() => { language.current = "en"; vi.unstubAllEnvs(); });
 
 describe("complete public marketing journey", () => {
+  it.each([["false", "true"], ["true", "false"]])("retains shared-plan terms when either enrollment control is off", async (workspace, branch) => {
+    vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", workspace);
+    vi.stubEnv("BRANCH_BILLING_V3_ONBOARDING_ENABLED", branch);
+    const [home, features, pricing, faq] = await Promise.all([Home, Features, Pricing, Faq].map(Page => renderPublic(<Page />)));
+    expect(pricing).toContain("Your organization’s plan applies to all its branches");
+    expect(pricing).toContain("3 × ₹299 = ₹897");
+    expect(features).toContain("Each billable branch is charged separately under the chosen plan.");
+    expect(home).toContain("Three plans. Clear monthly pricing for each billable branch.");
+    expect(faq).toContain("the total depends on your plan and billable branch count");
+    expect(home + features + pricing + faq).not.toContain(publicBranchBillingCopy.intro);
+    expect(pricing).not.toContain("Together these plans cost");
+  });
+
+  it.each(publicLocales)("shows separately billed new branches and a catalogue-based mixed total in %s", async locale => {
+    vi.stubEnv("WORKSPACE_BRANCH_BILLING_V2_ENABLED", "true");
+    vi.stubEnv("BRANCH_BILLING_V3_ONBOARDING_ENABLED", "true");
+    language.current = locale;
+    const t = publicTranslator(messagesFor(publicCatalog, locale));
+    const [home, features, pricing, faq] = await Promise.all([Home, Features, Pricing, Faq].map(Page => renderPublic(<Page />)));
+    expect(home).toContain(t(publicBranchBillingCopy.intro));
+    expect(home).toContain(t(publicBranchBillingCopy.branches));
+    expect(features).toContain(t(publicBranchBillingCopy.eligibleReports));
+    expect(pricing).toContain(t(publicBranchBillingCopy.charges));
+    for (const plan of publicBillingPlans(true)) {
+      expect(pricing).toContain(t(publicBranchBillingCopy.mixedLine, { plan: plan.shortName, amount: plan.amount! }));
+    }
+    expect(pricing).toContain(t(publicBranchBillingCopy.mixedTotal, { total: "897" }));
+    expect(pricing).not.toContain(t("Organization-wide plan, priced per active branch"));
+    expect(faq).toContain(t(publicBranchBillingCopy.branches));
+    expect(faq).toContain(t(publicBranchBillingCopy.trialEnd));
+    expect(faq).toContain(t(publicBranchBillingCopy.cancel));
+  });
   it("keeps approved hero wording and targets only self-study spaces in active promotion", async () => {
     expect(copy.hero.title).toBe("A simpler way to manage your library.");
     expect(copy.hero.description).toBe("Students, seats, shifts and fees — all in one place. Keep your library organised with an easy-to-use dashboard.");

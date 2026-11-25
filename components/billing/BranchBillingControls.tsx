@@ -1,8 +1,9 @@
 "use client";
-import { accountBillingProcessingHref } from "@/lib/accountNavigation";
+import { accountBillingHref, accountBillingProcessingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { branches } from "@/lib/api/branches";
 import { AppButton, Dialog } from "@/components/ui";
 import { useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
@@ -10,12 +11,15 @@ import { useUserPreferences } from "@/components/settings/UserPreferencesApplier
 type RemovalResult = { action?: "NONE" | "PROCESSING" | "CHECKOUT_REQUIRED"; change?: { id: string; effectiveAt: string | null } };
 
 /** The server owns effective dates, provider actions, replay and undo eligibility. */
-export function BranchBillingControls({ organizationId, branchId, branchName, billingStatus, canChange, finalBranch, onChanged }: {
+export function BranchBillingControls({ organizationId, branchId, branchName, billingStatus, canChange, finalBranch, independent, returnTo, onChanged }: {
     organizationId: string; branchId: string; branchName: string; billingStatus: string; canChange: boolean; finalBranch: boolean;
-    onChanged: (status: string) => void;
+    independent?: boolean;
+    returnTo?: string | null;
+    onChanged: (status?: string) => void;
 }) {
     const t = useTranslation(); const router = useRouter(); const { ownerKey, formatDate } = useUserPreferences();
     const storageKey = `branch-billing-removal:${ownerKey}:${organizationId}:${branchId}`;
+    const billingContext = accountBillingHref(organizationId, branchId, returnTo);
     const [pendingKey, setPendingKey] = useState<string | null>(null);
     const [ready, setReady] = useState(false); const [review, setReview] = useState(false);
     const [busy, setBusy] = useState(false); const inFlight = useRef(false);
@@ -50,7 +54,7 @@ export function BranchBillingControls({ organizationId, branchId, branchName, bi
             sessionStorage.removeItem(storageKey); setPendingKey(null); setReview(false);
             onChanged(undo ? "ACTIVE" : "REMOVAL_SCHEDULED");
             if (!undo && saved.change?.id && saved.action !== "NONE") {
-                router.push(accountBillingProcessingHref(organizationId, saved.change.id));
+                router.push(accountBillingProcessingDestination(accountBillingProcessingHref(organizationId, saved.change.id), billingContext));
             } else {
                 setNotice(undo ? t.owned("Branch removal cancelled.") : saved.change?.effectiveAt
                     ? t.owned("Branch removal scheduled for {date}.", { date: formatDate(saved.change.effectiveAt) })
@@ -58,6 +62,9 @@ export function BranchBillingControls({ organizationId, branchId, branchName, bi
             }
         } catch (failure) { setError(failure instanceof Error ? failure.message : "Unable to confirm the branch billing change. Retry the same request."); }
         finally { inFlight.current = false; setBusy(false); }
+    }
+    if (independent && (billingStatus === "ARCHIVED" || billingStatus === "PENDING_ACTIVATION")) {
+        return <InactiveBranchControls key={billingStatus} branchId={branchId} branchName={branchName} archived={billingStatus === "ARCHIVED"} finalBranch={finalBranch} onChanged={() => onChanged()} />;
     }
     return <div className="space-y-2 border-t border-[color:var(--ui-panel-border)] p-3">
         <p className="text-xs text-[color:var(--text-muted)]">{t.owned(billingStatus.replaceAll("_", " "))}</p>
@@ -71,8 +78,56 @@ export function BranchBillingControls({ organizationId, branchId, branchName, bi
                 {!undo && <p>{t.owned("Student fees continue to come due until the branch closes. Existing dues and receipts are kept.")}</p>}
                 {pendingKey && <p role="status">{t.owned("A request may already be recorded. Retry the same request to confirm its result. Closing this dialog does not cancel it.")}</p>}
                 {error && <p role="alert">{t.owned(error)}</p>}
-                {existingChangeId && <Link className="inline-flex min-h-11 items-center underline" href={accountBillingProcessingHref(organizationId, existingChangeId)}>{t.owned("Review existing billing change")}</Link>}
+                {existingChangeId && <Link className="inline-flex min-h-11 items-center underline" href={accountBillingProcessingDestination(accountBillingProcessingHref(organizationId, existingChangeId), billingContext)}>{t.owned("Review existing billing change")}</Link>}
             </div>
+        </Dialog>
+    </div>;
+}
+
+
+function InactiveBranchControls({ branchId, branchName, archived, finalBranch, onChanged }: {
+    branchId: string; branchName: string; archived: boolean; finalBranch: boolean; onChanged: () => void;
+}) {
+    const t = useTranslation();
+    const { ownerKey } = useUserPreferences();
+    const [review, setReview] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
+    const inFlight = useRef(false);
+    const label = archived ? "Reactivate branch" : "Discard pending branch";
+    async function confirm() {
+        if (inFlight.current) return;
+        inFlight.current = true;
+        setBusy(true);
+        setError("");
+        try {
+            if (archived) {
+                const storageKey = `branch-reactivation:${ownerKey}:${branchId}`;
+                const key = sessionStorage.getItem(storageKey) ?? crypto.randomUUID();
+                sessionStorage.setItem(storageKey, key);
+                await branches.reactivate(branchId, key);
+                sessionStorage.removeItem(storageKey);
+            } else {
+                await branches.discardPendingActivation(branchId);
+            }
+            setReview(false);
+            onChanged();
+        } catch (cause) {
+            setError(cause instanceof Error ? cause.message : "Unable to update branch billing");
+        } finally {
+            inFlight.current = false;
+            setBusy(false);
+        }
+    }
+    return <div className="space-y-2 p-3">
+        <AppButton variant="secondary" disabled={!archived && finalBranch} onClick={() => setReview(true)}>{t.owned(label)}</AppButton>
+        <Dialog open={review} title={t.owned(label)} onClose={() => setReview(false)} closeDisabled={busy} footer={<>
+            <AppButton variant="secondary" disabled={busy} onClick={() => setReview(false)}>{t("Close")}</AppButton>
+            <AppButton variant={archived ? "primary" : "danger"} isLoading={busy} onClick={() => void confirm()}>{t.owned(label)}</AppButton>
+        </>}>
+            <strong>{branchName}</strong>
+            <p className="mt-2 text-sm">{t.owned(archived ? "Reopen this branch with its existing records. Without an active owner trial, paid access requires confirmation." : "Archive this pending branch and retain its records.")}</p>
+            {error && <p role="alert">{t.error(error)}</p>}
         </Dialog>
     </div>;
 }

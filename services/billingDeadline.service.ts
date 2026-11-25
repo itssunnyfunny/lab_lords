@@ -1,3 +1,4 @@
+import { billingRecordScope, lockBillingCoordinator, billingCoordinator, withSystemBillingScope } from "@/services/billingAgreementScope.service";
 import { prisma } from "@/lib/prisma";
 import {
   BillingMutationService,
@@ -13,6 +14,7 @@ import {
   isCandidateCancellationReconciliationCode,
 } from "@/services/billingReplacement.service";
 import {
+  BillingService,
   cancelLapsedInitialAuthorization,
   isInitialAuthorizationDue,
 } from "@/services/billing.service";
@@ -37,10 +39,8 @@ export async function recoverExpiredBillingMutationLease(
   now: Date
 ) {
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT "id" FROM "Organization" WHERE "id" = ${organization.id} FOR UPDATE
-    `;
-    const current = await tx.organization.findUnique({
+    await lockBillingCoordinator(tx, organization.id);
+    const current = await billingCoordinator(tx).findUnique({
       where: { id: organization.id },
       select: { billingMutationLeaseToken: true, billingMutationLeaseUntil: true },
     });
@@ -52,7 +52,7 @@ export async function recoverExpiredBillingMutationLease(
     }
 
     const processing = await tx.organizationBillingChange.findFirst({
-      where: { organizationId: organization.id, status: "PROCESSING" },
+      where: { ...billingRecordScope(), organizationId: organization.id, status: "PROCESSING" },
       orderBy: { sequence: "asc" },
       select: {
         id: true,
@@ -80,6 +80,7 @@ export async function recoverExpiredBillingMutationLease(
               : "PROVIDER_MUTATION_LEASE_EXPIRED";
       const quarantined = await tx.organizationBillingChange.updateMany({
         where: {
+          ...billingRecordScope(),
           id: processing.id,
           status: "PROCESSING",
           attemptCount: processing.attemptCount,
@@ -112,7 +113,7 @@ export async function recoverExpiredBillingMutationLease(
         });
       }
     }
-    const released = await tx.organization.updateMany({
+    const released = await billingCoordinator(tx).updateMany({
       where: {
         id: organization.id,
         billingMutationLeaseToken: organization.billingMutationLeaseToken,
@@ -126,11 +127,63 @@ export async function recoverExpiredBillingMutationLease(
 
 export class BillingDeadlineService {
   static async run(now = new Date()) {
-    const errors: Array<{ organizationId: string; message: string }> = [];
-    const expiredTrials = await OwnerTrialService.expireDueTrials(now);
+    const total = await this.runScope(now, null);
+    let cursor: string | undefined;
+    for (;;) {
+      const agreements = await prisma.branchBillingAgreement.findMany({
+        where: { branch: { organization: { billingModelVersion: "BRANCH_V3" } },
+          OR: [
+            { pendingSubscriptionReplacement: { isNot: null } },
+            { billingMutationLeaseUntil: { lte: now } },
+            { changes: { some: { OR: [
+              { type: "SUBSCRIPTION_AUTHORIZATION", operationStatus: { in: ["CHECKOUT_OPEN", "VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"] }, confirmationDeadlineAt: { lte: now } },
+              { type: "CANCELLATION", status: "QUEUED", undoCutoffAt: { lte: now } },
+              { type: "BRANCH_REMOVAL", status: "SCHEDULED", effectiveAt: { lte: now } },
+              { status: "FAILED", failureCategory: { in: ["PROVIDER_REJECTED", "PRE_PROVIDER_FAILURE"] }, attemptCount: { lt: MAX_AUTOMATIC_ATTEMPTS } },
+            ] } } },
+            { subscription: { is: { OR: [
+              { paidThrough: null, status: { in: ["CREATED", "AUTHENTICATED", "ACTIVE"] }, OR: [
+                { authorizationExpiresAt: { lte: now } }, { providerStartAt: { lte: now } },
+              ] },
+              { status: { in: ["ACTIVE", "PENDING", "HALTED", "PAUSED", "CANCELLED", "COMPLETED"] }, OR: [
+                { lastReconciledAt: null }, { lastReconciledAt: { lt: new Date(now.getTime() - RECONCILE_AFTER_MS) } },
+              ] },
+            ] } } },
+          ] },
+        select: { organizationId: true, branchId: true, billingMutationLeaseToken: true, billingMutationLeaseUntil: true },
+        orderBy: { branchId: "asc" }, take: REPLACEMENT_DEADLINE_PAGE_SIZE,
+        ...(cursor ? { cursor: { branchId: cursor }, skip: 1 } : {}),
+      });
+      for (const agreement of agreements) {
+        try {
+          const result = await withSystemBillingScope(agreement, () => this.runScope(now, agreement));
+          for (const key of Object.keys(result) as Array<keyof typeof result>) {
+            if (key === "errors") total.errors.push(...result.errors.map(error => ({ ...error, branchId: agreement.branchId })));
+            else total[key] += result[key];
+          }
+        } catch (error) {
+          total.errors.push({ organizationId: agreement.organizationId, branchId: agreement.branchId,
+            message: error instanceof Error ? error.message : "Branch billing reconciliation failed" });
+        }
+      }
+      if (agreements.length < REPLACEMENT_DEADLINE_PAGE_SIZE) break;
+      cursor = agreements[agreements.length - 1].branchId;
+    }
+    return total;
+  }
 
-    const staleLeases = await prisma.organization.findMany({
+  private static async runScope(now: Date, scope: {
+    branchId: string; organizationId: string; billingMutationLeaseUntil: Date | null; billingMutationLeaseToken: string | null;
+  } | null) {
+    const errors: Array<{ organizationId: string; branchId?: string; message: string }> = [];
+    const expiredTrials = scope ? { count: 0 } : await OwnerTrialService.expireDueTrials(now);
+
+    const staleLeases = scope
+      ? scope.billingMutationLeaseUntil && scope.billingMutationLeaseUntil <= now
+        ? [{ id: scope.organizationId, billingMutationLeaseToken: scope.billingMutationLeaseToken }] : []
+      : await prisma.organization.findMany({
       where: {
+        billingModelVersion: { not: "BRANCH_V3" },
         billingMutationLeaseUntil: { lte: now },
       },
       select: { id: true, billingMutationLeaseToken: true },
@@ -143,12 +196,13 @@ export class BillingDeadlineService {
 
     const retryableFailures = await prisma.organizationBillingChange.findMany({
       where: {
+        ...billingRecordScope(),
         status: "FAILED",
         type: { notIn: ["SUBSCRIPTION_AUTHORIZATION", "UNSUPPORTED_METHOD_CANCELLATION"] },
         replacementSubscriptionId: null,
         failureCategory: { in: ["PROVIDER_REJECTED", "PRE_PROVIDER_FAILURE"] },
         attemptCount: { lt: MAX_AUTOMATIC_ATTEMPTS },
-        organization: { billingModelVersion: "WORKSPACE_V2" },
+        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
       },
       orderBy: [{ organizationId: "asc" }, { sequence: "asc" }],
       distinct: ["organizationId"],
@@ -171,10 +225,11 @@ export class BillingDeadlineService {
 
     const dueCancellations = await prisma.organizationBillingChange.findMany({
       where: {
+        ...billingRecordScope(),
         type: "CANCELLATION",
         status: "QUEUED",
         undoCutoffAt: { lte: now },
-        organization: { billingModelVersion: "WORKSPACE_V2" },
+        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
       },
       select: { organizationId: true },
       distinct: ["organizationId"],
@@ -197,8 +252,9 @@ export class BillingDeadlineService {
     while (true) {
       const replacementPage = await prisma.organizationBillingChange.findMany({
         where: {
+          ...billingRecordScope(),
           replacementSubscriptionId: { not: null },
-          organization: { billingModelVersion: "WORKSPACE_V2" },
+          organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
           OR: [
             {
               status: { in: [...OPEN_REPLACEMENT_STATUSES] },
@@ -225,7 +281,7 @@ export class BillingDeadlineService {
                 { failureCode: { startsWith: "REPLACEMENT_UNDO_CANCELLATION_LEASE_EXPIRED_" } },
               ],
               replacementSubscription: {
-                is: { pendingReplacementOrganizationId: { not: null } },
+                is: scope ? { pendingAgreementBranchId: scope.branchId } : { pendingReplacementOrganizationId: { not: null } },
               },
             },
           ],
@@ -245,7 +301,7 @@ export class BillingDeadlineService {
             change.status as typeof TERMINAL_REPLACEMENT_STATUSES[number]
           )) {
             if (isCandidateCancellationReconciliationCode(change.failureCode)
-              && candidate.pendingReplacementOrganizationId) {
+              && (candidate.pendingAgreementBranchId || candidate.pendingReplacementOrganizationId)) {
               await BillingReplacementService.reconcileCandidateCancellation(change.id, now);
               retriedReplacementCancellations += 1;
             }
@@ -319,6 +375,7 @@ export class BillingDeadlineService {
 
     const dueBranchChanges = await prisma.organizationBillingChange.findMany({
       where: {
+        ...billingRecordScope(),
         type: "BRANCH_REMOVAL",
         status: "SCHEDULED",
         effectiveAt: { lte: now },
@@ -337,15 +394,16 @@ export class BillingDeadlineService {
         });
       }
     }
-    const archivedBranches = await BranchService.archiveDueBillingRemovals(now);
+    const archivedBranches = scope ? { archived: 0, errors: [] } : await BranchService.archiveDueBillingRemovals(now);
     errors.push(...(archivedBranches.errors ?? []));
 
     const dueCheckoutConfirmations = await prisma.organizationBillingChange.findMany({
       where: {
+        ...billingRecordScope(),
         type: "SUBSCRIPTION_AUTHORIZATION",
         operationStatus: { in: ["CHECKOUT_OPEN", "VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"] },
         confirmationDeadlineAt: { lte: now },
-        organization: { billingModelVersion: "WORKSPACE_V2" },
+        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
       },
       include: { organizationSubscription: true },
       orderBy: [{ organizationId: "asc" }, { sequence: "asc" }],
@@ -355,8 +413,19 @@ export class BillingDeadlineService {
     for (const change of dueCheckoutConfirmations) {
       const subscription = change.organizationSubscription;
       if (!subscription) {
+        if (scope && change.provisioningIntentVersion != null) {
+          if (change.createdByUserId) {
+            try {
+              await BillingService.reconcileMutation(change.createdByUserId, change.organizationId, change.id);
+            } catch {
+              errors.push({ organizationId: change.organizationId, message: "The original branch checkout still needs reconciliation." });
+            }
+          }
+          continue;
+        }
         const failed = await prisma.organizationBillingChange.updateMany({
           where: {
+            ...billingRecordScope(),
             id: change.id,
             operationStatus: { in: ["CHECKOUT_OPEN", "VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"] },
           },
@@ -393,6 +462,7 @@ export class BillingDeadlineService {
 
         const resolved = await prisma.organizationBillingChange.updateMany({
           where: {
+            ...billingRecordScope(),
             id: change.id,
             operationStatus: { in: ["CHECKOUT_OPEN", "VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"] },
           },
@@ -422,7 +492,7 @@ export class BillingDeadlineService {
           confirmedCheckouts += resolved.count;
           if (resolved.count > 0 && reconciliation.payment?.id && !reconciliation.subscription.authPaymentId) {
             await prisma.organizationSubscription.update({
-              where: { id: reconciliation.subscription.id },
+              where: { ...billingRecordScope(), id: reconciliation.subscription.id },
               data: { authPaymentId: reconciliation.payment.id },
             });
           }
@@ -432,6 +502,7 @@ export class BillingDeadlineService {
       } catch (error) {
         const failed = await prisma.organizationBillingChange.updateMany({
           where: {
+            ...billingRecordScope(),
             id: change.id,
             operationStatus: { in: ["CHECKOUT_OPEN", "VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"] },
             confirmationDeadlineAt: { lte: now },
@@ -455,8 +526,9 @@ export class BillingDeadlineService {
 
     const deadlineSubscriptions = await prisma.organizationSubscription.findMany({
       where: {
-        currentOrganizationId: { not: null },
-        organization: { billingModelVersion: "WORKSPACE_V2" },
+        ...billingRecordScope(),
+        ...(scope ? { currentAgreementBranchId: scope.branchId } : { currentOrganizationId: { not: null } }),
+        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
         paidThrough: null,
         status: { in: ["CREATED", "AUTHENTICATED", "ACTIVE"] },
         OR: [
@@ -504,8 +576,9 @@ export class BillingDeadlineService {
     const staleBefore = new Date(now.getTime() - RECONCILE_AFTER_MS);
     const staleSubscriptions = await prisma.organizationSubscription.findMany({
       where: {
-        currentOrganizationId: { not: null },
-        organization: { billingModelVersion: "WORKSPACE_V2" },
+        ...billingRecordScope(),
+        ...(scope ? { currentAgreementBranchId: scope.branchId } : { currentOrganizationId: { not: null } }),
+        organization: { billingModelVersion: scope ? "BRANCH_V3" : "WORKSPACE_V2" },
         status: { in: ["ACTIVE", "PENDING", "HALTED", "PAUSED", "CANCELLED", "COMPLETED"] },
         OR: [{ lastReconciledAt: null }, { lastReconciledAt: { lt: staleBefore } }],
         id: { notIn: deadlineSubscriptions.map(subscription => subscription.id) },

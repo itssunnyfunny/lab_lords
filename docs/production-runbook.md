@@ -1,5 +1,9 @@
 # Production runbook
 
+## Independent branch agreements — 25 November 2026
+
+Use the [independent branch rollout guide](billing/independent-branch-rollout.md) for the pre-migration inventory, exact cohort selection, digest-bound dry run, transaction boundaries, hourly reconciliation and recovery of external provider obligations. New V3 enrollment is opt-in. Preserve the original aggregate agreement for any cohort with a recurring or uncertain mandate.
+
 ## Account navigation compatibility - local, 6 November 2026
 
 Ship Account routes, shared navigation and legacy redirects together. No schema, migration, environment variable or provider configuration change is required. Keep `/org/[orgId]/billing` and its processing route: stored operation/provider return URLs may use them. Account processing continues to use existing owner-authorized APIs and durable operation state. Rollback is the matching application revision; do not rewrite subscriptions, preferences, operation return paths or callbacks. Validate workspace -> Account -> Billing -> workspace, including a legacy billing URL. Local validation uses an exact-identity-checked disposable Docker database; see `tests/account-navigation/local.mjs` and [review](redesign/unified-account-review.md), never shared data.

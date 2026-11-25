@@ -1,3 +1,4 @@
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { BillingService } from "@/services/billing.service";
@@ -11,7 +12,7 @@ export async function POST(_request: Request, context: Context) {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { orgId, changeId } = await context.params;
-    return NextResponse.json(await BillingService.retryBillingOperation(user.id, orgId, changeId));
+    return NextResponse.json(await withOwnerBillingScope(user.id, orgId, new URL(_request.url).searchParams.get("branchId"), async () => BillingService.retryBillingOperation(user.id, orgId, changeId)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to retry billing operation";
     return NextResponse.json(

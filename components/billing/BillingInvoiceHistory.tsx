@@ -6,11 +6,11 @@ import { format } from "date-fns";
 import { AppButton } from "@/components/ui";
 import { SettingsPanel } from "@/components/settings/SettingsWorkspace";
 import { useTranslation } from "@/components/settings/LocalizedText";
-import { billing, type BillingInvoiceDto } from "@/lib/api/billing";
+import { billing, billingForBranch, type BillingInvoiceDto } from "@/lib/api/billing";
 import { formErrorBannerClass } from "@/components/ui/formSurface";
 import { cn } from "@/lib/utils";
 
-export function BillingInvoiceHistory({ organizationId, refreshKey }: { organizationId: string; refreshKey?: unknown }) {
+export function BillingInvoiceHistory({ organizationId, branchId, refreshKey }: { organizationId: string; branchId?: string; refreshKey?: unknown }) {
     const t = useTranslation();
     const [items, setItems] = useState<BillingInvoiceDto[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function BillingInvoiceHistory({ organizationId, refreshKey }: { organiza
         setLoading(true);
         setError(null);
         try {
-            const page = await billing.getInvoices(organizationId, cursor);
+            const page = await (branchId ? billingForBranch(branchId) : billing).getInvoices(organizationId, cursor);
             if (version !== requestVersion.current) return;
             setItems(previous => {
                 if (!cursor) return page.items;
@@ -43,7 +43,7 @@ export function BillingInvoiceHistory({ organizationId, refreshKey }: { organiza
                 setLoading(false);
             }
         }
-    }, [organizationId]);
+    }, [organizationId, branchId]);
 
     useEffect(() => {
         setItems([]);

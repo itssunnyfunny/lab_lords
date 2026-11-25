@@ -1,3 +1,4 @@
+import { EntitlementService } from "@/services/entitlement.service";
 import type { Prisma } from "@/app/generated/prisma/client";
 import {
   type WhatsAppBranchReportMetrics,
@@ -196,7 +197,7 @@ export async function getWhatsAppDailyReportMetrics(
   const localDate = parseLocalDate(input.localReportDate);
   const organization = await tx.organization.findUnique({
     where: { id: input.organizationId },
-    select: { id: true, name: true, timezone: true, paymentGraceDays: true },
+    select: { id: true, name: true, timezone: true, paymentGraceDays: true, billingModelVersion: true },
   });
   if (!organization) throw new Error("REPORT_SCOPE_NOT_FOUND");
   if (whatsappLocalDateKey(input.scheduledCutoffAt, organization.timezone) !== input.localReportDate) {
@@ -209,10 +210,14 @@ export async function getWhatsAppDailyReportMetrics(
     throw new Error("REPORT_METRICS_AS_OF_SCOPE_MISMATCH");
   }
 
+  const branchScope = input.scope === "ORGANIZATION" && organization.billingModelVersion === "BRANCH_V3"
+    ? await EntitlementService.getEligibleBranchScope(input.organizationId, "WHATSAPP_AUTOMATION", tx)
+    : null;
+  if (branchScope && !branchScope.included.length) throw new Error("REPORT_SCOPE_NOT_FOUND");
   const branches = await tx.branch.findMany({
     where: input.scope === "BRANCH"
       ? { id: input.branchId!, organizationId: input.organizationId }
-      : { organizationId: input.organizationId },
+      : { organizationId: input.organizationId, ...(branchScope && { id: { in: branchScope.included.map(b => b.id) } }) },
     select: {
       id: true,
       name: true,
@@ -233,7 +238,7 @@ export async function getWhatsAppDailyReportMetrics(
   const dayStart = localDayStart(localDate, organization.timezone);
   const dayEnd = localDayEnd(localDate, organization.timezone);
   const overdueBefore = overdueCutoffForDay(organization, input.localReportDate);
-  const messageWhere = messageScopeWhere(input);
+  const messageWhere = branchScope ? { organizationId: input.organizationId, branchId: { in: branchIds } } : messageScopeWhere(input);
 
   // Payment outcomes are reconstructed through the same transaction-snapshot
   // instant that labels every current canonical fact. This keeps report copy
@@ -384,6 +389,7 @@ export async function getWhatsAppDailyReportMetrics(
     : WhatsAppOrganizationReportMetricsSchema.parse({
         organizationName: organization.name,
         branchCount: branches.length,
+        ...(branchScope && { branchScope }),
         ...common,
       });
 }

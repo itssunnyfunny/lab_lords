@@ -53,5 +53,8 @@ export type BranchAccess = {
     permissions: Record<StaffAction, boolean>;
     effectivePlan: BillingPlanId;
     entitlements: BillingEntitlement[];
+    canWrite?: boolean;
+    accessReason?: string;
+    branchStatus?: import("@/app/generated/prisma/enums").BranchBillingStatus;
     billingExperience?: BillingExperienceView;
 };

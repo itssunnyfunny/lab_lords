@@ -130,7 +130,7 @@ describe("replacement access orchestration", () => {
       ? { organizationId: change.organizationId }
       : loadedChange());
     tx = {
-      $queryRaw: vi.fn().mockResolvedValue([]),
+      $queryRaw: vi.fn().mockResolvedValue([{ id: "org_1" }]),
       organization: {
         findUnique: vi.fn(async () => ({
           billingMutationLeaseToken: organizationLeaseToken,

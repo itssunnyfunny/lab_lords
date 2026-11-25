@@ -57,6 +57,12 @@ export const WhatsAppBranchReportMetricsSchema = z.object({
 export const WhatsAppOrganizationReportMetricsSchema = z.object({
   organizationName: boundedName,
   branchCount: count,
+  // Historical aggregate reports predate independent agreements. A V3
+  // recipient must match the frozen branch set before viewing or sending.
+  branchScope: z.object({
+    included: z.array(z.object({ id: z.string().min(1), name: z.string() })),
+    excluded: z.array(z.object({ id: z.string().min(1), name: z.string() })),
+  }).optional(),
   ...aggregateMetrics,
 }).strict().superRefine((value, context) => {
   if (value.usedShiftSlots > value.totalShiftCapacity) {
@@ -144,4 +150,15 @@ export function createWhatsAppReportSourceFingerprint(input: {
     metricsAsOfAt: input.metricsAsOfAt.toISOString(),
     metricsVersion,
   }), "utf8").digest("hex");
+}
+
+export function reportBranchScopeMatches(
+  metrics: WhatsAppReportMetrics,
+  current: WhatsAppOrganizationReportMetrics["branchScope"] | null | undefined
+) {
+  const stored = "organizationName" in metrics ? metrics.branchScope : undefined;
+  if (!current || !stored) return !current && !stored;
+  const sameIds = (left: {id: string}[], right: {id: string}[]) =>
+    left.length === right.length && left.every((branch, index) => branch.id === right[index]?.id);
+  return sameIds(stored.included, current.included) && sameIds(stored.excluded, current.excluded);
 }

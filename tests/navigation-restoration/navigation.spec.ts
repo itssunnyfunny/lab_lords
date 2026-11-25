@@ -1,8 +1,9 @@
 import { reviewEvidencePath } from "../browser/helpers/review-evidence";
 import fs from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { translateOwnedText } from "../../lib/i18n";
 import { buildTopSearchResults } from "../../lib/topSearch";
+import { publicBillingPlans } from "../../lib/billingPlans";
 import { installSettingsRouteFixture } from "../application-design-pilot/settings-route-closeout-fixture";
 
 const evidence = reviewEvidencePath("docs/redesign/navigation-restoration-evidence/2026-10-24-brand-correction");
@@ -99,6 +100,9 @@ test("attendance gaps page beyond the old eight-row preview for a students-only 
 
 test("WhatsApp initial failures stay visible and retry without enabling rollout gates", async ({ page }) => {
     await installSettingsRouteFixture(page);
+    const directory = await (await page.request.get("/api/workspaces")).json();
+    directory.organizations[0].independentBilling = true;
+    await page.route("**/api/workspaces", route => route.fulfill({ json: directory }));
     let fail = true; let requests = 0;
     await page.route(/\/api\/(?:organizations\/org-pilot|branches\/pilot)\/whatsapp(?:\/.*)?$/, route => {
         requests++;
@@ -229,4 +233,226 @@ test("Renewals applies mounted query changes and back navigation", async ({ page
     await expect.poll(() => requests.at(-1)).toBe("OVERDUE");
     await page.goBack();
     await expect.poll(() => requests.at(-1)).toBe("ALL");
+});
+
+test("independent branch switch waits for destination access and keeps the import navigation on Basic", async ({ page }) => {
+    const base = await (await page.request.get("/api/branches/pilot/access")).json();
+    const directory = ["pilot", "basic", "standard"].map((id, index) => {
+        const plan = ["PRO", "BASIC", "STANDARD"][index];
+        return {
+            id, name: id, href: `/branch/${id}`, role: "OWNER", organizationId: "org-pilot", organizationName: "Libraries",
+            permissions: base.permissions, entitlements: plan === "BASIC" ? [] : ["ADVANCED_ANALYTICS"],
+            billing: { independent: true, billingStatus: "ACTIVE", effectivePlan: plan, customerState: plan + "_ACTIVE", accessMode: "FULL" },
+        };
+    });
+    await page.route("**/api/workspaces", route => route.fulfill({ json: {
+        organizations: [{ id: "org-pilot", name: "Libraries", role: "OWNER", independentBilling: true, branches: directory }],
+        staffBranches: [], defaultHref: "/branch/pilot",
+    } }));
+    let release!: () => void;
+    const untilReleased = new Promise<void>(resolve => { release = resolve; });
+    await page.route("**/api/branches/basic/access", async route => {
+        await untilReleased;
+        await route.fulfill({ json: {
+            ...base, branchId: "basic", branchName: "basic", effectivePlan: "BASIC", entitlements: [],
+            billingExperience: { ...base.billingExperience, effectivePlan: "BASIC", entitlements: [], branch: { id: "basic", name: "basic", billingStatus: "ACTIVE" } },
+        } });
+    });
+    await page.goto("/branch/pilot/analytics?mode=after&lang=en");
+    await page.getByRole("combobox", { name: "Switch branch" }).selectOption("basic");
+    await expect(page).toHaveURL(/\/branch\/basic\?workspaceNotice=area-unavailable/);
+    await expect(page.getByText("Loading workspace", { exact: true })).toBeVisible();
+    await expect(page.locator("[data-basic-workspace]")).toHaveCount(0);
+    release();
+    await expect(page.locator("[data-basic-workspace]")).toBeVisible();
+    await expect(page.getByText("The previous page is unavailable here. You are on the branch overview.")).toBeVisible();
+    await page.goto("/branch/basic/onboarding/import");
+    await expect(page.locator("[data-shared-import-shell]")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Analytics", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Switch branch" })).toHaveValue("basic");
+    await page.unroute("**/api/branches/basic/access");
+    await page.route("**/api/branches/basic/access", route => route.fulfill({ status: 403, json: { error: "No access" } }));
+    await page.evaluate(() => window.dispatchEvent(new Event("billing-access-changed")));
+    await expect(page.getByRole("heading", { name: "No access" })).toBeVisible();
+    await expect(page.locator("[data-shared-import-shell]")).toHaveCount(0);
+});
+
+test("independent branch billing lists separate charges and confirms one named change", async ({ page }) => {
+    const { billingOverview } = await installSettingsRouteFixture(page);
+    const plans = publicBillingPlans();
+    const branches = plans.map((plan, index) => ({
+        id: plan.id.toLowerCase(), name: ["Central", "East", "West"][index], organizationId: "org-pilot", organizationName: "Libraries",
+        href: "/branch/" + plan.id.toLowerCase(), role: "OWNER", permissions: {}, entitlements: plan.entitlements,
+        billing: { independent: true, effectivePlan: plan.id, accessMode: "FULL", billingStatus: "ACTIVE", customerState: plan.id + "_ACTIVE",
+            monthlyCommitment: plan.amount! * 100, nextChargeAmount: plan.amount! * 100, nextChargeAt: `2027-01-0${index + 1}T12:00:00Z` },
+    }));
+    await page.route("**/api/workspaces", route => route.fulfill({ json: {
+        organizations: [{ id: "org-pilot", name: "Libraries", role: "OWNER", branches, independentBilling: true }], staffBranches: [],
+    } }));
+    const scopes: (string | null)[] = [];
+    await page.route(/\/api\/organizations\/org-pilot\/billing(?:\?|$)/, route => {
+        const branchId = new URL(route.request().url()).searchParams.get("branchId");
+        scopes.push(branchId);
+        if (branchId !== "standard") return route.fulfill({ status: 404, json: {} });
+        return route.fulfill({ json: { ...billingOverview, billingModelVersion: "BRANCH_V3", plans,
+            current: { ...billingOverview.current, plan: "STANDARD", unitAmount: 299, monthlyTotal: 299, paidThrough: "2027-01-02T12:00:00Z" },
+            experience: { ...billingOverview.experience, independentBilling: true, effectivePlan: "STANDARD", branch: { id: "standard", name: "East", billingStatus: "ACTIVE" }, planChangeEffectiveAt: "2027-01-02T12:00:00Z" },
+        } });
+    });
+    await page.route("**/billing/invoices?branchId=standard", route => route.fulfill({ json: { items: [], nextCursor: null } }));
+    await page.goto("/account/billing?organizationId=org-pilot");
+    await expect(page.getByText("Confirmed monthly commitments", { exact: false })).toContainText("897");
+    await expect(page.getByText("Next charge", { exact: false })).toHaveCount(3);
+    expect(scopes).toEqual([]);
+    await page.goto("/account/billing?organizationId=org-pilot&branchId=standard&billingPlan=PRO");
+    const confirmation = page.getByRole("dialog", { name: /replacement mandate for Pro/i });
+    await expect(confirmation).toBeVisible();
+    await expect(confirmation).toContainText("East");
+    await expect(confirmation).toContainText("WhatsApp integration and automation");
+    await expect(confirmation).toContainText("2 January 2027");
+    expect(scopes.length).toBeGreaterThan(0);
+    expect(scopes.every(id => id === "standard")).toBe(true);
+});
+
+test("independent branch settings keep unsaved edits through a failed access refresh and cancelled switch", async ({ page }) => {
+    await installSettingsRouteFixture(page);
+    const base = await (await page.request.get("/api/branches/pilot/access")).json();
+    const directory = ["pilot", "sibling"].map(id => ({
+        id, name: id, organizationId: "org-pilot", organizationName: "Libraries", href: `/branch/${id}`, role: "OWNER",
+        permissions: base.permissions, entitlements: base.entitlements,
+        billing: { independent: true, effectivePlan: "PRO", accessMode: "FULL", customerState: "PRO_ACTIVE", billingStatus: "ACTIVE" },
+    }));
+    await page.route("**/api/workspaces", route => route.fulfill({ json: {
+        organizations: [{ id: "org-pilot", name: "Libraries", role: "OWNER", independentBilling: true, branches: directory }], staffBranches: [],
+    } }));
+    let failing = false;
+    await page.route("**/api/branches/pilot/access", route => route.fulfill({ status: failing ? 503 : 200, json: failing ? { error: "Temporary failure" } : base }));
+    await page.goto("/branch/pilot/settings?mode=after&lang=en");
+    await page.getByRole("button", { name: "Edit settings", exact: true }).click();
+    const name = page.getByRole("textbox", { name: "Library / centre name", exact: true });
+    await name.fill("Unsaved branch name");
+    await page.getByRole("combobox", { name: "Switch branch" }).selectOption("sibling");
+    const dialog = page.getByRole("alertdialog", { name: "Discard branch changes?" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Keep editing" }).click();
+    await expect(page).toHaveURL(/\/branch\/pilot\/settings/);
+    failing = true;
+    await page.evaluate(() => window.dispatchEvent(new Event("billing-access-changed")));
+    const retry = page.getByRole("dialog", { name: "Access could not be refreshed" });
+    await expect(retry).toBeVisible();
+    failing = false;
+    await retry.getByRole("button", { name: "Retry" }).click();
+    await expect(retry).toHaveCount(0);
+    await expect(name).toHaveValue("Unsaved branch name");
+});
+
+async function openBranchSettingsAtWhatsApp(page: Page) {
+    const fixture = await installSettingsRouteFixture(page);
+    const base = await (await page.request.get("/api/branches/pilot/access")).json();
+    let plan: "PRO" | "STANDARD" | "BASIC" = "PRO";
+    let mayView = true;
+    let assignments = 0;
+    await page.route("**/api/branches/pilot/access", route => {
+        const entitlements = plan === "BASIC" ? [] : ["ADVANCED_ANALYTICS", "AI_ACCESS", "STAFF_MANAGEMENT", ...(plan === "PRO" ? ["WHATSAPP_AUTOMATION"] : [])];
+        return route.fulfill({ json: { ...base, branchId: "pilot", branchName: "East", isOwner: mayView,
+            effectivePlan: plan, entitlements, canWrite: true, branchStatus: "ACTIVE", permissions: { ...base.permissions, view_whatsapp: mayView },
+            billingExperience: { ...base.billingExperience, independentBilling: true, effectivePlan: plan, entitlements,
+                branch: { id: "pilot", name: "East", billingStatus: "ACTIVE" }, viewer: { isOwner: mayView, canManageBilling: mayView } },
+        } });
+    });
+    await page.route("**/whatsapp/branch-assignments?branchId=pilot", route => {
+        assignments++;
+        return route.fulfill({ json: { enabled: false, assignment: null, availableSenders: [], canManage: true } });
+    });
+    await page.goto("/branch/pilot/settings?mode=after&lang=en#whatsapp");
+    await expect(page.getByText("East · WhatsApp integration is unavailable for this branch.")).toBeVisible();
+    expect(assignments).toBeGreaterThan(0);
+    return {
+        commands: fixture.commands,
+        assignments: () => assignments,
+        async refresh(nextPlan: typeof plan, viewWhatsApp = true) {
+            plan = nextPlan;
+            mayView = viewWhatsApp;
+            await page.evaluate(() => window.dispatchEvent(new Event("billing-access-changed")));
+        },
+        async editName(value: string) {
+            await page.getByRole("button", { name: "Edit settings", exact: true }).click();
+            const name = page.getByRole("textbox", { name: "Library / centre name", exact: true });
+            await name.fill(value);
+            return name;
+        },
+    };
+}
+
+test("independent branch Pro to Standard preserves a core settings edit on the WhatsApp deep link", async ({ page }) => {
+    const settings = await openBranchSettingsAtWhatsApp(page);
+    const name = await settings.editName("Edited on Pro");
+    const confirmedRequests = settings.assignments();
+    await settings.refresh("STANDARD");
+    const restriction = page.locator("#whatsapp");
+    await expect(restriction).toContainText("East needs the Pro plan for this feature.");
+    await expect(restriction.getByRole("link", { name: "Manage branch plan" })).toHaveAttribute("href", /branchId=pilot/);
+    await expect(page).toHaveURL(/#whatsapp$/);
+    await expect(name).toHaveValue("Edited on Pro");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText("Settings saved.", { exact: true })).toBeVisible();
+    expect(settings.commands.filter(command => command.path === "/api/branches/pilot")).toMatchObject([{ body: { name: "Edited on Pro" } }]);
+    await page.goto("/branch/pilot/settings?mode=after&lang=en");
+    await expect(page.getByRole("heading", { name: "Branch Settings" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "WhatsApp", exact: true })).toHaveCount(0);
+    expect(settings.assignments()).toBe(confirmedRequests);
+    await settings.refresh("STANDARD", false);
+    await page.goto("/branch/pilot/settings?mode=after&lang=en#whatsapp");
+    await page.evaluate(() => window.dispatchEvent(new Event("billing-access-changed")));
+    await expect(restriction).toContainText("Your role does not include this action.");
+    await expect(restriction.getByRole("link", { name: "Manage branch plan" })).toHaveCount(0);
+    expect(settings.assignments()).toBe(confirmedRequests);
+});
+
+test("independent branch Pro to Basic guards a settings draft on the WhatsApp deep link", async ({ page }) => {
+    const settings = await openBranchSettingsAtWhatsApp(page);
+    const name = await settings.editName("Unsaved on Pro");
+    await settings.refresh("BASIC");
+    const dialog = page.getByRole("dialog", { name: "Workspace access changed" });
+    await expect(dialog).toBeVisible();
+    await expect(page.locator("[data-basic-workspace]")).toHaveCount(0);
+    await settings.refresh("PRO");
+    await expect(dialog).toHaveCount(0);
+    await expect(name).toHaveValue("Unsaved on Pro");
+    await settings.refresh("BASIC");
+    await dialog.getByRole("button", { name: "Continue to the updated workspace" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Continue to the updated workspace" }).click();
+    await expect(page.locator("[data-basic-workspace] #whatsapp")).toContainText("East needs the Pro plan for this feature.");
+    expect(settings.commands).toHaveLength(0);
+});
+
+test("independent branch settings tracks a pending save across WhatsApp access and workspace changes", async ({ page }) => {
+    const settings = await openBranchSettingsAtWhatsApp(page);
+    await settings.editName("Saved across downgrade");
+    let writes = 0;
+    let finishSave!: () => void;
+    const pending = new Promise<void>(resolve => { finishSave = resolve; });
+    await page.route("**/api/branches/pilot", async route => {
+        if (route.request().method() === "PATCH") {
+            writes++;
+            await pending;
+        }
+        await route.fallback();
+    });
+    try {
+        await page.getByRole("button", { name: "Save changes" }).click();
+        await expect.poll(() => writes).toBe(1);
+        await settings.refresh("STANDARD");
+        await expect(page.locator("#whatsapp")).toContainText("East needs the Pro plan for this feature.");
+        await expect(page.getByRole("button", { name: "Saving" })).toBeDisabled();
+        await settings.refresh("BASIC");
+        const transition = page.getByRole("dialog", { name: "Workspace access changed" });
+        await expect(transition.getByRole("button", { name: "Continue to the updated workspace" })).toBeDisabled();
+        await expect(page.locator("[data-basic-workspace]")).toHaveCount(0);
+    } finally {
+        finishSave();
+    }
+    await expect(page.locator("[data-basic-workspace] #whatsapp")).toContainText("East needs the Pro plan for this feature.");
+    expect(writes).toBe(1);
+    expect(settings.commands.filter(command => command.path === "/api/branches/pilot")).toMatchObject([{ body: { name: "Saved across downgrade" } }]);
 });

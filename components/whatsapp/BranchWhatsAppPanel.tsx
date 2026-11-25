@@ -15,6 +15,7 @@ import {
   SettingsSelect,
 } from "@/components/settings/SettingsWorkspace";
 import { BranchWhatsAppMessageHistory } from "@/components/whatsapp/BranchWhatsAppMessageHistory";
+import { useWhatsAppSectionRequested } from "@/components/whatsapp/BranchWhatsAppAccessNotice";
 import { WhatsAppReportSubscription } from "@/components/whatsapp/WhatsAppReportSubscription";
 import { BranchWhatsAppReports } from "@/components/whatsapp/BranchWhatsAppReports";
 import { WhatsAppServiceNoticeComposer } from "@/components/whatsapp/WhatsAppServiceNoticeComposer";
@@ -582,6 +583,7 @@ export function BranchWhatsAppPanel({
   canViewNotices = false,
   canSendNotices = false,
   isOwner = false,
+  whatsappOnly = false,
   onAvailabilityChange,
 }: {
   organizationId: string;
@@ -594,9 +596,11 @@ export function BranchWhatsAppPanel({
   canViewNotices?: boolean;
   canSendNotices?: boolean;
   isOwner?: boolean;
+  whatsappOnly?: boolean;
   onAvailabilityChange: (available: boolean) => void;
 }) {
-    const t = useTranslation();
+  const t = useTranslation();
+  const directlyRequested = useWhatsAppSectionRequested();
   const [response, setResponse] = useState<WhatsAppBranchAssignmentResponse | null>(null);
   const [settings, setSettings] = useState<WhatsAppBranchSettings | null>(null);
   const [form, setForm] = useState<BranchSettingsForm | null>(null);
@@ -667,7 +671,12 @@ export function BranchWhatsAppPanel({
     return () => { cancelled = true; };
   }, [applyOverview, canView, fetchOverview, loadAttempt]);
 
-  if (!canView || response?.enabled === false) return null;
+  if (!canView) return null;
+  if (response?.enabled === false) {
+    return (whatsappOnly || directlyRequested) ? <SettingsPanel id="whatsapp" title="WhatsApp" icon={MessageCircle}>
+      <p role="status" className="px-5 py-4">{branchName} · {t.owned("WhatsApp integration is unavailable for this branch.")}</p>
+    </SettingsPanel> : null;
+  }
   if (!response) return <SettingsPanel id="whatsapp" title="WhatsApp" description={t("Configure consent-based delivery using only approved Lab Lords Utility templates.")} icon={MessageCircle}>
     <div className="space-y-3 px-5 py-4"><p role={notice?.tone === "error" ? "alert" : "status"}>{notice ? t.owned(notice.message) : t("Loading…")}</p>{notice?.tone === "error" && <AppButton variant="secondary" onClick={() => setLoadAttempt(current => current + 1)}>{t("Retry")}</AppButton>}</div>
   </SettingsPanel>;

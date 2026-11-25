@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   messageCreate: vi.fn(),
   assertOwner: vi.fn(),
   assertOwnerCanWrite: vi.fn(),
-  getOrganizationProfile: vi.fn(),
+  getOrganizationFeatureScope: vi.fn(),
   assertIntegrationEnabled: vi.fn(),
   assertOnboardingWritesEnabled: vi.fn(),
   assertWebhookIngestEnabled: vi.fn(),
@@ -55,7 +55,7 @@ vi.mock("@/services/whatsappAuthorization.service", () => ({
 
 vi.mock("@/services/entitlement.service", () => ({
   EntitlementService: {
-    getOrganizationProfile: mocks.getOrganizationProfile,
+    getOrganizationFeatureScope: mocks.getOrganizationFeatureScope,
   },
 }));
 
@@ -206,8 +206,8 @@ beforeEach(() => {
   mocks.isWebhookIngestEnabled.mockReturnValue(false);
   mocks.assertOwner.mockResolvedValue({ id: ORGANIZATION_ID });
   mocks.assertOwnerCanWrite.mockResolvedValue({ id: ORGANIZATION_ID });
-  mocks.getOrganizationProfile.mockResolvedValue({
-    entitlements: ["WHATSAPP_AUTOMATION"],
+  mocks.getOrganizationFeatureScope.mockResolvedValue({
+    entitled: true,
   });
   mocks.readMetaConfiguration.mockReturnValue({
     providerMode: "TEST",

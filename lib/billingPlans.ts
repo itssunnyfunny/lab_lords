@@ -160,7 +160,7 @@ export function getActiveBillingPlan(planId: string): BillingPlan {
   return plan;
 }
 
-export function publicBillingPlans() {
+export function publicBillingPlans(independent = false) {
   return BILLING_PLANS.filter(
     (plan): plan is BillingPlan & { id: CheckoutBillingPlanId } => plan.visible
   ).map(plan => ({
@@ -175,10 +175,10 @@ export function publicBillingPlans() {
     featured: Boolean(plan.featured),
     comingSoon: Boolean(plan.comingSoon),
     custom: Boolean(plan.custom),
-    description: plan.description,
+    description: independent && plan.id === "BASIC" ? "Simple student, seat and fee management." : plan.description,
     capabilities: BILLING_CAPABILITIES.map(capability => ({
       id: capability.id,
-      label: capability.label,
+      label: independent && capability.id === "MULTIPLE_BRANCHES" ? "Manage this branch plan in Account Billing" : capability.label,
       included: "proOnly" in capability ? plan.id === "PRO"
         : !capability.standardOnly || billingPlanRank(plan.id) >= billingPlanRank("STANDARD"),
     } satisfies PublicBillingCapability)),

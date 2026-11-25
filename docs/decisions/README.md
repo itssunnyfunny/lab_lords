@@ -24,6 +24,7 @@ or imply owner approval.
 | [0005](./0005-tenant-integrity-and-authoritative-execution-boundaries.md) | Proposed | Tenant integrity and authoritative execution boundaries |
 | [0006](./0006-card-subscription-replacement.md) | Proposed | Fresh authorization for card subscription changes |
 | [0007](./0007-explicit-owner-trials-and-core-imports.md) | Proposed | Explicit owner trial tiers and core spreadsheet import |
+| [0008](./0008-independent-branch-agreements.md) | Proposed | Independent branch agreements and controlled aggregate conversion |
 
 ## Naming and status
 

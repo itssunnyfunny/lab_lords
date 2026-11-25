@@ -179,6 +179,7 @@ export async function runBranchAI(
         const actions = suggestActionsForBranch(risks)
 
         // 4️⃣ [AI - GEMINI] Generate STRUCTURED health report
+        await AccessPolicy.recheckCapability(access, "aiGenerate");
         const structuredReport = await generateBranchHealthReport(snapshot)
 
         const result: BranchAIResponse = {
@@ -210,12 +211,12 @@ export async function runBranchAI(
         }
 
         // Save report to DB
-        await publishGeneration(branchId, "REPORT", token, tx => tx.branchAIReport.create({
-            data: {
-                branchId,
-                data: result as unknown as Prisma.InputJsonValue
-            }
-        }));
+        await publishGeneration(branchId, "REPORT", token, async tx => {
+            await AccessPolicy.recheckCapability(access, "aiGenerate", tx);
+            return tx.branchAIReport.create({
+                data: { branchId, data: result as unknown as Prisma.InputJsonValue }
+            });
+        });
 
         return result;
 

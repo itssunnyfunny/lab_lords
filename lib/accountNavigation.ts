@@ -61,16 +61,19 @@ export function accountBillingProcessingHref(organizationId: string, changeId: s
 }
 
 /** Older operations may have saved the bare Account route before scope was retained. */
-export function accountBillingOperationReturn(organizationId: string, path?: string | null) {
-    if (!path || !path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return accountBillingHref(organizationId);
+export function accountBillingOperationReturn(organizationId: string, path?: string | null, branchId?: string, returnTo?: string | null) {
+    if (!path || !path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return accountBillingHref(organizationId, branchId, returnTo);
     const destination = accountBillingDestination(path);
     if (/^\/account\/billing(?:[?#]|$)/.test(destination)) {
         const url = new URL(destination, "https://account.invalid");
         url.searchParams.set("organizationId", organizationId);
         url.searchParams.delete("billingPlan");
+        if (branchId) url.searchParams.set("branchId", branchId);
+        const workspaceReturn = workspaceReturnPath(returnTo ?? null);
+        if (workspaceReturn && !url.searchParams.has("returnTo")) url.searchParams.set("returnTo", workspaceReturn);
         return url.pathname + url.search + url.hash;
     }
-    if (/^\/org\/[^/]+\/settings#billing$/.test(destination)) return accountBillingHref(organizationId) + "#billing";
+    if (/^\/org\/[^/]+\/settings#billing$/.test(destination)) return accountBillingHref(organizationId, branchId, returnTo) + "#billing";
     return destination;
 }
 

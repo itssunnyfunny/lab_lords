@@ -1,10 +1,12 @@
 import { apiClient } from "./core";
+import type { DirectoryBranchBilling } from "@/types/ui";
 import type { Organization, Branch } from "@/app/generated/prisma/browser";
 import { CreateBranchDto } from "@/types";
 
 // What the /organizations/:orgId/branches endpoint actually returns —
 // Prisma serialises Dates to strings over JSON, and the route includes _count.
 export type BranchWithCounts = Omit<Branch, "createdAt" | "lastDataChange" | "aiLastCalledAt"> & {
+    billing?: DirectoryBranchBilling;
     createdAt: string;
     lastDataChange: string;
     aiLastCalledAt: string | null;

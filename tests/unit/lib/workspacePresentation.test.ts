@@ -37,6 +37,11 @@ describe("workspace presentation consumes authoritative billing access",()=>{
         expect(workspacePresentation(null)).toBeNull();
         expect(workspacePresentation({effectivePlan:"UNKNOWN"} as unknown as BranchAccess)).toBeNull();
     });
+    it("uses the branch profile when an optional billing display is missing or stale", () => {
+        const profile = { branchStatus: "ACTIVE", effectivePlan: "BASIC", canWrite: false } as BranchAccess;
+        expect(workspacePresentation(profile)).toBe("simple");
+        expect(workspacePresentation({ ...profile, effectivePlan: "PRO", billingExperience: view(deriveWorkspaceBillingState({ now })).billingExperience })).toBe("full");
+    });
     it("describes only the capabilities lost on the chosen downgrade",()=>{
         expect(workspaceDowngradeNotice("PRO","BASIC")).toContain("WhatsApp");
         expect(workspaceDowngradeNotice("STANDARD","BASIC")).not.toContain("WhatsApp");

@@ -1,5 +1,7 @@
 // analytics/org.analytics.ts
 
+import { EntitlementService, SubscriptionEntitlementError } from "@/services/entitlement.service"
+import { AnalyticsScopeChangedError } from "@/lib/organizationErrors"
 import { prisma } from "@/lib/prisma"
 import { getBranchHealthSnapshot } from "./branch.analytics"
 
@@ -18,9 +20,9 @@ export async function getOrganizationHealthSnapshot(
   asOf?: AsOf
 ) {
   const date = resolveAsOf(asOf)
-
-  // Step 1: get branches
-  const branches = await prisma.branch.findMany({
+  const scope = await EntitlementService.getOrganizationFeatureScope(organizationId, "ADVANCED_ANALYTICS")
+  if (!scope.entitled) throw new SubscriptionEntitlementError("Advanced analytics requires the Standard plan.")
+  const branches = scope.branches?.included ?? await prisma.branch.findMany({
     where: { organizationId },
     select: { id: true, name: true },
   })
@@ -36,6 +38,16 @@ export async function getOrganizationHealthSnapshot(
       }
     })
   )
+  if (scope.branches) {
+    const current = await EntitlementService.getEligibleBranchScope(organizationId, "ADVANCED_ANALYTICS")
+    if (!current.included.length) throw new SubscriptionEntitlementError("Advanced analytics requires the Standard plan.")
+    if (current.included.length !== branches.length
+      || current.included.some((branch, index) => branches[index]?.id !== branch.id)
+      || current.excluded.length !== scope.branches.excluded.length
+      || current.excluded.some((branch, index) => scope.branches?.excluded[index]?.id !== branch.id)) {
+      throw new AnalyticsScopeChangedError()
+    }
+  }
 
   // Step 3: rollups (pure math)
   let physicalSeats = 0
@@ -71,6 +83,8 @@ export async function getOrganizationHealthSnapshot(
 
     organization: {
       totalBranches: branches.length,
+      includedBranches: branches,
+      excludedBranches: scope.branches?.excluded ?? [],
     },
 
     seats: {
@@ -124,6 +138,8 @@ export async function getOrgSnapshot(
     orgId,
     orgName: org?.name ?? "Unknown",
 
+    includedBranches: health.organization.includedBranches,
+    excludedBranches: health.organization.excludedBranches,
     branches: health.branches.map(b => ({
       branchId: b.branchId,
       branchName: b.branchName,

@@ -26,7 +26,8 @@ function matches(row: Row, where: Row = {}): boolean {
   return Object.entries(where).every(([key, expected]) => {
     if (key === "OR") return (expected as Row[]).some(item => matches(row, item));
     if (key === "NOT") return !matches(row, expected as Row);
-    const value = row[key];
+    // Historical ledger rows have SQL NULL in the new agreement column.
+    const value = key === "agreementBranchId" ? row[key] ?? null : row[key];
     if (expected instanceof Date) return value instanceof Date && value.getTime() === expected.getTime();
     if (expected && typeof expected === "object") {
       const filter = expected as Row;

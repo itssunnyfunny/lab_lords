@@ -16,6 +16,8 @@ import {
     type WorkspaceDirectory,
 } from "@/types";
 import { StaffService } from "@/services/staff.service";
+import { BillingExperienceService } from "@/services/billingExperience.service";
+import { projectDirectoryBilling } from "@/services/branchBillingDirectory.service";
 import { resolveWorkspacePath } from "@/lib/workspaceRouting";
 
 const USER_SETTINGS_FIELDS = [
@@ -106,6 +108,7 @@ export class UserService {
                         id: true,
                         name: true,
                         createdAt: true,
+                        billingModelVersion: true,
                         branches: {
                             select: { id: true, name: true, createdAt: true },
                             orderBy: { createdAt: "desc" },
@@ -121,7 +124,7 @@ export class UserService {
                                 id: true,
                                 name: true,
                                 organizationId: true,
-                                organization: { select: { name: true } },
+                                organization: { select: { name: true, billingModelVersion: true } },
                             },
                         },
                     },
@@ -144,11 +147,19 @@ export class UserService {
             [...allBranchIds].map(branchId => StaffService.getBranchAccess(userId, branchId))
         );
         const accessByBranchId = new Map(branchAccess.map(access => [access.branchId, access]));
+        const independentIds = new Set([
+            ...user.organizations.filter(org => org.billingModelVersion === "BRANCH_V3").flatMap(org => org.branches.map(branch => branch.id)),
+            ...user.staff.filter(row => row.branch.organization.billingModelVersion === "BRANCH_V3").map(row => row.branch.id),
+        ]);
+        const billingById = new Map(await Promise.all([...independentIds].map(async id => [
+            id, projectDirectoryBilling(await BillingExperienceService.getForBranch(id, userId)),
+        ] as const)));
 
         const organizations = user.organizations.map(organization => ({
             id: organization.id,
             name: organization.name,
             role: "OWNER" as const,
+            independentBilling: organization.billingModelVersion === "BRANCH_V3",
             href: `/org/${organization.id}`,
             branches: organization.branches.map(branch => {
                 const access = accessByBranchId.get(branch.id)!;
@@ -160,6 +171,7 @@ export class UserService {
                     role: access.role,
                     permissions: access.permissions,
                     entitlements: access.entitlements,
+                    billing: billingById.get(branch.id),
                     href: `/branch/${branch.id}`,
                 };
             }),
@@ -180,6 +192,7 @@ export class UserService {
                     role: access.role,
                     permissions: access.permissions,
                     entitlements: access.entitlements,
+                    billing: billingById.get(membership.branch.id),
                     href: `/branch/${membership.branch.id}`,
                 };
             });

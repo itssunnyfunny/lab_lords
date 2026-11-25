@@ -56,6 +56,14 @@ describe.each([1, 2])("billing returns for an owner with %i organization(s)", co
     expect(accountBillingOperationReturn(selected.id, "/account/billing#invoices")).toBe(`/account/billing?organizationId=${selected.id}#invoices`);
     expect(accountBillingOperationReturn(selected.id, `/org/${selected.id}/settings#billing`)).toBe(`/account/billing?organizationId=${selected.id}#billing`);
   });
+  it("keeps the branch and origin on lifecycle recovery when the saved return lacks them", () => {
+    const origin = `/org/${selected.id}/settings`;
+    const result = new URL(accountBillingOperationReturn(selected.id, "/account/billing#history", branch, origin), "https://test.invalid");
+    expect(result.searchParams.get("organizationId")).toBe(selected.id);
+    expect(result.searchParams.get("branchId")).toBe(branch);
+    expect(result.searchParams.get("returnTo")).toBe(origin);
+    expect(result.hash).toBe("#history");
+  });
   it("uses the selected scope instead of foreign or stale workspace hints", () => {
     const switched = new URLSearchParams({ organizationId: selected.id, returnTo: "/branch/foreign" });
     expect(accountWorkspaceDestination("/account/billing", switched, "/branch/first-branch", directory)).toBe(`/org/${selected.id}`);

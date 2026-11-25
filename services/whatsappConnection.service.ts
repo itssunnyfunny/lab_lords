@@ -154,8 +154,8 @@ export class WhatsAppConnectionService {
   static async browserConfig(actorUserId: string, organizationId: string) {
     assertWhatsAppIntegrationEnabled();
     await WhatsAppAuthorizationService.assertOwner(actorUserId, organizationId);
-    const profile = await EntitlementService.getOrganizationProfile(organizationId);
-    if (!profile.entitlements.includes("WHATSAPP_AUTOMATION")) {
+    const profile = await EntitlementService.getOrganizationFeatureScope(organizationId, "WHATSAPP_AUTOMATION");
+    if (!profile.entitled) {
       return {
         enabled: true,
         providerMode: null,

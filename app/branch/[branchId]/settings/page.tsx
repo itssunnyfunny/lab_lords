@@ -3,7 +3,8 @@ import { accountBillingHref } from "@/lib/accountNavigation";
 import { LocalizedError } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { useBasicNavigationGuard } from "@/components/basic/useBasicNavigationGuard";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -44,7 +45,9 @@ import {
 } from "@/components/settings/SettingsWorkspace";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { branchPlanLabel } from "@/lib/branchBillingLabels";
 import { BranchWhatsAppPanel } from "@/components/whatsapp/BranchWhatsAppPanel";
+import { BranchWhatsAppAccessNotice } from "@/components/whatsapp/BranchWhatsAppAccessNotice";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
 import { cn } from "@/lib/utils";
@@ -211,6 +214,7 @@ function BranchWhatsAppOnlySettingsContent({
             onSectionChange={setActiveSection}
         >
             <BranchWhatsAppPanel
+                whatsappOnly
                 organizationId={access.organizationId}
                 branchId={branchId}
                 branchName={access.branchName}
@@ -268,6 +272,8 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
     const router = useRouter();
     const { formatDate, formatDateTime, formatNumber } = useUserPreferences();
     const hasAiAccess = access.entitlements.includes("AI_ACCESS");
+    const showAiSection = !access.billingExperience?.independentBilling || hasAiAccess;
+    const showStaffSection = !access.billingExperience?.independentBilling || getBranchCapabilityDecision(access, "staffView").allowed;
     const settingsDecision = getBranchCapabilityDecision(access, "settingsManage");
     const whatsappViewDecision = getBranchCapabilityDecision(access, "whatsappView");
     const whatsappManageDecision = getBranchCapabilityDecision(access, "whatsappManage");
@@ -343,6 +349,22 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
         return JSON.stringify(form) !== JSON.stringify(toForm(branch));
     }, [branch, form]);
 
+    useEffect(() => {
+        const notify = (dirty: boolean, pending: boolean) => window.dispatchEvent(new CustomEvent("branch-settings-draft", { detail: { branchId, dirty, pending } }));
+        notify(hasChanges, saving);
+        return () => { notify(false, false); };
+    }, [branchId, hasChanges, saving]);
+
+    const leaveAfterDiscard = useRef<(() => void) | null>(null);
+    const approvedNavigation = useRef(false);
+    useBasicNavigationGuard(resume => {
+        if (approvedNavigation.current || (!hasChanges && !saving)) return true;
+        if (saving) { setSaveError(t.owned("Wait for the current operation to finish.")); return false; }
+        leaveAfterDiscard.current = resume;
+        setDiscardDialogOpen(true);
+        return false;
+    }, hasChanges || saving, "branchSettingsIndex");
+
     const updateForm = <K extends keyof BranchForm>(key: K, value: BranchForm[K]) => {
         if (!settingsDecision.allowed || !isEditing) return;
         setForm(prev => prev ? { ...prev, [key]: value } : prev);
@@ -361,6 +383,12 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
         reset();
         setIsEditing(false);
         setDiscardDialogOpen(false);
+        const resume = leaveAfterDiscard.current;
+        leaveAfterDiscard.current = null;
+        if (resume) {
+            approvedNavigation.current = true;
+            try { resume(); } finally { approvedNavigation.current = false; }
+        }
     };
 
     const requestCancelEditing = () => {
@@ -530,7 +558,8 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
             <SettingsWorkspace
                 title={t("Branch Settings")}
                 subtitle={t("Configure the branch profile, student fee defaults, reminders, AI, and access overview.")}
-                sections={whatsAppAvailable ? SECTIONS_WITH_WHATSAPP : SECTIONS}
+                sections={(whatsAppAvailable && whatsappViewDecision.allowed ? SECTIONS_WITH_WHATSAPP : SECTIONS)
+                    .filter(section => (section.id !== "ai" || showAiSection) && (section.id !== "access" || showStaffSection))}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 actions={!isEditing ? (
@@ -645,7 +674,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     )}
                 </SettingsPanel>
 
-                <BranchWhatsAppPanel
+                {whatsappViewDecision.allowed ? <BranchWhatsAppPanel
                     organizationId={access.organizationId}
                     branchId={branchId}
                     branchName={access.branchName}
@@ -657,9 +686,9 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     canSendNotices={whatsappServiceNoticeDecision.allowed}
                     isOwner={access.isOwner}
                     onAvailabilityChange={setWhatsAppAvailable}
-                />
+                /> : <BranchWhatsAppAccessNotice decision={whatsappViewDecision} />}
 
-                <SettingsPanel id="ai" title="AI" description={t("Control whether this branch can generate AI reports.")} icon={Bot}>
+                {showAiSection && <SettingsPanel id="ai" title="AI" description={t("Control whether this branch can generate AI reports.")} icon={Bot}>
                     {showMutationControls && isEditing ? (
                         <SettingsField label={t("AI reports")} description={mutationsDisabled ? settingsDecision.reason : undefined}>
                             <SettingsToggle
@@ -667,7 +696,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                                 onChange={value => updateForm("aiEnabled", value)}
                                 disabled={!hasAiAccess || mutationsDisabled}
                                 label={!hasAiAccess ? t("AI requires the Standard plan") : form.aiEnabled ? t("AI generation enabled") : t("AI generation disabled")}
-                                description={!hasAiAccess ? t("Upgrade the organization to Standard to enable AI reports.") : form.aiEnabled ? t("Branch AI reports can run using the current branch data.") : t("AI report generation will return a disabled state for this branch.")}
+                                description={!hasAiAccess ? t.owned(access.billingExperience?.independentBilling ? "This branch needs Standard or Pro for AI reports." : "Upgrade the organization to Standard to enable AI reports.") : form.aiEnabled ? t("Branch AI reports can run using the current branch data.") : t("AI report generation will return a disabled state for this branch.")}
                             />
                         </SettingsField>
                     ) : (
@@ -679,9 +708,9 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                                 {t("AI is off for this branch. Existing reports remain visible, but new generation is blocked.")}</div>
                         </div>
                     )}
-                </SettingsPanel>
+                </SettingsPanel>}
 
-                <SettingsPanel id="access" title={t("Access")} description={t("Team summary for this branch.")} icon={Shield}>
+                {showStaffSection && <SettingsPanel id="access" title={t("Access")} description={t("Team summary for this branch.")} icon={Shield}>
                     <ReadOnlyRow label={t("Staff members")} value={counts.staff ?? 0} />
                     <div className="grid gap-2 px-5 py-4 md:grid-cols-2">
                         {staff.map(member => (
@@ -701,9 +730,9 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                         <AppButton variant="secondary" size="sm" onClick={() => router.push(`/branch/${branchId}/staff`)}>
                             {t("Manage staff")}</AppButton>
                     </div>
-                </SettingsPanel>
+                </SettingsPanel>}
 
-                <SettingsPanel id="billing" title={t("Subscription")} description={t("This branch inherits its organization's billing plan.")} icon={CreditCard}>
+                <SettingsPanel id="billing" title={t("Subscription")} description={access.billingExperience?.independentBilling ? access.branchName : t("This branch inherits its organization's billing plan.")} icon={CreditCard}>
                     {billingError && (
                         <div className={cn("mx-5 mt-4 flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)} role="alert">
                             <span>{t("Billing details are unavailable:")} <LocalizedError error={billingError} /></span>
@@ -712,19 +741,19 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                             </AppButton>
                         </div>
                     )}
-                    <ReadOnlyRow label={t("Inherited plan")} value={billingLoading ? "Loading" : billingSummary?.inheritedPlan ?? "Unavailable"} />
+                    <ReadOnlyRow label={t.owned(access.billingExperience?.independentBilling ? "Effective plan" : "Inherited plan")} value={access.billingExperience?.independentBilling ? branchPlanLabel(access.billingExperience.effectivePlan) : billingLoading ? "Loading" : billingSummary?.inheritedPlan ?? "Unavailable"} />
                     <ReadOnlyRow label={t("Branch billing status")} value={billingLoading ? "Loading" : billingSummary?.branchStatus ?? "Unavailable"} />
                     <ReadOnlyRow label={t("Billing state")} value={billingLoading ? "Loading" : billingSummary?.billingState ?? "Unavailable"} />
                     <ReadOnlyRow label={t("Access mode")} value={billingLoading ? "Loading" : billingSummary?.accessMode ?? "Unavailable"} />
-                    <div className="px-5 py-4">
+                    {access.isOwner && <div className="px-5 py-4">
                         <AppButton
                             variant="secondary"
                             size="sm"
                             disabled={billingLoading || !billingSummary}
                             onClick={() => billingSummary && router.push(accountBillingHref(access.organizationId, branchId, `/branch/${branchId}/settings`))}
                         >
-                            {t("Open organization billing")}</AppButton>
-                    </div>
+                            {t.owned(access.billingExperience?.independentBilling ? "Manage branch plan" : "Open organization billing")}</AppButton>
+                    </div>}
                 </SettingsPanel>
 
                 <SettingsPanel id="system" title={t("System Info")} description={t("Read-only branch metadata and active shift summary.")} icon={Hash}>
@@ -772,7 +801,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
             )}
             <ConfirmDialog
                 isOpen={discardDialogOpen}
-                onClose={() => setDiscardDialogOpen(false)}
+                onClose={() => { leaveAfterDiscard.current = null; setDiscardDialogOpen(false); }}
                 onConfirm={discardChanges}
                 variant="warning"
                 title={t("Discard branch changes?")}

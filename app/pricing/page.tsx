@@ -10,6 +10,8 @@ import { WorkspaceCTA } from "@/components/landing/MarketingActions";
 import { PublicFaqList } from "@/components/landing/PublicFaqList";
 import { getPublicFaqs, pricingFaqIds } from "@/lib/publicFaqs";
 import { publicBillingPlans } from "@/lib/billingPlans";
+import { independentBillingForNewWorkspaces } from "@/lib/billingFeature";
+import { publicBranchBillingCopy } from "@/lib/publicBranchBillingCopy";
 import copy from "@/lib/marketingCopy.json";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 
@@ -25,8 +27,9 @@ export const metadata: Metadata = {
 
 export default async function PricingPage() {
   const { t, href: localHref } = await publicStrings();
-  const plans = publicBillingPlans();
-  const [trial, trialEnd, cancel] = getPublicFaqs(["trial", "trial-end", "cancel"]);
+  const independent = independentBillingForNewWorkspaces();
+  const plans = publicBillingPlans(independent);
+  const [trial, trialEnd, cancel] = getPublicFaqs(["trial", "trial-end", "cancel"], independent);
   return (
     <MarketingShell>
       <div className="public-reference-page public-pricing">
@@ -44,7 +47,7 @@ export default async function PricingPage() {
           <p className="marketing-eyebrow">{t("Compare the daily tools")}</p>
           <h2 className="marketing-title mt-3">{t("Choose by the work you need to do.")}</h2>
           <p className="marketing-lead mt-4">{t("All three plans cover students, seats, fees and spreadsheet import. Standard adds attendance, tasks, follow-ups, staff, analytics and AI. Pro adds WhatsApp, subject to setup and rollout availability.")}</p>
-          <p className="marketing-lead mt-4">{t("Basic keeps daily work simple: students, seat allocation and fees, including partial payments and receipts. Your organization’s plan applies to all its branches; each person still needs the relevant permissions.")}</p>
+          <p className="marketing-lead mt-4">{t(independent ? publicBranchBillingCopy.basic : "Basic keeps daily work simple: students, seat allocation and fees, including partial payments and receipts. Your organization’s plan applies to all its branches; each person still needs the relevant permissions.")}</p>
           <table className="public-comparison">
             <caption className="sr-only">{t("Public plan feature comparison")}</caption>
             <thead><tr><th scope="col">{t("Feature")}</th>{plans.map(plan => <th key={plan.id} scope="col">{plan.shortName}</th>)}</tr></thead>
@@ -58,14 +61,18 @@ export default async function PricingPage() {
           <div>
             <p className="marketing-eyebrow">{t("Your monthly plan")}</p>
             <h2 className="mt-3 text-2xl font-semibold">{t("Clear pricing for each branch")}</h2>
-            <p className="marketing-lead mt-4">{t("Each billable branch has a separate monthly charge. Your total depends on your plan and billable branch count.")}</p>
+            <p className="marketing-lead mt-4">{t(independent ? publicBranchBillingCopy.charges : "Each billable branch has a separate monthly charge. Your total depends on your plan and billable branch count.")}</p>
             <p className="marketing-plan-note mt-4">{t("Taxes, if applicable, are shown at checkout.")}</p>
             <p className="marketing-lead mt-4">{t("This is your subscription to Lab Lords. Fees that your library charges students are separate records in your workspace.")}</p>
           </div>
           <div className="marketing-card p-6 sm:p-8">
             <h2 className="text-2xl font-semibold">{t("Example: three billable branches")}</h2>
-            <ul className="mt-4 space-y-3 text-sm leading-7">{plans.map(plan => <li key={plan.id}><strong>{plan.shortName}:</strong> {t("3 × ₹{amount} = ₹{total} per month, before tax.", { amount: plan.amount ?? 0, total: new Intl.NumberFormat("en-IN").format((plan.amount ?? 0) * 3) })}</li>)}</ul>
-            <p className="marketing-lead mt-4">{t("This is a monthly estimate for three billable branches on the same plan, not a checkout quote. Review your actual branch count, any pending changes and the amount in billing settings before authorizing.")}</p>
+            <ul className="mt-4 space-y-3 text-sm leading-7">{plans.map(plan => <li key={plan.id}>{independent
+              ? t(publicBranchBillingCopy.mixedLine, { plan: plan.shortName, amount: plan.amount ?? 0 })
+              : <><strong>{plan.shortName}:</strong> {t("3 × ₹{amount} = ₹{total} per month, before tax.", { amount: plan.amount ?? 0, total: new Intl.NumberFormat("en-IN").format((plan.amount ?? 0) * 3) })}</>}</li>)}</ul>
+            <p className="marketing-lead mt-4">{independent
+              ? t(publicBranchBillingCopy.mixedTotal, { total: new Intl.NumberFormat("en-IN").format(plans.reduce((sum, plan) => sum + (plan.amount ?? 0), 0)) })
+              : t("This is a monthly estimate for three billable branches on the same plan, not a checkout quote. Review your actual branch count, any pending changes and the amount in billing settings before authorizing.")}</p>
             <Link href={localHref("/contact")} className="marketing-text-link mt-4">{t("Ask about your branch setup")}</Link>
           </div>
         </div>
