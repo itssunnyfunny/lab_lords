@@ -49,6 +49,8 @@ export interface OrganizationAnalyticsSnapshot {
     asOf: string;
     organization: {
         totalBranches: number;
+        includedBranches?: { id: string; name: string }[];
+        excludedBranches?: { id: string; name: string }[];
     };
     seats: {
         // Slot-based values: used shift slots out of total shift capacity.

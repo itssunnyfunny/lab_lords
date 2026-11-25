@@ -357,6 +357,7 @@ describe("Analytics corrections", () => {
         type: "MONTHLY",
       });
 
+      await createSaasSubscription({organizationId: org.id, plan:"STANDARD"});
       const snapshot = await getOrgSnapshot(org.id, asOf);
 
       expect(snapshot.branches[0].overduePayments).toBe(1);
@@ -411,6 +412,7 @@ describe("Analytics corrections", () => {
       await createAllocation({ seatId: seat.id, studentId: students[1].id, shiftId: secondShift.id, startDate: asOf });
       await createAllocation({ seatId: secondSeat.id, studentId: students[2].id, shiftId: shift.id, startDate: asOf });
 
+      await createSaasSubscription({organizationId: org.id, plan:"STANDARD"});
       const snapshot = await getOrganizationHealthSnapshot(org.id, asOf);
 
       expect(snapshot.seats.totalSeats).toBe(4);

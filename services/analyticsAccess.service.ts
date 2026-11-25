@@ -25,7 +25,7 @@ export class AnalyticsAccessService {
         return { health, finance, timezone };
     }
     static async organizationSnapshot(actorId: string, organizationId: string) {
-        await AccessPolicy.authorizeOrganization(actorId, organizationId, { entitlement: "ADVANCED_ANALYTICS" });
+        await AccessPolicy.authorizeOrganization(actorId, organizationId);
         return getOrganizationHealthSnapshot(organizationId);
     }
     static async healthTrend(actorId: string, branchId: string, from: Date, to: Date) {

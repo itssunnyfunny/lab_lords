@@ -3,14 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getSessionUser: vi.fn(),
   findOrganization: vi.fn(),
-  organizationSnapshot: vi.fn(),
+  findBranches: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getSessionUser: mocks.getSessionUser }));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { organization: { findFirst: mocks.findOrganization } },
+  prisma: { organization: { findFirst: mocks.findOrganization }, branch: { findMany: mocks.findBranches } },
 }));
-vi.mock("@/analytics/org.analytics", () => ({ getOrganizationHealthSnapshot: mocks.organizationSnapshot }));
 vi.mock("@/analytics/branch.analytics", () => ({ getBranchHealthSnapshot: vi.fn() }));
 vi.mock("@/analytics/payment.analytics", () => ({ getOverduePaymentsPage: vi.fn(), getPaymentPeriodStats: vi.fn() }));
 vi.mock("@/analytics/trends/branch.trends", () => ({ getBranchOperationalTrend: vi.fn() }));
@@ -43,20 +42,9 @@ beforeEach(() => {
     organizations.find(organization => organization.id === where.id && organization.ownerId === where.ownerId)
       ?? null
   ));
-  mocks.organizationSnapshot.mockResolvedValue({ organization: { totalBranches: 2 } });
-  vi.spyOn(EntitlementService, "assertOrganizationEntitlement").mockResolvedValue({
-    organizationId: "org_owned",
-    plan: "PRO",
-    effectivePlan: "PRO",
-    subscriptionStatus: "ACTIVE",
-    fallbackAccess: false,
-    entitlements: ["ADVANCED_ANALYTICS"],
-    limits: { maxBranches: null },
-    usage: { branches: 2 },
-    accessMode: "FULL",
-    canWrite: true,
-    accessReason: "Authorized test fixture",
-    trial: null,
+  mocks.findBranches.mockResolvedValue([]);
+  vi.spyOn(EntitlementService, "getOrganizationFeatureScope").mockResolvedValue({
+    entitled: true, canWrite: true, branches: null,
   });
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -77,8 +65,8 @@ describe("organization analytics owner-access responses", () => {
         where: { id, ownerId: "owner_requesting" }, select: { id: true },
       });
     }
-    expect(EntitlementService.assertOrganizationEntitlement).not.toHaveBeenCalled();
-    expect(mocks.organizationSnapshot).not.toHaveBeenCalled();
+    expect(EntitlementService.getOrganizationFeatureScope).not.toHaveBeenCalled();
+    expect(mocks.findBranches).not.toHaveBeenCalled();
   });
 
   it.each(routes)("preserves 401 without reading organization state: $name", async ({ get }) => {
@@ -87,43 +75,43 @@ describe("organization analytics owner-access responses", () => {
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "Unauthorized" });
     expect(mocks.findOrganization).not.toHaveBeenCalled();
-    expect(EntitlementService.assertOrganizationEntitlement).not.toHaveBeenCalled();
-    expect(mocks.organizationSnapshot).not.toHaveBeenCalled();
+    expect(EntitlementService.getOrganizationFeatureScope).not.toHaveBeenCalled();
+    expect(mocks.findBranches).not.toHaveBeenCalled();
   });
 
   it("preserves the snapshot entitlement 403 and does not read aggregates", async () => {
     const error = new SubscriptionEntitlementError("Advanced analytics requires the Standard plan.");
-    vi.mocked(EntitlementService.assertOrganizationEntitlement).mockRejectedValue(error);
+    vi.mocked(EntitlementService.getOrganizationFeatureScope).mockRejectedValue(error);
     const response = await invoke(snapshot);
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: error.message, code: error.code });
-    expect(EntitlementService.assertOrganizationEntitlement).toHaveBeenCalledWith(
-      "org_owned", "ADVANCED_ANALYTICS", expect.anything()
+    expect(EntitlementService.getOrganizationFeatureScope).toHaveBeenCalledWith(
+      "org_owned", "ADVANCED_ANALYTICS"
     );
-    expect(mocks.organizationSnapshot).not.toHaveBeenCalled();
+    expect(mocks.findBranches).not.toHaveBeenCalled();
   });
 
   it("returns the unchanged authorized snapshot after owner and entitlement checks", async () => {
     const response = await invoke(snapshot);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ organization: { totalBranches: 2 } });
+    expect(await response.json()).toMatchObject({ organization: { totalBranches: 0, includedBranches: [], excludedBranches: [] } });
     expect(mocks.findOrganization).toHaveBeenCalledWith({
       where: { id: "org_owned", ownerId: "owner_requesting" }, select: { id: true },
     });
-    expect(EntitlementService.assertOrganizationEntitlement).toHaveBeenCalledWith(
-      "org_owned", "ADVANCED_ANALYTICS", expect.anything()
+    expect(EntitlementService.getOrganizationFeatureScope).toHaveBeenCalledWith(
+      "org_owned", "ADVANCED_ANALYTICS"
     );
-    expect(mocks.organizationSnapshot).toHaveBeenCalledExactlyOnceWith("org_owned");
-    expect(vi.mocked(EntitlementService.assertOrganizationEntitlement).mock.invocationCallOrder[0])
-      .toBeLessThan(mocks.organizationSnapshot.mock.invocationCallOrder[0]);
+    expect(mocks.findBranches).toHaveBeenCalledExactlyOnceWith({where: {organizationId: "org_owned"}, select: {id:true, name:true}});
+    expect(vi.mocked(EntitlementService.getOrganizationFeatureScope).mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.findBranches.mock.invocationCallOrder[0]);
   });
 
   it("retires the unused trends contract without inventing historical data or changing entitlements", async () => {
     const response = await invoke(trends);
     expect(response.status).toBe(410);
     expect(await response.json()).toEqual({ code: "ORGANIZATION_TRENDS_RETIRED", message: "Organization trends are retired. Use the organization snapshot." });
-    expect(EntitlementService.assertOrganizationEntitlement).not.toHaveBeenCalled();
-    expect(mocks.organizationSnapshot).not.toHaveBeenCalled();
+    expect(EntitlementService.getOrganizationFeatureScope).not.toHaveBeenCalled();
+    expect(mocks.findBranches).not.toHaveBeenCalled();
   });
 
   it.each(routes)("does not classify an untyped error by its message: $name", async ({ get }) => {
@@ -131,7 +119,7 @@ describe("organization analytics owner-access responses", () => {
     const response = await invoke(get);
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: "Internal Server Error" });
-    expect(EntitlementService.assertOrganizationEntitlement).not.toHaveBeenCalled();
-    expect(mocks.organizationSnapshot).not.toHaveBeenCalled();
+    expect(EntitlementService.getOrganizationFeatureScope).not.toHaveBeenCalled();
+    expect(mocks.findBranches).not.toHaveBeenCalled();
   });
 });

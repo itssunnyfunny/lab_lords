@@ -3,6 +3,8 @@
 export interface AIOrgSnapshot {
   orgId: string
   orgName: string
+  includedBranches: {id: string; name: string}[]
+  excludedBranches: {id: string; name: string}[]
 
   branches: {
     branchId: string
