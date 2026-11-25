@@ -1,5 +1,6 @@
 import copy from "@/lib/marketingCopy.json";
 import { publicBillingPlans } from "@/lib/billingPlans";
+import { publicBranchBillingCopy } from "@/lib/publicBranchBillingCopy";
 
 export type PublicFaq = { id: string; question: string; answer: string; href: string; link: string };
 // The established homepage answers remain the single source for these five facts.
@@ -48,10 +49,16 @@ export const homeFaqIds = homeAnswers.map(faq => faq.id);
 export const featureFaqIds = ["shifts", "import-review", "fees", "partial-payments", "receipts", "follow-ups", "attendance", "language", "staff", "ai"];
 export const pricingFaqIds = ["trial", "trial-end", "branches", "cancel", "refund"];
 
-export function getPublicFaqs(ids: readonly string[]): PublicFaq[] {
+const independentAnswers: Readonly<Record<string, string>> = {
+  branches: publicBranchBillingCopy.branches,
+  "trial-end": publicBranchBillingCopy.trialEnd,
+  cancel: publicBranchBillingCopy.cancel,
+};
+
+export function getPublicFaqs(ids: readonly string[], independent = false): PublicFaq[] {
   return ids.map(id => {
     const answer = publicFaqs.find(faq => faq.id === id);
     if (!answer) throw new Error(`Unknown public FAQ: ${id}`);
-    return answer;
+    return independent && independentAnswers[id] ? { ...answer, answer: independentAnswers[id] } : answer;
   });
 }

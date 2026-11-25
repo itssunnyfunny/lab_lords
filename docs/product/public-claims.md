@@ -370,3 +370,11 @@ and explicitly identifies test payments; queued reminders are not called sent.
 Home, Features, Pricing and FAQ describe student records, fees and attendance
 at the existing plan boundaries. Their wording covers the updated enrollment
 and student billing flows without a public copy change.
+
+## Independent branch plans — local review, 25 November 2026
+
+Home and FAQ explain in English, Hindi and Hinglish that Standard and Pro include invitations and permission administration. Existing staff keep their permitted core student, seat and fee workflows on Basic. Features reuses that FAQ.
+
+Home, Features, Pricing and FAQ follow the same server-side enrollment controls as new workspace creation. When either control is off they present the shared organization plan. When both are enabled they explain that new workspaces can choose Basic, Standard or Pro for each branch. Existing organizations can check their current billing arrangement in Account Billing. The shared FAQ covers the owner trial, branch renewal and invoices. Features describes cross-branch reporting for eligible active Standard and Pro branches.
+
+The Pricing example uses one branch on each catalogue plan. ₹99, ₹299 and ₹499 add up to ₹897 per month before tax. Branches receive separate charges and invoices and may renew on different dates. Public rendering tests exercise both enrollment controls and all three languages. Production enrollment remains subject to the [rollout evidence](../billing/independent-branch-rollout.md).

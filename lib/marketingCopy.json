@@ -154,7 +154,7 @@
         },
         {
           "question": "Can my staff use Lab Lords?",
-          "answer": "Standard includes staff invitations and permission controls. Your staff see the branch information and actions they are allowed to access."
+          "answer": "Standard and Pro let you invite staff and manage permissions. If you move to Basic, existing staff can still use the student, seat and fee tools their permissions allow."
         }
       ]
     },

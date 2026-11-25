@@ -72,7 +72,7 @@ describe("public language contracts", () => {
     expect(publicFaqAnswer(faq, publicTranslator())).toBe(faq.answer);
   });
   it("requires public translations for dynamic billing capabilities and availability notes", () => {
-    const messages = new Set(publicBillingPlans().flatMap(plan => [
+    const messages = new Set([...publicBillingPlans(), ...publicBillingPlans(true)].flatMap(plan => [
       ...plan.capabilities.map(capability => capability.label),
       ...(plan.availabilityNote ? [plan.availabilityNote] : []),
     ]));

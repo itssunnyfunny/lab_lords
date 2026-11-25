@@ -9,6 +9,8 @@ import { WorkspaceCTA } from "@/components/landing/MarketingActions";
 import { PublicFaqList } from "@/components/landing/PublicFaqList";
 import { featureFaqIds } from "@/lib/publicFaqs";
 import { publicBillingPlans, type BillingCapabilityId } from "@/lib/billingPlans";
+import { independentBillingForNewWorkspaces } from "@/lib/billingFeature";
+import { publicBranchBillingCopy } from "@/lib/publicBranchBillingCopy";
 import copy from "@/lib/marketingCopy.json";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 
@@ -28,7 +30,7 @@ type FeatureGroup = {
   title: string;
   description: string;
   capability: BillingCapabilityId;
-  items: { title: string; description: string }[];
+  items: { title: string; description: string; independentDescription?: string }[];
 };
 
 const featureCopy = Object.fromEntries(copy.home.features.items.map(item => [item.id, item]));
@@ -95,7 +97,7 @@ const groups: FeatureGroup[] = [
     items: [
       { title: "Separate branch records", description: "Keep students, seats, shifts and fees with the correct branch." },
       { title: "Switch branches", description: "Open the location you need without mixing its records with another." },
-      { title: "Clear pricing", description: "Each billable branch is charged separately under the chosen plan." },
+      { title: "Clear pricing", description: "Each billable branch is charged separately under the chosen plan.", independentDescription: publicBranchBillingCopy.intro },
     ],
   },
   {
@@ -111,7 +113,7 @@ const groups: FeatureGroup[] = [
     description: "Review seat usage and fee collection across your library.",
     items: [
       { title: "Branch reports", description: "Look at the branch's recorded figures and trends." },
-      { title: "Cross-branch reports", description: "Compare seat usage and fee collection across your branches." },
+      { title: "Cross-branch reports", description: "Compare seat usage and fee collection across your branches.", independentDescription: publicBranchBillingCopy.eligibleReports },
     ],
   },
   {
@@ -139,7 +141,8 @@ const examples: Record<string, { text: string; href: string; link: string }> = {
 
 export default async function FeaturesPage() {
   const { t, href: localHref } = await publicStrings();
-  const plans = publicBillingPlans();
+  const independent = independentBillingForNewWorkspaces();
+  const plans = publicBillingPlans(independent);
 
   return (
     <MarketingShell>
@@ -184,11 +187,11 @@ export default async function FeaturesPage() {
                 {group.items.map(item => (
                   <article key={item.title} className="marketing-card p-6">
                     <h3 className="text-lg font-semibold">{t(item.title)}</h3>
-                    <p className="mt-3 text-sm leading-7 text-[color:var(--text-secondary)]">{t(item.description)}</p>
+                    <p className="mt-3 text-sm leading-7 text-[color:var(--text-secondary)]">{t(independent && item.independentDescription ? item.independentDescription : item.description)}</p>
                   </article>
                 ))}
               </div>
-              <div className="public-feature-example"><p className="public-example"><strong>{t("In everyday work:")} </strong>{t(examples[group.id].text)}</p><Link href={localHref(examples[group.id].href)} className="marketing-text-link mt-4">{t(examples[group.id].link)}</Link></div>
+              <div className="public-feature-example"><p className="public-example"><strong>{t("In everyday work:")} </strong>{t(independent && group.id === "branches" ? publicBranchBillingCopy.example : examples[group.id].text)}</p><Link href={localHref(examples[group.id].href)} className="marketing-text-link mt-4">{t(examples[group.id].link)}</Link></div>
             </div>
           </section>
         );
