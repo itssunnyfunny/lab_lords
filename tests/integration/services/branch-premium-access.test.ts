@@ -11,6 +11,12 @@ import { AnalyticsAccessService } from "@/services/analyticsAccess.service";
 import { checkFinalBranchSendScope, lockBranchBillingForSend, reconcileBranchPremiumWork } from "@/services/branchPremiumWork.service";
 import { guardPreparedWhatsAppSubmissionAgainstPauseInTransaction } from "@/services/whatsappDispatcher.service";
 
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>(settle => { resolve = settle; });
+  return { promise, resolve };
+}
+
 async function world() {
   const owner = await createUser();
   const organization = await createOrg({ownerId: owner.id, billingModelVersion: "BRANCH_V3"});
@@ -126,8 +132,8 @@ describe("branch feature admission", () => {
       await tx.organizationSubscription.update({where:{id:pro.subscription.id},data:{status:"HALTED"}});
       await reconcileBranchPremiumWork(tx, organizationId, pro.id, before);
     });
-    const acquired = Promise.withResolvers<void>();
-    const proceed = Promise.withResolvers<void>();
+    const acquired = deferred();
+    const proceed = deferred();
     const pause = () => { acquired.resolve(); return proceed.promise; };
     const firstTransaction = first === "admission" ? admit(pause) : downgrade(pause);
     await acquired.promise;
