@@ -2,6 +2,7 @@ import { trialForBillingWorkspace, branchBillingReturnPath, assertBranchPlanChan
 import { isHistoricalCommercialModel, historicalCancellationPolicy } from "@/services/legacyCommercialCompatibility";
 import { executeBillingProviderAction, confirmReconciledBillingProviderAction, getConfirmedBillingProviderResponse } from "@/services/billingProviderAction.service";
 import { prisma } from "@/lib/prisma";
+import { branchBillingIntentActions, isBrowserBillingIntentKey } from "@/lib/branchBillingIntents";
 import { projectedBillableStatuses, TERMINAL_STATUSES } from "@/lib/billingState";
 import crypto from "node:crypto";
 import { BILLING_PLANS, billingPlanRank, getActiveBillingPlan, getBillingPlan, publicBillingPlans, type BillingPlan } from "@/lib/billingPlans";
@@ -1717,7 +1718,20 @@ function getSafeReturnPath(value: unknown, organizationId: string) {
   return path;
 }
 
-function serializeBillingOperation(change: {
+type BranchIntentChange = Pick<OrganizationBillingChange,
+  "agreementBranchId" | "idempotencyKey" | "status" | "operationStatus" | "failureCategory" | "resolvedAt">;
+
+function branchIntentReceipt(change: BranchIntentChange, undone = false) {
+  if (!change.agreementBranchId || !isBrowserBillingIntentKey(change.idempotencyKey)) return {};
+  const resolved = undone || (change.failureCategory !== "MANUAL_REVIEW_REQUIRED" && (
+    change.status === "APPLIED" || change.status === "SUPERSEDED" || change.status === "UNDONE"
+    || (change.status === "SCHEDULED" && change.operationStatus === "SCHEDULED" && !change.failureCategory)
+    || (change.status === "FAILED" && change.resolvedAt !== null)
+  ));
+  return { clientIntent: { key: change.idempotencyKey, resolved } };
+}
+
+function serializeBillingOperation(change: BranchIntentChange & {
   id: string;
   organizationId: string;
   type: string;
@@ -1734,6 +1748,7 @@ function serializeBillingOperation(change: {
   updatedAt: Date;
 }) {
   return {
+    ...branchIntentReceipt(change),
     id: change.id,
     organizationId: change.organizationId,
     type: change.type,
@@ -1952,7 +1967,7 @@ function getWebhookEntity<T extends Record<string, unknown>>(payload: unknown, k
 export class BillingService {
   static serializeSubscription = serializeSubscription;
 
-  static async listPlansForOrganization(userId: string, organizationId: string, branchId?: string) {
+  static async listPlansForOrganization(userId: string, organizationId: string, branchId?: string, pendingIntentKeys?: string[]) {
     const organization = await OrganizationService.getOrganizationForOwnerAccess(organizationId, userId);
     const independent = organization.billingModelVersion === "BRANCH_V3";
     if (independent && (!branchId || !organization.branches.some(branch => branch.id === branchId))) {
@@ -1960,8 +1975,9 @@ export class BillingService {
     }
     if (!independent) await expireOverdueAuthorizationOperations(organizationId);
     const scope = { organizationId, agreementBranchId: independent ? branchId : null };
+    const intentKeys = pendingIntentKeys?.slice(0, branchBillingIntentActions.length).filter(isBrowserBillingIntentKey);
     const providerMode = resolveRazorpayMode();
-    const [subscription, pendingReplacement, history, entitlements, invoices, scheduledChanges, ownerTrialGrant, offerGrant, experience] = await Promise.all([
+    const [subscription, pendingReplacement, history, entitlements, invoices, scheduledChanges, ownerTrialGrant, offerGrant, experience, pendingIntents] = await Promise.all([
       independent ? prisma.organizationSubscription.findFirst({ where: { ...scope, currentAgreementBranchId: branchId } })
         : prisma.organizationSubscription.findUnique({ where: { ...billingRecordScope(), ...currentSlot(organizationId) } }),
       independent ? prisma.organizationSubscription.findFirst({ where: { ...scope, pendingAgreementBranchId: branchId } })
@@ -1994,6 +2010,10 @@ export class BillingService {
         orderBy: { billingOffer: { priority: "desc" } },
       }),
       BillingExperienceService.getBillingExperience(organizationId, userId, independent ? branchId : undefined),
+      independent && intentKeys?.length ? prisma.organizationBillingChange.findMany({
+        where: { ...scope, idempotencyKey: { in: intentKeys } },
+        select: { agreementBranchId: true, idempotencyKey: true, status: true, operationStatus: true, failureCategory: true, resolvedAt: true },
+      }) : [],
     ]);
     assertSubscriptionProviderMode(subscription, providerMode);
     assertSubscriptionProviderMode(pendingReplacement, providerMode);
@@ -2033,6 +2053,9 @@ export class BillingService {
       paymentMethod: subscription?.providerPaymentMethod ?? null,
       invoices,
       scheduledChanges,
+      ...(pendingIntents.length ? {
+        resolvedIntentKeys: pendingIntents.filter(change => branchIntentReceipt(change).clientIntent?.resolved).map(change => change.idempotencyKey),
+      } : {}),
       offer: offerGrant?.billingOffer ?? null,
       experience,
     };
@@ -3033,22 +3056,21 @@ export class BillingService {
       && change.failureCategory !== "MANUAL_REVIEW_REQUIRED"
       ? await BillingMutationService.retry(change.id)
       : await BillingMutationService.processNext(organizationId);
-    const current = processed ?? change;
     if (replacementRequired) {
-      const replacementChange = await prisma.organizationBillingChange.findUnique({
-        where: { ...billingRecordScope(), id: current.id },
+      const replacementChange = await prisma.organizationBillingChange.findUniqueOrThrow({
+        where: { ...billingRecordScope(), organizationId, id: change.id },
         include: { replacementSubscription: true },
       });
-      if (!replacementChange?.replacementSubscription
-        && ["QUEUED", "PROCESSING"].includes(replacementChange?.status ?? current.status)) {
+      if (!replacementChange.replacementSubscription
+        && ["QUEUED", "PROCESSING"].includes(replacementChange.status)) {
         return {
-          change: replacementChange ?? current,
-          operation: serializeBillingOperation(replacementChange ?? current),
-          processingUrl: billingProcessingUrl(organizationId, current.id),
+          change: replacementChange,
+          operation: serializeBillingOperation(replacementChange),
+          processingUrl: billingProcessingUrl(organizationId, change.id),
         };
       }
-      if (!replacementChange?.replacementSubscription) {
-        throw new Error(replacementChange?.lastError ?? "Replacement checkout could not be prepared");
+      if (!replacementChange.replacementSubscription) {
+        throw new Error(replacementChange.lastError ?? "Replacement checkout could not be prepared");
       }
       if (replacementChange.status !== "AWAITING_PAYMENT"
         || replacementChange.operationStatus !== "CHECKOUT_OPEN"
@@ -3068,11 +3090,10 @@ export class BillingService {
         { purpose: "REPLACEMENT" }
       );
     }
-    return {
-      change: current,
-      operation: serializeBillingOperation(current),
-      processingUrl: billingProcessingUrl(organizationId, change.id),
-    };
+    const current = processed?.id === change.id ? processed : await prisma.organizationBillingChange.findUniqueOrThrow({
+      where: { ...billingRecordScope(), organizationId, id: change.id },
+    });
+    return { change: current, operation: serializeBillingOperation(current), processingUrl: billingProcessingUrl(organizationId, change.id) };
   }
 
   static async createPaymentMethodReplacement(
@@ -3111,25 +3132,27 @@ export class BillingService {
       createdByUserId: userId,
       returnPath: getSafeReturnPath(returnPath, organizationId),
     });
-    const processed = change.status === "FAILED"
+    if (change.status === "FAILED"
       && !change.replacementSubscriptionId
-      && change.failureCategory !== "MANUAL_REVIEW_REQUIRED"
-      ? await BillingMutationService.retry(change.id)
-      : await BillingMutationService.processNext(organizationId);
-    const replacementChange = await prisma.organizationBillingChange.findUnique({
-      where: { ...billingRecordScope(), id: processed?.id ?? change.id },
+      && change.failureCategory !== "MANUAL_REVIEW_REQUIRED") {
+      await BillingMutationService.retry(change.id);
+    } else {
+      await BillingMutationService.processNext(organizationId);
+    }
+    const replacementChange = await prisma.organizationBillingChange.findUniqueOrThrow({
+      where: { ...billingRecordScope(), organizationId, id: change.id },
       include: { replacementSubscription: true },
     });
-    if (!replacementChange?.replacementSubscription
-      && ["QUEUED", "PROCESSING"].includes(replacementChange?.status ?? change.status)) {
+    if (!replacementChange.replacementSubscription
+      && ["QUEUED", "PROCESSING"].includes(replacementChange.status)) {
       return {
-        change: replacementChange ?? change,
-        operation: serializeBillingOperation(replacementChange ?? change),
+        change: replacementChange,
+        operation: serializeBillingOperation(replacementChange),
         processingUrl: billingProcessingUrl(organizationId, change.id),
       };
     }
-    if (!replacementChange?.replacementSubscription) {
-      throw new Error(replacementChange?.lastError ?? "Payment-method checkout could not be prepared");
+    if (!replacementChange.replacementSubscription) {
+      throw new Error(replacementChange.lastError ?? "Payment-method checkout could not be prepared");
     }
     if (replacementChange.status !== "AWAITING_PAYMENT"
       || replacementChange.operationStatus !== "CHECKOUT_OPEN"
@@ -3179,16 +3202,35 @@ export class BillingService {
       effectiveAt: boundary, undoCutoffAt, createdByUserId: userId,
     });
     const dispatchNow = historical != null || now >= undoCutoffAt!;
-    const processed = dispatchNow && change.status === "QUEUED"
-      ? await BillingMutationService.processNext(organizationId, now)
-      : historical && change.status === "FAILED" ? await BillingMutationService.retry(change.id) : null;
+    if (dispatchNow && change.status === "QUEUED") {
+      await BillingMutationService.processNext(organizationId, now);
+    } else if (historical && change.status === "FAILED") {
+      await BillingMutationService.retry(change.id);
+    }
     if (historical) {
       const updated = await prisma.organizationSubscription.findUniqueOrThrow({where:{ ...billingRecordScope(),id:subscription.id}});
       return {cancelled:TERMINAL_STATUSES.has(updated.status),scheduled:updated.cancelAtCycleEnd,
         subscription:serializeSubscription(updated)};
     }
-    return {cancelled:false,scheduled:true,undoable:!dispatchNow,undoCutoffAt,effectiveAt:boundary,
-      change:processed ?? change,subscription:serializeSubscription(subscription)};
+    // The FIFO worker can process an earlier request. Report this key's change
+    // and its source subscription from the same persisted snapshot.
+    const scope = { organizationId, ...billingRecordScope() };
+    const [persisted, source] = await prisma.$transaction([
+      prisma.organizationBillingChange.findUniqueOrThrow({
+        where: { ...scope, id: change.id, organizationSubscriptionId: subscription.id },
+      }),
+      prisma.organizationSubscription.findUniqueOrThrow({ where: { ...scope, id: subscription.id } }),
+    ], { isolationLevel: "RepeatableRead" });
+    const undoable = persisted.status === "QUEUED" && !persisted.providerMutationAdmittedAt
+      && persisted.undoCutoffAt !== null && now < persisted.undoCutoffAt;
+    const terminal = TERMINAL_STATUSES.has(source.status);
+    return {
+      cancelled: terminal && (persisted.status === "APPLIED" || persisted.status === "SCHEDULED"),
+      scheduled: !terminal && (undoable || (persisted.status === "SCHEDULED" && source.cancelAtCycleEnd)),
+      undoable, undoCutoffAt: persisted.undoCutoffAt, effectiveAt: persisted.effectiveAt,
+      ...branchIntentReceipt(persisted),
+      change: persisted, subscription: serializeSubscription(source),
+    };
   }
 
   static async undoWorkspaceCancellation(
@@ -3254,7 +3296,7 @@ export class BillingService {
           "The billing change moved while the undo was being finalized"
         );
       }
-      return { undone: true };
+      return { undone: true, ...branchIntentReceipt(change, true) };
     });
   }
 
@@ -4048,11 +4090,11 @@ export class BillingService {
     }
     if (change.replacementSubscriptionId) {
       await BillingReplacementService.undoReplacement(change.id);
-      return { undone: true, replayed: null };
+      return { undone: true, replayed: null, ...branchIntentReceipt(change, true) };
     }
     if (change.status === "SCHEDULED" && organization.subscription?.providerPaymentMethod === "CARD") {
       const result = await BillingMutationService.undoScheduledProviderChange(change.id);
-      return { undone: true, replayed: result.replayed, replayError: result.replayError };
+      return { undone: true, replayed: result.replayed, replayError: result.replayError, ...branchIntentReceipt(change, true) };
     }
     await billingTransaction(async tx => {
       const lockedOrganization = await lockBillingCoordinator(tx, organizationId, userId);
@@ -4105,7 +4147,7 @@ export class BillingService {
         );
       }
     });
-    return { undone: true };
+    return { undone: true, ...branchIntentReceipt(change, true) };
   }
 
   private static async retainManualReviewAfterReconciliationFailure(
@@ -4445,7 +4487,7 @@ export class BillingService {
     org: Awaited<ReturnType<typeof OrganizationService.getOrganizationForOwner>>,
     subscription: OrganizationSubscription,
     plan: BillingPlan,
-    change: {
+    change: BranchIntentChange & {
       id: string;
       organizationId: string;
       type: string;
