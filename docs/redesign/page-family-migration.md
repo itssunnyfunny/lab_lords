@@ -1,5 +1,11 @@
 # Application page-family migration
 
+## Independent branch navigation and Billing — local, 25 November 2026
+
+Account Billing uses the branch directory and existing plan confirmation and operation panels. Switching to Basic uses the existing simple shell. Standard and Pro retain the full shell and refresh individual capabilities. The local desktop and phone navigation fixture covers delayed access responses, incompatible routes, mixed branch totals and revoked membership. Owner design review, real mandate approval and release are separate milestones.
+
+[Desktop and mobile evidence and commands](../evidence/branch-plans-browser-2026-11-25.md)
+
 ## Branch and seat setup forms — local, 2026-11-16
 
 Families H/G/C: organization Add Branch retained a narrow unsectioned form and
