@@ -1,4 +1,5 @@
 import { apiClient } from "./core";
+import { billingIntentHeader, branchBillingIntentActions, type BranchBillingIntentReceipt } from "@/lib/branchBillingIntents";
 import type {
   BillingEntitlement,
   PublicBillingCapability,
@@ -145,6 +146,7 @@ export type BillingOverview = {
     accessRevokedAt?: string | null;
     accessGraceEndsAt?: string | null;
   }>;
+  resolvedIntentKeys?: string[];
 };
 
 export type BillingInvoiceDto = BillingOverview["invoices"][number] & {
@@ -155,6 +157,7 @@ export type BillingInvoiceDto = BillingOverview["invoices"][number] & {
 export type BillingInvoicePage = { items: BillingInvoiceDto[]; nextCursor: string | null };
 
 export type BillingOperationDto = {
+  clientIntent?: BranchBillingIntentReceipt;
   id: string;
   organizationId: string;
   type: string;
@@ -232,6 +235,7 @@ export type BillingVerificationResult = {
 };
 
 export type BillingCancellationResult = {
+  clientIntent?: BranchBillingIntentReceipt;
   cancelled: boolean;
   scheduled: boolean;
   subscription: OrganizationSubscriptionDto;
@@ -273,6 +277,13 @@ export type BillingOperationResponse = {
 
 export type BillingRetryResult = BillingCheckoutPayload | BillingRecoveryPayload | BillingOperationResponse;
 
+type BillingIntentResult = {
+  operation?: BillingOperationDto | null;
+  clientIntent?: BranchBillingIntentReceipt;
+};
+
+type BillingUndoResult = { undone: true; clientIntent?: BranchBillingIntentReceipt };
+
 export function billingRequestPath(path: string, branchId?: string) {
   if (!branchId) return path;
   const separator = path.includes("?") ? "&" : "?";
@@ -281,18 +292,43 @@ export function billingRequestPath(path: string, branchId?: string) {
 
 export function billingForBranch(branchId?: string) {
   const scope = (path: string) => billingRequestPath(path, branchId);
-  async function submitIntent<T>(orgId: string, intent: string, submit: (key: string) => Promise<T>) {
+  const storageKey = (orgId: string, action: string) => `branch-billing-intent:${orgId}:${branchId}:${action}`;
+
+  function retireIntents(orgId: string, keys: string[]) {
+    if (!branchId || !keys.length) return;
+    for (const action of branchBillingIntentActions) {
+      const slot = storageKey(orgId, action);
+      const current = sessionStorage.getItem(slot);
+      if (current && keys.includes(current)) sessionStorage.removeItem(slot);
+    }
+  }
+
+  async function observeIntent<T extends BillingIntentResult>(orgId: string, request: Promise<T>) {
+    const result = await request;
+    const receipt = result.clientIntent ?? result.operation?.clientIntent;
+    if (receipt?.resolved) retireIntents(orgId, [receipt.key]);
+    return result;
+  }
+
+  async function submitIntent<T extends BillingIntentResult>(orgId: string, intent: string, submit: (key: string) => Promise<T>) {
     if (!branchId) return submit(crypto.randomUUID());
-    const storageKey = `branch-billing-intent:${orgId}:${branchId}:${intent}`;
-    const key = sessionStorage.getItem(storageKey) ?? crypto.randomUUID();
-    sessionStorage.setItem(storageKey, key);
-    const result = await submit(key);
-    sessionStorage.removeItem(storageKey);
+    const slot = storageKey(orgId, intent);
+    const key = sessionStorage.getItem(slot) ?? crypto.randomUUID();
+    sessionStorage.setItem(slot, key);
+    const result = await observeIntent(orgId, submit(key));
+    // A confirmed no-op or initial checkout does not enqueue a change under this key.
+    if (!result.clientIntent && !result.operation?.clientIntent) retireIntents(orgId, [key]);
     return result;
   }
   return {
-    getOverview(orgId: string): Promise<BillingOverview> {
-      return apiClient.get(scope(`/organizations/${orgId}/billing`));
+    async getOverview(orgId: string): Promise<BillingOverview> {
+      const url = scope(`/organizations/${orgId}/billing`);
+      if (!branchId) return apiClient.get(url);
+      const pending = branchBillingIntentActions.map(action => sessionStorage.getItem(storageKey(orgId, action))).filter((key): key is string => key !== null);
+      if (!pending.length) return apiClient.get(url);
+      const result = await apiClient.get<unknown, BillingOverview>(url, { headers: { [billingIntentHeader]: pending.join(",") } });
+      retireIntents(orgId, result.resolvedIntentKeys ?? []);
+      return result;
     },
 
     getInvoices(orgId: string, cursor?: string): Promise<BillingInvoicePage> {
@@ -313,7 +349,7 @@ export function billingForBranch(branchId?: string) {
         changeId: string;
       }
     ): Promise<BillingVerificationResult> {
-      return apiClient.post(scope(`/organizations/${orgId}/billing/subscription/verify`), payload);
+      return observeIntent<BillingVerificationResult>(orgId, apiClient.post(scope(`/organizations/${orgId}/billing/subscription/verify`), payload));
     },
 
     cancelSubscription(orgId: string): Promise<BillingCancellationResult> {
@@ -322,8 +358,8 @@ export function billingForBranch(branchId?: string) {
       }));
     },
 
-    undoCancellation(orgId: string): Promise<{ undone: true }> {
-      return apiClient.delete(scope(`/organizations/${orgId}/billing/subscription/cancel`));
+    undoCancellation(orgId: string): Promise<BillingUndoResult> {
+      return observeIntent<BillingUndoResult>(orgId, apiClient.delete(scope(`/organizations/${orgId}/billing/subscription/cancel`)));
     },
 
     claimTrial(orgId: string) {
@@ -347,19 +383,19 @@ export function billingForBranch(branchId?: string) {
     },
 
     undoChange(orgId: string, changeId: string) {
-      return apiClient.delete(scope(`/organizations/${orgId}/billing/mutations/${changeId}`));
+      return observeIntent<BillingUndoResult>(orgId, apiClient.delete(scope(`/organizations/${orgId}/billing/mutations/${changeId}`)));
     },
 
     getOperation(orgId: string, changeId: string): Promise<BillingOperationResponse & { processingUrl: string }> {
-      return apiClient.get(scope(`/organizations/${orgId}/billing/mutations/${changeId}`));
+      return observeIntent<BillingOperationResponse & { processingUrl: string }>(orgId, apiClient.get(scope(`/organizations/${orgId}/billing/mutations/${changeId}`)));
     },
 
     reconcileOperation(orgId: string, changeId: string, paymentId?: string) {
-      return apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}`), { paymentId });
+      return observeIntent<BillingIntentResult>(orgId, apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}`), { paymentId }));
     },
 
     retryOperation(orgId: string, changeId: string): Promise<BillingRetryResult> {
-      return apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}/retry`));
+      return observeIntent<BillingRetryResult>(orgId, apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}/retry`)));
     },
 
     recordCheckoutEvent(
@@ -375,7 +411,7 @@ export function billingForBranch(branchId?: string) {
         paymentId?: string;
       }
     ) {
-      return apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}/checkout-event`), { event, ...details });
+      return observeIntent<BillingIntentResult>(orgId, apiClient.post(scope(`/organizations/${orgId}/billing/mutations/${changeId}/checkout-event`), { event, ...details }));
     },
 
     createRecovery(
