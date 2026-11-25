@@ -367,6 +367,28 @@ test("authenticated trial cancellation requires confirmation and preserves trial
   await assertNoOverflow(page);
 });
 
+test("an unconfirmed cancellation keeps its warning after the billing overview refreshes", async ({ page }) => {
+  const fixture = await installBillingFixture(page);
+  const renewalMessage = "Your subscription is still active and will renew.";
+  await page.route("**/api/organizations/org-pilot/billing/subscription/cancel", route => {
+    expect(route.request().method()).toBe("POST");
+    fixture.billingOverview.experience.customerMessage = renewalMessage;
+    return route.fulfill({ json: { cancelled: false, scheduled: false, subscription: fixture.billingOverview.current } });
+  });
+  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  const controls = page.locator("#subscription");
+  const cancel = controls.getByRole("button", { name: "Cancel at cycle end", exact: true });
+  await cancel.click();
+  await page.getByRole("alertdialog", { name: "Cancel at cycle end?", exact: true })
+    .getByRole("button", { name: "Schedule cancellation", exact: true }).click();
+
+  const overview = page.locator("#billing");
+  await expect(overview.getByText(renewalMessage, { exact: true })).toBeVisible();
+  await expect(overview.getByRole("status").filter({ hasText: "Cancellation has not been confirmed." })).toBeVisible();
+  await expect(cancel).toBeEnabled();
+  await expect(controls.getByRole("button", { name: "Undo cancellation", exact: true })).toHaveCount(0);
+});
+
 test("Pro shows its billed identity, WhatsApp conditions and both downgrade destinations", async ({ page }) => {
   await installBillingFixture(page, "PRO");
   await page.goto("/org/org-pilot/billing?mode=after&lang=en");

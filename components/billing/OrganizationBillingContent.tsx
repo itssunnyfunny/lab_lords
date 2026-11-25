@@ -433,12 +433,14 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
             const result = await billing.cancelSubscription(orgId);
             setBillingOverview(prev => prev ? { ...prev, current: result.subscription } : prev);
             setBillingNotice({
-                tone: result.scheduled ? "warning" : "success",
+                tone: result.cancelled ? "success" : "warning",
                 message: result.scheduled
                     ? getSubscriptionCancellationMode(billingOverview) === "TRIAL"
                         ? "Cancellation is scheduled before the first plan charge. Your trial end date is unchanged."
                         : "Cancellation is scheduled for the end of the current billing cycle."
-                    : "The subscription has been cancelled.",
+                    : result.cancelled
+                        ? "The subscription has been cancelled."
+                        : "Cancellation has not been confirmed. Check your billing status before trying again.",
             });
             setCancelDialogOpen(false);
             await loadBilling();
