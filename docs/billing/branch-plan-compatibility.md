@@ -1,5 +1,7 @@
 # Independent branch plans: compatibility assessment — 2026-10-28
 
+**25 November 2026 update.** The assessment below describes the October baseline. The local BRANCH_V3 implementation adds an explicitly enrolled branch-agreement path. Existing aggregate customers retain their recorded model. See [implementation scope, conversion holds and release gates](independent-branch-rollout.md).
+
 **Independent branch plans are not implemented in the application.** The current
 code still uses one organization subscription and one plan, with billable branch
 quantity multiplying its price. Basic ₹99, Standard ₹299 and Pro ₹499 are the
