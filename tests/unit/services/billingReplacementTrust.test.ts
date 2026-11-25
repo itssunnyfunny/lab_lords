@@ -260,7 +260,7 @@ describe("replacement billing trust and race contracts", () => {
       );
 
       expect(mocks.billingChangeUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: change.id, operationStatus: "CHECKOUT_OPEN" },
+        where: { agreementBranchId: null, id: change.id, operationStatus: "CHECKOUT_OPEN" },
         data: expect.objectContaining({
           status: "AWAITING_PAYMENT",
           operationStatus: "AWAITING_PROVIDER_CONFIRMATION",
@@ -352,6 +352,7 @@ describe("replacement billing trust and race contracts", () => {
       .data.verificationStartedAt;
     expect(mocks.billingChangeUpdateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
       where: {
+        agreementBranchId: null,
         id: change.id,
         operationStatus: "VERIFYING",
         attemptCount: 0,
