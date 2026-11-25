@@ -1,5 +1,9 @@
 # Lab Lords: Current Architecture and Implementation State
 
+## Independent branch billing — local, 25 November 2026
+
+The BRANCH_V3 path binds provider subscriptions and operation receipts to an individual branch agreement. The owner selects a branch in Account Billing. Branch access, workspace selection and premium report scope follow effective evidence for the destination branch. New V3 enrollment uses an explicit flag. Earlier LEGACY and WORKSPACE_V2 models retain aggregate billing. A read-only inventory and a transactional converter cover eligible terminal-source and never-billed V2 groups. Renewing aggregates remain held. See [the rollout guide](../billing/independent-branch-rollout.md) for verification and release prerequisites.
+
 ## Student fees, imports and branch operations — local, 2026-11-18
 
 Monthly generation checks eligibility under the settlement lock. Free cycles

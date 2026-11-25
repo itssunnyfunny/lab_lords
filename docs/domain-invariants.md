@@ -1,5 +1,14 @@
 # Domain invariants
 
+## Independent branch agreements — local implementation, 25 November 2026
+
+- **Must preserve—enforced:** BRANCH_V3 assigns each branch one agreement in its tenant. Current and pending provider positions are unique to that agreement. Its catalogue subscription has quantity one. The original aggregate ledger retains its historical ownership.
+- **Service-layer contract—not DB-enforced:** A future selection, browser callback or authorization page never proves settled coverage. Interactive access combines the exact branch's evidence, bounded trial or authorization grant, lifecycle, role and permission overrides. Organization totals for premium reports identify their eligible branch scope.
+- **Service-layer contract—not DB-enforced:** A converted branch can retain the remaining verified period of its retired aggregate source. It cannot apply that invoice to a successor. The original owner trial keeps its consumed identity, tier and dates.
+- **Must preserve—enforced:** Agreement mutations do not change student fee anchors, enrollment periods, dues, receipts, allocations, staff permissions or shared sender ownership. The existing system-owned student-fee accrual and branch closure/reopening rules apply through plan changes.
+
+See the [cohort and recovery rules](billing/independent-branch-rollout.md).
+
 ## Complete owner setup — 5 November 2026
 
 - **Must preserve—enforced:** The new onboarding library/centre answer persists
