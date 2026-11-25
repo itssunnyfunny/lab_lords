@@ -29,6 +29,8 @@ export const errorMessages = {
     "Email must be a valid email address.": ["सही ईमेल पता भरें।", "Valid email address bharein."],
     "Branch access is unavailable.": ["ब्रांच की अनुमति उपलब्ध नहीं है।", "Branch access available nahi hai."],
     "Your role does not include this action.": ["आपकी भूमिका में इस काम की अनुमति नहीं है।", "Aapke role mein is action ki permission nahi hai."],
+    "{branch} needs the {plan} plan for this feature.": ["{branch} में इस सुविधा के लिए {plan} प्लान चाहिए।", "{branch} mein is feature ke liye {plan} plan chahiye."],
+    "The owner needs to enable the {plan} plan for {branch}.": ["मालिक को {branch} के लिए {plan} प्लान चालू करना होगा।", "Owner ko {branch} ke liye {plan} plan enable karna hoga."],
     "This feature requires the Pro plan.": ["इस सुविधा के लिए Pro प्लान चाहिए।", "Is feature ke liye Pro plan chahiye."],
     "The organization owner needs to enable the Pro plan.": ["संस्था के मालिक को Pro प्लान चालू करना होगा।", "Organization owner ko Pro plan enable karna hoga."],
     "The organization owner needs to enable the Standard plan.": ["संस्था के मालिक को Standard प्लान चालू करना होगा।", "Organization owner ko Standard plan enable karna hoga."],
