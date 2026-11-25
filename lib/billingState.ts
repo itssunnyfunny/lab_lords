@@ -6,7 +6,8 @@ import type { BillingExperience } from "@/types/billingExperience";
 export const projectedBillableStatuses: BranchBillingStatus[] = ["ACTIVE", "PENDING_ACTIVATION"];
 export const TERMINAL_STATUSES = new Set<SaasSubscriptionStatus>(["CANCELLED", "COMPLETED", "EXPIRED"]);
 
-export function hasActiveBillingTrial(experience?: Pick<BillingExperience, "effectivePlan" | "trialDaysRemaining"> | null) {
+export function hasActiveBillingTrial(experience?: Pick<BillingExperience, "effectivePlan" | "trialDaysRemaining" | "independentBilling" | "billingAccessSource"> | null) {
+  if (experience?.independentBilling && experience.billingAccessSource !== undefined) return experience.billingAccessSource === "TRIAL";
   return experience?.effectivePlan === "STANDARD_TRIAL" || (experience?.trialDaysRemaining ?? 0) > 0;
 }
 

@@ -57,6 +57,12 @@ export type BillingExperienceOperation = {
 };
 
 export type BillingExperience = {
+  legacyCoverageEndsAt?: string | null;
+  independentBilling?: boolean;
+  planChangeEffectiveAt?: string | null;
+  accessGrantEndsAt?: string | null;
+  monthlyCommitmentSubunits?: number | null;
+  nextChargeAmountSubunits?: number | null;
   organizationId: string;
   accessMode: BillingExperienceAccessMode;
   billingAccessSource?: "TRIAL" | "PAID" | "PAYMENT_RETRY" | "NONE";
@@ -97,6 +103,8 @@ export type BillingExperience = {
 
 export type BranchBillingExperience = Pick<
   BillingExperience,
+  | "accessGrantEndsAt"
+  | "independentBilling"
   | "organizationId"
   | "accessMode"
   | "effectivePlan"
