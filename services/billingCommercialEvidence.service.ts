@@ -1,3 +1,4 @@
+import { billingRecordScope, lockBillingCoordinator, billingCoordinator } from "@/services/billingAgreementScope.service";
 import { toRazorpaySubunits } from "@/lib/razorpay";
 import { prisma } from "@/lib/prisma";
 import type {
@@ -45,6 +46,7 @@ export type CommercialEvidenceMismatchCode =
   | "CURRENCY_MISMATCH"
   | "OFFER_CYCLE_EVIDENCE_MISSING"
   | "STALE_SETTLEMENT"
+  | "RETIRED_AGGREGATE_STATE_MISMATCH"
   | "COMMERCIAL_FINALIZATION_FAILED"
   | "BILLING_PERIOD_MISMATCH"
   | "AMBIGUOUS_PROVIDER_EVIDENCE"
@@ -52,6 +54,7 @@ export type CommercialEvidenceMismatchCode =
   | "MALFORMED_PROVIDER_EVIDENCE";
 
 export type CommercialIntentRecord = {
+  agreementBranchId?: string | null;
   id: string;
   organizationId: string;
   toPlan: SaasPlan | null;
@@ -175,10 +178,8 @@ export async function captureProcessingCommercialIntent(input: {
   }
 
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT "id" FROM "Organization" WHERE "id" = ${input.change.organizationId} FOR UPDATE
-    `;
-    const organization = await tx.organization.findUnique({
+    await lockBillingCoordinator(tx, input.change.organizationId);
+    const organization = await billingCoordinator(tx).findUnique({
       where: { id: input.change.organizationId },
       select: { billingMutationLeaseToken: true },
     });
@@ -187,6 +188,7 @@ export async function captureProcessingCommercialIntent(input: {
     }
     const captured = await tx.organizationBillingChange.updateMany({
       where: {
+        ...billingRecordScope(),
         id: input.change.id,
         status: "PROCESSING",
         attemptCount: input.change.attemptCount,
@@ -198,7 +200,7 @@ export async function captureProcessingCommercialIntent(input: {
     if (captured.count !== 1) {
       throw new Error("Billing mutation changed before commercial authorization was captured");
     }
-    return tx.organizationBillingChange.findUniqueOrThrow({ where: { id: input.change.id } });
+    return tx.organizationBillingChange.findUniqueOrThrow({ where: { ...billingRecordScope(), id: input.change.id } });
   });
 }
 
@@ -278,6 +280,7 @@ export function commercialEvidenceMessage(code: CommercialEvidenceMismatchCode) 
     EXPECTED_AMOUNT_MISMATCH: "The settled amount does not match the authorized amount",
     CURRENCY_MISMATCH: "The provider currencies do not match the commercial authorization",
     OFFER_CYCLE_EVIDENCE_MISSING: "The provider offer cycle cannot be proven",
+    RETIRED_AGGREGATE_STATE_MISMATCH: "The provider status of the retired workspace subscription requires review",
     STALE_SETTLEMENT: "The provider settlement predates the commercial authorization",
     COMMERCIAL_FINALIZATION_FAILED: "Exact provider evidence could not be finalized locally",
     BILLING_PERIOD_MISMATCH: "The invoice billing period does not match the provider subscription",
@@ -409,6 +412,7 @@ type ExactCommercialEvidenceInput = {
   organizationId: string;
   providerMode: RazorpayMode;
   localSubscription: {
+    agreementBranchId?: string | null;
     organizationId: string;
     providerMode: RazorpayMode;
     razorpaySubscriptionId: string;
@@ -438,7 +442,10 @@ function validateExactCommercialEvidenceInternal(
   const intent = input.intent;
   if (!intent) return mismatch("COMMERCIAL_INTENT_MISSING");
   if (!isCompleteIntent(intent, true)) return mismatch("COMMERCIAL_INTENT_INVALID");
-  if (intent.organizationId !== input.organizationId
+  if ((intent.agreementBranchId ?? null) !== (input.localSubscription.agreementBranchId ?? null)
+    || (intent.agreementBranchId && (intent.authorizedQuantity !== 1
+      || input.providerSubscription?.notes?.branch_agreement_id !== intent.agreementBranchId))
+    || intent.organizationId !== input.organizationId
     || input.localSubscription.organizationId !== input.organizationId) {
     return mismatch("ORGANIZATION_MISMATCH");
   }
@@ -726,7 +733,8 @@ export async function recordVerifiedSubscriptionCallbackBinding(tx: Prisma.Trans
   providerMode: RazorpayMode;
 }) {
   const dedupeKey = `verified-subscription-callback:${input.change.id}:${input.providerMode}:${input.subscriptionId}:${input.paymentId}`;
-  await tx.organizationBillingChangeAudit.upsert({ where: { dedupeKey }, update: {}, create: {
+  await tx.organizationBillingChangeAudit.upsert({ where: { ...billingRecordScope(), dedupeKey }, update: {}, create: {
+    ...billingRecordScope(),
     organizationId: input.change.organizationId, changeId: input.change.id,
     attemptCount: input.change.attemptCount, outcome: VERIFIED_CALLBACK_OUTCOME,
     providerSubscriptionId: input.subscriptionId, dedupeKey,
@@ -742,6 +750,7 @@ export async function readVerifiedSubscriptionCallbackBinding(input: {
   if (!input.intent || !input.paymentId
     || input.intent.authorizedRazorpaySubscriptionId !== input.subscriptionId) return null;
   const proof = await db.organizationBillingChangeAudit.findFirst({ where: {
+    ...billingRecordScope(),
     organizationId: input.intent.organizationId, changeId: input.intent.id,
     outcome: VERIFIED_CALLBACK_OUTCOME, providerSubscriptionId: input.subscriptionId,
     dedupeKey: `verified-subscription-callback:${input.intent.id}:${input.intent.authorizedProviderMode}:${input.subscriptionId}:${input.paymentId}`,

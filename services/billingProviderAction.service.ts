@@ -1,3 +1,4 @@
+import { assertBranchPlanChangeAllowed, billingRecordScope, lockBillingCoordinator, billingCoordinator } from "@/services/billingAgreementScope.service";
 import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { assertRazorpayBillingWritesEnabled } from "@/lib/billingFeature";
@@ -43,21 +44,25 @@ export async function executeBillingProviderAction(input: Input): Promise<Razorp
   const reviewId = input.change ? input.change.id : input.subscriptionId;
   const dispatchToken = randomUUID();
   const action = await prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${input.organizationId} FOR UPDATE`;
-    const owner = await tx.organization.findFirst({ where: {
+    await lockBillingCoordinator(tx, input.organizationId);
+    const owner = await billingCoordinator(tx).findFirst({ where: {
       id: input.organizationId, billingMutationLeaseToken: input.leaseToken,
       billingMutationLeaseUntil: { gt: new Date() },
     } });
     if (!owner) throw new BillingChangeInProgressError(input.change?.id ?? null, "Billing dispatch ownership was lost");
     if (input.change) {
       const change = await tx.organizationBillingChange.findFirst({ where: {
+        ...billingRecordScope(),
         id: input.change.id, organizationId: input.organizationId, status: "PROCESSING",
         attemptCount: input.change.attemptCount, processingStartedAt: input.change.processingStartedAt,
       }, include: { organizationSubscription: true, replacementSubscription: true } });
       if (!change || input.change.organizationId !== input.organizationId) throw new BillingChangeInProgressError(input.change.id);
       const target = input.purpose === "CANCEL_CANDIDATE" ? change.replacementSubscription : change.organizationSubscription;
       if (input.purpose === "CREATE") {
+        await assertBranchPlanChangeAllowed(tx);
         if (command.method !== "createSubscription" || change.authorizedProviderMode !== providerMode
+          || (command.args[0].notes.branch_agreement_id ?? null) !== (change.agreementBranchId ?? null)
+          || (change.agreementBranchId && command.args[0].quantity !== 1)
           || command.args[0].plan_id !== change.authorizedRazorpayPlanId
           || command.args[0].quantity !== change.authorizedQuantity
           || command.args[0].total_count !== change.authorizedTotalCount
@@ -66,6 +71,7 @@ export async function executeBillingProviderAction(input: Input): Promise<Razorp
         }
       } else {
         if (command.method === "createSubscription" || !target || target.organizationId !== input.organizationId
+          || (target.agreementBranchId ?? null) !== (change.agreementBranchId ?? null)
           || target.providerMode !== providerMode || command.args[0] !== target.razorpaySubscriptionId
           || (input.purpose === "UNDO_SCHEDULE" && command.method !== "cancelScheduledChanges")
           || (["CANCEL_SOURCE","CANCEL_CANDIDATE"].includes(input.purpose) && command.method !== "cancelSubscription")
@@ -80,27 +86,30 @@ export async function executeBillingProviderAction(input: Input): Promise<Razorp
       }
     } else {
       const subscription = await tx.organizationSubscription.findFirst({ where: {
+        ...billingRecordScope(),
         id: input.subscriptionId, organizationId: input.organizationId, providerMode,
       } });
       if (!subscription || command.method !== "cancelSubscription"
         || command.args[0] !== subscription.razorpaySubscriptionId
         || command.args[1].cancel_at_cycle_end !== false) throw new Error("Invalid authorization-expiry action");
     }
-    const existing = await tx.billingProviderAction.findUnique({ where: { organizationId_actionKey: { organizationId: input.organizationId, actionKey } } });
+    const existing = await tx.billingProviderAction.findUnique({ where: { ...billingRecordScope(), organizationId_actionKey: { organizationId: input.organizationId, actionKey } } });
     if (existing) {
       if (existing.requestHash !== requestHash || existing.providerMode !== providerMode) throw new BillingManualReviewRequiredError(reviewId, "Provider action intent changed");
       if (existing.status === "CONFIRMED") return existing;
       if (existing.status !== "REJECTED") throw new BillingManualReviewRequiredError(reviewId, "An earlier provider action requires read-only reconciliation; it cannot be replayed");
     }
     const conflict = await tx.billingProviderAction.findFirst({ where: {
+      ...billingRecordScope(),
       organizationId: input.organizationId, status: { in: ["ADMITTED", "UNKNOWN"] },
     } });
     if (conflict) throw new BillingManualReviewRequiredError(conflict.changeId ?? conflict.id, "Another provider action has an unresolved outcome");
     return existing
-      ? tx.billingProviderAction.update({ where: { id: existing.id }, data: {
+      ? tx.billingProviderAction.update({ where: { ...billingRecordScope(), id: existing.id }, data: {
         status: "ADMITTED", dispatchToken, admittedAt: new Date(), failureKind: null,
       } })
       : tx.billingProviderAction.create({ data: {
+        ...billingRecordScope(),
         organizationId: input.organizationId, changeId: input.change?.id, actionKey,
         providerMode, purpose: input.purpose, requestHash, request, status: "ADMITTED", dispatchToken,
       } });
@@ -118,7 +127,7 @@ export async function executeBillingProviderAction(input: Input): Promise<Razorp
       case "cancelScheduledChanges": response = await adapter.cancelScheduledChanges(...command.args); break;
     }
   } catch (error) {
-    await prisma.billingProviderAction.updateMany({ where: { id: action.id, dispatchToken, status: "ADMITTED" }, data: {
+    await prisma.billingProviderAction.updateMany({ where: { ...billingRecordScope(), id: action.id, dispatchToken, status: "ADMITTED" }, data: {
       status: isDefinitelyRejectedBillingProviderError(error) ? "REJECTED" : "UNKNOWN",
       failureKind: error instanceof RazorpayApiError ? error.kind : "UNKNOWN",
     } });
@@ -127,6 +136,7 @@ export async function executeBillingProviderAction(input: Input): Promise<Razorp
   // Only this immutable action's token can publish its response. This cannot
   // finalize a subscription, release organization ownership or grant access.
   const saved = await prisma.billingProviderAction.updateMany({ where: {
+    ...billingRecordScope(),
     id: action.id, dispatchToken, status: "ADMITTED",
   }, data: { status: "CONFIRMED", response: JSON.parse(JSON.stringify(response)) as Prisma.InputJsonValue, respondedAt: new Date() } });
   if (saved.count !== 1) throw new BillingManualReviewRequiredError(reviewId, "Provider response requires read-only reconciliation");
@@ -139,7 +149,7 @@ export async function confirmReconciledBillingProviderAction(
   tx: Prisma.TransactionClient,
   input: { organizationId: string; identity: string; purpose: Purpose; provider: RazorpaySubscription },
 ) {
-  const action = await tx.billingProviderAction.findUnique({ where: { organizationId_actionKey: {
+  const action = await tx.billingProviderAction.findUnique({ where: { ...billingRecordScope(), organizationId_actionKey: {
     organizationId: input.organizationId, actionKey: `${input.identity}:${input.purpose}`,
   } } });
   if (!action || !["ADMITTED", "UNKNOWN"].includes(action.status)) return;
@@ -154,13 +164,14 @@ export async function confirmReconciledBillingProviderAction(
   // A delayed provider response can move ADMITTED to UNKNOWN without taking the
   // organization lock. Either unresolved state belongs to this same dispatch.
   const confirmed = await tx.billingProviderAction.updateMany({ where: {
+    ...billingRecordScope(),
     id: action.id, dispatchToken: action.dispatchToken, status: { in: ["ADMITTED", "UNKNOWN"] },
   }, data: {
     status: "CONFIRMED", response: JSON.parse(JSON.stringify(input.provider)) as Prisma.InputJsonValue,
     respondedAt: new Date(), failureKind: null,
   } });
   if (confirmed.count !== 1) {
-    const current = await tx.billingProviderAction.findUnique({ where: { id: action.id } });
+    const current = await tx.billingProviderAction.findUnique({ where: { ...billingRecordScope(), id: action.id } });
     if (current?.status !== "CONFIRMED" || current.dispatchToken !== action.dispatchToken) {
       throw new BillingManualReviewRequiredError(action.changeId ?? action.id, "Provider action changed during reconciliation");
     }
@@ -168,7 +179,7 @@ export async function confirmReconciledBillingProviderAction(
 }
 
 export async function getConfirmedBillingProviderResponse(organizationId: string, identity: string, purpose: Purpose) {
-  const action = await prisma.billingProviderAction.findUnique({ where: { organizationId_actionKey: {
+  const action = await prisma.billingProviderAction.findUnique({ where: { ...billingRecordScope(), organizationId_actionKey: {
     organizationId, actionKey: `${identity}:${purpose}`,
   } } });
   return action?.status === "CONFIRMED" && action.providerMode === resolveRazorpayMode()

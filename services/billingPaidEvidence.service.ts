@@ -21,6 +21,7 @@ export const BILLING_PAID_EVIDENCE_INCLUDE = {
     select: {
       id: true,
       organizationId: true,
+      agreementBranchId: true,
       providerMode: true,
       razorpaySubscriptionId: true,
     },
@@ -87,6 +88,7 @@ function intentBindsSubscription(
     && isExactId(intent.organizationSubscriptionId)
     && subscription.replacesSubscriptionId === intent.organizationSubscriptionId
     && source?.id === intent.organizationSubscriptionId
+    && (source.agreementBranchId ?? null) === (subscription.agreementBranchId ?? null)
     && source.organizationId === subscription.organizationId
     && source.providerMode === subscription.providerMode
     && source.razorpaySubscriptionId === authorizedSourceSubscriptionId;
@@ -125,12 +127,15 @@ function resolveTrustedPaidThroughInternal(
   if (!intent
     || evidence.commercialEvidenceVersion !== COMMERCIAL_EVIDENCE_VERSION
     || evidence.evidenceFailureCode != null
+    || (evidence.agreementBranchId ?? null) !== (subscription.agreementBranchId ?? null)
+    || (subscription.agreementBranchId && subscription.quantity !== 1)
     || evidence.organizationId !== subscription.organizationId
     || evidence.organizationSubscriptionId !== subscription.id
     || evidence.razorpayInvoiceId !== subscription.lastConfirmedInvoiceId
     || evidence.razorpayPaymentId !== subscription.lastConfirmedPaymentId
     || evidence.commercialIntentChangeId !== subscription.confirmedCommercialIntentChangeId
     || intent.id !== subscription.confirmedCommercialIntentChangeId
+    || (intent.agreementBranchId ?? null) !== (subscription.agreementBranchId ?? null)
     || intent.organizationId !== subscription.organizationId
     || intent.status !== "APPLIED"
     || intent.operationStatus !== "APPLIED"
