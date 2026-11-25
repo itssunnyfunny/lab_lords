@@ -184,6 +184,7 @@ function organization(overrides: {
       chargeAt: new Date("2026-10-01T00:00:00.000Z"),
     },
     pendingSubscriptionReplacement: {
+      organizationId: "org_1",
       id: "sub_candidate_row",
       providerMode: "TEST",
       plan: "PRO",
@@ -335,5 +336,76 @@ describe("authorized replacement access reads", () => {
       .resolves.toMatchObject({ effectivePlan: "PRO", accessMode: "FULL" });
     await expect(BillingExperienceService.getBillingExperience("org_1", "owner_1"))
       .resolves.toMatchObject({ effectivePlan: "PRO" });
+  });
+});
+
+function independentBranch(id: string, plan: "BASIC" | "STANDARD" | "PRO") {
+  const source = organization().subscription;
+  source.plan = plan;
+  source.razorpaySubscriptionId += id;
+  source.razorpayPlanId = `plan_${plan.toLowerCase()}`;
+  const invoice = source.invoices[0]!;
+  invoice.razorpayPlanId = source.razorpayPlanId;
+  invoice.razorpaySubscriptionId = source.razorpaySubscriptionId;
+  Object.assign(invoice, { agreementBranchId: id });
+  Object.assign(invoice.commercialIntentChange, {
+    agreementBranchId: id, authorizedPlan: plan, toPlan: plan,
+    authorizedRazorpayPlanId: source.razorpayPlanId, authorizedSourceRazorpayPlanId: source.razorpayPlanId,
+    authorizedRazorpaySubscriptionId: source.razorpaySubscriptionId,
+    authorizedSourceRazorpaySubscriptionId: source.razorpaySubscriptionId,
+  });
+  const parent = { ...organization(), billingModelVersion: "BRANCH_V3" };
+  return {
+    id, organizationId:parent.id, billingStatus:"ACTIVE", organization:parent,
+    billingAgreement:{branchId:id, organizationId:parent.id, selectedPlan:plan,
+      subscription:{...source, agreementBranchId:id},
+      pendingSubscriptionReplacement:null as ReturnType<typeof organization>["pendingSubscriptionReplacement"] | null},
+  };
+}
+
+describe("independent branch evidence", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-15T00:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ["BASIC","STANDARD"], ["BASIC","PRO"], ["STANDARD","PRO"],
+    ["STANDARD","BASIC"], ["PRO","BASIC"], ["PRO","STANDARD"],
+  ] as const)("changes %s to %s only when the branch has the applicable evidence", async (from, to) => {
+    const branch = independentBranch("selected", from);
+    const sibling = independentBranch("sibling", "PRO");
+    mocks.branchFindUnique.mockImplementation(async ({where}) => where.id === branch.id ? branch : sibling);
+    branch.billingAgreement.selectedPlan = to;
+    const candidate = organization().pendingSubscriptionReplacement;
+    Object.assign(candidate, { agreementBranchId: branch.id, replacesSubscriptionId:branch.billingAgreement.subscription.id, plan:to });
+    const increase = ["BASIC","STANDARD","PRO"].indexOf(to) > ["BASIC","STANDARD","PRO"].indexOf(from);
+    Object.assign(candidate.replacementBillingChange, { agreementBranchId:branch.id, type: increase ? "PLAN_UPGRADE" : "PLAN_DOWNGRADE",
+      accessGrantedAt:null });
+    branch.billingAgreement.pendingSubscriptionReplacement = candidate;
+    await expect(EntitlementService.getBranchProfile(branch.id)).resolves.toMatchObject({plan:from, effectivePlan:from, canWrite:true});
+    Object.assign(candidate.replacementBillingChange, { accessGrantedAt });
+    await expect(EntitlementService.getBranchProfile(branch.id)).resolves.toMatchObject({plan:from, effectivePlan:increase ? to : from});
+    // Received and promoted a new exact settled period for this agreement.
+    branch.billingAgreement.subscription = independentBranch(branch.id, to).billingAgreement.subscription;
+    branch.billingAgreement.pendingSubscriptionReplacement = null;
+    await expect(EntitlementService.getBranchProfile(branch.id)).resolves.toMatchObject({plan:to, effectivePlan:to, canWrite:true});
+    await expect(EntitlementService.getBranchProfile(sibling.id)).resolves.toMatchObject({plan:"PRO", effectivePlan:"PRO", canWrite:true});
+  });
+
+  it.each(["sibling","other_tenant"])("withholds a temporary grant and paid invoice with a foreign %s scope", async target => {
+    const branch = independentBranch("selected","BASIC");
+    const candidate = organization().pendingSubscriptionReplacement;
+    Object.assign(candidate,{agreementBranchId:branch.id, replacesSubscriptionId:branch.billingAgreement.subscription.id});
+    Object.assign(candidate.replacementBillingChange, target === "sibling"
+      ? {agreementBranchId:"sibling"} : {agreementBranchId:branch.id, organizationId:target});
+    branch.billingAgreement.pendingSubscriptionReplacement = candidate;
+    mocks.branchFindUnique.mockResolvedValue(branch);
+    await expect(EntitlementService.getBranchProfile(branch.id)).resolves.toMatchObject({effectivePlan:"BASIC", canWrite:true});
+    Object.assign(branch.billingAgreement.subscription.invoices[0],target === "sibling"
+      ? {agreementBranchId:"sibling"} : {organizationId:target});
+    await expect(EntitlementService.getBranchProfile(branch.id)).resolves.toMatchObject({accessMode:"READ_ONLY",canWrite:false,entitlements:[]});
+    await expect(EntitlementService.assertBranchEntitlement(branch.id, "AI_ACCESS")).rejects.toMatchObject({code:"BILLING_READ_ONLY"});
   });
 });
