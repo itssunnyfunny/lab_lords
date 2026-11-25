@@ -47,6 +47,7 @@ import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { branchPlanLabel } from "@/lib/branchBillingLabels";
 import { BranchWhatsAppPanel } from "@/components/whatsapp/BranchWhatsAppPanel";
+import { BranchWhatsAppAccessNotice } from "@/components/whatsapp/BranchWhatsAppAccessNotice";
 import { BRANCH_PAGE_ACCESS } from "@/lib/branchPageAccess";
 import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
 import { cn } from "@/lib/utils";
@@ -673,7 +674,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     )}
                 </SettingsPanel>
 
-                {whatsappViewDecision.allowed && <BranchWhatsAppPanel
+                {whatsappViewDecision.allowed ? <BranchWhatsAppPanel
                     organizationId={access.organizationId}
                     branchId={branchId}
                     branchName={access.branchName}
@@ -685,7 +686,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     canSendNotices={whatsappServiceNoticeDecision.allowed}
                     isOwner={access.isOwner}
                     onAvailabilityChange={setWhatsAppAvailable}
-                />}
+                /> : <BranchWhatsAppAccessNotice decision={whatsappViewDecision} />}
 
                 {showAiSection && <SettingsPanel id="ai" title="AI" description={t("Control whether this branch can generate AI reports.")} icon={Bot}>
                     {showMutationControls && isEditing ? (

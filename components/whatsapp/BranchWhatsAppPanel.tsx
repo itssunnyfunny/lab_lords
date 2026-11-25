@@ -2,7 +2,7 @@
 import { OwnedLabel } from "@/components/settings/LocalizedText";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Circle, HeartPulse, MessageCircle } from "lucide-react";
 import { AppButton } from "@/components/ui/AppButton";
 import { Badge } from "@/components/ui/Badge";
@@ -15,6 +15,7 @@ import {
   SettingsSelect,
 } from "@/components/settings/SettingsWorkspace";
 import { BranchWhatsAppMessageHistory } from "@/components/whatsapp/BranchWhatsAppMessageHistory";
+import { useWhatsAppSectionRequested } from "@/components/whatsapp/BranchWhatsAppAccessNotice";
 import { WhatsAppReportSubscription } from "@/components/whatsapp/WhatsAppReportSubscription";
 import { BranchWhatsAppReports } from "@/components/whatsapp/BranchWhatsAppReports";
 import { WhatsAppServiceNoticeComposer } from "@/components/whatsapp/WhatsAppServiceNoticeComposer";
@@ -571,15 +572,6 @@ function BranchWhatsAppHealth({ settings }: { settings: WhatsAppBranchSettings }
   );
 }
 
-function observeSection(notify: () => void) {
-  window.addEventListener("hashchange", notify);
-  window.addEventListener("popstate", notify);
-  return () => {
-    window.removeEventListener("hashchange", notify);
-    window.removeEventListener("popstate", notify);
-  };
-}
-
 export function BranchWhatsAppPanel({
   organizationId,
   branchId,
@@ -608,7 +600,7 @@ export function BranchWhatsAppPanel({
   onAvailabilityChange: (available: boolean) => void;
 }) {
   const t = useTranslation();
-  const directlyRequested = useSyncExternalStore(observeSection, () => window.location.hash === "#whatsapp", () => false);
+  const directlyRequested = useWhatsAppSectionRequested();
   const [response, setResponse] = useState<WhatsAppBranchAssignmentResponse | null>(null);
   const [settings, setSettings] = useState<WhatsAppBranchSettings | null>(null);
   const [form, setForm] = useState<BranchSettingsForm | null>(null);

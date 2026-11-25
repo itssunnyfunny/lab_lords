@@ -22,7 +22,6 @@ import {
     LAST_ACTIVE_BRANCH_COOKIE_MAX_AGE,
 } from "@/lib/workspaceRouting";
 import { WORKSPACE_NAVIGATION_REQUEST, type WorkspaceNavigationRequest } from "@/lib/workspaceNavigationGuard";
-import { getBranchCapabilityDecision } from "@/lib/branchCapabilities";
 import { isApplicationDesignPilotPath } from "@/lib/applicationDesignPilot";
 
 export function BranchWorkspaceShell({ branchId, children }: { branchId: string; children: ReactNode }) {
@@ -107,18 +106,6 @@ function WorkspaceContent({children,designPilot}:{children:ReactNode;designPilot
         {workspace?.error && <AppButton variant="primary" onClick={()=>void workspace.refresh()}>{t("Retry")}</AppButton>}
         {workspace?.access?.isOwner && <Link className={appActionClassName()} href={accountBillingHref(workspace.access.organizationId, workspace.access.branchId, pathname)}>{t("Billing")}</Link>}
     </main>;
-    const whatsAppLink = pathname.endsWith("/settings") && location.endsWith("#whatsapp");
-    const whatsAppAccess = getBranchCapabilityDecision(workspace.access, "whatsappView");
-    if (whatsAppLink && !whatsAppAccess.allowed && !workspace.error) return <BranchActivationGate>
-        <main className="mx-auto max-w-lg space-y-4 px-6 py-16 text-center">
-            <h1 className="text-2xl font-semibold">{workspace.access.branchName} · WhatsApp</h1>
-            <p>{t.owned(whatsAppAccess.reason)}</p>
-            <div className="flex flex-wrap justify-center gap-2">
-                {whatsAppAccess.recoveryHref && <Link className={appActionClassName("primary")} href={whatsAppAccess.recoveryHref}>{t.owned("Manage branch plan")}</Link>}
-                <Link className={appActionClassName()} href={`/branch/${workspace.branchId}`}>{t("Back to dashboard")}</Link>
-            </div>
-        </main>
-    </BranchActivationGate>;
     const simple = workspace.presentation === "simple";
     let surface: ReactNode;
     if (sharedImport) {

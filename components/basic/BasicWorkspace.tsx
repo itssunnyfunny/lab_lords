@@ -33,6 +33,7 @@ import "@/styles/basic-product.css";
 import { useBasicNavigationGuard } from "./useBasicNavigationGuard";
 import { accountBillingHref } from "@/lib/accountNavigation";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BranchWhatsAppAccessNotice } from "@/components/whatsapp/BranchWhatsAppAccessNotice";
 
 const areas: { key: string; label: string; capability: BranchCapabilityKey; icon: typeof House }[] = [
     { key: "", label: "Overview", capability: "basicOverview", icon: House },
@@ -237,6 +238,7 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         <div className="bp-workspace">
             <header className="bp-topbar"><button type="button" className="ui-basic-menu" onClick={()=>setNavigationOpen(true)} aria-label={t("Open navigation")} aria-expanded={navigationOpen}><Menu size={20}/></button><WorkspaceSwitcher wrapBranchName/></header>
             <main id="bp-main" tabIndex={-1} aria-busy={loading || operation.pending}>
+                {rawArea === "settings" && <BranchWhatsAppAccessNotice decision={getBranchCapabilityDecision(access, "whatsappView")} />}
                 {(access.billingExperience?.accessMode === "READ_ONLY" || access.canWrite === false) && <p className="bp-warning" role="status">
                     {t.owned("Records are read-only.")} {access.isOwner && <Link className="underline" href={accountBillingHref(access.organizationId, access.branchId, pathname)}>{t.owned("Manage branch plan")}</Link>}
                 </p>}
