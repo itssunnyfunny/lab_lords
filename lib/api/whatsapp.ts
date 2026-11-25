@@ -467,7 +467,7 @@ export type WhatsAppDailyReportMetrics = {
   whatsAppUnknownToday: number;
 } & (
   | { branchName: string }
-  | { organizationName: string; branchCount: number }
+  | { organizationName: string; branchCount: number; branchScope?: { included: { id: string; name: string }[]; excluded: { id: string; name: string }[] } }
 );
 
 export type WhatsAppDailyReportPreview = {

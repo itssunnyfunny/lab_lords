@@ -19,6 +19,7 @@ import { WhatsAppResourceNotFoundError } from "@/lib/whatsappHttp";
 
 const env = { WHATSAPP_INTEGRATION_ENABLED: "true", WHATSAPP_REPORTS_ENABLED: "true", META_WHATSAPP_MODE: "TEST", NODE_ENV: "test" };
 const profile = {
+  branchId: "branch_1", billingStatus: "ACTIVE" as const, independent: false, legacyCoverageEndsAt: null, legacyCoverageProvidesAccess: false, whatsAppEligibleSince: null,
   organizationId: "org_1", plan: "PRO" as const, effectivePlan: "PRO" as const,
   subscriptionStatus: "ACTIVE", fallbackAccess: false, entitlements: ["WHATSAPP_AUTOMATION" as const],
   limits: { maxBranches: null }, usage: { branches: 1 }, accessMode: "READ_ONLY" as const,
@@ -35,7 +36,7 @@ beforeEach(() => {
     id: "branch_1", organizationId: "org_1", organization: { ownerId: "owner_1", timezone: "Asia/Kolkata" },
   });
   mocks.findMessages.mockResolvedValue([]);
-  vi.spyOn(EntitlementService, "assertOrganizationEntitlement").mockResolvedValue(profile);
+  vi.spyOn(EntitlementService, "getOrganizationFeatureScope").mockResolvedValue({entitled:true, canWrite:false, branches:null});
   vi.spyOn(EntitlementService, "assertBranchEntitlement").mockResolvedValue(profile);
   vi.spyOn(EntitlementService, "assertOrganizationWritable").mockResolvedValue(profile);
   vi.spyOn(EntitlementService, "assertBranchWritable").mockResolvedValue(profile);
@@ -119,7 +120,7 @@ describe("persisted daily report history", () => {
   });
 
   it("does not read history without the report entitlement or rollout gate", async () => {
-    vi.mocked(EntitlementService.assertOrganizationEntitlement).mockRejectedValue(new SubscriptionEntitlementError("Upgrade required"));
+    vi.mocked(EntitlementService.getOrganizationFeatureScope).mockRejectedValue(new SubscriptionEntitlementError("Upgrade required"));
     await expect(WhatsAppReportService.listRecentHistory({ scope: "ORGANIZATION", organizationId: "org_1", actorUserId: "owner_1", env }))
       .rejects.toBeInstanceOf(SubscriptionEntitlementError);
     await expect(WhatsAppReportService.listRecentHistory({ scope: "ORGANIZATION", organizationId: "org_1", actorUserId: "owner_1", env: { ...env, WHATSAPP_REPORTS_ENABLED: "false" } }))

@@ -45,7 +45,7 @@ import {
   WHATSAPP_REPORT_CONFIRMATION_TTL_MS,
 } from "@/lib/whatsappReportConfirmation";
 import {
-  canonicalizeWhatsAppReportMetrics,
+  canonicalizeWhatsAppReportMetrics, reportBranchScopeMatches,
   createWhatsAppReportSourceFingerprint,
   hashWhatsAppReportMetrics,
   WHATSAPP_REPORT_METRICS_VERSION,
@@ -60,7 +60,7 @@ import {
   scheduleWhatsAppReportForLocalDate,
   whatsappBudgetMonth,
 } from "@/lib/whatsappSchedule";
-import { EntitlementService } from "@/services/entitlement.service";
+import { BillingReadOnlyError, EntitlementService, SubscriptionEntitlementError } from "@/services/entitlement.service";
 import { StaffService } from "@/services/staff.service";
 import { WhatsAppAuthorizationService } from "@/services/whatsappAuthorization.service";
 import { WhatsAppIncidentService } from "@/services/whatsappIncident.service";
@@ -222,6 +222,7 @@ async function authorizeBranchReport(
     await StaffService.authorize(actorUserId, branchId, "view_payments", client);
     await StaffService.authorize(actorUserId, branchId, "analytics", client);
   } catch (error) {
+    if (error instanceof SubscriptionEntitlementError || error instanceof BillingReadOnlyError) throw error;
     if (isGenericAuthorizationFailure(error)) throw new WhatsAppResourceNotFoundError();
     throw error;
   }
@@ -261,19 +262,9 @@ async function authorizeReportScope(input: {
       ownerId: branch.organization.ownerId,
     };
   }
-  if (input.writable) {
-    await WhatsAppAuthorizationService.assertOwnerCanWrite(
-      input.actorUserId,
-      input.scope.organizationId,
-      input.client
-    );
-  } else {
-    await WhatsAppAuthorizationService.assertOwnerEntitled(
-      input.actorUserId,
-      input.scope.organizationId,
-      input.client
-    );
-  }
+  const access = input.writable
+    ? await WhatsAppAuthorizationService.assertOwnerCanWrite(input.actorUserId, input.scope.organizationId, input.client)
+    : await WhatsAppAuthorizationService.assertOwnerEntitled(input.actorUserId, input.scope.organizationId, input.client);
   const organization = await input.client.organization.findUnique({
     where: { id: input.scope.organizationId },
     select: { id: true, timezone: true, ownerId: true },
@@ -282,6 +273,7 @@ async function authorizeReportScope(input: {
   return {
     ...identity,
     organizationId: organization.id,
+    branchScope: access.branches,
     timeZone: organization.timezone,
     ownerId: organization.ownerId,
   };
@@ -495,7 +487,7 @@ async function resolveReportBinding(input: {
   return { binding, definition, managedKey };
 }
 
-function reportTemplateValues(metrics: WhatsAppReportMetrics) {
+function reportTemplateValues(metrics: WhatsAppReportMetrics, language: WhatsAppManagedTemplateLanguage) {
   const formatNumber = (value: number) => new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 0,
   }).format(value);
@@ -517,9 +509,11 @@ function reportTemplateValues(metrics: WhatsAppReportMetrics) {
       metrics.whatsAppFailedToday + metrics.whatsAppUnknownToday
     ),
   };
-  return "branchName" in metrics
-    ? { branchName: metrics.branchName, ...common }
-    : { organizationName: metrics.organizationName, branchCount: formatNumber(metrics.branchCount), ...common };
+  if ("branchName" in metrics) return { branchName: metrics.branchName, ...common };
+  const suffix = language === "hi" ? " (केवल Pro शाखाएँ)" : " (Pro branches only)";
+  const organizationName = metrics.branchScope?.excluded.length
+    ? metrics.organizationName.slice(0, 120 - suffix.length) + suffix : metrics.organizationName;
+  return { organizationName, branchCount: formatNumber(metrics.branchCount), ...common };
 }
 
 function reportDedupeKey(input: {
@@ -786,7 +780,8 @@ export async function loadOrCreateWhatsAppReportSnapshotInTransaction(input: {
       throw new WhatsAppReportMetricsUnavailableError();
     }
     if (
-      existing.organizationId !== input.scope.organizationId
+      !reportBranchScopeMatches(metrics, "branchScope" in input.scope ? input.scope.branchScope : null)
+      || existing.organizationId !== input.scope.organizationId
       || existing.branchId !== input.scope.branchId
       || existing.timeZone !== input.scope.timeZone
       || existing.scheduledCutoffAt.getTime() !== input.scheduledCutoffAt.getTime()
@@ -1061,7 +1056,7 @@ async function queueCurrentReportInTransaction(input: {
     scheduledCutoffAt: window.scheduledCutoffAt,
     metricsAsOfAt,
   });
-  const values = reportTemplateValues(metrics);
+  const values = reportTemplateValues(metrics, language);
   const prepared = prepareManagedWhatsAppTemplate(definition, values);
   const sourceFingerprint = reportMessageSourceFingerprint({
     organizationId: authorized.organizationId,
@@ -2120,7 +2115,7 @@ export class WhatsAppReportService {
               throw new WhatsAppReportMetricsUnavailableError();
             }
           })();
-      const values = reportTemplateValues(metrics);
+      const values = reportTemplateValues(metrics, language);
       const prepared = prepareManagedWhatsAppTemplate(definition, values);
       const dedupeKey = reportDedupeKey({
         senderId: delivery.sender.id,
@@ -2306,6 +2301,13 @@ export class WhatsAppReportService {
         writable: true,
       });
     } catch (error) {
+      if (error instanceof SubscriptionEntitlementError || error instanceof BillingReadOnlyError) {
+        await input.tx.whatsAppReportSubscription.updateMany({
+          where: { id: claimed.id, plannerLeaseToken: leaseToken },
+          data: { plannerLeaseToken: null, plannerLeaseUntil: null, lastPlannedAt: input.now, lastPlannerErrorCode: "BRANCH_NOT_ELIGIBLE" },
+        });
+        return { outcome: "INACTIVE" as const };
+      }
       if (!(error instanceof WhatsAppResourceNotFoundError)) throw error;
       return { outcome: "STALE" as const, ...await staleClaimed() };
     }
@@ -2671,6 +2673,7 @@ export async function verifyWhatsAppReportMessageSource(input: {
   }
   if (
     snapshot.sourceFingerprint !== expectedSnapshotSource
+    || !reportBranchScopeMatches(metrics, "branchScope" in authorized ? authorized.branchScope : null)
     || hashWhatsAppReportMetrics(metrics) !== snapshot.metricsHash
     || (expectedScope === "BRANCH") !== ("branchName" in metrics)
     || metrics.localReportDate !== snapshot.localReportDate
@@ -2710,7 +2713,7 @@ export async function verifyWhatsAppReportMessageSource(input: {
     || message.templateBinding.id !== currentBinding.binding.id
   ) return invalidReportSource("REPORT_TEMPLATE_UNAVAILABLE");
 
-  const values = reportTemplateValues(metrics);
+  const values = reportTemplateValues(metrics, language);
   const storedValues = reportJsonRecord(message.templateVariables);
   if (!storedValues || !sameReportValues(storedValues, values)) {
     return invalidReportSource();
