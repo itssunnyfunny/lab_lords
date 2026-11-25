@@ -115,6 +115,18 @@ describe("POST /api/branches", () => {
     expect(mocks.createBranchForOrg).not.toHaveBeenCalled();
   });
 
+  it("passes the future paid plan from the branch setup dialog and rejects unknown tiers", async () => {
+    mocks.getSessionUser.mockResolvedValue({ id: "owner_1" });
+    mocks.getOrganizationForOwnerAccess.mockResolvedValue({ id: "org_1", billingModelVersion: "BRANCH_V3" });
+    mocks.createBranchForOrg.mockResolvedValue({ id: "branch_1", billingStatus: "PENDING_ACTIVATION" });
+    const { POST } = await import("@/app/api/branches/route");
+    const input = { organizationId: "org_1", name: "Second Branch", contactPhone: "9876543210", seatCount: 10 };
+    expect((await POST(request({ ...input, futurePlan: "PRO" }))).status).toBe(202);
+    expect(mocks.createBranchForOrg).toHaveBeenCalledWith(expect.objectContaining({ organizationId: "org_1", futurePlan: "PRO" }));
+    expect((await POST(request({ ...input, futurePlan: "UNKNOWN" }))).status).toBe(400);
+    expect(mocks.createBranchForOrg).toHaveBeenCalledTimes(1);
+  });
+
   it("passes custom seat numbering to the service", async () => {
     mocks.getSessionUser.mockResolvedValue({ id: "owner_1", email: "owner@test.com" });
     mocks.getOrganizationForOwnerAccess.mockResolvedValue({ id: "org_1" });

@@ -7,8 +7,11 @@ import { BillingReadOnlyError, SubscriptionEntitlementError } from "@/services/e
 import { BillingWritesDisabledError } from "@/lib/billingFeature";
 import { BillingChangeInProgressError } from "@/lib/billingErrors";
 import { BillingService } from "@/services/billing.service";
+import { BillingExperienceService } from "@/services/billingExperience.service";
+import { projectDirectoryBilling } from "@/services/branchBillingDirectory.service";
 import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors";
 import { billingHttpStatus } from "@/lib/billingHttp";
+import { isCheckoutBillingPlanId } from "@/lib/billingPlans";
 
 // Correctly type the params as a Promise for Next.js 15+
 interface Params {
@@ -29,10 +32,13 @@ export async function GET(_req: Request, { params }: Params) {
             );
         }
 
-        await OrganizationService.getOrganizationForOwnerAccess(orgId, user.id);
+        const org = await OrganizationService.getOrganizationForOwnerAccess(orgId, user.id);
 
         const branches = await BranchService.getBranchesByOrganizationId(orgId);
-        return NextResponse.json(branches);
+        if (org.billingModelVersion !== "BRANCH_V3") return NextResponse.json(branches);
+        return NextResponse.json(await Promise.all(branches.map(async branch => ({
+            ...branch, billing: projectDirectoryBilling(await BillingExperienceService.getBillingExperience(orgId, user.id, branch.id)),
+        }))));
     } catch (error) {
         if (error instanceof OrganizationAccessNotFoundError) {
             return NextResponse.json({ error: error.message }, { status: 404 });
@@ -64,6 +70,9 @@ export async function POST(req: Request, { params }: Params) {
         }
 
         const body = await req.json();
+        if (body.futurePlan !== undefined && !isCheckoutBillingPlanId(body.futurePlan)) {
+            return NextResponse.json({ error: "Choose Basic, Standard or Pro for this branch." }, { status: 400 });
+        }
 
         const nameResult = validateRequiredText(body.name, "Branch name", 120);
         if (!nameResult.ok) return NextResponse.json({ error: nameResult.error }, { status: 400 });
@@ -76,6 +85,7 @@ export async function POST(req: Request, { params }: Params) {
             userId: user.id,
             contactPhone: contactPhoneResult.value,
             idempotencyKey,
+            futurePlan: body.futurePlan,
         });
         const checkout = branch.action === "CHECKOUT_REQUIRED" && branch.billingChangeId
             ? (await BillingService.getBillingOperation(user.id, orgId, branch.billingChangeId)).checkout

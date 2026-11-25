@@ -16,6 +16,7 @@ import { BillingWritesDisabledError } from "@/lib/billingFeature";
 import { BillingChangeInProgressError } from "@/lib/billingErrors";
 import { BillingService } from "@/services/billing.service";
 import { billingHttpStatus } from "@/lib/billingHttp";
+import { isCheckoutBillingPlanId } from "@/lib/billingPlans";
 
 function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : "Internal Server Error";
@@ -40,6 +41,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
         }
         await OrganizationService.getOrganizationForOwnerAccess(organizationId, user.id);
+        if (body.futurePlan !== undefined && !isCheckoutBillingPlanId(body.futurePlan)) {
+            return NextResponse.json({ error: "Choose Basic, Standard or Pro for this branch." }, { status: 400 });
+        }
         const idempotencyKey = req.headers.get("idempotency-key")?.trim();
         if (!idempotencyKey) {
             return NextResponse.json({ error: "Idempotency-Key is required" }, { status: 400 });
@@ -62,6 +66,7 @@ export async function POST(req: Request) {
         if (!shiftsResult.ok) return NextResponse.json({ error: shiftsResult.error }, { status: 400 });
 
         const branch = await BranchService.createBranchForOrg({
+            ...(body.futurePlan ? { futurePlan: body.futurePlan } : {}),
             organizationId,
             userId: user.id,
             name: nameResult.value,

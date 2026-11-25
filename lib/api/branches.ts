@@ -46,8 +46,8 @@ export const branches = {
 
     discardPendingActivation: (branchId: string) => apiClient.delete(`/branches/${branchId}/billing/pending`),
 
-    reactivate: (branchId: string): Promise<BranchBillingMutationResponse> => apiClient.post(`/branches/${branchId}/billing/reactivate`, null, {
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+    reactivate: (branchId: string, idempotencyKey = crypto.randomUUID()): Promise<BranchBillingMutationResponse> => apiClient.post(`/branches/${branchId}/billing/reactivate`, null, {
+        headers: { "Idempotency-Key": idempotencyKey },
     }),
 
     getStudents: async (branchId: string, shiftId?: string, multiShiftId?: string): Promise<Student[]> => {
