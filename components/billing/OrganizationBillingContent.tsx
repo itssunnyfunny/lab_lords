@@ -2,7 +2,7 @@
 import { accountBillingHref, accountBillingProcessingDestination, accountBillingProcessingHref } from "@/lib/accountNavigation";
 import { hasActiveBillingTrial, projectedBillableStatuses } from "@/lib/billingState";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { AlertCircle, CheckCircle2, CreditCard, History, Loader2, Receipt, Sparkles, XCircle } from "lucide-react";
@@ -18,7 +18,8 @@ import { CheckoutConfirmationDialog } from "@/components/billing/CheckoutConfirm
 import { PaymentOutcomeDialog, type PaymentOutcome } from "@/components/billing/PaymentOutcomeDialog";
 import { getRazorpayCheckoutPayload, isRazorpayCheckoutPayload, isRazorpayCheckoutReady, openRazorpayCheckout, RazorpayCheckoutScript, type RazorpayCheckoutEventResult, type RazorpayCheckoutMode, type RazorpayCheckoutPayloadLike } from "@/components/billing/RazorpayCheckoutLauncher";
 import { formErrorBannerClass, formSuccessBannerClass, formWarningBannerClass } from "@/components/ui/formSurface";
-import { billing, type BillingOverview, type BillingPlanDto, type OrganizationSubscriptionDto } from "@/lib/api/billing";
+import { billing as organizationBilling, billingForBranch, type BillingOverview, type BillingPlanDto, type OrganizationSubscriptionDto } from "@/lib/api/billing";
+import { branchAccessLabel, branchPlanLabel } from "@/lib/branchBillingLabels";
 import { billingPlanName, billingPlanRank, isCheckoutBillingPlanId, type CheckoutBillingPlanId } from "@/lib/billingPlans";
 import { cn } from "@/lib/utils";
 import { getProviderPaymentMethodLabel, isSupportedRecurringPaymentMethod } from "@/lib/billingPaymentMethods";
@@ -38,8 +39,9 @@ const BILLING_SECTIONS = [
 
 type BillingContact = { branches?: { id: string; name: string; billingStatus: string }[]; contactEmail: string | null; contactPhone: string | null; owner?: { email: string } };
 
-export function OrganizationBillingContent({ orgId, returnPath = accountBillingHref(orgId), context }: { orgId: string; returnPath?: string; context?: ReactNode }) {
+export function OrganizationBillingContent({ orgId, branchId, branchName, returnPath = accountBillingHref(orgId, branchId), context }: { orgId: string; branchId?: string; branchName?: string; returnPath?: string; context?: ReactNode }) {
     const t = useTranslation();
+    const billing = useMemo(() => branchId ? billingForBranch(branchId) : organizationBilling, [branchId]);
     const refreshExperience = useBillingExperience()?.refresh;
     const [activeSection, setActiveSection] = useState("billing");
     const [org, setOrg] = useState<BillingContact>({ contactEmail: null, contactPhone: null });
@@ -52,6 +54,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
     const [billingOverview, setBillingOverview] = useState<BillingOverview | null>(null);
     const [billingLoading, setBillingLoading] = useState(true);
     const billingReadVersion = useRef(0);
+    const directorySignature = useRef<string | undefined>(undefined);
     const mounted = useRef(false);
     const [billingAction, setBillingAction] = useState<CheckoutBillingPlanId | null>(null);
     const [billingOperationLoading, setBillingOperationLoading] = useState(false);
@@ -83,11 +86,26 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         try {
             const overview = await billing.getOverview(orgId);
             if (!mounted.current || version !== billingReadVersion.current) return;
+            if (branchId && (overview.experience.organizationId !== orgId || overview.experience.branch?.id !== branchId)) {
+                setBillingOverview(null);
+                throw new Error("Branch billing details are unavailable. Refresh to try again.");
+            }
             setBillingOverview(overview);
+            if (branchId) {
+                const { experience } = overview;
+                const signature = JSON.stringify([experience.customerState, experience.effectivePlan, experience.branch?.billingStatus,
+                    experience.selectedPostTrialPlan, experience.paidThrough, experience.nextChargeAt, experience.monthlyCommitmentSubunits,
+                    experience.nextChargeAmountSubunits, experience.scheduledChanges]);
+                if (directorySignature.current !== undefined && directorySignature.current !== signature) {
+                    window.dispatchEvent(new Event("workspace-directory-changed"));
+                }
+                directorySignature.current = signature;
+            }
             setBillingNotice(prev => prev?.tone === "error" ? null : prev);
             await refreshExperience?.();
         } catch (err) {
             if (!mounted.current || version !== billingReadVersion.current) return;
+            if (branchId) setBillingOverview(null);
             setBillingNotice({
                 tone: "error",
                 message: err instanceof Error ? err.message : "Failed to load billing plans.",
@@ -95,13 +113,25 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         } finally {
             if (mounted.current && version === billingReadVersion.current) setBillingLoading(false);
         }
-    }, [orgId, refreshExperience]);
+    }, [billing, branchId, orgId, refreshExperience]);
 
     useEffect(() => {
         mounted.current = true;
         void loadBilling();
         return () => { mounted.current = false; billingReadVersion.current += 1; };
     }, [loadBilling]);
+    useEffect(() => {
+        if (!branchId) return;
+        const refresh = () => { if (document.visibilityState === "visible") void loadBilling(); };
+        const interval = window.setInterval(refresh, 30_000);
+        window.addEventListener("focus", refresh);
+        window.addEventListener("billing-access-changed", refresh);
+        return () => {
+            window.clearInterval(interval);
+            window.removeEventListener("focus", refresh);
+            window.removeEventListener("billing-access-changed", refresh);
+        };
+    }, [branchId, loadBilling]);
     const [contactLoading, setContactLoading] = useState(true);
     const [contactRevision, setContactRevision] = useState(0);
     useEffect(() => {
@@ -119,6 +149,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         mode: RazorpayCheckoutMode,
         planId: CheckoutBillingPlanId | null = null
     ) => {
+        if (!mounted.current) return;
         openRazorpayCheckout({
             payload,
             mode,
@@ -144,8 +175,9 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                     checkoutResult.failure
                 );
             },
-            navigate: processingUrl => router.push(processingDestination(processingUrl)),
+            navigate: processingUrl => { if (mounted.current) router.push(processingDestination(processingUrl)); },
             onStateChange: state => {
+                if (!mounted.current) return;
                 if (state === "OPEN") {
                     setBillingOperationBusy(true);
                     if (planId) setBillingAction(planId);
@@ -176,7 +208,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                 setBillingNotice({ tone: "warning", message: "Browser verification was interrupted. Provider reconciliation is continuing safely." });
             },
         });
-    }, [loadBilling, orgId, processingDestination, router, setBillingOperationBusy]);
+    }, [billing, loadBilling, orgId, processingDestination, router, setBillingOperationBusy]);
 
     const requestSubscription = useCallback((planId: CheckoutBillingPlanId) => {
         setBillingNotice(null);
@@ -234,6 +266,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                     planId,
                     returnPath + window.location.hash
                 );
+                if (!mounted.current) return;
                 if ("purpose" in result && isRazorpayCheckoutPayload(result)) {
                     setBillingOverview(previous => previous
                         ? { ...previous, pendingReplacement: result.subscription }
@@ -267,11 +300,12 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
             launchCheckout(checkout, "AUTHORIZATION", planId);
             setConfirmationPlan(null);
         } catch (error) {
+            await loadBilling();
             setBillingNotice({ tone: "error", message: error instanceof Error ? error.message : "Unable to start Razorpay authorization." });
             setBillingAction(null);
             setBillingOperationBusy(false);
         }
-    }, [billingOverview, checkoutScriptReady, confirmationPlan, launchCheckout, loadBilling, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
+    }, [billing, billingOverview, checkoutScriptReady, confirmationPlan, launchCheckout, loadBilling, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
 
     const startRecovery = useCallback(async () => {
         if (billingOperationInFlightRef.current) return;
@@ -280,6 +314,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         setBillingNotice(null);
         try {
             const recovery = await billing.createRecovery(orgId, returnPath + window.location.hash);
+            if (!mounted.current) return;
             setRecoveryConfirmationOpen(false);
             if ("hostedRecoveryUrl" in recovery && recovery.hostedRecoveryUrl) {
                 window.location.assign(recovery.hostedRecoveryUrl);
@@ -303,7 +338,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
             setRecoveryLoading(false);
             setBillingOperationBusy(false);
         }
-    }, [checkoutScriptReady, launchCheckout, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
+    }, [billing, checkoutScriptReady, launchCheckout, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
 
     const startPaymentMethodChange = useCallback(async () => {
         const current = billingOverview?.current;
@@ -342,7 +377,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
             });
             setBillingOperationBusy(false);
         }
-    }, [billingOverview, checkoutScriptReady, launchCheckout, loadBilling, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
+    }, [billing, billingOverview, checkoutScriptReady, launchCheckout, loadBilling, orgId, processingDestination, returnPath, router, setBillingOperationBusy]);
 
     const retryBillingOperation = useCallback(async (changeId: string, planId: CheckoutBillingPlanId | null = null) => {
         const result = await billing.retryOperation(orgId, changeId);
@@ -361,7 +396,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         }
         await loadBilling();
         return "REFRESHED" as const;
-    }, [checkoutScriptReady, launchCheckout, loadBilling, orgId, processingDestination, router]);
+    }, [billing, checkoutScriptReady, launchCheckout, loadBilling, orgId, processingDestination, router]);
 
     const retryPaymentOutcome = useCallback(async () => {
         if (billingOperationInFlightRef.current) return;
@@ -416,7 +451,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
             setCancellingSubscription(false);
             setBillingOperationBusy(false);
         }
-    }, [billingOverview, cancelDialogOpen, loadBilling, orgId, setBillingOperationBusy]);
+    }, [billing, billingOverview, cancelDialogOpen, loadBilling, orgId, setBillingOperationBusy]);
 
     const undoCancellation = useCallback(async () => {
         if (billingOperationInFlightRef.current) return;
@@ -429,7 +464,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         } catch (error) {
             setBillingNotice({ tone: "error", message: error instanceof Error ? error.message : "Unable to undo cancellation." });
         } finally { setBillingOperationBusy(false); }
-    }, [loadBilling, orgId, setBillingOperationBusy]);
+    }, [billing, loadBilling, orgId, setBillingOperationBusy]);
 
     const claimTrial = useCallback(async () => {
         if (billingOperationInFlightRef.current) return;
@@ -441,7 +476,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         } catch (error) {
             setBillingNotice({ tone: "error", message: error instanceof Error ? error.message : "Unable to start the trial." });
         } finally { setBillingOperationBusy(false); }
-    }, [loadBilling, orgId, setBillingOperationBusy]);
+    }, [billing, loadBilling, orgId, setBillingOperationBusy]);
 
     const undoBillingChange = useCallback(async (changeId: string) => {
         if (billingOperationInFlightRef.current) return;
@@ -459,7 +494,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
         } finally {
             setBillingOperationBusy(false);
         }
-    }, [loadBilling, orgId, setBillingOperationBusy]);
+    }, [billing, loadBilling, orgId, setBillingOperationBusy]);
 
     useEffect(() => {
         if (!requestedBillingPlanId) return;
@@ -581,6 +616,13 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
     const confirmationPlanDetails = confirmationPlan
         ? billingOverview?.plans.find(plan => plan.id === confirmationPlan) ?? null
         : null;
+    const currentEffectivePlan = billingOverview?.experience.effectivePlan === "STANDARD_TRIAL"
+        ? billingOverview.experience.trialPlan ?? "STANDARD"
+        : billingOverview?.experience.effectivePlan;
+    const currentFeatures = billingOverview?.plans.find(plan => plan.id === currentEffectivePlan)?.capabilities ?? [];
+    const addedFeatures = confirmationPlanDetails?.capabilities.filter(feature =>
+        feature.included && feature.id !== "MULTIPLE_BRANCHES" && !currentFeatures.some(current => current.id === feature.id && current.included)
+    ).map(feature => feature.label);
     const confirmationUsesProviderUpdate = Boolean(
         canChangeProviderPlan(billingOverview?.current ?? null)
     );
@@ -642,7 +684,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
             />
             <SettingsWorkspace
                 title={t("Billing and plans")}
-                subtitle={t.owned("Subscription payments and access for your organization.")}
+                subtitle={branchName ?? t.owned("Subscription payments and access for your organization.")}
                 navigation="tabs"
                 sections={BILLING_SECTIONS}
                 activeSection={activeSection}
@@ -677,7 +719,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
 
                     {billingOverview?.experience && (
                         <div className="mx-5 mt-4 rounded-[var(--ui-radius-panel)] border border-[color:var(--ui-form-surface-border)] bg-[color:var(--ui-form-muted-surface-bg)] px-4 py-3 text-sm">
-                            <p className="font-semibold text-[color:var(--text-primary)]">{t.owned(formatBillingCustomerState(billingOverview.experience.customerState))}</p>
+                            <p className="font-semibold text-[color:var(--text-primary)]">{t.owned(branchAccessLabel(billingOverview.experience.customerState))}</p>
                             <p className="mt-1 text-[color:var(--text-secondary)]">{billingOverview.experience.customerMessage}</p>
                             {billingOverview.experience.paymentAction !== "NONE"
                                 && billingOverview.experience.paymentAction !== "CHOOSE_PLAN"
@@ -756,7 +798,7 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                             <h3 id="billing-plans-title" className="mt-1 text-base font-semibold text-[color:var(--text-primary)]">
                                 {t("Choose the right workspace plan")}</h3>
                             <p className="mt-1 text-xs leading-5 text-[color:var(--text-secondary)]">
-                                {t("Monthly billing is based on the selected plan and active branch count. You review the total before continuing to Razorpay.")}</p>
+                                {t.owned(branchId ? "The selected plan applies only to this branch. Review its charge date and amount before authorizing." : "Monthly billing is based on the selected plan and active branch count. You review the total before continuing to Razorpay.")}</p>
                         </div>
                         {billingLoading ? (
                             <div className="flex min-h-28 items-center justify-center text-sm text-[color:var(--text-primary)]">
@@ -843,22 +885,28 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
                     )}
 
                 </SettingsPanel>
-                <SettingsPanel id="branches" title={t.owned("Branch billing")} description={t.owned("Manage which branches are included in this organization subscription.")} icon={CreditCard}>
+                <SettingsPanel id="branches" title={t.owned("Branch billing")} description={branchId ? branchName : t.owned("Manage which branches are included in this organization subscription.")} icon={CreditCard}>
                     <div className="space-y-3 p-4">
-                        {org.branches?.map(branch => <div key={branch.id} className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-panel-border)]" data-selected-branch={searchParams.get("branchId") === branch.id || undefined}>
+                        {org.branches?.filter(branch => !branchId || branch.id === branchId).map(branch => <div key={branch.id} className="rounded-[var(--ui-radius-control)] border border-[color:var(--ui-panel-border)]" data-selected-branch={searchParams.get("branchId") === branch.id || undefined}>
                             <h3 className="px-3 py-3 text-sm font-semibold">{branch.name}{searchParams.get("branchId") === branch.id && <span className="ml-2 text-xs font-normal text-[color:var(--text-muted)]">{t.owned("Selected branch")}</span>}</h3>
-                            <BranchBillingControls organizationId={orgId} branchId={branch.id} branchName={branch.name} billingStatus={branch.billingStatus}
+                            <BranchBillingControls independent={!!branchId} organizationId={orgId} branchId={branch.id} branchName={branch.name} billingStatus={branch.billingStatus}
+                                returnTo={searchParams.get("returnTo")}
                                 canChange={Boolean(billingOverview?.entitlements.canWrite) && !billingOperationLoading}
                                 finalBranch={projectedBranchCount <= 1}
-                                onChanged={status => { setOrg(current => ({ ...current, branches: current.branches?.map(item => item.id === branch.id ? { ...item, billingStatus: status } : item) })); void loadBilling(); }} />
+                                onChanged={status => {
+                                    if (status) setOrg(current => ({ ...current, branches: current.branches?.map(item => item.id === branch.id ? { ...item, billingStatus: status } : item) }));
+                                    else setContactRevision(current => current + 1);
+                                    window.dispatchEvent(new Event("billing-access-changed"));
+                                    void loadBilling();
+                                }} />
                         </div>)}
                         {!org.branches && <div role="status" className="text-sm">{contactLoading ? t("Loading") : <><p>{t.owned("Branch billing details are unavailable. Refresh to try again.")}</p><AppButton variant="secondary" onClick={() => { setContactLoading(true); setContactRevision(value => value + 1); }}>{t("Refresh")}</AppButton></>}</div>}
                     </div>
                 </SettingsPanel>
 
-                <BillingInvoiceHistory organizationId={orgId} refreshKey={billingOverview} />
+                <BillingInvoiceHistory branchId={branchId} organizationId={orgId} refreshKey={billingOverview} />
                 <SettingsPanel id="history" title={t("Subscription history")} icon={History}>
-                    <div className="px-5 py-4"><BillingHistoryBrowser organizationId={orgId} /></div>
+                    <div className="px-5 py-4"><BillingHistoryBrowser branchId={branchId} organizationId={orgId} /></div>
                     {(billingOverview?.history.length ?? 0) > 0 ? (
                         <div className="border-t border-[color:var(--ui-form-section-divider)] px-5 py-4">
                             <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{t("Subscription history")}</h3>
@@ -884,16 +932,20 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
             </SettingsWorkspace>
             {confirmationPlanDetails && billingOverview ? (
                 <CheckoutConfirmationDialog
+                    branchName={branchName}
+                    currentPlanName={billingOverview.current ? billingPlanName(billingOverview.current.plan) : branchName ? branchPlanLabel(billingOverview.experience.effectivePlan) : undefined}
                     isOpen={confirmationPlan != null}
                     loading={billingAction === confirmationPlanDetails.id}
                     purpose={confirmationUsesReplacement ? "REPLACEMENT" : "PLAN"}
                     planName={confirmationPlanDetails.shortName}
+                    addedFeatures={branchId ? addedFeatures : undefined}
                     downgradeNotice={workspaceDowngradeNotice(billingOverview.experience.effectivePlan, confirmationPlanDetails.id)}
                     {...getPlanConfirmationQuote(confirmationPlanDetails, billingOverview.experience, confirmationUsesReplacement)}
                     changeTiming={confirmationChangeTiming}
                     trialEndsAt={billingOverview.experience.trialEndsAt}
+                    existingCoverageEndsAt={billingOverview.experience.legacyCoverageEndsAt}
                     providerChargeAt={billingOverview.experience.nextChargeAt}
-                    effectiveAt={confirmationChangeTiming === "NEXT_CYCLE"
+                    effectiveAt={confirmationUsesReplacement ? billingOverview.experience.planChangeEffectiveAt ?? null : confirmationChangeTiming === "NEXT_CYCLE"
                         ? billingOverview.current?.currentEnd ?? billingOverview.experience.paidThrough
                         : null}
                     contactEmail={org.contactEmail || org.owner?.email}
@@ -913,13 +965,15 @@ export function OrganizationBillingContent({ orgId, returnPath = accountBillingH
             />
             {billingOverview?.current ? (
                 <CheckoutConfirmationDialog
+                    branchName={branchName}
+                    currentPlanName={billingOverview.current ? billingPlanName(billingOverview.current.plan) : undefined}
                     isOpen={recoveryConfirmationOpen}
                     loading={recoveryLoading}
                     purpose="RECOVERY"
                     planName={billingPlanName(billingOverview.current.plan)}
                     unitAmount={billingOverview.current.unitAmount}
                     quantity={billingOverview.current.quantity}
-                    monthlyTotal={billingOverview.current.monthlyTotal}
+                    monthlyTotal={branchId ? billingOverview.experience.monthlyCommitmentSubunits == null ? null : billingOverview.experience.monthlyCommitmentSubunits / 100 : billingOverview.current.monthlyTotal}
                     trialActive={false}
                     changeTiming="AUTHORIZATION"
                     trialEndsAt={null}
@@ -974,7 +1028,7 @@ export function getSubscriptionCancellationMode(overview: BillingOverview | null
     const current = overview?.current;
     if (!current) return null;
     if (current.status === "ACTIVE") return "PAID";
-    if (overview?.billingModelVersion === "WORKSPACE_V2" && current.status === "AUTHENTICATED"
+    if ((overview?.billingModelVersion === "WORKSPACE_V2" || overview?.billingModelVersion === "BRANCH_V3") && current.status === "AUTHENTICATED"
         && overview.trial?.status === "ACTIVE" && overview.trial.endsAt
         && Date.parse(overview.trial.endsAt) > now) return "TRIAL";
     return null;
@@ -1023,23 +1077,6 @@ function planRank(plan: OrganizationSubscriptionDto["plan"]) {
     return billingPlanRank(plan);
 }
 
-function formatBillingCustomerState(state: BillingOverview["experience"]["customerState"]) {
-    const labels: Record<BillingOverview["experience"]["customerState"], string> = {
-        TRIAL_ACTIVE: "Trial active",
-        BASIC_ACTIVE: "Basic active",
-        STANDARD_ACTIVE: "Standard active",
-        PRO_ACTIVE: "Pro active",
-        PAYMENT_RETRYING: "Payment retry in progress",
-        PAYMENT_HALTED: "Payment method needs attention",
-        CONFIRMING: "Confirming with Razorpay",
-        PAYMENT_NOT_COMPLETED: "Payment not completed",
-        PAYMENT_DECLINED: "Payment authorization declined",
-        PAYMENT_FAILED: "Billing update failed",
-        ACCESS_ENDED: "Paid access ended",
-        AUTHORIZATION_REQUIRED: "Payment-method authorization required",
-    };
-    return labels[state];
-}
 function formatBillingAction(action: BillingOverview["experience"]["paymentAction"]) {
     const labels: Record<BillingOverview["experience"]["paymentAction"], string> = {
         NONE: "Manage billing",
@@ -1083,7 +1120,7 @@ export function getPlanConfirmationQuote(plan: BillingPlanDto, experience: Billi
     const quantity = experience.projectedQuantity;
     const monthlyTotal = unitAmount * quantity;
     const trialActive = hasActiveBillingTrial(experience);
-    return { unitAmount, quantity, monthlyTotal, trialActive, planFeeDueToday: trialActive || replacement ? 0 : monthlyTotal };
+    return { unitAmount, quantity, monthlyTotal, trialActive, planFeeDueToday: trialActive || replacement || experience.legacyCoverageEndsAt ? 0 : monthlyTotal };
 }
 
 function isCurrentBillingPlan(
@@ -1171,7 +1208,7 @@ export function BillingPlanCard({
     } else if (providerUpdate && billingPlanRank(plan.id) > billingPlanRank(current?.plan)) {
         buttonLabel = `Upgrade to ${plan.shortName}`;
     } else if (providerUpdate && billingPlanRank(plan.id) < billingPlanRank(current?.plan)) {
-        buttonLabel = `Change to ${plan.shortName} at renewal`;
+        buttonLabel = experience?.independentBilling ? `Change to ${plan.shortName}` : `Change to ${plan.shortName} at renewal`;
     } else if (providerUpdate) buttonLabel = `Change to ${plan.shortName}`;
 
     return (
@@ -1226,7 +1263,7 @@ export function BillingPlanCard({
                         ) : (
                             <XCircle size={15} className="mt-0.5 shrink-0 text-[color:var(--text-secondary)]" />
                         )}
-                        <span>{t.owned(capability.label)}{capability.included ? "" : t(capability.id === "WHATSAPP_INTEGRATION" ? " — Pro only" : " — Standard or Pro")}</span>
+                        <span>{t.owned(experience?.independentBilling && capability.id === "MULTIPLE_BRANCHES" ? "Independent branch plan" : capability.label)}{capability.included ? "" : t(capability.id === "WHATSAPP_INTEGRATION" ? " — Pro only" : " — Standard or Pro")}</span>
                     </div>
                 ))}
             </div>
