@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: {
   whatsAppMessage: { count: mocks.count },
 } }));
 vi.mock("@/services/entitlement.service", () => ({ EntitlementService: {
-  assertOrganizationEntitlement: vi.fn(),
+  assertBranchEntitlement: vi.fn(),
   assertBranchWritable: vi.fn(),
 } }));
 vi.mock("@/services/whatsappJobRun.service", () => ({ WhatsAppJobRunService: {

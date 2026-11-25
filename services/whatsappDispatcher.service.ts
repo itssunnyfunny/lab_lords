@@ -43,6 +43,7 @@ export { projectAttachedWhatsAppWebhookEvents } from "@/lib/whatsappWebhookProje
 import { normalizeWhatsAppPhone } from "@/lib/whatsappPhone";
 import { whatsappBudgetMonth } from "@/lib/whatsappSchedule";
 import { lockWhatsAppProviderMessage } from "@/lib/whatsappProviderMessageLock";
+import { checkFinalBranchSendScope } from "@/services/branchPremiumWork.service";
 import { EntitlementService } from "@/services/entitlement.service";
 import { StaffService } from "@/services/staff.service";
 import {
@@ -623,18 +624,20 @@ async function admitPreparedWhatsAppSubmission(input: {
   submission: PreparedWhatsAppSubmission;
   admittedAt: Date;
   clock: DispatchClock;
-}): Promise<WhatsAppPreparedSubmissionPauseGuardResult> {
+}): Promise<WhatsAppPreparedSubmissionPauseGuardResult | "SUPPRESSED"> {
   try {
-    return await prisma.$transaction(tx =>
-      guardPreparedWhatsAppSubmissionAgainstPauseInTransaction({
+    return await prisma.$transaction(async tx => {
+      const scope = await checkFinalBranchSendScope(tx, input.submission);
+      if (scope !== "READY") return scope;
+      return guardPreparedWhatsAppSubmissionAgainstPauseInTransaction({
           tx,
           organizationId: input.submission.organizationId,
           messageId: input.submission.messageId,
           senderId: input.submission.senderId,
           leaseToken: input.submission.leaseToken,
           admittedAt: input.admittedAt,
-        })
-    );
+        });
+    });
   } catch (error) {
     try {
       await prisma.$transaction(tx =>
@@ -774,18 +777,16 @@ async function prepareSubmission(input: {
       if (!settings?.enabled) return suppress("BRANCH_DISABLED");
     }
     try {
-      await EntitlementService.assertOrganizationEntitlement(
-        message.organizationId,
-        "WHATSAPP_AUTOMATION",
-        tx
-      );
       if (message.branch) {
+        await EntitlementService.assertBranchEntitlement(message.branch.id, "WHATSAPP_AUTOMATION", tx);
         await EntitlementService.assertBranchWritable(message.branch.id, tx);
       } else {
-        await EntitlementService.assertOrganizationWritable(message.organizationId, tx);
+        const scope = await EntitlementService.getOrganizationFeatureScope(message.organizationId, "WHATSAPP_AUTOMATION", tx);
+        if (!scope.entitled || !scope.canWrite) return suppress("ENTITLEMENT_REQUIRED");
       }
-    } catch {
-      return suppress("ENTITLEMENT_REQUIRED");
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Unauthorized:")) return suppress("ENTITLEMENT_REQUIRED");
+      throw error;
     }
     // Queue-time permission is not durable authority for a later billable send.
     // Use the same current branch permissions as the originating user action.
@@ -1620,6 +1621,7 @@ export class WhatsAppDispatcherService {
         admittedAt: operationClock(),
         clock: operationClock,
       });
+      if (admission === "SUPPRESSED") counts.messagesSuppressed += 1;
       if (admission !== "READY") continue;
       try {
         const result = await provider.sendApprovedUtilityTemplate({
