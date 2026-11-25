@@ -10,7 +10,7 @@ export function OrgSidebar() {
     const pathname = usePathname();
     const billing = useBillingExperience();
     const basePath = `/org/${pathname.split("/")[2]}`;
-    const analytics = hasFeatureEntitlement(billing?.experience?.entitlements ?? [], "ORG_ANALYTICS");
+    const analytics = billing?.organization?.independentBilling ? billing.organization.branches.some(branch => branch.entitlements.includes("ADVANCED_ANALYTICS")) : hasFeatureEntitlement(billing?.experience?.entitlements ?? [], "ORG_ANALYTICS");
     return <SidebarFrame homeHref={basePath} label="Organization navigation">
         <SidebarItem icon={LayoutDashboard} label="Dashboard" isActive={pathname === basePath} href={basePath} density="compact" />
         <SidebarItem icon={BarChart3} label="Global Analytics" isActive={pathname === `${basePath}/analytics`} href={`${basePath}/analytics`} locked={!analytics} badge={!analytics ? "Standard" : undefined} density="compact" />

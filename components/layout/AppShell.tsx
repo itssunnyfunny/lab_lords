@@ -25,6 +25,7 @@ import { Drawer } from "@/components/ui/Drawer";
 import { ContextualBackLink } from "@/components/layout/ContextualBackLink";
 import { publicDisplayFont } from "@/lib/publicMarketingFonts";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useWorkspaceAccess } from "./BranchAccessProvider";
 import { useWorkspaceReturnHref } from "@/hooks/useWorkspaceReturnHref";
 
 
@@ -39,9 +40,10 @@ interface AppShellProps {
     sidebar?: ReactNode;
     user?: User;
     designPilot?: boolean;
+    simpleWorkspace?: boolean;
 }
 
-export function AppShell({ children, sidebar, designPilot = false }: AppShellProps) {
+export function AppShell({ children, sidebar, designPilot = false, simpleWorkspace = false }: AppShellProps) {
     const t = useTranslation();
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -49,6 +51,8 @@ export function AppShell({ children, sidebar, designPilot = false }: AppShellPro
     const showBranchChrome = /^\/branch\/[^/]+/.test(pathname ?? "");
     const showWorkspaceControls = showBranchChrome || /^\/org\/[^/]+/.test(pathname ?? "");
     const billing = useBillingExperience();
+    const access = useWorkspaceAccess()?.access;
+    const capabilityKey = access ? JSON.stringify([access.entitlements, access.permissions, access.canWrite]) : undefined;
     const compactLayout = useMediaQuery("(max-width: 1023px)");
     const accountReturnHref = useWorkspaceReturnHref(pathname);
     const inAccount = pathname === "/account" || pathname.startsWith("/account/");
@@ -116,11 +120,11 @@ export function AppShell({ children, sidebar, designPilot = false }: AppShellPro
                             <Menu size={18} />
                         </button>}
                         {showWorkspaceControls ? <WorkspaceSwitcher className={designPilot ? "min-w-0 flex-1 lg:flex-none" : "min-w-0 flex-1 lg:w-48 lg:flex-none"} /> : <span className="text-sm font-semibold text-[color:var(--text-primary)]">{t.owned(inAccount ? "Account" : "Workspaces")}</span>}
-                        {showBranchChrome && <BranchTopSearch />}
+                        {showBranchChrome && !simpleWorkspace && <BranchTopSearch key={capabilityKey} />}
                     </div>
 
                     <div className={cn("flex items-center gap-2", inAccount ? "min-w-0 shrink" : "shrink-0")}>
-                        {showBranchChrome && <BranchNotifications />}
+                        {showBranchChrome && !simpleWorkspace && <BranchNotifications key={capabilityKey} />}
                         {inAccount && accountReturnHref && <Link href={accountReturnHref} className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--ui-form-surface-hover-bg)]"><ArrowLeft size={17} className="shrink-0" /><span className="min-w-0">{t("Back to workspace")}</span></Link>}
                     </div>
                 </header>

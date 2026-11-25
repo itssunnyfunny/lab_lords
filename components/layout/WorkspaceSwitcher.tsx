@@ -7,7 +7,8 @@ import { useTranslation } from "@/components/settings/LocalizedText";
 import { useUserPreferences } from "@/components/settings/UserPreferencesApplier";
 import { workspaces } from "@/lib/api/workspaces";
 import type { WorkspaceDirectory } from "@/types";
-import { branchSwitchDestination } from "@/lib/basicNavigation";
+import { branchAccessLabel, branchPlanLabel } from "@/lib/branchBillingLabels";
+import { branchSwitchTarget } from "@/lib/basicNavigation";
 import { cn } from "@/lib/utils";
 import { canNavigateWorkspace } from "@/lib/workspaceNavigationGuard";
 
@@ -20,19 +21,31 @@ export function WorkspaceSwitcher({ className, beforeNavigate, wrapBranchName = 
     const [error, setError] = useState(false);
 
     useEffect(() => {
-        let cancelled = false;
-        workspaces.getDirectory()
-            .then(result => {
-                if (!cancelled) {
-                    setDirectory(result);
-                    setDirectoryOwner(ownerKey);
-                    setError(false);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) setError(true);
-            });
-        return () => { cancelled = true; };
+        let sequence = 0;
+        const refresh = async () => {
+            const request = ++sequence;
+            try {
+                const result = await workspaces.getDirectory();
+                if (request !== sequence) return;
+                setDirectory(result);
+                setDirectoryOwner(ownerKey);
+                setError(false);
+            } catch {
+                if (request !== sequence) return;
+                setDirectory(null);
+                setError(true);
+            }
+        };
+        void refresh();
+        window.addEventListener("focus", refresh);
+        window.addEventListener("billing-access-changed", refresh);
+        window.addEventListener("workspace-directory-changed", refresh);
+        return () => {
+            sequence++;
+            window.removeEventListener("focus", refresh);
+            window.removeEventListener("billing-access-changed", refresh);
+            window.removeEventListener("workspace-directory-changed", refresh);
+        };
     }, [ownerKey]);
 
     return <BranchWorkspaceControls directory={directoryOwner === ownerKey ? directory : null} error={error} pathname={pathname} className={className} wrapBranchName={wrapBranchName} onNavigate={href => { const navigate = () => { if (!beforeNavigate || beforeNavigate()) router.push(href); }; if (canNavigateWorkspace(navigate)) navigate(); }} />;
@@ -68,9 +81,13 @@ export function BranchWorkspaceControls({ directory, error, pathname, className,
             <span className="sr-only">{t("Branch")}</span>
             <select aria-label={t("Switch branch")} value={current?.id ?? ""} disabled={!directory || Boolean(error) || !branchOptions.length}
                 className="mt-0.5 block h-11 w-[180px] max-w-full rounded-md border border-[color:var(--ui-panel-border)] bg-[color:var(--ui-form-input-bg)] px-2 text-[11px] font-semibold text-[color:var(--text-primary)] lg:h-[29px]"
-                onChange={event => { const branch = branchOptions.find(item => item.id === event.target.value); if (branch) onNavigate(branchSwitchDestination(pathname, branch.href, branch.role==="OWNER"?undefined:branch.permissions)); }}>
+                onChange={event => {
+                    const branch = branchOptions.find(item => item.id === event.target.value);
+                    const area = pathname?.endsWith("/settings") && window.location.hash === "#whatsapp" ? pathname + "#whatsapp" : pathname;
+                    if (branch) onNavigate(branchSwitchTarget(area, branch));
+                }}>
                 {!current && <option value="">{branchOptions.length ? t("Choose branch") : status}</option>}
-                {branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+                {branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.name}{branch.billing && ` · ${t.owned(branchPlanLabel(branch.billing.effectivePlan))} · ${t.owned(branchAccessLabel(branch.billing.billingStatus === "ACTIVE" ? branch.billing.customerState : branch.billing.billingStatus))}`}</option>)}
             </select>
         </label>
     </div>;

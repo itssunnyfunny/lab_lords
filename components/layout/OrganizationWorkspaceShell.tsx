@@ -9,7 +9,7 @@ import { OrgSidebar } from "@/components/layout/OrgSidebar";
 import { BillingExperienceProvider } from "@/components/billing/BillingExperienceProvider";
 
 export function OrganizationWorkspaceShell({ organizationId, children }: { organizationId: string; children: ReactNode }) {
-    const { isLoaded } = useUser();
+    const { isLoaded, user } = useUser();
     const t = useTranslation();
     // Identity changes reset preferences and their descendants. Wait before
     // mounting organization forms so initial hydration cannot discard a draft.
@@ -20,7 +20,7 @@ export function OrganizationWorkspaceShell({ organizationId, children }: { organ
         </div>
     );
     return (
-        <BillingExperienceProvider organizationId={organizationId}>
+        <BillingExperienceProvider key={`${user?.id ?? ""}:${organizationId}`} organizationId={organizationId} resolveOrganization>
             <AppShell sidebar={<OrgSidebar />} designPilot>{children}</AppShell>
         </BillingExperienceProvider>
     );
