@@ -3,8 +3,8 @@ import type { BranchAccess } from "@/types";
 /** Presentation only. Writability and permissions remain server-owned. */
 export function workspacePresentation(access: BranchAccess | null | undefined): "simple" | "full" | null {
     if (!access) return null;
-    const plan = access.billingExperience?.effectivePlan ?? access.effectivePlan;
-    if (plan === "BASIC" || (plan === "NONE" && access.billingExperience?.accessMode === "READ_ONLY")) return "simple";
+    const plan = access.branchStatus ? access.effectivePlan : access.billingExperience?.effectivePlan ?? access.effectivePlan;
+    if (plan === "BASIC" || (plan === "NONE" && (access.billingExperience?.accessMode === "READ_ONLY" || access.canWrite === false))) return "simple";
     if (["STANDARD", "STANDARD_TRIAL", "PRO"].includes(plan)) return "full";
     return null;
 }
