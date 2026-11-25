@@ -61,8 +61,8 @@ export class WhatsAppSenderService {
   static async listForOwner(actorUserId: string, organizationId: string) {
     assertWhatsAppIntegrationEnabled();
     await WhatsAppAuthorizationService.assertOwner(actorUserId, organizationId);
-    const profile = await EntitlementService.getOrganizationProfile(organizationId);
-    if (!profile.entitlements.includes("WHATSAPP_AUTOMATION")) {
+    const profile = await EntitlementService.getOrganizationFeatureScope(organizationId, "WHATSAPP_AUTOMATION");
+    if (!profile.entitled) {
       return {
         enabled: true,
         canManage: false,
@@ -143,6 +143,7 @@ export class WhatsAppSenderService {
           lastTemplateSyncAt: sender.lastTemplateSyncAt,
           templateCounts,
           assignedBranches: sender.branchSettings
+            .filter(setting => !profile.branches || profile.branches.included.some(branch => branch.id === setting.branch.id))
             .filter(item => item.branch.organizationId === organizationId)
             .map(item => ({
               id: item.branch.id,
@@ -170,7 +171,7 @@ export class WhatsAppSenderService {
     if (access.organizationId !== organizationId) throw new WhatsAppResourceNotFoundError();
 
     const providerMode = resolveWhatsAppProviderMode();
-    const profile = await EntitlementService.getOrganizationProfile(organizationId);
+    const profile = await EntitlementService.getBranchProfile(branchId);
     if (!profile.entitlements.includes("WHATSAPP_AUTOMATION")) {
       return {
         enabled: true,
@@ -311,6 +312,7 @@ export class WhatsAppSenderService {
         select: { id: true },
       });
       if (!branch || !sender) throw new WhatsAppResourceNotFoundError();
+      await EntitlementService.assertBranchEntitlement(branch.id, "WHATSAPP_AUTOMATION", tx);
       await EntitlementService.assertBranchWritable(branch.id, tx);
 
       const current = await tx.branchWhatsAppSettings.findUnique({
@@ -428,6 +430,7 @@ export class WhatsAppSenderService {
         select: { id: true },
       });
       if (!branch) throw new WhatsAppResourceNotFoundError();
+      await EntitlementService.assertBranchEntitlement(branch.id, "WHATSAPP_AUTOMATION", tx);
       await EntitlementService.assertBranchWritable(branch.id, tx);
 
       const current = await tx.branchWhatsAppSettings.findUnique({

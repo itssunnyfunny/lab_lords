@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   authorizeRole: vi.fn(), getBranchAccess: vi.fn(),
-  getOrganizationProfile: vi.fn(), assertBranchWritable: vi.fn(),
+  getBranchProfile: vi.fn(), assertBranchWritable: vi.fn(),
   settingsFindFirst: vi.fn(), sendersFindMany: vi.fn(),
   operationsUiEnabled: vi.fn(), serviceNoticesEnabled: vi.fn(),
 }));
@@ -27,7 +27,7 @@ vi.mock("@/services/staff.service", () => ({ StaffService: {
   authorizeRole: mocks.authorizeRole, getBranchAccess: mocks.getBranchAccess,
 } }));
 vi.mock("@/services/entitlement.service", () => ({ EntitlementService: {
-  getOrganizationProfile: mocks.getOrganizationProfile,
+  getBranchProfile: mocks.getBranchProfile,
   assertBranchWritable: mocks.assertBranchWritable,
 } }));
 vi.mock("@/services/whatsappAuthorization.service", () => ({ WhatsAppAuthorizationService: {} }));
@@ -43,7 +43,7 @@ beforeEach(() => {
     organizationId: "org_1", isOwner: false,
     permissions: { manage_whatsapp: true },
   });
-  mocks.getOrganizationProfile.mockResolvedValue({
+  mocks.getBranchProfile.mockResolvedValue({
     entitlements: ["WHATSAPP_AUTOMATION"], canWrite: true,
   });
   mocks.settingsFindFirst.mockResolvedValue(null);
@@ -65,7 +65,7 @@ describe("branch WhatsApp availability projection", () => {
   });
 
   it("fails closed for an unentitled viewer even when operations flags are on", async () => {
-    mocks.getOrganizationProfile.mockResolvedValue({ entitlements: [], canWrite: true });
+    mocks.getBranchProfile.mockResolvedValue({ entitlements: [], canWrite: true });
     const response = await WhatsAppSenderService.getBranchAssignment("staff_1", "org_1", "branch_1");
     expect(response).toMatchObject({ operationsUiEnabled: false, serviceNoticesEnabled: false, safeReason: "WhatsApp requires the Pro plan." });
     expect(mocks.settingsFindFirst).not.toHaveBeenCalled();
@@ -77,6 +77,6 @@ describe("branch WhatsApp availability projection", () => {
     });
     await expect(WhatsAppSenderService.getBranchAssignment("staff_1", "org_1", "branch_1"))
       .rejects.toThrow();
-    expect(mocks.getOrganizationProfile).not.toHaveBeenCalled();
+    expect(mocks.getBranchProfile).not.toHaveBeenCalled();
   });
 });
