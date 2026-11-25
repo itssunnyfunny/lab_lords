@@ -1,5 +1,16 @@
 # Tenant relationship coverage
 
+## Independent agreements, 25 November 2026
+
+The [schema inventory](../../prisma/relationship-coverage.json) now has 215 owning
+relationships. Four composite foreign keys include the organization ID. They bind
+the agreement to its branch and retired source, and bind subscriptions and billing
+operations to the agreement. Two further foreign keys identify current and pending
+slots. A check constraint requires each occupied slot to match the subscription's
+own agreement. Database triggers also enforce immutable agreement ownership
+for provider actions, invoices, history and webhook evidence. Access and
+settlement still require the matching branch and exact commercial evidence.
+
 All owning Prisma relations are listed below, including global identities and single-parent chains so the multi-parent scope is reviewable. `relationship-catalog.test.ts` compares every listed key against the installed PostgreSQL catalog and detects schema/inventory drift. SQL migrations additionally enforce presence, identity, and immutable-intent CHECKs/triggers that Prisma cannot express. Direct mixed-parent SQL and upgrade/blocker fixtures exercise the operational, billing/WhatsApp, allocation, import, and typed-target families.
 
 Composite keys prove matching scope only when references are present. Column-specific SET NULL detaches only the foreign ID, preserving required scope. Presence CHECKs cover operational WhatsApp targets and bound webhook references. Historical import target snapshots may detach after deletion; new JSON references require live same-branch targets. Payment/student identity consistency inside one branch and plan/evaluation session semantics remain domain validation, distinct from tenant integrity.
