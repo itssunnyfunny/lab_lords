@@ -1719,13 +1719,12 @@ function getSafeReturnPath(value: unknown, organizationId: string) {
 }
 
 type BranchIntentChange = Pick<OrganizationBillingChange,
-  "agreementBranchId" | "idempotencyKey" | "status" | "operationStatus" | "failureCategory" | "resolvedAt">;
+  "agreementBranchId" | "idempotencyKey" | "status" | "failureCategory" | "resolvedAt">;
 
 function branchIntentReceipt(change: BranchIntentChange, undone = false) {
   if (!change.agreementBranchId || !isBrowserBillingIntentKey(change.idempotencyKey)) return {};
   const resolved = undone || (change.failureCategory !== "MANUAL_REVIEW_REQUIRED" && (
     change.status === "APPLIED" || change.status === "SUPERSEDED" || change.status === "UNDONE"
-    || (change.status === "SCHEDULED" && change.operationStatus === "SCHEDULED" && !change.failureCategory)
     || (change.status === "FAILED" && change.resolvedAt !== null)
   ));
   return { clientIntent: { key: change.idempotencyKey, resolved } };
@@ -2012,7 +2011,7 @@ export class BillingService {
       BillingExperienceService.getBillingExperience(organizationId, userId, independent ? branchId : undefined),
       independent && intentKeys?.length ? prisma.organizationBillingChange.findMany({
         where: { ...scope, idempotencyKey: { in: intentKeys } },
-        select: { agreementBranchId: true, idempotencyKey: true, status: true, operationStatus: true, failureCategory: true, resolvedAt: true },
+        select: { agreementBranchId: true, idempotencyKey: true, status: true, failureCategory: true, resolvedAt: true },
       }) : [],
     ]);
     assertSubscriptionProviderMode(subscription, providerMode);

@@ -898,6 +898,8 @@ describe("BillingService SaaS subscriptions", () => {
       { ...applied, organizationId: foreign.id, agreementBranchId: other.id, sequence: 1, idempotencyKey: keys[2] },
       { ...applied, organizationId: organization.id, agreementBranchId: branch.id, sequence: 2, idempotencyKey: keys[3],
         status: "FAILED", operationStatus: "FAILED", failureCategory: "MANUAL_REVIEW_REQUIRED", resolvedAt: null },
+      { ...applied, organizationId: organization.id, agreementBranchId: branch.id, sequence: 4, idempotencyKey: keys[4],
+        status: "SCHEDULED", operationStatus: "SCHEDULED", resolvedAt: null },
       { ...applied, organizationId: organization.id, agreementBranchId: branch.id, sequence: 3, idempotencyKey: keys[5] },
     ] });
     const overview = await BillingService.listPlansForOrganization(owner.id, organization.id, branch.id, keys);
