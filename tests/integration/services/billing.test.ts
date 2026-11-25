@@ -879,6 +879,35 @@ describe("BillingService SaaS subscriptions", () => {
     expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(1);
   });
 
+  it("recovers only resolved browser intents belonging to the selected branch within the refresh limit", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
+    const foreign = await createOrg({ ownerId: outsider.id, billingModelVersion: "BRANCH_V3" });
+    const branch = await createBranch({ organizationId: organization.id });
+    const sibling = await createBranch({ organizationId: organization.id });
+    const other = await createBranch({ organizationId: foreign.id });
+    await testPrisma.branchBillingAgreement.createMany({ data: [branch, sibling, other].map(row => ({
+      branchId: row.id, organizationId: row.organizationId, selectedPlan: "STANDARD" as const,
+    })) });
+    const keys = Array.from({ length: 6 }, () => crypto.randomUUID());
+    const applied = { type: "PLAN_UPGRADE", status: "APPLIED", operationStatus: "APPLIED", resolvedAt: new Date() } as const;
+    await testPrisma.organizationBillingChange.createMany({ data: [
+      { ...applied, organizationId: organization.id, agreementBranchId: branch.id, sequence: 1, idempotencyKey: keys[0] },
+      { ...applied, organizationId: organization.id, agreementBranchId: sibling.id, sequence: 1, idempotencyKey: keys[1] },
+      { ...applied, organizationId: foreign.id, agreementBranchId: other.id, sequence: 1, idempotencyKey: keys[2] },
+      { ...applied, organizationId: organization.id, agreementBranchId: branch.id, sequence: 2, idempotencyKey: keys[3],
+        status: "FAILED", operationStatus: "FAILED", failureCategory: "MANUAL_REVIEW_REQUIRED", resolvedAt: null },
+      { ...applied, organizationId: organization.id, agreementBranchId: branch.id, sequence: 3, idempotencyKey: keys[5] },
+    ] });
+    const overview = await BillingService.listPlansForOrganization(owner.id, organization.id, branch.id, keys);
+    expect(overview.resolvedIntentKeys).toEqual([keys[0]]);
+    const siblingOverview = await BillingService.listPlansForOrganization(owner.id, organization.id, sibling.id, keys);
+    expect(siblingOverview.resolvedIntentKeys).toEqual([keys[1]]);
+    await expect(BillingService.listPlansForOrganization(outsider.id, organization.id, branch.id, keys))
+      .rejects.toBeInstanceOf(OrganizationAccessNotFoundError);
+  });
+
   it("binds the owner trial and rereads the branch before admitting its first charge", async () => {
     const provider = createFakeRazorpayClient();
     setRazorpayClientForTests(provider);
@@ -2864,6 +2893,50 @@ describe("BillingService SaaS subscriptions", () => {
       },
     });
     expect(overview.experience.customerMessage).not.toContain("Payment was not completed");
+  });
+
+  it("recovers a branch cancellation, replays its Undo truthfully, and schedules a fresh request", async () => {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
+    const branch = await createBranch({ organizationId: org.id });
+    await testPrisma.branchBillingAgreement.create({
+      data: { organizationId: org.id, branchId: branch.id, selectedPlan: "STANDARD" },
+    });
+    await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan: "STANDARD" });
+    const run = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, org.id, branch.id, work);
+    const cancel = (key: string) => run(() => BillingService.requestCancellation(owner.id, org.id, key));
+    const originalKey = crypto.randomUUID();
+    await cancel(originalKey); // The caller never received the acknowledgement.
+    const overview = await BillingService.listPlansForOrganization(owner.id, org.id, branch.id);
+    const scheduled = overview.experience.scheduledChanges.find(change => change.type === "CANCELLATION");
+    expect(scheduled).toMatchObject({ status: "SCHEDULED" });
+    await expect(run(() => BillingService.undoWorkspaceCancellation(owner.id, org.id))).resolves.toMatchObject({
+      undone: true, clientIntent: { key: originalKey, resolved: true },
+    });
+
+    await expect(cancel(originalKey)).resolves.toMatchObject({
+      cancelled: false, scheduled: false, undoable: false,
+      clientIntent: { key: originalKey, resolved: true },
+      change: { id: scheduled!.id, status: "UNDONE" },
+      subscription: { status: "ACTIVE", cancelAtCycleEnd: false },
+    });
+    const freshKey = crypto.randomUUID();
+    await expect(cancel(freshKey)).resolves.toMatchObject({
+      cancelled: false, scheduled: true, undoable: true,
+      clientIntent: { key: freshKey, resolved: false },
+      change: { idempotencyKey: freshKey, status: "QUEUED" },
+    });
+    const changes = await testPrisma.organizationBillingChange.findMany({
+      where: { organizationId: org.id, agreementBranchId: branch.id, type: "CANCELLATION" },
+      orderBy: { sequence: "asc" }, select: { idempotencyKey: true, status: true },
+    });
+    expect(changes).toEqual([
+      { idempotencyKey: originalKey, status: "UNDONE" },
+      { idempotencyKey: freshKey, status: "QUEUED" },
+    ]);
+    expect(provider.cancelSubscription).not.toHaveBeenCalled();
   });
 
   it("processes Razorpay subscription webhooks idempotently from provider state", async () => {
