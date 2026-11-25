@@ -2,6 +2,8 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { prisma } from "@/lib/prisma";
 import { createHash } from "node:crypto";
 import { buildCommercialIntentSnapshot } from "@/services/billingCommercialEvidence.service";
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
+import { EntitlementService } from "@/services/entitlement.service";
 import { BillingMutationService } from "@/services/billingMutation.service";
 import { BillingReconciliationService } from "@/services/billingReconciliation.service";
 import { BillingExperienceService } from "@/services/billingExperience.service";
@@ -200,13 +202,17 @@ describe("serialized workspace billing mutations", () => {
   });
   afterAll(async () => { await disconnectDatabase(); });
 
-  async function setup(options: { paymentMethod?: "CARD" | "UPI" | "EMANDATE"; plan?: "BASIC" | "STANDARD" | "PRO" } = {}) {
+  async function setup(options: { independent?: boolean; paymentMethod?: "CARD" | "UPI" | "EMANDATE"; plan?: "BASIC" | "STANDARD" | "PRO" } = {}) {
     const plan = options.plan ?? "PRO";
     const amount = plan === "BASIC" ? 99 : plan === "STANDARD" ? 299 : 499;
     const providerPlanId = `plan_${plan.toLowerCase()}`;
     const owner = await createUser();
-    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: options.independent ? "BRANCH_V3" : "WORKSPACE_V2" });
     const first = await createBranch({ organizationId: organization.id });
+    const agreementBranchId = options.independent ? first.id : null;
+    if (agreementBranchId) await testPrisma.branchBillingAgreement.create({
+      data: { branchId: first.id, organizationId: organization.id, selectedPlan: plan, billingMutationSequence: 1 },
+    });
     await testPrisma.saasRazorpayPlan.create({
       data: {
         providerMode: "TEST",
@@ -224,7 +230,8 @@ describe("serialized workspace billing mutations", () => {
         totalCount: 120,
         quantity: 1,
         razorpayPlanId: providerPlanId,
-        currentOrganizationId: organization.id,
+        agreementBranchId, currentAgreementBranchId: agreementBranchId,
+        currentOrganizationId: options.independent ? null : organization.id,
         razorpaySubscriptionId: "sub_workspace",
         status: "ACTIVE",
         providerPaymentMethod: options.paymentMethod ?? "CARD",
@@ -235,6 +242,7 @@ describe("serialized workspace billing mutations", () => {
         organizationId: organization.id,
         organizationSubscriptionId: subscription.id,
         sequence: 1,
+        agreementBranchId,
         idempotencyKey: `baseline-commercial-intent:${organization.id}`,
         type: "SUBSCRIPTION_AUTHORIZATION",
         status: "APPLIED",
@@ -277,6 +285,79 @@ describe("serialized workspace billing mutations", () => {
     ]);
     return { owner, organization, first, subscription, commercialIntent };
   }
+
+  it.each([
+    ["BASIC", "STANDARD"], ["BASIC", "PRO"], ["STANDARD", "PRO"],
+    ["STANDARD", "BASIC"], ["PRO", "STANDARD"], ["PRO", "BASIC"],
+  ] as const)("isolates %s to %s authorization, grant, settlement and promotion", async (from, to) => {
+    const { owner, organization, first, subscription } = await setup({ plan: from, independent: true });
+    const sibling = await createBranch({ organizationId: organization.id });
+    await testPrisma.branchBillingAgreement.create({ data: { branchId: sibling.id,
+      organizationId: organization.id, selectedPlan: "PRO" } });
+    const student = await createStudent({ branchId: first.id });
+    const run = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, organization.id, first.id, work);
+    const provider = fakeRazorpay({ providerPlanId: subscription.razorpayPlanId, providerQuantity: 1, paidAt: Math.floor(Date.now()/1000) - 1 });
+    const initialFetch = vi.mocked(provider.fetchSubscription).getMockImplementation()!;
+    const initialProvider = { ...await initialFetch("sub_workspace"), notes: { branch_agreement_id: first.id } };
+    vi.mocked(provider.fetchSubscription).mockResolvedValue(initialProvider);
+    setRazorpayClientForTests(provider);
+    await run(() => BillingReconciliationService.reconcileProviderSubscription(subscription.razorpaySubscriptionId));
+    expect(await EntitlementService.getBranchProfile(first.id)).toMatchObject({ effectivePlan: from, canWrite: true });
+    const siblingBefore = await EntitlementService.getBranchProfile(sibling.id);
+    expect(siblingBefore.canWrite).toBe(false);
+    const key = `branch-replacement-${from}-${to}`;
+    const replace = () => BillingService.changeWorkspacePlan(owner.id, organization.id, to, key);
+    const checkout = await run(replace);
+    expect(checkout).toMatchObject({ purpose: "REPLACEMENT", summary: { plan: to, quantity: 1 } });
+    await run(replace);
+    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
+    const change = await testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { idempotencyKey: key } });
+    const candidate = await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { pendingAgreementBranchId: first.id } });
+    const created = await vi.mocked(provider.createSubscription).mock.results[0].value;
+    expect(created.notes).toMatchObject({ branch_agreement_id: first.id, billing_change_id: change.id });
+    await expect(withOwnerBillingScope(owner.id, organization.id, sibling.id,
+      () => BillingService.getBillingOperation(owner.id, organization.id, change.id))).rejects.toThrow("not found");
+    expect((await EntitlementService.getBranchProfile(first.id)).effectivePlan).toBe(from);
+
+    vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...created, status: "authenticated", payment_method: "card" });
+    vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 0, items: [] });
+    vi.mocked(provider.fetchPayment).mockResolvedValue({ id: "pay_auth", entity: "payment", status: "authorized",
+      amount: 500, currency: "INR", captured: false, order_id: null, method: "card", subscription_id: created.id });
+    await run(() => BillingReconciliationService.reconcileProviderSubscription(created.id,
+      { paymentId: "pay_auth", commercialIntentChangeId: change.id }));
+    const synced = await run(() => BillingReplacementService.syncAuthorizedAccess(change.id, new Date()));
+    expect(synced.action).toBe(candidate.amount > subscription.amount ? "GRANT" : "NONE");
+    expect((await EntitlementService.getBranchProfile(first.id)).effectivePlan)
+      .toBe(candidate.amount > subscription.amount ? to : from);
+    expect((await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentAgreementBranchId: first.id } })).plan).toBe(from);
+
+    const starts = Math.floor(change.effectiveAt!.getTime() / 1000);
+    const ends = starts + 30 * 86400;
+    vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...created, status: "active", current_start: starts,
+      current_end: ends, charge_at: ends, paid_count: 1, payment_method: "card" });
+    vi.mocked(provider.fetchPayment).mockResolvedValue({ id: "pay_candidate", entity: "payment", status: "captured",
+      amount: candidate.amountSubunits, currency: "INR", captured: true, order_id: null, method: "card",
+      subscription_id: created.id, invoice_id: "inv_candidate" });
+    vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 1, items: [
+      { entity: "invoice", id: "inv_candidate", subscription_id: created.id, payment_id: "pay_candidate",
+        status: "paid", amount: candidate.amountSubunits, amount_paid: candidate.amountSubunits, amount_due: 0,
+        currency: "INR", billing_start: starts, billing_end: ends, paid_at: starts },
+    ] });
+    // Model the already-confirmed source retirement at the scheduled boundary.
+    await testPrisma.organizationSubscription.update({ where: { id: subscription.id }, data: {
+      status: "CANCELLED", endedAt: change.effectiveAt, cancelAtCycleEnd: true,
+      cancellationRequestedAt: change.undoCutoffAt, cancellationScheduledAt: change.effectiveAt,
+    } });
+    const now = new Date(starts * 1000 + 1000);
+    await run(() => BillingReconciliationService.reconcileProviderSubscription(created.id, { now, commercialIntentChangeId: change.id }));
+    await expect(run(() => BillingReplacementService.promoteIfReady(change.id, now))).resolves.toMatchObject({ promoted: true });
+    expect(await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { currentAgreementBranchId: first.id } }))
+      .toMatchObject({ id: candidate.id, plan: to, lastConfirmedPaymentId: "pay_candidate" });
+    expect(await testPrisma.organizationSubscriptionInvoice.findUniqueOrThrow({ where: { razorpayInvoiceId: "inv_candidate" } }))
+      .toMatchObject({ agreementBranchId: first.id, organizationSubscriptionId: candidate.id, commercialIntentChangeId: change.id });
+    expect(await EntitlementService.getBranchProfile(sibling.id)).toEqual(siblingBefore);
+    expect(await testPrisma.student.findUnique({ where: { id: student.id } })).toEqual(student);
+  });
 
   it.each([
     ["BASIC", "STANDARD", "PLAN_UPGRADE"], ["BASIC", "PRO", "PLAN_UPGRADE"],

@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { BillingService } from "@/services/billing.service";
 import { BillingMutationService } from "@/services/billingMutation.service";
 import { BillingReconciliationService } from "@/services/billingReconciliation.service";
@@ -284,6 +285,60 @@ describe("BillingService SaaS subscriptions", () => {
     expect(fakeRazorpay.createSubscription).not.toHaveBeenCalled();
     expect(fakeRazorpay.listSubscriptions).not.toHaveBeenCalled();
     expect(fakeRazorpay.fetchSubscription).not.toHaveBeenCalled();
+  });
+
+  it("bills Basic, Standard and Pro branches independently and contains a failed renewal", async () => {
+    const owner = await createUser();
+    const org = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const now = Math.floor(Date.now() / 1000);
+    const cases = [
+      { plan: "BASIC", amount: 9900 }, { plan: "STANDARD", amount: 29900 }, { plan: "PRO", amount: 49900 },
+    ] as const;
+    const branches: string[] = [];
+    for (const { plan, amount } of cases) {
+      const branch = await createBranch({ organizationId: org.id, billingStatus: "PENDING_ACTIVATION" });
+      branches.push(branch.id);
+      await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: org.id, selectedPlan: plan } });
+      const run = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, org.id, branch.id, work);
+      const start = () => BillingService.createSubscriptionCheckout(owner.id, org.id, { plan });
+      const checkout = await run(start);
+      expect(checkout.summary.quantity).toBe(1);
+      expect(checkout.processingUrl).toContain(`branchId=${branch.id}`);
+      expect((await run(start)).changeId).toBe(checkout.changeId);
+      expect((await EntitlementService.getBranchProfile(branch.id)).canWrite).toBe(false);
+      const created = await vi.mocked(provider.createSubscription).mock.results.at(-1)!.value;
+      const paymentId = `pay_${plan.toLowerCase()}`, invoiceId = `inv_${plan.toLowerCase()}`;
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...created, status: "active", payment_method: "card",
+        current_start: now, current_end: now + 30 * 86400, paid_count: 1 });
+      vi.mocked(provider.fetchPayment).mockResolvedValue({ entity: "payment", id: paymentId, captured: true,
+        status: "captured", amount, currency: "INR", invoice_id: invoiceId, subscription_id: created.id, method: "card", order_id: null });
+      vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 1, items: [{
+        entity: "invoice", id: invoiceId, status: "paid", currency: "INR", amount, amount_paid: amount, amount_due: 0,
+        payment_id: paymentId, subscription_id: created.id, billing_start: now, billing_end: now + 30 * 86400, paid_at: Math.floor(Date.now()/1000),
+      }] });
+      const raw = JSON.stringify({ event: "subscription.charged", payload: {
+        subscription: { entity: { id: created.id } }, payment: { entity: { id: paymentId, subscription_id: created.id } },
+      } });
+      const signature = hmacSha256Hex(raw, "webhook_secret");
+      const receipt = () => BillingService.handleRazorpayWebhook(raw, signature, `evt_mixed_${plan}`);
+      expect(await receipt()).toMatchObject({ ok: true, agreementBranchId: branch.id });
+      expect(await receipt()).toMatchObject({ duplicate: true, agreementBranchId: branch.id });
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ effectivePlan: plan, canWrite: true });
+    }
+    expect(provider.createSubscription).toHaveBeenCalledTimes(3);
+    const pro = await vi.mocked(provider.createSubscription).mock.results[2].value;
+    vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...pro, status: "halted" });
+    vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 0, items: [] });
+    await withOwnerBillingScope(owner.id, org.id, branches[2], () =>
+      BillingReconciliationService.reconcileProviderSubscription(pro.id));
+    expect(await EntitlementService.getBranchProfile(branches[2])).toMatchObject({ canWrite: false });
+    expect(await EntitlementService.getBranchProfile(branches[0])).toMatchObject({ effectivePlan: "BASIC", canWrite: true });
+    expect(await EntitlementService.getBranchProfile(branches[1])).toMatchObject({ effectivePlan: "STANDARD", canWrite: true });
+    await expect(withOwnerBillingScope(owner.id, org.id, branches[0], () =>
+      BillingReconciliationService.reconcileProviderSubscription(pro.id))).rejects.toThrow("Subscription not found");
+    await expect(BillingService.createSubscriptionCheckout(owner.id, org.id, { plan: "BASIC" })).rejects.toThrow("Select a branch");
   });
 
   it("creates a Razorpay subscription checkout for the Basic SaaS plan", async () => {
@@ -822,6 +877,125 @@ describe("BillingService SaaS subscriptions", () => {
     await expect(testPrisma.branch.count({ where: { organizationId: org.id } }))
       .resolves.toBe(1);
     expect(fakeRazorpay.createSubscription).toHaveBeenCalledTimes(1);
+  });
+
+  it("binds the owner trial and rereads the branch before admitting its first charge", async () => {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const other = await createUser();
+    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
+    const otherWorkspace = await createOrg({ ownerId: owner.id });
+    const branch = await createBranch({ organizationId: organization.id });
+    await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: organization.id, selectedPlan: "BASIC" } });
+    const ends = new Date(Date.now() + 5 * 86400000);
+    const terms = { status: "ACTIVE", source: "ONBOARDING", trialPlan: "PRO", trialEndsAt: ends } as const;
+    await testPrisma.ownerTrialGrant.create({ data: { ...terms, ownerId: other.id, organizationId: organization.id } });
+    await testPrisma.ownerTrialGrant.create({ data: { ...terms, ownerId: owner.id, organizationId: otherWorkspace.id } });
+    const overview = await BillingService.listPlansForOrganization(owner.id, organization.id, branch.id);
+    expect(overview.trial).toBeNull();
+    expect(overview.ownerTrialEligibility).toBeNull();
+    expect(overview.experience).toMatchObject({ trialPlan: null, trialEndsAt: null, billingAccessSource: "NONE" });
+    // Release a legitimately scoped trial during catalogue preparation, before the checkout lease is acquired.
+    const originalCreatePlan = vi.mocked(provider.createPlan).getMockImplementation()!;
+    vi.mocked(provider.createPlan).mockImplementationOnce(async input => {
+      await testPrisma.$transaction([
+        testPrisma.ownerTrialGrant.update({ where: { ownerId: other.id }, data: { organizationId: null } }),
+        testPrisma.ownerTrialGrant.update({ where: { ownerId: owner.id }, data: { organizationId: organization.id } }),
+      ]);
+      return originalCreatePlan(input);
+    });
+    const start = () => withOwnerBillingScope(owner.id, organization.id, branch.id, () =>
+      BillingService.createSubscriptionCheckout(owner.id, organization.id, { plan: "BASIC" }));
+    const result = await start();
+    const expectedStart = Math.ceil(ends.getTime() / 1000);
+    expect(result.summary.firstChargeAt).toBe(new Date(expectedStart * 1000).toISOString());
+    expect(vi.mocked(provider.createSubscription).mock.calls[0][0].start_at).toBe(expectedStart);
+    await testPrisma.branch.update({ where: { id: branch.id }, data: { billingStatus: "ARCHIVED" } });
+    await expect(start()).rejects.toThrow("Restore the branch");
+    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
+  });
+
+  it("quarantines a late renewable aggregate receipt after branch conversion", async () => {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
+    const branch = await createBranch({ organizationId: organization.id });
+    const source = await createSaasSubscription({ organizationId: organization.id, plan: "STANDARD" });
+    await testPrisma.organizationSubscription.update({ where: { id: source.id }, data: { status: "CANCELLED" } });
+    await testPrisma.organization.update({ where: { id: organization.id }, data: { billingModelVersion: "BRANCH_V3" } });
+    await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: organization.id, selectedPlan: "PRO",
+      legacyCoverageSubscriptionId: source.id, legacyCoverageEndsAt: source.paidThrough } });
+    vi.mocked(provider.fetchSubscription).mockResolvedValue({ id: source.razorpaySubscriptionId, entity: "subscription",
+      plan_id: source.razorpayPlanId, status: "active", total_count: 120, quantity: 1 });
+    const raw = JSON.stringify({ event: "subscription.activated", payload: { subscription: { entity: { id: source.razorpaySubscriptionId } } } });
+    await expect(BillingService.handleRazorpayWebhook(raw, hmacSha256Hex(raw, "webhook_secret"), "evt_retired_aggregate"))
+      .rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    expect(await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { id: source.id } })).toMatchObject({ status: "CANCELLED", paidThrough: source.paidThrough });
+    expect(await testPrisma.organizationBillingChange.findFirstOrThrow({ where: { type: "COMMERCIAL_RECONCILIATION" } }))
+      .toMatchObject({ agreementBranchId: null, failureCode: "RETIRED_AGGREGATE_STATE_MISMATCH" });
+    expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ effectivePlan: "STANDARD", canWrite: true });
+    expect(provider.createSubscription).not.toHaveBeenCalled();
+    expect(provider.cancelSubscription).not.toHaveBeenCalled();
+  });
+
+  it("reconciles the original unpaid branch authorization after browser checkout expiry", async () => {
+    const provider = createFakeRazorpayClient();
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
+    const branch = await createBranch({ organizationId: organization.id, billingStatus: "PENDING_ACTIVATION" });
+    await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: organization.id, selectedPlan: "BASIC" } });
+    const run = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, organization.id, branch.id, work);
+    const first = await run(() => BillingService.createSubscriptionCheckout(owner.id, organization.id, { plan: "BASIC" }));
+    await testPrisma.organizationBillingChange.update({ where: { id: first.changeId }, data: { confirmationDeadlineAt: new Date(Date.now() - 1000) } });
+    const operation = await run(() => BillingService.getBillingOperation(owner.id, organization.id, first.changeId));
+    expect(operation.checkout).toBeUndefined();
+    const created = await vi.mocked(provider.createSubscription).mock.results[0].value;
+    vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...created, status: "expired" });
+    vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", items: [], count: 0 });
+    const result = await run(() => BillingReconciliationService.reconcileProviderSubscription(created.id));
+    expect(result.subscription).toMatchObject({ status: "EXPIRED", paidThrough: null });
+    expect(result.commercialIntentChangeId).toBe(first.changeId);
+    expect((await EntitlementService.getBranchProfile(branch.id)).canWrite).toBe(false);
+    expect(provider.createSubscription).toHaveBeenCalledTimes(1);
+    expect(provider.cancelSubscription).not.toHaveBeenCalled();
+  });
+
+  it("isolates a lost provider response and recovers only its original branch operation", async () => {
+    const provider = createFakeRazorpayClient();
+    const accepted: ReturnType<typeof providerSubscriptionForCreate>[] = [];
+    vi.mocked(provider.createSubscription).mockImplementationOnce(async request => {
+      accepted.push(providerSubscriptionForCreate(request, "sub_lost_basic"));
+      throw new RazorpayApiError("response lost", { kind: "NETWORK" });
+    });
+    setRazorpayClientForTests(provider);
+    const owner = await createUser();
+    const organization = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
+    const [basic, pro] = await Promise.all((["BASIC", "PRO"] as const).map(async plan => {
+      const branch = await createBranch({ organizationId: organization.id, billingStatus: "PENDING_ACTIVATION" });
+      await testPrisma.branchBillingAgreement.create({ data: { branchId: branch.id, organizationId: organization.id, selectedPlan: plan } });
+      return branch;
+    }));
+    const run = <T>(branchId: string, work: () => Promise<T>) => withOwnerBillingScope(owner.id, organization.id, branchId, work);
+    const checkout = (branchId: string, plan: "BASIC" | "PRO") => run(branchId, () => BillingService.createSubscriptionCheckout(owner.id, organization.id, { plan }));
+    await expect(checkout(basic.id, "BASIC")).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    const change = await testPrisma.organizationBillingChange.findFirstOrThrow({ where: { organizationId: organization.id, agreementBranchId: basic.id } });
+    const recover = (branchId: string) => run(branchId, () => BillingService.retryBillingOperation(owner.id, organization.id, change.id));
+    await expect(recover(pro.id)).rejects.toThrow("not found");
+    expect((await checkout(pro.id, "PRO")).summary.quantity).toBe(1);
+    const candidate = accepted[0];
+    expect(candidate.notes?.branch_agreement_id).toBe(basic.id);
+    vi.mocked(provider.listSubscriptions!).mockResolvedValueOnce({ entity: "collection", count: 1,
+      items: [{ ...candidate, notes: { ...candidate.notes, branch_agreement_id: pro.id } }] });
+    await expect(recover(basic.id)).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+    vi.mocked(provider.listSubscriptions!).mockResolvedValueOnce({ entity: "collection", count: 1, items: accepted });
+    await expect(recover(basic.id)).resolves.toMatchObject({ resolutionOutcome: "PROVIDER_STATE_ADOPTED", checkout: { subscriptionId: candidate.id } });
+    expect(provider.createSubscription).toHaveBeenCalledTimes(2);
+    expect(provider.cancelSubscription).not.toHaveBeenCalled();
+    expect(await testPrisma.organizationSubscription.count({ where: { organizationId: organization.id } })).toBe(2);
+    expect((await EntitlementService.getBranchProfile(basic.id)).canWrite).toBe(false);
   });
 
   it("adopts an accepted create after a lost response without issuing a second provider mutation", async () => {
