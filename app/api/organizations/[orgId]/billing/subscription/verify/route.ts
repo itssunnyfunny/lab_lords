@@ -1,3 +1,4 @@
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { BillingService } from "@/services/billing.service";
@@ -12,7 +13,7 @@ export async function POST(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { orgId } = await context.params;
-    const result = await BillingService.verifySubscriptionSuccess(user.id, orgId, await req.json());
+    const result = await withOwnerBillingScope(user.id, orgId, new URL(req.url).searchParams.get("branchId"), async () => BillingService.verifySubscriptionSuccess(user.id, orgId, await req.json()));
 
     return NextResponse.json(result);
   } catch (error) {

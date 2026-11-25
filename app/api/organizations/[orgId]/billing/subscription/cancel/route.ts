@@ -1,3 +1,4 @@
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { BillingService } from "@/services/billing.service";
@@ -16,7 +17,7 @@ export async function POST(
     if (!idempotencyKey) {
       return NextResponse.json({ error: "Idempotency-Key is required" }, { status: 400 });
     }
-    const result = await BillingService.requestCancellation(user.id, orgId, idempotencyKey);
+    const result = await withOwnerBillingScope(user.id, orgId, new URL(req.url).searchParams.get("branchId"), async () => BillingService.requestCancellation(user.id, orgId, idempotencyKey));
     return NextResponse.json(result, { status: 202 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal Server Error";
@@ -32,7 +33,7 @@ export async function DELETE(
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { orgId } = await context.params;
-    return NextResponse.json(await BillingService.undoWorkspaceCancellation(user.id, orgId));
+    return NextResponse.json(await withOwnerBillingScope(user.id, orgId, new URL(_req.url).searchParams.get("branchId"), async () => BillingService.undoWorkspaceCancellation(user.id, orgId)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal Server Error";
     return NextResponse.json({ error: message }, { status: billingHttpStatus(error, 500) });

@@ -12,7 +12,9 @@ export async function GET(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { orgId } = await context.params;
-    const result = await BillingService.listPlansForOrganization(user.id, orgId);
+    const branchId = new URL(_req.url).searchParams.get("branchId");
+    const result = branchId ? await BillingService.listPlansForOrganization(user.id, orgId, branchId)
+      : await BillingService.listPlansForOrganization(user.id, orgId);
 
     return NextResponse.json(result);
   } catch (error) {

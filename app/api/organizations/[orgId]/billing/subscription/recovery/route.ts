@@ -1,3 +1,4 @@
+import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { BillingService } from "@/services/billing.service";
@@ -9,7 +10,7 @@ export async function POST(request: Request, context: { params: Promise<{ orgId:
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { orgId } = await context.params;
     const body = await request.json().catch(() => ({}));
-    return NextResponse.json(await BillingService.getRecoveryCheckout(user.id, orgId, body.returnPath));
+    return NextResponse.json(await withOwnerBillingScope(user.id, orgId, new URL(request.url).searchParams.get("branchId"), async () => BillingService.getRecoveryCheckout(user.id, orgId, body.returnPath)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to start payment recovery";
     return NextResponse.json(
