@@ -1,31 +1,13 @@
 /** Plans only. No subscriptions, mandates, invoices, captures or database writes. */
 import { existsSync, readFileSync, writeFileSync, mkdirSync, openSync, closeSync, unlinkSync } from "node:fs";
-import { resolve } from "node:path";
+import { readTestCredentials } from "./test-credentials.mjs";
 import { BILLING_PLAN_IDS, getActiveBillingPlan } from "../../lib/billingPlans";
 import type { RazorpayPlanCatalogEntry, RazorpayPlanCatalogStore } from "../../services/razorpayPlanCatalog.service";
 
 async function main() {
   if (process.argv.slice(2).some(arg => arg !== "--verify-discovery")) throw new Error("Unsupported argument");
   const discoveryOnly = process.argv.includes("--verify-discovery");
-  const names = new Set(["RAZORPAY_MODE", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_TEST_KEY_ID", "RAZORPAY_TEST_KEY_SECRET"]);
-  const credentials: Record<string, string> = {};
-  const credentialRoot = resolve(process.env.BILLING_TEST_CREDENTIAL_DIR || process.cwd());
-  for (const filename of [".env", ".env.local"]) {
-    const path = resolve(credentialRoot, filename);
-    if (!existsSync(path)) continue;
-    for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-      const match = line.match(/^\s*(?:export\s+)?([A-Z_]+)\s*=\s*(.*?)\s*$/);
-      if (!match || !names.has(match[1])) continue;
-      let value = match[2];
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-      else value = value.replace(/\s+#.*$/, "").trim();
-      credentials[match[1]] = value;
-    }
-  }
-  const explicit = credentials.RAZORPAY_TEST_KEY_ID && credentials.RAZORPAY_TEST_KEY_SECRET;
-  const key = explicit ? credentials.RAZORPAY_TEST_KEY_ID : credentials.RAZORPAY_KEY_ID;
-  const secret = explicit ? credentials.RAZORPAY_TEST_KEY_SECRET : credentials.RAZORPAY_KEY_SECRET;
-  if (!key?.startsWith("rzp_test_") || !secret || (!explicit && credentials.RAZORPAY_MODE !== "TEST")) throw new Error("Explicit Test credentials required; Live is refused");
+  const { keyId: key, keySecret: secret } = readTestCredentials();
   // Do not inherit database URLs or other credentials. The production catalogue
   // service receives a local journal store; its Prisma store is never invoked.
   for (const name of Object.keys(process.env)) if (/RAZORPAY|DATABASE_URL|DIRECT_URL|ACCELERATE_URL/.test(name)) delete process.env[name];
