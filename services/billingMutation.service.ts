@@ -1,3 +1,4 @@
+import { assertBranchPlanChangeAllowed, billingTransaction, billingRecordScope, isCurrentSlot, lockBillingCoordinator, billingCoordinator } from "@/services/billingAgreementScope.service";
 import { executeBillingProviderAction, confirmReconciledBillingProviderAction, isDefinitelyRejectedBillingProviderError } from "@/services/billingProviderAction.service";
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
@@ -14,6 +15,7 @@ import {
 } from "@/lib/billingFeature";
 import { getBillingPlan } from "@/lib/billingPlans";
 import {
+  BillingValidationError,
   BillingChangeInProgressError,
   BillingManualReviewRequiredError,
 } from "@/lib/billingErrors";
@@ -303,7 +305,7 @@ async function releaseLease(
   organizationId: string,
   leaseToken: string
 ) {
-  await tx.organization.updateMany({
+  await billingCoordinator(tx).updateMany({
     where: { id: organizationId, billingMutationLeaseToken: leaseToken },
     data: { billingMutationLeaseToken: null, billingMutationLeaseUntil: null },
   });
@@ -311,16 +313,18 @@ async function releaseLease(
 
 export class BillingMutationService {
   static async enqueue(input: EnqueueInput) {
-    return prisma.$transaction(async tx => {
-      await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "Organization" WHERE "id" = ${input.organizationId} FOR UPDATE
-      `;
+    return billingTransaction(async tx => {
+      await lockBillingCoordinator(tx, input.organizationId);
 
+      if (["PLAN_UPGRADE", "PLAN_DOWNGRADE", "PAYMENT_METHOD_REPLACEMENT", "TRIAL_SUBSCRIPTION_UPDATE"].includes(input.type)) {
+        await assertBranchPlanChangeAllowed(tx);
+      }
       const duplicate = await tx.organizationBillingChange.findUnique({
         where: { idempotencyKey: input.idempotencyKey },
       });
       if (duplicate) {
-        const inputMismatch = duplicate.organizationId !== input.organizationId
+        const inputMismatch = (duplicate.agreementBranchId ?? null) !== billingRecordScope().agreementBranchId
+          || duplicate.organizationId !== input.organizationId
           || duplicate.type !== input.type
           || (input.subscriptionId !== undefined
             && duplicate.organizationSubscriptionId !== (input.subscriptionId ?? null))
@@ -331,7 +335,7 @@ export class BillingMutationService {
             && duplicate.fromQuantity !== (input.fromQuantity ?? null))
           || (input.toQuantity !== undefined && duplicate.toQuantity !== (input.toQuantity ?? null));
         if (inputMismatch) {
-          throw new Error("Idempotency key was already used for another billing operation");
+          throw new BillingValidationError("Idempotency key was already used for another billing operation");
         }
         return duplicate;
       }
@@ -341,7 +345,7 @@ export class BillingMutationService {
         await BillingReplacementService.assertNoOpenReplacement(tx, input.organizationId);
       }
 
-      const organization = await tx.organization.update({
+      const organization = await billingCoordinator(tx).update({
         where: { id: input.organizationId },
         data: { billingMutationSequence: { increment: 1 } },
         select: { billingMutationSequence: true },
@@ -362,6 +366,7 @@ export class BillingMutationService {
 
       return tx.organizationBillingChange.create({
         data: {
+          ...billingRecordScope(),
           organizationId: input.organizationId,
           organizationSubscriptionId: input.subscriptionId ?? null,
           branchId: input.branchId ?? null,
@@ -382,16 +387,21 @@ export class BillingMutationService {
           checkoutOpenedAt: input.checkoutOpenedAt ?? null,
         },
       });
+    }).catch((error: unknown) => {
+      // Two agreements can hold their own locks and race on the globally
+      // unique client key. The losing transaction has no admitted action.
+      if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+        throw new BillingValidationError("A billing operation already uses this key or sequence");
+      }
+      throw error;
     });
   }
 
   static async processNext(organizationId: string, now = new Date()) {
     const leaseToken = crypto.randomUUID();
-    const claimed = await prisma.$transaction(async tx => {
-      await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "Organization" WHERE "id" = ${organizationId} FOR UPDATE
-      `;
-      const organization = await tx.organization.findUnique({ where: { id: organizationId } });
+    const claimed = await billingTransaction(async tx => {
+      await lockBillingCoordinator(tx, organizationId);
+      const organization = await billingCoordinator(tx).findUnique({ where: { id: organizationId } });
       if (!organization) throw new Error("Organization not found");
       // Only deadline CAS recovery may clear an expired token. A new worker
       // must not overwrite it while the previous provider call may still end.
@@ -402,6 +412,7 @@ export class BillingMutationService {
 
       const safetyCancellation = await tx.organizationBillingChange.findFirst({
         where: {
+          ...billingRecordScope(),
           organizationId,
           status: "QUEUED",
           type: "UNSUPPORTED_METHOD_CANCELLATION",
@@ -409,7 +420,7 @@ export class BillingMutationService {
         orderBy: { sequence: "asc" },
       });
       const next = safetyCancellation ?? await tx.organizationBillingChange.findFirst({
-          where: { organizationId, status: "QUEUED" },
+          where: { ...billingRecordScope(), organizationId, status: "QUEUED" },
           orderBy: { sequence: "asc" },
         });
       if (!next) return null;
@@ -431,6 +442,7 @@ export class BillingMutationService {
       // later change pass either state makes reconciliation ambiguous.
       const unresolvedEarlier = await tx.organizationBillingChange.findFirst({
         where: {
+          ...billingRecordScope(),
           organizationId,
           sequence: { lt: next.sequence },
           OR: next.type === "UNSUPPORTED_METHOD_CANCELLATION"
@@ -460,15 +472,15 @@ export class BillingMutationService {
       // replacement promotion to whichever row happens to be current later.
       const source = next.organizationSubscriptionId
         ? await tx.organizationSubscription.findUnique({
-            where: { id: next.organizationSubscriptionId },
-            select: { organizationId: true, currentOrganizationId: true },
+            where: { ...billingRecordScope(), id: next.organizationSubscriptionId },
+            select: { organizationId: true, currentOrganizationId: true, currentAgreementBranchId: true },
           })
         : null;
       if (!source
         || source.organizationId !== organizationId
-        || source.currentOrganizationId !== organizationId) {
+        || !isCurrentSlot(source, organizationId)) {
         await tx.organizationBillingChange.update({
-          where: { id: next.id },
+          where: { ...billingRecordScope(), id: next.id },
           data: {
             status: "SUPERSEDED",
             operationStatus: "ABANDONED",
@@ -479,7 +491,7 @@ export class BillingMutationService {
         return null;
       }
 
-      await tx.organization.update({
+      await billingCoordinator(tx).update({
         where: { id: organizationId },
         data: {
           billingMutationLeaseToken: leaseToken,
@@ -487,7 +499,7 @@ export class BillingMutationService {
         },
       });
       return tx.organizationBillingChange.update({
-        where: { id: next.id },
+        where: { ...billingRecordScope(), id: next.id },
         data: {
           status: "PROCESSING",
           attemptCount: { increment: 1 },
@@ -502,16 +514,16 @@ export class BillingMutationService {
     let providerResponseReceived = false;
     try {
       const source = await prisma.organizationSubscription.findUnique({
-        where: { id: claimed.organizationSubscriptionId! },
+        where: { ...billingRecordScope(), id: claimed.organizationSubscriptionId! },
         select: {
           organizationId: true,
-          currentOrganizationId: true,
+          currentOrganizationId: true, currentAgreementBranchId: true,
           providerPaymentMethod: true,
         },
       });
       if (!source
         || source.organizationId !== organizationId
-        || source.currentOrganizationId !== organizationId) {
+        || !isCurrentSlot(source, organizationId)) {
         throw new BillingMutationSourceChangedError();
       }
       const replacementPolicy = {
@@ -553,11 +565,9 @@ export class BillingMutationService {
         }
       );
     } catch (error) {
-      await prisma.$transaction(async tx => {
-        await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT "id" FROM "Organization" WHERE "id" = ${organizationId} FOR UPDATE
-        `;
-        const current = await tx.organization.findUnique({
+      await billingTransaction(async tx => {
+        await lockBillingCoordinator(tx, organizationId);
+        const current = await billingCoordinator(tx).findUnique({
           where: { id: organizationId },
           select: { billingMutationLeaseToken: true },
         });
@@ -565,7 +575,7 @@ export class BillingMutationService {
         if (current?.billingMutationLeaseToken !== leaseToken) return;
         const sourceChanged = !providerCallStarted
           && error instanceof BillingMutationSourceChangedError;
-        const durable = await tx.organizationBillingChange.findUnique({ where: { id: claimed.id } });
+        const durable = await tx.organizationBillingChange.findUnique({ where: { ...billingRecordScope(), id: claimed.id } });
         const ambiguousProviderOutcome = Boolean(durable?.providerMutationAdmittedAt)
           || durable?.failureCategory === MANUAL_REVIEW_CATEGORY
           || error instanceof BillingManualReviewRequiredError
@@ -574,6 +584,7 @@ export class BillingMutationService {
         const failedAt = new Date();
         const persisted = await tx.organizationBillingChange.updateMany({
           where: {
+            ...billingRecordScope(),
             id: claimed.id,
             status: "PROCESSING",
             attemptCount: claimed.attemptCount,
@@ -622,21 +633,19 @@ export class BillingMutationService {
     auditOutcome?: "PROVIDER_STATE_ADOPTED"
   ) {
     const result = execution.provider;
-    return prisma.$transaction(async tx => {
-      await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-      `;
-      const current = await tx.organization.findUnique({ where: { id: change.organizationId } });
+    return billingTransaction(async tx => {
+      await lockBillingCoordinator(tx, change.organizationId);
+      const current = await billingCoordinator(tx).findUnique({ where: { id: change.organizationId } });
       if (current?.billingMutationLeaseToken !== leaseToken) {
         throw new Error("Billing mutation lease was lost");
       }
       const sourceSubscription = change.organizationSubscriptionId
         ? await tx.organizationSubscription.findUnique({
-            where: { id: change.organizationSubscriptionId },
+            where: { ...billingRecordScope(), id: change.organizationSubscriptionId },
             select: {
               id: true,
               organizationId: true,
-              currentOrganizationId: true,
+              currentOrganizationId: true, currentAgreementBranchId: true,
               razorpaySubscriptionId: true,
               status: true,
             },
@@ -644,7 +653,7 @@ export class BillingMutationService {
         : null;
       if (!sourceSubscription
         || sourceSubscription.organizationId !== change.organizationId
-        || sourceSubscription.currentOrganizationId !== change.organizationId) {
+        || !isCurrentSlot(sourceSubscription, change.organizationId)) {
         throw new BillingMutationSourceChangedError();
       }
       if (result.id !== sourceSubscription.razorpaySubscriptionId) {
@@ -668,7 +677,7 @@ export class BillingMutationService {
           }
         : { status: expected.status, updatedAt: expected.updatedAt };
       const finalized = await tx.organizationBillingChange.updateMany({
-        where: { id: change.id, ...expectedWhere },
+        where: { ...billingRecordScope(), id: change.id, ...expectedWhere },
         data: {
           status,
           operationStatus: status === "SCHEDULED"
@@ -699,7 +708,7 @@ export class BillingMutationService {
           })
         : null;
       const storedSubscription = await tx.organizationSubscription.update({
-        where: { id: sourceSubscription.id },
+        where: { ...billingRecordScope(), id: sourceSubscription.id },
         data: {
           plan: providerPlan?.plan,
           amount: providerPlan?.amount,
@@ -728,7 +737,8 @@ export class BillingMutationService {
       });
       if (change.type === "CANCELLATION") {
         const dedupeKey = `customer-cancellation:${change.id}`;
-        await tx.organizationSubscriptionHistory.upsert({ where: { dedupeKey }, update: {}, create: {
+        await tx.organizationSubscriptionHistory.upsert({ where: { ...billingRecordScope(), dedupeKey }, update: {}, create: {
+          ...billingRecordScope(),
           dedupeKey, organizationId: change.organizationId, organizationSubscriptionId: storedSubscription.id,
           razorpaySubscriptionId: storedSubscription.razorpaySubscriptionId, plan: storedSubscription.plan,
           fromStatus: sourceSubscription.status, toStatus: storedSubscription.status,
@@ -748,7 +758,7 @@ export class BillingMutationService {
         });
       }
       await releaseLease(tx, change.organizationId, leaseToken);
-      return tx.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } });
+      return tx.organizationBillingChange.findUniqueOrThrow({ where: { ...billingRecordScope(), id: change.id } });
     });
   }
 
@@ -764,7 +774,7 @@ export class BillingMutationService {
 
   private static async retryFailedChange(changeId: string, scheduledUndoReadOnly: boolean) {
     const change = await prisma.organizationBillingChange.findUnique({
-      where: { id: changeId },
+      where: { ...billingRecordScope(), id: changeId },
       include: { organizationSubscription: true },
     });
     if (!change || change.status !== "FAILED") throw new Error("Failed billing change not found");
@@ -785,7 +795,7 @@ export class BillingMutationService {
     const subscription = change.organizationSubscription;
     if (!subscription
       || subscription.organizationId !== change.organizationId
-      || subscription.currentOrganizationId !== change.organizationId) {
+      || !isCurrentSlot(subscription, change.organizationId)) {
       throw new BillingMutationSourceChangedError();
     }
     const providerMode = resolveRazorpayMode();
@@ -797,11 +807,9 @@ export class BillingMutationService {
 
     const retryLeaseToken = crypto.randomUUID();
     const retryStartedAt = new Date();
-    await prisma.$transaction(async tx => {
-      await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-      `;
-      const organization = await tx.organization.findUnique({
+    await billingTransaction(async tx => {
+      await lockBillingCoordinator(tx, change.organizationId);
+      const organization = await billingCoordinator(tx).findUnique({
         where: { id: change.organizationId },
         select: { billingMutationLeaseToken: true, billingMutationLeaseUntil: true },
       });
@@ -811,11 +819,11 @@ export class BillingMutationService {
           && organization.billingMutationLeaseUntil > retryStartedAt)) {
         throw new BillingChangeInProgressError(change.id);
       }
-      const current = await tx.organizationBillingChange.findUnique({ where: { id: change.id } });
+      const current = await tx.organizationBillingChange.findUnique({ where: { ...billingRecordScope(), id: change.id } });
       if (!current || current.status !== "FAILED" || current.updatedAt.getTime() !== change.updatedAt.getTime()) {
         throw new Error("Failed billing change changed before retry reconciliation");
       }
-      await tx.organization.update({
+      await billingCoordinator(tx).update({
         where: { id: change.organizationId },
         data: {
           billingMutationLeaseToken: retryLeaseToken,
@@ -829,11 +837,9 @@ export class BillingMutationService {
       provider = await getRazorpayClient().fetchSubscription(subscription.razorpaySubscriptionId);
       assertProviderMutationResponse(provider);
     } catch (error) {
-      await prisma.$transaction(async tx => {
-        await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-        `;
-        const current = await tx.organization.findUnique({
+      await billingTransaction(async tx => {
+        await lockBillingCoordinator(tx, change.organizationId);
+        const current = await billingCoordinator(tx).findUnique({
           where: { id: change.organizationId },
           select: { billingMutationLeaseToken: true },
         });
@@ -842,7 +848,7 @@ export class BillingMutationService {
           ? SCHEDULED_UNDO_RECONCILIATION_FAILED_CODE
           : "PROVIDER_RECONCILIATION_FAILED";
         const persisted = await tx.organizationBillingChange.updateMany({
-          where: { id: change.id, status: "FAILED", updatedAt: change.updatedAt },
+          where: { ...billingRecordScope(), id: change.id, status: "FAILED", updatedAt: change.updatedAt },
           data: {
             failureCategory: MANUAL_REVIEW_CATEGORY,
             failureCode,
@@ -876,11 +882,9 @@ export class BillingMutationService {
           subscription,
           provider
         );
-        await prisma.$transaction(async tx => {
-          await tx.$queryRaw<Array<{ id: string }>>`
-            SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-          `;
-          const current = await tx.organization.findUnique({
+        await billingTransaction(async tx => {
+          await lockBillingCoordinator(tx, change.organizationId);
+          const current = await billingCoordinator(tx).findUnique({
             where: { id: change.organizationId },
             select: { billingMutationLeaseToken: true },
           });
@@ -889,7 +893,7 @@ export class BillingMutationService {
             ? SCHEDULED_UNDO_OUTCOME_UNKNOWN_CODE
             : SCHEDULED_UNDO_RECONCILIATION_FAILED_CODE;
           const persisted = await tx.organizationBillingChange.updateMany({
-            where: { id: change.id, status: "FAILED", updatedAt: change.updatedAt },
+            where: { ...billingRecordScope(), id: change.id, status: "FAILED", updatedAt: change.updatedAt },
             data: {
               failureCategory: MANUAL_REVIEW_CATEGORY,
               failureCode,
@@ -919,11 +923,9 @@ export class BillingMutationService {
 
       let undone: OrganizationBillingChange;
       try {
-        undone = await prisma.$transaction(async tx => {
-          await tx.$queryRaw<Array<{ id: string }>>`
-            SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-          `;
-          const organization = await tx.organization.findUnique({
+        undone = await billingTransaction(async tx => {
+          await lockBillingCoordinator(tx, change.organizationId);
+          const organization = await billingCoordinator(tx).findUnique({
             where: { id: change.organizationId },
             select: { billingMutationLeaseToken: true },
           });
@@ -931,7 +933,7 @@ export class BillingMutationService {
             throw new Error("Scheduled-change undo reconciliation lease was lost");
           }
           const updated = await tx.organizationBillingChange.updateMany({
-            where: { id: change.id, status: "FAILED", updatedAt: change.updatedAt },
+            where: { ...billingRecordScope(), id: change.id, status: "FAILED", updatedAt: change.updatedAt },
             data: {
               status: "UNDONE",
               operationStatus: "ABANDONED",
@@ -960,7 +962,7 @@ export class BillingMutationService {
             }
           }
           await tx.organizationSubscription.update({
-            where: { id: subscription.id },
+            where: { ...billingRecordScope(), id: subscription.id },
             data: {
               lastReconciledAt: retryStartedAt,
               cancelAtCycleEnd: change.type === "CANCELLATION" ? false : undefined,
@@ -982,20 +984,18 @@ export class BillingMutationService {
             outcome: "PROVIDER_STATE_ADOPTED",
           });
           await releaseLease(tx, change.organizationId, retryLeaseToken);
-          return tx.organizationBillingChange.findUniqueOrThrow({ where: { id: change.id } });
+          return tx.organizationBillingChange.findUniqueOrThrow({ where: { ...billingRecordScope(), id: change.id } });
         });
       } catch (error) {
-        await prisma.$transaction(async tx => {
-          await tx.$queryRaw<Array<{ id: string }>>`
-            SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-          `;
-          const organization = await tx.organization.findUnique({
+        await billingTransaction(async tx => {
+          await lockBillingCoordinator(tx, change.organizationId);
+          const organization = await billingCoordinator(tx).findUnique({
             where: { id: change.organizationId },
             select: { billingMutationLeaseToken: true },
           });
           if (organization?.billingMutationLeaseToken !== retryLeaseToken) return;
           await tx.organizationBillingChange.updateMany({
-            where: { id: change.id, status: "FAILED", updatedAt: change.updatedAt },
+            where: { ...billingRecordScope(), id: change.id, status: "FAILED", updatedAt: change.updatedAt },
             data: {
               failureCategory: MANUAL_REVIEW_CATEGORY,
               failureCode: SCHEDULED_UNDO_RECONCILIATION_FAILED_CODE,
@@ -1035,17 +1035,15 @@ export class BillingMutationService {
           "PROVIDER_STATE_ADOPTED"
         );
       } catch (error) {
-        await prisma.$transaction(async tx => {
-          await tx.$queryRaw<Array<{ id: string }>>`
-            SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-          `;
-          const organization = await tx.organization.findUnique({
+        await billingTransaction(async tx => {
+          await lockBillingCoordinator(tx, change.organizationId);
+          const organization = await billingCoordinator(tx).findUnique({
             where: { id: change.organizationId },
             select: { billingMutationLeaseToken: true },
           });
           if (organization?.billingMutationLeaseToken !== retryLeaseToken) return;
           await tx.organizationBillingChange.updateMany({
-            where: { id: change.id, status: "FAILED", updatedAt: change.updatedAt },
+            where: { ...billingRecordScope(), id: change.id, status: "FAILED", updatedAt: change.updatedAt },
             data: {
               failureCategory: MANUAL_REVIEW_CATEGORY,
               failureCode: "PROVIDER_RECONCILIATION_FINALIZATION_FAILED",
@@ -1065,11 +1063,9 @@ export class BillingMutationService {
     }
     const sourceUnchanged = providerStillMatchesMutationSource(change, subscription, provider);
     if (!definitelyRejected || !sourceUnchanged) {
-      await prisma.$transaction(async tx => {
-        await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-        `;
-        const current = await tx.organization.findUnique({
+      await billingTransaction(async tx => {
+        await lockBillingCoordinator(tx, change.organizationId);
+        const current = await billingCoordinator(tx).findUnique({
           where: { id: change.organizationId },
           select: { billingMutationLeaseToken: true },
         });
@@ -1078,7 +1074,7 @@ export class BillingMutationService {
           ? AMBIGUOUS_PROVIDER_FAILURE_CODE
           : "PROVIDER_STATE_DIFFERS_FROM_MUTATION_SOURCE";
         const persisted = await tx.organizationBillingChange.updateMany({
-          where: { id: change.id, status: "FAILED", updatedAt: change.updatedAt },
+          where: { ...billingRecordScope(), id: change.id, status: "FAILED", updatedAt: change.updatedAt },
           data: {
             failureCategory: MANUAL_REVIEW_CATEGORY,
             failureCode,
@@ -1103,11 +1099,9 @@ export class BillingMutationService {
       throw new BillingManualReviewRequiredError(change.id);
     }
 
-    await prisma.$transaction(async tx => {
-      await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "Organization" WHERE "id" = ${change.organizationId} FOR UPDATE
-      `;
-      const organization = await tx.organization.findUnique({
+    await billingTransaction(async tx => {
+      await lockBillingCoordinator(tx, change.organizationId);
+      const organization = await billingCoordinator(tx).findUnique({
         where: { id: change.organizationId },
         select: { billingMutationLeaseToken: true },
       });
@@ -1115,7 +1109,7 @@ export class BillingMutationService {
         throw new Error("Billing mutation reconciliation lease was lost");
       }
       const requeued = await tx.organizationBillingChange.updateMany({
-        where: { id: change.id, status: "FAILED", updatedAt: change.updatedAt },
+        where: { ...billingRecordScope(), id: change.id, status: "FAILED", updatedAt: change.updatedAt },
         data: {
           status: "QUEUED",
           operationStatus: "AWAITING_PROVIDER_CONFIRMATION",
@@ -1142,7 +1136,7 @@ export class BillingMutationService {
    */
   static async undoScheduledProviderChange(changeId: string, now = new Date()) {
     const snapshot = await prisma.organizationBillingChange.findUnique({
-      where: { id: changeId },
+      where: { ...billingRecordScope(), id: changeId },
       include: { organizationSubscription: true },
     });
     if (snapshot?.status === "PROCESSING") {
@@ -1172,11 +1166,9 @@ export class BillingMutationService {
     }
 
     const leaseToken = crypto.randomUUID();
-    const claimed = await prisma.$transaction(async tx => {
-      await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "Organization" WHERE "id" = ${snapshot.organizationId} FOR UPDATE
-      `;
-      const organization = await tx.organization.findUnique({
+    const claimed = await billingTransaction(async tx => {
+      await lockBillingCoordinator(tx, snapshot.organizationId);
+      const organization = await billingCoordinator(tx).findUnique({
         where: { id: snapshot.organizationId },
         select: { billingMutationLeaseToken: true, billingMutationLeaseUntil: true },
       });
@@ -1189,7 +1181,7 @@ export class BillingMutationService {
         );
       }
       const current = await tx.organizationBillingChange.findUnique({
-        where: { id: changeId },
+        where: { ...billingRecordScope(), id: changeId },
         include: { organizationSubscription: true },
       });
       if (!current || current.status !== "SCHEDULED") {
@@ -1203,7 +1195,7 @@ export class BillingMutationService {
       }
       const retryingUndo = current.failureCategory != null
         || (current.failureCode?.startsWith("SCHEDULED_UNDO_") ?? false);
-      await tx.organization.update({
+      await billingCoordinator(tx).update({
         where: { id: snapshot.organizationId },
         data: {
           billingMutationLeaseToken: leaseToken,
@@ -1212,6 +1204,7 @@ export class BillingMutationService {
       });
       const updated = await tx.organizationBillingChange.updateMany({
         where: {
+          ...billingRecordScope(),
           id: current.id,
           organizationId: snapshot.organizationId,
           status: "SCHEDULED",
@@ -1236,7 +1229,7 @@ export class BillingMutationService {
           "The scheduled billing change moved while its undo was being claimed"
         );
       }
-      return tx.organizationBillingChange.findUniqueOrThrow({ where: { id: current.id } });
+      return tx.organizationBillingChange.findUniqueOrThrow({ where: { ...billingRecordScope(), id: current.id } });
     });
 
     let undone: OrganizationBillingChange;
@@ -1290,11 +1283,9 @@ export class BillingMutationService {
         new Date()
       );
     } catch (error) {
-      await prisma.$transaction(async tx => {
-        await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT "id" FROM "Organization" WHERE "id" = ${snapshot.organizationId} FOR UPDATE
-        `;
-        const organization = await tx.organization.findUnique({
+      await billingTransaction(async tx => {
+        await lockBillingCoordinator(tx, snapshot.organizationId);
+        const organization = await billingCoordinator(tx).findUnique({
           where: { id: snapshot.organizationId },
           select: { billingMutationLeaseToken: true },
         });
@@ -1313,6 +1304,7 @@ export class BillingMutationService {
               : SCHEDULED_UNDO_PRE_PROVIDER_FAILURE_CODE;
         const persisted = await tx.organizationBillingChange.updateMany({
           where: {
+            ...billingRecordScope(),
             id: claimed.id,
             status: "PROCESSING",
             attemptCount: claimed.attemptCount,
@@ -1361,11 +1353,9 @@ export class BillingMutationService {
     leaseToken: string,
     finalizedAt: Date
   ) {
-    return prisma.$transaction(async tx => {
-      await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "Organization" WHERE "id" = ${claimed.organizationId} FOR UPDATE
-      `;
-      const organization = await tx.organization.findUnique({
+    return billingTransaction(async tx => {
+      await lockBillingCoordinator(tx, claimed.organizationId);
+      const organization = await billingCoordinator(tx).findUnique({
         where: { id: claimed.organizationId },
         select: { billingMutationLeaseToken: true },
       });
@@ -1377,6 +1367,7 @@ export class BillingMutationService {
       }
       const updated = await tx.organizationBillingChange.updateMany({
         where: {
+          ...billingRecordScope(),
           id: claimed.id,
           organizationId: claimed.organizationId,
           status: "PROCESSING",
@@ -1411,7 +1402,7 @@ export class BillingMutationService {
         }
       }
       await tx.organizationSubscription.update({
-        where: { id: subscription.id },
+        where: { ...billingRecordScope(), id: subscription.id },
         data: {
           lastReconciledAt: finalizedAt,
           cancelAtCycleEnd: claimed.type === "CANCELLATION" ? false : undefined,
@@ -1422,7 +1413,7 @@ export class BillingMutationService {
       await releaseLease(tx, claimed.organizationId, leaseToken);
       await confirmReconciledBillingProviderAction(tx, { organizationId: claimed.organizationId,
         identity: claimed.id, purpose: "UNDO_SCHEDULE", provider: providerSubscription });
-      return tx.organizationBillingChange.findUniqueOrThrow({ where: { id: claimed.id } });
+      return tx.organizationBillingChange.findUniqueOrThrow({ where: { ...billingRecordScope(), id: claimed.id } });
     });
   }
 
@@ -1436,6 +1427,7 @@ export class BillingMutationService {
       // make the completed undo appear unsuccessful to the caller.
       const replayed = await prisma.organizationBillingChange.findFirst({
         where: {
+          ...billingRecordScope(),
           organizationId: undone.organizationId,
           sequence: { gt: undone.sequence },
           status: "FAILED",
@@ -1454,7 +1446,7 @@ export class BillingMutationService {
     organizationId: string,
     leaseToken: string
   ) {
-    const renewed = await prisma.organization.updateMany({
+    const renewed = await billingCoordinator(prisma).updateMany({
       where: { id: organizationId, billingMutationLeaseToken: leaseToken },
       data: { billingMutationLeaseUntil: new Date(Date.now() + LEASE_MS) },
     });
@@ -1472,12 +1464,12 @@ export class BillingMutationService {
       throw new BillingMutationSourceChangedError();
     }
     const subscription = await prisma.organizationSubscription.findUnique({
-      where: { id: change.organizationSubscriptionId },
+      where: { ...billingRecordScope(), id: change.organizationSubscriptionId },
       include: { billingOffer: true },
     });
     if (!subscription
       || subscription.organizationId !== change.organizationId
-      || subscription.currentOrganizationId !== change.organizationId) {
+      || !isCurrentSlot(subscription, change.organizationId)) {
       throw new BillingMutationSourceChangedError();
     }
     const providerMode = resolveRazorpayMode();
