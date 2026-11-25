@@ -39,6 +39,7 @@ export interface WhatsAppDailyReportMetricsView {
   whatsAppFailedToday: number;
   whatsAppUnknownToday: number;
   branchCount: number | null;
+  branchScope?: { included: { id: string; name: string }[]; excluded: { id: string; name: string }[] };
 }
 
 export interface WhatsAppDailyReportPreviewView {
@@ -132,6 +133,7 @@ export function presentWhatsAppDailyReportPreview(
       whatsAppFailedToday: metrics.whatsAppFailedToday,
       whatsAppUnknownToday: metrics.whatsAppUnknownToday,
       branchCount: "branchCount" in metrics ? metrics.branchCount : null,
+      ...("branchScope" in metrics && metrics.branchScope ? { branchScope: metrics.branchScope } : {}),
     },
     eligibleRecipientCount: 1,
     suppressedCount: 0,
@@ -163,6 +165,10 @@ export function WhatsAppDailyReportPreviewCard({
   const { metrics } = preview;
   return (
     <div className="space-y-4">
+      {metrics.branchScope && <div className="text-sm">
+        <p>{t.owned("Included branches")} · {metrics.branchScope.included.map(branch => branch.name).join(", ")}</p>
+        {!!metrics.branchScope.excluded.length && <p>{t.owned("Excluded branches")} · {metrics.branchScope.excluded.map(branch => branch.name).join(", ")}</p>}
+      </div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {preview.scope === "ORGANIZATION" ? (
           <div className={pageInsetMetricClass}><p className="text-xs text-[color:var(--text-muted)]">{t("Branches")}</p><p className="mt-1 text-lg font-semibold">{metrics.branchCount ?? 0}</p></div>

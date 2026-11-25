@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { accountBillingHref } from "@/lib/accountNavigation";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
 import { use, useEffect, useMemo, useState } from "react";
@@ -69,20 +71,26 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
     const { orgId } = use(params);
     const { formatDateTime, formatNumber } = useUserPreferences();
     const billingExperience = useBillingExperience();
-    const analyticsAvailable = hasFeatureEntitlement(billingExperience?.experience?.entitlements ?? [], "ORG_ANALYTICS");
+    const independent = billingExperience?.organization?.independentBilling;
+    const eligible = independent ? billingExperience.organization?.branches.filter(branch => branch.entitlements.includes("ADVANCED_ANALYTICS")).map(branch => branch.id).sort().join(",") : undefined;
+    const analyticsAvailable = independent ? Boolean(eligible) : hasFeatureEntitlement(billingExperience?.experience?.entitlements ?? [], "ORG_ANALYTICS");
     const [snapshotState, setSnapshotState] = useState<ResourceState<OrganizationAnalyticsSnapshot>>({ status: "loading" });
+    const [snapshotScope, setSnapshotScope] = useState<string>();
     const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
-        if (billingExperience?.loading || !billingExperience?.experience || !analyticsAvailable) return;
+        if (billingExperience?.loading || (!independent && !billingExperience?.experience) || !analyticsAvailable) return;
         let active = true;
 
         async function loadAnalytics() {
-            setSnapshotState(current => startResourceRefresh(current));
+            setSnapshotState(current => independent ? { status: "loading" } : startResourceRefresh(current));
 
             try {
                 const data = await analytics.getOrganizationSnapshot(orgId);
-                if (active) setSnapshotState({ status: "success", data, updatedAt: new Date().toISOString() });
+                if (active) {
+                    setSnapshotScope(eligible);
+                    setSnapshotState({ status: "success", data, updatedAt: new Date().toISOString() });
+                }
             } catch (loadError) {
                 console.error("Failed to load organization analytics", loadError);
                 if (active) {
@@ -99,9 +107,10 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
         return () => {
             active = false;
         };
-    }, [analyticsAvailable, billingExperience?.experience, billingExperience?.loading, orgId, refreshKey]);
+    }, [analyticsAvailable, billingExperience?.experience, billingExperience?.loading, independent, eligible, orgId, refreshKey]);
 
-    const snapshot = resourceData(snapshotState);
+    const scopeChanged = independent && eligible !== snapshotScope;
+    const snapshot = scopeChanged ? null : resourceData(snapshotState);
     const updatedAt = resourceUpdatedAt(snapshotState);
 
     const rows = useMemo<BranchAnalyticsRow[]>(() => {
@@ -118,15 +127,17 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
         })) ?? [];
     }, [formatNumber, snapshot]);
 
-    if (billingExperience?.loading || !billingExperience?.experience) {
+    if (billingExperience?.error) return <ErrorState title={t("Organization analytics unavailable")} description={billingExperience.error} onRetry={() => void billingExperience.refresh()} />;
+    if (billingExperience?.loading || (!independent && !billingExperience?.experience)) {
         return <PageLoadingSkeleton label={t("Checking analytics access")} variant="analytics" />;
     }
 
     if (!analyticsAvailable) {
-        return <FeatureUpgradeGate feature="ORG_ANALYTICS" experience={billingExperience.experience}><span /></FeatureUpgradeGate>;
+        if (independent) return <AppPanel title={t("Organization analytics")} description={t.owned("Advanced analytics requires a branch on Standard or Pro.")}><Link href={accountBillingHref(orgId)}>{t.owned("Manage branch plan")}</Link></AppPanel>;
+        return <FeatureUpgradeGate feature="ORG_ANALYTICS" experience={billingExperience?.experience}><span /></FeatureUpgradeGate>;
     }
 
-    if (snapshotState.status === "loading" && !snapshot) {
+    if (snapshotState.status !== "error" && (scopeChanged || (snapshotState.status === "loading" && !snapshot))) {
         return <PageLoadingSkeleton label={t("Loading organization analytics")} variant="analytics" />;
     }
 
@@ -158,7 +169,10 @@ export default function OrgAnalyticsPage({ params }: { params: Promise<{ orgId: 
                     <h1>{t("Cross-branch health")}</h1>
                     <p className="ui-record-description">
                         {t("Compare locations quickly, then move into the branch that needs work.")}</p>
-                    <p className="ui-record-description">{t("This current snapshot includes archived branches.")}</p>
+                    {snapshot.organization.includedBranches ? <div className="ui-record-description">
+                        <p>{t.owned("Included branches")} · {snapshot.organization.includedBranches.map(branch => branch.name).join(", ")}</p>
+                        {!!snapshot.organization.excludedBranches?.length && <p>{t.owned("Excluded branches")} · {snapshot.organization.excludedBranches.map(branch => branch.name).join(", ")}</p>}
+                    </div> : <p className="ui-record-description">{t("This current snapshot includes archived branches.")}</p>}
                 </div>
                 <div className="ui-record-actions items-center">
                     <span className={pageMetaPillClass}>

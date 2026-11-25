@@ -31,6 +31,7 @@ import { parseStudentRejoiningDate, validateStudentRejoiningDate } from "@/utils
 import { BasicAdmissionReview } from "./BasicAdmissionReview";
 import "@/styles/basic-product.css";
 import { useBasicNavigationGuard } from "./useBasicNavigationGuard";
+import { accountBillingHref } from "@/lib/accountNavigation";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const areas: { key: string; label: string; capability: BranchCapabilityKey; icon: typeof House }[] = [
@@ -39,6 +40,20 @@ const areas: { key: string; label: string; capability: BranchCapabilityKey; icon
     { key: "seats", label: "Seats", capability: "seatsView", icon: Armchair },
     { key: "fees", label: "Fees", capability: "paymentsView", icon: IndianRupee },
 ];
+export function BasicSidebar({ access, area }: { access: BranchAccess; area: string }) {
+    const root = "/branch/" + access.branchId;
+    const visibleAreas = areas.filter(item => hasBranchCapability(access, item.capability));
+    const navigation = visibleAreas.map(({key,label,icon}) => <SidebarItem key={key} icon={icon} label={label} href={root+(key?"/"+key:"")} isActive={area===key} density="compact" />);
+    return <SidebarFrame homeHref={root} label="Branch navigation">
+        {navigation}
+        <div className="ui-navigation-secondary">
+            {hasBranchCapability(access, "importView") && <SidebarItem icon={UploadCloud} label="Import students" href={root+"/onboarding/import"} isActive={area === "imports"} density="compact" />}
+            {access.permissions.manage_branch && <SidebarItem icon={Settings} label="Library setup" href={root+"/setup"} isActive={area === "setup"} density="compact" />}
+            {access.isOwner && <SidebarItem icon={ArrowLeft} label="Back to organization" href={"/org/"+access.organizationId} isActive={false} density="compact" />}
+        </div>
+    </SidebarFrame>;
+}
+
 type Modal = { kind: "student"; id?: string } | { kind: "status"; id: string; status: "ACTIVE" | "INACTIVE" } | { kind: "enrollments"; id: string } | { kind: "admission-review"; matches: StudentListItem[] } | { kind: "payment"; id: string } | { kind: "receipt"; receipt: FeeCollectionView } | null;
 export function BasicWorkspace({ access, blocked = false, onInteractionState, importContent }: { access: BranchAccess; blocked?: boolean; onInteractionState?: (state: { dirty: boolean; pending: boolean }) => void; importContent?: ReactNode }) {
     const t = useTranslation(), { money, date } = useBasicFormat(), { ownerKey } = useUserPreferences();
@@ -205,17 +220,10 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         } catch(cause) { operation.setError(cause instanceof Error?cause.message:"Unable to check the saved operation."); }
     }
     const visibleAreas = areas.filter(a => hasBranchCapability(access, a.capability));
-    const navigation = visibleAreas.map(({key,label,icon}) => <SidebarItem key={key} icon={icon} label={label} href={root+(key?"/"+key:"")} isActive={area===key} density="compact" />);
-    const sidebar = <SidebarFrame homeHref={root} label="Branch navigation">
-        {navigation}
-        <div className="ui-navigation-secondary">
-            {can("importView") && <SidebarItem icon={UploadCloud} label="Import students" href={root+"/onboarding/import"} isActive={area === "imports"} density="compact" />}
-            {access.permissions.manage_branch && <SidebarItem icon={Settings} label="Library setup" href={root+"/setup"} isActive={area === "setup"} density="compact" />}
-            {access.isOwner && <SidebarItem icon={ArrowLeft} label="Back to organization" href={"/org/"+access.organizationId} isActive={false} density="compact" />}
-        </div>
-    </SidebarFrame>;
-    const pageCapability=area==="setup"?"settingsManage":areas.find(a=>a.key===area)?.capability??({whatsapp:"whatsappView",staff:"staffView",analytics:"analyticsView",attendance:"attendanceView",imports:"importView"} as Record<string,BranchCapabilityKey>)[area]??"fullWorkspace";
-    const blockedPageReason=getBranchCapabilityDecision(access,pageCapability).reason??"This feature requires the Standard plan.";
+    const sidebar = <BasicSidebar access={access} area={area} />;
+    const pageCapability=area==="setup"?"settingsManage":areas.find(a=>a.key===area)?.capability??({whatsapp:"whatsappView",staff:"staffView",analytics:"analyticsView",ai:"aiUse",attendance:"attendanceView",overdue:"overdueView",renewals:"overdueView","follow-ups":"overdueView",imports:"importView"} as Record<string,BranchCapabilityKey>)[area]??"fullWorkspace";
+    const pageDecision = getBranchCapabilityDecision(access, pageCapability);
+    const blockedPageReason = pageDecision.reason ?? "This feature requires the Standard plan.";
     const pageAllowed=area==="imports" ? hasBranchCapability(access,"importView") : area==="setup" ? access.permissions.manage_branch : areas.some(a=>a.key===area && hasBranchCapability(access,a.capability));
     const roster=(data?.students??[]).filter(s=>(s.name+" "+(s.phone??"")).toLowerCase().includes(query.toLowerCase()));
     const feeStudents=[...new Map(feeRows.map(p=>[p.studentId,{id:p.studentId,name:p.student?.name??data?.students.find(s=>s.id===p.studentId)?.name??t("Student")}])).values()].filter(s=>s.name.toLowerCase().includes(query.toLowerCase()));
@@ -229,14 +237,16 @@ export function BasicWorkspace({ access, blocked = false, onInteractionState, im
         <div className="bp-workspace">
             <header className="bp-topbar"><button type="button" className="ui-basic-menu" onClick={()=>setNavigationOpen(true)} aria-label={t("Open navigation")} aria-expanded={navigationOpen}><Menu size={20}/></button><WorkspaceSwitcher wrapBranchName/></header>
             <main id="bp-main" tabIndex={-1} aria-busy={loading || operation.pending}>
-                {access.billingExperience?.accessMode==="READ_ONLY" && <p className="bp-warning" role="status">{t.owned("Records are read-only. Open Account billing to restore access.")}</p>}
+                {(access.billingExperience?.accessMode === "READ_ONLY" || access.canWrite === false) && <p className="bp-warning" role="status">
+                    {t.owned("Records are read-only.")} {access.isOwner && <Link className="underline" href={accountBillingHref(access.organizationId, access.branchId, pathname)}>{t.owned("Manage branch plan")}</Link>}
+                </p>}
                 {navigationNotice && operation.pending && <p role="status" className="bp-warning">{t.owned("Wait for the current operation to finish.")}</p>}
                 {notice && <p role="status" className="bp-notice"><Check size={17}/>{notice}</p>}
                 {operation.saved && !operation.pending && <section role="alert" className="bp-recovery"><strong>{t.owned("An operation needs confirmation")}</strong><p>{t.error(operation.error || "Check the saved operation before making another change.")}</p><button className="bp-button bp-button-secondary" disabled={blocked} onClick={()=>void recover()}>{t.owned("Check saved operation")}</button>
                     {!["payment","move","student"].includes(operation.saved.kind) && <button className="bp-text-button" onClick={()=>requestConfirmation("Have you reviewed the current records? Clearing recovery does not undo an operation.", () => { operation.clear(); setModal(null); })}>{t.owned("I reviewed the records")}</button>}
                 </section>}
                 {operation.error && !operation.saved && <p className="bp-error" role="alert">{t.error(operation.error)}</p>}
-                {!pageAllowed ? <div className="bp-empty"><h1>{t.owned(blockedPageReason)}</h1><Link className="bp-button" href={root}>{t.owned("Back to overview")}</Link></div>
+                {!pageAllowed ? <div className="bp-empty"><h1>{access.branchName}</h1><p>{t.owned(blockedPageReason)}</p>{pageDecision.recoveryHref && <Link className="bp-button bp-button-primary" href={pageDecision.recoveryHref}>{t.owned("Manage branch plan")}</Link>}<Link className="bp-button" href={root}>{t.owned("Back to overview")}</Link></div>
                 : loading && !data ? <p role="status" className="bp-empty">{t.owned("Loading workspace")}</p>
                 : error ? <div className="bp-empty" role="alert"><p>{t.error(error)}</p><button className="bp-button" onClick={()=>setRevision(v=>v+1)}>{t("Retry")}</button></div>
                 : data && <>

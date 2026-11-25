@@ -38,6 +38,7 @@ import {
 } from "@/components/settings/SettingsWorkspace";
 import { useInlineFieldErrors } from "@/components/ui/InlineFieldError";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useBillingExperience } from "@/components/billing/BillingExperienceProvider";
 import { OrganizationWhatsAppPanel } from "@/components/whatsapp/OrganizationWhatsAppPanel";
 import {
     pageErrorIconClass,
@@ -65,6 +66,7 @@ interface BranchSummary {
 }
 
 interface OrgDetails {
+    billingModelVersion?: string;
     id: string;
     name: string;
     businessType: string | null;
@@ -150,6 +152,10 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
         }
     }, [orgId, router, searchParams, billingQuery]);
 
+    const billingContext = useBillingExperience();
+    const independent = billingContext?.organization?.independentBilling;
+    const senderScope = independent ? billingContext?.organization?.branches.filter(branch => branch.entitlements.includes("WHATSAPP_AUTOMATION")).map(branch => branch.id).sort().join(",") : undefined;
+    const eligibleSender = independent ? Boolean(senderScope) : billingContext?.experience?.entitlements.includes("WHATSAPP_AUTOMATION");
     const [org, setOrg] = useState<OrgDetails | null>(null);
     const [form, setForm] = useState<OrgForm | null>(null);
     const [loading, setLoading] = useState(true);
@@ -186,7 +192,8 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 setOrg(data);
                 setForm(toForm(data));
                 resetFieldErrors();
-                await loadBilling();
+                if (data.billingModelVersion === "BRANCH_V3") setBillingLoading(false);
+                else await loadBilling();
             } catch (err) {
                 setFetchError(err instanceof Error ? err.message : "Something went wrong.");
                 setBillingLoading(false);
@@ -202,7 +209,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
         return JSON.stringify(form) !== JSON.stringify(toForm(org));
     }, [org, form]);
 
-    const organizationCanEdit = billingOverview?.entitlements.canWrite ?? false;
+    const organizationCanEdit = org?.billingModelVersion === "BRANCH_V3" || (billingOverview?.entitlements.canWrite ?? false);
     const organizationEditReason = billingOverview?.entitlements.accessReason
         ?? (billingLoading ? "Checking workspace access..." : "Organization settings are unavailable until billing access is restored.");
 
@@ -375,7 +382,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
             <SettingsWorkspace
                 title={t("Organization Settings")}
                 subtitle={t("Configure business identity, contact details, and workspace defaults.")}
-                sections={whatsAppAvailable ? SECTIONS_WITH_WHATSAPP : SECTIONS}
+                sections={eligibleSender && whatsAppAvailable ? SECTIONS_WITH_WHATSAPP : SECTIONS}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 actions={!isEditing ? (
@@ -520,11 +527,11 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                     </div>
                 </SettingsPanel>
 
-                <OrganizationWhatsAppPanel
+                {eligibleSender && <OrganizationWhatsAppPanel key={senderScope ?? orgId}
                     organizationId={orgId}
                     organizationName={org.name}
                     onAvailabilityChange={setWhatsAppAvailable}
-                />
+                />}
 
 
 
