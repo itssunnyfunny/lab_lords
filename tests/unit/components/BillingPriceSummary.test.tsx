@@ -37,6 +37,26 @@ function experience(overrides: Partial<BillingExperience> = {}): BillingExperien
 }
 
 describe("BillingPriceSummary", () => {
+  it("shows carried paid coverage separately from the original lower-tier trial date", () => {
+    const html = renderToStaticMarkup(<BillingPriceSummary experience={experience({
+      independentBilling: true, billingAccessSource: "PAID", effectivePlan: "PRO", trialPlan: "BASIC",
+      legacyCoverageEndsAt: "2026-10-12T00:00:00Z", paidThrough: null,
+    })} current={null} />);
+    expect(html).toContain("Existing subscription coverage through");
+    expect(html).toContain("12 October 2026");
+    expect(html).toContain("Owner trial end date");
+    expect(html).toContain("5 September 2026");
+    expect(html).not.toContain("After the trial");
+    expect(html).not.toContain("Pro complimentary access during trial");
+    const archived = renderToStaticMarkup(<BillingPriceSummary experience={experience({
+      independentBilling: true, billingAccessSource: "NONE", effectivePlan: "NONE", accessMode: "READ_ONLY",
+      branch: { id: "archived", name: "Archived", billingStatus: "ARCHIVED" },
+      legacyCoverageEndsAt: "2026-10-12T00:00:00Z",
+    })} current={null} />);
+    expect(archived).toContain("Existing subscription coverage through");
+    expect(archived).toContain("No active paid plan");
+    expect(archived).not.toContain("Existing coverage remains available");
+  });
   it.each(["BASIC", "PRO"] as const)("shows the actual %s trial even when an older paid boundary exists", plan => {
     const html = renderToStaticMarkup(<BillingPriceSummary experience={experience({ effectivePlan: plan, trialPlan: plan, billingAccessSource: "TRIAL", paidThrough: "2026-01-01T00:00:00Z" })} current={null} />);
     expect(html).toContain(plan === "BASIC" ? "Basic trial" : "Pro trial");

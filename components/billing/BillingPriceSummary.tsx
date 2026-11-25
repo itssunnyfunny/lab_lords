@@ -39,7 +39,12 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
   const { formatNumber, formatDate: preferenceDate } = useUserPreferences();
   const formatDate = (value: string) => preferenceDate(value, { day: "numeric", month: "long", year: "numeric" });
   const formatInr = (amount: number) => formatNumber(amount, { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+  const formatSubunits = (subunits: number) => formatNumber(subunits / 100, { style: "currency", currency: "INR" });
   const trialActive = hasActiveBillingTrial(experience);
+  const separateTrialDate = experience.independentBilling && !trialActive && experience.trialEndsAt
+    ? <SummaryRow label="Owner trial end date" value={formatDate(experience.trialEndsAt)} /> : null;
+  const carriedCoverage = experience.paidThrough ? null : experience.legacyCoverageEndsAt;
+  const usingCarriedCoverage = Boolean(carriedCoverage && experience.billingAccessSource === "PAID");
   const paidPlanActive = isBillingPlanId(experience.effectivePlan)
     && (experience.billingAccessSource === undefined || experience.billingAccessSource === "PAID" || experience.billingAccessSource === "PAYMENT_RETRY")
     && experience.paidThrough != null;
@@ -71,8 +76,10 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
             detail={billedPlanName !== effectivePlanName ? t("You can use {access}; your subscription is still billed as {plan}.", {access:effectivePlanName,plan:billedPlanName}) : undefined} />
           <SummaryRow
             label="Monthly branch billing"
-            value={t("{formatInr}/month", { formatInr: formatInr(experience.currentMonthlyTotal) })}
-            detail={t("{count} branch(s) × {amount}", { count: experience.confirmedQuantity, amount: formatInr(experience.currentUnitAmount) })}
+            value={experience.independentBilling
+              ? experience.monthlyCommitmentSubunits == null ? "Awaiting confirmation" : t("{formatInr}/month", { formatInr: formatSubunits(experience.monthlyCommitmentSubunits) })
+              : t("{formatInr}/month", { formatInr: formatInr(experience.currentMonthlyTotal) })}
+            detail={experience.independentBilling ? undefined : t("{count} branch(s) × {amount}", { count: experience.confirmedQuantity, amount: formatInr(experience.currentUnitAmount) })}
             emphasis
           />
           <SummaryRow
@@ -81,7 +88,8 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
             detail={current ? "Recurring mandate managed securely by Razorpay" : undefined}
           />
           <SummaryRow label="Paid through" value={experience.paidThrough ? formatDate(experience.paidThrough) : "Awaiting paid invoice"} />
-          <SummaryRow label="Next charge" value={experience.nextChargeAt ? formatDate(experience.nextChargeAt) : "Not scheduled"} />
+          {separateTrialDate}
+          <SummaryRow label="Next charge" value={experience.nextChargeAt ? formatDate(experience.nextChargeAt) : "Not scheduled"} detail={experience.nextChargeAt && experience.nextChargeAmountSubunits != null ? formatSubunits(experience.nextChargeAmountSubunits) : undefined} />
         </dl>
         <p className="text-xs text-[color:var(--text-secondary)]">{t.owned("Your current subscription and renewal dates.")}</p>
       </section>
@@ -97,12 +105,14 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
         <h3 className="text-base font-semibold text-[color:var(--text-primary)]">{t.owned("Current access")}</h3>
         <p className="mt-1 text-xs text-[color:var(--text-secondary)]">{t.owned("What your workspace can use right now.")}</p>
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-          <SummaryRow label="Access now" value={trialActive ? experience.effectivePlan === "BASIC" ? "Basic trial" : experience.effectivePlan === "PRO" ? experience.trialPlan === "PRO" ? "Pro trial" : "Pro complimentary access during trial" : "Standard trial" : "No active paid plan"} emphasis />
+          <SummaryRow label="Access now" value={trialActive ? experience.effectivePlan === "BASIC" ? "Basic trial" : experience.effectivePlan === "PRO" ? experience.trialPlan === "PRO" ? "Pro trial" : "Pro complimentary access during trial" : "Standard trial" : usingCarriedCoverage ? billingPlanName(experience.effectivePlan) : "No active paid plan"} emphasis />
+          {carriedCoverage && <SummaryRow label="Existing subscription coverage through" value={formatDate(carriedCoverage)} />}
+          {separateTrialDate}
           {trialActive ? (
             <SummaryRow label="Plan fee today" value={formatInr(experience.planFeeDueToday)} />
-          ) : (
+          ) : !experience.legacyCoverageEndsAt ? (
             <SummaryRow label="Billing status" value="No paid subscription period confirmed yet" />
-          )}
+          ) : null}
           {trialActive && experience.trialEndsAt ? (
             <SummaryRow label="Trial ends" value={formatDate(experience.trialEndsAt)} />
           ) : null}
@@ -118,7 +128,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
           {t.owned(trialActive ? "After the trial" : "Plan authorization")}
         </h3>
         <p className="mt-1 text-xs text-[color:var(--text-secondary)]">
-          {t.owned(trialActive ? "The plan and recurring billing that begin after your trial." : "Authorize recurring billing before paid access can begin.")}
+          {t.owned(trialActive ? "The plan and recurring billing that begin after your trial." : usingCarriedCoverage ? "Authorize this branch subscription to continue after its existing coverage ends." : "Authorize recurring billing before paid access can begin.")}
         </p>
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
           <SummaryRow label="Selected plan" value={selectedPlanName ?? "Choose a plan"} emphasis />
@@ -139,6 +149,7 @@ export function BillingPriceSummary({ experience, current }: BillingPriceSummary
         <p className="mt-3 text-xs leading-5 text-[color:var(--text-secondary)]">
           {t.owned(trialActive
             ? "No plan fee is charged during your trial. Any payment authorization is a separate choice."
+            : usingCarriedCoverage ? "Existing coverage remains available through its end date. The new subscription needs its own confirmed payment."
             : "Paid access starts only after Razorpay confirms the subscription payment. Your existing data remains preserved while access is inactive.")}
         </p>
       </div>

@@ -74,7 +74,7 @@ function overview(orgId: string, initial: boolean): BillingOverview {
 beforeEach(() => {
   vi.clearAllMocks(); hooks.cursor = 0; hooks.values = []; hooks.effects = []; hooks.cleanups = new Map(); mocks.ready = true;
   mocks.search = new URLSearchParams({ returnTo: "/branch/ordinary-branch/students" });
-  vi.stubGlobal("window", { location: { pathname: "/account/billing", search: "?organizationId=ordinary", hash: "#invoices" } });
+  vi.stubGlobal("window", Object.assign(new EventTarget(), { location: { pathname: "/account/billing", search: "?organizationId=ordinary", hash: "#invoices" } }));
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ branches: [], contactEmail: null, contactPhone: null }) }));
   vi.stubGlobal("sessionStorage", { getItem: () => "/branch/ordinary-branch", setItem: vi.fn() });
 });
