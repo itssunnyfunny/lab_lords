@@ -17,7 +17,9 @@ describe("EntitlementService.assertBranchWritable", () => {
 
   it("blocks direct mutations while branch removal is scheduled", async () => {
     mocks.branchFindUnique.mockResolvedValue({
-      organizationId: "org_1",
+      id: "branch_1", organizationId: "org_1",
+      organization: { id: "org_1", billingModelVersion: "WORKSPACE_V2", _count: {branches: 1} },
+      billingAgreement: null,
       billingStatus: "REMOVAL_SCHEDULED",
     });
     const { EntitlementService } = await import("@/services/entitlement.service");

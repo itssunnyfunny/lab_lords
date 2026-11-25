@@ -88,7 +88,7 @@ describe("subscription entitlements", () => {
     }
     const whatsapp = WhatsAppAuthorizationService.assertOwnerCanWrite(owner.id, org.id);
 
-    if (plan === "PRO") { await expect(whatsapp).resolves.toEqual({ id: org.id }); await expect(StaffService.authorize(owner.id, branch.id, "view_whatsapp")).resolves.toBe(true); }
+    if (plan === "PRO") { await expect(whatsapp).resolves.toEqual({ id: org.id, entitled: true, canWrite: true, branches: null }); await expect(StaffService.authorize(owner.id, branch.id, "view_whatsapp")).resolves.toBe(true); }
     else { await expect(whatsapp).rejects.toMatchObject({ code: "SUBSCRIPTION_UPGRADE_REQUIRED" }); await expect(StaffService.authorize(owner.id, branch.id, "view_whatsapp")).rejects.toThrow("upgraded subscription"); }
     const stranger = await createUser();
     await expect(WhatsAppAuthorizationService.assertOwnerCanWrite(stranger.id, org.id)).rejects.toThrow();
