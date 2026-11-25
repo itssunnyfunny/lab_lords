@@ -20,6 +20,12 @@ export function isWorkspaceBillingEnabled() {
   return process.env[WORKSPACE_BILLING_FLAG]?.trim().toLowerCase() === "true";
 }
 
+/** Applies only when an organization is first created. Existing models are durable. */
+export function independentBillingForNewWorkspaces() {
+  return isWorkspaceBillingEnabled()
+    && process.env.BRANCH_BILLING_V3_ONBOARDING_ENABLED?.trim().toLowerCase() === "true";
+}
+
 export function areRazorpayMultiMethodSubscriptionsEnabled() {
   return process.env[RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_FLAG]?.trim().toLowerCase() === "true";
 }

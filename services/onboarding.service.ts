@@ -14,7 +14,7 @@ import {
     includesDefaultPrimaryShiftNames,
 } from "@/services/defaultShifts";
 import { generateSeatLabelsForSeatCount, type SeatNumberingConfig } from "@/lib/seatNumbering";
-import { isWorkspaceBillingEnabled } from "@/lib/billingFeature";
+import { independentBillingForNewWorkspaces, isWorkspaceBillingEnabled } from "@/lib/billingFeature";
 import { OwnerTrialService } from "@/services/ownerTrial.service";
 import { isCheckoutBillingPlanId, type CheckoutBillingPlanId } from "@/lib/billingPlans";
 import { hashOnboardingRequest, invalidOnboardingRequest, normalizeOnboardingKey, OnboardingRequestError } from "@/lib/onboardingRequest";
@@ -168,7 +168,7 @@ export class OnboardingService {
                     contactPhone: ownerPhoneResult.value,
                     ownerId: userId,
                     selectedPostTrialPlan: params.selectedPostTrialPlan,
-                    billingModelVersion: "WORKSPACE_V2",
+                    billingModelVersion: independentBillingForNewWorkspaces() ? "BRANCH_V3" : "WORKSPACE_V2",
                 },
             });
 
@@ -267,7 +267,18 @@ export class OnboardingService {
                 },
             });
 
-            await OwnerTrialService.startOnboardingTrial(tx, userId, org.id, new Date(), params.trialPlan ?? "STANDARD");
+            const trial = await OwnerTrialService.startOnboardingTrial(tx, userId, org.id, new Date(), params.trialPlan ?? "STANDARD");
+            if (org.billingModelVersion === "BRANCH_V3") {
+                await tx.branchBillingAgreement.create({
+                    data: { branchId: branch.id, organizationId: org.id, selectedPlan: params.selectedPostTrialPlan },
+                });
+                if (!trial) {
+                    await tx.branch.update({
+                        where: { id: branch.id },
+                        data: { billingStatus: "PENDING_ACTIVATION", billingActivatedAt: null },
+                    });
+                }
+            }
 
             await tx.onboardingRequest.create({
                 data: { ownerId: userId, idempotencyKey, requestHash, organizationId: org.id, branchId: branch.id },
