@@ -4,22 +4,15 @@ import { PaymentService } from "../services/payment.service";
 import { StudentService } from "../services/student.service";
 import { PaymentStatus, StudentStatus } from "../app/generated/prisma/enums";
 import { format } from "date-fns";
+import { createAuditWorkspace } from "./create-audit-workspace";
 
 async function main() {
     console.log("🔍 STARTING PAYMENT ENGINE AUDIT...");
 
     // SETUP: Create Org, Branch, User
-    const user = await prisma.user.create({
-        data: { email: `audit-pay-${Date.now()}@test.com`, name: "Audit User" }
-    });
-    const org = await prisma.organization.create({
-        data: { name: "Audit Org", ownerId: user.id }
-    });
-    const branch = await prisma.branch.create({
-        data: { name: "Audit Branch", organizationId: org.id, defaultFee: 1000 }
-    });
+    const { user, branch } = await createAuditWorkspace("payments", 1000);
 
-    console.log(`✅ Setup Complete. Branch: ${branch.name}`);
+    console.log("✅ Audit branch created.");
 
     // ==========================================
     // CASE A: 3 Months Simulation

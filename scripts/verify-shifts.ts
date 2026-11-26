@@ -1,12 +1,7 @@
-import { Prisma, PrismaClient } from "../app/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 import "dotenv/config";
-
-const prisma = new PrismaClient({
-    adapter: new PrismaPg({
-        connectionString: process.env.DATABASE_URL!,
-    })
-});
+import type { Prisma } from "../app/generated/prisma/client";
+import { prisma } from "../lib/prisma";
+import { createAuditWorkspace } from "./create-audit-workspace";
 
 function errorMessage(error: unknown) {
     return error instanceof Error ? error.message : String(error);
@@ -107,29 +102,9 @@ async function main() {
     console.log("Starting verification...");
 
     // 1. Setup Test Data
-    const ownerEmail = `test-shifts-${Date.now()}@example.com`;
-    const user = await prisma.user.create({
-        data: {
-            email: ownerEmail,
-            name: "Test User",
-        },
-    });
+    const { user, branch } = await createAuditWorkspace("shifts");
 
-    const org = await prisma.organization.create({
-        data: {
-            name: "Test Org Shifts",
-            ownerId: user.id,
-        },
-    });
-
-    const branch = await prisma.branch.create({
-        data: {
-            name: "Shift Test Branch",
-            organizationId: org.id,
-        },
-    });
-
-    // Manually ensure shifts (since we can't call BranchService)
+    // These timings and the reserved shift are specific to the conflict checks below.
     const defaults = [
         { name: "Morning", startTime: "06:00", endTime: "12:00", isReserved: false },
         { name: "Evening", startTime: "16:00", endTime: "22:00", isReserved: false },
