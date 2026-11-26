@@ -55,7 +55,8 @@ describe("PaymentService Integration", () => {
       const novemberDue = new Date(2026, 10, 10);
       freezeTime(new Date(2026, 10, 11));
       try {
-        const { user, branch, shift } = await createTestWorld();
+        const { user, org, branch, shift } = await createTestWorld();
+        await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan: "BASIC", paidThrough: new Date(2027, 0, 11) });
         if (source === "shift") await ShiftService.updateShift(user.id, shift.id, { price: 900 });
         let bundleId: string | undefined;
         if (source === "bundle") {
@@ -119,9 +120,9 @@ describe("PaymentService Integration", () => {
 
     it("allows Basic owners to set free manual and linked rates before any fee accrues", async () => {
       const owner = await createUser();
-      const org = await createOrg({ ownerId: owner.id, billingModelVersion: "WORKSPACE_V2" });
-      await createSaasSubscription({ organizationId: org.id, plan: "BASIC" });
+      const org = await createOrg({ ownerId: owner.id });
       const branch = await createBranch({ organizationId: org.id });
+      await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan: "BASIC" });
       const morning = await createShift({ branchId: branch.id, price: 900 });
       const manual = await createStudent({ branchId: branch.id, monthlyFee: 900, joinedAt: new Date() });
       const linked = await createStudent({ branchId: branch.id, monthlyFee: 900, joinedAt: new Date(), feeLinkedShiftId: morning.id });
@@ -184,7 +185,8 @@ describe("PaymentService Integration", () => {
 
     it("generates 1 payment for a student joined 1 month ago (time advanced by 1 month)", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
-      const { user, branch } = await createTestWorld();
+      const { user, org, branch } = await createTestWorld();
+      await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan: "BASIC", paidThrough: addMonths(BASE, 2) });
       // Student joined on BASE date
       await createStudent({ branchId: branch.id, joinedAt: BASE, monthlyFee: 1500 });
 
@@ -344,7 +346,6 @@ describe("PaymentService Integration", () => {
       const owner = await createUser();
       const organization = await createOrg({
         ownerId: owner.id,
-        billingModelVersion: "WORKSPACE_V2",
       });
       const branch = await createBranch({ organizationId: organization.id });
 
@@ -668,7 +669,8 @@ describe("PaymentService Integration", () => {
     it("preserves a fully collected fee and receipt when a waiver has no remaining debt", async () => {
       const BASE = new Date("2026-01-01T00:00:00.000Z");
       freezeTime(BASE);
-      const { user, branch } = await createTestWorld();
+      const { user, org, branch } = await createTestWorld();
+      await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan: "BASIC", paidThrough: addMonths(BASE, 3) });
       const student = await createStudent({ branchId: branch.id, joinedAt: BASE });
       const payment = await createPayment({
         branchId: branch.id,
@@ -747,7 +749,6 @@ describe("PaymentService Integration", () => {
       const owner = await createUser();
       const organization = await createOrg({
         ownerId: owner.id,
-        billingModelVersion: "WORKSPACE_V2",
       });
       const branch = await createBranch({ organizationId: organization.id });
       const student = await createStudent({ branchId: branch.id, joinedAt: BASE });

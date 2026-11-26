@@ -537,8 +537,8 @@ describe("Analytics corrections", () => {
       const user = await createUser();
       authMock.sessionUser = { id: user.id, email: user.email };
       const org = await createOrg({ ownerId: user.id });
-      await createSaasSubscription({ organizationId: org.id, plan: "PRO" });
       const branch = await createBranch({ organizationId: org.id });
+      await createSaasSubscription({ organizationId: org.id, agreementBranchId: branch.id, plan: "PRO" });
       await createShift({ branchId: branch.id });
       await createSeat({ branchId: branch.id });
       const student = await createStudent({ branchId: branch.id });

@@ -8,20 +8,12 @@ import { StaffPermissionAction } from "@/types";
 import { createAllocation, createSeat, createShift, createStaff, createStudent, createTestWorld, createUser } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma as db } from "@/tests/setup/db";
 
-async function allowWrites(world: { user: { id: string }; org: { id: string } }) {
-    await db.organization.update({ where: { id: world.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
-    await db.ownerTrialGrant.create({ data: { ownerId: world.user.id, organizationId: world.org.id,
-        source: "ONBOARDING", status: "ACTIVE", trialStartedAt: new Date(),
-        trialEndsAt: new Date(Date.now() + 7 * 86_400_000) } });
-}
-
 describe("Allocation remediation saved state — real disposable PostgreSQL", () => {
     beforeEach(resetDatabase);
     afterAll(disconnectDatabase);
 
     it("checks every selected bundle shift before admission and persists only the chosen free seat", async () => {
-        const world = await createTestWorld({ shiftStart: "06:00", shiftEnd: "10:00" });
-        await allowWrites(world);
+        const world = await createTestWorld({ trialPlan: "STANDARD", shiftStart: "06:00", shiftEnd: "10:00" });
         const { user, branch, seat: blockedSeat, shift: morning } = world;
         const freeSeat = await createSeat({ branchId: branch.id, label: "Free bundle seat" });
         const evening = await createShift({ branchId: branch.id, name: "Evening", startTime: "17:00", endTime: "21:00" });
@@ -56,8 +48,7 @@ describe("Allocation remediation saved state — real disposable PostgreSQL", ()
     });
 
     it("keeps a retained bundle for management but removes it from allocation choices after component deactivation", async () => {
-        const world = await createTestWorld({ shiftStart: "06:00", shiftEnd: "10:00" });
-        await allowWrites(world);
+        const world = await createTestWorld({ trialPlan: "STANDARD", shiftStart: "06:00", shiftEnd: "10:00" });
         const { user, branch, seat, shift: morning } = world;
         const evening = await createShift({ branchId: branch.id, name: "Evening", startTime: "17:00", endTime: "21:00" });
         const bundle = await db.multiShift.create({ data: { branchId: branch.id, name: "Retained bundle",
@@ -78,8 +69,7 @@ describe("Allocation remediation saved state — real disposable PostgreSQL", ()
     });
 
     it("lets allocation-only staff select same-branch active identities without seeing the student directory", async () => {
-        const world = await createTestWorld();
-        await allowWrites(world);
+        const world = await createTestWorld({ trialPlan: "STANDARD" });
         const other = await createTestWorld();
         const staffUser = await createUser();
         const staff = await createStaff({ userId: staffUser.id, branchId: world.branch.id, role: "STAFF" });

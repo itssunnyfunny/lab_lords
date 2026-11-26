@@ -13,18 +13,6 @@ import {
 } from "@/tests/factories";
 import { disconnectDatabase, resetDatabase, testPrisma as db } from "@/tests/setup/db";
 
-async function allowWrites(world: { user: { id: string }; org: { id: string } }) {
-    await db.organization.update({ where: { id: world.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
-    await db.ownerTrialGrant.create({ data: {
-        ownerId: world.user.id,
-        organizationId: world.org.id,
-        source: "ONBOARDING",
-        status: "ACTIVE",
-        trialStartedAt: new Date(),
-        trialEndsAt: new Date(Date.now() + 7 * 86_400_000),
-    } });
-}
-
 function duePayment(branchId: string, studentId: string) {
     return createPayment({
         branchId,
@@ -41,8 +29,7 @@ describe("Student remediation saved state — real disposable PostgreSQL", () =>
     afterAll(disconnectDatabase);
 
     it("lets ordinary staff deactivate with KEEP while preserving the due ledger and denying waiver", async () => {
-        const world = await createTestWorld();
-        await allowWrites(world);
+        const world = await createTestWorld({ trialPlan: "STANDARD" });
         const staffUser = await createUser();
         await createStaff({ userId: staffUser.id, branchId: world.branch.id, role: "STAFF" });
         const student = await createStudent({ branchId: world.branch.id, monthlyFee: 0 });
@@ -66,8 +53,7 @@ describe("Student remediation saved state — real disposable PostgreSQL", () =>
     });
 
     it("persists unrelated edits to an imported phone-less student without inventing a phone", async () => {
-        const world = await createTestWorld();
-        await allowWrites(world);
+        const world = await createTestWorld({ trialPlan: "STANDARD" });
         const imported = await StudentService.createImportedStudent(world.user.id, world.branch.id, {
             name: "Imported Reader", phone: null, monthlyFee: 875, admissionFee: 0,
         });
@@ -85,8 +71,7 @@ describe("Student remediation saved state — real disposable PostgreSQL", () =>
     });
 
     it("keeps a committed allocation move when a later optional fee write loses permission", async () => {
-        const world = await createTestWorld();
-        await allowWrites(world);
+        const world = await createTestWorld({ trialPlan: "STANDARD" });
         const staffUser = await createUser();
         const staff = await createStaff({ userId: staffUser.id, branchId: world.branch.id, role: "STAFF" });
         const student = await createStudent({ branchId: world.branch.id, monthlyFee: 500 });
