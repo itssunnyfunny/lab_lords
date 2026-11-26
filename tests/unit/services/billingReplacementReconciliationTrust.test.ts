@@ -1,3 +1,4 @@
+import { registerHistoricalBillingFixture } from "@/tests/factories/historicalBilling";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -101,6 +102,7 @@ function localSubscription(overrides: Record<string, unknown> = {}) {
 function commercialIntent(overrides: Record<string, unknown> = {}) {
   return {
     id: "confirmed_source",
+    idempotencyKey: "historical-authorization",
     organizationId: "org_1",
     organizationSubscriptionId: "source_row",
     replacementSubscriptionId: null,
@@ -175,6 +177,7 @@ describe("replacement reconciliation trust contracts", () => {
   let manualReviews: Array<Record<string, unknown>>;
 
   beforeEach(() => {
+    registerHistoricalBillingFixture("org_1");
     vi.clearAllMocks();
     local = localSubscription();
     intent = commercialIntent();

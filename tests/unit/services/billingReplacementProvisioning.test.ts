@@ -1,3 +1,4 @@
+import { registerHistoricalBillingFixture } from "@/tests/factories/historicalBilling";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RazorpaySubscription } from "@/lib/razorpay";
 
@@ -55,6 +56,7 @@ function candidate(overrides: Partial<RazorpaySubscription> = {}): RazorpaySubsc
 
 describe("replacement provisioning evidence", () => {
   beforeEach(() => {
+    registerHistoricalBillingFixture("org_test");
     vi.clearAllMocks();
     vi.stubEnv("RAZORPAY_MODE", "TEST");
     vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_fixture");

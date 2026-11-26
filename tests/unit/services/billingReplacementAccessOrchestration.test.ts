@@ -1,3 +1,4 @@
+import { registerHistoricalBillingFixture } from "@/tests/factories/historicalBilling";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -46,6 +47,7 @@ describe("replacement access orchestration", () => {
   let organizationLeaseToken: string | null;
 
   beforeEach(() => {
+    registerHistoricalBillingFixture("org_1");
     vi.clearAllMocks();
     organizationLeaseToken = null;
     mocks.planMappingFindFirst.mockResolvedValue({ razorpayPlanId: "plan_basic", active: false });
