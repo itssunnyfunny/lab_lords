@@ -21,7 +21,7 @@ import {
 } from "@/lib/billingErrors";
 import { ensureRazorpayPlanCatalogEntry } from "@/services/razorpayPlanCatalog.service";
 import { BillingReplacementService } from "@/services/billingReplacement.service";
-import { isReplacementMutationEligible, isReplacementMutationEnabled } from "@/services/billingReplacementPolicy";
+import { getBranchReplacementSchedule, isReplacementMutationEligible, isReplacementMutationEnabled } from "@/services/billingReplacementPolicy";
 import {
   buildCommercialIntentSnapshot,
   captureProcessingCommercialIntent,
@@ -278,6 +278,8 @@ type EnqueueInput = {
   type: BillingChangeType;
   fromPlan?: SaasPlan | null;
   toPlan?: SaasPlan | null;
+  selectedPlan?: SaasPlan;
+  expectedEffectiveAt?: unknown;
   fromQuantity?: number | null;
   toQuantity?: number | null;
   effectiveAt?: Date | null;
@@ -345,9 +347,24 @@ export class BillingMutationService {
         await BillingReplacementService.assertNoOpenReplacement(tx, input.organizationId);
       }
 
+      let quotedSchedule;
+      if (billingRecordScope().agreementBranchId && input.expectedEffectiveAt != null) {
+        const source = await tx.organizationSubscription.findFirst({ where: {
+          organizationId: input.organizationId, currentAgreementBranchId: billingRecordScope().agreementBranchId,
+          id: input.subscriptionId ?? undefined,
+        } });
+        const boundary = source?.currentEnd ?? source?.paidThrough ?? source?.providerStartAt;
+        if (!source || !boundary || source.billingOfferId || source.period !== "monthly") {
+          throw new BillingValidationError("Refresh Billing to review the current charge date");
+        }
+        quotedSchedule = getBranchReplacementSchedule({ now: new Date(), currentCycleEnd: boundary, intervalMonths: source.interval });
+        if (quotedSchedule.effectiveAt.toISOString() !== input.expectedEffectiveAt) {
+          throw new BillingValidationError("The charge date changed. Refresh Billing and review the new date");
+        }
+      }
       const organization = await billingCoordinator(tx).update({
         where: { id: input.organizationId },
-        data: { billingMutationSequence: { increment: 1 } },
+        data: { billingMutationSequence: { increment: 1 }, selectedPostTrialPlan: input.selectedPlan },
         select: { billingMutationSequence: true },
       });
 
@@ -379,8 +396,8 @@ export class BillingMutationService {
           toPlan: input.toPlan ?? null,
           fromQuantity: input.fromQuantity ?? null,
           toQuantity,
-          effectiveAt: input.effectiveAt ?? null,
-          undoCutoffAt: input.undoCutoffAt ?? null,
+          effectiveAt: quotedSchedule?.effectiveAt ?? input.effectiveAt ?? null,
+          undoCutoffAt: quotedSchedule?.undoCutoffAt ?? input.undoCutoffAt ?? null,
           createdByUserId: input.createdByUserId ?? null,
           returnPath: input.returnPath ?? null,
           confirmationDeadlineAt: input.confirmationDeadlineAt ?? null,
@@ -463,7 +480,7 @@ export class BillingMutationService {
       // it into a failure while the deployment-wide billing hold is active.
       // Unsupported-method cancellation is a safety action and remains exempt.
       if (next.type !== "UNSUPPORTED_METHOD_CANCELLATION"
-        && !areRazorpayBillingWritesEnabled(organizationId)) {
+        && !areRazorpayBillingWritesEnabled()) {
         return null;
       }
 
@@ -527,6 +544,7 @@ export class BillingMutationService {
         throw new BillingMutationSourceChangedError();
       }
       const replacementPolicy = {
+          agreementBranchId: claimed.agreementBranchId,
           sourcePaymentMethod: source.providerPaymentMethod,
           mutationType: claimed.type,
       };
@@ -786,7 +804,7 @@ export class BillingMutationService {
       return BillingReplacementService.reconcileSourceCancellation(change.id);
     }
     if (!scheduledUndoReadOnly && change.type !== "UNSUPPORTED_METHOD_CANCELLATION") {
-      assertRazorpayBillingWritesEnabled(change.organizationId);
+      assertRazorpayBillingWritesEnabled();
     }
     if (!scheduledUndoReadOnly && change.provisioningIntentVersion === 2 && !change.replacementSubscriptionId
       && (change.providerMutationAdmittedAt || change.failureCategory === MANUAL_REVIEW_CATEGORY)) {
@@ -1154,7 +1172,7 @@ export class BillingMutationService {
     }
     const subscription = snapshot.organizationSubscription;
     if (!subscription) throw new Error("Subscription not found for scheduled billing change");
-    assertRazorpayBillingWritesEnabled(snapshot.organizationId);
+    assertRazorpayBillingWritesEnabled();
     const providerMode = resolveRazorpayMode();
     if (subscription.providerMode !== providerMode) {
       throw new Error(
@@ -1479,7 +1497,7 @@ export class BillingMutationService {
       );
     }
     if (change.type !== "UNSUPPORTED_METHOD_CANCELLATION") {
-      assertRazorpayBillingWritesEnabled(change.organizationId);
+      assertRazorpayBillingWritesEnabled();
     }
     if (isReplacementMutationEligible({ sourcePaymentMethod: subscription.providerPaymentMethod, mutationType: change.type })) {
       throw new Error("Plan and quantity changes require a newly authorized replacement mandate");

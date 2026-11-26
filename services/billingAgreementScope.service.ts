@@ -4,6 +4,8 @@ import { accountBillingProcessingHref, accountBillingOperationReturn } from "@/l
 import type { Prisma, SaasPlan } from "@/app/generated/prisma/client";
 import { OrganizationAccessNotFoundError } from "@/lib/organizationErrors";
 import { BillingResourceNotFoundError, BillingValidationError } from "@/lib/billingErrors";
+import { OrganizationService } from "@/services/organization.service";
+import { isHistoricalBillingFixture } from "@/lib/billingHistoricalFixtures";
 
 type Agreement = { organizationId: string; branchId: string };
 const activeAgreement = new AsyncLocalStorage<Agreement>();
@@ -32,13 +34,8 @@ export function withSystemBillingScope<T>(scope: Agreement, run: () => Promise<T
 export async function withOwnerBillingScope<T>(
   userId: string, organizationId: string, branchId: string | null, run: () => Promise<T>
 ) {
-  if (!branchId) return run();
-  const { OrganizationService } = await import("@/services/organization.service");
-  const owner = await OrganizationService.getOrganizationForOwnerAccess(organizationId, userId);
-  if (owner.billingModelVersion !== "BRANCH_V3") {
-    if (branchId && !owner.branches.some(branch => branch.id === branchId)) throw new BillingResourceNotFoundError();
-    return run();
-  }
+  await OrganizationService.getOrganizationForOwnerAccess(organizationId, userId);
+  if (!branchId) throw new BillingValidationError("Select a branch to manage its subscription");
   const agreement = await prisma.branchBillingAgreement.findFirst({
     where: { branchId, organizationId, branch: { organization: { ownerId: userId, billingModelVersion: "BRANCH_V3" } } },
     select: { branchId: true, organizationId: true },
@@ -63,16 +60,18 @@ export function trialForBillingWorkspace<T extends { ownerId: string; organizati
 }
 
 export async function getBillingOwner(organizationId: string, userId: string) {
-  const { OrganizationService } = await import("@/services/organization.service");
   const owner = await OrganizationService.getOrganizationForOwnerAccess(organizationId, userId);
   const scope = agreementFor(organizationId);
-  if (!scope && owner.billingModelVersion !== "BRANCH_V3") return { ...owner, billingBranchStatus: null, legacyCoverageEndsAt: null };
+  if (!scope && owner.billingModelVersion !== "BRANCH_V3" && isHistoricalBillingFixture(organizationId)) {
+    return { ...owner, billingBranchStatus: null, legacyCoverageEndsAt: null };
+  }
   if (!scope) throw new BillingValidationError("Select a branch to manage its subscription");
   if (owner.billingModelVersion !== "BRANCH_V3") throw new BillingResourceNotFoundError();
-  const agreement = await prisma.branchBillingAgreement.findFirstOrThrow({
-    where: scope,
+  const agreement = await prisma.branchBillingAgreement.findFirst({
+    where: { ...scope, branch: { organization: { ownerId: userId } } },
     include: { subscription: true, branch: { select: { billingStatus: true } } },
   });
+  if (!agreement) throw new BillingResourceNotFoundError();
   return { ...owner, ownerTrialGrant: trialForBillingWorkspace(owner), billingBranchStatus: agreement.branch.billingStatus, legacyCoverageEndsAt: agreement.legacyCoverageEndsAt, subscription: agreement.subscription, selectedPostTrialPlan: agreement.selectedPlan,
     billingMutationSequence: agreement.billingMutationSequence, billingMutationLeaseToken: agreement.billingMutationLeaseToken,
     billingMutationLeaseUntil: agreement.billingMutationLeaseUntil };
@@ -80,6 +79,9 @@ export async function getBillingOwner(organizationId: string, userId: string) {
 
 export async function lockBillingCoordinator(tx: Prisma.TransactionClient, organizationId: string, ownerId?: string) {
   const scope = agreementFor(organizationId);
+  if (!scope && !isRetiredAggregateReceipt(organizationId) && !isHistoricalBillingFixture(organizationId)) {
+    throw new BillingValidationError("Select a branch to manage its subscription");
+  }
   const rows = scope
     ? await tx.$queryRaw<Array<{ id: string }>>`
         SELECT a."branchId" AS id FROM "BranchBillingAgreement" a JOIN "Organization" o ON o.id=a."organizationId"
