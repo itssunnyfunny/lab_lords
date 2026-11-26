@@ -4,7 +4,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useWorkspaceAccess } from "@/components/layout/BranchAccessProvider";
 import { workspaces } from "@/lib/api/workspaces";
 import type { WorkspaceDirectoryOrganization } from "@/types";
-import { billing } from "@/lib/api/billing";
 import { branches } from "@/lib/api/branches";
 import type { BillingExperience } from "@/types/billingExperience";
 import { toClientBillingExperience } from "@/lib/billingExperienceView";
@@ -57,9 +56,9 @@ export function BillingExperienceProvider({
         if (!owned) throw new Error("Organization access is unavailable.");
         setOrganization(owned);
       }
-      const next = owned?.independentBilling ? null : branchId
+      const next = branchId
         ? (await branches.getAccess(branchId)).billingExperience ?? null
-        : (await billing.getOverview(organizationId!)).experience;
+        : null;
       if (version !== requestVersion.current) return;
       setExperience(next ? toClientBillingExperience(next) : null);
       setError(null);

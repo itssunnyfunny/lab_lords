@@ -21,7 +21,9 @@ type CheckoutConfirmationDialogProps = {
   trialEndsAt: string | null;
   existingCoverageEndsAt?: string | null;
   providerChargeAt: string | null;
+  priorBoundary?: { at: string; firstCharge: boolean } | null;
   effectiveAt: string | null;
+  undoCutoffAt?: string | null;
   planFeeDueToday: number;
   contactEmail?: string | null;
   contactPhone?: string | null;
@@ -42,6 +44,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat("en-IN", {
   day: "numeric",
   month: "long",
   year: "numeric",
+  timeZone: "Asia/Kolkata",
 }).format(new Date(value));
 
 export function getCheckoutPaymentMethodCopy(multiMethodEnabled: boolean) {
@@ -75,7 +78,9 @@ export function CheckoutConfirmationDialog({
   trialEndsAt,
   existingCoverageEndsAt,
   providerChargeAt,
+  priorBoundary,
   effectiveAt,
+  undoCutoffAt,
   planFeeDueToday,
   contactEmail,
   contactPhone,
@@ -91,7 +96,7 @@ export function CheckoutConfirmationDialog({
   const firstPlanCharge = purpose === "RECOVERY"
     ? "Razorpay will reauthorize your recurring payment mandate and retry the outstanding renewal. Lab Lords restores full access only after the payment and paid period are confirmed."
     : purpose === "REPLACEMENT"
-      ? "Razorpay will authorize a replacement mandate now. Upgrades and branch additions become available after mandate confirmation at no extra charge for the current cycle; recurring billing changes at the next safe-cycle cutover. Downgrades wait until cutover."
+      ? "Razorpay will ask you to authorize the new subscription. An upgrade unlocks features after confirmation. A downgrade keeps your current features until the planned billing change."
     : changeTiming === "FUTURE_TRIAL"
     ? providerChargeAt
       ? t("Razorpay currently confirms the first plan charge for {date}. The plan change is applied only after Razorpay confirms it.", { date: formatDate(providerChargeAt) })
@@ -225,7 +230,17 @@ export function CheckoutConfirmationDialog({
           {addedFeatures && addedFeatures.length > 0 && <p className="mt-2 text-sm">{t.owned("Features gained")} · {addedFeatures.map(label => t.owned(label)).join(", ")}</p>}
           {branchName && purpose !== "RECOVERY" && <p className="mt-2 text-sm">{t.owned("Students, fees, receipts, existing staff permissions and saved settings stay with this branch.")}</p>}
           {purpose === "REPLACEMENT" && <p className="mt-2 text-sm">{t.owned("You can undo a pending replacement before its cutoff in Account billing.")}</p>}
-          {effectiveAt && purpose === "REPLACEMENT" && <p className="mt-2 text-sm">{t.owned("Planned billing change")} · {formatDate(effectiveAt)}</p>}
+          {effectiveAt && purpose === "REPLACEMENT" && <>
+            {providerChargeAt && Date.parse(providerChargeAt) < Date.parse(effectiveAt)
+              ? <p className="mt-2 text-sm">{t.owned(priorBoundary?.firstCharge
+                ? "The first charge on your current subscription is planned for {date} before the change."
+                : "Your current subscription is scheduled to renew on {date} before the change.", { date: formatDate(providerChargeAt) })}</p>
+              : priorBoundary && <p className="mt-2 text-sm">{t.owned(priorBoundary.firstCharge
+                ? "The first charge on your current subscription is planned for {date} before the change."
+                : "Your current billing cycle ends on {date} before the change.", { date: formatDate(priorBoundary.at) })}</p>}
+            <p className="mt-2 text-sm">{t.owned("Planned first charge on the new subscription")} · {formatDate(effectiveAt)}</p>
+          </>}
+          {undoCutoffAt && purpose === "REPLACEMENT" && <p className="mt-2 text-sm">{t.owned("Undo deadline")} · {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "long", timeZone: "Asia/Kolkata" }).format(new Date(undoCutoffAt))}</p>}
           {downgradeNotice && <p className="mt-3 rounded-lg border border-[color:var(--ui-panel-border)] p-3 text-sm leading-6">{t.owned(downgradeNotice)}</p>}
           {opensCheckout ? (
             <>
