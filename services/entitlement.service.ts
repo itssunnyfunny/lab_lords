@@ -139,7 +139,7 @@ function profileFromEvidence(organization: CommercialEvidence, agreementBranchId
     : null;
   const trustedPaidThrough = resolveTrustedPaidThrough(subscription, now);
 
-  if (organization.billingModelVersion !== "LEGACY") {
+  if (agreementBranchId || organization.billingModelVersion !== "LEGACY") {
     const state = deriveWorkspaceBillingState({
       now,
       trial: organization.ownerTrialGrant
@@ -209,18 +209,17 @@ function lifecycleBlock(status: BranchBillingStatus) {
 function branchProfile(branch: BranchEvidence) {
   const org = branch.organization;
   const agreement = branch.billingAgreement;
-  const independent = org.billingModelVersion === "BRANCH_V3";
   const exact = agreement && agreement.organizationId === org.id && agreement.branchId === branch.id;
   const grant = org.ownerTrialGrant;
-  const profile = independent ? profileFromEvidence({
+  const profile = profileFromEvidence({
     ...org,
     subscription: exact ? agreement.subscription : null,
     pendingSubscriptionReplacement: exact ? agreement.pendingSubscriptionReplacement : null,
     ownerTrialGrant: exact && grant?.organizationId === org.id && grant.ownerId === org.ownerId ? grant : null,
-  }, branch.id) : profileFromEvidence(org, null);
+  }, branch.id);
   // Conversion can preserve the remaining settled interval of the retired
   // aggregate mandate. Its invoice never becomes a successor payment.
-  const legacy = independent && exact ? agreement.legacyCoverageSubscription : null;
+  const legacy = exact ? agreement.legacyCoverageSubscription : null;
   const cutoff = agreement?.legacyCoverageEndsAt;
   const now = new Date();
   const paidEnd = legacy && legacy.id === agreement?.legacyCoverageSubscriptionId
@@ -228,7 +227,7 @@ function branchProfile(branch: BranchEvidence) {
     && legacy.providerMode === resolveRazorpayMode() && TERMINAL_STATUSES.has(legacy.status)
     ? resolveTrustedPaidThrough(legacy, now) : null;
   const legacyCoverageEndsAt = cutoff && cutoff > now && paidEnd && paidEnd >= cutoff ? cutoff : null;
-  const legacyCoverageProvidesAccess = Boolean(legacy && legacyCoverageEndsAt
+  const legacyCoverageProvidesAccess = Boolean(branch.billingStatus !== "PENDING_ACTIVATION" && legacy && legacyCoverageEndsAt
     && (!profile.canWrite || billingPlanRank(legacy.plan) > billingPlanRank(profile.effectivePlan)));
   if (legacy && legacyCoverageProvidesAccess) {
     const plan = getBillingPlan(legacy.plan)!;
@@ -244,12 +243,12 @@ function branchProfile(branch: BranchEvidence) {
     profile.canWrite = false;
     profile.accessMode = "READ_ONLY";
     profile.accessReason = reason;
-    if (independent) {
-      profile.entitlements = [];
-      profile.effectivePlan = "BASIC";
-    }
+    profile.entitlements = [];
+    // Covered owners and staff can still consult attendance and outstanding
+    // debt after closure. A branch awaiting activation has no such workspace.
+    if (branch.billingStatus === "PENDING_ACTIVATION") profile.effectivePlan = "BASIC";
   }
-  return { ...profile, independent, legacyCoverageEndsAt, legacyCoverageProvidesAccess: legacyCoverageProvidesAccess && !reason, whatsAppEligibleSince: independent && exact ? agreement.whatsAppEligibleSince : null, branchId: branch.id, billingStatus: branch.billingStatus };
+  return { ...profile, independent: true, legacyCoverageEndsAt, legacyCoverageProvidesAccess, whatsAppEligibleSince: exact ? agreement.whatsAppEligibleSince : null, branchId: branch.id, billingStatus: branch.billingStatus };
 }
 
 export class EntitlementService {
@@ -291,14 +290,6 @@ export class EntitlementService {
   /** Shared sender management and owner reporting can be used when at least one
    * branch qualifies. Consumers of branch data must filter by the returned IDs. */
   static async getOrganizationFeatureScope(organizationId: string, entitlement: BillingEntitlement, client: Client = prisma) {
-    const organization = await client.organization.findUnique({
-      where: { id: organizationId }, select: organizationEvidence,
-    });
-    if (!organization) throw new Error("Organization not found");
-    if (organization.billingModelVersion !== "BRANCH_V3") {
-      const profile = profileFromEvidence(organization, null);
-      return { entitled: profile.entitlements.includes(entitlement), canWrite: profile.canWrite, branches: null };
-    }
     const branches = await this.getEligibleBranchScope(organizationId, entitlement, client);
     return { entitled: branches.included.length > 0, canWrite: branches.included.length > 0, branches };
   }

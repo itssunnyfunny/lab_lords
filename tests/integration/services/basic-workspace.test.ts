@@ -15,9 +15,8 @@ import { DashboardService } from "@/services/dashboard.service";
 import { workspacePresentation } from "@/lib/workspacePresentation";
 import { StaffRole } from "@/types";
 async function world(plan:"BASIC"|"STANDARD"|"PRO"="BASIC", paidThrough?: Date) {
-    const f=await createTestWorld();
-    await db.organization.update({where:{id:f.org.id},data:{billingModelVersion:"WORKSPACE_V2"}});
-    const subscription=await createSaasSubscription({organizationId:f.org.id,plan,paidThrough});
+    const f=await createTestWorld({trialPlan:null});
+    const subscription=await createSaasSubscription({organizationId:f.org.id,agreementBranchId:f.branch.id,plan,paidThrough});
     return {...f,subscription};
 }
 async function snapshot(f:Awaited<ReturnType<typeof world>>) {
@@ -27,12 +26,12 @@ describe("Basic workspace: shared production services on disposable PostgreSQL",
     beforeEach(resetDatabase);afterAll(disconnectDatabase);
     it.each([["BASIC","STANDARD"],["BASIC","PRO"],["STANDARD","BASIC"],["STANDARD","PRO"],["PRO","BASIC"],["PRO","STANDARD"]] as const)("%s to %s changes presentation without changing records",async(from,to)=>{
         const f=await world(from);const student=await createStudent({branchId:f.branch.id});const fee=await createPayment({branchId:f.branch.id,studentId:student.id,periodStart:new Date("2026-10-01T00:00:00Z"),periodEnd:new Date("2026-11-01T00:00:00Z"),dueDate:new Date("2026-10-01T00:00:00Z")});
-        await db.organization.update({where:{id:f.org.id},data:{selectedPostTrialPlan:to}});
+        await db.branchBillingAgreement.update({where:{branchId:f.branch.id},data:{selectedPlan:to}});
         expect(workspacePresentation(await snapshot(f))).toBe(from === "BASIC"?"simple":"full");
         // Install a distinct settled target snapshot using the existing exact-evidence
         // factory. Provider mutation/recovery is covered by the billing suite.
-        await db.organizationSubscription.update({where:{id:f.subscription.id},data:{currentOrganizationId:null}});
-        await createSaasSubscription({organizationId:f.org.id,plan:to});
+        await db.organizationSubscription.update({where:{id:f.subscription.id},data:{currentAgreementBranchId:null}});
+        await createSaasSubscription({organizationId:f.org.id,agreementBranchId:f.branch.id,plan:to});
         const access=await snapshot(f);
         expect(workspacePresentation(access)).toBe(to === "BASIC"?"simple":"full");
         expect(access.entitlements.includes("WHATSAPP_AUTOMATION")).toBe(to === "PRO");
@@ -62,8 +61,8 @@ describe("Basic workspace: shared production services on disposable PostgreSQL",
     it("downgrade retains existing memberships under current core policy but blocks invitations and premium operations",async()=>{
         const f=await world("STANDARD");const staff=await createUser();await createStaff({branchId:f.branch.id,userId:staff.id});
         const invited=await createUser();const invite=await StaffInviteService.createInvite(f.user.id,f.branch.id,StaffRole.STAFF,invited.email);
-        await db.organizationSubscription.update({where:{id:f.subscription.id},data:{currentOrganizationId:null}});
-        await createSaasSubscription({organizationId:f.org.id,plan:"BASIC"});
+        await db.organizationSubscription.update({where:{id:f.subscription.id},data:{currentAgreementBranchId:null}});
+        await createSaasSubscription({organizationId:f.org.id,agreementBranchId:f.branch.id,plan:"BASIC"});
         await expect(StaffService.authorize(staff.id,f.branch.id,"students")).resolves.toBe(true);
         await expect(StaffInviteService.acceptInvite(invited.id,invite.token)).rejects.toMatchObject({code:"SUBSCRIPTION_UPGRADE_REQUIRED"});
         expect(await db.staffInvite.findUnique({where:{id:invite.id}})).toMatchObject({acceptedAt:null});
@@ -105,7 +104,7 @@ describe("Basic's deliberately narrow server boundary",()=>{
   for(const capability of ["importView","importStudents","studentsManage","allocationsManage","paymentsRecord","paymentsGenerate","settingsManage"] as const)
    await expect(AccessPolicy.authorizeCapability(f.user.id,f.branch.id,capability)).resolves.toMatchObject({branchId:f.branch.id});
  });
- it("keeps two branches on the organization's trial and paid plan without mixing records",async()=>{
+ it("shares the original trial and returns each branch to its own paid access without mixing records",async()=>{
   const f=await world();const second=await createBranch({organizationId:f.org.id});const firstStudent=await createStudent({branchId:f.branch.id});
   await db.ownerTrialGrant.create({data:{ownerId:f.user.id,organizationId:f.org.id,source:"ONBOARDING",status:"ACTIVE",claimedAt:new Date(),trialStartedAt:new Date(),trialEndsAt:new Date(Date.now()+86400000)}});
   for(const branchId of [f.branch.id,second.id]) {
@@ -113,7 +112,8 @@ describe("Basic's deliberately narrow server boundary",()=>{
    await expect(AccessPolicy.authorizeCapability(f.user.id,branchId,"attendanceView")).resolves.toBeDefined();
   }
   await db.ownerTrialGrant.update({where:{ownerId:f.user.id},data:{trialEndsAt:new Date(Date.now()-1000)}});
-  for(const branchId of [f.branch.id,second.id])await expect(AccessPolicy.authorizeCapability(f.user.id,branchId,"attendanceView")).rejects.toThrow("Standard plan");
+  await expect(AccessPolicy.authorizeCapability(f.user.id,f.branch.id,"attendanceView")).rejects.toThrow("Standard plan");
+  await expect(AccessPolicy.authorizeCapability(f.user.id,second.id,"attendanceView")).rejects.toMatchObject({code:"BILLING_READ_ONLY"});
   expect(await db.student.count({where:{branchId:second.id}})).toBe(0);
   expect((await db.student.findUniqueOrThrow({where:{id:firstStudent.id}})).branchId).toBe(f.branch.id);
  });

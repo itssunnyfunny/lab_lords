@@ -114,7 +114,7 @@ const routeCases: Array<{
     invoke: orgId => createBranch(
       request("/api/branches", "POST", {
         organizationId: orgId,
-        name: "Branch",
+        name: "Branch", futurePlan: "BASIC",
         contactPhone: "9876543210",
         seatCount: 1,
       }, true)
@@ -145,7 +145,7 @@ const routeCases: Array<{
     name: "organization branches POST",
     invoke: orgId => createOrganizationBranch(
       request(`/api/organizations/${orgId}/branches`, "POST", {
-        name: "Branch",
+        name: "Branch", futurePlan: "BASIC",
         contactPhone: "9876543210",
       }, true),
       orgContext(orgId)
@@ -303,7 +303,7 @@ describe("organization owner-access response parity", () => {
       invoke: () => createBranch(
         request("/api/branches", "POST", {
           organizationId: "org_owned",
-          name: "Branch",
+          name: "Branch", futurePlan: "BASIC",
           contactPhone: "9876543210",
           seatCount: 1,
         }, true)
@@ -313,7 +313,7 @@ describe("organization owner-access response parity", () => {
       name: "organization branch POST",
       invoke: () => createOrganizationBranch(
         request("/api/organizations/org_owned/branches", "POST", {
-          name: "Branch",
+          name: "Branch", futurePlan: "BASIC",
           contactPhone: "9876543210",
         }, true),
         orgContext("org_owned")
