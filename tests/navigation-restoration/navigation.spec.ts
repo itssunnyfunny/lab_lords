@@ -284,7 +284,7 @@ test("independent branch billing lists separate charges and confirms one named c
         id: plan.id.toLowerCase(), name: ["Central", "East", "West"][index], organizationId: "org-pilot", organizationName: "Libraries",
         href: "/branch/" + plan.id.toLowerCase(), role: "OWNER", permissions: {}, entitlements: plan.entitlements,
         billing: { independent: true, effectivePlan: plan.id, accessMode: "FULL", billingStatus: "ACTIVE", customerState: plan.id + "_ACTIVE",
-            monthlyCommitment: plan.amount! * 100, nextChargeAmount: plan.amount! * 100, nextChargeAt: `2027-01-0${index + 1}T12:00:00Z` },
+            selectedPlan: plan.id, subscriptionStatus: "ACTIVE", monthlyCommitment: plan.amount! * 100, nextChargeAmount: plan.amount! * 100, nextChargeAt: `2027-01-0${index + 1}T12:00:00Z` },
     }));
     await page.route("**/api/workspaces", route => route.fulfill({ json: {
         organizations: [{ id: "org-pilot", name: "Libraries", role: "OWNER", branches, independentBilling: true }], staffBranches: [],
@@ -296,7 +296,7 @@ test("independent branch billing lists separate charges and confirms one named c
         if (branchId !== "standard") return route.fulfill({ status: 404, json: {} });
         return route.fulfill({ json: { ...billingOverview, billingModelVersion: "BRANCH_V3", plans,
             current: { ...billingOverview.current, plan: "STANDARD", unitAmount: 299, monthlyTotal: 299, paidThrough: "2027-01-02T12:00:00Z" },
-            experience: { ...billingOverview.experience, independentBilling: true, effectivePlan: "STANDARD", branch: { id: "standard", name: "East", billingStatus: "ACTIVE" }, planChangeEffectiveAt: "2027-01-02T12:00:00Z" },
+            experience: { ...billingOverview.experience, independentBilling: true, effectivePlan: "STANDARD", branch: { id: "standard", name: "East", billingStatus: "ACTIVE" }, nextChargeAt: "2026-12-02T12:00:00Z", planChangeEffectiveAt: "2027-01-02T12:00:00Z", planChangeUndoCutoffAt: "2026-12-31T12:00:00Z" },
         } });
     });
     await page.route("**/billing/invoices?branchId=standard", route => route.fulfill({ json: { items: [], nextCursor: null } }));
@@ -309,7 +309,10 @@ test("independent branch billing lists separate charges and confirms one named c
     await expect(confirmation).toBeVisible();
     await expect(confirmation).toContainText("East");
     await expect(confirmation).toContainText("WhatsApp integration and automation");
-    await expect(confirmation).toContainText("2 January 2027");
+    await expect(confirmation).toContainText("Planned first charge on the new subscription · 2 January 2027");
+    await expect(confirmation).toContainText("Your current subscription is scheduled to renew on 2 December 2026 before the change.");
+    await expect(confirmation).toContainText("Undo deadline");
+    await expect(confirmation).toContainText("31 Dec 2026");
     expect(scopes.length).toBeGreaterThan(0);
     expect(scopes.every(id => id === "standard")).toBe(true);
 });

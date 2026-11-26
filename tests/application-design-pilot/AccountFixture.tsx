@@ -14,7 +14,8 @@ export function AccountFixture() {
  useEffect(()=>{void fetch("/api/workspaces").then(r=>r.json()).then(setDirectory);},[]);
  const org=directory.organizations.find(item=>item.id===search.get("organizationId"))??directory.organizations[0];
  const processing=path.match(/^\/account\/billing\/([^/]+)\/processing\/([^/]+)/);
+ const branchId=search.get("branchId");
  return <AppShell designPilot sidebar={<AccountSidebar directory={directory}/>}>
- {processing ? <BillingProcessingContent key={path + ":" + search.get("branchId")} orgId={processing[1]} changeId={processing[2]} branchId={search.get("branchId") ?? undefined} returnTo={search.get("returnTo") ?? undefined}/> : path === "/account/billing" ? org && <AccountBilling organizations={directory.organizations} organizationId={org.id} branchId={search.get("branchId")??undefined}/> : path === "/account/preferences" ? <PersonalSettings section="preferences"/> : <ProfileSecurity/>}
+ {processing ? branchId && <BillingProcessingContent key={path + ":" + branchId} orgId={processing[1]} changeId={processing[2]} branchId={branchId} returnTo={search.get("returnTo") ?? undefined}/> : path === "/account/billing" ? org && <AccountBilling organizations={directory.organizations} organizationId={org.id} branchId={branchId??undefined}/> : path === "/account/preferences" ? <PersonalSettings section="preferences"/> : <ProfileSecurity/>}
  </AppShell>;
 }

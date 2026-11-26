@@ -156,8 +156,8 @@ function ApplicationDesignPilot() {
         <Suspense fallback={<PageLoadingSkeleton label="Loading organization surface" variant="workspace" />}>
             {pathname.endsWith("/analytics") ? <OrgAnalyticsPage params={Promise.resolve({ orgId })} />
                 : pathname.endsWith("/settings") ? <OrgSettingsPage params={Promise.resolve({ orgId })} />
-                    : pathname.endsWith("/billing") ? <OrganizationBillingContent orgId={orgId} />
-                    : pathname.includes("/billing/processing/") ? <BillingProcessingContent orgId={orgId} changeId={pathname.split("/").at(-1) ?? "change-pilot"} />
+                    : pathname.endsWith("/billing") ? <OrganizationBillingContent orgId={orgId} branchId={searchParams.get("branchId") ?? BRANCH_ID} />
+                    : pathname.includes("/billing/processing/") ? <BillingProcessingContent orgId={orgId} branchId={searchParams.get("branchId") ?? BRANCH_ID} changeId={pathname.split("/").at(-1) ?? "change-pilot"} />
                         : <OrgOverviewPage params={Promise.resolve({ orgId })} />}
         </Suspense>
     </OrganizationWorkspaceShell></UserPreferencesBoundary>;

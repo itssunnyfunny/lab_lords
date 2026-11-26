@@ -38,9 +38,8 @@ describe("retained V1 guided import browser → real route → real service → 
     afterEach(() => { vite?.kill(); vi.unstubAllEnvs(); });
     afterAll(disconnectDatabase);
     it.each([{ width: 1440, height: 1000 }, { width: 390, height: 844 }])("prepares, clarifies, allocates, reviews, commits and recovers at $width px", async viewport => {
-        const f = await createTestWorld(); fixture.user = { id: f.user.id };
-        await db.organization.update({ where: { id: f.org.id }, data: { billingModelVersion: "WORKSPACE_V2" } });
-        await createSaasSubscription({ organizationId: f.org.id, plan: "BASIC" });
+        const f = await createTestWorld({ trialPlan: null }); fixture.user = { id: f.user.id };
+        await createSaasSubscription({ organizationId: f.org.id, agreementBranchId: f.branch.id, plan: "BASIC" });
         const fullDay = await createShift({ branchId: f.branch.id, name: "Full Day", price: 1000, startTime: "06:00", endTime: "18:00" });
         const evening = await createShift({ branchId: f.branch.id, name: "Evening", startTime: "18:00", endTime: "23:00" });
         await db.multiShift.create({ data: { branchId: f.branch.id, name: "Morning Evening", price: 1500, components: { create: [{ shiftId: f.shift.id, order: 0 }, { shiftId: evening.id, order: 1 }] } } });
