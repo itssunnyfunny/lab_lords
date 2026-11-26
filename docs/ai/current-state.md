@@ -2,7 +2,7 @@
 
 ## Independent branch billing — local, 25 November 2026
 
-The BRANCH_V3 path binds provider subscriptions and operation receipts to an individual branch agreement. The owner selects a branch in Account Billing. Branch access, workspace selection and premium report scope follow effective evidence for the destination branch. New V3 enrollment uses an explicit flag. Earlier LEGACY and WORKSPACE_V2 models retain aggregate billing. A read-only inventory and a transactional converter cover eligible terminal-source and never-billed V2 groups. Renewing aggregates remain held. See [the rollout guide](../billing/independent-branch-rollout.md) for verification and release prerequisites.
+Each branch owns a quantity-one agreement and its own future selection. Onboarding creates the first agreement atomically and a forward migration initializes retained branches without copying settlement. Account Billing presents each branch's current mandate, effective access, operations and invoices. Organization-wide reporting filters eligible branches. The eight protected schedules retain their individual cadences. See [branch billing operations](../billing/independent-branch-rollout.md). Earlier dated entries describe the implementation at the time.
 
 ## Student fees, imports and branch operations — local, 2026-11-18
 
@@ -19,17 +19,12 @@ expiry or revocation. Collections planner runs with failures in every claimed
 branch record `FAILED`. Mixed outcomes record `PARTIAL`. The remaining fixes and their regression
 coverage are recorded in the [application logic audit](../audits/application-logic-2026-11-18.md).
 
-## Trial branch billing corrections — local, 2026-11-18
+## Historical trial branch billing corrections — 2026-11-18
 
-Branch-removal scheduling, first checkout and the Billing overview use the
-projected count of active branches and branches pending activation. The
-provider-confirmed quantity continues to come from the subscription. Owners
-see the monthly total and a zero plan fee due today on Basic, Standard and Pro
-trial authorization. For a pre-mandate removal, the deadline worker compares
-the current mandate with the branch count before later queued provider changes.
-This lets the earlier removal archive and the next quantity change proceed.
-At the trial deadline, the archival worker reports older
-conflicting schedules for [operator review](../production-runbook.md#trial-branch-removal-review).
+The November 18 aggregate model quoted a branch count and compared that quantity
+with historical removal schedules. The November 25 branch agreements supersede
+that model. Existing aggregate disputes retain their original records for
+[operator review](../production-runbook.md#trial-branch-removal-review).
 
 ## Branch setup form correction — local, 2026-11-16
 
@@ -587,12 +582,12 @@ requires exact captured invoice evidence.
 
 The real Test account also rejected a plan update on a domestic-card mandate.
 Stored `CARD` identity does not establish international-card update eligibility,
-so new Workspace Billing V2 card plan, trial-plan and branch-quantity changes use the existing
-explicitly authorized replacement flow. This conservative routing applies to
-all stored cards; it does not relabel their payment method or add a provider
+so the October Workspace V2 implementation routed card plan and quantity
+changes through explicitly authorized replacements for all stored cards; it does not relabel their payment method or add a provider
 capability field. Card-only Checkout can authorize a replacement card with the
-multi-method flag off. UPI/eMandate replacements and proactive payment-method
-switching retain that flag's gate. Unknown methods remain blocked. Existing
+multi-method flag off. In the October model, UPI/eMandate replacements and
+proactive payment-method switching required the flag. Branch agreements use it
+only to select the methods offered in Checkout. Unknown methods remain blocked. Existing
 provider-scheduled updates retain their exact undo and recovery paths.
 The Billing confirmation explains the new authorization and safe-cycle timing;
 returning a Checkout payload does not itself grant access or mark the new plan
@@ -1125,7 +1120,7 @@ billing boundary.
 - Imports: `ImportSession`, `ImportRow`, `ImportQuestion`, `ImportCommit`,
   `ImportRowEvaluation`, `ImportPlan`, `ImportRun`, `ImportRunItem`, and
   `ImportRecipe`.
-- SaaS billing: `OwnerTrialGrant`, `SaasRazorpayPlan`, `RazorpayPlanProvisioning`, `BillingOffer`, `OrganizationOfferGrant`, `OrganizationSubscription`, `OrganizationBillingChange`, `OrganizationBillingChangeAudit`, `OrganizationSubscriptionInvoice`, `OrganizationSubscriptionHistory`, and `RazorpayWebhookEvent`.
+- SaaS billing: `BranchBillingAgreement`, `OwnerTrialGrant`, `SaasRazorpayPlan`, `RazorpayPlanProvisioning`, `BillingOffer`, `OrganizationOfferGrant`, `OrganizationSubscription`, `OrganizationBillingChange`, `OrganizationBillingChangeAudit`, `OrganizationSubscriptionInvoice`, `OrganizationSubscriptionHistory`, and `RazorpayWebhookEvent`.
 - WhatsApp: organization-owned `WhatsAppSender`, leased connection and template
   provisioning state, branch settings/rules, provider-authoritative templates
   and managed bindings, current and append-only consent, explicit student
@@ -1136,7 +1131,7 @@ billing boundary.
 Two payment domains must not be confused:
 
 1. `Payment` represents fees owed by a student to a branch. It has `DUE`, `PAID`, and `WAIVED` states.
-2. `OrganizationSubscription` and its related models represent fees owed by an organization to Lab Lords through Razorpay.
+2. `BranchBillingAgreement` identifies the branch buying a Lab Lords plan. Its `OrganizationSubscription` rows and related invoices record its Razorpay charges. Historical aggregate records retain their original scope.
 
 ## Implemented product surfaces
 
@@ -1145,20 +1140,18 @@ Two payment domains must not be confused:
 - Clerk-backed sign-in and sign-up are wired.
 - Workspace routing chooses between onboarding, an organization workspace, or the most relevant staff branch.
 - Onboarding creates the owner profile update, organization, first branch, shifts, optional multi-shifts, seats, and owner staff membership in one Prisma transaction.
-- New workspace creation requires the Workspace Billing V2 release flag, explicitly
-  persists V2 and the selected post-trial plan, and starts the existing single-owner
+- Onboarding creates BRANCH_V3, the first branch agreement and its selected
+  future plan in the setup transaction. An eligible owner receives the single
   30-day trial. The old organization-only POST returns `410 ONBOARDING_REQUIRED`.
-  Existing legacy organizations retain their compatibility entitlement behavior.
+
 - Onboarding requires an owner-bound UUID request key and freezes the validated
   setup command in account-scoped browser storage before dispatch. The service
   serializes an owner's commands and commits an `OnboardingRequest` receipt with
   the new workspace. The receipt stores a versioned canonical hash and result
   IDs, not the request body; matching retries return only the original linked
-  IDs. Different keys still support intentional additional workspaces without
-  granting another lifetime trial. Receipt-bearing results are archival, not
-  physically deletable under the restrictive receipt relations. This change is
-  locally implemented but connected lost-response/concurrency validation and
-  migration application remain pending an exactly verified disposable database.
+  IDs. An owner with an existing organization can add branches there. A
+  second onboarding key cannot create another workspace or renew the trial.
+  Restrictive receipt relations preserve the original result across archival.
 
 Authoritative code: `lib/auth.ts`, `lib/workspaceRouting.ts`, `services/user.service.ts`, `services/onboarding.service.ts`, and `app/api/onboarding/route.ts`.
 
@@ -1568,7 +1561,7 @@ Accepted).
 
 ### Lab Lords subscription billing
 
-The repository contains both legacy billing and Workspace Billing V2.
+Current purchases and billing controls operate on branch agreements. The ledger also retains original aggregate subscription and invoice history.
 
 - Organization owner and subscription-billing APIs scope the initial lookup by
   both organization and owner ID. Foreign and nonexistent organization IDs
@@ -1580,22 +1573,22 @@ The repository contains both legacy billing and Workspace Billing V2.
 - Standard grants staff management, advanced analytics and AI access. Pro adds
   `WHATSAPP_AUTOMATION`; public copy discloses setup/rollout and messaging terms.
   Entitlement is separate from integration readiness.
-- Workspace Billing V2 derives subscription quantity from billable branch
-  lifecycle state. Pending activation and scheduled removal affect quantity
-  sequencing, so it is not simply a count of rows currently marked `ACTIVE`.
-- Owner trial state, branch activation/removal, plan changes, quantity changes, cancellation, recovery, payment-method replacement, invoices, subscription history, and provider reconciliation are modeled.
-- New Workspace Billing V2 CARD, UPI and eMandate plan/trial-plan/quantity changes use separately
-  authorized replacement subscriptions and controlled cutover. The stored CARD
+- A branch agreement owns one current position, one pending replacement, its
+  future selection and its own quantity-one charge. The branch lifecycle and
+  evidence decide access independently of sibling plans.
+- Owner trial state, branch activation/removal, plan changes, cancellation, recovery, payment-method replacement, invoices, subscription history, and provider reconciliation are modeled.
+- Plan changes on branch CARD, UPI and eMandate subscriptions, including
+  eligible trial-time changes, use separately authorized replacement subscriptions and controlled cutover. The stored CARD
   enum cannot distinguish provider-eligible international mandates from domestic
   mandates, so no new card update is inferred safe from that enum. Existing
   provider-scheduled card changes still support exact undo and reconciliation.
   Unknown recurring methods remain unavailable.
-- Provider mutations and scheduled-update undo use organization leases plus
+- Provider mutations and scheduled-update Undo use branch agreement leases plus
   exact attempt fencing. Ambiguous outcomes and expired attempts enter manual
   review without automatic resubmission; owner retry reconciles provider state,
   adopts an exact target when safe, and records SYSTEM history for manual-review
-  and resolution outcomes. Branch restoration is atomic with confirmed provider
-  undo.
+  and resolution outcomes. Before its cutoff, branch removal Undo withdraws
+  its unadmitted cancellation and restores the branch in one transaction.
 - Replacement-candidate cleanup uses the same durable attempt boundary. Lost or
   malformed cancellation responses are quarantined, unresolved deadline/owner
   retry is provider-read-only, and an exact terminal candidate is adopted
@@ -1633,43 +1626,29 @@ The repository contains both legacy billing and Workspace Billing V2.
   payment ID is available.
 - Entitlement and billing-experience reads use the same stored-evidence resolver.
   `AUTHENTICATED` is mandate readiness, while `ACTIVE` and a raw future
-  `paidThrough` remain insufficient. Legacy organizations without an exact
-  current settlement retain writable Basic fallback rather than premium access;
-  V2 organizations fail closed to read-only Basic. Trials and exact bounded
+  `paidThrough` remain insufficient. A branch without an exact
+  current settlement or applicable grant fails closed to read-only Basic. Trials and exact bounded
   replacement access remain independent grants.
 - Razorpay plan provisioning uses database leases and provider-mode-aware catalog records.
 - Billing preflight and maintenance scripts load `BILLING_ENV_FILE` through a
   shared allowlist, reject conflicting ambient database/provider identities,
-  and report Prisma connection precedence without connection details. The three
-  maintenance `--apply` paths require an explicit deployment, provider mode,
+  and report Prisma connection precedence without connection details. Supported
+  historical maintenance `--apply` paths require an explicit deployment, provider mode,
   database-resident identity fingerprint, and organization allowlist before
   any scoped query, write, or provider fetch; dry-run remains the default.
-- Webhook processing verifies the raw-body HMAC, persists unique event receipts,
-  detects event-ID collisions, and treats both legacy and V2 payloads only as
-  provider-reconciliation triggers; signed payload snapshots are not copied into
-  paid state.
+- Webhook processing verifies the raw-body HMAC, persists unique event receipts
+  and detects event-ID collisions. A verified receipt triggers provider
+  reconciliation in the original branch scope. Aggregate receipts retain their
+  historical identity and cannot dispatch a new mutation.
 - `scripts/reconcile-legacy-paid-entitlements.ts` provides the repository-owned
   read-only-first transition path. It is organization/mode/target/database bound,
   emits pre/proposal/post counts, applies only a freshly confirmed exact proposal,
   re-fetches provider evidence before its fenced transaction, never mutates
   Razorpay, and records ambiguous evidence for manual review.
-- `scripts/prepare-workspace-billing-rollout.ts` refuses promotion when an
-  existing subscription carries unbacked paid state and reruns the subscription,
-  evidence, branch-count, model, and mutation-sequence guards while holding the
-  organization lock.
+- The historical workspace-promotion command exits before opening a database.
 - `/api/cron/billing/hourly` processes billing deadlines and requires `Authorization: Bearer <CRON_SECRET>`.
 
-This subsystem is implemented but deliberately release-gated:
-
-- `WORKSPACE_BRANCH_BILLING_V2_ENABLED` gates V2 onboarding/runtime behavior.
-- `RAZORPAY_BILLING_WRITES_ENABLED` gates provider mutations, with an optional controlled Live canary allow-list.
-- `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED` switches from card-only Checkout
-  configuration to provider-managed eligible recurring methods. Card plan and
-  quantity replacements work through card-only Checkout with this flag off;
-  UPI/eMandate replacement and proactive payment-method switching remain gated.
-- each organization retains `billingModelVersion`, so enabling the environment flag does not by itself migrate legacy organizations.
-
-Repository code and tests do not prove that these flags are enabled in any deployment or that the target Razorpay account is approved and configured.
+Branch billing is available by default. The installation-wide write pause and provider-specific recurring-method configuration are described in [provider setup](../workspace-billing-rollout.md).
 
 Authoritative code: `services/billing*.ts`, `services/ownerTrial.service.ts`, `services/razorpayPlanCatalog.service.ts`, `lib/billing*.ts`, `lib/razorpay.ts`, the organization billing API routes, and `app/api/razorpay/webhook/route.ts`.
 
@@ -1793,7 +1772,7 @@ The following modules exist but are not referenced by current application routes
 | PostgreSQL / Prisma | Required; schema and 41 timestamped migrations exist, including the three additive WhatsApp expansions, exact billing commercial evidence, the additive Razorpay webhook claim, and durable initial-subscription provisioning intent/audit state | Database target, applied migration set, backups, and health are unknown |
 | Clerk | Real auth and local-user linking are implemented | Active instance, keys, redirect/origin configuration, and account health are unknown |
 | Gemini | Reports, message drafts, and import mapping are wired with fallbacks | API key, selected model availability, quota, and data-processing configuration are unknown |
-| Razorpay | Server API client, Checkout, exact-byte bounded webhook signatures, token-fenced webhook receipts, provider-authoritative reconciliation, and plan catalog are implemented | Test/Live mode, account approvals, webhook configuration, flags, canary, and provider health are unknown |
+| Razorpay | Server API client, Checkout, exact-byte bounded webhook signatures, token-fenced webhook receipts, provider-authoritative reconciliation, and plan catalog are implemented | Operators verify the target mode, recurring-method approvals, webhook reachability, write-pause setting and provider health in the deployment environment. |
 | Meta WhatsApp Cloud API | Direct bounded `v25.0` provider client, owner-bound Embedded Signup, sender/branch state, phone registration, template/health reads, managed Utility creation, individual approved Utility-template delivery, deterministic aggregate reports, typed notices, durable outbox, signed status/scoped/full STOP processing, safety/incidents, and expiring estimated-cost controls exist; arbitrary delivery and credit sharing do not | App Review/Advanced Access, app/config/system-user credentials, Test/Live assets, callback reachability, flags/canaries, template approval/category, current rate-card signoff, customer billing/legal ownership, `UNKNOWN` operations, alerts, and provider health are unknown |
 | Vercel Workflow | Workflow 4.6 integration, opaque-ID orchestration, and a PostgreSQL import ledger/runner are implemented | Production approval, Fluid Compute/runtime setup, provider retention/residency review, feature flag, mutation cap, benchmarks, SLOs, and active-run health are unknown |
 | Vercel Cron | Eight Production GET schedules are declared: daily payment, hourly billing, daily import retention, collection planning every 15 minutes, report planning every 15 minutes, dispatch every 5 minutes, provider-health reconciliation every 30 minutes, and WhatsApp maintenance daily. WhatsApp jobs return held before gated work when their controls are false | Whether the deployment plan accepts these frequencies, the deployment is Production, schedules/callback protection are correct, and recent run evidence is healthy is unknown |
@@ -1872,11 +1851,12 @@ Production migrations have a separate manually dispatched workflow requiring the
 - Tenant isolation is application-enforced rather than backed by database RLS.
 - Foreign-existing and nonexistent resource IDs do not yet receive uniform
   tenant-safe responses across all mutation paths.
-- The daily payment cron does not consult branch or organization writability;
-  active students in a read-only branch can still receive generated dues.
-  Whether that system-owned behavior should respect writability is unresolved
-  and must not be treated as accepted without an ADR or updated domain invariant.
-- Workspace Billing V2 and Razorpay writes are release-gated; implementation presence is not evidence of activation.
+- The system-owned student fee job accrues dues while an operating branch is
+  temporarily read-only, stops at its closure and resumes from reopening. It
+  cannot grant a subscription or initiate a provider charge.
+- Branch billing is the default. Deployment, actual provider activity and Live
+  verification require their own release evidence.
+
 - Import V2 is durable and replay-safe but is not one database transaction for
   the whole file; no mode reverses already committed items.
 - Import requests are still buffered in application memory. The 4.25 MiB
