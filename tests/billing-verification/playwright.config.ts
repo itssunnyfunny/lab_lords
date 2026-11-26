@@ -5,7 +5,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, "../..");
 
 export default defineConfig({
   testDir: import.meta.dirname,
-  testMatch: "billing.spec.ts",
+  testMatch: ["billing.spec.ts", "owner-checkout.spec.ts"],
   outputDir: path.join(repositoryRoot, "test-results/billing-verification/browser"),
   workers: 1,
   timeout: 60_000,

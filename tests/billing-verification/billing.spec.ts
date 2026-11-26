@@ -1,5 +1,4 @@
 import { expect, test, type Page } from "@playwright/test";
-import { publicBillingPlans } from "../../lib/billingPlans";
 import { installSettingsRouteFixture } from "../application-design-pilot/settings-route-closeout-fixture";
 
 async function installBillingFixture(page: Page, plan: "BASIC" | "STANDARD" | "PRO" = "STANDARD") {
@@ -17,10 +16,11 @@ async function installBillingFixture(page: Page, plan: "BASIC" | "STANDARD" | "P
     } });
   });
   const fixture = await installSettingsRouteFixture(page);
-  const definition = publicBillingPlans().find(item => item.id === plan)!;
+  const definition = fixture.billingOverview.plans.find(item => item.id === plan)!;
   const entitlements = definition.entitlements;
-  Object.assign(fixture.billingOverview, { plans: publicBillingPlans() });
   Object.assign(fixture.billingOverview.experience, {
+    independentBilling: true, billingAccessSource: "PAID",
+    monthlyCommitmentSubunits: definition.amount! * 100,
     effectivePlan: plan, selectedPostTrialPlan: plan, customerState: `${plan}_ACTIVE`, entitlements,
     customerMessage: `${definition.shortName} workspace is active.`,
     currentUnitAmount: definition.amount, currentMonthlyTotal: definition.amount,
@@ -40,7 +40,7 @@ async function installBillingFixture(page: Page, plan: "BASIC" | "STANDARD" | "P
 function replacementCheckout(current: Record<string, unknown>, plan: "BASIC" | "STANDARD") {
   return {
     purpose: "REPLACEMENT", keyId: "rzp_test_synthetic", subscriptionId: "synthetic-replacement-subscription",
-    changeId: "synthetic-replacement-change", processingUrl: "/org/org-pilot/billing/processing/synthetic-replacement-change",
+    changeId: "synthetic-replacement-change", processingUrl: "/account/billing/org-pilot/processing/synthetic-replacement-change?branchId=pilot",
     subscription: { ...current, id: "synthetic-replacement-local", position: "PENDING_REPLACEMENT", plan,
       status: "CREATED", paidThrough: null, shortName: plan === "STANDARD" ? "Standard" : "Basic" },
   };
@@ -52,22 +52,22 @@ async function assertNoOverflow(page: Page) {
 
 const languages = [
   { code: "en", lang: "en-IN", title: "Billing and plans", billedPlan: "Billed plan", methodsTitle: "Pay by card",
-    renewalAction: "Change to Basic at renewal",
-    basicDescription: "Simple student, seat and fee management. One plan for your organization, billed per active branch.",
+    renewalAction: "Change to Basic",
+    basicDescription: "Simple student, seat and fee management.",
     standardDescription: "For growing teams that need staff controls, analytics, and AI assistance.",
     studentRecords: "Student records", spreadsheetImport: "Spreadsheet import", standardOnly: " — Standard or Pro",
     premiumCapabilities: ["Staff invitations, roles and permission controls", "Branch and cross-branch advanced analytics", "AI reports"],
   },
   { code: "hi", lang: "hi-IN", title: "बिलिंग और प्लान", billedPlan: "बिलिंग वाला प्लान", methodsTitle: "कार्ड से भुगतान करें",
-    renewalAction: "रिन्यूअल पर Basic में बदलें",
-    basicDescription: "विद्यार्थी, सीट और फीस का सरल प्रबंधन। संगठन का एक प्लान, प्रति सक्रिय शाखा बिलिंग।",
+    renewalAction: "Basic में बदलें",
+    basicDescription: "छात्र, सीट और फीस का सरल प्रबंधन।",
     standardDescription: "बढ़ती टीमों के लिए स्टाफ नियंत्रण, विस्तृत आँकड़े और AI की मदद।",
     studentRecords: "विद्यार्थी रिकॉर्ड", spreadsheetImport: "स्प्रेडशीट से आयात", standardOnly: " — Standard या Pro",
     premiumCapabilities: ["स्टाफ को निमंत्रण, भूमिकाएँ और अनुमति नियंत्रण", "एक या कई ब्रांच के विस्तृत आँकड़े", "AI रिपोर्ट"],
   },
   { code: "hinglish", lang: "hi-Latn-IN", title: "Billing aur plans", billedPlan: "Billing wala plan", methodsTitle: "Card se payment karein",
-    renewalAction: "Renewal par Basic mein badlein",
-    basicDescription: "Student, seat aur fees ka simple management. Organization ka ek plan, har active branch ki billing.",
+    renewalAction: "Basic mein badlein",
+    basicDescription: "Students, seats aur fees ka aasaan management.",
     standardDescription: "Badhti teams ke liye staff controls, analytics aur AI ki madad.",
     studentRecords: "Student records", spreadsheetImport: "Spreadsheet import", standardOnly: " — Standard ya Pro",
     premiumCapabilities: ["Staff invitations, roles aur permission controls", "Branch aur cross-branch advanced analytics", "AI reports"],
@@ -79,7 +79,7 @@ for (const language of languages) {
     await installBillingFixture(page);
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto(`/org/org-pilot/billing?mode=after&lang=${language.code}`);
+    await page.goto(`/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=${language.code}`);
     await expect(page.getByRole("heading", { level: 1, name: language.title })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", language.lang);
     await expect(page.locator("#billing").getByText(language.billedPlan, { exact: true })).toBeVisible();
@@ -140,7 +140,7 @@ test("owner navigation and legacy billing links reach the dedicated page", async
   await expect(page.getByRole("heading", { name: "Billing and plans", exact: true })).toBeVisible();
   await page.goto("/org/org-pilot/settings?mode=after&lang=en#billing");
   await expect(page).toHaveURL(/\/account\/billing\?mode=after&lang=en&organizationId=org-pilot#billing$/);
-  await expect(page.getByRole("heading", { name: "Billing and plans", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Manage branch plan" }).first()).toBeVisible();
   await page.goto("/org/org-pilot/settings?mode=after&lang=en&billingPlan=BASIC&returnTo=%2Fbranch%2Fpilot#billing");
   await expect(page).toHaveURL(/\/account\/billing\?.*billingPlan=BASIC.*returnTo=%2Fbranch%2Fpilot&organizationId=org-pilot#billing$/);
   await expect(page.getByRole("dialog", { name: "Authorize a replacement mandate for Basic", exact: true })).toBeVisible();
@@ -154,12 +154,12 @@ test("Basic reviews a card replacement and launches only the returned checkout w
   page.on("request", request => {
     if (request.method() !== "GET" && new URL(request.url()).pathname.includes("/billing/")) mutations.push(request.url());
   });
-  await page.route("**/api/organizations/org-pilot/billing/subscription", route => {
+  await page.route("**/api/organizations/org-pilot/billing/subscription?branchId=pilot", route => {
     expect(route.request().method()).toBe("PATCH");
-    expect(route.request().postDataJSON()).toMatchObject({ plan: "STANDARD" });
+    expect(route.request().postDataJSON()).toMatchObject({ plan: "STANDARD", expectedEffectiveAt: fixture.billingOverview.experience.planChangeEffectiveAt });
     return route.fulfill({ json: replacementCheckout(fixture.billingOverview.current, "STANDARD") });
   });
-  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
   const plans = page.locator("#plans");
   await expect(plans.getByText(/— Standard or Pro/)).toHaveCount(5);
   await expect(plans.getByText("Spreadsheet import", { exact: true })).toHaveCount(3);
@@ -172,7 +172,7 @@ test("Basic reviews a card replacement and launches only the returned checkout w
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("This subscription change requires a new recurring payment authorization in Razorpay.");
   await expect(dialog).toContainText("Lab Lords charge today");
-  await expect(dialog).toContainText("Downgrades wait until cutover.");
+  await expect(dialog).toContainText("A downgrade keeps your current features until the planned billing change.");
   const confirm = dialog.getByRole("button", { name: "Continue to Razorpay", exact: true });
   await expect(confirm).toBeEnabled();
   expect(mutations).toEqual([]);
@@ -204,7 +204,7 @@ test("invoices retain earlier rows and retry the same cursor after a failed page
     return route.fulfill({ json: cursor ? { items: [first, second], nextCursor: null }
       : { items: [first], nextCursor: "synthetic-cursor-1" } });
   });
-  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
   const invoices = page.locator("#invoices");
   await expect(invoices.locator("article")).toHaveCount(1);
   await invoices.getByRole("button", { name: "Load more invoices", exact: true }).click();
@@ -235,24 +235,24 @@ test("successful recovery refresh permits a later plan change through replacemen
   });
   let recoveryCalls = 0;
   const planCommands: unknown[] = [];
-  await page.route("**/api/organizations/org-pilot/billing/mutations/recover-change/retry", route => {
+  await page.route("**/api/organizations/org-pilot/billing/mutations/recover-change/retry?branchId=pilot", route => {
     expect(route.request().method()).toBe("POST");
     recoveryCalls += 1;
     Object.assign(fixture.billingOverview.experience, recoveredExperience);
     return route.fulfill({ json: { recovered: true } });
   });
-  await page.route("**/api/organizations/org-pilot/billing/subscription", route => {
+  await page.route("**/api/organizations/org-pilot/billing/subscription?branchId=pilot", route => {
     expect(route.request().method()).toBe("PATCH");
     expect(route.request().headers()["idempotency-key"]).toBeTruthy();
     planCommands.push(route.request().postDataJSON());
     return route.fulfill({ json: replacementCheckout(fixture.billingOverview.current, "BASIC") });
   });
-  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
   const pendingPlanButtons = page.locator("#plans").getByRole("button", { name: "Authorization in progress", exact: true });
   await expect(pendingPlanButtons).toHaveCount(2);
   for (const button of await pendingPlanButtons.all()) await expect(button).toBeDisabled();
   await page.locator("#billing").getByRole("button", { name: "Retry billing change", exact: true }).click();
-  const change = page.locator("#plans").getByRole("button", { name: "Change to Basic at renewal", exact: true });
+  const change = page.locator("#plans").getByRole("button", { name: "Change to Basic", exact: true });
   await expect(change).toBeEnabled();
   await change.click();
   await page.getByRole("dialog").getByRole("button", { name: "Continue to Razorpay", exact: true }).click();
@@ -283,19 +283,20 @@ for (const surface of ["overview", "processing"] as const) {
     page.on("request", request => {
       if (request.method() !== "GET" && new URL(request.url()).pathname.includes("/billing/")) requests.push(new URL(request.url()).pathname);
     });
-    await page.route(`**/api/organizations/org-pilot/billing/mutations/${checkout.changeId}`, route => route.fulfill({ json: { operation, processingUrl: checkout.processingUrl } }));
-    await page.route(`**/api/organizations/org-pilot/billing/mutations/${checkout.changeId}/retry`, route => {
+    await page.route(`**/api/organizations/org-pilot/billing/mutations/${checkout.changeId}?branchId=pilot`, route => route.fulfill({ json: { operation, processingUrl: checkout.processingUrl } }));
+    await page.route(`**/api/organizations/org-pilot/billing/mutations/${checkout.changeId}/retry?branchId=pilot`, route => {
       expect(route.request().method()).toBe("POST");
       return route.fulfill({ json: { operation: { ...operation, operationStatus: "CHECKOUT_OPEN" }, processingUrl: checkout.processingUrl, checkout } });
     });
-    const path = surface === "overview" ? "/org/org-pilot/billing" : checkout.processingUrl;
-    await page.goto(`${path}?mode=after&lang=en`);
+    const path = surface === "overview" ? "/account/billing?organizationId=org-pilot&branchId=pilot" : checkout.processingUrl;
+    await page.goto(`${path}&mode=after&lang=en`);
     await page.getByRole("button", { name: surface === "overview" ? "Retry authorization" : "Retry safely", exact: true }).click();
     await expect.poll(() => page.evaluate(() => Reflect.get(window, "__billingTestCheckouts"))).toEqual([
       { subscriptionId: checkout.subscriptionId, rememberCustomer: false },
     ]);
     expect(requests).toEqual([`/api/organizations/org-pilot/billing/mutations/${checkout.changeId}/retry`]);
-    expect(new URL(page.url()).pathname).toBe(path);
+    expect(new URL(page.url()).pathname).toBe(path.split("?")[0]);
+    expect(new URL(page.url()).searchParams.get("branchId")).toBe("pilot");
     if (surface === "processing") {
       await expect(page.getByRole("heading", { name: "Verifying with Razorpay", exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Authorization was not confirmed", exact: true })).toHaveCount(0);
@@ -304,6 +305,72 @@ for (const surface of ["overview", "processing"] as const) {
     await assertNoOverflow(page);
   });
 }
+
+for (const surface of ["overview", "processing"] as const) {
+  test(`source cancellation recovery on ${surface} checks the exact receipt without another checkout`, async ({ page }) => {
+    const fixture = await installBillingFixture(page, "BASIC");
+    const checkout = replacementCheckout(fixture.billingOverview.current, "STANDARD");
+    const candidate = { ...checkout.subscription, status: "AUTHENTICATED" };
+    const receipt = {
+      id: checkout.changeId, organizationId: "org-pilot", type: "PLAN_UPGRADE", status: "FAILED",
+      queueStatus: "FAILED", operationStatus: "SCHEDULED", failureCategory: "MANUAL_REVIEW_REQUIRED",
+      failureCode: "SOURCE_CANCELLATION_OUTCOME_UNKNOWN", undoCutoffAt: "2026-01-18T00:00:00Z",
+      effectiveAt: "2026-01-20T00:00:00Z", replacementSubscriptionId: candidate.id,
+      organizationSubscriptionId: fixture.billingOverview.current.id, updatedAt: "2026-01-18T00:10:00Z",
+      returnPath: null,
+    };
+    const recovered = { ...receipt, status: "SCHEDULED", queueStatus: "SCHEDULED",
+      failureCategory: null, failureCode: null, updatedAt: "2026-01-18T00:11:00Z", canUndo: false };
+    Object.assign(fixture.billingOverview, { pendingReplacement: candidate, scheduledChanges: [receipt] });
+    Object.assign(fixture.billingOverview.experience, { paymentAction: "RECONCILE_SOURCE_CANCELLATION",
+      activeOperation: receipt, latestOperation: { id: "newer-receipt" }, scheduledChanges: [] });
+    let checked = false;
+    const commands: string[] = [];
+    page.on("request", request => {
+      if (request.method() !== "GET" && new URL(request.url()).pathname.includes("/billing/")) commands.push(request.url());
+    });
+    const exactPath = `/api/organizations/org-pilot/billing/mutations/${receipt.id}?branchId=pilot`;
+    await page.route(`**${exactPath}`, route => {
+      if (route.request().method() === "POST") {
+        checked = true;
+        Object.assign(fixture.billingOverview.current, { cancelAtCycleEnd: true, cancellationScheduledAt: recovered.effectiveAt });
+        Object.assign(fixture.billingOverview, { scheduledChanges: [recovered] });
+        Object.assign(fixture.billingOverview.experience, { activeOperation: null, paymentAction: "NONE", scheduledChanges: [recovered] });
+      }
+      return route.fulfill({ json: { operation: checked ? recovered : receipt } });
+    });
+    const path = surface === "overview" ? "/account/billing?organizationId=org-pilot&branchId=pilot" : checkout.processingUrl;
+    await page.goto(`${path}&mode=after&lang=en`);
+    await expect(page.getByText("Razorpay still needs to confirm cancellation of the previous subscription.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Undo( cancellation)?$/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Check cancellation status", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Check cancellation status", exact: true })).toHaveCount(0);
+    if (surface === "processing") await expect(page.getByRole("heading", { name: "Change scheduled", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Undo( cancellation)?$/ })).toHaveCount(0);
+    expect(commands.map(value => new URL(value).pathname + new URL(value).search)).toEqual([exactPath]);
+    expect(await page.evaluate(() => Reflect.get(window, "__billingTestCheckouts"))).toEqual([]);
+    await assertNoOverflow(page);
+  });
+}
+
+test("pre-start trial quote shows the original first debit before the later replacement charge", async ({ page }) => {
+  const fixture = await installBillingFixture(page, "BASIC");
+  const startAt = "2027-01-22T00:00:00Z";
+  Object.assign(fixture.billingOverview, { trial: { status: "ACTIVE", endsAt: startAt } });
+  Object.assign(fixture.billingOverview.current, { status: "AUTHENTICATED", currentStart: null, currentEnd: null,
+    paidThrough: null, chargeAt: null, providerStartAt: startAt });
+  Object.assign(fixture.billingOverview.experience, { billingAccessSource: "TRIAL", trialEndsAt: startAt, paidThrough: null,
+    authorizationStatus: "AUTHORIZED", nextChargeAt: null, planChangePriorBoundary: { at: startAt, firstCharge: true },
+    planChangeEffectiveAt: "2027-02-22T00:00:00Z", planChangeUndoCutoffAt: "2027-02-20T00:00:00Z" });
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
+  await page.locator("#plans").getByRole("button", { name: /Standard/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("The first charge on your current subscription is planned for 22 January 2027 before the change.");
+  await expect(dialog).toContainText("Planned first charge on the new subscription · 22 February 2027");
+  await expect(dialog).toContainText(/Undo deadline.*20 Feb 2027/);
+  expect(await page.evaluate(() => Reflect.get(window, "__billingTestCheckouts"))).toEqual([]);
+  await assertNoOverflow(page);
+});
 
 test("revoking a recorded replacement grant removes the complimentary access notice", async ({ page }) => {
   const fixture = await installBillingFixture(page, "BASIC");
@@ -316,14 +383,14 @@ test("revoking a recorded replacement grant removes the complimentary access not
   Object.assign(fixture.billingOverview, { pendingReplacement: candidate, scheduledChanges: [change] });
   Object.assign(fixture.billingOverview.entitlements, { effectivePlan: "STANDARD" });
   Object.assign(fixture.billingOverview.experience, { effectivePlan: "STANDARD" });
-  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
   const notice = page.getByText("Complimentary upgrade access is active while billing remains on the current subscription.", { exact: true });
   await expect(notice).toBeVisible();
   const summary = page.locator("#billing").getByRole("region", { name: "Current subscription", exact: true });
   await expect(summary.locator("dl > div").filter({ has: page.locator("dt", { hasText: /^Billed plan$/ }) })).toContainText("Basic");
   await expect(summary.locator("dl > div").filter({ has: page.locator("dt", { hasText: /^Current access$/ }) })).toContainText("Standard");
-  await expect(summary).toContainText("₹99/month");
-  await expect(summary).not.toContainText("₹299/month");
+  await expect(summary).toContainText(/₹99(?:\.00)?\/month/);
+  await expect(summary).not.toContainText(/₹299(?:\.00)?\/month/);
   change.accessRevokedAt = "2026-10-23T00:00:00Z";
   Object.assign(fixture.billingOverview.entitlements, { effectivePlan: "BASIC" });
   Object.assign(fixture.billingOverview.experience, { effectivePlan: "BASIC" });
@@ -339,16 +406,16 @@ test("authenticated trial cancellation requires confirmation and preserves trial
   const trialEndsAt = "2027-01-22T00:00:00.000Z";
   Object.assign(fixture.billingOverview, { trial: { status: "ACTIVE", source: "OWNER", organizationId: "org-pilot", startedAt: "2026-12-23T00:00:00Z", endsAt: trialEndsAt } });
   Object.assign(fixture.billingOverview.current, { status: "AUTHENTICATED", currentStart: null, currentEnd: null, paidThrough: null, providerStartAt: trialEndsAt, chargeAt: trialEndsAt });
-  Object.assign(fixture.billingOverview.experience, { effectivePlan: "STANDARD_TRIAL", customerState: "TRIAL_ACTIVE", paidThrough: null, trialEndsAt, authorizationStatus: "AUTHORIZED", nextChargeAt: trialEndsAt });
+  Object.assign(fixture.billingOverview.experience, { billingAccessSource: "TRIAL", effectivePlan: "STANDARD_TRIAL", customerState: "TRIAL_ACTIVE", paidThrough: null, trialEndsAt, authorizationStatus: "AUTHORIZED", nextChargeAt: trialEndsAt });
   const calls: string[] = [];
-  await page.route("**/api/organizations/org-pilot/billing/subscription/cancel", route => {
+  await page.route("**/api/organizations/org-pilot/billing/subscription/cancel?branchId=pilot", route => {
     expect(route.request().method()).toBe("POST");
     expect(route.request().headers()["idempotency-key"]).toBeTruthy();
     calls.push(route.request().url());
     Object.assign(fixture.billingOverview.experience, { scheduledChanges: [{ id: "trial-cancel", type: "CANCELLATION", status: "SCHEDULED", effectiveAt: trialEndsAt }] });
     return route.fulfill({ json: { cancelled: false, scheduled: true, subscription: fixture.billingOverview.current } });
   });
-  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
   const controls = page.locator("#subscription");
   await controls.getByRole("button", { name: "Cancel before first charge", exact: true }).click();
   const confirmation = page.getByRole("alertdialog", { name: "Cancel the authorized subscription?", exact: true });
@@ -370,12 +437,12 @@ test("authenticated trial cancellation requires confirmation and preserves trial
 test("an unconfirmed cancellation keeps its warning after the billing overview refreshes", async ({ page }) => {
   const fixture = await installBillingFixture(page);
   const renewalMessage = "Your subscription is still active and will renew.";
-  await page.route("**/api/organizations/org-pilot/billing/subscription/cancel", route => {
+  await page.route("**/api/organizations/org-pilot/billing/subscription/cancel?branchId=pilot", route => {
     expect(route.request().method()).toBe("POST");
     fixture.billingOverview.experience.customerMessage = renewalMessage;
     return route.fulfill({ json: { cancelled: false, scheduled: false, subscription: fixture.billingOverview.current } });
   });
-  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
   const controls = page.locator("#subscription");
   const cancel = controls.getByRole("button", { name: "Cancel at cycle end", exact: true });
   await cancel.click();
@@ -391,13 +458,13 @@ test("an unconfirmed cancellation keeps its warning after the billing overview r
 
 test("Pro shows its billed identity, WhatsApp conditions and both downgrade destinations", async ({ page }) => {
   await installBillingFixture(page, "PRO");
-  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
   const plans = page.locator("#plans");
   await expect(plans.getByRole("button", { name: "Current plan", exact: true })).toBeDisabled();
-  await expect(plans.getByRole("button", { name: "Change to Standard at renewal", exact: true })).toBeEnabled();
-  await expect(plans.getByRole("button", { name: "Change to Basic at renewal", exact: true })).toBeEnabled();
+  await expect(plans.getByRole("button", { name: "Change to Standard", exact: true })).toBeEnabled();
+  await expect(plans.getByRole("button", { name: "Change to Basic", exact: true })).toBeEnabled();
   await expect(plans.getByText(/unlimited messages are not included/)).toBeVisible();
-  await expect(page.locator("#billing")).toContainText("₹499/month");
+  await expect(page.locator("#billing")).toContainText(/₹499(?:\.00)?\/month/);
   await assertNoOverflow(page);
 });
 
@@ -407,7 +474,7 @@ test("complete billing history keeps Standard and Pro identities distinct", asyn
     { id: "history-standard", plan: "STANDARD", toStatus: "ACTIVE", amountSubunits: 29900, currency: "INR", createdAt: "2026-10-28T00:00:00Z", providerMode: "TEST" },
     { id: "history-pro", plan: "PRO", toStatus: "ACTIVE", amountSubunits: 49900, currency: "INR", createdAt: "2026-10-27T00:00:00Z", providerMode: "TEST" },
   ], nextCursor: null } }));
-  await page.goto("/org/org-pilot/billing?mode=after&lang=en");
+  await page.goto("/account/billing?organizationId=org-pilot&branchId=pilot&mode=after&lang=en");
   await page.getByRole("button", { name: "View all invoices and history", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Billing history", exact: true });
   await dialog.getByRole("combobox", { name: "Records", exact: true }).click();
