@@ -1,36 +1,45 @@
 {
-  "crons": [
-    {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "schedules": {
+    "payments-daily": {
       "path": "/api/cron/payments/daily",
-      "schedule": "0 0 * * *"
+      "schedule": "0 0 * * *",
+      "requestMethod": "GET"
     },
-    {
+    "billing-hourly": {
       "path": "/api/cron/billing/hourly",
-      "schedule": "0 * * * *"
+      "schedule": "0 * * * *",
+      "requestMethod": "GET"
     },
-    {
+    "imports-daily": {
       "path": "/api/cron/imports/daily",
-      "schedule": "30 0 * * *"
+      "schedule": "30 0 * * *",
+      "requestMethod": "GET"
     },
-    {
+    "whatsapp-plan": {
       "path": "/api/cron/whatsapp/plan",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/15 * * * *",
+      "requestMethod": "GET"
     },
-    {
+    "whatsapp-send": {
       "path": "/api/cron/whatsapp/send",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/5 * * * *",
+      "requestMethod": "GET"
     },
-    {
+    "whatsapp-reports": {
       "path": "/api/cron/whatsapp/reports",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/15 * * * *",
+      "requestMethod": "GET"
     },
-    {
+    "whatsapp-health": {
       "path": "/api/cron/whatsapp/health",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/30 * * * *",
+      "requestMethod": "GET"
     },
-    {
+    "whatsapp-maintenance": {
       "path": "/api/cron/whatsapp/maintenance",
-      "schedule": "0 2 * * *"
+      "schedule": "0 2 * * *",
+      "requestMethod": "GET"
     }
-  ]
+  }
 }
