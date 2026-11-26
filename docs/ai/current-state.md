@@ -1577,6 +1577,7 @@ Current purchases and billing controls operate on branch agreements. The ledger 
   future selection and its own quantity-one charge. The branch lifecycle and
   evidence decide access independently of sibling plans.
 - Owner trial state, branch activation/removal, plan changes, cancellation, recovery, payment-method replacement, invoices, subscription history, and provider reconciliation are modeled.
+- Account Billing and the operation processing page let the owner resume an eligible branch payment recovery after its 15-minute confirmation window. Retry reconciles the original subscription before returning a hosted recovery link, card checkout or the confirmed outcome.
 - Plan changes on branch CARD, UPI and eMandate subscriptions, including
   eligible trial-time changes, use separately authorized replacement subscriptions and controlled cutover. The stored CARD
   enum cannot distinguish provider-eligible international mandates from domestic

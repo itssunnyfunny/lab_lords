@@ -9,6 +9,8 @@
 
 See the [initialization and recovery rules](billing/independent-branch-rollout.md).
 
+An owner can resume an unsettled recovery on the branch's current mandate after the local confirmation deadline. Each explicit resume checks the original operation and subscription against provider evidence. A hosted link or embedded card checkout only continues payment collection. Restoring paid coverage requires the matching captured payment, invoice and paid period.
+
 ## Complete owner setup — 5 November 2026
 
 - **Must preserve—enforced:** The new onboarding library/centre answer persists
