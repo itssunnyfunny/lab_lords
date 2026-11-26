@@ -265,6 +265,7 @@ function makeReplacementCheckoutPayload(): BillingCheckoutPayload {
 type CheckoutScenario = "hold" | "dismiss" | "decline" | "technical" | "ambiguous" | "success";
 
 type CapturedRazorpayOptions = {
+  cardChange?: boolean;
   readonly?: { name: boolean; email: boolean; contact: boolean };
   prefill?: { name?: string; email?: string; contact?: string };
   remember_customer?: boolean;
@@ -292,6 +293,7 @@ async function installRazorpayMock(page: Page) {
     };
     type MockOptions = {
       subscription_id: string;
+      subscription_card_change?: boolean;
       remember_customer?: boolean;
       readonly?: { name: boolean; email: boolean; contact: boolean };
       prefill?: { name?: string; email?: string; contact?: string };
@@ -339,6 +341,7 @@ async function installRazorpayMock(page: Page) {
           remember_customer: this.options.remember_customer,
           config: this.options.config,
           subscriptionId: this.options.subscription_id,
+          cardChange: this.options.subscription_card_change,
         };
 
         window.setTimeout(() => {
@@ -533,6 +536,76 @@ async function startBasicAuthorization(page: Page, scenario: CheckoutScenario) {
   const confirmation = page.getByRole("dialog", { name: /Authorize Basic after your trial/i });
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole("button", { name: "Continue to Razorpay" }).click();
+}
+
+for (const surface of ["Account Billing", "processing"] as const) {
+  test(`resumes payment recovery from ${surface} after leaving hosted checkout past its deadline`, async ({ page }) => {
+    const subscription = makeSubscription({
+      status: "HALTED", providerPaymentMethod: surface === "processing" ? "CARD" : "UPI",
+    });
+    const overview = makeOverview(makeExperience({
+      accessMode: "READ_ONLY", effectivePlan: "NONE", billingAccessSource: "NONE", trialEndsAt: null,
+      trialDaysRemaining: 0, customerState: "PAYMENT_HALTED", providerStatus: "HALTED",
+      entitlements: [], paymentAction: "UPDATE_CARD",
+    }), subscription);
+    const controller = await mockBillingPage(page, overview);
+    const checkout = { ...makeCheckoutPayload(), purpose: "RECOVERY", subscription };
+    const firstLink = "https://rzp.io/i/synthetic-recovery";
+    const resumedLink = "https://rzp.io/i/synthetic-resumed-recovery";
+    const apiPath = `**/api/organizations/${ORG_ID}/billing`;
+    const scope = `?branchId=${BRANCH_ID}`;
+    let starts = 0;
+    let resumes = 0;
+    await page.route("https://rzp.io/i/synthetic-*", route => route.fulfill({
+      contentType: "text/html", body: "<title>Simulated hosted recovery</title>",
+    }));
+    await page.route(`${apiPath}/subscription/recovery${scope}`, route => {
+      expect(route.request().method()).toBe("POST");
+      starts++;
+      return json(route, { ...checkout, hostedRecoveryUrl: firstLink });
+    });
+    await page.route(`${apiPath}/mutations/${CHANGE_ID}/retry${scope}`, route => {
+      expect(route.request().method()).toBe("POST");
+      resumes++;
+      return json(route, surface === "processing"
+        ? { ...checkout, subscription_card_change: true }
+        : { ...checkout, hostedRecoveryUrl: resumedLink });
+    });
+
+    await gotoBilling(page);
+    await page.getByRole("button", { name: "Update payment method and retry", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Continue to Razorpay" }).click();
+    await expect(page).toHaveURL(firstLink);
+    const started = await page.evaluate(() => Date.now());
+    const deadline = new Date(started + 15 * 60_000).toISOString();
+    await page.clock.setFixedTime(new Date(started + 16 * 60_000));
+    expect(await page.evaluate(() => Date.now())).toBeGreaterThan(Date.parse(deadline));
+
+    // The overdue overview and operation GET both describe the original unpaid receipt.
+    controller.operation = makeOperation("AWAITING_PROVIDER_CONFIRMATION", {
+      confirmationDeadlineAt: deadline, canResumePaymentRecovery: true,
+    });
+    const receipt = {
+      ...controller.operation, status: "AWAITING_PAYMENT", lastError: null,
+      branchId: BRANCH_ID, toPlan: subscription.plan, toQuantity: 1,
+    };
+    Object.assign(overview.experience, {
+      paymentAction: "RESUME_PAYMENT_RECOVERY", activeOperation: receipt, latestOperation: receipt,
+    });
+    if (surface === "processing") await page.goto(checkout.processingUrl);
+    else await gotoBilling(page);
+    await page.getByRole("button", { name: "Resume payment recovery", exact: true }).click();
+    if (surface === "processing") {
+      await expect.poll(async () => (await getCheckoutHarness(page)).lastOptions)
+        .toMatchObject({ subscriptionId: subscription.razorpaySubscriptionId, cardChange: true });
+    } else {
+      await expect(page).toHaveURL(resumedLink);
+    }
+    expect({ starts, resumes }).toEqual({ starts: 1, resumes: 1 });
+    expect(controller.createRequests).toHaveLength(0);
+    expect(controller.verifyRequests).toHaveLength(0);
+    expect(controller.checkoutEvents).toHaveLength(0);
+  });
 }
 
 test("shows exact current-trial and post-trial pricing without inventing a charge date", async ({ page }) => {

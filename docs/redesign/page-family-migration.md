@@ -8,6 +8,8 @@ The default branch billing pass added explicit branch scope to processing and re
 
 [Desktop and mobile evidence and commands](../evidence/branch-plans-browser-2026-11-25.md)
 
+On 26 November, Account Billing and the processing page gained a **Resume payment recovery** action for an eligible branch receipt. Six local Chromium cases at 1440, 390 and 320 px exercised leaving a simulated hosted checkout, returning 16 minutes later, and continuing through a fresh hosted link or embedded card checkout.
+
 ## Branch and seat setup forms — local, 2026-11-16
 
 Families H/G/C: organization Add Branch retained a narrow unsectioned form and

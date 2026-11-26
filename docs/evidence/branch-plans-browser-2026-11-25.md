@@ -2,6 +2,14 @@
 
 On 25 November 2026, the branch workspace, billing and navigation components ran against synthetic local API responses. Provider verification has its own [Test-mode evidence record](branch-subscriptions-razorpay-test-2026-11-25.md).
 
+## Overdue payment recovery
+
+On 26 November, six Chromium cases passed on desktop (1440 px) and phones (390 and 320 px). Each case started recovery on a halted branch, left the simulated hosted page without a callback, and advanced the browser clock by 16 minutes. Account Billing opened the fresh hosted URL for the original receipt. The processing page opened embedded card recovery on the same subscription. Each case issued exactly one start and one resume request.
+
+```sh
+pnpm exec playwright test --config tests/billing-verification/playwright.config.ts --grep "resumes payment recovery" --workers=1
+```
+
 ## Previous subscription cancellation and trial charge dates
 
 On 26 November, all nine focused Chromium cases passed at 1440, 390 and 320 px using the local synthetic billing fixture.
