@@ -64,7 +64,7 @@ async function installManagedBinding(
 
 async function createReconciliationWorld() {
   const owner = await createUser();
-  const organization = await createOrg({ ownerId: owner.id, name: "Collections Org" });
+  const organization = await createOrg({ ownerId: owner.id, name: "Collections Org", trialPlan: "PRO" });
   const branch = await createBranch({ organizationId: organization.id, name: "Central" });
   const sender = await testPrisma.whatsAppSender.create({
     data: {

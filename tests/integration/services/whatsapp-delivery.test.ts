@@ -97,12 +97,12 @@ async function createDeliveryWorld(providerMode: "TEST" | "LIVE" = "TEST") {
     ownerId: owner.id,
     name: "Delivery Integration Org",
   });
-  await createSaasSubscription({ organizationId: organization.id, plan: "PRO" });
   const branch = await createBranch({
     id: "whatsapp-delivery-branch",
     organizationId: organization.id,
     name: "Central Branch",
   });
+  await createSaasSubscription({ organizationId: organization.id, agreementBranchId: branch.id, plan: "PRO" });
   const sender = await testPrisma.whatsAppSender.create({
     data: {
       id: "whatsapp-delivery-sender",
@@ -481,7 +481,7 @@ describe("WhatsApp durable delivery integration", () => {
     await queueGroupedReminder(world, `downgrade-${plan}`);
     // Simulate an already settled canonical downgrade. The old record remains
     // historical, and the queue must re-check the new entitlement at dispatch.
-    await testPrisma.organizationSubscription.updateMany({ where: { currentOrganizationId: world.organization.id }, data: { currentOrganizationId: null } });
+    await testPrisma.organizationSubscription.updateMany({ where: { currentAgreementBranchId: world.branch.id }, data: { currentAgreementBranchId: null } });
     await createSaasSubscription({ organizationId: world.organization.id, plan });
     const { provider, sendApprovedUtilityTemplate } = fakeProvider();
     const result = await WhatsAppDispatcherService.run({ now: NOW, limit: 10, env: DELIVERY_ENV, provider });

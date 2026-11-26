@@ -30,12 +30,12 @@ describe("WhatsApp report-only pause and persisted history", () => {
       ownerId: owner.id,
       name: "Report Pause Organization",
     });
-    await createSaasSubscription({ organizationId: organization.id, plan: "PRO" });
     const branch = await createBranch({
       id: "report-pause-branch",
       organizationId: organization.id,
       name: "Report Pause Branch",
     });
+    await createSaasSubscription({ organizationId: organization.id, agreementBranchId: branch.id, plan: "PRO" });
     await createStaff({ userId: otherRecipient.id, branchId: branch.id, role: "MANAGER" });
     const sender = await testPrisma.whatsAppSender.create({
       data: {

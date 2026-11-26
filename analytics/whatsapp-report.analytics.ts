@@ -197,7 +197,7 @@ export async function getWhatsAppDailyReportMetrics(
   const localDate = parseLocalDate(input.localReportDate);
   const organization = await tx.organization.findUnique({
     where: { id: input.organizationId },
-    select: { id: true, name: true, timezone: true, paymentGraceDays: true, billingModelVersion: true },
+    select: { id: true, name: true, timezone: true, paymentGraceDays: true },
   });
   if (!organization) throw new Error("REPORT_SCOPE_NOT_FOUND");
   if (whatsappLocalDateKey(input.scheduledCutoffAt, organization.timezone) !== input.localReportDate) {
@@ -210,7 +210,7 @@ export async function getWhatsAppDailyReportMetrics(
     throw new Error("REPORT_METRICS_AS_OF_SCOPE_MISMATCH");
   }
 
-  const branchScope = input.scope === "ORGANIZATION" && organization.billingModelVersion === "BRANCH_V3"
+  const branchScope = input.scope === "ORGANIZATION"
     ? await EntitlementService.getEligibleBranchScope(input.organizationId, "WHATSAPP_AUTOMATION", tx)
     : null;
   if (branchScope && !branchScope.included.length) throw new Error("REPORT_SCOPE_NOT_FOUND");
