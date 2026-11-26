@@ -2,9 +2,19 @@ import { billingPlanName, billingPlanRank, type BillingPlanId } from "@/lib/bill
 import type { BranchBillingStatus, SaasSubscriptionStatus } from "@/app/generated/prisma/enums";
 import type { BillingExperience } from "@/types/billingExperience";
 
-/** Branches included in the next recurring mandate. Confirmed quantity is provider-owned. */
+/** Branches counted when checking that a workspace retains a billable branch. */
 export const projectedBillableStatuses: BranchBillingStatus[] = ["ACTIVE", "PENDING_ACTIVATION"];
 export const TERMINAL_STATUSES = new Set<SaasSubscriptionStatus>(["CANCELLED", "COMPLETED", "EXPIRED"]);
+
+/** Recovery uses the existing mandate and requires the next settled invoice. */
+export function isPaymentRecoveryAuthorization(change: { type: string; idempotencyKey: string }) {
+  return change.type === "SUBSCRIPTION_AUTHORIZATION" && change.idempotencyKey.startsWith("payment-recovery:");
+}
+
+export function needsSourceCancellationReview(change: { failureCategory?: string | null; failureCode?: string | null } | null | undefined) {
+  return change?.failureCategory === "MANUAL_REVIEW_REQUIRED"
+    && change.failureCode?.startsWith("SOURCE_CANCELLATION_") === true;
+}
 
 export function hasActiveBillingTrial(experience?: Pick<BillingExperience, "effectivePlan" | "trialDaysRemaining" | "independentBilling" | "billingAccessSource"> | null) {
   if (experience?.independentBilling && experience.billingAccessSource !== undefined) return experience.billingAccessSource === "TRIAL";

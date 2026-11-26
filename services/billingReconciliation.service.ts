@@ -1,4 +1,5 @@
 import { billingTransaction, billingRecordScope, currentSlot, isPendingSlot, isRetiredAggregateReceipt, lockBillingCoordinator, billingCoordinator } from "@/services/billingAgreementScope.service";
+import { isPaymentRecoveryAuthorization } from "@/lib/billingState";
 import {
   BillingManualReviewRequiredError,
   BillingResourceNotFoundError,
@@ -172,7 +173,11 @@ async function resolveCommercialIntent(
   const replacement = await prisma.organizationBillingChange.findUnique({
     where: { ...billingRecordScope(), replacementSubscriptionId: local.id },
   });
-  if (replacement) return replacement;
+  // After promotion this mandate can recover or renew independently. The
+  // original replacement receipt describes its cutover, not every later debit.
+  if (replacement && (!local.agreementBranchId || local.currentAgreementBranchId !== local.agreementBranchId)) {
+    return replacement;
+  }
 
   const authorization = await prisma.organizationBillingChange.findFirst({
     where: {
@@ -651,6 +656,35 @@ export class BillingReconciliationService {
       ?? (selectedInvoice?.payment_id
         ? await razorpay.fetchPayment(selectedInvoice.payment_id)
         : null);
+    const periodStart = date(selectedInvoice?.billing_start);
+    const periodEnd = date(selectedInvoice?.billing_end);
+    const recovering = intent && isPaymentRecoveryAuthorization(intent) && !intent.resolvedAt;
+    if (localBeforeFetch.agreementBranchId && selectedInvoice && payment && periodStart && periodEnd
+      && localBeforeFetch.paidThrough && periodEnd <= localBeforeFetch.paidThrough
+      && (recovering || periodEnd < localBeforeFetch.paidThrough || periodEnd <= now)) {
+      // A paid receipt from the preceding cycle can arrive under a new event
+      // ID. Match its immutable evidence before acknowledging it as old.
+      const old = await prisma.organizationSubscriptionInvoice.findFirst({ where: {
+        ...billingRecordScope(), organizationId: localBeforeFetch.organizationId, organizationSubscriptionId: localBeforeFetch.id,
+        razorpayInvoiceId: selectedInvoice.id, razorpayPaymentId: payment.id, commercialEvidenceVersion: 1,
+        evidenceConfirmedAt: { not: null }, evidenceFailureCode: null,
+      } });
+      if (old?.commercialIntentChangeId && selectedInvoice.status === "paid" && selectedInvoice.amount_due === 0
+        && selectedInvoice.amount === old.amountSubunits && selectedInvoice.amount_paid === old.amountPaidSubunits
+        && selectedInvoice.currency === old.currency && selectedInvoice.payment_id === payment.id
+        && payment.invoice_id === selectedInvoice.id && payment.status === "captured" && payment.captured === true
+        && typeof payment.currency === "string" && (!payment.subscription_id || payment.subscription_id === razorpaySubscriptionId)
+        && evidenceMatchesStoredInvoice({ stored: old, intentId: old.commercialIntentChangeId,
+          providerMode, providerSubscription, payment, periodStart, periodEnd })) {
+        if (options.paymentId && !options.commercialIntentChangeId && matchingCurrentInvoices.some(invoice => invoice.id !== selectedInvoice.id)) {
+          return this.reconcileProviderSubscription(razorpaySubscriptionId, { ...options, paymentId: null }, staleRetry);
+        }
+        return { subscription: localBeforeFetch, confirmedPaidPeriod: false, evidenceKind: "PENDING",
+          commercialIntentChangeId: intent?.id ?? null, payment: null, invoices };
+      }
+      if (recovering) return quarantineCommercialMismatch({ local: localBeforeFetch, intent,
+        code: "STALE_SETTLEMENT", now, options });
+    }
     const providerPlan: RazorpayPlan | null = selectedInvoice && razorpay.fetchPlan
       ? await razorpay.fetchPlan(providerSubscription.plan_id)
       : null;
@@ -1103,7 +1137,8 @@ export class BillingReconciliationService {
           });
         }
 
-        const replacement = lockedIntent.replacementSubscriptionId === local.id;
+        const replacement = lockedIntent.replacementSubscriptionId === local.id
+          && (!local.agreementBranchId || local.currentAgreementBranchId !== local.agreementBranchId);
         if (replacement) {
           const retainsManualReview = lockedIntent.failureCategory === "MANUAL_REVIEW_REQUIRED"
             || lockedIntent.failureCode?.startsWith("SOURCE_CANCELLATION_");
