@@ -159,6 +159,7 @@ export type BillingInvoicePage = { items: BillingInvoiceDto[]; nextCursor: strin
 export type BillingOperationDto = {
   clientIntent?: BranchBillingIntentReceipt;
   canResumePaymentRecovery?: boolean;
+  requiresPaymentRecoveryReview?: true;
   id: string;
   organizationId: string;
   type: string;

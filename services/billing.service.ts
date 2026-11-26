@@ -3,7 +3,7 @@ import { isHistoricalCommercialModel, historicalCancellationPolicy } from "@/ser
 import { executeBillingProviderAction, confirmReconciledBillingProviderAction, getConfirmedBillingProviderResponse } from "@/services/billingProviderAction.service";
 import { prisma } from "@/lib/prisma";
 import { branchBillingIntentActions, isBrowserBillingIntentKey } from "@/lib/branchBillingIntents";
-import { canResumePaymentRecovery, isPaymentRecoveryAuthorization, isRecoverableMandateStatus, projectedBillableStatuses, TERMINAL_STATUSES } from "@/lib/billingState";
+import { canResumePaymentRecovery, isPaymentRecoveryAuthorization, isRecoverableMandateStatus, projectedBillableStatuses, requiresPaymentRecoveryReview, TERMINAL_STATUSES } from "@/lib/billingState";
 import { isHistoricalBillingFixture } from "@/lib/billingHistoricalFixtures";
 import crypto from "node:crypto";
 import { BILLING_PLANS, billingPlanRank, getActiveBillingPlan, getBillingPlan, publicBillingPlans, type BillingPlan } from "@/lib/billingPlans";
@@ -1765,6 +1765,7 @@ function serializeBillingOperation(change: BranchIntentChange & {
 }) {
   return {
     ...branchIntentReceipt(change),
+    ...(requiresPaymentRecoveryReview(change) ? { requiresPaymentRecoveryReview: true as const } : {}),
     id: change.id,
     organizationId: change.organizationId,
     type: change.type,

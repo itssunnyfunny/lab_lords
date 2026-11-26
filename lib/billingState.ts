@@ -12,6 +12,17 @@ export function isPaymentRecoveryAuthorization(change: { type: string; idempoten
   return change.type === "SUBSCRIPTION_AUTHORIZATION" && change.idempotencyKey.startsWith("payment-recovery:");
 }
 
+export const PAYMENT_RECOVERY_REVIEW_MESSAGE = "Razorpay has not confirmed this payment. You can check its status again.";
+
+export function requiresPaymentRecoveryReview(change: {
+  type: string; idempotencyKey: string; agreementBranchId: string | null;
+  status: string; failureCategory: string | null; resolvedAt: Date | null;
+}) {
+  return change.agreementBranchId != null && isPaymentRecoveryAuthorization(change)
+    && change.failureCategory === "MANUAL_REVIEW_REQUIRED" && change.resolvedAt === null
+    && (change.status === "FAILED" || change.status === "AWAITING_PAYMENT");
+}
+
 export function isRecoverableMandateStatus(status: string) {
   return ["PENDING", "HALTED", "PAUSED"].includes(status.toUpperCase());
 }

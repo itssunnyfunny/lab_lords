@@ -2,7 +2,7 @@ import { trialForBillingWorkspace } from "./billingAgreementScope.service";
 import { historicalBillingState } from "@/services/legacyCommercialCompatibility";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlan, isCheckoutBillingPlanId, type BillingPlanId } from "@/lib/billingPlans";
-import { canResumePaymentRecovery, deriveWorkspaceBillingState, isPaymentRecoveryAuthorization, needsSourceCancellationReview, projectedBillableStatuses } from "@/lib/billingState";
+import { canResumePaymentRecovery, deriveWorkspaceBillingState, isPaymentRecoveryAuthorization, needsSourceCancellationReview, PAYMENT_RECOVERY_REVIEW_MESSAGE, projectedBillableStatuses, requiresPaymentRecoveryReview } from "@/lib/billingState";
 import type { BillingExperience, BillingExperienceOperation } from "@/types/billingExperience";
 import type { OrganizationBillingChange } from "@/app/generated/prisma/client";
 import { BillingResourceNotFoundError } from "@/lib/billingErrors";
@@ -218,6 +218,12 @@ export class BillingExperienceService {
               failureCategory: "MANUAL_REVIEW_REQUIRED",
               failureCode: { startsWith: "SOURCE_CANCELLATION_" },
             }] : []),
+            ...(agreement && subscription ? [{
+              organizationSubscriptionId: subscription.id,
+              type: "SUBSCRIPTION_AUTHORIZATION" as const,
+              failureCategory: "MANUAL_REVIEW_REQUIRED" as const,
+              resolvedAt: null,
+            }] : []),
           ] }],
           ...(providerMode ? {
             OR: [
@@ -274,7 +280,9 @@ export class BillingExperienceService {
     const projectedQuantity = independent ? Number(branch?.billingStatus !== "ARCHIVED" && branch?.billingStatus !== "REMOVAL_SCHEDULED") : organization.branches.length;
     const sourceReview = scheduledOrHeld.find(change => change.organizationSubscriptionId === subscription?.id
       && needsSourceCancellationReview(change));
-    const activeOperation = sourceReview ?? (latestOperation
+    const recoveryReview = scheduledOrHeld.find(change => change.organizationSubscriptionId === subscription?.id
+      && requiresPaymentRecoveryReview(change));
+    const activeOperation = sourceReview ?? recoveryReview ?? (latestOperation
       && ACTIVE_OPERATION_STATUSES.includes(latestOperation.operationStatus as typeof ACTIVE_OPERATION_STATUSES[number])
       ? latestOperation
       : null);
@@ -296,6 +304,7 @@ export class BillingExperienceService {
     const branchRecovery = latestOperation?.agreementBranchId && isPaymentRecoveryAuthorization(latestOperation);
     const latestFailed = !branchRecovery && isCustomerVisibleOperationFailure(latestOperation);
     const paymentAction = sourceReview ? "RECONCILE_SOURCE_CANCELLATION" as const
+      : recoveryReview ? (isOwner ? "CHECK_PAYMENT_STATUS" as const : "NONE" as const)
       : isOwner && canResumePaymentRecovery(latestOperation, subscription, branch?.billingStatus, agreement?.billingMutationSequence)
       ? "RESUME_PAYMENT_RECOVERY" as const
       : activeOperation && branchRecovery
@@ -355,8 +364,9 @@ export class BillingExperienceService {
       effectivePlan,
       selectedPostTrialPlan: postTrialPlan,
       providerStatus: subscription?.status ?? null,
-      customerState: presentation.state,
+      customerState: paymentAction === "CHECK_PAYMENT_STATUS" ? "CONFIRMING" : presentation.state,
       customerMessage: independent && branch?.billingStatus !== "ACTIVE" ? profile!.accessReason
+        : paymentAction === "CHECK_PAYMENT_STATUS" ? PAYMENT_RECOVERY_REVIEW_MESSAGE
         : paymentAction === "RESUME_PAYMENT_RECOVERY" ? "You can continue the payment for this branch’s existing subscription." : presentation.message,
       trialEndsAt: trial?.trialEndsAt?.toISOString() ?? null,
       trialPlan: trial?.trialPlan ?? null,
