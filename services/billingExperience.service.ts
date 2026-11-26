@@ -2,7 +2,7 @@ import { trialForBillingWorkspace } from "./billingAgreementScope.service";
 import { historicalBillingState } from "@/services/legacyCommercialCompatibility";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlan, isCheckoutBillingPlanId, type BillingPlanId } from "@/lib/billingPlans";
-import { deriveWorkspaceBillingState, needsSourceCancellationReview, projectedBillableStatuses } from "@/lib/billingState";
+import { canResumePaymentRecovery, deriveWorkspaceBillingState, isPaymentRecoveryAuthorization, needsSourceCancellationReview, projectedBillableStatuses } from "@/lib/billingState";
 import type { BillingExperience, BillingExperienceOperation } from "@/types/billingExperience";
 import type { OrganizationBillingChange } from "@/app/generated/prisma/client";
 import { BillingResourceNotFoundError } from "@/lib/billingErrors";
@@ -293,8 +293,13 @@ export class BillingExperienceService {
       postTrialPlanSelected: postTrialPlan != null,
     });
 
-    const latestFailed = isCustomerVisibleOperationFailure(latestOperation);
+    const branchRecovery = latestOperation?.agreementBranchId && isPaymentRecoveryAuthorization(latestOperation);
+    const latestFailed = !branchRecovery && isCustomerVisibleOperationFailure(latestOperation);
     const paymentAction = sourceReview ? "RECONCILE_SOURCE_CANCELLATION" as const
+      : isOwner && canResumePaymentRecovery(latestOperation, subscription, branch?.billingStatus, agreement?.billingMutationSequence)
+      ? "RESUME_PAYMENT_RECOVERY" as const
+      : activeOperation && branchRecovery
+      ? "WAIT_FOR_CONFIRMATION" as const
       : activeOperation?.operationStatus === "CHECKOUT_OPEN"
       ? "CONTINUE_CHECKOUT" as const
       : ["VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"].includes(activeOperation?.operationStatus ?? "")
@@ -351,7 +356,8 @@ export class BillingExperienceService {
       selectedPostTrialPlan: postTrialPlan,
       providerStatus: subscription?.status ?? null,
       customerState: presentation.state,
-      customerMessage: independent && branch?.billingStatus !== "ACTIVE" ? profile!.accessReason : presentation.message,
+      customerMessage: independent && branch?.billingStatus !== "ACTIVE" ? profile!.accessReason
+        : paymentAction === "RESUME_PAYMENT_RECOVERY" ? "You can continue the payment for this branch’s existing subscription." : presentation.message,
       trialEndsAt: trial?.trialEndsAt?.toISOString() ?? null,
       trialPlan: trial?.trialPlan ?? null,
       trialDaysRemaining: trialActive && trial?.trialEndsAt

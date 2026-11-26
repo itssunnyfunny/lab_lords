@@ -382,6 +382,33 @@ describe("independent branch evidence", () => {
     return () => BillingExperienceService.getBillingExperience(branch.organizationId, "owner_1", branch.id);
   }
 
+  it("offers recovery after the local deadline only for the unpaid current branch mandate", async () => {
+    const branch = independentBranch("selected", "STANDARD");
+    const subscription = Object.assign(branch.billingAgreement.subscription, {
+      status: "HALTED", currentAgreementBranchId: branch.id,
+    });
+    const read = ownerReads(branch);
+    const receipt = { ...organization().pendingSubscriptionReplacement.replacementBillingChange,
+      type: "SUBSCRIPTION_AUTHORIZATION", idempotencyKey: "payment-recovery:original", status: "AWAITING_PAYMENT",
+      operationStatus: "AWAITING_PROVIDER_CONFIRMATION", agreementBranchId: branch.id,
+      organizationSubscriptionId: subscription.id, authorizedRazorpaySubscriptionId: subscription.razorpaySubscriptionId,
+      authorizedProviderMode: "TEST", confirmationDeadlineAt: new Date("2026-08-14T23:59:59Z"),
+    };
+    mocks.latestChange.mockResolvedValue(receipt);
+    await expect(read()).resolves.toMatchObject({ paymentAction: "RESUME_PAYMENT_RECOVERY", activeOperation: { id: receipt.id } });
+    mocks.latestChange.mockResolvedValue({ ...receipt, authorizedRazorpaySubscriptionId: "prior-mandate" });
+    await expect(read()).resolves.toMatchObject({ paymentAction: "WAIT_FOR_CONFIRMATION" });
+    mocks.latestChange.mockResolvedValue({ ...receipt, idempotencyKey: "new-subscription" });
+    await expect(read()).resolves.toMatchObject({ paymentAction: "WAIT_FOR_CONFIRMATION" });
+    const dismissed = { ...receipt, sequence: 4, status: "UNDONE", operationStatus: "ABANDONED",
+      failureCategory: "CHECKOUT_ABANDONED", resolvedAt: new Date("2026-08-14T23:59:58Z") };
+    Object.assign(branch.billingAgreement, { billingMutationSequence: dismissed.sequence });
+    mocks.latestChange.mockResolvedValue(dismissed);
+    await expect(read()).resolves.toMatchObject({ paymentAction: "RESUME_PAYMENT_RECOVERY", latestOperation: { id: receipt.id }, activeOperation: null });
+    Object.assign(branch.billingAgreement, { billingMutationSequence: dismissed.sequence + 1 });
+    await expect(read()).resolves.toMatchObject({ paymentAction: "UPDATE_CARD" });
+  });
+
   it.each(["FAILED", "SCHEDULED"])("offers exact source cancellation reconciliation for persisted %s behind a newer operation", async operationStatus => {
     const branch = independentBranch("selected", "BASIC");
     branch.billingAgreement.subscription.status = "PENDING";

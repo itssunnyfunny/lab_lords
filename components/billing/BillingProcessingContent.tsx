@@ -12,8 +12,10 @@ import { needsSourceCancellationReview } from "@/lib/billingState";
 import {
   getRazorpayCheckoutPayload,
   isRazorpayCheckoutReady,
+  openHostedPaymentRecovery,
   openRazorpayCheckout,
   RazorpayCheckoutScript,
+  RECOVERY_UNAVAILABLE_MESSAGE,
   type RazorpayCheckoutEventResult,
 } from "@/components/billing/RazorpayCheckoutLauncher";
 import { AppButton, AppPanel } from "@/components/ui";
@@ -92,7 +94,7 @@ export function isBillingOperationTerminal(status: BillingOperationDto["operatio
   return TERMINAL_OPERATION_STATUSES.has(status);
 }
 
-export function getBillingProcessingCopy(operation: BillingOperationDto | null, timedOut: boolean) {
+export function getBillingProcessingCopy(operation: BillingOperationDto | null, timedOut: boolean, recoveryUnavailable = false) {
   if (!operation) return { title: "Checking your billing update", body: "We are securely checking Razorpay for confirmation." };
   if (needsSourceCancellationReview(operation)) return {
     title: "Checking the previous subscription",
@@ -100,6 +102,11 @@ export function getBillingProcessingCopy(operation: BillingOperationDto | null, 
   };
   if (operation.operationStatus === "APPLIED") return { title: "Billing update confirmed", body: "Your account now reflects the provider-confirmed change." };
   if (operation.operationStatus === "SCHEDULED") return { title: "Change scheduled", body: "Your current access stays in place until the effective date shown in billing settings." };
+  if (recoveryUnavailable && !isBillingOperationTerminal(operation.operationStatus)) return { title: "Payment recovery", body: RECOVERY_UNAVAILABLE_MESSAGE };
+  if (operation.canResumePaymentRecovery) return { title: "Payment recovery", body: "You can continue the payment for this branch’s existing subscription." };
+  if (operation.canResumePaymentRecovery === false && isBillingOperationTerminal(operation.operationStatus)) {
+    return { title: "Payment recovery ended", body: "Return to billing to see the available actions for this branch." };
+  }
   if (operation.operationStatus === "ABANDONED") return { title: "Payment was not completed", body: "Your current plan or trial has not been changed." };
   if (operation.operationStatus === "DECLINED") return { title: "Authorization was not confirmed", body: "You can retry with another supported recurring payment method. Check your bank statement before retrying if the provider response was unclear." };
   if (operation.operationStatus === "FAILED") return { title: "We could not apply the billing update", body: operation.message || "Your existing access remains unchanged. You can safely retry." };
@@ -114,6 +121,7 @@ export default function BillingProcessingContent({ orgId, changeId, branchId, re
   const [operation, setOperation] = useState<BillingOperationDto | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [recoveryUnavailable, setRecoveryUnavailable] = useState(false);
   const [error, setError] = useState("");
   const [pollGeneration, setPollGeneration] = useState(0);
   const [checkoutReady, setCheckoutReady] = useState(() => isRazorpayCheckoutReady());
@@ -215,17 +223,19 @@ export default function BillingProcessingContent({ orgId, changeId, branchId, re
     };
   }, [applyOperation, billing, changeId, orgId, pollGeneration, reconcileIfDue]);
 
-  const content = useMemo(() => getBillingProcessingCopy(operation, timedOut), [operation, timedOut]);
+  const content = getBillingProcessingCopy(operation, timedOut, recoveryUnavailable);
   const sourceReview = needsSourceCancellationReview(operation);
+  const resumeRecovery = operation?.canResumePaymentRecovery === true;
   const successful = !sourceReview && (operation?.operationStatus === "APPLIED" || operation?.operationStatus === "SCHEDULED");
   useEffect(() => {
     if (successful) window.dispatchEvent(new Event("billing-access-changed"));
   }, [successful]);
   const failed = operation && (sourceReview || ["DECLINED", "ABANDONED", "FAILED"].includes(operation.operationStatus));
+  const waitingForCheckout = !resumeRecovery && !sourceReview && operation?.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady;
   const returnPath = accountBillingOperationReturn(orgId, operation?.returnPath, branchId, returnTo);
 
   const retry = async () => {
-    if (!sourceReview && operation?.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady) {
+    if (waitingForCheckout) {
       setError("Razorpay Checkout is still loading. Please wait a moment and try again.");
       return;
     }
@@ -241,6 +251,8 @@ export default function BillingProcessingContent({ orgId, changeId, branchId, re
       }
       const result = await billing.retryOperation(orgId, changeId);
       if (!mounted.current) return;
+      setRecoveryUnavailable("recoveryUnavailable" in result && result.recoveryUnavailable === true);
+      if (openHostedPaymentRecovery(result)) return;
       const checkout = getRazorpayCheckoutPayload(result);
       if (checkout) {
         if (!checkoutReady || !isRazorpayCheckoutReady()) {
@@ -303,24 +315,24 @@ export default function BillingProcessingContent({ orgId, changeId, branchId, re
       <AppPanel density="compact" className="mx-auto w-full max-w-2xl">
         <div
           className="flex flex-col items-center gap-5 py-8 text-center"
-          aria-busy={!successful && !failed && !timedOut}
+          aria-busy={!successful && !failed && !timedOut && !resumeRecovery}
         >
-          {successful ? <CheckCircle2 className="h-12 w-12 text-[color:var(--ui-tone-success-emphasis)]" /> : failed ? <AlertCircle className="h-12 w-12 text-[color:var(--ui-tone-warning-emphasis)]" /> : timedOut ? <Clock3 className="h-12 w-12 text-[color:var(--ui-tone-warning-emphasis)]" /> : <Loader2 className="h-12 w-12 animate-spin text-[color:var(--ui-accent)]" />}
+          {successful ? <CheckCircle2 className="h-12 w-12 text-[color:var(--ui-tone-success-emphasis)]" /> : failed ? <AlertCircle className="h-12 w-12 text-[color:var(--ui-tone-warning-emphasis)]" /> : timedOut || resumeRecovery ? <Clock3 className="h-12 w-12 text-[color:var(--ui-tone-warning-emphasis)]" /> : <Loader2 className="h-12 w-12 animate-spin text-[color:var(--ui-accent)]" />}
           <div className="space-y-2" role="status" aria-live="polite" aria-atomic="true">
             <h2 className="text-xl font-bold text-[color:var(--ui-text)]">{t.owned(content.title)}</h2>
             <p className="max-w-lg text-sm text-[color:var(--ui-text-muted)]">{sourceReview ? t.owned(content.body) : t.error(content.body)}</p>
           </div>
           {error && <p className="text-sm text-[color:var(--ui-tone-danger-text)]" role="alert"><LocalizedError error={error} /></p>}
           <div className="flex flex-wrap justify-center gap-3">
-            {failed && (
+            {(resumeRecovery || (failed && operation.canResumePaymentRecovery === undefined)) && (
               <AppButton
                 density="compact"
                 icon={RotateCcw}
                 isLoading={retrying}
-                disabled={!sourceReview && operation.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady}
+                disabled={waitingForCheckout}
                 onClick={retry}
               >
-                {sourceReview ? t.owned("Check cancellation status") : operation.type === "SUBSCRIPTION_AUTHORIZATION" && !checkoutReady ? t("Loading secure checkout...") : t("Retry safely")}
+                {resumeRecovery ? t("Resume payment recovery") : sourceReview ? t.owned("Check cancellation status") : waitingForCheckout ? t("Loading secure checkout...") : t("Retry safely")}
               </AppButton>
             )}
             {(successful || failed || timedOut) && (

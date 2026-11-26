@@ -158,6 +158,7 @@ export type BillingInvoicePage = { items: BillingInvoiceDto[]; nextCursor: strin
 
 export type BillingOperationDto = {
   clientIntent?: BranchBillingIntentReceipt;
+  canResumePaymentRecovery?: boolean;
   id: string;
   organizationId: string;
   type: string;
@@ -273,6 +274,7 @@ export type BillingOperationResponse = {
   operation: BillingOperationDto;
   processingUrl?: string;
   checkout?: BillingCheckoutPayload;
+  recoveryUnavailable?: boolean;
 };
 
 export type BillingRetryResult = BillingCheckoutPayload | BillingRecoveryPayload | BillingOperationResponse;

@@ -16,7 +16,7 @@ import { WorkspacePreviews } from "@/components/billing/WorkspacePreviews";
 import { workspaceDowngradeNotice } from "@/lib/workspacePresentation";
 import { CheckoutConfirmationDialog } from "@/components/billing/CheckoutConfirmationDialog";
 import { PaymentOutcomeDialog, type PaymentOutcome } from "@/components/billing/PaymentOutcomeDialog";
-import { getRazorpayCheckoutPayload, isRazorpayCheckoutPayload, isRazorpayCheckoutReady, openRazorpayCheckout, RazorpayCheckoutScript, type RazorpayCheckoutEventResult, type RazorpayCheckoutMode, type RazorpayCheckoutPayloadLike } from "@/components/billing/RazorpayCheckoutLauncher";
+import { getRazorpayCheckoutPayload, isRazorpayCheckoutPayload, isRazorpayCheckoutReady, openHostedPaymentRecovery, openRazorpayCheckout, RazorpayCheckoutScript, RECOVERY_UNAVAILABLE_MESSAGE, type RazorpayCheckoutEventResult, type RazorpayCheckoutMode, type RazorpayCheckoutPayloadLike } from "@/components/billing/RazorpayCheckoutLauncher";
 import { formErrorBannerClass, formSuccessBannerClass, formWarningBannerClass } from "@/components/ui/formSurface";
 import { billingForBranch, type BillingOverview, type BillingPlanDto, type OrganizationSubscriptionDto } from "@/lib/api/billing";
 import { branchAccessLabel, branchPlanLabel } from "@/lib/branchBillingLabels";
@@ -317,10 +317,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
             const recovery = await billing.createRecovery(orgId, returnPath + window.location.hash);
             if (!mounted.current) return;
             setRecoveryConfirmationOpen(false);
-            if ("hostedRecoveryUrl" in recovery && recovery.hostedRecoveryUrl) {
-                window.location.assign(recovery.hostedRecoveryUrl);
-                return;
-            }
+            if (openHostedPaymentRecovery(recovery)) return;
             if (!checkoutScriptReady || !isRazorpayCheckoutReady()) {
                 router.push(processingDestination(recovery.processingUrl));
                 return;
@@ -384,6 +381,13 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
 
     const retryBillingOperation = useCallback(async (changeId: string, planId: CheckoutBillingPlanId | null = null) => {
         const result = await billing.retryOperation(orgId, changeId);
+        if (!mounted.current) return "REFRESHED" as const;
+        if (openHostedPaymentRecovery(result)) return "CHECKOUT" as const;
+        if ("recoveryUnavailable" in result && result.recoveryUnavailable) {
+            await loadBilling();
+            if (mounted.current) setBillingNotice({ tone: "warning", message: RECOVERY_UNAVAILABLE_MESSAGE });
+            return "REFRESHED" as const;
+        }
         const checkout = getRazorpayCheckoutPayload(result);
         if (checkout) {
             if (!checkoutScriptReady || !isRazorpayCheckoutReady()) {
@@ -403,7 +407,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
 
     const retryPaymentOutcome = useCallback(async () => {
         if (billingOperationInFlightRef.current) return;
-        if (!checkoutScriptReady || !isRazorpayCheckoutReady()) {
+        if (paymentOutcomeMode !== "RECOVERY" && (!checkoutScriptReady || !isRazorpayCheckoutReady())) {
             setBillingNotice({ tone: "warning", message: "Razorpay Checkout is still loading. Please try again in a moment." });
             return;
         }
@@ -425,7 +429,7 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
         } finally {
             setRetryingOutcome(false);
         }
-    }, [checkoutScriptReady, outcomeChangeId, outcomePlanId, retryBillingOperation, setBillingOperationBusy]);
+    }, [checkoutScriptReady, outcomeChangeId, outcomePlanId, paymentOutcomeMode, retryBillingOperation, setBillingOperationBusy]);
 
     const confirmCancellation = useCallback(async () => {
         if (!cancelDialogOpen || billingOperationInFlightRef.current) return;
@@ -587,10 +591,11 @@ export function OrganizationBillingContent({ orgId, branchId, branchName, return
                 router.push(processingDestination(accountBillingProcessingHref(orgId, operationId)));
                 return;
             }
-            if ((experience.paymentAction === "CONTINUE_CHECKOUT"
+            if ((experience.paymentAction === "RESUME_PAYMENT_RECOVERY"
+                || experience.paymentAction === "CONTINUE_CHECKOUT"
                 || experience.paymentAction === "RETRY_AUTHORIZATION"
                 || experience.paymentAction === "RETRY_BILLING_CHANGE") && operationId) {
-                const checkoutRequired = experience.paymentAction !== "RETRY_BILLING_CHANGE";
+                const checkoutRequired = experience.paymentAction === "CONTINUE_CHECKOUT" || experience.paymentAction === "RETRY_AUTHORIZATION";
                 if (checkoutRequired && (!checkoutScriptReady || !isRazorpayCheckoutReady())) {
                     setBillingNotice({ tone: "warning", message: "Razorpay Checkout is still loading. Please try again in a moment." });
                     setBillingOperationBusy(false);
@@ -1090,6 +1095,7 @@ function formatBillingAction(action: BillingOverview["experience"]["paymentActio
         NONE: "Manage billing",
         CHOOSE_PLAN: "Choose plan",
         CONTINUE_CHECKOUT: "Continue authorization",
+        RESUME_PAYMENT_RECOVERY: "Resume payment recovery",
         WAIT_FOR_CONFIRMATION: "View confirmation",
         RETRY_AUTHORIZATION: "Retry authorization",
         RETRY_BILLING_CHANGE: "Retry billing change",
