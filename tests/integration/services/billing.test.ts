@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withOwnerBillingScope } from "@/services/billingAgreementScope.service";
 import { BillingService } from "@/services/billing.service";
+import { BillingDeadlineService } from "@/services/billingDeadline.service";
 import { BillingReconciliationService } from "@/services/billingReconciliation.service";
 import { EntitlementService } from "@/services/entitlement.service";
 import { BranchService } from "@/services/branch.service";
@@ -400,10 +401,15 @@ describe("BillingService SaaS subscriptions", () => {
       expect(await testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: recovery.changeId } }))
         .toMatchObject({ status: "AWAITING_PAYMENT", operationStatus: "AWAITING_PROVIDER_CONFIRMATION", resolvedAt: null });
       expect(await EntitlementService.getBranchProfile(branches[2])).toMatchObject({ canWrite: false });
+      vi.setSystemTime(new Date(Date.now() + 16 * 60_000));
       await confirmCharge(pro, 49900, "pay_pro_renewed", "inv_pro_renewed", 2, now + period, branches[2], async () => {
-        const result = await withOwnerBillingScope(owner.id, org.id, branches[2], () =>
-          BillingService.reconcileMutation(owner.id, org.id, recovery.changeId));
-        expect(result.operation).toMatchObject({ id: recovery.changeId, operationStatus: "APPLIED" });
+        const result = await withOwnerBillingScope(owner.id, org.id, branches[2], async () =>
+          status === "halted"
+            ? BillingService.retryBillingOperation(owner.id, org.id, recovery.changeId)
+            : BillingService.reconcileMutation(owner.id, org.id, recovery.changeId));
+        expect(result).toMatchObject({ operation: { id: recovery.changeId, operationStatus: "APPLIED" } });
+        expect(result).not.toHaveProperty("subscriptionId");
+        expect(result).not.toHaveProperty("checkout");
       });
       const renewedInvoice = (await provider.fetchSubscriptionInvoices(pro.id)).items[0];
       const renewedPayment = await provider.fetchPayment(renewedInvoice.payment_id!);
@@ -425,6 +431,116 @@ describe("BillingService SaaS subscriptions", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe("overdue independent branch payment recovery", () => {
+    const originalUrl = "https://rzp.io/i/first-recovery";
+    const freshUrl = "https://rzp.io/i/resumed-recovery";
+
+    afterEach(() => vi.useRealTimers());
+
+    async function startRecovery(status: "HALTED" | "PENDING" | "PAUSED", method: "CARD" | "UPI") {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      const owner = await createUser();
+      const org = await createOrg({ ownerId: owner.id, billingModelVersion: "BRANCH_V3" });
+      const branch = await createBranch({ organizationId: org.id });
+      const sibling = await createBranch({ organizationId: org.id, selectedPlan: "PRO" });
+      const subscription = await createSaasSubscription({
+        organizationId: org.id, agreementBranchId: branch.id, plan: "BASIC", status,
+      });
+      await testPrisma.organizationSubscription.update({
+        where: { id: subscription.id }, data: { providerPaymentMethod: method },
+      });
+      const paidSibling = await createSaasSubscription({
+        organizationId: org.id, agreementBranchId: sibling.id, plan: "PRO",
+      });
+      await testPrisma.organizationSubscription.update({
+        where: { id: paidSibling.id }, data: { lastReconciledAt: new Date() },
+      });
+      const provider = createFakeRazorpayClient();
+      setRazorpayClientForTests(provider);
+      const gateway = {
+        entity: "subscription" as const, id: subscription.razorpaySubscriptionId, plan_id: subscription.razorpayPlanId,
+        status: status.toLowerCase(), quantity: 1, total_count: 120, paid_count: 0,
+        payment_method: method.toLowerCase(), short_url: originalUrl,
+        notes: { branch_agreement_id: branch.id },
+      };
+      vi.mocked(provider.fetchSubscription).mockResolvedValue(gateway);
+      const scope = <T>(work: () => Promise<T>) => withOwnerBillingScope(owner.id, org.id, branch.id, work);
+      const checkout = await scope(() => BillingService.getRecoveryCheckout(owner.id, org.id, undefined, "recover"));
+      expect(checkout).toMatchObject({ subscriptionId: gateway.id, hostedRecoveryUrl: originalUrl });
+      if (!("changeId" in checkout)) throw new Error("Expected hosted recovery on the original mandate");
+
+      // No close event or provider callback. Both the processing page and the deadline worker see an overdue receipt.
+      vi.setSystemTime(new Date(Date.now() + 16 * 60_000));
+      const operation = () => scope(() => BillingService.getBillingOperation(owner.id, org.id, checkout.changeId));
+      await operation();
+      expect((await BillingDeadlineService.run()).errors).toEqual([]);
+      const resume = () => scope(() => BillingService.retryBillingOperation(owner.id, org.id, checkout.changeId));
+      return { owner, org, branch, sibling, subscription, provider, gateway, changeId: checkout.changeId, operation, resume };
+    }
+
+    it.each([
+      { status: "HALTED", method: "UPI", hosted: true },
+      { status: "PENDING", method: "CARD", hosted: true },
+      { status: "PAUSED", method: "CARD", hosted: false },
+    ] as const)("resumes the same $status mandate after its local deadline", async ({ status, method, hosted }) => {
+      const { owner, org, branch, sibling, subscription, provider, gateway, changeId, operation, resume } = await startRecovery(status, method);
+      const overview = await BillingService.listPlansForOrganization(owner.id, org.id, branch.id);
+      expect(overview.experience).toMatchObject({ paymentAction: "RESUME_PAYMENT_RECOVERY", activeOperation: { id: changeId } });
+      expect(await operation()).toMatchObject({ operation: { id: changeId, canResumePaymentRecovery: true } });
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+      expect(await EntitlementService.getBranchProfile(sibling.id)).toMatchObject({ canWrite: true, effectivePlan: "PRO" });
+      vi.mocked(provider.fetchSubscription).mockClear().mockResolvedValue({
+        ...gateway, short_url: hosted ? freshUrl : "https://example.test/untrusted",
+      });
+      const foreignOwner = await createUser();
+      const foreignOrg = await createOrg({ ownerId: foreignOwner.id });
+      const foreignBranch = await createBranch({ organizationId: foreignOrg.id });
+      await expect(withOwnerBillingScope(owner.id, org.id, sibling.id, () =>
+        BillingService.retryBillingOperation(owner.id, org.id, changeId))).rejects.toThrow("not found");
+      await expect(withOwnerBillingScope(foreignOwner.id, foreignOrg.id, foreignBranch.id, () =>
+        BillingService.retryBillingOperation(foreignOwner.id, foreignOrg.id, changeId))).rejects.toThrow("not found");
+      expect(provider.fetchSubscription).not.toHaveBeenCalled();
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const resumed = await resume();
+        expect(resumed).toMatchObject({ purpose: "RECOVERY", changeId, subscriptionId: gateway.id });
+        if (hosted) {
+          expect(resumed).toMatchObject({ hostedRecoveryUrl: freshUrl });
+          expect(resumed).not.toHaveProperty("subscription_card_change");
+        } else {
+          expect(resumed).toMatchObject({ subscription_card_change: true });
+          expect(resumed).not.toHaveProperty("hostedRecoveryUrl");
+        }
+        expect(provider.fetchSubscription).toHaveBeenCalledWith(gateway.id);
+        vi.mocked(provider.fetchSubscription).mockClear();
+      }
+      expect(await testPrisma.organizationBillingChange.findMany({ where: { agreementBranchId: branch.id } }))
+        .toMatchObject([{ id: changeId, organizationSubscriptionId: subscription.id, operationStatus: "CHECKOUT_OPEN", resolvedAt: null }]);
+      expect(await testPrisma.organizationSubscriptionInvoice.count({ where: { agreementBranchId: branch.id } })).toBe(0);
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+      expect(await EntitlementService.getBranchProfile(sibling.id)).toMatchObject({ canWrite: true, effectivePlan: "PRO" });
+      expect(provider.createSubscription).not.toHaveBeenCalled();
+      expect(provider.cancelSubscription).not.toHaveBeenCalled();
+    });
+
+    it("holds a non-card recovery without a trusted hosted URL and resolves an ended mandate on the same receipt", async () => {
+      const { branch, provider, gateway, changeId, resume } = await startRecovery("HALTED", "UPI");
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...gateway, short_url: "https://example.test/recovery" });
+      const pending = await resume();
+      expect(pending).toMatchObject({ operation: { id: changeId, operationStatus: "AWAITING_PROVIDER_CONFIRMATION" } });
+      expect(pending).not.toHaveProperty("checkout");
+      expect(pending).not.toHaveProperty("subscriptionId");
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...gateway, status: "cancelled" });
+      const terminal = await resume();
+      expect(terminal).toMatchObject({ operation: { id: changeId, operationStatus: "FAILED" } });
+      expect(terminal).not.toHaveProperty("checkout");
+      expect(terminal).not.toHaveProperty("subscriptionId");
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+      expect(provider.createSubscription).not.toHaveBeenCalled();
+      expect(provider.cancelSubscription).not.toHaveBeenCalled();
+    });
   });
 
   it("creates a Razorpay subscription checkout for the Basic SaaS plan", async () => {
