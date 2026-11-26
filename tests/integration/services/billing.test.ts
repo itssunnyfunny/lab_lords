@@ -541,6 +541,71 @@ describe("BillingService SaaS subscriptions", () => {
       expect(provider.createSubscription).not.toHaveBeenCalled();
       expect(provider.cancelSubscription).not.toHaveBeenCalled();
     });
+
+    it("checks a quarantined branch recovery on the original receipt and adopts later exact settlement", async () => {
+      const { owner, org, branch, sibling, subscription, provider, gateway, changeId, operation, resume } =
+        await startRecovery("HALTED", "CARD");
+      const checkStatus = () => withOwnerBillingScope(owner.id, org.id, branch.id, () =>
+        BillingService.reconcileMutation(owner.id, org.id, changeId));
+      const receipt = () => testPrisma.organizationBillingChange.findUniqueOrThrow({ where: { id: changeId } });
+      const siblingMandate = () => testPrisma.organizationSubscription.findUniqueOrThrow({
+        where: { currentAgreementBranchId: sibling.id },
+      });
+      const originalSibling = await siblingMandate();
+      const held = {
+        id: changeId, organizationSubscriptionId: subscription.id, agreementBranchId: branch.id,
+        operationStatus: "FAILED", failureCategory: "MANUAL_REVIEW_REQUIRED", resolvedAt: null,
+      };
+
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({ ...gateway, plan_id: "plan_other" });
+      await expect(resume()).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+      expect(await receipt()).toMatchObject(held);
+      expect((await operation()).operation).toMatchObject({
+        id: changeId, canResumePaymentRecovery: false, requiresPaymentRecoveryReview: true,
+      });
+      const overview = await BillingService.listPlansForOrganization(owner.id, org.id, branch.id);
+      expect(overview.experience).toMatchObject({ paymentAction: "CHECK_PAYMENT_STATUS", activeOperation: { id: changeId } });
+
+      // Correcting the plan alone still leaves the renewal unpaid.
+      vi.mocked(provider.fetchSubscription).mockResolvedValue(gateway);
+      await expect(checkStatus()).rejects.toBeInstanceOf(BillingManualReviewRequiredError);
+      expect(await receipt()).toMatchObject(held);
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ canWrite: false });
+      expect(await testPrisma.organizationSubscriptionInvoice.count({ where: { agreementBranchId: branch.id } })).toBe(0);
+      expect(await siblingMandate()).toEqual(originalSibling);
+      expect(await EntitlementService.getBranchProfile(sibling.id)).toMatchObject({ effectivePlan: "PRO", canWrite: true });
+
+      const start = Math.floor(Date.now() / 1000);
+      const end = start + 30 * 86400;
+      const invoice = {
+        entity: "invoice" as const, id: "inv_recovery_review", status: "paid", currency: "INR",
+        amount: 9900, amount_paid: 9900, amount_due: 0, subscription_id: gateway.id,
+        payment_id: "pay_recovery_review", billing_start: start, billing_end: end, paid_at: start,
+      };
+      vi.mocked(provider.fetchSubscription).mockResolvedValue({
+        ...gateway, status: "active", current_start: start, current_end: end, paid_count: 1,
+      });
+      vi.mocked(provider.fetchSubscriptionInvoices).mockResolvedValue({ entity: "collection", count: 1, items: [invoice] });
+      vi.mocked(provider.fetchPayment).mockResolvedValue({
+        entity: "payment", id: invoice.payment_id, status: "captured", captured: true, method: "card",
+        currency: invoice.currency, amount: invoice.amount, subscription_id: gateway.id, invoice_id: invoice.id, order_id: null,
+      });
+      const checked = await checkStatus();
+      expect(checked.operation).toMatchObject({ id: changeId, operationStatus: "APPLIED" });
+      expect(checked).not.toHaveProperty("checkout");
+      expect(await receipt()).toMatchObject({ organizationSubscriptionId: subscription.id, providerPaymentId: invoice.payment_id });
+      expect(await testPrisma.organizationSubscriptionInvoice.findMany({ where: { agreementBranchId: branch.id } }))
+        .toMatchObject([{ organizationSubscriptionId: subscription.id, commercialIntentChangeId: changeId,
+          razorpayInvoiceId: invoice.id, razorpayPaymentId: invoice.payment_id, paymentCaptured: true }]);
+      expect(await testPrisma.organizationSubscription.findUniqueOrThrow({ where: { id: subscription.id } })).toMatchObject({
+        razorpaySubscriptionId: gateway.id, paidThrough: new Date(end * 1000), confirmedCommercialIntentChangeId: changeId,
+      });
+      expect(await EntitlementService.getBranchProfile(branch.id)).toMatchObject({ effectivePlan: "BASIC", canWrite: true });
+      expect(await siblingMandate()).toEqual(originalSibling);
+      expect(await EntitlementService.getBranchProfile(sibling.id)).toMatchObject({ effectivePlan: "PRO", canWrite: true });
+      expect(provider.createSubscription).not.toHaveBeenCalled();
+      expect(provider.cancelSubscription).not.toHaveBeenCalled();
+    });
   });
 
   it("creates a Razorpay subscription checkout for the Basic SaaS plan", async () => {

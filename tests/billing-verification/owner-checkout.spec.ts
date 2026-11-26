@@ -429,7 +429,8 @@ function json(route: Route, body: unknown, status = 200) {
 async function mockBillingPage(
   page: Page,
   overview = makeOverview(),
-  operation = makeOperation()
+  operation = makeOperation(),
+  { checkoutScript = true } = {}
 ): Promise<BillingMockController> {
   await page.clock.setFixedTime(new Date("2027-08-06T12:00:00Z"));
   const controller: BillingMockController = {
@@ -446,7 +447,7 @@ async function mockBillingPage(
   await page.route("**/*", route => new URL(route.request().url()).origin === fixtureOrigin
     ? route.fallback() : route.abort("blockedbyclient"));
   await installSettingsRouteFixture(page);
-  await installRazorpayMock(page);
+  if (checkoutScript) await installRazorpayMock(page);
 
   await page.route(`**/api/organizations/${ORG_ID}/billing?branchId=${BRANCH_ID}`, route =>
     json(route, controller.overview)
@@ -607,6 +608,77 @@ for (const surface of ["Account Billing", "processing"] as const) {
     expect(controller.checkoutEvents).toHaveLength(0);
   });
 }
+
+test("checks a quarantined recovery receipt from both billing screens without checkout", async ({ page }) => {
+  const subscription = makeSubscription({ status: "HALTED", providerPaymentMethod: "CARD" });
+  const overview = makeOverview(makeExperience({
+    accessMode: "READ_ONLY", effectivePlan: "NONE", billingAccessSource: "NONE",
+    providerStatus: "HALTED", customerState: "PAYMENT_HALTED", trialEndsAt: null,
+    trialDaysRemaining: 0, entitlements: [], paymentAction: "UPDATE_CARD",
+  }), subscription);
+  const checkout = { ...makeCheckoutPayload(), purpose: "RECOVERY", subscription_card_change: true, subscription };
+  const controller = await mockBillingPage(page, overview, checkout.operation, { checkoutScript: false });
+  const api = `/api/organizations/${ORG_ID}/billing`;
+  const original = `${api}/mutations/${CHANGE_ID}?branchId=${BRANCH_ID}`;
+  const start = `${api}/subscription/recovery?branchId=${BRANCH_ID}`;
+  const commands: string[] = [];
+  page.on("request", request => {
+    const { pathname, search } = new URL(request.url());
+    if (request.method() !== "GET" && pathname.startsWith(api)) commands.push(pathname + search);
+  });
+  await page.route(`**${start}`, route => json(route, checkout));
+  let settled = false;
+  await page.route(`**${original}`, route => {
+    if (route.request().method() === "POST") {
+      if (settled) {
+        controller.operation = makeOperation("APPLIED", { providerPaymentId: "pay_recovery_settled" });
+      } else {
+        controller.operation = makeOperation("FAILED", {
+          queueStatus: "FAILED", canResumePaymentRecovery: false, requiresPaymentRecoveryReview: true,
+          failureCategory: "MANUAL_REVIEW_REQUIRED", failureCode: "MALFORMED_PROVIDER_EVIDENCE",
+        });
+        const receipt = { ...controller.operation, status: "FAILED", lastError: null, branchId: BRANCH_ID,
+          toPlan: subscription.plan, toQuantity: 1 };
+        overview.experience.paymentAction = "CHECK_PAYMENT_STATUS";
+        overview.experience.activeOperation = receipt;
+        overview.experience.latestOperation = { ...receipt, id: "newer-unrelated-receipt" };
+        return json(route, { error: "Payment confirmation requires review", code: "BILLING_MANUAL_REVIEW_REQUIRED",
+          changeId: CHANGE_ID, resolutionOutcome: "MANUAL_REVIEW_RETAINED" }, 409);
+      }
+    }
+    return json(route, { operation: controller.operation, processingUrl: checkout.processingUrl });
+  });
+
+  await gotoBilling(page);
+  await page.getByRole("button", { name: "Update payment method and retry", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Continue to Razorpay" }).click();
+  const review = page.getByRole("heading", { name: "Payment confirmation requires review", exact: true });
+  const check = page.getByRole("button", { name: "Check payment status", exact: true });
+  await expect(review).toBeVisible();
+  expect(commands).toEqual([start, original]);
+
+  await gotoBilling(page);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Update payment method and retry", exact: true })).toHaveCount(0);
+  await check.click();
+  await expect(page).toHaveURL(url => url.pathname === checkout.processingUrl.split("?")[0]
+    && url.searchParams.get("branchId") === BRANCH_ID);
+  await page.reload();
+  await expect(review).toBeVisible();
+  await expect(page.getByRole("button", { name: "Resume payment recovery", exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => typeof Reflect.get(window, "Razorpay"))).toBe("undefined");
+
+  const stillHeld = page.waitForResponse(response => response.url().endsWith(original) && response.status() === 409);
+  await check.click();
+  await stillHeld;
+  await expect(review).toBeVisible();
+  await expect(check).toBeEnabled();
+  settled = true;
+  await check.click();
+  await expect(page.getByRole("heading", { name: "Billing update confirmed", exact: true })).toBeVisible();
+  await expect(check).toHaveCount(0);
+  expect(commands).toEqual([start, original, original, original]);
+});
 
 test("shows exact current-trial and post-trial pricing without inventing a charge date", async ({ page }) => {
   const controller = await mockBillingPage(page);
