@@ -4,6 +4,12 @@ On 25 November 2026, the branch workspace, billing and navigation components ran
 
 ## Overdue payment recovery
 
+The manual-review regression first reproduced “Payment recovery ended” for an unresolved receipt. After the correction, each viewport (1440, 390 and 320 px) opened the original receipt from Account Billing after reload. Checkout was unavailable throughout. An explicit status check received a simulated HTTP 409 and left the action available. A second check confirmed the same receipt after settlement. Together with the adjacent resume, replacement retry and cancellation checks, all 21 Chromium cases passed.
+
+```sh
+pnpm exec playwright test --config tests/billing-verification/playwright.config.ts --grep "checks a quarantined recovery receipt|resumes payment recovery|replacement retry on|source cancellation recovery on" --workers=1
+```
+
 On 26 November, six Chromium cases passed on desktop (1440 px) and phones (390 and 320 px). Each case started recovery on a halted branch, left the simulated hosted page without a callback, and advanced the browser clock by 16 minutes. Account Billing opened the fresh hosted URL for the original receipt. The processing page opened embedded card recovery on the same subscription. Each case issued exactly one start and one resume request.
 
 ```sh

@@ -381,4 +381,4 @@ Home, Features, Pricing and FAQ describe Basic, Standard and Pro as plans chosen
 
 Pricing shows one branch on each catalogue plan. ₹99, ₹299 and ₹499 add up to ₹897 per month before tax. Each branch has its own debit date and invoice. The public rendering tests check the mixed example and the three languages. See the [operating guide](../billing/independent-branch-rollout.md) for the deployment prerequisites and provider verification.
 
-The 26 November payment recovery correction affects the signed-in owner’s billing controls. Home, Features, Pricing and FAQ already describe the same branch plans and payment terms.
+The 26 November payment recovery corrections cover resuming checkout and checking an unresolved receipt in the signed-in owner’s billing screens. Home, Features, Pricing and FAQ already describe the same branch plans and payment terms.

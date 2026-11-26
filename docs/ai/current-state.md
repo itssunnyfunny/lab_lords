@@ -1578,6 +1578,7 @@ Current purchases and billing controls operate on branch agreements. The ledger 
   evidence decide access independently of sibling plans.
 - Owner trial state, branch activation/removal, plan changes, cancellation, recovery, payment-method replacement, invoices, subscription history, and provider reconciliation are modeled.
 - Account Billing and the operation processing page let the owner resume an eligible branch payment recovery after its 15-minute confirmation window. Retry reconciles the original subscription before returning a hosted recovery link, card checkout or the confirmed outcome.
+- If provider evidence puts a branch recovery under manual review, Account Billing directs the owner to the original receipt. **Check payment status** rechecks that subscription with Razorpay. The receipt stays open while evidence is uncertain and can resolve when the matching captured payment and invoice arrive.
 - Plan changes on branch CARD, UPI and eMandate subscriptions, including
   eligible trial-time changes, use separately authorized replacement subscriptions and controlled cutover. The stored CARD
   enum cannot distinguish provider-eligible international mandates from domestic
