@@ -38,7 +38,7 @@ Object.assign(env, {
     NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1", NEXT_DISABLE_TURBOPACK: "1",
     DATABASE_URL: target.href, DIRECT_URL: target.href, ACCELERATE_URL: "",
     RAZORPAY_MODE: "TEST", RAZORPAY_BILLING_WRITES_ENABLED: "false", META_WHATSAPP_MODE: "TEST",
-    WHATSAPP_INTEGRATION_ENABLED: "false", IMPORT_V2_ENABLED: "false", WORKSPACE_BRANCH_BILLING_V2_ENABLED: "false",
+    WHATSAPP_INTEGRATION_ENABLED: "false", IMPORT_V2_ENABLED: "false",
 });
 const pnpm = join(process.env.APPDATA || "", "npm", "node_modules", "pnpm", "bin", "pnpm.cjs");
 if (!existsSync(pnpm)) throw new Error("Expected local pnpm CLI was not found");
