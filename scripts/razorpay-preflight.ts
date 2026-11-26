@@ -26,9 +26,7 @@ export type PreflightArguments = {
   forbidPlanId?: string;
   expectEmptyProviderCatalog: boolean;
   expectedBillingWrites: ExpectedSwitch;
-  expectedV2: ExpectedSwitch;
   expectedMultiMethodSubscriptions: ExpectedSwitch;
-  expectedCanaryOrganizationId?: string;
   confirmations: {
     subscriptionSettings: boolean;
     upiIntent: boolean;
@@ -164,9 +162,7 @@ export function parsePreflightArguments(argv: string[]): PreflightArguments {
     "--expect-plan-id=",
     "--forbid-plan-id=",
     "--expect-billing-writes=",
-    "--expect-v2=",
     "--expect-multi-method-subscriptions=",
-    "--expect-canary-org-id=",
   ];
   const confirmationFlags = [
     "--confirm-subscription-settings",
@@ -207,12 +203,7 @@ export function parsePreflightArguments(argv: string[]): PreflightArguments {
     parseSwitch(
       argv.map(argument => argumentValue(argument, "--expect-billing-writes")).find(Boolean) ?? null,
       "--expect-billing-writes"
-    ) ?? (targetValue === "preview" ? "enabled" : "disabled");
-  const expectedV2 =
-    parseSwitch(
-      argv.map(argument => argumentValue(argument, "--expect-v2")).find(Boolean) ?? null,
-      "--expect-v2"
-    ) ?? (targetValue === "preview" ? "enabled" : "disabled");
+    ) ?? "enabled";
   const expectedMultiMethodSubscriptions =
     parseSwitch(
       argv
@@ -220,14 +211,6 @@ export function parsePreflightArguments(argv: string[]): PreflightArguments {
         .find(Boolean) ?? null,
       "--expect-multi-method-subscriptions"
     ) ?? "disabled";
-  const expectedCanaryValues = argv
-    .map(argument => argumentValue(argument, "--expect-canary-org-id"))
-    .filter((value): value is string => Boolean(value));
-  if (expectedCanaryValues.length > 1) {
-    throw new Error("Only one --expect-canary-org-id may be provided");
-  }
-  const expectedCanaryOrganizationId = expectedCanaryValues[0];
-
   if (mustDifferFrom && !/^[a-f0-9]{64}$/i.test(mustDifferFrom)) {
     throw new Error("--must-differ-from must be a complete SHA-256 database fingerprint");
   }
@@ -257,16 +240,6 @@ export function parsePreflightArguments(argv: string[]): PreflightArguments {
   if (expectPlanId && argv.includes("--expect-empty-provider-catalog")) {
     throw new Error("--expect-plan-id conflicts with --expect-empty-provider-catalog");
   }
-  if (
-    expectedCanaryOrganizationId
-    && !/^[A-Za-z0-9_-]{1,128}$/.test(expectedCanaryOrganizationId)
-  ) {
-    throw new Error("--expect-canary-org-id must contain one organization ID");
-  }
-  if (targetValue === "preview" && expectedCanaryOrganizationId) {
-    throw new Error("--expect-canary-org-id is supported only for Production preflight");
-  }
-
   const confirmations = {
     subscriptionSettings: argv.includes("--confirm-subscription-settings"),
     upiIntent: argv.includes("--confirm-upi-intent"),
@@ -294,9 +267,7 @@ export function parsePreflightArguments(argv: string[]): PreflightArguments {
     forbidPlanId,
     expectEmptyProviderCatalog: argv.includes("--expect-empty-provider-catalog"),
     expectedBillingWrites,
-    expectedV2,
     expectedMultiMethodSubscriptions,
-    expectedCanaryOrganizationId,
     confirmations,
   };
 }
@@ -338,24 +309,13 @@ export function loadPreflightEnvironment(
   return loadIsolatedBillingEnvironment(envFile, invocation);
 }
 
-function configuredCanaryOrganizations(environment: Environment) {
-  return [...new Set(
-    (environment.RAZORPAY_LIVE_CANARY_ORG_IDS ?? "")
-      .split(",")
-      .map(value => value.trim())
-      .filter(Boolean)
-  )];
-}
-
 export function validatePreflightEnvironment(
   target: PreflightTarget,
   environment: Environment,
   options: Pick<
     PreflightArguments,
     | "expectedBillingWrites"
-    | "expectedV2"
     | "expectedMultiMethodSubscriptions"
-    | "expectedCanaryOrganizationId"
   >
 ) {
   const failures: string[] = [];
@@ -382,13 +342,10 @@ export function validatePreflightEnvironment(
   if (environment.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim()) {
     failures.push("NEXT_PUBLIC_RAZORPAY_KEY_ID must be removed; use server-only RAZORPAY_KEY_ID");
   }
-  if (environment.RAZORPAY_BILLING_WRITES_ENABLED !== enabledValue(options.expectedBillingWrites)) {
+  if ((environment.RAZORPAY_BILLING_WRITES_ENABLED?.trim().toLowerCase() ?? "true") !== enabledValue(options.expectedBillingWrites)) {
     failures.push(
       `RAZORPAY_BILLING_WRITES_ENABLED must be ${enabledValue(options.expectedBillingWrites)}`
     );
-  }
-  if (environment.WORKSPACE_BRANCH_BILLING_V2_ENABLED !== enabledValue(options.expectedV2)) {
-    failures.push(`WORKSPACE_BRANCH_BILLING_V2_ENABLED must be ${enabledValue(options.expectedV2)}`);
   }
   const multiMethodSubscriptions = featureFlagValue(
     environment,
@@ -401,23 +358,6 @@ export function validatePreflightEnvironment(
       `RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED must be ${enabledValue(options.expectedMultiMethodSubscriptions)}`
     );
   }
-  const canaryOrganizations = configuredCanaryOrganizations(environment);
-  if (!options.expectedCanaryOrganizationId && canaryOrganizations.length > 0) {
-    failures.push(
-      "RAZORPAY_LIVE_CANARY_ORG_IDS must be empty unless --expect-canary-org-id is provided"
-    );
-  } else if (
-    options.expectedCanaryOrganizationId
-    && (
-      canaryOrganizations.length !== 1
-      || canaryOrganizations[0] !== options.expectedCanaryOrganizationId
-    )
-  ) {
-    failures.push(
-      "RAZORPAY_LIVE_CANARY_ORG_IDS must contain exactly the explicitly expected organization"
-    );
-  }
-
   const address = environment.NEXT_PUBLIC_BUSINESS_ADDRESS?.trim() ?? "";
   if (!address || /available on request|replace|todo|tbd/i.test(address)) {
     failures.push("NEXT_PUBLIC_BUSINESS_ADDRESS must contain the exact KYC-matching address");
@@ -902,11 +842,6 @@ async function runPreflight(arguments_: PreflightArguments) {
           process.env,
           "RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED"
         ),
-        workspaceBillingV2: process.env.WORKSPACE_BRANCH_BILLING_V2_ENABLED,
-        liveCanary: {
-          count: configuredCanaryOrganizations(process.env).length,
-          idFingerprints: configuredCanaryOrganizations(process.env).map(idFingerprint),
-        },
       },
       catalog: {
         plans: {
@@ -1022,9 +957,7 @@ Options:
   --expect-plan-id=plan_...               Assert a provider plan is stored and fetchable
   --forbid-plan-id=plan_...               Assert a provider plan is not stored here
   --expect-billing-writes=enabled|disabled
-  --expect-v2=enabled|disabled
   --expect-multi-method-subscriptions=enabled|disabled
-  --expect-canary-org-id=ORG_ID            Explicitly allow one Production canary
   --confirm-subscription-settings          Attest Card, UPI and eMandate are enabled for Subscriptions
   --confirm-upi-intent                     Attest Standard Checkout UPI Intent was tested
   --confirm-upi-qr                         Attest desktop UPI QR was tested
