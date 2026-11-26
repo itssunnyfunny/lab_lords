@@ -31,6 +31,8 @@ export function BranchBillingSummary({ organization, selectedBranchId, returnTo 
                         <strong>{branch.name}</strong>
                         {details ? <>
                             <p>{t.owned(branchPlanLabel(details.effectivePlan))} · {t.owned(branchAccessLabel(details.customerState))}{details.billingStatus !== "ACTIVE" && ` · ${t.owned(branchAccessLabel(details.billingStatus))}`}</p>
+                            {details.selectedPlan && <p>{t.owned("Future paid plan")} · {t.owned(branchPlanLabel(details.selectedPlan))}</p>}
+                            <p>{t.owned("Subscription status")} · {details.subscriptionStatus ? t.owned(details.subscriptionStatus) : t.owned("No subscription")}</p>
                             {details.trialEndsAt && <p>{t.owned("Trial ends")} · {formatDate(details.trialEndsAt)}</p>}
                             {details.paidThrough && <p>{t.owned("Paid through")} · {formatDate(details.paidThrough)}</p>}
                             <p>{t.owned("Monthly commitment")} · {details.monthlyCommitment == null ? t.owned("Awaiting confirmation") : money(details.monthlyCommitment)}</p>

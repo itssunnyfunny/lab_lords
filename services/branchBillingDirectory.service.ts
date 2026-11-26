@@ -14,6 +14,8 @@ export function projectDirectoryBilling(experience: BillingExperience): Director
     const pending = experience.activeOperation ?? experience.scheduledChanges.at(-1);
     return {
         ...result,
+        selectedPlan: experience.selectedPostTrialPlan,
+        subscriptionStatus: experience.providerStatus,
         paidThrough: experience.paidThrough ?? experience.legacyCoverageEndsAt ?? null,
         trialEndsAt: experience.trialEndsAt,
         nextChargeAt: experience.nextChargeAt,

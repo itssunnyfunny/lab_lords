@@ -43,6 +43,8 @@ describe("owner-only Account billing",()=>{
   it("independently authorizes the processing route",async()=>{
     const params=Promise.resolve({orgId:"one",changeId:"change"});mocks.owner.mockResolvedValue(false);
     await expect(ProcessingPage({params})).rejects.toThrow("NOT_FOUND");expect(mocks.owner).toHaveBeenCalledWith("one","user");
-    mocks.owner.mockResolvedValue(true);expect((await ProcessingPage({params})).props.orgId).toBe("one");
+    mocks.owner.mockResolvedValue(true);
+    await expect(ProcessingPage({params})).rejects.toThrow("NOT_FOUND");
+    expect((await ProcessingPage({params,searchParams: Promise.resolve({ branchId: "a" })})).props.branchId).toBe("a");
   });
 });

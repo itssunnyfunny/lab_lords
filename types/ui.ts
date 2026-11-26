@@ -40,6 +40,8 @@ export type DirectoryBranchBilling = {
     trialEndsAt?: string | null;
     nextChargeAt?: string | null;
     nextChargeAmount?: number | null;
+    selectedPlan?: string | null;
+    subscriptionStatus?: string | null;
     monthlyCommitment?: number | null;
     pendingPlan?: string | null;
     effectiveAt?: string | null;

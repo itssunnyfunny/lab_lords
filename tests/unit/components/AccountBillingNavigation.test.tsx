@@ -40,7 +40,7 @@ vi.mock("@/components/billing/RazorpayCheckoutLauncher", () => ({
   RazorpayCheckoutScript: "checkout-script", isRazorpayCheckoutReady: () => mocks.ready,
   isRazorpayCheckoutPayload: () => false, getRazorpayCheckoutPayload: () => null, openRazorpayCheckout: mocks.checkout,
 }));
-vi.mock("@/lib/api/billing", () => ({ billing: { getOverview: mocks.overview, createSubscription: mocks.create, changePlan: mocks.change, createRecovery: mocks.recovery, changePaymentMethod: mocks.method, getOperation: mocks.operation } }));
+vi.mock("@/lib/api/billing", () => { const scoped = { getOverview: mocks.overview, createSubscription: mocks.create, changePlan: mocks.change, createRecovery: mocks.recovery, changePaymentMethod: mocks.method, getOperation: mocks.operation }; return { billingForBranch: () => scoped }; });
 
 import { AccountBilling } from "@/components/account/AccountBilling";
 import { OrganizationBillingContent, BillingPlanCard } from "@/components/billing/OrganizationBillingContent";
@@ -67,14 +67,14 @@ function overview(orgId: string, initial: boolean): BillingOverview {
     unitAmount: 299, quantity: 1, monthlyTotal: 299, cancelAtCycleEnd: false,
   }, pendingReplacement: null, scheduledChanges: [], invoices: [], history: [], razorpayTestMode: true,
   entitlements: { canWrite: true, effectivePlan: "STANDARD" },
-  experience: { effectivePlan: "STANDARD", projectedQuantity: 1, scheduledChanges: [], activeOperation: null,
+  experience: { planChangeEffectiveAt: "2027-02-01T00:00:00.000Z", organizationId: orgId, branch: { id: orgId + "-branch" }, effectivePlan: "STANDARD", projectedQuantity: 1, scheduledChanges: [], activeOperation: null,
     paymentAction: "NONE", customerState: "STANDARD_ACTIVE", customerMessage: "Active", },
   } as unknown as BillingOverview;
 }
 beforeEach(() => {
   vi.clearAllMocks(); hooks.cursor = 0; hooks.values = []; hooks.effects = []; hooks.cleanups = new Map(); mocks.ready = true;
   mocks.search = new URLSearchParams({ returnTo: "/branch/ordinary-branch/students" });
-  vi.stubGlobal("window", Object.assign(new EventTarget(), { location: { pathname: "/account/billing", search: "?organizationId=ordinary", hash: "#invoices" } }));
+  vi.stubGlobal("window", Object.assign(new EventTarget(), { setInterval: vi.fn(), clearInterval: vi.fn(), location: { pathname: "/account/billing", search: "?organizationId=ordinary", hash: "#invoices" } }));
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ branches: [], contactEmail: null, contactPhone: null }) }));
   vi.stubGlobal("sessionStorage", { getItem: () => "/branch/ordinary-branch", setItem: vi.fn() });
 });
@@ -95,7 +95,7 @@ describe.each([1, 2])("actual billing callbacks for %i owned organization(s)", c
   it.each(["recovery", "payment method", "plan change", "initial plan"])("preserves the operation scope through %s", async action => {
     const orgs = organizations(count), selected = orgs.at(-1)!;
     const account = AccountBilling({ organizations: orgs, organizationId: selected.id, branchId: `${selected.id}-branch` });
-    const props = nodes(account).find(node => node.type === OrganizationBillingContent)!.props as { orgId: string; returnPath: string };
+    const props = nodes(account).find(node => node.type === OrganizationBillingContent)!.props as { orgId: string; branchId: string; returnPath: string };
     const expected = new URL(props.returnPath, "https://test.invalid");
     expect(expected.searchParams.get("organizationId")).toBe(selected.id);
     expect(expected.searchParams.get("branchId")).toBe(`${selected.id}-branch`);
@@ -111,7 +111,8 @@ describe.each([1, 2])("actual billing callbacks for %i owned organization(s)", c
     const settle = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); render(); } };
     render(); await settle();
     if (action === "payment method") {
-      (view.find(node => node.type === BillingPaymentMethodsOverview)!.props.onChangeMethod as () => void)();
+      (view.find(node => node.type === BillingPaymentMethodsOverview)!.props.onChangeMethod as () => void)(); render();
+      await (view.find(node => node.type === CheckoutConfirmationDialog && node.props.isOpen)!.props.onConfirm as () => Promise<void>)();
     } else if (action === "recovery") {
       await (view.find(node => node.type === CheckoutConfirmationDialog && node.props.purpose === "RECOVERY")!.props.onConfirm as () => Promise<void>)();
     } else {
@@ -122,7 +123,8 @@ describe.each([1, 2])("actual billing callbacks for %i owned organization(s)", c
     await settle();
     const returnPath = props.returnPath + "#invoices";
     const api = action === "recovery" ? mocks.recovery : action === "payment method" ? mocks.method : action === "plan change" ? mocks.change : mocks.create;
-    expect(api).toHaveBeenCalledWith(selected.id, ...(action.includes("plan") ? ["PRO", returnPath] : [returnPath]));
+    const timing = action === "payment method" || action === "plan change" ? ["2027-02-01T00:00:00.000Z"] : [];
+    expect(api).toHaveBeenCalledWith(selected.id, ...(action.includes("plan") ? ["PRO", returnPath] : [returnPath]), ...timing);
     if (action === "initial plan") mocks.checkout.mock.calls[0][0].navigate(processingUrl);
     const navigated = new URL(mocks.push.mock.calls.at(-1)![0], "https://test.invalid");
     expect(navigated.pathname).toBe(`/account/billing/${selected.id}/processing/change`);
@@ -132,7 +134,7 @@ describe.each([1, 2])("actual billing callbacks for %i owned organization(s)", c
     mocks.operation.mockResolvedValue({ operation: { id: "change", operationStatus: "APPLIED", returnPath } });
     const renderProcessing = () => {
       hooks.cursor = 0;
-      const result = nodes(BillingProcessingContent({ orgId: selected.id, changeId: "change" }));
+      const result = nodes(BillingProcessingContent({ orgId: selected.id, branchId: selected.id + "-branch", changeId: "change" }));
       hooks.effects.splice(0).forEach(effect => effect());
       return result;
     };
@@ -149,12 +151,7 @@ it.each(["/branch/ordinary-branch/students", "/org/historical/settings", "/branc
   const selectors = nodes(account).filter(node => node.type === SettingsSelect);
   (selectors[0].props.onValueChange as (value: string) => void)("ordinary");
   expect(new URL(mocks.push.mock.calls.at(-1)![0], "https://test.invalid").searchParams.get("returnTo")).toBe("/org/ordinary");
-  (selectors[1].props.onValueChange as (value: string) => void)("historical-branch");
-  expect(new URL(mocks.push.mock.calls.at(-1)![0], "https://test.invalid").searchParams.get("returnTo")).toBe("/branch/historical-branch");
-  (selectors[1].props.onValueChange as (value: string) => void)("all");
-  const all = new URL(mocks.push.mock.calls.at(-1)![0], "https://test.invalid");
-  expect(all.searchParams.get("returnTo")).toBe("/org/historical");
-  expect(all.searchParams.has("branchId")).toBe(false);
+  expect(selectors).toHaveLength(1);
 });
 
 it("updates the header for query-only scope changes and ignores a stale directory response", async () => {
