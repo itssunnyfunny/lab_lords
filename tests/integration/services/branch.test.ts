@@ -28,13 +28,14 @@ describe("BranchService Integration", () => {
   describe("createBranchForOrg", () => {
     it("creates branch linked to correct org", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
 
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: user.id,
         name: "Main Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
 
@@ -44,13 +45,14 @@ describe("BranchService Integration", () => {
 
     it("creates default primary shifts and Full Time multi-shift when none supplied", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
 
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: user.id,
         name: "Shift Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
 
@@ -77,7 +79,7 @@ describe("BranchService Integration", () => {
 
     it("creates the correct number of seats when seatCount supplied", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
 
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
@@ -85,6 +87,7 @@ describe("BranchService Integration", () => {
         name: "Seat Branch",
         contactPhone: "9876543210",
         seatCount: 5,
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
 
@@ -94,7 +97,7 @@ describe("BranchService Integration", () => {
 
     it("creates custom numbered seats when seatNumbering is supplied", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
 
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
@@ -102,6 +105,7 @@ describe("BranchService Integration", () => {
         name: "Custom Seat Branch",
         contactPhone: "9876543210",
         seatCount: 5,
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
         seatNumbering: {
           mode: "RANGE",
@@ -119,13 +123,14 @@ describe("BranchService Integration", () => {
 
     it("adds calling user as MANAGER on the new branch", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
 
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: user.id,
         name: "Staff Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
 
@@ -139,7 +144,7 @@ describe("BranchService Integration", () => {
     it("returns the same generic access error for foreign and missing organizations", async () => {
       const owner = await createUser();
       const otherUser = await createUser();
-      const org = await createOrg({ ownerId: owner.id });
+      const org = await createOrg({ ownerId: owner.id, trialPlan: "STANDARD" });
 
       const attempt = (organizationId: string) =>
         BranchService.createBranchForOrg({
@@ -147,6 +152,7 @@ describe("BranchService Integration", () => {
           userId: otherUser.id,
           name: "Unauthorized Branch",
           contactPhone: "9876543210",
+          futurePlan: "STANDARD",
           idempotencyKey: branchCreateKey(),
         });
 
@@ -173,7 +179,7 @@ describe("BranchService Integration", () => {
 
     it("rejects invalid branch creation fields", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
 
       await expect(
         BranchService.createBranchForOrg({
@@ -181,6 +187,7 @@ describe("BranchService Integration", () => {
           userId: user.id,
           name: "",
           contactPhone: "9876543210",
+          futurePlan: "STANDARD",
           idempotencyKey: branchCreateKey(),
         })
       ).rejects.toThrow(/required/i);
@@ -191,6 +198,7 @@ describe("BranchService Integration", () => {
           userId: user.id,
           name: "Missing Phone",
           contactPhone: "",
+          futurePlan: "STANDARD",
           idempotencyKey: branchCreateKey(),
         })
       ).rejects.toThrow(/contact phone is required/i);
@@ -202,6 +210,7 @@ describe("BranchService Integration", () => {
           name: "Invalid Seats",
           contactPhone: "9876543210",
           seatCount: -1,
+          futurePlan: "STANDARD",
           idempotencyKey: branchCreateKey(),
         })
       ).rejects.toThrow(/whole number|at least/i);
@@ -212,6 +221,7 @@ describe("BranchService Integration", () => {
           userId: user.id,
           name: "Invalid Shifts",
           contactPhone: "9876543210",
+          futurePlan: "STANDARD",
           idempotencyKey: branchCreateKey(),
           shifts: [
             { name: "Morning", startTime: "06:00", endTime: "09:59", price: 0 },
@@ -232,12 +242,13 @@ describe("BranchService Integration", () => {
 
     it("returns branch for a valid id", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: user.id,
         name: "Lookup Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
 
@@ -251,12 +262,13 @@ describe("BranchService Integration", () => {
     it("allows staff with payment access to read branch metadata without staff records", async () => {
       const owner = await createUser();
       const staff = await createUser();
-      const org = await createOrg({ ownerId: owner.id });
+      const org = await createOrg({ ownerId: owner.id, trialPlan: "STANDARD" });
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: owner.id,
         name: "Payment Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
       const staffRecord = await createStaff({ userId: staff.id, branchId: branch.id, role: "STAFF" });
@@ -279,12 +291,13 @@ describe("BranchService Integration", () => {
   describe("updateSettings", () => {
     it("updates branch settings for the organization owner", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: user.id,
         name: "Settings Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
 
@@ -313,12 +326,13 @@ describe("BranchService Integration", () => {
     it("allows branch managers to update branch settings", async () => {
       const owner = await createUser();
       const manager = await createUser();
-      const org = await createOrg({ ownerId: owner.id });
+      const org = await createOrg({ ownerId: owner.id, trialPlan: "STANDARD" });
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: owner.id,
         name: "Managed Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
       await createStaff({ userId: manager.id, branchId: branch.id, role: "MANAGER" });
@@ -333,12 +347,13 @@ describe("BranchService Integration", () => {
     it("rejects staff without manage_branch permission", async () => {
       const owner = await createUser();
       const staff = await createUser();
-      const org = await createOrg({ ownerId: owner.id });
+      const org = await createOrg({ ownerId: owner.id, trialPlan: "STANDARD" });
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: owner.id,
         name: "Staff Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
       await createStaff({ userId: staff.id, branchId: branch.id, role: "STAFF" });
@@ -352,12 +367,13 @@ describe("BranchService Integration", () => {
 
     it("rejects invalid branch settings", async () => {
       const user = await createUser();
-      const org = await createOrg({ ownerId: user.id });
+      const org = await createOrg({ ownerId: user.id, trialPlan: "STANDARD" });
       const branch = await BranchService.createBranchForOrg({
         organizationId: org.id,
         userId: user.id,
         name: "Invalid Branch",
         contactPhone: "9876543210",
+        futurePlan: "STANDARD",
         idempotencyKey: branchCreateKey(),
       });
 
