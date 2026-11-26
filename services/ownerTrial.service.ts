@@ -54,21 +54,16 @@ export class OwnerTrialService {
       if (owner.length === 0) throw new Error("Owner not found");
 
       const target = await tx.$queryRaw<Array<{ billingModelVersion: string }>>`
-        SELECT "billingModelVersion" FROM "Organization" WHERE id=${organizationId} AND "ownerId"=${ownerId} FOR UPDATE
+        SELECT "billingModelVersion" FROM "Organization" WHERE id=${organizationId} AND "ownerId"=${ownerId} AND "billingModelVersion"='BRANCH_V3' FOR UPDATE
       `;
       if (!target.length) throw new OrganizationAccessNotFoundError();
-      const independent = target[0].billingModelVersion === "BRANCH_V3";
-      if (independent) {
-        // A single owner trial changes the first charge date for the whole cohort.
-        // Branch creation takes the organization lock, and checkout takes its
-        // agreement lock. Lock both before checking the never-billed condition.
-        await tx.$queryRaw`SELECT "branchId" FROM "BranchBillingAgreement" WHERE "organizationId"=${organizationId} ORDER BY "branchId" FOR UPDATE`;
-        const busy = await tx.branchBillingAgreement.findFirst({ where: { organizationId, OR: [
-          { billingMutationLeaseToken: { not: null } },
-          { changes: { some: { type: "SUBSCRIPTION_AUTHORIZATION", resolvedAt: null } } },
-        ] }, select: { branchId: true } });
-        if (busy) throw new BillingValidationError("Resolve the pending branch checkout before claiming the owner trial");
-      }
+      // Checkout serializes on the agreement lock. Lock every agreement before changing the common trial boundary.
+      await tx.$queryRaw`SELECT "branchId" FROM "BranchBillingAgreement" WHERE "organizationId"=${organizationId} ORDER BY "branchId" FOR UPDATE`;
+      const busy = await tx.branchBillingAgreement.findFirst({ where: { organizationId, OR: [
+        { billingMutationLeaseToken: { not: null } },
+        { changes: { some: { type: "SUBSCRIPTION_AUTHORIZATION", resolvedAt: null } } },
+      ] }, select: { branchId: true } });
+      if (busy) throw new BillingValidationError("Resolve the pending branch checkout before claiming the owner trial");
       const organization = await tx.organization.findFirst({
         where: { id: organizationId, ownerId },
         select: {
@@ -98,12 +93,10 @@ export class OwnerTrialService {
           consumedAt: now,
         },
       });
-      if (independent) {
-        await tx.branch.updateMany({
-          where: { organizationId, billingStatus: "PENDING_ACTIVATION", billingAgreement: { is: { organizationId } } },
-          data: { billingStatus: "ACTIVE", billingActivatedAt: now },
-        });
-      }
+      await tx.branch.updateMany({
+        where: { organizationId, billingStatus: "PENDING_ACTIVATION", billingAgreement: { is: { organizationId } } },
+        data: { billingStatus: "ACTIVE", billingActivatedAt: now },
+      });
       return claimed;
     });
   }

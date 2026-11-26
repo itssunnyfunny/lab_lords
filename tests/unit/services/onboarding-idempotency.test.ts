@@ -5,10 +5,9 @@ const mocks = vi.hoisted(() => ({
     transaction: vi.fn(), lock: vi.fn(), userUpdate: vi.fn(), orgCreate: vi.fn(),
     branchCreate: vi.fn(), branchFind: vi.fn(), shifts: vi.fn(), seats: vi.fn(),
     staff: vi.fn(), trial: vi.fn(), receiptFind: vi.fn(), receiptCreate: vi.fn(),
-    enabled: vi.fn(), orgFind: vi.fn(),
+    orgFind: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
-vi.mock("@/lib/billingFeature", () => ({ isWorkspaceBillingEnabled: mocks.enabled, independentBillingForNewWorkspaces: () => false }));
 vi.mock("@/services/ownerTrial.service", () => ({ OwnerTrialService: { startOnboardingTrial: mocks.trial } }));
 
 const key = "11111111-1111-4111-8111-111111111111";
@@ -30,10 +29,10 @@ const tx = {
 beforeEach(() => {
     vi.resetAllMocks();
     receipts = new Map();
-    mocks.enabled.mockReturnValue(true);
     mocks.orgFind.mockResolvedValue(null);
     mocks.transaction.mockImplementation(async callback => callback(tx));
     mocks.lock.mockResolvedValue([{ id: "owner_1" }]);
+    mocks.trial.mockResolvedValue({ trialStartedAt: new Date() });
     mocks.orgCreate.mockResolvedValue({ id: "org_1", name: "Private organization name" });
     mocks.branchCreate.mockResolvedValue({ id: "branch_1", contactPhone: "Private phone" });
     mocks.branchFind.mockResolvedValue({ id: "branch_1", organizationId: "org_1" });
@@ -74,10 +73,9 @@ describe("onboarding durable replay", () => {
         expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "ReadCommitted" });
     });
 
-    it("recovers a completed result without setup writes even when new creation is held", async () => {
+    it("recovers a completed result without setup writes", async () => {
         const first = await OnboardingService.createNetwork(params());
         vi.clearAllMocks();
-        mocks.enabled.mockReturnValue(false);
         expect(await OnboardingService.createNetwork(params())).toEqual(first);
         expect(mocks.branchFind).toHaveBeenCalledWith({
             where: { id: "branch_1", organizationId: "org_1", organization: { ownerId: "owner_1" } },
@@ -119,11 +117,14 @@ describe("onboarding durable replay", () => {
         expectNoSetupWrites();
     });
 
-    it("holds a new command without writing a receipt or legacy workspace", async () => {
-        mocks.enabled.mockReturnValue(false);
-        await expect(OnboardingService.createNetwork(params()))
-            .rejects.toMatchObject({ code: "ONBOARDING_UNAVAILABLE", status: 503 });
-        expectNoSetupWrites();
+    it("atomically creates the branch agreement, including for an owner whose trial is already consumed", async () => {
+        mocks.trial.mockResolvedValue(null);
+        await OnboardingService.createNetwork(params());
+        expect(mocks.orgCreate).toHaveBeenCalledWith({ data: expect.objectContaining({ billingModelVersion: "BRANCH_V3" }) });
+        expect(mocks.branchCreate).toHaveBeenCalledWith({ data: expect.objectContaining({
+            organizationId: "org_1", billingStatus: "PENDING_ACTIVATION", billingActivatedAt: null,
+            billingAgreement: { create: { selectedPlan: "BASIC" } },
+        }) });
     });
 
     it("does not acknowledge creation when receipt insertion fails", async () => {

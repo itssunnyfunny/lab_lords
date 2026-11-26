@@ -88,6 +88,7 @@ async function main() {
     await prisma.seat.deleteMany();
     await prisma.shift.deleteMany();
     await prisma.staff.deleteMany();
+    await prisma.branchBillingAgreement.deleteMany();
     await prisma.branch.deleteMany();
     await prisma.organization.deleteMany();
     await prisma.user.deleteMany();
@@ -111,11 +112,15 @@ async function main() {
     // ── ALICE'S ORG ────────────────────────────────────────────────────────────
     log("🏢 Creating Alice EduCorp...");
 
+    const trialStartedAt = new Date();
+    const trialEndsAt = new Date(trialStartedAt.getTime() + 30 * 86400000);
+    const trialDates = { trialStartedAt, trialEndsAt, consumedAt: trialStartedAt, claimedAt: trialStartedAt };
     const aliceOrg = await prisma.organization.create({
         data: {
             id: "org_alice",
             name: "Alice EduCorp",
             ownerId: alice.id,
+            ownerTrialGrant: { create: { ownerId: alice.id, source: "ONBOARDING", status: "ACTIVE", trialPlan: "PRO", ...trialDates } },
             businessType: "Study Hall",
         },
     });
@@ -132,6 +137,7 @@ async function main() {
             city: "Delhi",
             organizationId: aliceOrg.id,
             defaultFee: 1200,
+            billingAgreement: { create: { selectedPlan: "PRO" } },
         },
     });
 
@@ -387,6 +393,7 @@ async function main() {
             city: "Mumbai",
             organizationId: aliceOrg.id,
             defaultFee: 1000,
+            billingAgreement: { create: { selectedPlan: "STANDARD" } },
         },
     });
 
@@ -424,10 +431,11 @@ async function main() {
     log("🏢 Creating Bob's Coaching (separate org)...");
 
     const bobOrg = await prisma.organization.create({
-        data: { id: "org_bob", name: "Bob's Coaching", ownerId: bob.id, businessType: "Coaching" },
+        data: { id: "org_bob", name: "Bob's Coaching", ownerId: bob.id, businessType: "Coaching",
+            ownerTrialGrant: { create: { ownerId: bob.id, source: "ONBOARDING", status: "ACTIVE", trialPlan: "BASIC", ...trialDates } } },
     });
     const bobBranch = await prisma.branch.create({
-        data: { name: "Main Campus", city: "Pune", organizationId: bobOrg.id, defaultFee: 800 },
+        data: { name: "Main Campus", city: "Pune", organizationId: bobOrg.id, defaultFee: 800, billingAgreement: { create: { selectedPlan: "BASIC" } } },
     });
     await prisma.shift.create({ data: { branchId: bobBranch.id, name: "Morning", startTime: "08:00", endTime: "14:00", price: 700 } });
     await Promise.all(
