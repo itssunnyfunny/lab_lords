@@ -1,5 +1,15 @@
 # Razorpay Test branch subscriptions, 25 November 2026
 
+## Default branch billing verification
+
+The final implementation was exercised with a second dedicated loopback-only PostgreSQL 16 container, a freshly migrated database, a synthetic owner with three branches, and the real Razorpay Test API. At 11:33 UTC preparation had created one quantity-one subscription for each of Basic (₹99), Standard (₹299) and Pro (₹499). Replaying checkout returned each original operation and subscription. The provider received three subscription creates and zero plan creates. The manual checkout was made available for owner authorization.
+
+At 11:50 UTC all three checkout deadlines had passed. Razorpay still reported each as created, with zero paid cycles. The application found zero captured invoices, no paid-through dates and read-only access on all three branches. This inspection made zero provider writes. [Interactive checkout and verification steps](../billing/independent-branch-rollout.md#test-authorization-and-incident-handling).
+
+Final readback at 09:55 IST on 26 November returned `expired` for each original Test subscription. Each retained one create receipt and zero captured invoices. Paid-through remained empty and each branch stayed read-only. Inspection issued zero provider writes. Payment authorization and paid activation still require an operator to complete a fresh Test checkout.
+
+## Earlier PR 299 observations
+
 A fresh template0 PostgreSQL database on a verified loopback-only PostgreSQL 16 container received the full Prisma migration history. The test seeded one synthetic owner, one V3 organization, three pending branches and zero trials. Each checkout ran through the application owner, agreement, catalogue, durable dispatch and reconciliation services.
 
 | Branch plan | Monthly INR | Quantity | Real provider creation | Checkout replay | Readback at 05:51 UTC |

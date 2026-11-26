@@ -4,6 +4,8 @@
 
 Account Billing uses the branch directory and existing plan confirmation and operation panels. Switching to Basic uses the existing simple shell. Standard and Pro retain the full shell and refresh individual capabilities. The local desktop and phone navigation fixture covers delayed access responses, incompatible routes, mixed branch totals and revoked membership. Owner design review, real mandate approval and release are separate milestones.
 
+The default branch billing pass added explicit branch scope to processing and recovery views, and distinguished the source subscription’s renewal, the replacement’s planned first charge and its Undo deadline. The final local browser suites passed 42 billing, 12 branch-navigation and settings, and two Basic pending-save cases. The price summary also identifies the current plan rate when the next commitment awaits confirmation.
+
 [Desktop and mobile evidence and commands](../evidence/branch-plans-browser-2026-11-25.md)
 
 ## Branch and seat setup forms — local, 2026-11-16
