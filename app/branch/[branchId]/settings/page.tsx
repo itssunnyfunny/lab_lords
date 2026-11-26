@@ -272,8 +272,8 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
     const router = useRouter();
     const { formatDate, formatDateTime, formatNumber } = useUserPreferences();
     const hasAiAccess = access.entitlements.includes("AI_ACCESS");
-    const showAiSection = !access.billingExperience?.independentBilling || hasAiAccess;
-    const showStaffSection = !access.billingExperience?.independentBilling || getBranchCapabilityDecision(access, "staffView").allowed;
+    const showAiSection = hasAiAccess;
+    const showStaffSection = getBranchCapabilityDecision(access, "staffView").allowed;
     const settingsDecision = getBranchCapabilityDecision(access, "settingsManage");
     const whatsappViewDecision = getBranchCapabilityDecision(access, "whatsappView");
     const whatsappManageDecision = getBranchCapabilityDecision(access, "whatsappManage");
@@ -696,7 +696,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                                 onChange={value => updateForm("aiEnabled", value)}
                                 disabled={!hasAiAccess || mutationsDisabled}
                                 label={!hasAiAccess ? t("AI requires the Standard plan") : form.aiEnabled ? t("AI generation enabled") : t("AI generation disabled")}
-                                description={!hasAiAccess ? t.owned(access.billingExperience?.independentBilling ? "This branch needs Standard or Pro for AI reports." : "Upgrade the organization to Standard to enable AI reports.") : form.aiEnabled ? t("Branch AI reports can run using the current branch data.") : t("AI report generation will return a disabled state for this branch.")}
+                                description={!hasAiAccess ? t.owned("This branch needs Standard or Pro for AI reports.") : form.aiEnabled ? t("Branch AI reports can run using the current branch data.") : t("AI report generation will return a disabled state for this branch.")}
                             />
                         </SettingsField>
                     ) : (
@@ -732,7 +732,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                     </div>
                 </SettingsPanel>}
 
-                <SettingsPanel id="billing" title={t("Subscription")} description={access.billingExperience?.independentBilling ? access.branchName : t("This branch inherits its organization's billing plan.")} icon={CreditCard}>
+                <SettingsPanel id="billing" title={t("Subscription")} description={access.branchName} icon={CreditCard}>
                     {billingError && (
                         <div className={cn("mx-5 mt-4 flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)} role="alert">
                             <span>{t("Billing details are unavailable:")} <LocalizedError error={billingError} /></span>
@@ -741,7 +741,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                             </AppButton>
                         </div>
                     )}
-                    <ReadOnlyRow label={t.owned(access.billingExperience?.independentBilling ? "Effective plan" : "Inherited plan")} value={access.billingExperience?.independentBilling ? branchPlanLabel(access.billingExperience.effectivePlan) : billingLoading ? "Loading" : billingSummary?.inheritedPlan ?? "Unavailable"} />
+                    <ReadOnlyRow label={t.owned("Effective plan")} value={access.billingExperience ? branchPlanLabel(access.billingExperience.effectivePlan) : "Unavailable"} />
                     <ReadOnlyRow label={t("Branch billing status")} value={billingLoading ? "Loading" : billingSummary?.branchStatus ?? "Unavailable"} />
                     <ReadOnlyRow label={t("Billing state")} value={billingLoading ? "Loading" : billingSummary?.billingState ?? "Unavailable"} />
                     <ReadOnlyRow label={t("Access mode")} value={billingLoading ? "Loading" : billingSummary?.accessMode ?? "Unavailable"} />
@@ -752,7 +752,7 @@ function BranchSettingsContent({ branchId, access }: { branchId: string; access:
                             disabled={billingLoading || !billingSummary}
                             onClick={() => billingSummary && router.push(accountBillingHref(access.organizationId, branchId, `/branch/${branchId}/settings`))}
                         >
-                            {t.owned(access.billingExperience?.independentBilling ? "Manage branch plan" : "Open organization billing")}</AppButton>
+                            {t.owned("Manage branch plan")}</AppButton>
                     </div>}
                 </SettingsPanel>
 

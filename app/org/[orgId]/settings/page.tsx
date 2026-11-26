@@ -2,7 +2,7 @@
 import { accountBillingDestination, accountBillingHref } from "@/lib/accountNavigation";
 import { useTranslation } from "@/components/settings/LocalizedText";
 
-import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, use, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import {
@@ -46,17 +46,12 @@ import {
     pageMutedTextClass,
 } from "@/components/ui/pageSurface";
 import {
-    formWarningBannerClass,
-} from "@/components/ui/formSurface";
-import {
     parseIntegerField,
     validateOptionalEmail,
     validateOptionalText,
     validateRequiredPhone,
     validateRequiredText,
 } from "@/lib/formValidation";
-import { billing, type BillingOverview, type OrganizationSubscriptionDto } from "@/lib/api/billing";
-import { cn } from "@/lib/utils";
 interface BranchSummary {
     id: string;
     name: string;
@@ -66,7 +61,6 @@ interface BranchSummary {
 }
 
 interface OrgDetails {
-    billingModelVersion?: string;
     id: string;
     name: string;
     businessType: string | null;
@@ -80,7 +74,6 @@ interface OrgDetails {
     paymentGraceDays: number;
     ownerId: string;
     owner?: { id: string; name: string | null; email: string };
-    subscription?: OrganizationSubscriptionDto | null;
     createdAt: string;
     branches: BranchSummary[];
     _count: { branches: number };
@@ -153,9 +146,8 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
     }, [orgId, router, searchParams, billingQuery]);
 
     const billingContext = useBillingExperience();
-    const independent = billingContext?.organization?.independentBilling;
-    const senderScope = independent ? billingContext?.organization?.branches.filter(branch => branch.entitlements.includes("WHATSAPP_AUTOMATION")).map(branch => branch.id).sort().join(",") : undefined;
-    const eligibleSender = independent ? Boolean(senderScope) : billingContext?.experience?.entitlements.includes("WHATSAPP_AUTOMATION");
+    const senderScope = billingContext?.organization?.branches.filter(branch => branch.entitlements.includes("WHATSAPP_AUTOMATION")).map(branch => branch.id).sort().join(",");
+    const eligibleSender = Boolean(senderScope);
     const [org, setOrg] = useState<OrgDetails | null>(null);
     const [form, setForm] = useState<OrgForm | null>(null);
     const [loading, setLoading] = useState(true);
@@ -167,18 +159,9 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
     const [saveError, setSaveError] = useState("");
-    const [billingOverview, setBillingOverview] = useState<BillingOverview | null>(null);
-    const [billingLoading, setBillingLoading] = useState(true);
     const { markTouched, markSubmitted, resetFieldErrors, visibleError } = useInlineFieldErrors<
         "name" | "businessType" | "legalName" | "contactEmail" | "contactPhone" | "address" | "paymentGraceDays"
     >();
-
-    const loadBilling = useCallback(async () => {
-        setBillingLoading(true);
-        try { setBillingOverview(await billing.getOverview(orgId)); }
-        catch { setBillingOverview(null); }
-        finally { setBillingLoading(false); }
-    }, [orgId]);
 
     useEffect(() => {
         async function load() {
@@ -192,29 +175,22 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 setOrg(data);
                 setForm(toForm(data));
                 resetFieldErrors();
-                if (data.billingModelVersion === "BRANCH_V3") setBillingLoading(false);
-                else await loadBilling();
             } catch (err) {
                 setFetchError(err instanceof Error ? err.message : "Something went wrong.");
-                setBillingLoading(false);
             } finally {
                 setLoading(false);
             }
         }
         load();
-    }, [orgId, loadBilling, resetFieldErrors]);
+    }, [orgId, resetFieldErrors]);
 
     const hasChanges = useMemo(() => {
         if (!org || !form) return false;
         return JSON.stringify(form) !== JSON.stringify(toForm(org));
     }, [org, form]);
 
-    const organizationCanEdit = org?.billingModelVersion === "BRANCH_V3" || (billingOverview?.entitlements.canWrite ?? false);
-    const organizationEditReason = billingOverview?.entitlements.accessReason
-        ?? (billingLoading ? "Checking workspace access..." : "Organization settings are unavailable until billing access is restored.");
-
     const updateForm = <K extends keyof OrgForm>(key: K, value: OrgForm[K]) => {
-        if (!organizationCanEdit || !isEditing) return;
+        if (!isEditing) return;
         setForm(prev => prev ? { ...prev, [key]: value } : prev);
         if (saveStatus !== "idle") setSaveStatus("idle");
     };
@@ -242,7 +218,6 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
     };
 
     const beginEditing = () => {
-        if (!organizationCanEdit) return;
         setSaveStatus("idle");
         setSaveError("");
         setIsEditing(true);
@@ -304,11 +279,6 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
 
     const save = async () => {
         if (!form || !isEditing) return;
-        if (!organizationCanEdit) {
-            setSaveError(organizationEditReason);
-            setSaveStatus("error");
-            return;
-        }
         markSubmitted();
         setSaveError("");
         const result = validateForm();
@@ -390,22 +360,14 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                         variant="primary"
                         density="compact"
                         size="sm"
-                        disabled={!organizationCanEdit}
-                        title={!organizationCanEdit ? organizationEditReason : undefined}
                         onClick={beginEditing}
                         className="min-h-11 lg:min-h-9"
                     >
                         {t("Edit settings")}</AppButton>
                 ) : null}
             >
-                {billingOverview && !organizationCanEdit ? (
-                    <aside className={cn("flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", formWarningBannerClass)}>
-                        <p>{organizationEditReason}</p>
-                        <a href={accountBillingHref(orgId, null, `/org/${orgId}/settings`)} className="shrink-0 font-semibold underline underline-offset-4">{t("Review billing")}</a>
-                    </aside>
-                ) : null}
                 <SettingsPanel id="profile" title={t("Business Profile")} description={t("Core business information used across this organization.")} icon={Building2}>
-                    {isEditing && organizationCanEdit ? (
+                    {isEditing ? (
                         <>
                             <SettingsField label={t.owned("Workspace name")} description={t.owned("This groups your branches and billing. Change a library's displayed name in its branch settings.")} error={nameError} errorId="org-name-error">
                                 <SettingsInput value={form.name} onChange={e => updateForm("name", e.target.value)} onBlur={() => markTouched("name")} placeholder={t("Organization name")} error={nameError} errorId="org-name-error" />
@@ -437,7 +399,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 </SettingsPanel>
 
                 <SettingsPanel id="contact" title={t("Contact")} description={t("Contact details for operations and billing conversations.")} icon={MapPin}>
-                    {isEditing && organizationCanEdit ? (
+                    {isEditing ? (
                         <>
                             <SettingsField label={t("Contact email")} error={contactEmailError} errorId="org-contact-email-error">
                                 <SettingsInput value={form.contactEmail ?? ""} onChange={e => updateForm("contactEmail", e.target.value)} onBlur={() => markTouched("contactEmail")} placeholder="owner@example.com" error={contactEmailError} errorId="org-contact-email-error" />
@@ -459,7 +421,7 @@ function OrgSettingsContent({ params }: { params: Promise<{ orgId: string }> }) 
                 </SettingsPanel>
 
                 <SettingsPanel id="regional" title={t("Regional Defaults")} description={t("Defaults new branches can align with later.")} icon={Clock}>
-                    {isEditing && organizationCanEdit ? (
+                    {isEditing ? (
                         <>
                             <SettingsField label={t("Timezone")}>
                                 <SettingsSelect
