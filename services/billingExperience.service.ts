@@ -2,7 +2,7 @@ import { trialForBillingWorkspace } from "./billingAgreementScope.service";
 import { historicalBillingState } from "@/services/legacyCommercialCompatibility";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlan, isCheckoutBillingPlanId, type BillingPlanId } from "@/lib/billingPlans";
-import { deriveWorkspaceBillingState, projectedBillableStatuses } from "@/lib/billingState";
+import { deriveWorkspaceBillingState, needsSourceCancellationReview, projectedBillableStatuses } from "@/lib/billingState";
 import type { BillingExperience, BillingExperienceOperation } from "@/types/billingExperience";
 import type { OrganizationBillingChange } from "@/app/generated/prisma/client";
 import { BillingResourceNotFoundError } from "@/lib/billingErrors";
@@ -10,7 +10,7 @@ import { EntitlementService } from "./entitlement.service";
 import { resolveRazorpayMode } from "@/lib/razorpay";
 import { deriveAuthorizedReplacementOverride } from "@/services/billingReplacement.service";
 import { isSupportedRecurringPaymentMethod } from "@/services/billingReplacementPolicy";
-import { getSafeReplacementCycleBoundary, REPLACEMENT_SAFE_CYCLE_LEAD_MS } from "./billingReplacementPolicy";
+import { getBranchReplacementSchedule } from "./billingReplacementPolicy";
 import {
   BILLING_PAID_EVIDENCE_INCLUDE,
   resolveTrustedPaidThrough,
@@ -62,6 +62,7 @@ function serializeOperation(change: OrganizationBillingChange): BillingExperienc
     returnPath: change.returnPath,
     confirmationDeadlineAt: change.confirmationDeadlineAt?.toISOString() ?? null,
     effectiveAt: change.effectiveAt?.toISOString() ?? null,
+    undoCutoffAt: change.undoCutoffAt?.toISOString() ?? null,
     failureCategory: change.failureCategory,
     failureCode: change.failureCode,
     providerPaymentId: change.providerPaymentId,
@@ -127,7 +128,7 @@ export class BillingExperienceService {
       },
     });
     if (!organization) throw new Error("Organization not found");
-    const independent = organization.billingModelVersion === "BRANCH_V3";
+    const independent = branchId !== undefined || organization.billingModelVersion === "BRANCH_V3";
     if (independent && !branchId) throw new BillingResourceNotFoundError("Branch not found");
     const agreement = independent && branchId ? await prisma.branchBillingAgreement.findFirst({
       where: { branchId, organizationId },
@@ -192,7 +193,7 @@ export class BillingExperienceService {
       : null;
     if (branchId && !branch) throw new Error("Branch not found");
 
-    const [latestOperation, scheduledChanges] = await Promise.all([
+    const [latestOperation, scheduledOrHeld] = await Promise.all([
       prisma.organizationBillingChange.findFirst({
         where: {
           organizationId,
@@ -210,7 +211,14 @@ export class BillingExperienceService {
         where: {
           organizationId,
           agreementBranchId: agreement?.branchId ?? null,
-          operationStatus: "SCHEDULED",
+          AND: [{ OR: [
+            { operationStatus: "SCHEDULED" },
+            ...(subscription ? [{
+              organizationSubscriptionId: subscription.id,
+              failureCategory: "MANUAL_REVIEW_REQUIRED",
+              failureCode: { startsWith: "SOURCE_CANCELLATION_" },
+            }] : []),
+          ] }],
           ...(providerMode ? {
             OR: [
               { organizationSubscriptionId: null },
@@ -240,7 +248,7 @@ export class BillingExperienceService {
       : historicalBillingState(subscription?.plan ?? null, trustedPaidThrough);
 
     const profile = agreement ? await EntitlementService.getBranchProfile(agreement.branchId) : null;
-    const lifecycleBlocked = Boolean(profile && profile.billingStatus !== "ACTIVE");
+    const lifecycleBlocked = profile?.billingStatus === "PENDING_ACTIVATION";
     const accessSource = lifecycleBlocked ? "NONE" : profile?.legacyCoverageProvidesAccess ? "PAID" : state.source;
     const trialProvidesAccess = trialActive && accessSource === "TRIAL"
       && (!independent || profile?.effectivePlan === trial?.trialPlan);
@@ -258,20 +266,18 @@ export class BillingExperienceService {
     const projectedPlanId = postTrialPlan;
     const projectedUnitAmount = projectedPlanId ? getBillingPlan(projectedPlanId)?.amount ?? 0 : 0;
     const currentUnitAmount = subscription?.amount ?? 0;
-    const boundary = subscription?.currentEnd ?? trustedPaidThrough;
-    let planChangeEffectiveAt: Date | null = null;
-    if (subscription && !subscription.billingOfferId && subscription.period === "monthly" && subscription.interval > 0) {
-      if (boundary) planChangeEffectiveAt = getSafeReplacementCycleBoundary({ now, currentCycleEnd: boundary, intervalMonths: subscription.interval });
-      else if (subscription.providerStartAt && subscription.providerStartAt.getTime() >= now.getTime() + REPLACEMENT_SAFE_CYCLE_LEAD_MS) {
-        planChangeEffectiveAt = subscription.providerStartAt;
-      }
-    }
+    const boundary = subscription?.currentEnd ?? trustedPaidThrough ?? subscription?.providerStartAt;
+    const planSchedule = independent && subscription && !subscription.billingOfferId && subscription.period === "monthly" && subscription.interval > 0 && boundary
+      ? getBranchReplacementSchedule({ now, currentCycleEnd: boundary, intervalMonths: subscription.interval })
+      : null;
     const confirmedQuantity = subscription?.quantity ?? 0;
     const projectedQuantity = independent ? Number(branch?.billingStatus !== "ARCHIVED" && branch?.billingStatus !== "REMOVAL_SCHEDULED") : organization.branches.length;
-    const activeOperation = latestOperation
+    const sourceReview = scheduledOrHeld.find(change => change.organizationSubscriptionId === subscription?.id
+      && needsSourceCancellationReview(change));
+    const activeOperation = sourceReview ?? (latestOperation
       && ACTIVE_OPERATION_STATUSES.includes(latestOperation.operationStatus as typeof ACTIVE_OPERATION_STATUSES[number])
       ? latestOperation
-      : null;
+      : null);
     const authorizationStatus = ["VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"].includes(activeOperation?.operationStatus ?? "")
       ? "VERIFYING" as const
       : providerPostTrialPlan
@@ -282,13 +288,14 @@ export class BillingExperienceService {
       trialPlan: trial?.trialPlan,
       effectivePlan,
       providerStatus: subscription?.status ?? null,
-      operationStatus: latestOperation?.operationStatus ?? null,
+      operationStatus: sourceReview ? null : latestOperation?.operationStatus ?? null,
       operationFailureVisible: isCustomerVisibleOperationFailure(latestOperation),
       postTrialPlanSelected: postTrialPlan != null,
     });
 
     const latestFailed = isCustomerVisibleOperationFailure(latestOperation);
-    const paymentAction = activeOperation?.operationStatus === "CHECKOUT_OPEN"
+    const paymentAction = sourceReview ? "RECONCILE_SOURCE_CANCELLATION" as const
+      : activeOperation?.operationStatus === "CHECKOUT_OPEN"
       ? "CONTINUE_CHECKOUT" as const
       : ["VERIFYING", "AWAITING_PROVIDER_CONFIRMATION"].includes(activeOperation?.operationStatus ?? "")
         ? "WAIT_FOR_CONFIRMATION" as const
@@ -310,16 +317,30 @@ export class BillingExperienceService {
 
     const recurring = subscription && providerPostTrialPlan && !subscription.cancelAtCycleEnd
       && !["HALTED", "PAUSED"].includes(subscription.status) ? subscription : null;
+    // An open replacement checkout does not retire a confirmed source mandate.
+    // Once source retirement is confirmed, wait for settlement/promotion before
+    // counting an unresolved successor in the account's monthly total.
+    let monthlyCommitment: number | null = null;
+    if (!sourceReview && !recurring?.billingOfferId && replacementChange?.failureCategory !== "MANUAL_REVIEW_REQUIRED") {
+      monthlyCommitment = recurring?.amountSubunits ?? (pendingReplacement ? null : 0);
+    }
+    const nextBranchCharge = recurring?.chargeAt && recurring.chargeAt > now ? recurring.chargeAt : null;
     const nextChargeAt = independent
-      ? recurring?.chargeAt?.toISOString() ?? null
+      ? nextBranchCharge?.toISOString() ?? null
       : authorizationStatus === "AUTHORIZED" ? subscription?.chargeAt?.toISOString() ?? null : null;
     const result: BillingExperience = {
       ...(independent ? {
         independentBilling: true,
-        planChangeEffectiveAt: planChangeEffectiveAt?.toISOString() ?? null,
+        planChangeEffectiveAt: planSchedule?.effectiveAt.toISOString() ?? null,
+        planChangeUndoCutoffAt: planSchedule?.undoCutoffAt.toISOString() ?? null,
+        planChangePriorBoundary: planSchedule && boundary && boundary > now && boundary < planSchedule.effectiveAt
+          ? { at: boundary.toISOString(), firstCharge: subscription?.status === "AUTHENTICATED" && !subscription.currentEnd }
+          : null,
         legacyCoverageEndsAt: profile?.legacyCoverageEndsAt?.toISOString() ?? null,
-        monthlyCommitmentSubunits: recurring?.billingOfferId || pendingReplacement ? null : recurring?.amountSubunits ?? 0,
-        nextChargeAmountSubunits: nextChargeAt && !recurring?.billingOfferId && !pendingReplacement ? recurring?.amountSubunits ?? null : null,
+        monthlyCommitmentSubunits: monthlyCommitment,
+        nextChargeAmountSubunits: nextBranchCharge && (!pendingReplacement
+          || (replacementChange?.effectiveAt && nextBranchCharge < replacementChange.effectiveAt))
+          ? monthlyCommitment : null,
       } : {}),
       organizationId,
       accessMode: profile?.accessMode ?? state.accessMode,
@@ -352,7 +373,14 @@ export class BillingExperienceService {
       entitlements: [...entitlements],
       latestOperation: latestOperation ? serializeOperation(latestOperation) : null,
       activeOperation: activeOperation ? serializeOperation(activeOperation) : null,
-      scheduledChanges: scheduledChanges.map(serializeOperation),
+      scheduledChanges: scheduledOrHeld.filter(change => change.operationStatus === "SCHEDULED"
+        && !needsSourceCancellationReview(change)).map(change => ({
+          ...serializeOperation(change),
+          canUndo: change.status !== "PROCESSING" && change.failureCategory !== "MANUAL_REVIEW_REQUIRED"
+            && (!change.undoCutoffAt || change.undoCutoffAt > now)
+            && (change.type !== "CANCELLATION" || (change.status === "QUEUED"
+              && Boolean(change.undoCutoffAt) && !change.providerMutationAdmittedAt)),
+        })),
       branch: branch ? { ...branch } : null,
       viewer: { isOwner, canManageBilling: isOwner },
     };

@@ -18,6 +18,7 @@ export type BillingPaymentAction =
   | "WAIT_FOR_CONFIRMATION"
   | "RETRY_AUTHORIZATION"
   | "RETRY_BILLING_CHANGE"
+  | "RECONCILE_SOURCE_CANCELLATION"
   | "UPDATE_CARD"
   | "AUTHORIZE_CARD";
 
@@ -47,6 +48,8 @@ export type BillingExperienceOperation = {
   returnPath: string | null;
   confirmationDeadlineAt: string | null;
   effectiveAt: string | null;
+  undoCutoffAt?: string | null;
+  canUndo?: boolean;
   failureCategory: string | null;
   failureCode: string | null;
   providerPaymentId: string | null;
@@ -60,6 +63,8 @@ export type BillingExperience = {
   legacyCoverageEndsAt?: string | null;
   independentBilling?: boolean;
   planChangeEffectiveAt?: string | null;
+  planChangeUndoCutoffAt?: string | null;
+  planChangePriorBoundary?: { at: string; firstCharge: boolean } | null;
   accessGrantEndsAt?: string | null;
   monthlyCommitmentSubunits?: number | null;
   nextChargeAmountSubunits?: number | null;
