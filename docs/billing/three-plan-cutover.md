@@ -1,6 +1,8 @@
 # Three-plan catalogue cutover â€” 2026-10-23
 
-Status: implemented in the isolated `codex/billing-recovery` working tree. Prepared as focused review commits; not merged, deployed or applied to a shared database. Production inventory remains an operator prerequisite. This is a clean catalogue replacement, not grandfathering.
+This is the October catalogue migration record. For a workspace already on PR 299 use the [current branch billing migrations and recovery procedure](independent-branch-rollout.md). The instructions below concern databases that still predate the October catalogue migration.
+
+October status: implemented in the isolated `codex/billing-recovery` working tree. Prepared as focused review commits; not merged, deployed or applied to a shared database. Production inventory remains an operator prerequisite. This is a clean catalogue replacement, not grandfathering.
 
 ## Commercial model
 
@@ -10,7 +12,7 @@ Status: implemented in the isolated `codex/billing-recovery` working tree. Prepa
 | STANDARD | 299 | Core, staff/permissions, advanced branch/organization analytics, AI reports/drafts |
 | PRO | 499 | Standard plus WhatsApp integration/automation |
 
-One organization plan covers every branch. Existing billable-branch lifecycle determines quantity; pending activation, archived branches and scheduled removal retain their existing timing. No new student, seat, branch, message or usage limit is introduced. Student fees, anniversary generation, unpaid-dues handling, tax presentation, refunds and payment-method rollout policy are unchanged. Basic's simplified interface is a later phase.
+At the October catalogue cutover, one organization plan covered every branch. The [current branch model](independent-branch-rollout.md) supersedes that runtime behavior. Existing billable-branch lifecycle determines quantity; pending activation, archived branches and scheduled removal retain their existing timing. No new student, seat, branch, message or usage limit is introduced. Student fees, anniversary generation, unpaid-dues handling, tax presentation, refunds and payment-method rollout policy are unchanged. Basic's simplified interface is a later phase.
 
 The normal once-per-owner 30-day trial is explicitly STANDARD. Selecting or authorizing PRO alone does not grant Pro or a paid period. Exact, separately recorded replacement grants may grant the explicit target tier; they cannot lower remaining trial/paid access. Independently paid Pro is not reduced by an overlapping Standard trial. Payment retries and replacement grace retain their existing bounded policy.
 
@@ -40,7 +42,7 @@ Razorpay Plans are immutable. New keys are `razorpay-plan:v2:{TEST|LIVE}:{BASIC|
 
 The Test-only `tests/billing-verification/prepare-three-plan-test.ts` prepares and reads back plans through the production catalogue service with a local journal store; it refuses Live credentials and has no subscription/payment/database mutation interface. The three Test plans were created and read back at exact amounts, INR, monthly interval 1; a second read reused each identity. IDs are in the local ignored `test-results/billing-verification/three-plan-test-mappings.json`. Application database mappings must still be provisioned in the deployment database. The local journal is evidence, not deployable DB state.
 
-Environment names: RAZORPAY_MODE, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET (or explicit RAZORPAY_TEST_KEY_ID/RAZORPAY_TEST_KEY_SECRET in the Test helper), RAZORPAY_WEBHOOK_SECRET and existing rotation aliases, RAZORPAY_BILLING_WRITES_ENABLED, RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED, RAZORPAY_LIVE_CANARY_ORG_IDS, WORKSPACE_BRANCH_BILLING_V2_ENABLED. Existing WhatsApp flags/readiness remain independent. No secret or environment file changed. No new variable is required.
+Environment names: RAZORPAY_MODE, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET (or explicit RAZORPAY_TEST_KEY_ID/RAZORPAY_TEST_KEY_SECRET in the Test helper), RAZORPAY_WEBHOOK_SECRET and existing rotation aliases, RAZORPAY_BILLING_WRITES_ENABLED, RAZORPAY_MULTI_METHOD_SUBSCRIPTIONS_ENABLED. Existing WhatsApp flags/readiness remain independent. No secret or environment file changed. No new variable is required.
 
 ## Deployment sequence and recovery
 
@@ -49,7 +51,7 @@ Environment names: RAZORPAY_MODE, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET (or expli
 3. Apply the new migration only after the empty-ledger precondition is proven. Run exact pre/post count and selection checks. Deploy the matching generated Prisma client and application together. Never use schema push or edit migration history.
 4. Provision and fetch-validate separate Live v2 plan mappings in that database using the production catalogue service under approved Live configuration. The service verifies amount/currency/period/interval and durable provisioning identity. On the first local attempt it also scans exact v2 provider notes, so pre-created plans are adopted rather than duplicated. Live mappings are not prepared by the Test-only helper.
 5. Before opening sales, perform an authorized deployment smoke check of sign-in, all three prices, one exact checkout/verified invoice, recovered authorization, subsequent plan change, trial/grant distinction, all server feature gates and webhook/reconciliation delivery. Test evidence here does not certify Live onboarding, future bank settlement or actual WhatsApp readiness.
-6. Enable billing and provider/webhook workers in the established canary order; watch unknown provider receipts, mismatched amounts, duplicate callbacks and entitlement transitions.
+6. Enable billing and provider/webhook workers with the mode-specific catalogue and verified webhook; watch unknown provider receipts, mismatched amounts, duplicate callbacks and entitlement transitions.
 
 If a precondition fails, the SQL transaction rolls back without enum or row changes. Resolve Prisma's failed migration entry only after verifying that rollback; do not mark it successful. Before any new v2 billing record exists, rollback may restore the pre-release snapshot and matching application with external writes still held, then replay retained webhook evidence. Once any v2 authorization/payment exists, use a reviewed forward repair: never downgrade the enum or rewrite provider identities. Keep paid facts and uncertain action holds intact.
 
@@ -59,62 +61,9 @@ Deterministic suites cover production services with a verified disposable Postgr
 
 Official references: [immutable Razorpay plans](https://razorpay.com/docs/payments/subscriptions/create-plans), [subscription update restrictions](https://razorpay.com/docs/payments/subscriptions/update). Domestic-card plan/quantity changes continue through replacement mandates; no new native card update is inferred safe.
 
-## Hosting gate observed during PR review
+## Hosting and schedule registration
 
-The automatic Vercel Git preview for PR #284 at `8637d53` was rejected before
-build because the connected account uses Hobby, which does not support the
-required hourly billing cron. Do not reduce billing/WhatsApp cron frequency to
-make that check pass. Release requires hosting that supports the existing
-schedules or a separately approved scheduler design. No account upgrade,
-schedule change, deployment or promotion was performed during this review.
-
-## Release preparation follow-up — 2026-10-23
-
-PR #284 at `605c75a` passed the complete GitHub workflow: lint, 2,967 tests,
-production build (74 static pages and two import workflows), and coverage
-(74.94% lines, 84.19% functions). This is code evidence, not production readiness.
-
-### Scheduler decision — owner-selected Vercel Pro, upgrade deferred
-
-Keep all eight schedules in `vercel.json`. Five exceed Hobby's daily limit:
-billing hourly; WhatsApp planner and reports every 15 minutes; dispatcher every
-5 minutes; health every 30 minutes. Together with the three daily jobs, these
-schedule 555 invocations per UTC day before duplicates/manual calls. This is a
-schedule count, not a cost estimate or guaranteed delivery count.
-
-Owner decision on 2026-10-23: retain Vercel Cron and upgrade the existing project
-to Vercel Pro after approximately one week. The current Hobby failure is an
-intentional release hold until that owner-managed upgrade is complete. Do not
-replace the scheduler or reduce frequencies to bypass it. This is a stated
-plan, not evidence of an account upgrade or permission to deploy.
-
-Selected path: use Vercel Pro for the existing project, retaining the same
-routes, schedules, bearer authentication, leases and provider-write gates.
-The account owner must review the current subscription cost and approve any
-purchase. No upgrade, trial activation or deployment is performed here.
-Vercel's [current limits](https://vercel.com/docs/cron-jobs/usage-and-pricing)
-allow once-per-minute schedules on Pro; function usage remains separately metered.
-
-Alternative: a separately approved external scheduler. Before implementation,
-name its provider, owner and budget; retain all eight UTC schedules and HTTPS
-GET routes; store `CRON_SECRET` privately in headers; limit concurrency; alert
-on missed runs/errors/backlog; preserve application leases and unknown-provider
-holds. Establish one scheduler owner and a hold/drain/switch sequence, so the
-old and new schedulers cannot both dispatch. Specify retry and redirect handling,
-secret rotation, deployment targeting and rollback. A proposed ADR and isolated
-fault tests must precede enablement. Simply removing crons or reducing them to
-daily does not solve billing or delivery readiness. No alternative scheduler
-has been selected, provisioned or authorized.
-
-After the hosting decision and separate deployment authorization, confirm the
-project supports the configured intervals, all eight jobs are registered on
-the intended production revision, and `CRON_SECRET` authentication fails closed.
-Preview schedules do not execute automatically. Use only separately approved
-Test fixtures for endpoint checks; preview success cannot prove production
-schedule health. Follow the existing runbook's enable order, with provider
-writes held until the relevant canary approvals. Vercel's project-wide Disable
-Cron Jobs setting persists across promotion/rollback; verify it explicitly.
-See [cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
+The original Hobby Cron Jobs deployment rejected the sub-daily jobs. The application now uses eight named Vercel Schedules with their original GET endpoints and cadences. The five-minute sender needs Pro or Enterprise. Follow the [branch billing schedule inventory and recovery procedure](independent-branch-rollout.md#scheduling-and-recovery).
 
 ### Inventory handoff and stop conditions
 
@@ -152,12 +101,12 @@ use. The migration's own locked guard remains authoritative.
 
 | Gate | Prepared evidence | Still required before release |
 | --- | --- | --- |
-| Hosting/scheduler | Exact incompatible schedules and two reviewed options above | Owner-managed Pro upgrade (planned after approximately one week), then authorized schedule verification |
+| Hosting/scheduler | Eight named schedules in vercel.json | Verify the project plan supports the five-minute sender and inspect registration after promotion |
 | Schema/data | Guarded migration; historical clean/blocked rehearsal; seven new inventory checks on a fresh local DB | Authorized snapshot/target inventory, migration lineage, restorable backup and hold/drain proof |
 | Provider obligations | Test checkout/replacement evidence already retained | Operator's private Live obligation register, including mandates outside the local ledger |
 | Populated ledger | Release-stop policy and finite-transition requirements | Separate migration/compatibility design if any legacy rows or provider obligations exist |
 | Live catalogue | Exact v2 catalogue keys and verification contract | Authorized Live mapping provisioning/readback in the intended DB; no Test mapping reuse |
-| Runtime release | Existing isolated regression, build and browser evidence | Authorized webhook/renewal/cutover checks, canary approval and deployment smoke evidence |
+| Runtime release | Existing isolated regression, build and browser evidence | Authorized webhook/renewal/cutover checks, and deployment smoke evidence |
 
 The private obligation register must identify organization, provider mode,
 source/candidate subscription, old catalogue terms, invoice/payment evidence,
